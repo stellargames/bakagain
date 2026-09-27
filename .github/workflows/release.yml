@@ -43,6 +43,13 @@ jobs:
           path: unity/Library
           key: Library-${{ matrix.target }}-${{ hashFiles('unity/Packages/packages-lock.json', 'unity/ProjectSettings/ProjectVersion.txt') }}
           restore-keys: Library-${{ matrix.target }}-
+      - name: Start Docker on Windows
+        # windows-2022 does not always have the Docker service running; unity-builder needs it.
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Start-Service docker
+          docker version --format '{{.Server.Version}}'
       - uses: game-ci/unity-builder@v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
