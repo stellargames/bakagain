@@ -84,8 +84,9 @@ jobs:
         run: |
           mkdir dist
           tag="${GITHUB_REF_NAME}"
-          # Unity writes debug symbols beside the player in folders named *_DoNotShip.
-          find artifacts -depth -type d -name '*_DoNotShip' -exec rm -rf {} +
+          # Unity writes debug symbols beside the player in *_DoNotShip folders, and IL2CPP leaves its
+          # generated C++ in *_BackUpThisFolder_ButDontShipItWithYourGame (829 MB on Linux).
+          find artifacts -depth -type d \( -name '*_DoNotShip' -o -name '*_ButDontShipItWithYourGame' \) -exec rm -rf {} +
           (cd artifacts/windows-x64 && zip -qr "../../dist/BaK-Again-${tag}-windows-x64.zip" .)
           # Artifacts do not keep the executable bit; the player and its launcher need it back.
           find artifacts/linux-x64 -maxdepth 1 -type f ! -name '*.so' -exec chmod +x {} +
