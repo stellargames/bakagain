@@ -71,6 +71,8 @@ jobs:
         with:
           name: ${{ matrix.artifact }}
           path: build/${{ matrix.target }}
+          # Dry-run builds only; a tag's builds live on as Release assets.
+          retention-days: 7
 
   publish:
     needs: build
