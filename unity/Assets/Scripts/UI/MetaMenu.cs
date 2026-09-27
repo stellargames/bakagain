@@ -248,6 +248,13 @@ namespace BakAgain.UI {
                             foundCount++;
                         }
                     }
+                    Logger.LogInformation("Game folder {DirectoryPath}: {Found} of {Required} required files among {Entries} entries",
+                        directoryPath, foundCount, RequiredGameFileNames.Count, entries.Length);
+
+                    // A content:// URI is a Storage Access Framework document, not a filesystem
+                    // path: Directory.Exists below is always false for it, so falling through
+                    // refused every folder the Android picker returned, files or not.
+                    return foundCount == RequiredGameFileNames.Count;
 #else
                     Logger.LogWarning("Attempting to check a 'content://' URI on a non-Android platform.");
 

@@ -36,13 +36,12 @@ files skip when it is not present.
 
 ## Modding
 
-Put replacement assets in an `Overrides/` folder next to the game files. See `unity/docs/modding/`, and
-`formats/` for the original file formats (Kaitai Struct specs).
+Put replacement assets in an `Overrides/` folder next to the game files. See `unity/docs/modding/`.
 
 ## License
 
 - **Code:** MIT (`LICENSE`).
-- **Documentation and format specs:** CC-BY-4.0 (`LICENSE-docs`).
+- **Documentation:** CC-BY-4.0 (`LICENSE-docs`).
 - **Third-party components:** see `THIRD-PARTY-NOTICES.md`.
 
 *Betrayal at Krondor* is © its respective rights holders. BaK-Again is an unofficial fan project
