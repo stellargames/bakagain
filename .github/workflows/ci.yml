@@ -9,9 +9,25 @@ name: CI
 on:
   push:
     branches: [main]
-    paths-ignore: ['website/**']
+    # Site, docs, format specs and licence texts are not built or tested: changing only those
+    # starts no run (and so cancels none).
+    paths-ignore:
+      - 'website/**'
+      - 'docs/**'
+      - 'unity/docs/**'
+      - 'formats/**'
+      - '**/*.md'
+      - 'LICENSE*'
   pull_request:
-    paths-ignore: ['website/**']
+    # Site, docs, format specs and licence texts are not built or tested: changing only those
+    # starts no run (and so cancels none).
+    paths-ignore:
+      - 'website/**'
+      - 'docs/**'
+      - 'unity/docs/**'
+      - 'formats/**'
+      - '**/*.md'
+      - 'LICENSE*'
 
 concurrency:
   group: ci-${{ github.ref }}
