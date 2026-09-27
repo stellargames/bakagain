@@ -28,6 +28,13 @@ namespace BakAgain.ResourceManagement.Converters {
         /// 5x6 block), so one pixel per block is taken.
         /// </summary>
         public static Color[] LoadPixels(string scxKey, string paletteKey) {
+            // Without game data neither key exists, and loading one anyway logs an InvalidKeyException
+            // as an Error; callers already fall back on null.
+            if (!HasLocation(paletteKey) || !HasLocation(scxKey)) {
+                Debug.LogWarning($"ScxTileBaker: {scxKey} / {paletteKey} not available.");
+
+                return null;
+            }
             PaletteResource palette = Addressables.LoadAssetAsync<PaletteResource>(paletteKey).WaitForCompletion();
             BackgroundImage scx = Addressables.LoadAssetAsync<BackgroundImage>(scxKey).WaitForCompletion();
             if (palette == null || scx == null) {
@@ -50,6 +57,14 @@ namespace BakAgain.ResourceManagement.Converters {
             }
 
             return pixels;
+        }
+
+        private static bool HasLocation(string key) {
+            var handle = Addressables.LoadResourceLocationsAsync(key);
+            bool found = handle.WaitForCompletion() is { Count: > 0 };
+            Addressables.Release(handle);
+
+            return found;
         }
 
         /// <summary>

@@ -118,8 +118,10 @@ namespace BakAgain.Tests.PlayMode.UI {
             BakAgain.UI.Layout.LayoutApplier.Apply(panel, area);
             var resolved = new Rect(100f, 160f, 600f, 240f);
 
+            // Long enough that one slow frame cannot finish the wipe before the mid-wipe check: at
+            // 0.05 s a headless CI runner's first frame already ended it and undid the pin.
             UniTask play = DialogOpenWipe.PlayAsync(
-                stage, panel, area, resolved, duration: 0.05f, CancellationToken.None);
+                stage, panel, area, resolved, duration: 1f, CancellationToken.None);
 
             // Mid-wipe: the panel carries a PX size equal to the resolved rect, not a percentage
             // that would track the mask.
