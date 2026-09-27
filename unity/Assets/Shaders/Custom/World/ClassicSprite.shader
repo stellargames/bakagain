@@ -72,6 +72,9 @@ Shader "BakAgain/ClassicSprite" {
                 // Object-to-world lossy scale (columns of M are scaled basis vectors)
                 float scaleX = length(float3(UNITY_MATRIX_M._m00, UNITY_MATRIX_M._m10, UNITY_MATRIX_M._m20));
                 float scaleY = length(float3(UNITY_MATRIX_M._m01, UNITY_MATRIX_M._m11, UNITY_MATRIX_M._m21));
+                // A length has no sign, so a mirrored sprite (negative x scale: the left-facing
+                // octants, TASK-694) drew unmirrored. The matrix's handedness carries the flip.
+                if (determinant((float3x3)UNITY_MATRIX_M) < 0) scaleX = -scaleX;
 
                 // Offset vertex from pivot along camera plane, honoring transform scale
                 float3 billboardPos = worldPos
