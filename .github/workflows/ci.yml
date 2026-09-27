@@ -1,5 +1,5 @@
-# Every push and pull request: the .NET libraries and their tests, then the Unity project's
-# tests. Nothing here has the original game's data, so tests that need it skip.
+# Pull requests, version tags and manual runs: the .NET libraries and their tests, then the Unity
+# project's tests. Nothing here has the original game's data, so tests that need it skip.
 #
 # Unity needs a licence to run: repo secrets UNITY_LICENSE (the .ulf of a Personal licence),
 # UNITY_EMAIL and UNITY_PASSWORD. Fork pull requests do not get secrets, so their Unity job is
@@ -7,20 +7,10 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
-    # Site, docs, format specs and licence texts are not built or tested: changing only those
-    # starts no run (and so cancels none).
-    paths-ignore:
-      - 'website/**'
-      - 'docs/**'
-      - 'unity/docs/**'
-      - 'formats/**'
-      - '**/*.md'
-      - 'LICENSE*'
+  # Not on every push to main (owner's call, 2026-09-27): pull requests, version tags and manual
+  # runs only. Pushes to main are tested when a PR or a tag brings them in.
   pull_request:
-    # Site, docs, format specs and licence texts are not built or tested: changing only those
-    # starts no run (and so cancels none).
+    # Site, docs, format specs and licence texts are not built or tested.
     paths-ignore:
       - 'website/**'
       - 'docs/**'
@@ -28,6 +18,9 @@ on:
       - 'formats/**'
       - '**/*.md'
       - 'LICENSE*'
+  push:
+    tags: ['v*']
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -46,7 +39,7 @@ jobs:
 
   unity-tests:
     needs: dotnet
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
