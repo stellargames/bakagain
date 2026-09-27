@@ -361,11 +361,11 @@ namespace BakAgain.UI.Inventory {
         /// <param name="lockDifficulty">The lock's score, from the container's lock record.</param>
         public bool SetLock(int lockDifficulty) {
             RuntimeContainer shared = _gameSession.SharedKeysInventory;
-            int picks = InventoryQuery.CountByKind(
-                _gameSession.GetActorInventory(0), LockPicking.LockpickObjectId);
-            for (var slot = 1; slot < (_gameSession.ActivePartyIndices?.Length ?? 0); slot++) {
-                picks += InventoryQuery.CountByKind(
-                    _gameSession.GetActorInventory(slot), LockPicking.LockpickObjectId);
+            // Packs are keyed by CHARACTER; walking roster positions 0..n-1 read Locklear's pack
+            // and skipped James's whenever the party was not characters 0-2.
+            int picks = 0;
+            foreach (RuntimeContainer pack in _gameSession.ActivePartyPacks) {
+                picks += InventoryQuery.CountByKind(pack, LockPicking.LockpickObjectId);
             }
 
             var scratch = new RuntimeContainer {
@@ -3581,12 +3581,8 @@ namespace BakAgain.UI.Inventory {
                 _gameSession.ObjectInfo.GetById);
         }
 
-        private System.Collections.Generic.IEnumerable<RuntimeContainer> PartyPacks() {
-            byte[] roster = _gameSession.ActivePartyIndices ?? System.Array.Empty<byte>();
-            for (var slot = 0; slot < roster.Length; slot++) {
-                yield return _gameSession.GetActorInventory(slot);
-            }
-        }
+        private System.Collections.Generic.IEnumerable<RuntimeContainer> PartyPacks() =>
+            _gameSession.ActivePartyPacks;
 
         /// <summary>Awards LockPicking to the member who actually did the picking.</summary>
         /// <remarks>

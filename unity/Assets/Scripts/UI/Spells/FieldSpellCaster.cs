@@ -150,7 +150,7 @@ namespace BakAgain.UI.Spells {
 
             var context = new SpellCastContext {
                 Chapter = _session.Chapter,
-                Inventory = _session.GetActorInventory(PartySlotOf(casterId)),
+                Inventory = _session.GetActorInventory(casterId),   // keyed by character, not roster slot
             };
             SpellCasting.ApplyCost(context, power,
                 stats[(int)GameData.ActorAttribute.Health],
@@ -161,17 +161,6 @@ namespace BakAgain.UI.Spells {
                     "FieldSpellCaster: character {Caster} collapsed paying for the cast.", casterId);
                 _session.RecomputePartyDeathState();
             }
-        }
-
-        private int PartySlotOf(int characterId) {
-            System.Collections.Generic.IReadOnlyList<byte> roster = _session?.ActivePartyIndices;
-            for (var i = 0; roster != null && i < roster.Count; i++) {
-                if (roster[i] == characterId) {
-                    return i;
-                }
-            }
-
-            return -1;
         }
 
         /// <summary>Whether the party's zone is the enclosed kind the two light spells test.</summary>

@@ -90,6 +90,19 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             Assert.That(outcome.GetAwaiter().GetResult(), Is.False);
         }
 
+        [Test]
+        public void APickCarriedByAMemberBeyondCharacterTwoCounts() {
+            // Chapter 3's party is James, Owyn, Gorath (characters 4,2,1). Packs are keyed by
+            // character, so walking roster POSITIONS 0..2 read Locklear's pack and missed James's.
+            var pack = new RuntimeContainer { Capacity = 4, ContainerType = SaveGameContainerType.Inventory };
+            pack.Items.Add(new RuntimeItem(
+                (byte)GameData.Resources.Character.LockPicking.LockpickObjectId, 5, 0));
+            _session.SetActorInventoryForTest(4, pack);
+            _session.SetActiveParty(3, new byte[] { 4, 2, 1 });
+
+            Assert.That(_menu.SetLock(20), Is.True);
+        }
+
         /// <summary>SetLock refuses outright when the working set comes out empty.</summary>
         private void GivenSomethingToTryWith() {
             var pack = new RuntimeContainer {
@@ -99,6 +112,9 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             pack.Items.Add(new RuntimeItem(
                 (byte)GameData.Resources.Character.LockPicking.LockpickObjectId, 5, 0));
             _session.SetActorInventoryForTest(0, pack);
+            // The picks are counted over the ACTIVE party's packs, as in play; a pack nobody in
+            // the party carries is not "something to try with".
+            _session.SetActiveParty(1, new byte[] { 0 });
         }
     }
 }

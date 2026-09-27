@@ -923,7 +923,7 @@ namespace BakAgain.UI.Spells {
                 ZoneKind = _zone?.ZoneLocation ?? 0,
                 GameTimeIn2Seconds = (int)_session.GameTimeIn2Seconds,
                 KnownSpells = _session.KnownSpellsOf(CasterId),
-                Inventory = _session.GetActorInventory(PartySlotOfCaster()),
+                Inventory = _session.GetActorInventory(CasterId),   // keyed by character, not roster slot
                 HealthStaminaPool = PoolOf(CasterId),
                 CombatActorCount = FightActorCount?.Invoke() ?? NoFight,
             };
@@ -953,18 +953,6 @@ namespace BakAgain.UI.Spells {
 
         /// <summary>The count when no fight is running — the original's zeroed counter.</summary>
         private const int NoFight = 0;
-
-        /// <summary>The caster's seat in the active party, which is how inventories are addressed.</summary>
-        private int PartySlotOfCaster() {
-            System.Collections.Generic.IReadOnlyList<byte> roster = _session?.ActivePartyIndices;
-            for (var i = 0; roster != null && i < roster.Count; i++) {
-                if (roster[i] == CasterId) {
-                    return i;
-                }
-            }
-
-            return -1;
-        }
 
         /// <summary>The pool a spell's cost comes out of — health and stamina together.</summary>
         /// <remarks>

@@ -1658,17 +1658,8 @@ namespace BakAgain.UI {
         /// Journal topics turn on whether anyone is carrying the thing, so a per-character reading
         /// would hide a topic whenever the wrong member was displayed.
         /// </remarks>
-        private IEnumerable<RuntimeContainer> PartyPacks() {
-            if (_gameSession?.ActivePartyIndices == null) {
-                yield break;
-            }
-            foreach (byte member in _gameSession.ActivePartyIndices) {
-                RuntimeContainer pack = _gameSession.GetActorInventory(member);
-                if (pack != null) {
-                    yield return pack;
-                }
-            }
-        }
+        private IEnumerable<RuntimeContainer> PartyPacks() =>
+            _gameSession?.ActivePartyPacks ?? System.Linq.Enumerable.Empty<RuntimeContainer>();
 
         /// <summary>
         /// Whether the party carries an object — and, as a side effect, who has it.

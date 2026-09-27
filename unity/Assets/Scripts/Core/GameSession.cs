@@ -1201,12 +1201,12 @@ namespace BakAgain.Core {
                         here.Add(rc);
                     }
 
-                    // Keyed by PARTY POSITION, not by the stored actor number — the stored number
-                    // is 1-based (SaveGameContainerData.OwnerPartyPosition carries the evidence).
+                    // Keyed by CHARACTER index, not by the stored actor number — the stored number
+                    // is 1-based (SaveGameContainerData.OwnerCharacterIndex carries the evidence).
                     // Keying by the raw number gave every member the pack of the member before them
                     // and left Locklear, actor 1, with none at all.
-                    if (snap.IsActorInventoryContainer && snap.OwnerPartyPosition.HasValue) {
-                        int owner = snap.OwnerPartyPosition.Value;
+                    if (snap.IsActorInventoryContainer && snap.OwnerCharacterIndex.HasValue) {
+                        int owner = snap.OwnerCharacterIndex.Value;
                         _runtimeContainersByActor[owner] = rc;
                         // What a character carries decides six attributes' modifiers, so every change
                         // to a pack rebuilds them — cmbinv_actor_pickup_item does it for each item that
@@ -1459,15 +1459,15 @@ namespace BakAgain.Core {
             actorSlot >= 0 && actorSlot < _combatActors.Length ? _combatActors[actorSlot] : null;
 
         /// <summary>
-        /// The mutable runtime inventory container owned by the party member at
-        /// <paramref name="partyPosition"/>, or null if that member has no Inventory-type container
+        /// The mutable runtime inventory container owned by character
+        /// <paramref name="characterIndex"/>, or null if that member has no Inventory-type container
         /// in the current save.
         /// </summary>
         /// <remarks>
-        /// <b>The argument is a party position (0 = Locklear), not an actor number.</b> Every caller
-        /// passes one — <c>ActivePartyIndices</c> entries, the loop index over
-        /// <see cref="PartyActors"/> — and the stored actor number is 1-based, so the two differ by
-        /// one. The parameter used to be called <c>actorNumber</c>, which is how the index came to
+        /// <b>The argument is a CHARACTER index (0 = Locklear, 4 = James), not a seat in the party
+        /// and not an actor number.</b> Pass an <c>ActivePartyIndices</c> entry, never a loop position
+        /// over it — from chapter 3 the two differ and a position reads another character's pack. The
+        /// stored actor number is 1-based, so it is one more than this. The parameter used to be called <c>actorNumber</c>, which is how the index came to
         /// be built from the raw field.
         ///
         /// <para>(This doc block sat above <see cref="CombatRecordOf"/> until 2026-09-03, which had
@@ -1477,9 +1477,9 @@ namespace BakAgain.Core {
         /// Rebuild a character's carried-item attribute modifiers from their pack —
         /// <c>stat_actor_recalc_equip_bonuses</c>, see <see cref="StatEngine.RecalculateItemModifiers"/>.
         /// </summary>
-        public void RecalculateItemModifiers(int partyPosition) {
-            ActorStat[] stats = StatsOf(partyPosition);
-            RuntimeContainer pack = GetActorInventory(partyPosition);
+        public void RecalculateItemModifiers(int characterIndex) {
+            ActorStat[] stats = StatsOf(characterIndex);
+            RuntimeContainer pack = GetActorInventory(characterIndex);
             if (stats == null || pack == null || ObjectInfo == null) {
                 return;
             }
@@ -1490,8 +1490,8 @@ namespace BakAgain.Core {
             StatEngine.RecalculateItemModifiers(stats, carried, ObjectInfo.GetById);
         }
 
-        public RuntimeContainer GetActorInventory(int partyPosition) =>
-            _runtimeContainersByActor.TryGetValue(partyPosition, out RuntimeContainer rc) ? rc : null;
+        public RuntimeContainer GetActorInventory(int characterIndex) =>
+            _runtimeContainersByActor.TryGetValue(characterIndex, out RuntimeContainer rc) ? rc : null;
 
         /// <summary>
         /// Every active member's pack, skipping any member who has none.
@@ -1499,9 +1499,9 @@ namespace BakAgain.Core {
         /// <remarks>
         /// <b>The party-wide item effects all want this set</b> — the dialog conditions that ask
         /// whether anyone is carrying something, and the sub-actions that mend armour or bless
-        /// swords across the party. It lives here because the containers do; three screens still
-        /// carry their own private copy of this walk (<c>DialogManager</c>, <c>InventoryMenu</c>,
-        /// <c>GraveInteractionHandler</c>) and can migrate when they are next touched.
+        /// swords across the party. It lives here because the containers do. Packs are keyed by
+        /// CHARACTER index: a walk over roster positions 0..n-1 reads the wrong packs as soon as the
+        /// party is not characters 0-2 (chapter 3's James), which is how three copies went wrong.
         /// </remarks>
         public IEnumerable<RuntimeContainer> ActivePartyPacks {
             get {
@@ -2675,8 +2675,8 @@ namespace BakAgain.Core {
         /// </remarks>
         // Test seam: give a party position a pack without hydrating a save. Keyed the same way
         // GetActorInventory reads it, so a test and the game disagree about nothing.
-        internal void SetActorInventoryForTest(int partyPosition, RuntimeContainer pack) =>
-            _runtimeContainersByActor[partyPosition] = pack;
+        internal void SetActorInventoryForTest(int characterIndex, RuntimeContainer pack) =>
+            _runtimeContainersByActor[characterIndex] = pack;
 
         internal void SetActorStatsForTest(int characterIndex, ActorStat[] stats) {
             if (characterIndex < 0) {

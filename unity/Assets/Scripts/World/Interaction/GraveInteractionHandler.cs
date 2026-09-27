@@ -146,16 +146,6 @@ namespace BakAgain.World.Interaction {
         /// Every pack the shovel could be in — <c>CountItemInWholeParty</c> reads the whole party,
         /// not the leader.
         /// </summary>
-        private List<RuntimeContainer> PartyPacks() {
-            var packs = new List<RuntimeContainer>();
-            byte[] active = _session.ActivePartyIndices ?? System.Array.Empty<byte>();
-            for (var position = 0; position < active.Length; position++) {
-                RuntimeContainer pack = _session.GetActorInventory(position);
-                if (pack != null) {
-                    packs.Add(pack);
-                }
-            }
-            return packs;
-        }
+        private List<RuntimeContainer> PartyPacks() => new List<RuntimeContainer>(_session.ActivePartyPacks);
     }
 }
