@@ -9,6 +9,8 @@ name: Release
 on:
   push:
     tags: ['v*']
+  # A manual run builds all three players as workflow artifacts and publishes nothing: the dry run.
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -51,7 +53,7 @@ jobs:
           targetPlatform: ${{ matrix.target }}
           buildName: BaK-Again
           buildMethod: BakAgain.Editor.Build.ReleaseBuild.Run
-          versioning: Tag
+          versioning: ${{ github.ref_type == 'tag' && 'Tag' || 'Semantic' }}
           androidExportType: androidPackage
           androidKeystoreName: bak-again.keystore
           androidKeystoreBase64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -65,6 +67,7 @@ jobs:
 
   publish:
     needs: build
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
