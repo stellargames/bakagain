@@ -37,8 +37,8 @@ jobs:
   dotnet:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x  # global.json pins 10.0.0, not a real SDK version; setup-dotnet takes it literally
       - run: dotnet build src/ResourceExtraction/ResourceExtraction.csproj -c Unity
@@ -49,13 +49,13 @@ jobs:
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x  # global.json pins 10.0.0, not a real SDK version; setup-dotnet takes it literally
       - name: Build the plugin libraries into the Unity project
         run: dotnet build src/ResourceExtraction/ResourceExtraction.csproj -c Unity
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: unity/Library
           key: Library-tests-${{ hashFiles('unity/Packages/packages-lock.json', 'unity/ProjectSettings/ProjectVersion.txt') }}

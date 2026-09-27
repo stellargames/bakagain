@@ -27,18 +27,18 @@ jobs:
           - { target: Android, os: ubuntu-latest, artifact: android }
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # versioning: Tag reads the tag
       - name: Free disk space for the Android toolchain
         if: matrix.target == 'Android'
-        uses: jlumbroso/free-disk-space@v1.3.1
-      - uses: actions/setup-dotnet@v4
+        uses: jlumbroso/free-disk-space@v2.0.0
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x  # global.json pins 10.0.0, not a real SDK version; setup-dotnet takes it literally
       - name: Build the plugin libraries into the Unity project
         run: dotnet build src/ResourceExtraction/ResourceExtraction.csproj -c Unity
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: unity/Library
           key: Library-${{ matrix.target }}-${{ hashFiles('unity/Packages/packages-lock.json', 'unity/ProjectSettings/ProjectVersion.txt') }}
@@ -50,7 +50,7 @@ jobs:
         run: |
           Start-Service docker
           docker version --format '{{.Server.Version}}'
-      - uses: game-ci/unity-builder@v4
+      - uses: game-ci/unity-builder@v6
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
@@ -67,7 +67,7 @@ jobs:
           androidKeystorePass: ${{ secrets.ANDROID_KEYSTORE_PASS }}
           androidKeyaliasName: ${{ secrets.ANDROID_KEYALIAS_NAME }}
           androidKeyaliasPass: ${{ secrets.ANDROID_KEYALIAS_PASS }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
           path: build/${{ matrix.target }}
@@ -77,7 +77,7 @@ jobs:
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts
       - name: Package
@@ -93,7 +93,7 @@ jobs:
           (cd artifacts/linux-x64 && zip -qr "../../dist/BaK-Again-${tag}-linux-x64.zip" .)
           cp artifacts/android/*.apk "dist/BaK-Again-${tag}.apk"
           (cd dist && sha256sum * > SHA256SUMS)
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           files: dist/*
           prerelease: ${{ contains(github.ref_name, '-') }}
