@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
-          global-json-file: src/global.json
+          dotnet-version: 10.0.x  # global.json pins 10.0.0, not a real SDK version; setup-dotnet takes it literally
       - run: dotnet build src/ResourceExtraction/ResourceExtraction.csproj -c Unity
       - run: dotnet test src/BakAgain.slnx
 
@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
-          global-json-file: src/global.json
+          dotnet-version: 10.0.x  # global.json pins 10.0.0, not a real SDK version; setup-dotnet takes it literally
       - name: Build the plugin libraries into the Unity project
         run: dotnet build src/ResourceExtraction/ResourceExtraction.csproj -c Unity
       - uses: actions/cache@v4
