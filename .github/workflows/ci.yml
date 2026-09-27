@@ -1,0 +1,53 @@
+# Every push and pull request: the .NET libraries and their tests, then the Unity project's
+# tests. Nothing here has the original game's data, so tests that need it skip.
+#
+# Unity needs a licence to run: repo secrets UNITY_LICENSE (the .ulf of a Personal licence),
+# UNITY_EMAIL and UNITY_PASSWORD. Fork pull requests do not get secrets, so their Unity job is
+# skipped and only the .NET job reports.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dotnet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: src/global.json
+      - run: dotnet build src/ResourceExtraction/ResourceExtraction.csproj -c Unity
+      - run: dotnet test src/BakAgain.slnx
+
+  unity-tests:
+    needs: dotnet
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: src/global.json
+      - name: Build the plugin libraries into the Unity project
+        run: dotnet build src/ResourceExtraction/ResourceExtraction.csproj -c Unity
+      - uses: actions/cache@v4
+        with:
+          path: unity/Library
+          key: Library-tests-${{ hashFiles('unity/Packages/packages-lock.json', 'unity/ProjectSettings/ProjectVersion.txt') }}
+          restore-keys: Library-tests-
+      - uses: game-ci/unity-test-runner@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: unity
+          testMode: playmode
+          githubToken: ${{ secrets.GITHUB_TOKEN }}

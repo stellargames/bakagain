@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="BetrayalAtKrondor.Tests/BetrayalAtKrondor.Tests.csproj" />
+  <Project Path="GameData/GameData.csproj" />
+  <Project Path="ResourceExtraction.Tests/ResourceExtraction.Tests.csproj" />
+  <Project Path="ResourceExtraction/ResourceExtraction.csproj" />
+  <Project Path="ResourceExtractor/ResourceExtractor.csproj" />
+</Solution>

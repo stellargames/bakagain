@@ -1,0 +1,26 @@
+{
+  "name": "BakAgain",
+  "rootNamespace": "BakAgain",
+  "references": [
+    "Unity.Addressables",
+    "Unity.ResourceManager",
+    "UnityEngine.UI",
+    "Unity.InputSystem",
+    "SimpleFileBrowser.Runtime",
+    "VContainer",
+    "Serilog.Sinks.Unity3D",
+    "UniTask",
+    "UniTask.Addressables",
+    "Unity.TextMeshPro",
+    "glTFast"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

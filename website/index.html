@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BaK-Again</title>
+<meta name="description" content="BaK-Again is a free, open-source remake of the 1993 role-playing game Betrayal at Krondor, for Windows, Linux and Android. It plays from your own copy of the original game.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>BaK-Again</h1>
+  <p class="tagline">A modern, moddable remake of <cite>Betrayal at Krondor</cite> (1993)</p>
+  <nav>
+    <a href="#download">Download</a>
+    <a href="#setup">Getting started</a>
+    <a href="#faq">FAQ</a>
+    <a href="https://forum.bakagain.org">Forum</a>
+    <a href="https://github.com/stellargames/bakagain">Source</a>
+  </nav>
+</header>
+
+<main>
+<section id="about">
+  <h2>What it is</h2>
+  <p>BaK-Again runs the story, world, rules and art of <cite>Betrayal at Krondor</cite> in a new
+  engine built with Unity, on Windows, Linux and Android. It reads everything from <strong>your own
+  copy</strong> of the original game: it ships none of the game's content.</p>
+  <p>The rules come from a careful reverse-engineering of the original, checked side by side
+  against the 1993 game running in an emulator. Where a modern machine allows better, BaK-Again
+  looks better, but combat, magic, travel and the story should behave the way you remember.</p>
+  <p>It is free, open source (MIT), and a fan project: it is not affiliated with or endorsed by
+  the rights holders of <cite>Betrayal at Krondor</cite>.</p>
+</section>
+
+<section id="status">
+  <h2>Status: alpha</h2>
+  <p>All nine chapters can be played from the first scene to the ending. Plenty is still rough,
+  and some fights may turn out harder than in the original. That is what the alpha is for: play it, and
+  tell us where it goes wrong.</p>
+</section>
+
+<section id="download">
+  <h2>Download</h2>
+  <p>Builds for <strong>Windows</strong> (64-bit), <strong>Linux</strong> (64-bit) and
+  <strong>Android</strong> are published on the
+  <a href="https://github.com/stellargames/bakagain/releases/latest">releases page</a>, with
+  SHA-256 checksums.</p>
+  <ul>
+    <li><strong>Windows:</strong> unzip anywhere and run <code>BaK-Again.exe</code>.</li>
+    <li><strong>Linux:</strong> unzip and run <code>BaK-Again.x86_64</code>.</li>
+    <li><strong>Android:</strong> install the <code>.apk</code> (allow installs from your browser
+      or file manager when asked).</li>
+  </ul>
+</section>
+
+<section id="setup">
+  <h2>Getting started</h2>
+  <ol>
+    <li>Get <cite>Betrayal at Krondor</cite>. It is sold on
+      <a href="https://www.gog.com/">GOG</a>; an old CD copy works too. The 1.02 CD version is the one BaK-Again is tested against.</li>
+    <li>Install it, or copy its folder somewhere. BaK-Again needs the folder that holds
+      <code>KRONDOR.001</code>.</li>
+    <li>Start BaK-Again. The first time, it asks for that folder. Point it there and play.</li>
+  </ol>
+</section>
+
+<section id="modding">
+  <h2>Modding</h2>
+  <p>Anything BaK-Again loads from the original game can be replaced without touching the
+  original files: put your version in an <code>Overrides</code> folder next to the game files.
+  The formats are documented in the
+  <a href="https://github.com/stellargames/bakagain">source repository</a>.</p>
+</section>
+
+<section id="faq">
+  <h2>FAQ</h2>
+  <dl>
+    <dt>Do I really need the original game?</dt>
+    <dd>Yes. BaK-Again is an engine, like ScummVM or OpenMW: the world, the text, the pictures and
+      the music all come from your copy.</dd>
+    <dt>Can I load my old saves?</dt>
+    <dd>BaK-Again reads and writes the original's save format, so saves move both ways.</dd>
+    <dt>Is it finished?</dt>
+    <dd>Not yet. It is an alpha: the whole game can be played through, but expect bugs.</dd>
+    <dt>I found a bug. Where do I report it?</dt>
+    <dd>On the <a href="https://forum.bakagain.org">forum</a>, in <em>Bug Reports</em>. Please
+      include the version and log path shown at the bottom of the Preferences screen.</dd>
+    <dt>Can I help?</dt>
+    <dd>Please. Playing and reporting is the biggest help right now. Code, documentation and mods
+      are welcome on <a href="https://github.com/stellargames/bakagain">GitHub</a>.</dd>
+  </dl>
+</section>
+</main>
+
+<footer>
+  <p>BaK-Again is free software under the MIT license. <cite>Betrayal at Krondor</cite> is © its
+  respective rights holders; BaK-Again is an unofficial fan project and is not affiliated with or
+  endorsed by them.</p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,51 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         editor-extension-mode="False">
+    <Style src="project://database/Assets/UI%20Toolkit/UnityThemes/ClassicTheme.tss?fileID=-4733365628477956816&amp;guid=5f00814465e6b8444aafa200a8b4065e&amp;type=2" />
+    <ui:VisualElement name="BakStage" style="width: 1600px; height: 1200px; flex-grow: 0; flex-shrink: 0; ">
+        <ui:VisualElement name="filepicker_197" class="file-picker" style="left: 165px; top: 294px; width: 425px; height: 402px; ">
+            <ui:VisualElement name="filepicker_197_list" class="file-picker-well bevel-raised">
+                <ui:VisualElement name="filepicker_197_rows" class="file-picker-rows">
+                    <ui:Label class="file-picker-row file-picker-row--selected bevel-raised" text="DIR" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="filepicker_197_bar" class="file-picker-scrollbar bevel-raised">
+                <ui:VisualElement class="file-picker-arrow file-picker-arrow--up bevel-raised">
+                    <BakAgain.UI.ArchiveImage class="file-picker-arrow-glyph" address="BICONS1.BMX#0" style="width: 35px; height: 48px; " />
+                </ui:VisualElement>
+                <ui:VisualElement name="filepicker_197_track" class="file-picker-track">
+                    <ui:VisualElement name="filepicker_197_thumb" class="file-picker-thumb bevel-raised" style="top: 0px; " />
+                </ui:VisualElement>
+                <ui:VisualElement class="file-picker-arrow file-picker-arrow--down bevel-raised">
+                    <BakAgain.UI.ArchiveImage class="file-picker-arrow-glyph file-picker-arrow-glyph--flip" address="BICONS1.BMX#0" style="width: 35px; height: 48px; " />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="filepicker_196" class="file-picker" style="left: 625px; top: 294px; width: 795px; height: 402px; ">
+            <ui:VisualElement name="filepicker_196_list" class="file-picker-well bevel-raised">
+                <ui:VisualElement name="filepicker_196_rows" class="file-picker-rows">
+                    <ui:Label class="file-picker-row file-picker-row--selected bevel-raised" text="Bookmark" />
+                    <ui:Label class="file-picker-row" text="file" />
+                    <ui:Label class="file-picker-row" text="dungeon" />
+                    <ui:Label class="file-picker-row" text="dungeonlight" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="filepicker_196_bar" class="file-picker-scrollbar bevel-raised">
+                <ui:VisualElement class="file-picker-arrow file-picker-arrow--up bevel-raised">
+                    <BakAgain.UI.ArchiveImage class="file-picker-arrow-glyph" address="BICONS1.BMX#0" style="width: 35px; height: 48px; " />
+                </ui:VisualElement>
+                <ui:VisualElement name="filepicker_196_track" class="file-picker-track">
+                    <ui:VisualElement name="filepicker_196_thumb" class="file-picker-thumb bevel-raised" style="top: 0px; " />
+                </ui:VisualElement>
+                <ui:VisualElement class="file-picker-arrow file-picker-arrow--down bevel-raised">
+                    <BakAgain.UI.ArchiveImage class="file-picker-arrow-glyph file-picker-arrow-glyph--flip" address="BICONS1.BMX#0" style="width: 35px; height: 48px; " />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:Button class="text-button" text="Restore" style="left: 1005px; top: 906px; width: 415px; height: 90px; " />
+        <ui:Button class="text-button" text="Cancel" style="left: 1005px; top: 1002px; width: 415px; height: 90px; " />
+        <ui:Label class="req-label req-label--centered" text="Restore Game" style="left: 0px; top: 78px; width: 1600px; color: rgba(219, 199, 121, 1); " />
+        <ui:Label class="req-label" text="Directories" style="left: 180px; top: 222px; color: rgba(0, 0, 0, 1); " />
+        <ui:Label class="req-label" text="Games" style="left: 640px; top: 222px; color: rgba(0, 0, 0, 1); " />
+    </ui:VisualElement>
+</ui:UXML>

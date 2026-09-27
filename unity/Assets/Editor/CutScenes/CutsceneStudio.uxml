@@ -1,0 +1,59 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="True">
+    <ui:VisualElement name="VisualElement" style="flex-direction: row; flex-grow: 1; align-self: stretch; height: auto;">
+        <ui:VisualElement name="CutSceneSelection" style="flex-direction: column; flex-grow: 1;">
+            <ui:TreeView name="AdsFilePickerTreeView" fixed-item-height="20" show-border="true" style="max-height: none; min-height: auto; flex-shrink: 0;" />
+            <ui:ListView name="AdsAnimationsList" show-border="true" />
+            <ui:ScrollView name="AdsFileContent" horizontal-scroller-visibility="Hidden" style="background-color: rgb(17, 17, 17); -unity-font-definition: url(&quot;project://database/Assets/Custom/Fonts/VictorMono-Regular.ttf?fileID=12800000&amp;guid=53eef9138de8cb84aaa1483c389f6f96&amp;type=3#VictorMono-Regular&quot;);" />
+        </ui:VisualElement>
+        <ui:VisualElement name="SceneView" style="flex-grow: 1;">
+            <ui:VisualElement style="flex-direction: row; height: 90%; justify-content: space-between; flex-grow: 1;">
+                <ui:VisualElement name="CommandList" style="width: auto; height: auto; border-left-color: rgb(0, 163, 28); border-right-color: rgb(0, 163, 28); border-top-color: rgb(0, 163, 28); border-bottom-color: rgb(0, 163, 28); border-top-width: 1px; border-right-width: 1px; border-bottom-width: 1px; border-left-width: 1px; flex-grow: 1;">
+                        <ui:Toggle name="StepToggle" label="Step"/>
+                    <ui:ListView name="CommandList" />
+                </ui:VisualElement>
+                <ui:VisualElement name="Player" style="align-items: center; flex-grow: 0; justify-content: flex-start;">
+                    <ui:VisualElement name="Preview" style="border-left-color: rgb(255, 0, 0); border-right-color: rgb(255, 0, 0); border-top-color: rgb(255, 0, 0); border-bottom-color: rgb(255, 0, 0); border-top-width: 1px; border-right-width: 1px; border-bottom-width: 1px; border-left-width: 1px; width: 640px; height: 400px; min-height: initial; min-width: initial; max-height: 400px; max-width: 640px; flex-grow: 1;">
+                        <ui:Image name="PreviewImage" style="width: 640px; height: 400px;" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="BufferViews" style="flex-direction: column; width: 640px; margin-top: 10px;">
+                        <ui:VisualElement name="BufferRow1" style="flex-direction: row; justify-content: space-around;">
+                            <ui:VisualElement name="BufferContainer0" style="align-items: center;">
+                                <ui:VisualElement name="LabelContainer0" style="flex-direction: row;">
+                                    <ui:Label text="0" />
+                                    <ui:Label name="BufferStatus0" text="" style="margin-left: 10px;" />
+                                </ui:VisualElement>
+                                <ui:Image name="BufferImage0" style="width: 300px; height: 200px; border-left-color: rgb(255, 255, 255); border-right-color: rgb(255, 255, 255); border-top-color: rgb(255, 255, 255); border-bottom-color: rgb(255, 255, 255); border-top-width: 1px; border-right-width: 1px; border-bottom-width: 1px; border-left-width: 1px;" />
+                            </ui:VisualElement>
+                            <ui:VisualElement name="BufferContainer1" style="align-items: center;">
+                                <ui:VisualElement name="LabelContainer1" style="flex-direction: row;">
+                                    <ui:Label text="1" />
+                                    <ui:Label name="BufferStatus1" text="" style="margin-left: 10px;" />
+                                </ui:VisualElement>
+                                <ui:Image name="BufferImage1" style="width: 300px; height: 200px; border-left-color: rgb(255, 255, 255); border-right-color: rgb(255, 255, 255); border-top-color: rgb(255, 255, 255); border-bottom-color: rgb(255, 255, 255); border-top-width: 1px; border-right-width: 1px; border-bottom-width: 1px; border-left-width: 1px;" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                        <ui:VisualElement name="BufferRow2" style="flex-direction: row; justify-content: space-around; margin-top: 10px;">
+                            <ui:VisualElement name="BufferContainer2" style="align-items: center;">
+                                <ui:VisualElement name="LabelContainer2" style="flex-direction: row;">
+                                    <ui:Label text="2" />
+                                    <ui:Label name="BufferStatus2" text="" style="margin-left: 10px;" />
+                                </ui:VisualElement>
+                                <ui:Image name="BufferImage2" style="width: 300px; height: 200px; border-left-color: rgb(255, 255, 255); border-right-color: rgb(255, 255, 255); border-top-color: rgb(255, 255, 255); border-bottom-color: rgb(255, 255, 255); border-top-width: 1px; border-right-width: 1px; border-bottom-width: 1px; border-left-width: 1px;" />
+                            </ui:VisualElement>
+                            <ui:VisualElement name="BufferContainer3" style="align-items: center;">
+                                <ui:VisualElement name="LabelContainer3" style="flex-direction: row;">
+                                    <ui:Label text="3" />
+                                    <ui:Label name="BufferStatus3" text="" style="margin-left: 10px;" />
+                                </ui:VisualElement>
+                                <ui:Image name="BufferImage3" style="width: 300px; height: 200px; border-left-color: rgb(255, 255, 255); border-right-color: rgb(255, 255, 255); border-top-color: rgb(255, 255, 255); border-bottom-color: rgb(255, 255, 255); border-top-width: 1px; border-right-width: 1px; border-bottom-width: 1px; border-left-width: 1px;" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+    <ui:VisualElement name="TimeLine" style="height: 10%; border-left-width: 1px; border-right-width: 1px; border-top-width: 1px; border-bottom-width: 1px; border-top-color: rgb(0, 23, 255); border-bottom-color: rgb(0, 23, 255); border-left-color: rgb(0, 23, 255); border-right-color: rgb(0, 23, 255); flex-grow: 1; min-height: 100px; flex-wrap: wrap;">
+        <ui:ScrollView name="FrameList" mode="Horizontal" vertical-scroller-visibility="Hidden" style="flex-direction: column; flex-wrap: wrap;" />
+    </ui:VisualElement>
+</ui:UXML>

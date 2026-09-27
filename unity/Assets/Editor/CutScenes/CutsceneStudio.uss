@@ -1,0 +1,22 @@
+ScrollView {
+    flex-grow: 1;
+    margin: 10px;
+}
+
+.frame-container {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px;
+    margin: 5px;
+    background-color: #111111;
+}
+
+.frame-container:hover {
+    background-color: #222222;
+}
+
+.frame-container.selected {
+    background-color: #444444;
+}
+

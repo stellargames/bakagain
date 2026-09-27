@@ -1,0 +1,79 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &7679398121228242613
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7173238364084933846}
+  - component: {fileID: 6925089280971044801}
+  m_Layer: 0
+  m_Name: RootLifetimeScope
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7173238364084933846
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7679398121228242613}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &6925089280971044801
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7679398121228242613}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 13e21f9835dd4906ba114572393950ab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  parentReference:
+    TypeName: 
+  autoRun: 1
+  autoInjectGameObjects: []
+  midiPlaybackManagerPrefab: {fileID: 5736145652778883931, guid: 9af50719bdfb2774793836a735faf1df, type: 3}
+  cutSceneViewPrefab: {fileID: 1118058749179373036, guid: 6565ec7aaedf3a64e93a0041fb3240f1, type: 3}
+  mainMenuPrefab: {fileID: 5251917392965586031, guid: ffa0e946426c7ff46bd5949e7a2cd13e, type: 3}
+  inGameMenuPrefab: {fileID: 2724499040429203665, guid: b466103269df82e7a807710b7a2636d8, type: 3}
+  preferencesMenuPrefab: {fileID: 5251917392965586031, guid: a4f9c2e1b6d84a3c9e7f1b2d5a8c4e60, type: 3}
+  loadGameMenuPrefab: {fileID: 655378337821342906, guid: 13609b3a57ace1443adf930bdc9d922c, type: 3}
+  saveGameScreenPrefab: {fileID: 8342474831928597182, guid: 190fef429ea47162ba54f66dd8a1a7e4, type: 3}
+  contentsMenuPrefab: {fileID: 3765184352858967513, guid: 070088162b5f8984e85888fcdc3f6808, type: 3}
+  locationScreenPrefab: {fileID: 241119753293395896, guid: d3b18685b3c4a015881a77d8065dc5c6, type: 3}
+  castScreenPrefab: {fileID: 6587548009028272718, guid: 80609158b9d7b4bd1b189914eef542c5, type: 3}
+  teleportScreenPrefab: {fileID: 3602126075857111970, guid: 245d130fa95ae85328ff744a1db8d648, type: 3}
+  templeHealScreenPrefab: {fileID: 6213727454197478943, guid: e85f1e295c52326649e32a1f97eb56db, type: 3}
+  characterSheetScreenPrefab: {fileID: 7394672441936114051, guid: 1ba6cb03aa650c701aaae0ec37207127, type: 3}
+  campMenuPrefab: {fileID: 732242313553431281, guid: 286fb711d52e2f647b478abbde29de15, type: 3}
+  combatMenuPrefab: {fileID: 5287216741541522535, guid: cb3c64e1987ccce989606c3730bebc37, type: 3}
+  shootMenuPrefab: {fileID: 6650109493201617638, guid: 13e36247577590727864468f68fb1fc4, type: 3}
+  innScreenPrefab: {fileID: 8884565557960522096, guid: 5d969ee119b35f4c48cb23d96c1dfda9, type: 3}
+  riftMapScreenPrefab: {fileID: 5080074986040699954, guid: b111c3827743c1e3d9ec48464289a100, type: 3}
+  puzzleScreenPrefab: {fileID: 6321020500852115182, guid: e90a0741474ab736a9cd5221a497f617, type: 3}
+  bookViewPrefab: {fileID: 3570945004412942817, guid: e59eb39a11639c94896a06a59e2609dc, type: 3}
+  dialogManagerPrefab: {fileID: 645967921563507053, guid: f7bed9e9fecbfe6409f3680f06e0600b, type: 3}
+  fullMapViewPrefab: {fileID: 1908337328350798230, guid: 3b3959a18a2b5664cae6a8d5a51447e5, type: 3}
+  creditsViewPrefab: {fileID: 1554155971922661779, guid: 781deb2986210d54e8e08034689fba3d, type: 3}
+  inGameScreenPrefab: {fileID: 808717277439591348, guid: 953a5367aee1a3afa8181aac7870618b, type: 3}
+  overheadMapScreenPrefab: {fileID: 4115379383039264692, guid: 60073ea3e9df21c74ad39cef2929ce54, type: 3}
+  locatorMapScreenPrefab: {fileID: 1961124116210707388, guid: dc38342edd1f3cb3c881520d71ed980e, type: 3}
+  inventoryScreenPrefab: {fileID: 6528864284407793131, guid: bf11e555c0aebe7bbabe5b34232c9dda, type: 3}
+  cursorManagerPrefab: {fileID: 8628335895235679331, guid: d49eb7d6887e08640b933cb918d4e4c7, type: 3}
+  gamePanelSettings: {fileID: 11400000, guid: e1ac2bea2a13f4a4abb255bc71d7cc98, type: 2}

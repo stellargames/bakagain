@@ -1,0 +1,89 @@
+# A tag v* builds Windows, Linux and Android and publishes them as a GitHub Release. Tags with a
+# hyphen (v0.1.0-alpha) become pre-releases.
+#
+# Secrets: UNITY_LICENSE, UNITY_EMAIL, UNITY_PASSWORD (as ci.yml), and for Android
+# ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASS, ANDROID_KEYALIAS_NAME, ANDROID_KEYALIAS_PASS.
+# Lose the keystore and installed copies can no longer be updated in place, so keep it backed up.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # IL2CPP builds for Windows only on Windows.
+          - { target: StandaloneWindows64, os: windows-2022, artifact: windows-x64 }
+          - { target: StandaloneLinux64, os: ubuntu-latest, artifact: linux-x64 }
+          - { target: Android, os: ubuntu-latest, artifact: android }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # versioning: Tag reads the tag
+      - name: Free disk space for the Android toolchain
+        if: matrix.target == 'Android'
+        uses: jlumbroso/free-disk-space@v1.3.1
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: src/global.json
+      - name: Build the plugin libraries into the Unity project
+        run: dotnet build src/ResourceExtraction/ResourceExtraction.csproj -c Unity
+      - uses: actions/cache@v4
+        with:
+          path: unity/Library
+          key: Library-${{ matrix.target }}-${{ hashFiles('unity/Packages/packages-lock.json', 'unity/ProjectSettings/ProjectVersion.txt') }}
+          restore-keys: Library-${{ matrix.target }}-
+      - uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: unity
+          targetPlatform: ${{ matrix.target }}
+          buildName: BaK-Again
+          buildMethod: BakAgain.Editor.Build.ReleaseBuild.Run
+          versioning: Tag
+          androidExportType: androidPackage
+          androidKeystoreName: bak-again.keystore
+          androidKeystoreBase64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          androidKeystorePass: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+          androidKeyaliasName: ${{ secrets.ANDROID_KEYALIAS_NAME }}
+          androidKeyaliasPass: ${{ secrets.ANDROID_KEYALIAS_PASS }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: build/${{ matrix.target }}
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Package
+        run: |
+          mkdir dist
+          tag="${GITHUB_REF_NAME}"
+          # Unity writes debug symbols beside the player in folders named *_DoNotShip.
+          find artifacts -depth -type d -name '*_DoNotShip' -exec rm -rf {} +
+          (cd artifacts/windows-x64 && zip -qr "../../dist/BaK-Again-${tag}-windows-x64.zip" .)
+          # Artifacts do not keep the executable bit; the player and its launcher need it back.
+          find artifacts/linux-x64 -maxdepth 1 -type f ! -name '*.so' -exec chmod +x {} +
+          (cd artifacts/linux-x64 && zip -qr "../../dist/BaK-Again-${tag}-linux-x64.zip" .)
+          cp artifacts/android/*.apk "dist/BaK-Again-${tag}.apk"
+          (cd dist && sha256sum * > SHA256SUMS)
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: true

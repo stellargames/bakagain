@@ -1,0 +1,96 @@
+namespace BakAgain.Graphics {
+    /// <summary>
+    /// The canonical coordinate spaces — single source of truth for every
+    /// runtime consumer (stage, cutscene buffers, viewport, book layout).
+    ///
+    /// <para>
+    /// All engine-independent data (extracted JSON, plugin-DLL models, mod
+    /// overrides) carries coordinates in these square-pixel spaces; the
+    /// conversion from the original DOS spaces happens once, in the extractor
+    /// (<c>DotNetProjects/ResourceExtraction/Imaging/AspectCorrection.cs</c> —
+    /// keep these factors in sync with it). Unity code never sees VGA/EGA
+    /// pixels.
+    /// </para>
+    ///
+    /// <list type="bullet">
+    /// <item>VGA 320×200 → 1600×1200: ×5 horizontal, ×6 vertical. The unequal
+    /// factors bake in the original's 6:5 non-square pixel aspect, so the
+    /// canonical space is square-pixel and 4:3.</item>
+    /// <item>EGA 640×350 (books) → 1280×960: ×2 horizontal, ×96/35 vertical
+    /// (non-integral — derive from the frame sizes where needed).</item>
+    /// </list>
+    ///
+    /// <para>
+    /// <b>THIS IS NOT THE SHIPPING RESOLUTION, AND NOTHING AT RUNTIME MAY RELY
+    /// ON IT.</b> The port targets <b>1920×1080</b>. 1600×1200 is only the space
+    /// the extractor emits resources in, so it is the natural size of a
+    /// <i>faithful</i> resource's <see cref="GameData.Resources.Layout.DesignFrame"/>
+    /// — which is why an unmodded faithful screen pillarboxes at 16:9, and that
+    /// is the intended presentation, not a defect to correct.
+    /// </para>
+    ///
+    /// <para>
+    /// A shipped mod supplies an alternative <b>responsive</b> UI, whose frames
+    /// are whatever that mod declares. So runtime code takes its dimensions from
+    /// the frame it was handed (<see cref="BakAgain.UI.CanonicalStage"/> already
+    /// does) or from the resolved panel, never from these constants. Their only
+    /// legitimate runtime uses are converting extracted VGA/EGA coordinates and
+    /// serving as the last-resort fallback when a resource declares no frame at
+    /// all. Reaching for <c>Canonical.Width</c> because you need "the screen
+    /// width" is the mistake this paragraph exists to stop — a test or renderer
+    /// written that way passes at 4:3 and is wrong everywhere the game ships.
+    /// </para>
+    /// </summary>
+    public static class Canonical {
+        /// <summary>Canonical frame width (VGA 320 × 5).</summary>
+        public const int Width = 1600;
+
+        /// <summary>Canonical frame height (VGA 200 × 6).</summary>
+        public const int Height = 1200;
+
+        /// <summary>Horizontal canonical px per VGA px.</summary>
+        public const int VgaScaleX = 5;
+
+        /// <summary>Vertical canonical px per VGA px (carries the ×1.2 pixel-aspect stretch).</summary>
+        public const int VgaScaleY = 6;
+
+        /// <summary>Canonical book-space width (EGA 640 × 2).</summary>
+        public const int BookWidth = 1280;
+
+        /// <summary>Canonical book-space height (EGA 350 × 96/35).</summary>
+        public const int BookHeight = 960;
+
+        /// <summary>Horizontal canonical px per EGA px (book space).</summary>
+        public const int EgaScaleX = 2;
+
+        /// <summary>
+        /// Canonical font size for the game font — which is the font for the WHOLE UI, not just
+        /// part of it: the original selects <c>game.fnt</c> once during
+        /// <c>InitializeGameHardware</c> (@0x41a52 -> <c>fontSelect(pGameFont)</c>) and every
+        /// surface after that draws in it. So this one size covers dialog and menu body text as
+        /// much as it does the inventory's quantity/percent labels and the item-inspect view.
+        ///
+        /// <para>There used to be a second constant here — <c>MenuFontSizePx = 8 * VgaScaleY</c>
+        /// (= 48) — for the dialog/menu half. It was a fabrication: there is no <b>8</b> anywhere
+        /// in the original, whose character cell is 10 px tall. It rendered dialog body text at
+        /// roughly two-thirds of the original's scale (measured line pitch 7.25 VGA rows against
+        /// the original's 11) and it is deleted rather than corrected, because two sizes for one
+        /// font could only drift apart again (task-46).</para>
+        ///
+        /// <para>Deliberately NOT <c>BakFontData.GameFontHeight * VgaScaleY</c> (= 60), which looks
+        /// like the obvious derivation and is wrong: 10 is the original's character-CELL height,
+        /// while a font asset's size is its EM size, and the "Game SDF" asset's em runs ~9% larger
+        /// than that cell. Rendering at 60 made every string ~8% wider than the original, which
+        /// pushed item names out of the inspect panel (task-45). (60 is not a useless number, mind
+        /// — it is the right answer to a DIFFERENT question, "how tall is one line?", and that is
+        /// what <c>GameFontText.LineHeightPx</c> is. Just never a font size.)</para>
+        ///
+        /// <para>Measured against the extracted GAME.FNT advances (2026-07-27): at fontSize 60 the
+        /// glyph advances came out 1.067–1.093× the original's per glyph (mean 1.084), implying
+        /// 55.3. Per-glyph exact solutions span 54.9–56.3 because the original widths are whole
+        /// pixels while the font's advances are continuous, so no single value is exact for every
+        /// character; 55 is the best fit and is already what ClassicTheme.tss uses.</para>
+        /// </summary>
+        public const float GameFontSizePx = 55f;
+    }
+}

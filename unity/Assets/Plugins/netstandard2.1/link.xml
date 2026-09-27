@@ -1,0 +1,6 @@
+<!-- ResourceExtraction builds extractors and models by reflection (ExtractorFactory,
+     Activator.CreateInstance); IL2CPP's linker strips what it cannot see used. Keep both whole. -->
+<linker>
+  <assembly fullname="ResourceExtraction" preserve="all"/>
+  <assembly fullname="GameData" preserve="all"/>
+</linker>

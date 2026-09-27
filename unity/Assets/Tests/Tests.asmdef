@@ -1,0 +1,33 @@
+{
+    "name": "Tests",
+    "rootNamespace": "BakAgain",
+    "references": [
+        "BakAgain",
+        "Unity.Addressables",
+        "Unity.ResourceManager",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "UniTask",
+        "VContainer",
+        "Unity.InputSystem",
+        "Unity.InputSystem.TestFramework",
+        "glTFast"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll",
+        "GameData.dll",
+        "ResourceExtraction.dll",
+        "Microsoft.Extensions.Logging.Abstractions.dll",
+        "Newtonsoft.Json.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

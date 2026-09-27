@@ -1,0 +1,4 @@
+# Built by `dotnet build src/ResourceExtraction/ResourceExtraction.csproj -c Unity`, never committed.
+/unity/Assets/Plugins/netstandard2.1/GameData.*
+/unity/Assets/Plugins/netstandard2.1/ResourceExtraction.*
+!/unity/Assets/Plugins/netstandard2.1/*.meta

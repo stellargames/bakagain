@@ -1,0 +1,5 @@
+<!-- Mono finds DOS code page 437 (KRONDOR.001's text) by reflection in I18N.West; keep it for IL2CPP. -->
+<linker>
+  <assembly fullname="I18N" preserve="all"/>
+  <assembly fullname="I18N.West" preserve="all"/>
+</linker>

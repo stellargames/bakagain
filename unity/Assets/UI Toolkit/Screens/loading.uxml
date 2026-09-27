@@ -1,0 +1,9 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Label text="&#10;Loading Betrayal at Krondor... please wait." name="Loading" enable-rich-text="false" emoji-fallback-support="false" double-click-selects-word="false"
+              triple-click-selects-line="false" display-tooltip-when-elided="false" enabled="true"
+              style=" color: rgb(255, 255, 255); font-size: 36px;">
+        <Bindings>
+            <UnityEngine.Localization.LocalizedString property="text" table="GUID:713e69298cd02b14ebbc78bafce64b86" entry="Id(70394396672)" />
+        </Bindings>
+    </ui:Label>
+</ui:UXML>

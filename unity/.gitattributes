@@ -1,0 +1,82 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Unity serialized files
+*.meta text eol=lf
+*.unity text eol=lf
+*.asset text eol=lf
+*.prefab text eol=lf
+*.mat text eol=lf
+*.anim text eol=lf
+*.controller text eol=lf
+*.overrideController text eol=lf
+*.physicMaterial text eol=lf
+*.physicsMaterial2D text eol=lf
+*.playable text eol=lf
+*.mixer text eol=lf
+*.shadergraph text eol=lf
+*.shadersubgraph text eol=lf
+*.renderTexture text eol=lf
+*.brush text eol=lf
+*.terrainlayer text eol=lf
+*.giparams text eol=lf
+*.lighting text eol=lf
+*.scenetemplate text eol=lf
+
+# Source code
+*.cs text eol=lf diff=csharp
+*.shader text eol=lf
+*.cginc text eol=lf
+*.hlsl text eol=lf
+*.compute text eol=lf
+
+# Config/data
+*.json text eol=lf
+*.xml text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.txt text eol=lf
+*.md text eol=lf
+*.cfg text eol=lf
+*.config text eol=lf
+*.asmdef text eol=lf
+*.asmref text eol=lf
+*.uss text eol=lf
+*.uxml text eol=lf
+*.xsd text eol=lf
+
+# Binary files (no normalization)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.bmp binary
+*.tga binary
+*.tiff binary
+*.psd binary
+*.exr binary
+*.hdr binary
+*.wav binary
+*.mp3 binary
+*.ogg binary
+*.aif binary
+*.ttf binary
+*.otf binary
+*.fbx binary
+*.obj binary
+*.blend binary
+*.dae binary
+*.3ds binary
+*.max binary
+*.mb binary
+*.ma binary
+*.unitypackage binary
+*.dll binary
+*.so binary
+*.dylib binary
+*.exe binary
+*.pdf binary
+*.zip binary
+*.7z binary
+*.gz binary
+*.tar binary

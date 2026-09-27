@@ -1,0 +1,256 @@
+/* Colour tokens — the single source of all UI RGB. Defined on the universal selector so
+   they resolve for EVERY element in the shared panel (REQ screens AND DialogManager dialogs,
+   which share .text-button but live in separate UIDocument roots) — no per-root theme class
+   needed. Per-screen variation is done with the .colorset-* classes below; a future enhanced
+   theme swaps this whole stylesheet. */
+* {
+    --ui-ink: rgb(0, 0, 0);
+    --ui-shadow: rgb(85, 69, 44);
+    --ui-slate: rgb(48, 56, 56);
+    --ui-edge: rgb(166, 146, 65);
+    --ui-parchment: rgb(219, 199, 121);
+    --ui-surface: rgb(154, 109, 56);
+}
+
+/* .text-button is shared: REQ buttons (absolutely placed by data, add .req-element)
+   AND flex-laid-out dialog buttons (DialogManager) — so no position here. */
+.text-button {
+    margin: 0;
+    padding: 0;
+    background-color: var(--ui-surface);
+    border-top-color: var(--ui-edge);
+    border-left-color: var(--ui-shadow);
+    border-right-color: var(--ui-edge);
+    border-bottom-color: var(--ui-shadow);
+    color: var(--ui-parchment);
+    text-shadow: 0 6px 0 var(--ui-shadow);
+    border-bottom-width: 6px;
+    border-top-width: 6px;
+    border-left-width: 5px;
+    border-right-width: 5px;
+    -unity-text-align: middle-center;
+    font-size: 55px;
+    white-space: nowrap;
+    /* The caption is a CHILD (GameFontText.Caption) so it can carry the vertical stretch without
+       the bevel going with it, which is why this element centres its content rather than its own
+       text. The font-size and text-align above stay: colour, font and shadow are inherited
+       properties in UI Toolkit, so .keyword-asked's recolouring still reaches the caption. */
+    align-items: center;
+    justify-content: center;
+}
+
+/* An already-asked keyword topic. NOT a dimmed button: the original builds it as widget type 8,
+   which shares widget_draw_text_button with type 6 and differs only in the UNPRESSED branch —
+   textColor 0x0a -> 1 and the drop shadow dropped (WIDGET.C:373-376). Same chrome, same fill, same
+   edges. Pressed ignores the type entirely, which is why an asked topic still presses normally and
+   stays clickable. --ui-parchment is pen 0x0a and --ui-shadow pen 1, as .text-button's own pairing
+   shows. */
+.keyword-asked {
+    color: var(--ui-shadow);
+    text-shadow: none;
+}
+
+.bevel-raised {
+    border-top-color: var(--ui-edge);
+    border-right-color: var(--ui-edge);
+    border-left-color: var(--ui-shadow);
+    border-bottom-color: var(--ui-shadow);
+    border-top-width: 6px;
+    border-bottom-width: 6px;
+    border-left-width: 5px;
+    border-right-width: 5px;
+}
+
+.file-picker {
+    position: absolute;
+    flex-direction: row;
+}
+
+.file-picker-well {
+    flex-grow: 1;
+    overflow: hidden;
+    background-color: var(--ui-surface);
+}
+
+.file-picker-rows {
+    flex-grow: 1;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.file-picker-scrollbar {
+    width: 80px;
+    flex-shrink: 0;
+    flex-direction: column;
+    background-color: var(--ui-surface);
+}
+
+.file-picker-arrow {
+    width: auto;
+    height: auto;
+    margin: 5px;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--ui-surface);
+}
+
+.file-picker-arrow-glyph {
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+
+.file-picker-arrow-glyph--flip {
+    scale: 1 -1;
+}
+
+.file-picker-track {
+    flex-grow: 1;
+    border-color: var(--ui-shadow);
+    border-width: 6px;
+    margin: 5px;
+}
+
+.file-picker-thumb {
+    position: absolute;
+    height: 32px;
+    width: 48px;
+    background-color: var(--ui-surface);
+}
+
+.file-picker-row {
+    height: 90px;
+    padding-left: 10px;
+    padding-right: 10px;
+    -unity-text-align: middle-left;
+    white-space: nowrap;
+    overflow: hidden;
+    color: var(--ui-ink);
+    background-color: var(--ui-surface);
+    /* The text is a CHILD (GameFontText.Caption) for the same reason a button's is: this element
+       carries the background and, when selected, the bevel, and scaling it to correct the glyph
+       aspect would stretch both. Hence the flex centring here rather than -unity-text-align doing
+       the work alone.
+
+       The `font-size: 54px` that stood here is gone: Caption applies Canonical.GameFontSizePx (55),
+       the size the advances were calibrated against. 54 was within 2% and looked deliberate. */
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.file-picker-row--selected {
+    color: var(--ui-parchment);
+    text-shadow: 0 6px 0 var(--ui-shadow);
+}
+
+/* IN_*.DAT text-entry boxes (InputFormRenderer): field bg14/border1, caret1, text0, selection10. */
+.menu-input-field {
+    background-color: var(--ui-surface);
+    border-color: var(--ui-shadow);
+}
+
+.menu-input-text {
+    color: var(--ui-ink);
+}
+
+.menu-input-caret {
+    background-color: var(--ui-shadow);
+}
+
+.menu-input-selection {
+    background-color: var(--ui-parchment);
+}
+
+/* An absolutely-placed REQ element positioned by data-driven left/top/width/height
+   (the loader sets those inline). Added to the REQ text buttons, which share the
+   flex-friendly .text-button chrome with DialogManager. */
+.req-element {
+    position: absolute;
+}
+
+.req-hitbox {
+    position: absolute;
+    background-color: rgba(0, 0, 0, 0);
+}
+
+/* LBL_*.DAT captions (MenuLabelRenderer). Same font, same size and same aspect stretch as every
+   other game-font surface — see BakAgain.UI.GameFontText, which is this rule's code-side twin
+   (a USS class cannot call it, so the two facts are restated here). font-size was 48px, the
+   fabricated 8 x VgaScaleY, and there was no stretch at all: captions rendered ~13% narrow and a
+   sixth too short (task-46). Origin top-left because a caption is placed by its glyph-cell top,
+   which is the original's convention. */
+.req-label {
+    position: absolute;
+    font-size: 55px;
+    scale: 1 1.2;
+    transform-origin: left top;
+    white-space: nowrap;
+    -unity-text-align: upper-left;
+    color: var(--ui-ink);
+}
+
+.req-label--centered {
+    -unity-text-align: upper-center;
+}
+
+.req-label--title {
+    color: var(--ui-parchment);
+    text-shadow: 0 6px 0 var(--ui-shadow);
+}
+
+.req-hidden {
+    visibility: hidden;
+}
+
+/* The stack-quantity picker's panel (REQ_INV2, drawQuantityPickerPanel @0x59D60): a brown
+   surface inside a dark bevel, sitting over the inventory. Its buttons are plain
+   .text-button + .req-element, so they read identically to every other REQ button. */
+.qty-picker-panel {
+    position: absolute;
+    background-color: rgb(115, 78, 40);
+    border-color: var(--ui-ink);
+    border-top-width: 6px;
+    border-bottom-width: 6px;
+    border-left-width: 5px;
+    border-right-width: 5px;
+}
+
+.qty-picker-title {
+    position: absolute;
+    -unity-text-align: upper-center;
+    font-size: 55px;
+    white-space: nowrap;
+    color: var(--ui-parchment);
+    text-shadow: 0 6px 0 var(--ui-shadow);
+}
+
+/* Colourset scope classes — applied alongside .classic-theme on a screen root to select
+   the REQ pen palette (colourset id from the .DAT). .colorset-169 is the tan default
+   already baked into the element classes above, so it needs no overrides. The others are
+   placeholders until each screen is ported to its native colours. */
+.colorset-169 {
+}
+
+.colorset-32 {
+    /* TODO colour-match when ported; inherits menu for now */
+}
+
+.colorset-144 {
+    /* TODO colour-match when ported; inherits menu for now */
+}
+
+.colorset-0 {
+    /* TODO colour-match when ported; inherits menu for now */
+}
+
+/* Build version + log path on the Preferences screen (PreferencesMenu.OnAfterShow), for bug
+   reports. Not in the original, so kept small and out of the way along the bottom edge. */
+.build-info {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 44px;
+    font-size: 33px;
+    -unity-text-align: middle-center;
+    color: var(--ui-ink);
+}
