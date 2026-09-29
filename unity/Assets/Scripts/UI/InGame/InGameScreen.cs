@@ -815,6 +815,7 @@ namespace BakAgain.UI.InGame {
             }
             _compass?.Refresh();
             _touchControls?.Refresh(AFightIsRunning());
+            HandleTouchLongPress();
             _effectCaption?.Refresh();
             RefreshCombatChrome();
             RefreshShootPanel();
@@ -1142,6 +1143,47 @@ namespace BakAgain.UI.InGame {
         private bool _partyDownExitStarted;
 
         private TouchControlsView _touchControls;
+        private readonly TouchHoldDetector _touchHold = new TouchHoldDetector();
+
+        /// <summary>
+        /// Split-pad and minimal travel (T2, T3): a still finger is the right-click — the REQ element
+        /// under it gets its SecondaryAction, and the finger's release is eaten so it does not also
+        /// click. Thumb-pad travel (T1) has the Examine toggle instead.
+        /// </summary>
+        private void HandleTouchLongPress() {
+            TouchInputState touch = TouchInputState.Instance;
+            if (touch == null || _pointer == null || !_pointer.CanPoint || _pointer.IsPresent
+                || AFightIsRunning() || touch.Travel == TouchTravelVariant.ThumbPad) {
+                return;
+            }
+            if (!_touchHold.Tick(_pointer.Primary.IsDown, _pointer.ScreenPosition, Time.realtimeSinceStartup)) {
+                return;
+            }
+            int? id = ReqActionUnderPointer();
+            if (id.HasValue) {
+                touch.SuppressNextSelect = true;
+                _ = SecondaryAction(id.Value);
+            }
+        }
+
+        // The REQ element under the pointer, by the same pick and naming ClassicMovementDriver uses.
+        private int? ReqActionUnderPointer() {
+            IPanel panel = _document?.rootVisualElement?.panel;
+            if (panel == null) {
+                return null;
+            }
+            Vector2 s = _pointer.ScreenPosition;
+            Vector2 p = RuntimePanelUtils.ScreenToPanel(panel, new Vector2(s.x, Screen.height - s.y));
+            for (VisualElement el = panel.Pick(p); el != null; el = el.parent) {
+                string n = el.name ?? string.Empty;
+                foreach (string prefix in new[] { "hotspot_", "imagebutton_" }) {
+                    if (n.StartsWith(prefix) && int.TryParse(n.Substring(prefix.Length), out int id)) {
+                        return id;
+                    }
+                }
+            }
+            return null;
+        }
 
         // Left-click / key dispatch. STUBBED: each branch logs its intent. The real
         // movement, encamp, cast, map, options and party-screen transitions plug in here.
