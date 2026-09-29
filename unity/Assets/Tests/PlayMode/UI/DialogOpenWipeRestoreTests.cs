@@ -118,15 +118,14 @@ namespace BakAgain.Tests.PlayMode.UI {
             BakAgain.UI.Layout.LayoutApplier.Apply(panel, area);
             var resolved = new Rect(100f, 160f, 600f, 240f);
 
-            // Long enough that one slow frame cannot finish the wipe before the mid-wipe check: at
-            // 0.05 s a headless CI runner's first frame already ended it and undid the pin.
             UniTask play = DialogOpenWipe.PlayAsync(
-                stage, panel, area, resolved, duration: 1f, CancellationToken.None);
+                stage, panel, area, resolved, duration: 0.05f, CancellationToken.None);
 
             // Mid-wipe: the panel carries a PX size equal to the resolved rect, not a percentage
-            // that would track the mask.
-            yield return null;
-
+            // that would track the mask. Checked BEFORE yielding a frame (TASK-671): PlayAsync pins
+            // the panel synchronously, before its first await, and the wipe advances by
+            // Time.unscaledDeltaTime, so any frame at all may finish it. A CI runner's 3 s frame
+            // ended even a 1 s wipe before a one-frame-later check could see the pin.
             Assert.AreEqual(LengthUnit.Pixel, panel.style.width.value.unit,
                 "the panel must be pinned in px while it lives inside the growing mask");
             Assert.AreEqual(resolved.width, panel.style.width.value.value, 0.001f);
