@@ -601,6 +601,7 @@ namespace BakAgain.UI.InGame {
                     _hotspotTarget?.Invoke(slot, party, isPrimary),
                 pickGround: p => _hotspotGround?.Invoke(p),
                 combatantAtPoint: p => _combatantAtPoint?.Invoke(p),
+                hoverPointOverride: () => TouchInputState.Instance?.CombatHoverScreenPoint,
                 lootCorpse: (corpse, isPrimary) => {
                     if (corpse == null || _pendingCamera == null) {
                         return;
@@ -656,6 +657,12 @@ namespace BakAgain.UI.InGame {
                 _touchControls = new TouchControlsView(BakAgain.UI.InputCore.TouchInputState.Instance, _pointer,
                     new GameData.Resources.Layout.TouchControlsLayout());
                 _touchControls.Build(root, CanonicalStage.GetOrCreate(root, _loader.Frame));
+                // Combat: the selection feeds the hover pick; attacks take the mouse click's path.
+                _touchTargeting = new CombatTouchTargeting(TouchInputState.Instance,
+                    p => _interaction?.CombatantAtScreenPoint(p),
+                    (slot, party, primary) => _hotspotTarget?.Invoke(slot, party, primary),
+                    new GameData.Resources.Layout.TouchControlsLayout().SnapRadius);
+                _touchControls.MeleeRequested += thrust => _touchTargeting?.Melee(thrust);
             }
 
             // Party heads into portrait hotspots (existing view).
@@ -740,6 +747,7 @@ namespace BakAgain.UI.InGame {
             _effectCaption?.Dispose(); _effectCaption = null;
             _combatPanel?.Dispose(); _combatPanel = null;
             _touchControls?.Dispose(); _touchControls = null;
+            _touchTargeting = null;
             _compass = null;
             _combatFrame = null;
             _compassArrows = System.Array.Empty<VisualElement>();
@@ -770,6 +778,7 @@ namespace BakAgain.UI.InGame {
             _effectCaption?.Dispose(); _effectCaption = null;
             _combatPanel?.Dispose(); _combatPanel = null;
             _touchControls?.Dispose(); _touchControls = null;
+            _touchTargeting = null;
             _compass = null;
             _combatFrame = null;
             _compassArrows = System.Array.Empty<VisualElement>();
@@ -816,6 +825,7 @@ namespace BakAgain.UI.InGame {
             _compass?.Refresh();
             _touchControls?.Refresh(AFightIsRunning());
             HandleTouchLongPress();
+            ClearTouchTargetingAfterAFight();
             _effectCaption?.Refresh();
             RefreshCombatChrome();
             RefreshShootPanel();
@@ -1144,6 +1154,22 @@ namespace BakAgain.UI.InGame {
 
         private TouchControlsView _touchControls;
         private readonly TouchHoldDetector _touchHold = new TouchHoldDetector();
+        private CombatTouchTargeting _touchTargeting;
+        private bool _touchFightWasRunning;
+
+        // A touch fight in the given combat variant: the tap on the battlefield is the targeting's.
+        private bool TouchCombat(TouchCombatVariant variant) =>
+            TouchInputState.Instance is TouchInputState t && t.Combat == variant && AFightIsRunning()
+            && _pointer != null && _pointer.CanPoint && !_pointer.IsPresent;
+
+        // A selection must not outlive its fight: the next fight's hover would read a stale point.
+        private void ClearTouchTargetingAfterAFight() {
+            bool running = AFightIsRunning();
+            if (_touchFightWasRunning && !running) {
+                _touchTargeting?.Clear();
+            }
+            _touchFightWasRunning = running;
+        }
 
         /// <summary>
         /// Split-pad and minimal travel (T2, T3): a still finger is the right-click — the REQ element
@@ -1266,6 +1292,13 @@ namespace BakAgain.UI.InGame {
                     break;
                 }
                 case ActionWorldViewport:
+                    if (TouchCombat(TouchCombatVariant.SelectThenConfirm)) {
+                        _touchTargeting?.Tap(_pointer.ScreenPosition);   // select first; attack on confirm
+                        break;
+                    }
+                    if (TouchCombat(TouchCombatVariant.FingerHover)) {
+                        break;   // C2 attacks when the finger lifts (HandleTouchFingerHover)
+                    }
                     _interaction?.HandleClick(isPrimary: true).Forget();
                     break;
                 default:

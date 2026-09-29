@@ -38,7 +38,8 @@ namespace BakAgain.UI.InGame {
             System.Action<int, bool, bool> pickCombatant = null,
             System.Action<UnityEngine.Vector3> pickGround = null,
             System.Func<UnityEngine.Vector3, (int RosterSlot, bool PartyMember)?>
-                combatantAtPoint = null) {
+                combatantAtPoint = null,
+            System.Func<UnityEngine.Vector2?> hoverPointOverride = null) {
             _camera = camera;
             _viewport = viewport;
             _pointer = pointer;
@@ -47,6 +48,7 @@ namespace BakAgain.UI.InGame {
             _pickCombatant = pickCombatant;
             _pickGround = pickGround;
             _combatantAtPoint = combatantAtPoint;
+            _hoverPointOverride = hoverPointOverride;
             if (handlers != null) {
                 foreach (IWorldInteractionHandler h in handlers) {
                     if (h != null) { _handlers[h.Behavior] = h; }
@@ -85,16 +87,28 @@ namespace BakAgain.UI.InGame {
         /// <para><b>Safe to call every frame, and only worth calling while something wants it</b>:
         /// one raycast, no allocation, no side effect. The caller gates it, not this method.</para>
         /// </remarks>
-        public (int RosterSlot, bool PartyMember)? HoverCombatant() {
-            if (_camera == null || _pointer == null || !_pointer.IsPresent
-                || _combatantAtPoint == null) {
+        public (int RosterSlot, bool PartyMember)? HoverCombatant() =>
+            HoverScreenPoint() is UnityEngine.Vector2 p ? CombatantAtScreenPoint(p) : null;
+
+        /// <summary>The combatant on the arena cell under a screen point (Input System coords), or null.</summary>
+        public (int RosterSlot, bool PartyMember)? CombatantAtScreenPoint(UnityEngine.Vector2 screenPoint) {
+            if (_camera == null || _combatantAtPoint == null) {
                 return null;
             }
             UnityEngine.Vector3? floor = WorldPicker.PickGroundPoint(
-                _camera, _viewport, _pointer.ScreenPosition,
+                _camera, _viewport, screenPoint,
                 CanonicalStage.ScreenRect(ResolveStage(), out bool _));
             return floor.HasValue ? _combatantAtPoint(floor.Value) : null;
         }
+
+        // Touch has no hovering pointer (IsPresent is false), so the touch aids supply the point a
+        // mouse would hover — the selected target (C1) or a point above the finger (C2). With no
+        // override value this is exactly the mouse's position, as before.
+        private readonly System.Func<UnityEngine.Vector2?> _hoverPointOverride;
+
+        private UnityEngine.Vector2? HoverScreenPoint() =>
+            _hoverPointOverride?.Invoke()
+            ?? (_pointer != null && _pointer.IsPresent ? _pointer.ScreenPosition : (UnityEngine.Vector2?)null);
 
         /// <summary>
         /// The arena floor point under the cursor right now, or null — the ground pick without the
@@ -116,10 +130,10 @@ namespace BakAgain.UI.InGame {
         /// much as one resting on bare ground.</para>
         /// </remarks>
         public UnityEngine.Vector3? HoverGroundPoint() {
-            if (_camera == null || _pointer == null || !_pointer.IsPresent) {
+            if (_camera == null || !(HoverScreenPoint() is UnityEngine.Vector2 p)) {
                 return null;
             }
-            return WorldPicker.PickGroundPoint(_camera, _viewport, _pointer.ScreenPosition,
+            return WorldPicker.PickGroundPoint(_camera, _viewport, p,
                 CanonicalStage.ScreenRect(ResolveStage(), out bool _));
         }
 
