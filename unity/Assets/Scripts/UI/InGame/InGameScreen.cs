@@ -651,6 +651,13 @@ namespace BakAgain.UI.InGame {
             _combatPanel = new BakAgain.UI.Combat.HudParchmentPanelView(_resources, _logger);
             _combatPanel.BuildAsync(CanonicalStage.GetOrCreate(root, _loader.Frame), this).Forget();
 
+            // The Android touch aids, in the side bars only (spec 2026-09-29-android-touch-aids-design.md).
+            if (BakAgain.UI.InputCore.TouchInputState.Instance != null) {
+                _touchControls = new TouchControlsView(BakAgain.UI.InputCore.TouchInputState.Instance, _pointer,
+                    new GameData.Resources.Layout.TouchControlsLayout());
+                _touchControls.Build(root, CanonicalStage.GetOrCreate(root, _loader.Frame));
+            }
+
             // Party heads into portrait hotspots (existing view).
             _partyHeads = new PartyHeadsView(_gameSession, _resources);
             _partyHeads.Attach(root);
@@ -732,6 +739,7 @@ namespace BakAgain.UI.InGame {
             _partyHeads?.Dispose(); _partyHeads = null;
             _effectCaption?.Dispose(); _effectCaption = null;
             _combatPanel?.Dispose(); _combatPanel = null;
+            _touchControls?.Dispose(); _touchControls = null;
             _compass = null;
             _combatFrame = null;
             _compassArrows = System.Array.Empty<VisualElement>();
@@ -761,6 +769,7 @@ namespace BakAgain.UI.InGame {
             _partyHeads?.Dispose(); _partyHeads = null;
             _effectCaption?.Dispose(); _effectCaption = null;
             _combatPanel?.Dispose(); _combatPanel = null;
+            _touchControls?.Dispose(); _touchControls = null;
             _compass = null;
             _combatFrame = null;
             _compassArrows = System.Array.Empty<VisualElement>();
@@ -805,6 +814,7 @@ namespace BakAgain.UI.InGame {
                 return;
             }
             _compass?.Refresh();
+            _touchControls?.Refresh(AFightIsRunning());
             _effectCaption?.Refresh();
             RefreshCombatChrome();
             RefreshShootPanel();
@@ -1130,6 +1140,8 @@ namespace BakAgain.UI.InGame {
         // Update runs every frame and the exit is asynchronous, so without this the menu
         // transition would be started once per frame until it completed.
         private bool _partyDownExitStarted;
+
+        private TouchControlsView _touchControls;
 
         // Left-click / key dispatch. STUBBED: each branch logs its intent. The real
         // movement, encamp, cast, map, options and party-screen transitions plug in here.
