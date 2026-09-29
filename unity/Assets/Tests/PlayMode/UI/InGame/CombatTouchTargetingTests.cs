@@ -68,6 +68,26 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
         }
 
         [Test]
+        public void FingerHoverPreviewsAboveTheFingerAndThrustsOnLift() {
+            var (t, s, hits) = Make();
+            // Screen coords are bottom-left origin, so "above the finger" is +y.
+            t.FingerMoved(new Vector2(500, 380), offsetPixels: 120f);
+            Assert.AreEqual(new Vector2(500, 500), s.CombatHoverScreenPoint);
+            Assert.IsEmpty(hits, "no attack while the finger is down");
+            t.FingerLifted();
+            CollectionAssert.AreEqual(new[] { (2, false, true) }, hits);
+        }
+
+        [Test]
+        public void LiftingOverNothingDoesNotAttack() {
+            var (t, s, hits) = Make();
+            t.FingerMoved(new Vector2(100, 100), 120f);
+            t.FingerLifted();
+            Assert.IsEmpty(hits);
+            Assert.IsNull(s.CombatHoverScreenPoint);
+        }
+
+        [Test]
         public void TappingEmptyGroundClears() {
             var (t, s, hits) = Make();
             t.Tap(new Vector2(500, 500));

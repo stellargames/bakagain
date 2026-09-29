@@ -826,6 +826,7 @@ namespace BakAgain.UI.InGame {
             _touchControls?.Refresh(AFightIsRunning());
             HandleTouchLongPress();
             ClearTouchTargetingAfterAFight();
+            HandleTouchFingerHover();
             _effectCaption?.Refresh();
             RefreshCombatChrome();
             RefreshShootPanel();
@@ -1161,6 +1162,32 @@ namespace BakAgain.UI.InGame {
         private bool TouchCombat(TouchCombatVariant variant) =>
             TouchInputState.Instance is TouchInputState t && t.Combat == variant && AFightIsRunning()
             && _pointer != null && _pointer.CanPoint && !_pointer.IsPresent;
+
+        private bool _fingerOverBattlefield;
+
+        /// <summary>
+        /// C2, finger as hover: while the finger is on the battlefield, the point above it drives the
+        /// original's hover preview; lifting it there thrusts. Sliding off onto the side bar keeps the
+        /// preview without attacking, so the Swing button can swing at it.
+        /// </summary>
+        private void HandleTouchFingerHover() {
+            if (!TouchCombat(TouchCombatVariant.FingerHover) || _touchTargeting == null) {
+                _fingerOverBattlefield = false;
+                return;
+            }
+            if (_pointer.Primary.IsDown) {
+                _fingerOverBattlefield = ReqActionUnderPointer() == ActionWorldViewport;
+                if (_fingerOverBattlefield) {
+                    // Layout px -> screen px: the canonical frame is fitted to the screen's HEIGHT.
+                    float offset = new GameData.Resources.Layout.TouchControlsLayout().FingerHoverOffsetY
+                        * (Screen.height / (float)BakAgain.Graphics.Canonical.Height);
+                    _touchTargeting.FingerMoved(_pointer.ScreenPosition, offset);
+                }
+            } else if (_pointer.Primary.ReleasedThisFrame && _fingerOverBattlefield) {
+                _fingerOverBattlefield = false;
+                _touchTargeting.FingerLifted();
+            }
+        }
 
         // A selection must not outlive its fight: the next fight's hover would read a stale point.
         private void ClearTouchTargetingAfterAFight() {

@@ -64,6 +64,19 @@ namespace BakAgain.UI.InGame {
 
         public void Clear() => _state.CombatHoverScreenPoint = null;
 
+        /// <summary>C2: the hover point sits <paramref name="offsetPixels"/> above the finger, so the finger never hides it.</summary>
+        public void FingerMoved(Vector2 fingerScreenPoint, float offsetPixels) {
+            Vector2 p = fingerScreenPoint + new Vector2(0f, offsetPixels);
+            _state.CombatHoverScreenPoint = _targetAt(p).HasValue ? p : (Vector2?)null;
+        }
+
+        /// <summary>C2: lifting the finger over a previewed target thrusts at it.</summary>
+        public void FingerLifted() {
+            if (_state.CombatHoverScreenPoint.HasValue) {
+                Melee(thrust: true);
+            }
+        }
+
         // ponytail: screen-space ring sampling (8 directions at two radii). A world-space nearest-cell
         // search belongs here if the ring ever misses a target a player plainly tapped next to.
         private Vector2? Snap(Vector2 p) {
