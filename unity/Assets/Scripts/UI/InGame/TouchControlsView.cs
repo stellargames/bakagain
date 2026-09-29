@@ -153,12 +153,25 @@ namespace BakAgain.UI.InGame {
             Place(_cycle, rightW - cs - m, m, cs, cs, true);
         }
 
-        // T3: invisible, larger touch areas behind the four REQ arrows, inside the stage. Inserted
-        // BEFORE each arrow, so a tap on the arrow's own art still reaches the arrow.
+        // T3: invisible, larger touch areas behind the four REQ arrows, inside the stage. ALL of them
+        // go before the FIRST arrow: REQ_MAIN orders the arrows 75, 72, 80, 77, so a zone placed just
+        // before its own arrow sat above the earlier ones and stole taps on their art.
         private void AddArrowZones() {
+            VisualElement panel = null;
+            int behind = int.MaxValue;
             foreach (int id in PadIds) {
                 VisualElement arrow = _root.Q($"imagebutton_{id}");
-                if (arrow?.parent == null) {
+                if (arrow?.parent != null) {
+                    panel = arrow.parent;
+                    behind = System.Math.Min(behind, panel.IndexOf(arrow));
+                }
+            }
+            if (panel == null) {
+                return;
+            }
+            foreach (int id in PadIds) {
+                VisualElement arrow = _root.Q($"imagebutton_{id}");
+                if (arrow?.parent != panel) {
                     continue;
                 }
                 Rect r = arrow.layout;
@@ -169,7 +182,7 @@ namespace BakAgain.UI.InGame {
                 zone.style.top = r.center.y - r.height * g / 2f;
                 zone.style.width = r.width * g;
                 zone.style.height = r.height * g;
-                arrow.parent.Insert(arrow.parent.IndexOf(arrow), zone);
+                panel.Insert(behind++, zone);
                 _arrowZones.Add(zone);
             }
         }

@@ -19,6 +19,13 @@ namespace BakAgain.UI.InputCore {
             _slop = slopPixels;
         }
 
+        /// <summary>Forgets an unfinished press — for the frames nobody ticks this, so their release is never seen.</summary>
+        public void Reset() {
+            _down = false;
+            _fired = false;
+            _cancelled = false;
+        }
+
         /// <param name="now">Real-clock seconds (e.g. Time.realtimeSinceStartup), never game time.</param>
         public bool Tick(bool down, Vector2 screenPos, float now) {
             if (!down) {

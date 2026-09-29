@@ -22,6 +22,20 @@ namespace BakAgain.Tests.PlayMode.UI.InputCore {
             Assert.IsFalse(d.Tick(true, new Vector2(30, 0), 0.6f));
         }
 
+        /// <summary>
+        /// Final review #5: while the detector is not ticked (a fight, thumb-pad travel, a covering
+        /// screen) it never sees the release, and the next tap looked like the same press held for
+        /// seconds — an instant long-press. Reset forgets the unfinished press.
+        /// </summary>
+        [Test]
+        public void ResetForgetsAPressItNeverSawEnd() {
+            var d = new TouchHoldDetector(0.5f, 20f);
+            d.Tick(true, Vector2.zero, 0f);
+            d.Reset();
+            Assert.IsFalse(d.Tick(true, Vector2.zero, 5f), "a new press, not a five-second hold");
+            Assert.IsTrue(d.Tick(true, Vector2.zero, 5.51f));
+        }
+
         [Test]
         public void ReleasingResets() {
             var d = new TouchHoldDetector(0.5f, 20f);

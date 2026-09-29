@@ -661,7 +661,8 @@ namespace BakAgain.UI.InGame {
                 _touchTargeting = new CombatTouchTargeting(TouchInputState.Instance,
                     p => _interaction?.CombatantAtScreenPoint(p),
                     (slot, party, primary) => _hotspotTarget?.Invoke(slot, party, primary),
-                    new GameData.Resources.Layout.TouchControlsLayout().SnapRadius);
+                    new GameData.Resources.Layout.TouchControlsLayout().SnapRadius,
+                    () => _interaction?.HandleClick(isPrimary: true).Forget());
                 _touchControls.MeleeRequested += thrust => _touchTargeting?.Melee(thrust);
             }
 
@@ -1195,6 +1196,9 @@ namespace BakAgain.UI.InGame {
             if (_touchFightWasRunning && !running) {
                 _touchTargeting?.Clear();
             }
+            if (!_touchFightWasRunning && running) {
+                TouchInputState.Instance?.OnFightStarted();
+            }
             _touchFightWasRunning = running;
         }
 
@@ -1207,13 +1211,16 @@ namespace BakAgain.UI.InGame {
             TouchInputState touch = TouchInputState.Instance;
             if (touch == null || _pointer == null || !_pointer.CanPoint || _pointer.IsPresent
                 || AFightIsRunning() || touch.Travel == TouchTravelVariant.ThumbPad) {
+                // Not ticked here, so a release in these frames would never be seen: an unfinished
+                // press must not become an instant long-press on the next tap.
+                _touchHold.Reset();
                 return;
             }
             if (!_touchHold.Tick(_pointer.Primary.IsDown, _pointer.ScreenPosition, Time.realtimeSinceStartup)) {
                 return;
             }
             int? id = ReqActionUnderPointer();
-            if (id.HasValue) {
+            if (id.HasValue && TouchInputState.LongPressApplies(id.Value)) {
                 touch.SuppressSelectForTouchId = TouchInputState.CurrentTouchId();
                 _ = SecondaryAction(id.Value);
             }

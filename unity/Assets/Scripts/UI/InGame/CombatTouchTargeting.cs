@@ -21,21 +21,26 @@ namespace BakAgain.UI.InGame {
         private readonly Func<Vector2, (int RosterSlot, bool PartyMember)?> _targetAt;
         private readonly Action<int, bool, bool> _attack;
         private readonly float _snap;
+        private readonly Action _groundClick;
 
         /// <param name="targetAt">The combatant under a screen point (Input System coords), or null.</param>
         /// <param name="attack">(roster slot, party member, isPrimary): the mouse click's own dispatch.</param>
+        /// <param name="groundClick">A tap on bare ground: the mouse's ground click (combat movement,
+        /// a spell aimed at a cell, a summon's placement) — the touch aids must not swallow it.</param>
         public CombatTouchTargeting(TouchInputState state, Func<Vector2, (int RosterSlot, bool PartyMember)?> targetAt,
-            Action<int, bool, bool> attack, float snapRadiusPixels) {
+            Action<int, bool, bool> attack, float snapRadiusPixels, Action groundClick) {
             _state = state;
             _targetAt = targetAt;
             _attack = attack;
             _snap = snapRadiusPixels;
+            _groundClick = groundClick;
         }
 
         public void Tap(Vector2 screenPoint) {
             Vector2? hit = Snap(screenPoint);
             if (!hit.HasValue) {
                 Clear();
+                _groundClick?.Invoke();
                 return;
             }
             (int, bool)? tapped = _targetAt(hit.Value);
@@ -70,10 +75,12 @@ namespace BakAgain.UI.InGame {
             _state.CombatHoverScreenPoint = _targetAt(p).HasValue ? p : (Vector2?)null;
         }
 
-        /// <summary>C2: lifting the finger over a previewed target thrusts at it.</summary>
+        /// <summary>C2: lifting the finger over a previewed target thrusts at it; over bare ground it is the ground click.</summary>
         public void FingerLifted() {
             if (_state.CombatHoverScreenPoint.HasValue) {
                 Melee(thrust: true);
+            } else {
+                _groundClick?.Invoke();
             }
         }
 

@@ -110,6 +110,35 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
                 Assert.AreEqual(DisplayStyle.None, root.Q("touch-right").style.display.value);
             });
 
+        /// <summary>
+        /// Final review #3: REQ_MAIN orders the arrows 75, 72, 80, 77. A zone inserted just before
+        /// its OWN arrow sat above the earlier arrows, so the enlarged Turn-Right area stole taps on
+        /// the Forward/Back art. Every zone must sit behind every arrow.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator MinimalZonesSitBehindEveryArrow() =>
+            Harness(2666, Touch(), (view, root, state) => {
+                VisualElement stage = root.Q("test-stage");
+                var panel = new VisualElement { name = "req-panel" };
+                stage.Add(panel);
+                foreach (int id in new[] { 75, 72, 80, 77 }) {
+                    var arrow = new VisualElement { name = $"imagebutton_{id}" };
+                    arrow.style.position = Position.Absolute;
+                    arrow.style.left = 100 + id; arrow.style.top = 100; arrow.style.width = 40; arrow.style.height = 40;
+                    panel.Add(arrow);
+                }
+                state.CycleTravel();
+                state.CycleTravel();   // Minimal: Changed re-lays the view out and adds the zones
+                Assert.AreEqual(TouchTravelVariant.Minimal, state.Travel);
+                int lastZone = -1, firstArrow = int.MaxValue;
+                for (int i = 0; i < panel.childCount; i++) {
+                    if (panel[i].name.StartsWith("touchpad_")) lastZone = System.Math.Max(lastZone, i);
+                    if (panel[i].name.StartsWith("imagebutton_")) firstArrow = System.Math.Min(firstArrow, i);
+                }
+                Assert.AreEqual(8, panel.childCount, "four zones and four arrows");
+                Assert.Less(lastZone, firstArrow, "every zone is drawn (and picked) behind every arrow");
+            });
+
         [UnityTest]
         public IEnumerator InAFightThrustAndSwingShowAndRaiseTheMelee() =>
             Harness(2666, Touch(), (view, root, state) => {

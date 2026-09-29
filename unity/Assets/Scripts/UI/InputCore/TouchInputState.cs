@@ -71,6 +71,24 @@ namespace BakAgain.UI.InputCore {
             Changed?.Invoke();
         }
 
+        /// <summary>
+        /// A fight starting: an Examine armed on the travel screen would turn the first battlefield
+        /// tap into an instant Swing (its button is hidden in a fight), and a selection from an
+        /// earlier fight would ring an arbitrary cell. Both are dropped.
+        /// </summary>
+        public void OnFightStarted() {
+            ExamineArmed = false;
+            CombatHoverScreenPoint = null;
+            Changed?.Invoke();
+        }
+
+        /// <summary>
+        /// Whether a long-press on this REQ action is its right-click. Not for the four compass
+        /// arrows: holding one is hold-to-walk, and its right-click is only the arrow's help text.
+        /// </summary>
+        public static bool LongPressApplies(int actionId) =>
+            actionId != 72 && actionId != 75 && actionId != 77 && actionId != 80;
+
         public SelectRoute TakeSelectRoute(int? currentTouchId = null) {
             if (SuppressSelectForTouchId.HasValue) {
                 bool sameTouch = SuppressSelectForTouchId == currentTouchId;

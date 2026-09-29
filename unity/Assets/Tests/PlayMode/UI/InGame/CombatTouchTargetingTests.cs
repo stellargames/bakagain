@@ -19,11 +19,14 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
         private static (int, bool)? EnemyAt(Vector2 p) =>
             Mathf.Abs(p.x - 500) <= 50 && Mathf.Abs(p.y - 500) <= 50 ? (2, false) : ((int, bool)?)null;
 
-        private static (CombatTouchTargeting t, TouchInputState s, List<(int, bool, bool)> hits) Make() {
+        private int _groundClicks;
+
+        private (CombatTouchTargeting t, TouchInputState s, List<(int, bool, bool)> hits) Make() {
             var s = new TouchInputState(new MemPrefs());
             var hits = new List<(int, bool, bool)>();
+            _groundClicks = 0;
             var t = new CombatTouchTargeting(s, p => EnemyAt(p),
-                (slot, party, primary) => hits.Add((slot, party, primary)), 60f);
+                (slot, party, primary) => hits.Add((slot, party, primary)), 60f, () => _groundClicks++);
             return (t, s, hits);
         }
 
@@ -79,21 +82,24 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
         }
 
         [Test]
-        public void LiftingOverNothingDoesNotAttack() {
+        public void LiftingOverGroundIsAGroundClick() {
             var (t, s, hits) = Make();
             t.FingerMoved(new Vector2(100, 100), 120f);
             t.FingerLifted();
-            Assert.IsEmpty(hits);
+            Assert.IsEmpty(hits, "no attack over bare ground");
+            Assert.AreEqual(1, _groundClicks, "the click goes on: move, cast on a cell, place a summon (final review #1)");
             Assert.IsNull(s.CombatHoverScreenPoint);
         }
 
         [Test]
-        public void TappingEmptyGroundClears() {
+        public void TappingEmptyGroundClearsAndIsAGroundClick() {
             var (t, s, hits) = Make();
             t.Tap(new Vector2(500, 500));
             t.Tap(new Vector2(100, 100));
             Assert.IsNull(s.CombatHoverScreenPoint);
             Assert.IsEmpty(hits);
+            Assert.AreEqual(1, _groundClicks,
+                "a ground tap is still the mouse's ground click: combat movement, ground spells, summons (final review #1)");
         }
     }
 }

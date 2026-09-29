@@ -59,6 +59,31 @@ namespace BakAgain.Tests.PlayMode.UI.InputCore {
             Assert.IsNull(s.SuppressSelectForTouchId, "and it is cleared, not left armed");
         }
 
+        /// <summary>
+        /// Final review #2: an Examine armed on the travel screen turned the first battlefield tap of
+        /// the next fight into an instant Swing (its button is hidden in a fight, the flag was not).
+        /// </summary>
+        [Test]
+        public void AFightStartingDisarmsExamineAndForgetsAnOldSelection() {
+            var s = new TouchInputState(new MemPrefs()) {
+                ExamineArmed = true, CombatHoverScreenPoint = new UnityEngine.Vector2(1, 2),
+            };
+            s.OnFightStarted();
+            Assert.IsFalse(s.ExamineArmed);
+            Assert.IsNull(s.CombatHoverScreenPoint);
+            Assert.AreEqual(SelectRoute.Primary, s.TakeSelectRoute());
+        }
+
+        /// <summary>Final review #4: a held compass arrow is hold-to-walk; its long-press must not open its help text.</summary>
+        [Test]
+        public void ALongPressNeverAppliesToTheMovementArrows() {
+            foreach (int id in new[] { 72, 75, 77, 80 }) {
+                Assert.IsFalse(TouchInputState.LongPressApplies(id), $"arrow {id}");
+            }
+            Assert.IsTrue(TouchInputState.LongPressApplies(2), "a portrait");
+            Assert.IsTrue(TouchInputState.LongPressApplies(192), "the world view");
+        }
+
         [Test]
         public void CorruptPrefValueFallsBackToDefault() {
             var prefs = new MemPrefs(); prefs.Values["touch travel variant"] = 99;
