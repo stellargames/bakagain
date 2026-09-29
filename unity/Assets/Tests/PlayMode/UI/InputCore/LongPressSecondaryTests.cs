@@ -100,16 +100,64 @@ namespace BakAgain.Tests.PlayMode.UI.InputCore {
             }
         }
 
+        /// <summary>
+        /// Waits until the hold has passed on the REAL clock, then one more frame.
+        /// </summary>
+        /// <remarks>
+        /// <b>Not <c>WaitForSeconds</c> (TASK-671).</b> The hold is a UI Toolkit scheduler item: it
+        /// fires in a panel update that runs AFTER its due time, on the real clock. <c>WaitForSeconds</c>
+        /// counts game time, and one slow frame after the press (software GL on a CI runner, capped at
+        /// <c>Time.maximumDeltaTime</c>) can use up the whole wait before any panel update runs past the
+        /// due time — the assert then sees nothing although the game would fire on its next frame. That
+        /// failed CI and nowhere else, and it also let the "must NOT fire" cases pass without the
+        /// scheduler ever running. The extra frame guarantees a panel update past the due time.
+        /// </remarks>
+        private static IEnumerator PastTheHoldOnTheRealClock() {
+            float until = Time.realtimeSinceStartup + PastTheHold;
+            while (Time.realtimeSinceStartup < until) { yield return null; }
+            yield return null;
+        }
+
         [UnityTest]
         public IEnumerator AFingerHeldStillRaisesSecondary() {
             Send<PointerDownEvent>(new Vector2(50f, 50f), UnityEngine.UIElements.PointerType.touch);
             Assert.AreEqual(1, _pressed.Count, "sanity: the press itself must land, or nothing below means anything");
 
-            yield return new WaitForSeconds(PastTheHold);
+            yield return PastTheHoldOnTheRealClock();
 
             Assert.AreEqual(1, _secondary.Count, "a resting finger must become the secondary press");
             Assert.IsEmpty(_released,
                 "the hold ENDS the gesture; raising Released too would also run the host's click path");
+        }
+
+        /// <summary>
+        /// One slow frame right after the press must not lose the hold (TASK-671).
+        /// </summary>
+        /// <remarks>
+        /// Reproduces the CI runner: the press frame stalls 400 ms AFTER its panel update (a one-shot
+        /// sleep at the end of <c>PostLateUpdate</c>), so the next frame's game-time step alone is past
+        /// the hold. With a game-time wait this read 0 secondaries, exactly as CI did.
+        /// </remarks>
+        private static bool _stallOnce;
+
+        [UnityTest]
+        public IEnumerator ASlowFrameAfterThePressStillRaisesSecondary() {
+            var saved = UnityEngine.LowLevel.PlayerLoop.GetCurrentPlayerLoop();
+            var loop = saved;
+            for (int i = 0; i < loop.subSystemList.Length; i++) {
+                if (loop.subSystemList[i].type != typeof(UnityEngine.PlayerLoop.PostLateUpdate)) continue;
+                var subs = new List<UnityEngine.LowLevel.PlayerLoopSystem>(loop.subSystemList[i].subSystemList);
+                subs.Add(new UnityEngine.LowLevel.PlayerLoopSystem { type = typeof(LongPressSecondaryTests),
+                    updateDelegate = () => { if (_stallOnce) { _stallOnce = false; System.Threading.Thread.Sleep(400); } } });
+                loop.subSystemList[i].subSystemList = subs.ToArray();
+            }
+            UnityEngine.LowLevel.PlayerLoop.SetPlayerLoop(loop);
+            try {
+                Send<PointerDownEvent>(new Vector2(50f, 50f), UnityEngine.UIElements.PointerType.touch);
+                _stallOnce = true;
+                yield return PastTheHoldOnTheRealClock();
+                Assert.AreEqual(1, _secondary.Count, "a slow frame must delay the hold, never lose it");
+            } finally { UnityEngine.LowLevel.PlayerLoop.SetPlayerLoop(saved); }
         }
 
         /// <summary>
@@ -121,7 +169,7 @@ namespace BakAgain.Tests.PlayMode.UI.InputCore {
         public IEnumerator AHeldMOUSEButtonDoesNot() {
             Send<PointerDownEvent>(new Vector2(50f, 50f), UnityEngine.UIElements.PointerType.mouse);
 
-            yield return new WaitForSeconds(PastTheHold);
+            yield return PastTheHoldOnTheRealClock();
 
             Assert.IsEmpty(_secondary, "a mouse has a right button; holding the left one is not it");
         }
@@ -136,7 +184,7 @@ namespace BakAgain.Tests.PlayMode.UI.InputCore {
             Send<PointerDownEvent>(new Vector2(50f, 50f), UnityEngine.UIElements.PointerType.touch);
             Send<PointerMoveEvent>(new Vector2(200f, 200f), UnityEngine.UIElements.PointerType.touch);
 
-            yield return new WaitForSeconds(PastTheHold);
+            yield return PastTheHoldOnTheRealClock();
 
             Assert.IsEmpty(_secondary, "a dragging finger must not also raise examine");
         }
@@ -146,7 +194,7 @@ namespace BakAgain.Tests.PlayMode.UI.InputCore {
             Send<PointerDownEvent>(new Vector2(50f, 50f), UnityEngine.UIElements.PointerType.touch);
             Send<PointerUpEvent>(new Vector2(50f, 50f), UnityEngine.UIElements.PointerType.touch);
 
-            yield return new WaitForSeconds(PastTheHold);
+            yield return PastTheHoldOnTheRealClock();
 
             Assert.IsEmpty(_secondary, "a tap is a tap");
             Assert.AreEqual(1, _released.Count, "and it still completes as an ordinary click");
