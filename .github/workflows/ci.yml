@@ -4,6 +4,10 @@
 # Unity needs a licence to run: repo secrets UNITY_LICENSE (the .ulf of a Personal licence),
 # UNITY_EMAIL and UNITY_PASSWORD. Fork pull requests do not get secrets, so their Unity job is
 # skipped and only the .NET job reports.
+#
+# No player build here (owner's call, 2026-09-29): the Unity job already compiles every script, and
+# player-only breakage (an #if UNITY_EDITOR slip, code stripping) is caught by release.yml, which
+# builds all three players on a tag or a manual dry run, before anything ships.
 name: CI
 
 on:
