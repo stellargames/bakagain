@@ -44,8 +44,17 @@ namespace BakAgain.UI.InputCore {
         /// <summary>While set, the next REQ select is delivered as its SecondaryAction, then clears.</summary>
         public bool ExamineArmed { get; set; }
 
-        /// <summary>Set after a long-press fired a secondary: the finger's release select is eaten.</summary>
-        public bool SuppressNextSelect { get; set; }
+        /// <summary>
+        /// Set after a long-press fired a secondary, to the touch that did it: that finger's release
+        /// select is eaten. Keyed to the TOUCH, not "the next select", because the secondary may open
+        /// a screen before the finger lifts — the release then never reaches a select, and a plain
+        /// flag ate the next screen's first tap instead (found on the emulator: the sheet's Exit).
+        /// </summary>
+        public int? SuppressSelectForTouchId { get; set; }
+
+        /// <summary>The primary touch's id right now (Input System), or null without a touchscreen.</summary>
+        public static int? CurrentTouchId() =>
+            UnityEngine.InputSystem.Touchscreen.current?.primaryTouch.touchId.ReadValue();
 
         /// <summary>Combat: the screen point (Input System coords, bottom-left) the hover pick uses on touch.</summary>
         public Vector2? CombatHoverScreenPoint { get; set; }
@@ -62,10 +71,13 @@ namespace BakAgain.UI.InputCore {
             Changed?.Invoke();
         }
 
-        public SelectRoute TakeSelectRoute() {
-            if (SuppressNextSelect) {
-                SuppressNextSelect = false;
-                return SelectRoute.Swallow;
+        public SelectRoute TakeSelectRoute(int? currentTouchId = null) {
+            if (SuppressSelectForTouchId.HasValue) {
+                bool sameTouch = SuppressSelectForTouchId == currentTouchId;
+                SuppressSelectForTouchId = null;
+                if (sameTouch) {
+                    return SelectRoute.Swallow;
+                }
             }
             if (ExamineArmed) {
                 ExamineArmed = false;

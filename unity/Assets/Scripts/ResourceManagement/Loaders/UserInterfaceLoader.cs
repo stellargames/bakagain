@@ -287,7 +287,8 @@ namespace BakAgain.ResourceManagement.Loaders {
             // Touch aids (spec 2026-09-29-android-touch-aids-design.md): an armed Examine turns this
             // select into the right-click the mouse would give; a select right after a long-press is
             // that press's release and is eaten. Null on desktop and in tests: a plain primary.
-            switch (BakAgain.UI.InputCore.TouchInputState.Instance?.TakeSelectRoute()
+            switch (BakAgain.UI.InputCore.TouchInputState.Instance?.TakeSelectRoute(
+                        BakAgain.UI.InputCore.TouchInputState.CurrentTouchId())
                     ?? BakAgain.UI.InputCore.SelectRoute.Primary) {
                 case BakAgain.UI.InputCore.SelectRoute.Swallow:
                     return;

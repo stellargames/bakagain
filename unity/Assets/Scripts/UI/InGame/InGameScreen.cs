@@ -1214,7 +1214,7 @@ namespace BakAgain.UI.InGame {
             }
             int? id = ReqActionUnderPointer();
             if (id.HasValue) {
-                touch.SuppressNextSelect = true;
+                touch.SuppressSelectForTouchId = TouchInputState.CurrentTouchId();
                 _ = SecondaryAction(id.Value);
             }
         }

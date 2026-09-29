@@ -40,11 +40,23 @@ namespace BakAgain.Tests.PlayMode.UI.InputCore {
         }
 
         [Test]
-        public void SuppressSwallowsExactlyOneSelect() {
-            var s = new TouchInputState(new MemPrefs()) { SuppressNextSelect = true, ExamineArmed = true };
-            Assert.AreEqual(SelectRoute.Swallow, s.TakeSelectRoute(), "the long-press release is eaten first");
-            Assert.AreEqual(SelectRoute.Secondary, s.TakeSelectRoute(), "examine still waits for a real tap");
-            Assert.AreEqual(SelectRoute.Primary, s.TakeSelectRoute());
+        public void SuppressSwallowsTheReleaseOfThatTouchOnly() {
+            var s = new TouchInputState(new MemPrefs()) { SuppressSelectForTouchId = 7, ExamineArmed = true };
+            Assert.AreEqual(SelectRoute.Swallow, s.TakeSelectRoute(currentTouchId: 7), "the long-press release is eaten");
+            Assert.AreEqual(SelectRoute.Secondary, s.TakeSelectRoute(currentTouchId: 8), "examine still waits for a real tap");
+            Assert.AreEqual(SelectRoute.Primary, s.TakeSelectRoute(currentTouchId: 9));
+        }
+
+        /// <summary>
+        /// Found on the emulator: a long-press on a portrait opened the character sheet before the
+        /// finger lifted, so its release never became a select — and the leftover suppression ate the
+        /// sheet's Exit. A select from a LATER touch must never be swallowed.
+        /// </summary>
+        [Test]
+        public void AStaleSuppressionDoesNotEatALaterTouch() {
+            var s = new TouchInputState(new MemPrefs()) { SuppressSelectForTouchId = 7 };
+            Assert.AreEqual(SelectRoute.Primary, s.TakeSelectRoute(currentTouchId: 8));
+            Assert.IsNull(s.SuppressSelectForTouchId, "and it is cleared, not left armed");
         }
 
         [Test]
