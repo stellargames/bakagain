@@ -147,16 +147,22 @@ namespace BakAgain.UI.InGame {
                 Vector2 screen = _pointer.ScreenPosition;
                 Vector2 panelPos = RuntimePanelUtils.ScreenToPanel(
                     panel, new Vector2(screen.x, Screen.height - screen.y));
-                const string prefix = "imagebutton_";
+                // REQ_MAIN's own arrows, and the touch aids' pads (TouchControlsView), which reuse this
+                // pick — and so the original's hold-to-repeat — by carrying the same action id.
                 for (VisualElement el = panel.Pick(panelPos); el != null; el = el.parent) {
-                    string n = el.name;
-                    if (!string.IsNullOrEmpty(n) && n.StartsWith(prefix)
-                        && int.TryParse(n.Substring(prefix.Length), out int aid) && IsMovementAction(aid)) {
+                    if (TryMovementAction(el.name, "imagebutton_", out int aid)
+                        || TryMovementAction(el.name, "touchpad_", out aid)) {
                         return aid;
                     }
                 }
             }
             return -1;
+        }
+
+        private static bool TryMovementAction(string name, string prefix, out int actionId) {
+            actionId = -1;
+            return !string.IsNullOrEmpty(name) && name.StartsWith(prefix)
+                && int.TryParse(name.Substring(prefix.Length), out actionId) && IsMovementAction(actionId);
         }
 
         private static bool IsMovementAction(int id) =>
