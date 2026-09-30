@@ -39,6 +39,10 @@ MonoBehaviour:
     m_Key: text_explain_datafiles
     m_Metadata:
       m_Items: []
+  - m_Id: 315815267721076736
+    m_Key: app_name
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:
