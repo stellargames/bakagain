@@ -56,6 +56,32 @@ namespace BakAgain.UI.InputCore {
         public static int? CurrentTouchId() =>
             UnityEngine.InputSystem.Touchscreen.current?.primaryTouch.touchId.ReadValue();
 
+        /// <summary>
+        /// The touch pad or compass arrow a finger is holding, from UI Toolkit pointer events (-1 when
+        /// none). ClassicMovementDriver reads it before its polled pointer, which never reported a
+        /// held finger on the owner's phone (2026-09-30) while UI Toolkit's own events did.
+        /// </summary>
+        public int HeldTouchAction { get; private set; } = -1;
+
+        /// <summary>The held element is a REQ compass arrow, whose own click takes a tap's step.</summary>
+        public bool HeldIsReqArrow { get; private set; }
+
+        /// <summary>A held compass arrow has repeated: its release click must not add one more step.</summary>
+        public bool SwallowNextArrowClick { get; set; }
+
+        public void PressHold(int actionId, bool reqArrow) {
+            HeldTouchAction = actionId;
+            HeldIsReqArrow = reqArrow;
+            SwallowNextArrowClick = false;
+        }
+
+        public void ReleaseHold(int actionId) {
+            if (HeldTouchAction == actionId) {
+                HeldTouchAction = -1;
+                HeldIsReqArrow = false;
+            }
+        }
+
         /// <summary>Combat: the screen point (Input System coords, bottom-left) the hover pick uses on touch.</summary>
         public Vector2? CombatHoverScreenPoint { get; set; }
 
@@ -89,7 +115,11 @@ namespace BakAgain.UI.InputCore {
         public static bool LongPressApplies(int actionId) =>
             actionId != 72 && actionId != 75 && actionId != 77 && actionId != 80;
 
-        public SelectRoute TakeSelectRoute(int? currentTouchId = null) {
+        public SelectRoute TakeSelectRoute(int? currentTouchId = null, int actionId = -1) {
+            if (SwallowNextArrowClick && actionId >= 0 && !LongPressApplies(actionId)) {
+                SwallowNextArrowClick = false;
+                return SelectRoute.Swallow;
+            }
             if (SuppressSelectForTouchId.HasValue) {
                 bool sameTouch = SuppressSelectForTouchId == currentTouchId;
                 SuppressSelectForTouchId = null;

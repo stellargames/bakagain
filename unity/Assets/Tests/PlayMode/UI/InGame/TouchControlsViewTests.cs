@@ -139,6 +139,72 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
                 Assert.Less(lastZone, firstArrow, "every zone is drawn (and picked) behind every arrow");
             });
 
+        /// <summary>An IPointerEvent source for GetPooled (the LongPressSecondaryTests pattern).</summary>
+        private sealed class Finger : IPointerEvent {
+            public int pointerId { get; set; } = 1;
+            public string pointerType { get; set; } = UnityEngine.UIElements.PointerType.touch;
+            public bool isPrimary => true;
+            public int button { get; set; }
+            public int pressedButtons => 1;
+            public Vector3 position { get; set; }
+            public Vector3 localPosition => position;
+            public Vector3 deltaPosition => Vector3.zero;
+            public float deltaTime => 0f;
+            public int clickCount => 1;
+            public float pressure => 1f;
+            public float tangentialPressure => 0f;
+            public float altitudeAngle => 0f;
+            public float azimuthAngle => 0f;
+            public float twist => 0f;
+            public Vector2 tilt => Vector2.zero;
+            public PenStatus penStatus => PenStatus.None;
+            public Vector2 radius => Vector2.zero;
+            public Vector2 radiusVariance => Vector2.zero;
+            public EventModifiers modifiers => EventModifiers.None;
+            public bool shiftKey => false;
+            public bool ctrlKey => false;
+            public bool commandKey => false;
+            public bool altKey => false;
+            public bool actionKey => false;
+        }
+
+        private static void Send<T>(VisualElement target) where T : PointerEventBase<T>, new() {
+            using (T evt = PointerEventBase<T>.GetPooled(new Finger { position = target.worldBound.center })) {
+                evt.target = target;
+                target.SendEvent(evt);
+            }
+        }
+
+        /// <summary>
+        /// The owner's phone (2026-09-30): the pads did nothing, because the polled pointer never
+        /// reported a held finger there. The pads are held through UI Toolkit's own pointer events,
+        /// the path the working Examine button proved.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator APadIsHeldThroughItsOwnPointerEvents() =>
+            Harness(2666, Touch(), (view, root, state) => {
+                VisualElement pad = root.Q("touchpad_77");
+                Send<PointerDownEvent>(pad);
+                Assert.AreEqual(77, state.HeldTouchAction);
+                Assert.IsFalse(state.HeldIsReqArrow);
+                Send<PointerUpEvent>(pad);
+                Assert.AreEqual(-1, state.HeldTouchAction);
+            });
+
+        [UnityTest]
+        public IEnumerator AReqCompassArrowIsHeldToo() =>
+            Harness(2666, Touch(), (view, root, state) => {
+                var arrow = new VisualElement { name = "imagebutton_72" };
+                root.Q("test-stage").Add(arrow);
+                view.Refresh(inFight: true);
+                view.Refresh(inFight: false);   // a relayout picks the arrow up
+                Send<PointerDownEvent>(arrow);
+                Assert.AreEqual(72, state.HeldTouchAction);
+                Assert.IsTrue(state.HeldIsReqArrow, "its own click takes a tap's step");
+                Send<PointerCancelEvent>(arrow);
+                Assert.AreEqual(-1, state.HeldTouchAction);
+            });
+
         [UnityTest]
         public IEnumerator InAFightThrustAndSwingShowAndRaiseTheMelee() =>
             Harness(2666, Touch(), (view, root, state) => {

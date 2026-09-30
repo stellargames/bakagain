@@ -30,6 +30,9 @@ namespace BakAgain.UI.InGame {
         private readonly TouchControlsLayout _layout;
         private readonly Dictionary<int, VisualElement> _pads = new Dictionary<int, VisualElement>();
         private readonly List<VisualElement> _arrowZones = new List<VisualElement>();
+        private readonly Dictionary<VisualElement, System.Action> _holdUnregister =
+            new Dictionary<VisualElement, System.Action>();
+        private Label _diag;
         private VisualElement _root, _stage, _left, _right, _examine, _thrust, _swing, _cycle;
         private bool _inFight;
         private bool _wasTouch;
@@ -54,6 +57,7 @@ namespace BakAgain.UI.InGame {
             _right = Bar("touch-right");
             foreach (int id in PadIds) {
                 _pads[id] = Button($"touchpad_{id}", Glyph(id), null);
+                RegisterHold(_pads[id], id, reqArrow: false);
             }
             _examine = Button("touch-examine", "Examine", ToggleExamine);
             _thrust = Button("touch-thrust", "Thrust", () => MeleeRequested?.Invoke(true));
@@ -65,6 +69,18 @@ namespace BakAgain.UI.InGame {
             _right.Add(_cycle);
             _root.Add(_left);
             _root.Add(_right);
+            if (Debug.isDebugBuild) {
+                // Temporary (2026-09-30): the owner's phone saw no held finger through the polled
+                // pointer. This readout names what the device reports; remove with the variant choice.
+                _diag = new Label { name = "touch-diag", pickingMode = PickingMode.Ignore };
+                _diag.style.position = Position.Absolute;
+                _diag.style.left = 8;
+                _diag.style.top = 8;
+                _diag.style.fontSize = 22;
+                _diag.style.color = new Color(1f, 1f, 0.6f);
+                _diag.style.whiteSpace = WhiteSpace.Normal;
+                _left.Add(_diag);
+            }
             _wasTouch = IsTouch;
             _state.Changed += Layout;
             _root.RegisterCallback<GeometryChangedEvent>(OnGeometry);
@@ -73,6 +89,7 @@ namespace BakAgain.UI.InGame {
 
         /// <summary>Per frame: follows the fight state and the active pointer.</summary>
         public void Refresh(bool inFight) {
+            UpdateDiagnostic();
             bool touch = IsTouch;
             if (inFight == _inFight && touch == _wasTouch) {
                 return;
@@ -80,6 +97,66 @@ namespace BakAgain.UI.InGame {
             _inFight = inFight;
             _wasTouch = touch;
             Layout();
+        }
+
+        // A finger on a pad or arrow, reported by UI Toolkit's own pointer events — the path the
+        // owner's phone proved works (Examine) where the polled pointer never saw a held finger.
+        // Touch only: a mouse on the desktop's arrows keeps its old behaviour exactly.
+        private void RegisterHold(VisualElement e, int id, bool reqArrow) {
+            if (_holdUnregister.ContainsKey(e)) {
+                return;
+            }
+            EventCallback<PointerDownEvent> down = evt => {
+                if (evt.pointerType != UnityEngine.UIElements.PointerType.touch) {
+                    return;
+                }
+                _state.PressHold(id, reqArrow);
+                if (!reqArrow) {
+                    e.CapturePointer(evt.pointerId);   // a REQ arrow's Clickable captures it already
+                }
+            };
+            EventCallback<PointerUpEvent> up = _ => _state.ReleaseHold(id);
+            EventCallback<PointerCancelEvent> cancel = _ => _state.ReleaseHold(id);
+            EventCallback<PointerCaptureOutEvent> lost = _ => _state.ReleaseHold(id);
+            e.RegisterCallback(down);
+            e.RegisterCallback(up);
+            e.RegisterCallback(cancel);
+            e.RegisterCallback(lost);
+            _holdUnregister[e] = () => {
+                e.UnregisterCallback(down);
+                e.UnregisterCallback(up);
+                e.UnregisterCallback(cancel);
+                e.UnregisterCallback(lost);
+                _state.ReleaseHold(id);
+            };
+        }
+
+        private void RegisterReqArrows() {
+            foreach (int id in PadIds) {
+                VisualElement arrow = _root.Q($"imagebutton_{id}");
+                if (arrow != null) {
+                    RegisterHold(arrow, id, reqArrow: true);
+                }
+            }
+        }
+
+        private void UpdateDiagnostic() {
+            if (_diag == null || _root?.panel == null) {
+                return;
+            }
+            var mouse = UnityEngine.InputSystem.Mouse.current;
+            var pointer = UnityEngine.InputSystem.Pointer.current;
+            var touchscreen = UnityEngine.InputSystem.Touchscreen.current;
+            Vector2 sp = _pointer?.ScreenPosition ?? Vector2.zero;
+            Vector2 pp = RuntimePanelUtils.ScreenToPanel(_root.panel, new Vector2(sp.x, Screen.height - sp.y));
+            VisualElement picked = _root.panel.Pick(pp);
+            _diag.text = $"mouse: {(mouse == null ? "none" : mouse.name)}\n"
+                + $"pointer: {(pointer == null ? "none" : pointer.GetType().Name + " " + pointer.name)}\n"
+                + $"touch press: {touchscreen?.primaryTouch.press.isPressed}\n"
+                + $"Primary.IsDown: {_pointer?.Primary.IsDown}\n"
+                + $"pos {sp:F0} of {Screen.width}x{Screen.height}\n"
+                + $"pick: {picked?.name}\n"
+                + $"held (UI events): {_state.HeldTouchAction}";
         }
 
         private void Cycle() {
@@ -104,6 +181,9 @@ namespace BakAgain.UI.InGame {
             }
             _examine.EnableInClassList("touch-armed", _state.ExamineArmed);
             ClearArrowZones();
+            if (IsTouch) {
+                RegisterReqArrows();
+            }
             float h = _root.layout.height;
             float leftW = _stage.layout.x;
             float rightX = _stage.layout.xMax;
@@ -183,12 +263,17 @@ namespace BakAgain.UI.InGame {
                 zone.style.width = r.width * g;
                 zone.style.height = r.height * g;
                 panel.Insert(behind++, zone);
+                RegisterHold(zone, id, reqArrow: false);
                 _arrowZones.Add(zone);
             }
         }
 
         private void ClearArrowZones() {
             foreach (VisualElement z in _arrowZones) {
+                if (_holdUnregister.TryGetValue(z, out System.Action undo)) {
+                    undo();
+                    _holdUnregister.Remove(z);
+                }
                 z.RemoveFromHierarchy();
             }
             _arrowZones.Clear();
@@ -232,6 +317,10 @@ namespace BakAgain.UI.InGame {
             }
             _root?.UnregisterCallback<GeometryChangedEvent>(OnGeometry);
             ClearArrowZones();
+            foreach (System.Action undo in _holdUnregister.Values) {
+                undo();
+            }
+            _holdUnregister.Clear();
             _left?.RemoveFromHierarchy();
             _right?.RemoveFromHierarchy();
             _root = null;
