@@ -1246,11 +1246,17 @@ namespace BakAgain.UI.InGame {
             }
             (int c, int r) = _combatCursor.Cell;
             Vector2? point = CellOnScreen(c, r);
-            bool onCombatant = point.HasValue && _interaction?.CombatantAtScreenPoint(point.Value) != null;
-            touch.CombatHoverScreenPoint = onCombatant ? point : null;
+            (int RosterSlot, bool PartyMember)? occupant = point.HasValue ? _interaction?.CombatantAtScreenPoint(point.Value) : null;
+            bool waiting = _awaitingTarget?.Invoke() ?? false;
+            // An enemy offers Thrust/Swing; a party member offers nothing — unless a spell or item is
+            // waiting for a target, which may well be a friend (a heal).
+            bool target = occupant.HasValue && (!occupant.Value.PartyMember || waiting);
+            touch.CombatHoverScreenPoint = occupant.HasValue ? point : null;
             _setCursorCell?.Invoke((c, r), true);
-            touch.CursorContext = onCombatant ? CursorContext.Target : CursorContext.Ground;
-            touch.AwaitingTarget = _awaitingTarget?.Invoke() ?? false;
+            touch.CursorContext = target ? CursorContext.Target
+                : occupant.HasValue ? CursorContext.None
+                : CursorContext.Ground;
+            touch.AwaitingTarget = waiting;
         }
 
         private void StepCursor(int padAction) {
