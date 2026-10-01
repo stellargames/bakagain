@@ -182,6 +182,11 @@ namespace BakAgain.UI.InGame {
         /// <summary>The element the finger went down on.</summary>
         public VisualElement TouchTarget { get; private set; }
 
+        /// <summary>Counts presses, so a hold detector restarts on every new one even if a release was missed.</summary>
+        public int PressSerial { get; private set; }
+
+        private VisualElement _releaseWatch;
+
         // Panel-wide (every document shares the panel), so a press on a screen raised over this one
         // still drops a stale long-press suppression.
         private void TrackPresses(IPanel panel) {
@@ -199,6 +204,8 @@ namespace BakAgain.UI.InGame {
             TouchDown = true;
             TouchPosition = e.position;
             TouchTarget = e.target as VisualElement;
+            PressSerial++;
+            WatchReleaseOn(TouchTarget);
             _state.OnTouchPressStarted();
         }
 
@@ -215,6 +222,30 @@ namespace BakAgain.UI.InGame {
         }
 
         private void OnPressCancel(PointerCancelEvent e) => TouchDown = false;
+
+        // A Clickable captures the pointer on down, and UI Toolkit then sends the release to that
+        // element alone: the panel-level listener never heard a finger lift (emulator logcat,
+        // 2026-10-01). So the release is also watched on the pressed element itself.
+        private void WatchReleaseOn(VisualElement target) {
+            UnwatchRelease();
+            _releaseWatch = target;
+            _releaseWatch?.RegisterCallback<PointerUpEvent>(OnTargetRelease, TrickleDown.TrickleDown);
+            _releaseWatch?.RegisterCallback<PointerCancelEvent>(OnTargetCancel, TrickleDown.TrickleDown);
+            _releaseWatch?.RegisterCallback<PointerCaptureOutEvent>(OnTargetCaptureOut);
+        }
+
+        private void UnwatchRelease() {
+            _releaseWatch?.UnregisterCallback<PointerUpEvent>(OnTargetRelease, TrickleDown.TrickleDown);
+            _releaseWatch?.UnregisterCallback<PointerCancelEvent>(OnTargetCancel, TrickleDown.TrickleDown);
+            _releaseWatch?.UnregisterCallback<PointerCaptureOutEvent>(OnTargetCaptureOut);
+            _releaseWatch = null;
+        }
+
+        private void OnTargetRelease(PointerUpEvent e) => TouchDown = false;
+
+        private void OnTargetCancel(PointerCancelEvent e) => TouchDown = false;
+
+        private void OnTargetCaptureOut(PointerCaptureOutEvent e) => TouchDown = false;
 
         private void OnGeometry(GeometryChangedEvent _) => Layout();
 
@@ -363,6 +394,7 @@ namespace BakAgain.UI.InGame {
             _panelRoot?.UnregisterCallback<PointerUpEvent>(OnPressUp, TrickleDown.TrickleDown);
             _panelRoot?.UnregisterCallback<PointerCancelEvent>(OnPressCancel, TrickleDown.TrickleDown);
             _panelRoot = null;
+            UnwatchRelease();
             ClearArrowZones();
             foreach (System.Action undo in _holdUnregister.Values) {
                 undo();

@@ -1168,6 +1168,7 @@ namespace BakAgain.UI.InGame {
 
         private TouchControlsView _touchControls;
         private readonly TouchHoldDetector _touchHold = new TouchHoldDetector();
+        private int _touchPressSerial;
         private CombatTouchTargeting _touchTargeting;
         private bool _touchFightWasRunning;
 
@@ -1228,7 +1229,11 @@ namespace BakAgain.UI.InGame {
                 return;
             }
             // The finger as UI Toolkit's own events report it: the polled pointer never saw a held
-            // finger on the owner's phone (2026-09-30).
+            // finger on the owner's phone (2026-09-30). Every new press starts the detector afresh.
+            if (_touchControls.PressSerial != _touchPressSerial) {
+                _touchPressSerial = _touchControls.PressSerial;
+                _touchHold.Reset();
+            }
             if (!_touchHold.Tick(_touchControls.TouchDown, _touchControls.TouchPosition, Time.realtimeSinceStartup)) {
                 return;
             }

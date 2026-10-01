@@ -92,15 +92,22 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
         [UnityTest]
         public IEnumerator ThePressTrackerFollowsAFingerAnywhereOnThePanel() =>
             Harness(2666, Touch(), (view, root, state) => {
+                // A REQ element: its Clickable captures the pointer on down, and UI Toolkit then sends
+                // the release to it alone — the panel-level listener never heard a finger lift
+                // (logcat on the emulator, 2026-10-01), so the tracker thought it was still down.
                 var target = new VisualElement { name = "hotspot_2" };
+                target.AddManipulator(new Clickable(() => { }));
                 root.Q("test-stage").Add(target);
                 state.SuppressSelectFor = 4;
                 Send<PointerDownEvent>(target);
                 Assert.IsTrue(view.TouchDown);
                 Assert.AreSame(target, view.TouchTarget);
                 Assert.IsNull(state.SuppressSelectFor, "a new press drops a stale suppression");
+                int serial = view.PressSerial;
                 Send<PointerUpEvent>(target);
-                Assert.IsFalse(view.TouchDown);
+                Assert.IsFalse(view.TouchDown, "the release reached the tracker");
+                Send<PointerDownEvent>(target);
+                Assert.AreEqual(serial + 1, view.PressSerial, "every press is a new press");
             });
 
         [UnityTest]
