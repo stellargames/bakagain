@@ -303,4 +303,51 @@ public class CombatWalkTests {
         Assert.Equal(1, actor.X);
         Assert.Equal(5, actor.Y);
     }
+
+    /// <summary>
+    /// Owner, 2026-10-01: combat movement looked instantaneous. The original draws the walker across
+    /// every cell it steps (CMBTAI.C:36-60, once per step from :211), so the view needs the cells.
+    /// </summary>
+    [Fact]
+    public void AWalkRecordsEveryCellItStepsThrough() {
+        Combatant actor = Actor(1, 5);
+
+        CombatWalk.Walk(new CombatGrid(), actor, 3, 7, speed: 5);
+
+        Assert.Equal(new[] { (1, 5), (2, 6), (3, 7) }, actor.WalkedCells);
+    }
+
+    [Fact]
+    public void AProbeRecordsNoWalk() {
+        Combatant actor = Actor(1, 5);
+
+        CombatWalk.Walk(new CombatGrid(), actor, 3, 5, speed: 5, probe: true);
+
+        Assert.Empty(actor.WalkedCells);
+    }
+
+    [Fact]
+    public void ASecondWalkBeforeTheRedrawCarriesOn() {
+        Combatant actor = Actor(1, 5);
+        CombatWalk.Walk(new CombatGrid(), actor, 2, 5, speed: 5);
+        CombatWalk.Walk(new CombatGrid(), actor, 3, 5, speed: 5);
+        Assert.Equal(new[] { (1, 5), (2, 5), (3, 5) }, actor.WalkedCells);
+
+        actor.X = 6;   // moved by something that is not a walk: the old path no longer leads here
+        CombatWalk.Walk(new CombatGrid(), actor, 7, 5, speed: 5);
+        Assert.Equal(new[] { (6, 5), (7, 5) }, actor.WalkedCells);
+    }
+
+    /// <summary>
+    /// The walker is drawn as a shape flying at 100 world units a frame (CMBTAI.C:60) over the
+    /// octagonal distance between cell centres (WORLDHIT.C:660-665): 3 frames for a 300-unit
+    /// straight step, 4 for a diagonal (300 + 3*300/8 = 412).
+    /// </summary>
+    [Theory]
+    [InlineData(1, 0, 3)]
+    [InlineData(0, -1, 3)]
+    [InlineData(1, 1, 4)]
+    [InlineData(-1, 1, 4)]
+    public void AStepTakesTheOriginalsFrameCount(int dx, int dy, int frames) =>
+        Assert.Equal(frames, CombatWalk.StepFrames(dx, dy, cellSize: 300));
 }

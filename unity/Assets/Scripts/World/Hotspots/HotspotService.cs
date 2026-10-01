@@ -104,6 +104,9 @@ using GameData.Resources.Scene;
         // reader should not have to know that showing it happens to rebuild it.
         private readonly Action _redrawArena;
 
+        /// <summary>The arena is still drawing the last move (WorldRuntime's slide).</summary>
+        private readonly Func<bool> _arenaBusy;
+
         // Plays a sound by id — the same seam PartyMovement takes, so world and combat cues go
         // through one path rather than each reaching for MenuSoundService themselves.
         private readonly Action<int> _playSfx;
@@ -226,7 +229,9 @@ using GameData.Resources.Scene;
             Func<BakAgain.UI.Inventory.InventoryMenu> inventoryMenuAccessor = null,
             Func<BakAgain.UI.Character.CharacterSheetScreen> characterSheetAccessor = null,
             Func<int, int, IEnumerable<GameData.Resources.Combat.ArenaScenery.Placement>> sceneryOnTile = null,
-            Func<int> undergroundFloorCells = null) {
+            Func<int> undergroundFloorCells = null,
+            Func<bool> arenaBusy = null) {
+            _arenaBusy = arenaBusy;
             _logger = logger;
             _resources = resources;
             _session = session;
@@ -5434,6 +5439,10 @@ using GameData.Resources.Scene;
             }
             _settlingTurn = true;
             try {
+                // The party's own walk is drawn first, as the original's walk returns before the
+                // enemies act (COMBAT.C:1588): a monster's redraw mid-slide rebuilt the arena and
+                // both sprites jumped to their ends.
+                await Cysharp.Threading.Tasks.UniTask.WaitWhile(() => _arenaBusy?.Invoke() ?? false);
                 Combatant next = await AdvanceToPartyTurnPacedAsync();
 
                 BakAgain.UI.Combat.CombatMenu menu = _combatMenuAccessor?.Invoke();
