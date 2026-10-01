@@ -42,15 +42,16 @@ namespace BakAgain.UI.InputCore {
         public TouchCombatVariant Combat { get; private set; }
 
         /// <summary>
-        /// Set after a long-press fired a secondary: that finger's release select is eaten. Any new
-        /// press drops it (<see cref="OnTouchPressStarted"/>), because the secondary may open a screen
-        /// before the finger lifts — the release then never reaches a select, and a leftover flag ate
-        /// the next screen's first tap (found on the emulator: the character sheet's Exit).
+        /// The action a long-press fired the right-click on: that element's release click is eaten.
+        /// Keyed to the ACTION, not "the next select": the right-click may open a screen on its own
+        /// panel before the finger lifts, so the release click never comes, and a plain flag ate the
+        /// next screen's first tap (the character sheet's Exit, twice on the emulator). Any other
+        /// select, or a new press seen on this panel, drops it.
         /// </summary>
-        public bool SuppressNextSelect { get; set; }
+        public int? SuppressSelectFor { get; set; }
 
         /// <summary>A new finger press, seen through UI Toolkit's own pointer events, panel-wide.</summary>
-        public void OnTouchPressStarted() => SuppressNextSelect = false;
+        public void OnTouchPressStarted() => SuppressSelectFor = null;
 
         private bool _gridToggleRequested;
 
@@ -124,9 +125,12 @@ namespace BakAgain.UI.InputCore {
                 SwallowNextArrowClick = false;
                 return SelectRoute.Swallow;
             }
-            if (SuppressNextSelect) {
-                SuppressNextSelect = false;
-                return SelectRoute.Swallow;
+            if (SuppressSelectFor.HasValue) {
+                bool sameElement = SuppressSelectFor == actionId;
+                SuppressSelectFor = null;
+                if (sameElement) {
+                    return SelectRoute.Swallow;
+                }
             }
             return SelectRoute.Primary;
         }

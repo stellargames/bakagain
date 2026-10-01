@@ -47,9 +47,22 @@ namespace BakAgain.Tests.PlayMode.UI.InputCore {
 
         [Test]
         public void ALongPressSwallowsItsOwnRelease() {
-            var s = new TouchInputState(new MemPrefs()) { SuppressNextSelect = true };
-            Assert.AreEqual(SelectRoute.Swallow, s.TakeSelectRoute());
-            Assert.AreEqual(SelectRoute.Primary, s.TakeSelectRoute());
+            var s = new TouchInputState(new MemPrefs()) { SuppressSelectFor = 4 };
+            Assert.AreEqual(SelectRoute.Swallow, s.TakeSelectRoute(4), "the long-pressed portrait's release");
+            Assert.AreEqual(SelectRoute.Primary, s.TakeSelectRoute(4));
+        }
+
+        /// <summary>
+        /// Found on the emulator (twice): a long-press on a portrait opens the character sheet — on
+        /// its own panel — before the finger lifts, so the portrait's release click never comes, and
+        /// the leftover suppression ate the sheet's Exit. Only the long-pressed action's own select
+        /// is swallowed; any other select drops the suppression.
+        /// </summary>
+        [Test]
+        public void AStaleSuppressionNeverEatsAnotherButton() {
+            var s = new TouchInputState(new MemPrefs()) { SuppressSelectFor = 4 };
+            Assert.AreEqual(SelectRoute.Primary, s.TakeSelectRoute(24), "the sheet's Exit goes through");
+            Assert.IsNull(s.SuppressSelectFor, "and the suppression is gone");
         }
 
         /// <summary>
@@ -59,9 +72,9 @@ namespace BakAgain.Tests.PlayMode.UI.InputCore {
         /// </summary>
         [Test]
         public void ANewPressDropsAStaleSuppression() {
-            var s = new TouchInputState(new MemPrefs()) { SuppressNextSelect = true };
+            var s = new TouchInputState(new MemPrefs()) { SuppressSelectFor = 4 };
             s.OnTouchPressStarted();
-            Assert.AreEqual(SelectRoute.Primary, s.TakeSelectRoute());
+            Assert.AreEqual(SelectRoute.Primary, s.TakeSelectRoute(4));
         }
 
         [Test]

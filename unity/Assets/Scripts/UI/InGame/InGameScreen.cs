@@ -1234,7 +1234,7 @@ namespace BakAgain.UI.InGame {
             }
             int? id = ReqActionOf(_touchControls.TouchTarget);
             if (id.HasValue && TouchInputState.LongPressApplies(id.Value)) {
-                touch.SuppressNextSelect = true;   // the finger's release must not also click
+                touch.SuppressSelectFor = id;   // that element's release must not also click
                 _ = SecondaryAction(id.Value);
             }
         }

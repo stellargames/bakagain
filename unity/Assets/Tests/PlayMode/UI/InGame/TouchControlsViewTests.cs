@@ -94,11 +94,11 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             Harness(2666, Touch(), (view, root, state) => {
                 var target = new VisualElement { name = "hotspot_2" };
                 root.Q("test-stage").Add(target);
-                state.SuppressNextSelect = true;
+                state.SuppressSelectFor = 4;
                 Send<PointerDownEvent>(target);
                 Assert.IsTrue(view.TouchDown);
                 Assert.AreSame(target, view.TouchTarget);
-                Assert.IsFalse(state.SuppressNextSelect, "a new press drops a stale suppression");
+                Assert.IsNull(state.SuppressSelectFor, "a new press drops a stale suppression");
                 Send<PointerUpEvent>(target);
                 Assert.IsFalse(view.TouchDown);
             });
