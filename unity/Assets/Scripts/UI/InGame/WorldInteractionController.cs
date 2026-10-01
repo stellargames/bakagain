@@ -132,6 +132,11 @@ namespace BakAgain.UI.InGame {
         public UnityEngine.Vector3? HoverGroundPoint() =>
             HoverScreenPoint() is UnityEngine.Vector2 p ? GroundPointAtScreenPoint(p) : null;
 
+        /// <summary>Where a floor point appears on screen (Input System coords), or null.</summary>
+        public UnityEngine.Vector2? ScreenPointOfGround(UnityEngine.Vector3 floorPoint) =>
+            _camera == null ? null : WorldPicker.ScreenPointOfGround(_camera, _viewport, floorPoint,
+                CanonicalStage.ScreenRect(ResolveStage(), out bool _));
+
         /// <summary>The arena floor point under a screen point (Input System coords), or null.</summary>
         public UnityEngine.Vector3? GroundPointAtScreenPoint(UnityEngine.Vector2 screenPoint) {
             if (_camera == null) {

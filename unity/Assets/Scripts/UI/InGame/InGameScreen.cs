@@ -1210,15 +1210,10 @@ namespace BakAgain.UI.InGame {
         private const float CursorRepeatDelay = 0.38f;   // the arrows' own dead time (ClassicMovementDriver)
         private const float CursorRepeatInterval = 1f / 8.84f;
 
-        private Vector2? CellOnScreen(int column, int row) {
-            Vector3? world = _cellWorld?.Invoke(column, row);
-            Camera cam = _pendingCamera;
-            if (!world.HasValue || cam == null) {
-                return null;
-            }
-            Vector3 s = cam.WorldToScreenPoint(world.Value);
-            return s.z > 0 ? new Vector2(s.x, s.y) : (Vector2?)null;
-        }
+        // Through the world viewport, as the ground pick goes the other way: the arena camera
+        // renders into a texture, so its own WorldToScreenPoint is not the screen.
+        private Vector2? CellOnScreen(int column, int row) =>
+            _cellWorld?.Invoke(column, row) is Vector3 world ? _interaction?.ScreenPointOfGround(world) : null;
 
         /// <summary>
         /// The pad moves a cell cursor (held: the arrows' dead time, then repeats); the cell under it

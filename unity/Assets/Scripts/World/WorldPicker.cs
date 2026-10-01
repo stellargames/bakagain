@@ -77,6 +77,27 @@ namespace BakAgain.World {
         }
 
         /// <summary>
+        /// Where a floor point appears on SCREEN: the exact inverse of <see cref="PickGroundPoint"/>.
+        /// </summary>
+        /// <remarks>
+        /// The arena camera renders into a texture shown in the viewport, so
+        /// <c>Camera.WorldToScreenPoint</c> answers in the texture's space, not the screen's — found
+        /// live when the touch aids' combat cursor landed off the battlefield (2026-10-01).
+        /// </remarks>
+        public static Vector2? ScreenPointOfGround(Camera camera, IWorldViewport viewport,
+            Vector3 floorPoint, Rect stageScreenRect) {
+            if (camera == null || viewport == null) {
+                return null;
+            }
+            Vector3 vp = camera.WorldToViewportPoint(floorPoint);
+            if (vp.z <= 0f) {
+                return null;
+            }
+            Rect r = viewport.ToScreenRect(stageScreenRect);
+            return r.min + (new Vector2(vp.x, vp.y) * r.size);
+        }
+
+        /// <summary>
         /// The nearest thing of type <typeparamref name="T"/> the pointer ray hits on the
         /// interaction layer.
         /// </summary>

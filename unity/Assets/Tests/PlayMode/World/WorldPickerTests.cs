@@ -16,6 +16,31 @@ namespace BakAgain.Tests.PlayMode.World {
                 new Vector2Int((int)stageScreenRect.width, (int)stageScreenRect.height);
         }
 
+        /// <summary>
+        /// The touch aids' combat cursor needs a cell's place on SCREEN. The arena camera renders into
+        /// a texture shown in the viewport, so Camera.WorldToScreenPoint answers in the texture's
+        /// space; found live, 2026-10-01 (a cursor point off the battlefield). The inverse of
+        /// PickGroundPoint round-trips.
+        /// </summary>
+        [Test]
+        public void ScreenPointOfGround_IsTheInverseOfTheGroundPick() {
+            var cam = new GameObject("cam").AddComponent<Camera>();
+            cam.transform.position = new Vector3(0, 10, -10);
+            cam.transform.LookAt(Vector3.zero);
+            var stage = new Rect(300, 50, 800, 600);   // a viewport that is NOT the whole screen
+            try {
+                var floor = new Vector3(2.5f, 0f, 1.5f);
+                Vector2? screen = WorldPicker.ScreenPointOfGround(cam, new FullViewport(), floor, stage);
+                Assert.IsTrue(screen.HasValue);
+                Assert.IsTrue(stage.Contains(screen.Value), "inside the viewport's own rect");
+                Vector3? back = WorldPicker.PickGroundPoint(cam, new FullViewport(), screen.Value, stage);
+                Assert.IsTrue(back.HasValue);
+                Assert.Less(Vector3.Distance(floor, back.Value), 0.01f);
+            } finally {
+                Object.DestroyImmediate(cam.gameObject);
+            }
+        }
+
         [Test]
         public void Pick_ReturnsEntityUnderPointer() {
             var cam = new GameObject("cam").AddComponent<Camera>();
