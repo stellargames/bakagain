@@ -118,14 +118,17 @@ namespace BakAgain.UI.InGame {
             EventCallback<PointerUpEvent> up = _ => _state.ReleaseHold(id);
             EventCallback<PointerCancelEvent> cancel = _ => _state.ReleaseHold(id);
             EventCallback<PointerCaptureOutEvent> lost = _ => _state.ReleaseHold(id);
-            e.RegisterCallback(down);
-            e.RegisterCallback(up);
-            e.RegisterCallback(cancel);
+            // TrickleDown: a REQ arrow's Clickable handles the press first in the bubble phase and
+            // stops it there, so a bubble-phase listener never heard a held arrow (owner's phone,
+            // 2026-09-30). The trickle-down phase reaches this element before the Clickable does.
+            e.RegisterCallback(down, TrickleDown.TrickleDown);
+            e.RegisterCallback(up, TrickleDown.TrickleDown);
+            e.RegisterCallback(cancel, TrickleDown.TrickleDown);
             e.RegisterCallback(lost);
             _holdUnregister[e] = () => {
-                e.UnregisterCallback(down);
-                e.UnregisterCallback(up);
-                e.UnregisterCallback(cancel);
+                e.UnregisterCallback(down, TrickleDown.TrickleDown);
+                e.UnregisterCallback(up, TrickleDown.TrickleDown);
+                e.UnregisterCallback(cancel, TrickleDown.TrickleDown);
                 e.UnregisterCallback(lost);
                 _state.ReleaseHold(id);
             };

@@ -194,7 +194,10 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
         [UnityTest]
         public IEnumerator AReqCompassArrowIsHeldToo() =>
             Harness(2666, Touch(), (view, root, state) => {
+                // Like UserInterfaceLoader's REQ arrows: a Clickable on the element itself. The
+                // owner's phone (2026-09-30): holding an arrow still did nothing while pads worked.
                 var arrow = new VisualElement { name = "imagebutton_72" };
+                arrow.AddManipulator(new Clickable(() => { }));
                 root.Q("test-stage").Add(arrow);
                 view.Refresh(inFight: true);
                 view.Refresh(inFight: false);   // a relayout picks the arrow up
