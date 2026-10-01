@@ -43,11 +43,16 @@ namespace BakAgain.UI.InGame {
         }
 
         public void Tap(Vector2 screenPoint) {
-            Vector2? hit = Snap(screenPoint);
+            // On the grid, the cell under the finger is the answer, as the original's cursor pick is
+            // (TASK-589): snapping there made an empty cell beside a combatant impossible to choose
+            // (found live, 2026-10-01). Snapping only rescues a tap that missed the grid entirely.
+            (int Column, int Row)? cell = _cellAt?.Invoke(screenPoint);
+            Vector2? hit = _targetAt(screenPoint).HasValue ? screenPoint
+                : cell.HasValue ? (Vector2?)null
+                : Snap(screenPoint);
             if (!hit.HasValue) {
                 // Bare ground works like a target (owner, 2026-10-01): the first tap rings the cell,
                 // a tap on the ringed cell is the mouse's ground click — move, cast on a cell, summon.
-                (int Column, int Row)? cell = _cellAt?.Invoke(screenPoint);
                 if (cell.HasValue && cell.Equals(_ringedCell)) {
                     Clear();
                     _groundClick?.Invoke();

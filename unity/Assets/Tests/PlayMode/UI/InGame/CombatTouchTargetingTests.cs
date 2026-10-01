@@ -22,8 +22,9 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
         private int _groundClicks;
         private (int, int)? _ringed;
 
-        // Arena cells are 100x100 screen boxes in this fake; everything below y=50 is off the grid.
-        private static (int, int)? CellAt(Vector2 p) => p.y < 50 ? ((int, int)?)null : ((int)(p.x / 100), (int)(p.y / 100));
+        // Arena cells are 100x100 screen boxes in this fake; below y=50 and right of x=560 is off the grid.
+        private static (int, int)? CellAt(Vector2 p) =>
+            p.y < 50 || p.x >= 560 ? ((int, int)?)null : ((int)(p.x / 100), (int)(p.y / 100));
 
         private (CombatTouchTargeting t, TouchInputState s, List<(int, bool, bool)> hits) Make() {
             var s = new TouchInputState(new MemPrefs());
@@ -71,7 +72,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
         [Test]
         public void ANearMissSnapsToTheTarget() {
             var (t, s, hits) = Make();
-            t.Tap(new Vector2(590, 500));   // 40 px outside the box, inside the 60 px snap ring
+            t.Tap(new Vector2(590, 500));   // off the grid, 40 px from the target: inside the 60 px snap ring
             Assert.IsNotNull(s.CombatHoverScreenPoint);
             Assert.AreEqual(((int, bool)?)(2, false), EnemyAt(s.CombatHoverScreenPoint.Value), "snapped onto the target");
         }
@@ -111,6 +112,19 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             Assert.AreEqual(1, _groundClicks, "a tap on the ringed cell is the ground click");
             Assert.IsNull(_ringed, "and the ring goes");
             Assert.IsEmpty(hits);
+        }
+
+        /// <summary>
+        /// Found live (2026-10-01): an empty cell next to Locklear could not be chosen — the snap
+        /// pulled the tap onto him. On the grid, the cell under the finger is the answer, as the
+        /// original's cursor pick is (TASK-589); snapping only rescues a tap that missed the grid.
+        /// </summary>
+        [Test]
+        public void AnEmptyCellBesideATargetIsThatCellNotTheTarget() {
+            var (t, s, hits) = Make();
+            t.Tap(new Vector2(510, 440));   // cell (5,4): 10 px from the enemy, still an empty cell
+            Assert.AreEqual(((int, int)?)(5, 4), _ringed, "the empty cell is ringed");
+            Assert.IsNull(s.CombatHoverScreenPoint, "no target was selected");
         }
 
         [Test]
