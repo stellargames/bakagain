@@ -34,7 +34,9 @@ namespace BakAgain.UI.InGame {
         private readonly Dictionary<VisualElement, System.Action> _holdUnregister =
             new Dictionary<VisualElement, System.Action>();
         private Label _diag;
-        private VisualElement _root, _stage, _left, _right, _grid, _thrust, _swing, _cycle;
+        private VisualElement _root, _stage, _left, _right, _grid, _thrust, _swing, _move, _cycle;
+        private CursorContext _lastContext;
+        private bool _lastAwaiting;
         private VisualElement _panelRoot;
         private bool _inFight;
         private bool _wasTouch;
@@ -47,6 +49,9 @@ namespace BakAgain.UI.InGame {
 
         /// <summary>Thrust (true) or Swing (false) was asked for from the side bar.</summary>
         public event System.Action<bool> MeleeRequested;
+
+        /// <summary>C3: the Move / Cast-here button — the ground click on the cursor's cell.</summary>
+        public event System.Action MoveRequested;
 
         private bool IsTouch => _pointer != null && _pointer.CanPoint && !_pointer.IsPresent;
 
@@ -61,13 +66,15 @@ namespace BakAgain.UI.InGame {
                 _pads[id] = Button($"touchpad_{id}", Glyph(id), null);
                 RegisterHold(_pads[id], id, reqArrow: false);
             }
-            _grid = Button("touch-grid", "Grid", _state.RequestGridToggle);
+            _grid = Button("touch-grid", "#", _state.RequestGridToggle);
             _thrust = Button("touch-thrust", "Thrust", () => MeleeRequested?.Invoke(true));
             _swing = Button("touch-swing", "Swing", () => MeleeRequested?.Invoke(false));
+            _move = Button("touch-move", "Move", () => MoveRequested?.Invoke());
             _cycle = Button("touch-cycle", "↻", Cycle);
             _right.Add(_grid);
             _right.Add(_thrust);
             _right.Add(_swing);
+            _right.Add(_move);
             _right.Add(_cycle);
             _root.Add(_left);
             _root.Add(_right);
@@ -94,9 +101,12 @@ namespace BakAgain.UI.InGame {
         public void Refresh(bool inFight) {
             UpdateDiagnostic();
             bool touch = IsTouch;
-            if (inFight == _inFight && touch == _wasTouch) {
+            if (inFight == _inFight && touch == _wasTouch
+                && _state.CursorContext == _lastContext && _state.AwaitingTarget == _lastAwaiting) {
                 return;
             }
+            _lastContext = _state.CursorContext;
+            _lastAwaiting = _state.AwaitingTarget;
             _inFight = inFight;
             _wasTouch = touch;
             Layout();
@@ -265,6 +275,7 @@ namespace BakAgain.UI.InGame {
                 && leftW >= _layout.MinBarWidth && rightW >= _layout.MinBarWidth;
             bool travel = !_inFight;
             TouchTravelVariant v = _state.Travel;
+            bool cursorFight = _inFight && _state.Combat == TouchCombatVariant.Cursor;
             if (IsTouch && travel && v == TouchTravelVariant.Minimal) {
                 AddArrowZones();
             }
@@ -278,7 +289,9 @@ namespace BakAgain.UI.InGame {
             // Pads: T1 all four in the left bar; T2 turning left, walking right; T3 none.
             foreach (KeyValuePair<int, VisualElement> kv in _pads) {
                 bool walk = kv.Key == Forward || kv.Key == Back;
-                VisualElement bar = v == TouchTravelVariant.SplitPads && walk ? _right : _left;
+                // In a C3 fight the pad moves the combat cursor: always the four-way thumb layout.
+                bool split = v == TouchTravelVariant.SplitPads && !cursorFight;
+                VisualElement bar = split && walk ? _right : _left;
                 if (kv.Value.parent != bar) {
                     bar.Add(kv.Value);
                 }
@@ -292,18 +305,29 @@ namespace BakAgain.UI.InGame {
                     _ => new Vector2(cell, 0),
                 };
                 Place(kv.Value, centre.x + off.x - cell / 2f, centre.y + off.y - cell / 2f, cell, cell,
-                    travel && v != TouchTravelVariant.Minimal);
+                    (travel && v != TouchTravelVariant.Minimal) || cursorFight);
             }
 
             float bw = rightW * _layout.ButtonWidth;
             float bh = h * _layout.ButtonHeight;
             float bx = (rightW - bw) / 2f;
-            Place(_grid, bx, h * _layout.GridY, bw, bh, _inFight);
-            Place(_thrust, bx, h * _layout.ThrustY, bw, bh, _inFight);
-            Place(_swing, bx, h * _layout.SwingY, bw, bh, _inFight);
+            // C1/C2: Thrust and Swing whenever a fight is on. C3: the buttons for the cell under
+            // the cursor — Thrust/Swing on a combatant, Move on ground — renamed while a spell or
+            // item waits for a target, since the same clicks then cast it.
+            bool onTarget = !cursorFight || _state.CursorContext == CursorContext.Target;
+            bool onGround = cursorFight && _state.CursorContext == CursorContext.Ground;
+            bool casting = cursorFight && _state.AwaitingTarget;
+            SetLabel(_thrust, casting ? "Cast" : "Thrust");
+            SetLabel(_move, casting ? "Cast here" : "Move");
+            Place(_thrust, bx, h * _layout.ThrustY, bw, bh, _inFight && onTarget);
+            Place(_swing, bx, h * _layout.SwingY, bw, bh, _inFight && onTarget && !casting);
+            Place(_move, bx, h * _layout.ThrustY, bw, bh, onGround);
+            // The cycle and grid buttons: small squares in the bar's top corner (owner, 2026-10-01:
+            // the grid toggle should be much more unobtrusive).
             float cs = rightW * _layout.CycleSize;
             float m = rightW * _layout.CycleMargin;
             Place(_cycle, rightW - cs - m, m, cs, cs, true);
+            Place(_grid, rightW - 2 * (cs + m), m, cs, cs, _inFight);
         }
 
         // T3: invisible, larger touch areas behind the four REQ arrows, inside the stage. ALL of them
@@ -367,6 +391,13 @@ namespace BakAgain.UI.InGame {
                 b.RegisterCallback<ClickEvent>(_ => onClick());
             }
             return b;
+        }
+
+        private static void SetLabel(VisualElement button, string text) {
+            Label label = button.Q<Label>();
+            if (label != null) {
+                label.text = text;
+            }
         }
 
         private static string Glyph(int id) => id switch {

@@ -29,5 +29,18 @@ namespace BakAgain.World.Encounters {
         /// needs whether or not they have asked for the grid.</para>
         /// </remarks>
         TargetCell = 3,
+
+        /// <summary>
+        /// The cursor on a cell the acting combatant can walk to — the original's COMBAT.TBL marker
+        /// kind 1 (pen 226), chosen by <c>combatgrid_cursor_tile_movable</c> (COMBAT.C:2324-2326).
+        /// </summary>
+        MoveCell = 4,
+
+        /// <summary>
+        /// A cell the touch aids' cursor or selection is on that is neither a target nor movable. The
+        /// original's own "none" marker (kind 0xffff) is drawn for the mouse cursor too; here it is
+        /// only shown for touch, where there is no cursor to say which cell is meant.
+        /// </summary>
+        NoneCell = 5,
     }
 }

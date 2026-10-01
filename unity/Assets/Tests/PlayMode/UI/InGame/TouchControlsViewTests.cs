@@ -232,6 +232,44 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
                 Assert.AreEqual(-1, state.HeldTouchAction);
             });
 
+        /// <summary>Owner, 2026-10-01: the grid toggle should be much more unobtrusive.</summary>
+        [UnityTest]
+        public IEnumerator TheGridButtonIsASmallCornerButtonLikeTheCycle() =>
+            Harness(2666, Touch(), (view, root, state) => {
+                view.Refresh(inFight: true);
+                // Styles, not worldBound: the relayout this Refresh asked for has not run yet.
+                IStyle grid = root.Q("touch-grid").style, cycle = root.Q("touch-cycle").style;
+                Assert.AreEqual(DisplayStyle.Flex, grid.display.value);
+                Assert.AreEqual(cycle.width.value.value, grid.width.value.value, 0.5f, "the cycle button's size");
+                Assert.Less(grid.top.value.value + grid.height.value.value,
+                    root.Q("touch-thrust").style.top.value.value, "above the action buttons");
+            });
+
+        [UnityTest]
+        public IEnumerator CursorModeShowsThePadAndTheButtonsForTheCellUnderIt() =>
+            Harness(2666, Touch(), (view, root, state) => {
+                state.CycleCombat();
+                state.CycleCombat();   // C3, the cursor
+                var moved = 0;
+                view.MoveRequested += () => moved++;
+                state.CursorContext = CursorContext.Target;
+                view.Refresh(inFight: true);
+                Assert.AreEqual(DisplayStyle.Flex, root.Q("touchpad_72").style.display.value, "the pad moves the cursor");
+                Assert.AreEqual(DisplayStyle.Flex, root.Q("touch-thrust").style.display.value);
+                Assert.AreEqual(DisplayStyle.None, root.Q("touch-move").style.display.value);
+
+                state.CursorContext = CursorContext.Ground;
+                view.Refresh(inFight: true);
+                Assert.AreEqual(DisplayStyle.None, root.Q("touch-thrust").style.display.value);
+                Assert.AreEqual(DisplayStyle.Flex, root.Q("touch-move").style.display.value);
+                Click(root.Q("touch-move"));
+                Assert.AreEqual(1, moved);
+
+                state.AwaitingTarget = true;
+                view.Refresh(inFight: true);
+                Assert.AreEqual("Cast here", root.Q("touch-move").Q<Label>().text, "a waiting spell names the button");
+            });
+
         [UnityTest]
         public IEnumerator InAFightThrustAndSwingShowAndRaiseTheMelee() =>
             Harness(2666, Touch(), (view, root, state) => {

@@ -12,8 +12,6 @@ public sealed class TouchControlsLayout
     public float PadCentreY { get; set; } = 0.55f;
     public float ButtonWidth { get; set; } = 0.8f;
     public float ButtonHeight { get; set; } = 0.12f;
-    /// <summary>The grid toggle in a fight (the original's G key).</summary>
-    public float GridY { get; set; } = 0.3f;
     public float ThrustY { get; set; } = 0.45f;
     public float SwingY { get; set; } = 0.62f;
     public float CycleSize { get; set; } = 0.25f;

@@ -94,6 +94,16 @@ namespace BakAgain.Tests.PlayMode.UI.InputCore {
         }
 
         [Test]
+        public void CombatCyclesThroughThreeVariants() {
+            var s = new TouchInputState(new MemPrefs());
+            s.CycleCombat();
+            s.CycleCombat();
+            Assert.AreEqual(TouchCombatVariant.Cursor, s.Combat);
+            s.CycleCombat();
+            Assert.AreEqual(TouchCombatVariant.SelectThenConfirm, s.Combat);
+        }
+
+        [Test]
         public void CorruptPrefValueFallsBackToDefault() {
             var prefs = new MemPrefs(); prefs.Values["touch travel variant"] = 99;
             Assert.AreEqual(TouchTravelVariant.ThumbPad, new TouchInputState(prefs).Travel);

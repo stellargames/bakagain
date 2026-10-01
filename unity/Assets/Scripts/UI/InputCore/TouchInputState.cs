@@ -2,7 +2,10 @@ namespace BakAgain.UI.InputCore {
     using UnityEngine;
 
     public enum TouchTravelVariant { ThumbPad = 0, SplitPads = 1, Minimal = 2 }
-    public enum TouchCombatVariant { SelectThenConfirm = 0, FingerHover = 1 }
+    public enum TouchCombatVariant { SelectThenConfirm = 0, FingerHover = 1, Cursor = 2 }
+
+    /// <summary>C3: what the cell under the combat cursor holds, which picks the side bar's buttons.</summary>
+    public enum CursorContext { None, Target, Ground }
     public enum SelectRoute { Primary, Swallow }
 
     public interface IPrefsStore {
@@ -90,6 +93,12 @@ namespace BakAgain.UI.InputCore {
             }
         }
 
+        /// <summary>C3: what the cell under the combat cursor holds.</summary>
+        public CursorContext CursorContext { get; set; }
+
+        /// <summary>C3: a spell or item is waiting for a target, so the buttons cast rather than fight.</summary>
+        public bool AwaitingTarget { get; set; }
+
         /// <summary>Combat: the screen point (Input System coords, bottom-left) the hover pick uses on touch.</summary>
         public Vector2? CombatHoverScreenPoint { get; set; }
 
@@ -100,7 +109,7 @@ namespace BakAgain.UI.InputCore {
         }
 
         public void CycleCombat() {
-            Combat = (TouchCombatVariant)(((int)Combat + 1) % 2);
+            Combat = (TouchCombatVariant)(((int)Combat + 1) % 3);
             _prefs.SetInt(CombatKey, (int)Combat);
             Changed?.Invoke();
         }

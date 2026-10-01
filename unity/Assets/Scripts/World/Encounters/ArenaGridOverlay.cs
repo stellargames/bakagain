@@ -83,6 +83,13 @@ namespace BakAgain.World.Encounters {
         /// </remarks>
         private static readonly Color TargetCellColour = new Color(1f, 0.92f, 0.25f);
 
+        /// <summary>The marker on a cell a click would walk to (the original's pen 226, a darker green).</summary>
+        /// <remarks>Brightened for legibility like the others, and kept apart from the acting green.</remarks>
+        private static readonly Color MoveCellColour = new Color(0.8f, 1f, 0.82f);
+
+        /// <summary>The touch aids' marker on a cell that is neither a target nor movable.</summary>
+        private static readonly Color NoneCellColour = new Color(0.75f, 0.75f, 0.72f);
+
         private System.Func<List<(long X0, long Y0, long X1, long Y1, ArenaOverlayKind Kind)>> _segments;
 
         /// <summary>The ring's own source, asked every frame because it moves with the turn.</summary>
@@ -242,6 +249,8 @@ namespace BakAgain.World.Encounters {
                     ArenaOverlayKind.Link => LinkColour,
                     ArenaOverlayKind.ActingCell => ActingCellColour,
                     ArenaOverlayKind.TargetCell => TargetCellColour,
+                    ArenaOverlayKind.MoveCell => MoveCellColour,
+                    ArenaOverlayKind.NoneCell => NoneCellColour,
                     _ => GridColour,
                 };
                 line.startColor = colour;

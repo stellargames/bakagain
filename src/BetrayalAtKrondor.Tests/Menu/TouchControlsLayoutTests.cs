@@ -11,7 +11,7 @@ public class TouchControlsLayoutTests
         var l = new TouchControlsLayout();
         Assert.InRange(l.PadSize, 0.1f, 1f);
         Assert.InRange(l.ButtonWidth, 0.1f, 1f);
-        foreach (float y in new[] { l.GridY, l.ThrustY, l.SwingY, l.PadCentreY })
+        foreach (float y in new[] { l.ThrustY, l.SwingY, l.PadCentreY })
         {
             Assert.InRange(y, 0f, 1f);
         }

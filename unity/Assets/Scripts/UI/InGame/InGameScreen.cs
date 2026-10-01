@@ -210,13 +210,21 @@ namespace BakAgain.UI.InGame {
             _combatantAtPoint;
 
         private System.Func<Vector3, (int Column, int Row)?> _cellAtPoint;
-        private System.Action<(int Column, int Row)?> _ringTouchCell;
+        private System.Action<(int Column, int Row)?, bool> _setCursorCell;
+        private System.Func<int, int, Vector3?> _cellWorld;
+        private System.Func<(int Column, int Row)?> _actingCell;
+        private System.Func<bool> _awaitingTarget;
 
         // Touch aids: the arena cell under a floor point, and the ring on the cell a first tap chose.
         internal void SetCombatCellSeams(System.Func<Vector3, (int Column, int Row)?> cellAt,
-            System.Action<(int Column, int Row)?> ringCell) {
+            System.Action<(int Column, int Row)?, bool> setCursorCell,
+            System.Func<int, int, Vector3?> cellWorld, System.Func<(int Column, int Row)?> actingCell,
+            System.Func<bool> awaitingTarget) {
             _cellAtPoint = cellAt;
-            _ringTouchCell = ringCell;
+            _setCursorCell = setCursorCell;
+            _cellWorld = cellWorld;
+            _actingCell = actingCell;
+            _awaitingTarget = awaitingTarget;
         }
 
         internal void SetCombatantAtPointSeam(
@@ -674,7 +682,8 @@ namespace BakAgain.UI.InGame {
                     new GameData.Resources.Layout.TouchControlsLayout().SnapRadius,
                     () => _interaction?.HandleClick(isPrimary: true).Forget(),
                     p => _interaction?.GroundPointAtScreenPoint(p) is Vector3 floor ? _cellAtPoint?.Invoke(floor) : null,
-                    cell => _ringTouchCell?.Invoke(cell));
+                    cell => _setCursorCell?.Invoke(cell, true));
+                _touchControls.MoveRequested += GroundClickAtCursor;
                 _touchControls.MeleeRequested += thrust => _touchTargeting?.Melee(thrust);
             }
 
@@ -840,6 +849,7 @@ namespace BakAgain.UI.InGame {
             HandleTouchLongPress();
             ClearTouchTargetingAfterAFight();
             HandleTouchFingerHover();
+            HandleTouchCursor();
             _effectCaption?.Refresh();
             RefreshCombatChrome();
             RefreshShootPanel();
@@ -852,7 +862,9 @@ namespace BakAgain.UI.InGame {
             RefreshFollowRoadState();
             RefreshEncampButtonFace();
             _worldView?.Tick();
-            _movementDriver?.Tick(_travelHost != null && _travelHost.IsInputActive);
+            // Not in a fight: the arena runs instead of the world loop in the original, and the touch
+            // aids' C3 pad (which sets the same held-pad state) moves the combat cursor there.
+            _movementDriver?.Tick(_travelHost != null && _travelHost.IsInputActive && !AFightIsRunning());
             // The world's ambient SFX, ticked where the original ticks it — from the world loop.
             // The driver converts frames to game ticks itself, so this passing Time.deltaTime does
             // NOT tie the sound rate to the frame rate.
@@ -1022,6 +1034,12 @@ namespace BakAgain.UI.InGame {
                 return;
             }
             (int RosterSlot, bool PartyMember)? hovered = _interaction?.HoverCombatant();
+            // The mouse's cursor cell, marked as the original marks it: the move marker on a cell
+            // the actor can walk to (WORLDHIT.C:490; COMBAT.C:2324-2326). Touch sets it itself.
+            if (_pointer != null && _pointer.IsPresent && AFightIsRunning()) {
+                Vector3? floor = _interaction?.HoverGroundPoint();
+                _setCursorCell?.Invoke(floor.HasValue ? _cellAtPoint?.Invoke(floor.Value) : null, false);
+            }
             var content = _combatPanelContent(
                 hovered?.RosterSlot ?? -1, hovered.HasValue && hovered.Value.PartyMember);
             _combatPanel.Show(content.Lines, content.Rules);
@@ -1184,6 +1202,82 @@ namespace BakAgain.UI.InGame {
         /// original's hover preview; lifting it there thrusts. Sliding off onto the side bar keeps the
         /// preview without attacking, so the Swing button can swing at it.
         /// </summary>
+        // ---- C3, the cursor (owner, 2026-10-01) -------------------------------------------------
+
+        private CombatCursor _combatCursor;
+        private int _cursorHeldAction = -1;
+        private float _cursorRepeatIn;
+        private const float CursorRepeatDelay = 0.38f;   // the arrows' own dead time (ClassicMovementDriver)
+        private const float CursorRepeatInterval = 1f / 8.84f;
+
+        private Vector2? CellOnScreen(int column, int row) {
+            Vector3? world = _cellWorld?.Invoke(column, row);
+            Camera cam = _pendingCamera;
+            if (!world.HasValue || cam == null) {
+                return null;
+            }
+            Vector3 s = cam.WorldToScreenPoint(world.Value);
+            return s.z > 0 ? new Vector2(s.x, s.y) : (Vector2?)null;
+        }
+
+        /// <summary>
+        /// The pad moves a cell cursor (held: the arrows' dead time, then repeats); the cell under it
+        /// drives the same hover path a mouse would — its ring and the Thrust/Swing preview — and
+        /// picks the side bar's buttons.
+        /// </summary>
+        private void HandleTouchCursor() {
+            TouchInputState touch = TouchInputState.Instance;
+            if (touch == null || !TouchCombat(TouchCombatVariant.Cursor)) {
+                _combatCursor = null;
+                return;
+            }
+            if (_combatCursor == null) {
+                _combatCursor = new CombatCursor(CellOnScreen);
+                if (_actingCell?.Invoke() is (int ac, int ar)) {
+                    _combatCursor.Cell = (ac, ar);
+                }
+            }
+            int held = touch.HeldTouchAction;
+            if (held != _cursorHeldAction) {
+                _cursorHeldAction = held;
+                _cursorRepeatIn = CursorRepeatDelay;
+                StepCursor(held);
+            } else if (held >= 0) {
+                _cursorRepeatIn -= Time.unscaledDeltaTime;
+                if (_cursorRepeatIn <= 0f) {
+                    StepCursor(held);
+                    _cursorRepeatIn += CursorRepeatInterval;
+                }
+            }
+            (int c, int r) = _combatCursor.Cell;
+            Vector2? point = CellOnScreen(c, r);
+            bool onCombatant = point.HasValue && _interaction?.CombatantAtScreenPoint(point.Value) != null;
+            touch.CombatHoverScreenPoint = onCombatant ? point : null;
+            _setCursorCell?.Invoke((c, r), true);
+            touch.CursorContext = onCombatant ? CursorContext.Target : CursorContext.Ground;
+            touch.AwaitingTarget = _awaitingTarget?.Invoke() ?? false;
+        }
+
+        private void StepCursor(int padAction) {
+            Vector2 dir = padAction switch {
+                ActionMoveForward => Vector2.up,
+                ActionMoveBackward => Vector2.down,
+                ActionTurnLeft => Vector2.left,
+                ActionTurnRight => Vector2.right,
+                _ => Vector2.zero,
+            };
+            if (dir != Vector2.zero) {
+                _combatCursor.Step(dir);
+            }
+        }
+
+        // The Move / Cast-here button: the mouse's ground click, on the cursor's cell.
+        private void GroundClickAtCursor() {
+            if (_combatCursor != null && _cellWorld?.Invoke(_combatCursor.Cell.Column, _combatCursor.Cell.Row) is Vector3 floor) {
+                _hotspotGround?.Invoke(floor);
+            }
+        }
+
         private void HandleTouchFingerHover() {
             if (!TouchCombat(TouchCombatVariant.FingerHover) || _touchTargeting == null) {
                 _fingerOverBattlefield = false;
@@ -1363,6 +1457,14 @@ namespace BakAgain.UI.InGame {
                     }
                     if (TouchCombat(TouchCombatVariant.FingerHover)) {
                         break;   // C2 attacks when the finger lifts (HandleTouchFingerHover)
+                    }
+                    if (TouchCombat(TouchCombatVariant.Cursor)) {
+                        // C3: a tap puts the cursor on that cell; the side bar's buttons act on it.
+                        if (_combatCursor != null && _interaction?.GroundPointAtScreenPoint(_pointer.ScreenPosition) is Vector3 tapped
+                            && _cellAtPoint?.Invoke(tapped) is (int tc, int tr)) {
+                            _combatCursor.Cell = (tc, tr);
+                        }
+                        break;
                     }
                     _interaction?.HandleClick(isPrimary: true).Forget();
                     break;

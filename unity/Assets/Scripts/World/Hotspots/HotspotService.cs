@@ -1542,20 +1542,27 @@ using GameData.Resources.Scene;
                 return segments;
             }
 
-            (long X, long Y) Corner(int column, int row) {
+            // *** AN INSET SQUARE, NOT THE CELL'S OUTLINE. *** Every combat marker in the original
+            // is COMBAT.TBL shape 0 ("square") at the cell centre (WORLDHIT.C:401-421), and every
+            // variant it selects uses the +-128 vertex square of a 300-unit cell — 22 units in from
+            // each edge. Measured in the original too (owner, 2026-10-01: "a smaller square inside a
+            // grid square"); this drew the full cell boundary before.
+            int half = cellSize * 128 / 300;
+
+            (long X, long Y) Corner(int column, int row, int sx, int sy) {
                 (int across, int away) =
                     GameData.Resources.Combat.CombatArenaPlacement.CellOffset(column, row, cellSize);
                 var (dx, dy) = Collision.ProximityMath.Rotate(
-                    across - (cellSize / 2), away - (cellSize / 2), _session.Rotation);
+                    across + (sx * half), away + (sy * half), _session.Rotation);
 
                 return (_session.PositionX + dx, _session.PositionY + dy);
             }
 
             void Ring(int column, int row, Encounters.ArenaOverlayKind kind) {
-                (long ax, long ay) = Corner(column, row);
-                (long bx, long by) = Corner(column + 1, row);
-                (long cx, long cy) = Corner(column + 1, row + 1);
-                (long dx, long dy) = Corner(column, row + 1);
+                (long ax, long ay) = Corner(column, row, -1, -1);
+                (long bx, long by) = Corner(column, row, 1, -1);
+                (long cx, long cy) = Corner(column, row, 1, 1);
+                (long dx, long dy) = Corner(column, row, -1, 1);
                 segments.Add((ax, ay, bx, by, kind));
                 segments.Add((bx, by, cx, cy, kind));
                 segments.Add((cx, cy, dx, dy, kind));
@@ -1573,9 +1580,16 @@ using GameData.Resources.Scene;
                 Ring(_targetHighlightCell.Value.Column, _targetHighlightCell.Value.Row,
                     Encounters.ArenaOverlayKind.TargetCell);
             }
-            if (TouchGroundCell.HasValue) {
-                Ring(TouchGroundCell.Value.Column, TouchGroundCell.Value.Row,
-                    Encounters.ArenaOverlayKind.TargetCell);
+            // The cursor's own marker, as the original draws it under the mouse (WORLDHIT.C:490):
+            // the move marker on a cell the actor can walk to. The touch aids also mark a chosen
+            // cell that is neither (NoneCell), since a finger leaves no cursor to show it.
+            if (CursorCell is (int cc, int cr) && !Nullable.Equals(_targetHighlightCell, CursorCell)) {
+                bool empty = Combat.CombatantAtCell(cc, cr) == null;
+                if (empty && Combat.CellMovable(acting, cc, cr)) {
+                    Ring(cc, cr, Encounters.ArenaOverlayKind.MoveCell);
+                } else if (CursorCellAlwaysShown) {
+                    Ring(cc, cr, Encounters.ArenaOverlayKind.NoneCell);
+                }
             }
 
             return segments;
@@ -1777,10 +1791,30 @@ using GameData.Resources.Scene;
         }
 
         /// <summary>
-        /// Touch aids: the ground cell a first tap chose, ringed until the second tap moves there.
-        /// Not the original's — it has a mouse cursor to show where a click would land.
+        /// The cell under the cursor — the mouse's hover, or the touch aids' selection / C3 cursor —
+        /// marked as the original marks the cursor cell (see ActingCellSegments).
         /// </summary>
-        public (int Column, int Row)? TouchGroundCell { get; set; }
+        public (int Column, int Row)? CursorCell { get; set; }
+
+        /// <summary>Touch: mark the cursor cell even when it is neither a target nor movable.</summary>
+        public bool CursorCellAlwaysShown { get; set; }
+
+        /// <summary>A cell's centre on the arena floor, in Unity world space (the inverse of CellAtPoint).</summary>
+        public UnityEngine.Vector3? CellCentreWorld(int column, int row) {
+            if (_session == null || _start == null || _start.CombatGridCellSize <= 0) {
+                return null;
+            }
+            (long x, long y) = CellCentre(column, row, _start.CombatGridCellSize);
+            return World.Converters.BakCoordinateConverter.ConvertPosition((int)x, (int)y, 0);
+        }
+
+        /// <summary>The acting combatant's cell, or null outside a fight.</summary>
+        public (int Column, int Row)? ActingCell() =>
+            Combat?.Encounter?.Current is GameData.Resources.Combat.Combatant a && !a.IsDead ? (a.X, a.Y) : null;
+
+        /// <summary>A spell or item is waiting for its target cell or combatant.</summary>
+        public bool AwaitingCombatTarget =>
+            _pendingCombatMode == GameData.Resources.Combat.CombatCommandOutcome.PendingMode.TargetSelection;
 
         public (int RosterSlot, bool PartyMember)? CombatantAtPoint(UnityEngine.Vector3 point) {
             GameData.Resources.Combat.CombatEncounter fight = Combat?.Encounter;
