@@ -1573,6 +1573,10 @@ using GameData.Resources.Scene;
                 Ring(_targetHighlightCell.Value.Column, _targetHighlightCell.Value.Row,
                     Encounters.ArenaOverlayKind.TargetCell);
             }
+            if (TouchGroundCell.HasValue) {
+                Ring(TouchGroundCell.Value.Column, TouchGroundCell.Value.Row,
+                    Encounters.ArenaOverlayKind.TargetCell);
+            }
 
             return segments;
         }
@@ -1759,6 +1763,24 @@ using GameData.Resources.Scene;
         /// panel's.
         /// </remarks>
         private (int Column, int Row)? _targetHighlightCell;
+
+        /// <summary>The arena cell under a floor point, or null off the grid — CombatantAtPoint's own pick.</summary>
+        public (int Column, int Row)? CellAtPoint(UnityEngine.Vector3 point) {
+            if (Combat?.Encounter == null || _session == null || _start == null) {
+                return null;
+            }
+            return World.Encounters.ArenaCellPicker.CellAt(
+                (int)(point.x * World.Converters.BakCoordinateConverter.WorldScale),
+                (int)(point.z * World.Converters.BakCoordinateConverter.WorldScale),
+                (int)_session.PositionX, (int)_session.PositionY,
+                _session.Rotation, _start.CombatGridCellSize);
+        }
+
+        /// <summary>
+        /// Touch aids: the ground cell a first tap chose, ringed until the second tap moves there.
+        /// Not the original's — it has a mouse cursor to show where a click would land.
+        /// </summary>
+        public (int Column, int Row)? TouchGroundCell { get; set; }
 
         public (int RosterSlot, bool PartyMember)? CombatantAtPoint(UnityEngine.Vector3 point) {
             GameData.Resources.Combat.CombatEncounter fight = Combat?.Encounter;

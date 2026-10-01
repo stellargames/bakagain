@@ -20,13 +20,19 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             Mathf.Abs(p.x - 500) <= 50 && Mathf.Abs(p.y - 500) <= 50 ? (2, false) : ((int, bool)?)null;
 
         private int _groundClicks;
+        private (int, int)? _ringed;
+
+        // Arena cells are 100x100 screen boxes in this fake; everything below y=50 is off the grid.
+        private static (int, int)? CellAt(Vector2 p) => p.y < 50 ? ((int, int)?)null : ((int)(p.x / 100), (int)(p.y / 100));
 
         private (CombatTouchTargeting t, TouchInputState s, List<(int, bool, bool)> hits) Make() {
             var s = new TouchInputState(new MemPrefs());
             var hits = new List<(int, bool, bool)>();
             _groundClicks = 0;
+            _ringed = null;
             var t = new CombatTouchTargeting(s, p => EnemyAt(p),
-                (slot, party, primary) => hits.Add((slot, party, primary)), 60f, () => _groundClicks++);
+                (slot, party, primary) => hits.Add((slot, party, primary)), 60f, () => _groundClicks++,
+                CellAt, c => _ringed = c);
             return (t, s, hits);
         }
 
@@ -91,15 +97,47 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             Assert.IsNull(s.CombatHoverScreenPoint);
         }
 
+        /// <summary>
+        /// Owner, 2026-10-01: moving was one tap and "icky". Ground works like a target now: the first
+        /// tap rings the cell, a tap on the ringed cell is the mouse's ground click (move, cast, summon).
+        /// </summary>
         [Test]
-        public void TappingEmptyGroundClearsAndIsAGroundClick() {
+        public void AGroundTapRingsTheCellAndASecondTapMovesThere() {
             var (t, s, hits) = Make();
-            t.Tap(new Vector2(500, 500));
-            t.Tap(new Vector2(100, 100));
-            Assert.IsNull(s.CombatHoverScreenPoint);
+            t.Tap(new Vector2(150, 150));
+            Assert.AreEqual(((int, int)?)(1, 1), _ringed, "the cell is ringed");
+            Assert.AreEqual(0, _groundClicks, "nothing moves yet");
+            t.Tap(new Vector2(170, 130));   // same cell
+            Assert.AreEqual(1, _groundClicks, "a tap on the ringed cell is the ground click");
+            Assert.IsNull(_ringed, "and the ring goes");
             Assert.IsEmpty(hits);
-            Assert.AreEqual(1, _groundClicks,
-                "a ground tap is still the mouse's ground click: combat movement, ground spells, summons (final review #1)");
+        }
+
+        [Test]
+        public void TappingAnotherCellMovesTheRing() {
+            var (t, s, hits) = Make();
+            t.Tap(new Vector2(150, 150));
+            t.Tap(new Vector2(250, 150));
+            Assert.AreEqual(((int, int)?)(2, 1), _ringed);
+            Assert.AreEqual(0, _groundClicks);
+        }
+
+        [Test]
+        public void SelectingATargetDropsTheRingedCell() {
+            var (t, s, hits) = Make();
+            t.Tap(new Vector2(150, 150));
+            t.Tap(new Vector2(500, 500));
+            Assert.IsNull(_ringed);
+            Assert.AreEqual(new Vector2(500, 500), s.CombatHoverScreenPoint);
+        }
+
+        [Test]
+        public void ATapOffTheGridClearsEverything() {
+            var (t, s, hits) = Make();
+            t.Tap(new Vector2(150, 150));
+            t.Tap(new Vector2(150, 10));
+            Assert.IsNull(_ringed);
+            Assert.AreEqual(0, _groundClicks);
         }
     }
 }

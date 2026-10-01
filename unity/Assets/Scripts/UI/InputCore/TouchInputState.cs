@@ -3,7 +3,7 @@ namespace BakAgain.UI.InputCore {
 
     public enum TouchTravelVariant { ThumbPad = 0, SplitPads = 1, Minimal = 2 }
     public enum TouchCombatVariant { SelectThenConfirm = 0, FingerHover = 1 }
-    public enum SelectRoute { Primary, Secondary, Swallow }
+    public enum SelectRoute { Primary, Swallow }
 
     public interface IPrefsStore {
         int GetInt(string key, int fallback);
@@ -41,20 +41,27 @@ namespace BakAgain.UI.InputCore {
         public TouchTravelVariant Travel { get; private set; }
         public TouchCombatVariant Combat { get; private set; }
 
-        /// <summary>While set, the next REQ select is delivered as its SecondaryAction, then clears.</summary>
-        public bool ExamineArmed { get; set; }
-
         /// <summary>
-        /// Set after a long-press fired a secondary, to the touch that did it: that finger's release
-        /// select is eaten. Keyed to the TOUCH, not "the next select", because the secondary may open
-        /// a screen before the finger lifts — the release then never reaches a select, and a plain
-        /// flag ate the next screen's first tap instead (found on the emulator: the sheet's Exit).
+        /// Set after a long-press fired a secondary: that finger's release select is eaten. Any new
+        /// press drops it (<see cref="OnTouchPressStarted"/>), because the secondary may open a screen
+        /// before the finger lifts — the release then never reaches a select, and a leftover flag ate
+        /// the next screen's first tap (found on the emulator: the character sheet's Exit).
         /// </summary>
-        public int? SuppressSelectForTouchId { get; set; }
+        public bool SuppressNextSelect { get; set; }
 
-        /// <summary>The primary touch's id right now (Input System), or null without a touchscreen.</summary>
-        public static int? CurrentTouchId() =>
-            UnityEngine.InputSystem.Touchscreen.current?.primaryTouch.touchId.ReadValue();
+        /// <summary>A new finger press, seen through UI Toolkit's own pointer events, panel-wide.</summary>
+        public void OnTouchPressStarted() => SuppressNextSelect = false;
+
+        private bool _gridToggleRequested;
+
+        /// <summary>The side bar's grid button: one press, one toggle — the G key's edge.</summary>
+        public void RequestGridToggle() => _gridToggleRequested = true;
+
+        public bool TakeGridToggle() {
+            bool asked = _gridToggleRequested;
+            _gridToggleRequested = false;
+            return asked;
+        }
 
         /// <summary>
         /// The touch pad or compass arrow a finger is holding, from UI Toolkit pointer events (-1 when
@@ -98,12 +105,9 @@ namespace BakAgain.UI.InputCore {
         }
 
         /// <summary>
-        /// A fight starting: an Examine armed on the travel screen would turn the first battlefield
-        /// tap into an instant Swing (its button is hidden in a fight), and a selection from an
-        /// earlier fight would ring an arbitrary cell. Both are dropped.
+        /// A fight starting: a selection from an earlier fight would ring an arbitrary cell.
         /// </summary>
         public void OnFightStarted() {
-            ExamineArmed = false;
             CombatHoverScreenPoint = null;
             Changed?.Invoke();
         }
@@ -115,22 +119,14 @@ namespace BakAgain.UI.InputCore {
         public static bool LongPressApplies(int actionId) =>
             actionId != 72 && actionId != 75 && actionId != 77 && actionId != 80;
 
-        public SelectRoute TakeSelectRoute(int? currentTouchId = null, int actionId = -1) {
+        public SelectRoute TakeSelectRoute(int actionId = -1) {
             if (SwallowNextArrowClick && actionId >= 0 && !LongPressApplies(actionId)) {
                 SwallowNextArrowClick = false;
                 return SelectRoute.Swallow;
             }
-            if (SuppressSelectForTouchId.HasValue) {
-                bool sameTouch = SuppressSelectForTouchId == currentTouchId;
-                SuppressSelectForTouchId = null;
-                if (sameTouch) {
-                    return SelectRoute.Swallow;
-                }
-            }
-            if (ExamineArmed) {
-                ExamineArmed = false;
-                Changed?.Invoke();
-                return SelectRoute.Secondary;
+            if (SuppressNextSelect) {
+                SuppressNextSelect = false;
+                return SelectRoute.Swallow;
             }
             return SelectRoute.Primary;
         }

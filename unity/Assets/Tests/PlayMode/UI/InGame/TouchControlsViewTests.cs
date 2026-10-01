@@ -71,19 +71,36 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
                 VisualElement left = root.Q("touch-left"), right = root.Q("touch-right");
                 Assert.IsTrue(left.worldBound.Contains(root.Q("touchpad_72").worldBound.center));
                 Assert.IsTrue(left.worldBound.Contains(root.Q("touchpad_77").worldBound.center));
-                Assert.IsTrue(right.worldBound.Contains(root.Q("touch-examine").worldBound.center));
+                Assert.IsNull(root.Q("touch-examine"), "long-press is the right-click now (owner, 2026-10-01)");
                 Assert.AreEqual(DisplayStyle.None, root.Q("touch-thrust").resolvedStyle.display, "no Thrust outside a fight");
             });
 
         [UnityTest]
-        public IEnumerator ExamineToggleArmsAndShowsIt() =>
+        public IEnumerator TheGridButtonShowsInAFightAndAsksForTheToggle() =>
             Harness(2666, Touch(), (view, root, state) => {
-                VisualElement examine = root.Q("touch-examine");
-                Click(examine);
-                Assert.IsTrue(state.ExamineArmed);
-                Assert.IsTrue(examine.ClassListContains("touch-armed"));
-                state.TakeSelectRoute();   // a tap elsewhere spends it
-                Assert.IsFalse(examine.ClassListContains("touch-armed"), "the button follows the state");
+                Assert.AreEqual(DisplayStyle.None, root.Q("touch-grid").style.display.value, "not on the travel screen");
+                view.Refresh(inFight: true);
+                Assert.AreEqual(DisplayStyle.Flex, root.Q("touch-grid").style.display.value);
+                Click(root.Q("touch-grid"));
+                Assert.IsTrue(state.TakeGridToggle());
+            });
+
+        /// <summary>
+        /// The long-press reads the finger from UI Toolkit's own pointer events, panel-wide: the
+        /// polled pointer never reported a held finger on the owner's phone.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ThePressTrackerFollowsAFingerAnywhereOnThePanel() =>
+            Harness(2666, Touch(), (view, root, state) => {
+                var target = new VisualElement { name = "hotspot_2" };
+                root.Q("test-stage").Add(target);
+                state.SuppressNextSelect = true;
+                Send<PointerDownEvent>(target);
+                Assert.IsTrue(view.TouchDown);
+                Assert.AreSame(target, view.TouchTarget);
+                Assert.IsFalse(state.SuppressNextSelect, "a new press drops a stale suppression");
+                Send<PointerUpEvent>(target);
+                Assert.IsFalse(view.TouchDown);
             });
 
         [UnityTest]

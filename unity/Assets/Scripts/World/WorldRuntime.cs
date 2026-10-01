@@ -1167,6 +1167,7 @@ namespace BakAgain.World {
                 screen.SetCorpseLootSeam(_hotspots.LootCorpse);
                 screen.SetCombatTargetSeam(_hotspots.ResolveCombatTargetClick);
                 screen.SetCombatantAtPointSeam(_hotspots.CombatantAtPoint);
+                screen.SetCombatCellSeams(_hotspots.CellAtPoint, cell => _hotspots.TouchGroundCell = cell);
                 screen.SetCombatGroundSeam(_hotspots.ResolveCombatGroundClick);
                 screen.SetCombatFaceSeam(FaceActingCombatantAt);
                 screen.SetInCombatPredicate(() => _hotspots?.Combat?.InCombat ?? false);
@@ -1326,7 +1327,9 @@ namespace BakAgain.World {
             // the arena root means it is rebuilt with the arena rather than needing invalidation.
             _arenaRoot.AddComponent<Encounters.ArenaGridOverlay>()
                 .Bind(_hotspots.ArenaOverlaySegments,
-                    () => _overlayInput?.ToggleOverlayPressed ?? false,
+                    // The G key, or the touch aids' grid button.
+                    () => (_overlayInput?.ToggleOverlayPressed ?? false)
+                        | (BakAgain.UI.InputCore.TouchInputState.Instance?.TakeGridToggle() ?? false),
                     () => _combatGridLinesEnabled,
                     on => {
                         _combatGridLinesEnabled = on;

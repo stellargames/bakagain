@@ -31,48 +31,9 @@ namespace BakAgain.Tests.PlayMode.UI.InputCore {
             Assert.AreEqual(TouchCombatVariant.FingerHover, new TouchInputState(prefs).Combat, "persisted");
         }
 
-        [Test]
-        public void ExamineIsOneShot() {
-            var s = new TouchInputState(new MemPrefs()) { ExamineArmed = true };
-            Assert.AreEqual(SelectRoute.Secondary, s.TakeSelectRoute());
-            Assert.IsFalse(s.ExamineArmed, "spent by the select it redirected");
-            Assert.AreEqual(SelectRoute.Primary, s.TakeSelectRoute());
-        }
 
-        [Test]
-        public void SuppressSwallowsTheReleaseOfThatTouchOnly() {
-            var s = new TouchInputState(new MemPrefs()) { SuppressSelectForTouchId = 7, ExamineArmed = true };
-            Assert.AreEqual(SelectRoute.Swallow, s.TakeSelectRoute(currentTouchId: 7), "the long-press release is eaten");
-            Assert.AreEqual(SelectRoute.Secondary, s.TakeSelectRoute(currentTouchId: 8), "examine still waits for a real tap");
-            Assert.AreEqual(SelectRoute.Primary, s.TakeSelectRoute(currentTouchId: 9));
-        }
 
-        /// <summary>
-        /// Found on the emulator: a long-press on a portrait opened the character sheet before the
-        /// finger lifted, so its release never became a select — and the leftover suppression ate the
-        /// sheet's Exit. A select from a LATER touch must never be swallowed.
-        /// </summary>
-        [Test]
-        public void AStaleSuppressionDoesNotEatALaterTouch() {
-            var s = new TouchInputState(new MemPrefs()) { SuppressSelectForTouchId = 7 };
-            Assert.AreEqual(SelectRoute.Primary, s.TakeSelectRoute(currentTouchId: 8));
-            Assert.IsNull(s.SuppressSelectForTouchId, "and it is cleared, not left armed");
-        }
 
-        /// <summary>
-        /// Final review #2: an Examine armed on the travel screen turned the first battlefield tap of
-        /// the next fight into an instant Swing (its button is hidden in a fight, the flag was not).
-        /// </summary>
-        [Test]
-        public void AFightStartingDisarmsExamineAndForgetsAnOldSelection() {
-            var s = new TouchInputState(new MemPrefs()) {
-                ExamineArmed = true, CombatHoverScreenPoint = new UnityEngine.Vector2(1, 2),
-            };
-            s.OnFightStarted();
-            Assert.IsFalse(s.ExamineArmed);
-            Assert.IsNull(s.CombatHoverScreenPoint);
-            Assert.AreEqual(SelectRoute.Primary, s.TakeSelectRoute());
-        }
 
         /// <summary>Final review #4: a held compass arrow is hold-to-walk; its long-press must not open its help text.</summary>
         [Test]
@@ -82,6 +43,41 @@ namespace BakAgain.Tests.PlayMode.UI.InputCore {
             }
             Assert.IsTrue(TouchInputState.LongPressApplies(2), "a portrait");
             Assert.IsTrue(TouchInputState.LongPressApplies(192), "the world view");
+        }
+
+        [Test]
+        public void ALongPressSwallowsItsOwnRelease() {
+            var s = new TouchInputState(new MemPrefs()) { SuppressNextSelect = true };
+            Assert.AreEqual(SelectRoute.Swallow, s.TakeSelectRoute());
+            Assert.AreEqual(SelectRoute.Primary, s.TakeSelectRoute());
+        }
+
+        /// <summary>
+        /// Found on the emulator: a long-press on a portrait opened the character sheet before the
+        /// finger lifted, so its release never became a select, and a leftover suppression ate the
+        /// sheet's Exit. Any new press (UI Toolkit's own PointerDown, seen panel-wide) drops it.
+        /// </summary>
+        [Test]
+        public void ANewPressDropsAStaleSuppression() {
+            var s = new TouchInputState(new MemPrefs()) { SuppressNextSelect = true };
+            s.OnTouchPressStarted();
+            Assert.AreEqual(SelectRoute.Primary, s.TakeSelectRoute());
+        }
+
+        [Test]
+        public void AFightStartingForgetsAnOldSelection() {
+            var s = new TouchInputState(new MemPrefs()) { CombatHoverScreenPoint = new UnityEngine.Vector2(1, 2) };
+            s.OnFightStarted();
+            Assert.IsNull(s.CombatHoverScreenPoint);
+        }
+
+        [Test]
+        public void TheGridButtonIsAOneShotToggle() {
+            var s = new TouchInputState(new MemPrefs());
+            Assert.IsFalse(s.TakeGridToggle());
+            s.RequestGridToggle();
+            Assert.IsTrue(s.TakeGridToggle(), "one press, one toggle — like the G key's edge");
+            Assert.IsFalse(s.TakeGridToggle());
         }
 
         [Test]

@@ -22,27 +22,45 @@ namespace BakAgain.UI.InGame {
         private readonly Action<int, bool, bool> _attack;
         private readonly float _snap;
         private readonly Action _groundClick;
+        private readonly Func<Vector2, (int Column, int Row)?> _cellAt;
+        private readonly Action<(int Column, int Row)?> _ringCell;
+        private (int Column, int Row)? _ringedCell;
 
         /// <param name="targetAt">The combatant under a screen point (Input System coords), or null.</param>
         /// <param name="attack">(roster slot, party member, isPrimary): the mouse click's own dispatch.</param>
         /// <param name="groundClick">A tap on bare ground: the mouse's ground click (combat movement,
         /// a spell aimed at a cell, a summon's placement) — the touch aids must not swallow it.</param>
         public CombatTouchTargeting(TouchInputState state, Func<Vector2, (int RosterSlot, bool PartyMember)?> targetAt,
-            Action<int, bool, bool> attack, float snapRadiusPixels, Action groundClick) {
+            Action<int, bool, bool> attack, float snapRadiusPixels, Action groundClick,
+            Func<Vector2, (int Column, int Row)?> cellAt, Action<(int Column, int Row)?> ringCell) {
             _state = state;
             _targetAt = targetAt;
             _attack = attack;
             _snap = snapRadiusPixels;
             _groundClick = groundClick;
+            _cellAt = cellAt;
+            _ringCell = ringCell;
         }
 
         public void Tap(Vector2 screenPoint) {
             Vector2? hit = Snap(screenPoint);
             if (!hit.HasValue) {
+                // Bare ground works like a target (owner, 2026-10-01): the first tap rings the cell,
+                // a tap on the ringed cell is the mouse's ground click — move, cast on a cell, summon.
+                (int Column, int Row)? cell = _cellAt?.Invoke(screenPoint);
+                if (cell.HasValue && cell.Equals(_ringedCell)) {
+                    Clear();
+                    _groundClick?.Invoke();
+                    return;
+                }
                 Clear();
-                _groundClick?.Invoke();
+                if (cell.HasValue) {
+                    _ringedCell = cell;
+                    _ringCell?.Invoke(cell);
+                }
                 return;
             }
+            RingNoCell();
             (int, bool)? tapped = _targetAt(hit.Value);
             (int, bool)? selected = _state.CombatHoverScreenPoint.HasValue
                 ? _targetAt(_state.CombatHoverScreenPoint.Value)
@@ -67,7 +85,17 @@ namespace BakAgain.UI.InGame {
             _attack(target.Value.RosterSlot, target.Value.PartyMember, thrust);
         }
 
-        public void Clear() => _state.CombatHoverScreenPoint = null;
+        public void Clear() {
+            _state.CombatHoverScreenPoint = null;
+            RingNoCell();
+        }
+
+        private void RingNoCell() {
+            if (_ringedCell.HasValue) {
+                _ringedCell = null;
+                _ringCell?.Invoke(null);
+            }
+        }
 
         /// <summary>C2: the hover point sits <paramref name="offsetPixels"/> above the finger, so the finger never hides it.</summary>
         public void FingerMoved(Vector2 fingerScreenPoint, float offsetPixels) {

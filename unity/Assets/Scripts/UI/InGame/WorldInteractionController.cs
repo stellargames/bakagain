@@ -129,11 +129,15 @@ namespace BakAgain.UI.InGame {
         /// is not a click, and an actor should face a cursor resting on another combatant just as
         /// much as one resting on bare ground.</para>
         /// </remarks>
-        public UnityEngine.Vector3? HoverGroundPoint() {
-            if (_camera == null || !(HoverScreenPoint() is UnityEngine.Vector2 p)) {
+        public UnityEngine.Vector3? HoverGroundPoint() =>
+            HoverScreenPoint() is UnityEngine.Vector2 p ? GroundPointAtScreenPoint(p) : null;
+
+        /// <summary>The arena floor point under a screen point (Input System coords), or null.</summary>
+        public UnityEngine.Vector3? GroundPointAtScreenPoint(UnityEngine.Vector2 screenPoint) {
+            if (_camera == null) {
                 return null;
             }
-            return WorldPicker.PickGroundPoint(_camera, _viewport, p,
+            return WorldPicker.PickGroundPoint(_camera, _viewport, screenPoint,
                 CanonicalStage.ScreenRect(ResolveStage(), out bool _));
         }
 

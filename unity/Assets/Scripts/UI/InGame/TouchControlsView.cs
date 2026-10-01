@@ -13,9 +13,10 @@ namespace BakAgain.UI.InGame {
     /// <remarks>
     /// <para><b>Nothing here moves.</b> Pad buttons are named <c>touchpad_{actionId}</c>, which
     /// ClassicMovementDriver picks exactly like the REQ compass arrows, so a held pad repeats with the
-    /// original's dead time. Examine arms <see cref="TouchInputState.ExamineArmed"/>, which the one
-    /// REQ select seam turns into a right-click. Thrust and Swing raise <see cref="MeleeRequested"/>
-    /// for the combat targeting to resolve through the mouse's click path.</para>
+    /// original's dead time (a finger is heard through UI Toolkit pointer events — see RegisterHold).
+    /// A long-press anywhere is the right-click; this view tracks the finger for it (TouchDown /
+    /// TouchTarget). Thrust and Swing raise <see cref="MeleeRequested"/> for the combat targeting to
+    /// resolve through the mouse's click path; the grid button is the original's G key.</para>
     ///
     /// <para><b>Temporary variants.</b> The owner is comparing them on a phone; the losers and the
     /// cycle button go once one is chosen. ponytail: flat stone-coloured fills, not the original's
@@ -33,7 +34,8 @@ namespace BakAgain.UI.InGame {
         private readonly Dictionary<VisualElement, System.Action> _holdUnregister =
             new Dictionary<VisualElement, System.Action>();
         private Label _diag;
-        private VisualElement _root, _stage, _left, _right, _examine, _thrust, _swing, _cycle;
+        private VisualElement _root, _stage, _left, _right, _grid, _thrust, _swing, _cycle;
+        private VisualElement _panelRoot;
         private bool _inFight;
         private bool _wasTouch;
 
@@ -59,11 +61,11 @@ namespace BakAgain.UI.InGame {
                 _pads[id] = Button($"touchpad_{id}", Glyph(id), null);
                 RegisterHold(_pads[id], id, reqArrow: false);
             }
-            _examine = Button("touch-examine", "Examine", ToggleExamine);
+            _grid = Button("touch-grid", "Grid", _state.RequestGridToggle);
             _thrust = Button("touch-thrust", "Thrust", () => MeleeRequested?.Invoke(true));
             _swing = Button("touch-swing", "Swing", () => MeleeRequested?.Invoke(false));
             _cycle = Button("touch-cycle", "↻", Cycle);
-            _right.Add(_examine);
+            _right.Add(_grid);
             _right.Add(_thrust);
             _right.Add(_swing);
             _right.Add(_cycle);
@@ -82,6 +84,7 @@ namespace BakAgain.UI.InGame {
                 _left.Add(_diag);
             }
             _wasTouch = IsTouch;
+            TrackPresses(_root.panel);
             _state.Changed += Layout;
             _root.RegisterCallback<GeometryChangedEvent>(OnGeometry);
             Layout();
@@ -170,11 +173,48 @@ namespace BakAgain.UI.InGame {
             }
         }
 
-        // Arming raises no Changed (a plain flag); disarming does, through TakeSelectRoute.
-        private void ToggleExamine() {
-            _state.ExamineArmed = !_state.ExamineArmed;
-            _examine.EnableInClassList("touch-armed", _state.ExamineArmed);
+        /// <summary>A finger is down anywhere on the panel (UI Toolkit's events, not the polled pointer).</summary>
+        public bool TouchDown { get; private set; }
+
+        /// <summary>Where that finger is, in panel coordinates.</summary>
+        public Vector2 TouchPosition { get; private set; }
+
+        /// <summary>The element the finger went down on.</summary>
+        public VisualElement TouchTarget { get; private set; }
+
+        // Panel-wide (every document shares the panel), so a press on a screen raised over this one
+        // still drops a stale long-press suppression.
+        private void TrackPresses(IPanel panel) {
+            _panelRoot = panel?.visualTree;
+            _panelRoot?.RegisterCallback<PointerDownEvent>(OnPressDown, TrickleDown.TrickleDown);
+            _panelRoot?.RegisterCallback<PointerMoveEvent>(OnPressMove, TrickleDown.TrickleDown);
+            _panelRoot?.RegisterCallback<PointerUpEvent>(OnPressUp, TrickleDown.TrickleDown);
+            _panelRoot?.RegisterCallback<PointerCancelEvent>(OnPressCancel, TrickleDown.TrickleDown);
         }
+
+        private void OnPressDown(PointerDownEvent e) {
+            if (e.pointerType != UnityEngine.UIElements.PointerType.touch) {
+                return;
+            }
+            TouchDown = true;
+            TouchPosition = e.position;
+            TouchTarget = e.target as VisualElement;
+            _state.OnTouchPressStarted();
+        }
+
+        private void OnPressMove(PointerMoveEvent e) {
+            if (e.pointerType == UnityEngine.UIElements.PointerType.touch) {
+                TouchPosition = e.position;
+            }
+        }
+
+        private void OnPressUp(PointerUpEvent e) {
+            if (e.pointerType == UnityEngine.UIElements.PointerType.touch) {
+                TouchDown = false;
+            }
+        }
+
+        private void OnPressCancel(PointerCancelEvent e) => TouchDown = false;
 
         private void OnGeometry(GeometryChangedEvent _) => Layout();
 
@@ -182,7 +222,6 @@ namespace BakAgain.UI.InGame {
             if (_root == null) {
                 return;
             }
-            _examine.EnableInClassList("touch-armed", _state.ExamineArmed);
             ClearArrowZones();
             if (IsTouch) {
                 RegisterReqArrows();
@@ -228,7 +267,7 @@ namespace BakAgain.UI.InGame {
             float bw = rightW * _layout.ButtonWidth;
             float bh = h * _layout.ButtonHeight;
             float bx = (rightW - bw) / 2f;
-            Place(_examine, bx, h * _layout.ExamineY, bw, bh, travel && v == TouchTravelVariant.ThumbPad);
+            Place(_grid, bx, h * _layout.GridY, bw, bh, _inFight);
             Place(_thrust, bx, h * _layout.ThrustY, bw, bh, _inFight);
             Place(_swing, bx, h * _layout.SwingY, bw, bh, _inFight);
             float cs = rightW * _layout.CycleSize;
@@ -319,6 +358,11 @@ namespace BakAgain.UI.InGame {
                 _state.Changed -= Layout;
             }
             _root?.UnregisterCallback<GeometryChangedEvent>(OnGeometry);
+            _panelRoot?.UnregisterCallback<PointerDownEvent>(OnPressDown, TrickleDown.TrickleDown);
+            _panelRoot?.UnregisterCallback<PointerMoveEvent>(OnPressMove, TrickleDown.TrickleDown);
+            _panelRoot?.UnregisterCallback<PointerUpEvent>(OnPressUp, TrickleDown.TrickleDown);
+            _panelRoot?.UnregisterCallback<PointerCancelEvent>(OnPressCancel, TrickleDown.TrickleDown);
+            _panelRoot = null;
             ClearArrowZones();
             foreach (System.Action undo in _holdUnregister.Values) {
                 undo();

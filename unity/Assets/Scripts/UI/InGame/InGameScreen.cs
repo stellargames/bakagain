@@ -209,6 +209,16 @@ namespace BakAgain.UI.InGame {
         private System.Func<UnityEngine.Vector3, (int RosterSlot, bool PartyMember)?>
             _combatantAtPoint;
 
+        private System.Func<Vector3, (int Column, int Row)?> _cellAtPoint;
+        private System.Action<(int Column, int Row)?> _ringTouchCell;
+
+        // Touch aids: the arena cell under a floor point, and the ring on the cell a first tap chose.
+        internal void SetCombatCellSeams(System.Func<Vector3, (int Column, int Row)?> cellAt,
+            System.Action<(int Column, int Row)?> ringCell) {
+            _cellAtPoint = cellAt;
+            _ringTouchCell = ringCell;
+        }
+
         internal void SetCombatantAtPointSeam(
             System.Func<UnityEngine.Vector3, (int RosterSlot, bool PartyMember)?> at) =>
             _combatantAtPoint = at;
@@ -662,7 +672,9 @@ namespace BakAgain.UI.InGame {
                     p => _interaction?.CombatantAtScreenPoint(p),
                     (slot, party, primary) => _hotspotTarget?.Invoke(slot, party, primary),
                     new GameData.Resources.Layout.TouchControlsLayout().SnapRadius,
-                    () => _interaction?.HandleClick(isPrimary: true).Forget());
+                    () => _interaction?.HandleClick(isPrimary: true).Forget(),
+                    p => _interaction?.GroundPointAtScreenPoint(p) is Vector3 floor ? _cellAtPoint?.Invoke(floor) : null,
+                    cell => _ringTouchCell?.Invoke(cell));
                 _touchControls.MeleeRequested += thrust => _touchTargeting?.Melee(thrust);
             }
 
@@ -1209,21 +1221,35 @@ namespace BakAgain.UI.InGame {
         /// </summary>
         private void HandleTouchLongPress() {
             TouchInputState touch = TouchInputState.Instance;
-            if (touch == null || _pointer == null || !_pointer.CanPoint || _pointer.IsPresent
-                || AFightIsRunning() || touch.Travel == TouchTravelVariant.ThumbPad) {
+            if (touch == null || _touchControls == null || AFightIsRunning()) {
                 // Not ticked here, so a release in these frames would never be seen: an unfinished
                 // press must not become an instant long-press on the next tap.
                 _touchHold.Reset();
                 return;
             }
-            if (!_touchHold.Tick(_pointer.Primary.IsDown, _pointer.ScreenPosition, Time.realtimeSinceStartup)) {
+            // The finger as UI Toolkit's own events report it: the polled pointer never saw a held
+            // finger on the owner's phone (2026-09-30).
+            if (!_touchHold.Tick(_touchControls.TouchDown, _touchControls.TouchPosition, Time.realtimeSinceStartup)) {
                 return;
             }
-            int? id = ReqActionUnderPointer();
+            int? id = ReqActionOf(_touchControls.TouchTarget);
             if (id.HasValue && TouchInputState.LongPressApplies(id.Value)) {
-                touch.SuppressSelectForTouchId = TouchInputState.CurrentTouchId();
+                touch.SuppressNextSelect = true;   // the finger's release must not also click
                 _ = SecondaryAction(id.Value);
             }
+        }
+
+        // The REQ action of an element or its nearest named ancestor (hotspot_N / imagebutton_N).
+        private static int? ReqActionOf(VisualElement element) {
+            for (VisualElement el = element; el != null; el = el.parent) {
+                string n = el.name ?? string.Empty;
+                foreach (string prefix in new[] { "hotspot_", "imagebutton_" }) {
+                    if (n.StartsWith(prefix) && int.TryParse(n.Substring(prefix.Length), out int id)) {
+                        return id;
+                    }
+                }
+            }
+            return null;
         }
 
         // The REQ element under the pointer, by the same pick and naming ClassicMovementDriver uses.
