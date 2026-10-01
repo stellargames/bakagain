@@ -53,7 +53,6 @@ namespace BakAgain.UI.InputCore {
 
             builder.Register<SystemInputSource>(Lifetime.Singleton);
             // The Android touch aids' state (spec 2026-09-29-android-touch-aids-design.md).
-            builder.Register<IPrefsStore, PlayerPrefsStore>(Lifetime.Singleton);
             builder.Register<TouchInputState>(Lifetime.Singleton);
             if (pointerOverride != null) {
                 builder.RegisterInstance(pointerOverride).As<IPointer>();

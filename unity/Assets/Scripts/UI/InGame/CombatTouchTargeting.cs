@@ -4,80 +4,29 @@ namespace BakAgain.UI.InGame {
     using UnityEngine;
 
     /// <summary>
-    /// Touch combat targeting (spec 2026-09-29-android-touch-aids-design.md in the private workspace).
+    /// The side bar's Thrust and Swing (spec 2026-09-29-android-touch-aids-design.md in the private
+    /// workspace): an attack on the combatant the combat cursor previews.
     /// </summary>
     /// <remarks>
-    /// <para><b>C1, select then confirm:</b> a tap SELECTS a target by storing its screen point in
+    /// The cursor stores the previewed cell's screen point in
     /// <see cref="TouchInputState.CombatHoverScreenPoint"/>, which WorldInteractionController's hover
-    /// pick reads on touch — so the target ring and the Thrust/Swing preview are the original's own,
-    /// driven exactly as a mouse hover drives them. A second tap on the same target, or the Thrust /
-    /// Swing button, attacks through the mouse's click path (left = Thrust, right = Swing).</para>
-    ///
-    /// <para><b>C2, finger as hover:</b> the hover point sits above the finger while it is down, and
-    /// lifting it thrusts.</para>
+    /// pick reads on touch — so the ring and the Thrust/Swing preview are the original's own. The
+    /// attack goes through the mouse's click path: Thrust is the left click, Swing the right.
     /// </remarks>
     public sealed class CombatTouchTargeting {
         private readonly TouchInputState _state;
         private readonly Func<Vector2, (int RosterSlot, bool PartyMember)?> _targetAt;
         private readonly Action<int, bool, bool> _attack;
-        private readonly float _snap;
-        private readonly Action _groundClick;
-        private readonly Func<Vector2, (int Column, int Row)?> _cellAt;
-        private readonly Action<(int Column, int Row)?> _ringCell;
-        private (int Column, int Row)? _ringedCell;
 
         /// <param name="targetAt">The combatant under a screen point (Input System coords), or null.</param>
         /// <param name="attack">(roster slot, party member, isPrimary): the mouse click's own dispatch.</param>
-        /// <param name="groundClick">A tap on bare ground: the mouse's ground click (combat movement,
-        /// a spell aimed at a cell, a summon's placement) — the touch aids must not swallow it.</param>
         public CombatTouchTargeting(TouchInputState state, Func<Vector2, (int RosterSlot, bool PartyMember)?> targetAt,
-            Action<int, bool, bool> attack, float snapRadiusPixels, Action groundClick,
-            Func<Vector2, (int Column, int Row)?> cellAt, Action<(int Column, int Row)?> ringCell) {
+            Action<int, bool, bool> attack) {
             _state = state;
             _targetAt = targetAt;
             _attack = attack;
-            _snap = snapRadiusPixels;
-            _groundClick = groundClick;
-            _cellAt = cellAt;
-            _ringCell = ringCell;
         }
 
-        public void Tap(Vector2 screenPoint) {
-            // On the grid, the cell under the finger is the answer, as the original's cursor pick is
-            // (TASK-589): snapping there made an empty cell beside a combatant impossible to choose
-            // (found live, 2026-10-01). Snapping only rescues a tap that missed the grid entirely.
-            (int Column, int Row)? cell = _cellAt?.Invoke(screenPoint);
-            Vector2? hit = _targetAt(screenPoint).HasValue ? screenPoint
-                : cell.HasValue ? (Vector2?)null
-                : Snap(screenPoint);
-            if (!hit.HasValue) {
-                // Bare ground works like a target (owner, 2026-10-01): the first tap rings the cell,
-                // a tap on the ringed cell is the mouse's ground click — move, cast on a cell, summon.
-                if (cell.HasValue && cell.Equals(_ringedCell)) {
-                    Clear();
-                    _groundClick?.Invoke();
-                    return;
-                }
-                Clear();
-                if (cell.HasValue) {
-                    _ringedCell = cell;
-                    _ringCell?.Invoke(cell);
-                }
-                return;
-            }
-            RingNoCell();
-            (int, bool)? tapped = _targetAt(hit.Value);
-            (int, bool)? selected = _state.CombatHoverScreenPoint.HasValue
-                ? _targetAt(_state.CombatHoverScreenPoint.Value)
-                : null;
-            if (selected.HasValue && selected.Equals(tapped)) {
-                Melee(thrust: true);
-                return;
-            }
-            _state.CombatHoverScreenPoint = hit;
-        }
-
-        /// <summary>Attacks the selected target: Thrust is the original's left click, Swing its right.</summary>
         public void Melee(bool thrust) {
             if (!_state.CombatHoverScreenPoint.HasValue) {
                 return;
@@ -86,53 +35,8 @@ namespace BakAgain.UI.InGame {
             if (!target.HasValue) {
                 return;
             }
-            Clear();
-            _attack(target.Value.RosterSlot, target.Value.PartyMember, thrust);
-        }
-
-        public void Clear() {
             _state.CombatHoverScreenPoint = null;
-            RingNoCell();
-        }
-
-        private void RingNoCell() {
-            if (_ringedCell.HasValue) {
-                _ringedCell = null;
-                _ringCell?.Invoke(null);
-            }
-        }
-
-        /// <summary>C2: the hover point sits <paramref name="offsetPixels"/> above the finger, so the finger never hides it.</summary>
-        public void FingerMoved(Vector2 fingerScreenPoint, float offsetPixels) {
-            Vector2 p = fingerScreenPoint + new Vector2(0f, offsetPixels);
-            _state.CombatHoverScreenPoint = _targetAt(p).HasValue ? p : (Vector2?)null;
-        }
-
-        /// <summary>C2: lifting the finger over a previewed target thrusts at it; over bare ground it is the ground click.</summary>
-        public void FingerLifted() {
-            if (_state.CombatHoverScreenPoint.HasValue) {
-                Melee(thrust: true);
-            } else {
-                _groundClick?.Invoke();
-            }
-        }
-
-        // ponytail: screen-space ring sampling (8 directions at two radii). A world-space nearest-cell
-        // search belongs here if the ring ever misses a target a player plainly tapped next to.
-        private Vector2? Snap(Vector2 p) {
-            if (_targetAt(p).HasValue) {
-                return p;
-            }
-            foreach (float r in new[] { _snap * 0.5f, _snap }) {
-                for (int i = 0; i < 8; i++) {
-                    float a = i * Mathf.PI / 4f;
-                    Vector2 q = p + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * r;
-                    if (_targetAt(q).HasValue) {
-                        return q;
-                    }
-                }
-            }
-            return null;
+            _attack(target.Value.RosterSlot, target.Value.PartyMember, thrust);
         }
     }
 }

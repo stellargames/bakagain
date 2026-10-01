@@ -18,9 +18,10 @@ namespace BakAgain.UI.InGame {
     /// TouchTarget). Thrust and Swing raise <see cref="MeleeRequested"/> for the combat targeting to
     /// resolve through the mouse's click path; the grid button is the original's G key.</para>
     ///
-    /// <para><b>Temporary variants.</b> The owner is comparing them on a phone; the losers and the
-    /// cycle button go once one is chosen. ponytail: flat stone-coloured fills, not the original's
-    /// BICONS sprites — swap them in (UiElement.IconKeyForCombined) for the variant that stays.</para>
+    /// <para><b>Layout (owner's choice, 2026-10-01).</b> Travel: turning on the left thumb, walking
+    /// on the right. A fight: all four on the left, moving the combat cursor, and the buttons for the
+    /// cell under it on the right. ponytail: flat stone-coloured fills, not the original's BICONS
+    /// sprites — swap them in (UiElement.IconKeyForCombined) if the fills look out of place.</para>
     /// </remarks>
     public sealed class TouchControlsView : System.IDisposable {
         private const int Forward = 72, Back = 80, TurnLeft = 75, TurnRight = 77;
@@ -30,11 +31,9 @@ namespace BakAgain.UI.InGame {
         private readonly IPointer _pointer;
         private readonly TouchControlsLayout _layout;
         private readonly Dictionary<int, VisualElement> _pads = new Dictionary<int, VisualElement>();
-        private readonly List<VisualElement> _arrowZones = new List<VisualElement>();
         private readonly Dictionary<VisualElement, System.Action> _holdUnregister =
             new Dictionary<VisualElement, System.Action>();
-        private Label _diag;
-        private VisualElement _root, _stage, _left, _right, _grid, _thrust, _swing, _move, _cycle;
+        private VisualElement _root, _stage, _left, _right, _grid, _thrust, _swing, _move;
         private CursorContext _lastContext;
         private bool _lastAwaiting;
         private VisualElement _panelRoot;
@@ -70,36 +69,20 @@ namespace BakAgain.UI.InGame {
             _thrust = Button("touch-thrust", "Thrust", () => MeleeRequested?.Invoke(true));
             _swing = Button("touch-swing", "Swing", () => MeleeRequested?.Invoke(false));
             _move = Button("touch-move", "Move", () => MoveRequested?.Invoke());
-            _cycle = Button("touch-cycle", "↻", Cycle);
             _right.Add(_grid);
             _right.Add(_thrust);
             _right.Add(_swing);
             _right.Add(_move);
-            _right.Add(_cycle);
             _root.Add(_left);
             _root.Add(_right);
-            if (Debug.isDebugBuild) {
-                // Temporary (2026-09-30): the owner's phone saw no held finger through the polled
-                // pointer. This readout names what the device reports; remove with the variant choice.
-                _diag = new Label { name = "touch-diag", pickingMode = PickingMode.Ignore };
-                _diag.style.position = Position.Absolute;
-                _diag.style.left = 8;
-                _diag.style.top = 8;
-                _diag.style.fontSize = 22;
-                _diag.style.color = new Color(1f, 1f, 0.6f);
-                _diag.style.whiteSpace = WhiteSpace.Normal;
-                _left.Add(_diag);
-            }
             _wasTouch = IsTouch;
             TrackPresses(_root.panel);
-            _state.Changed += Layout;
             _root.RegisterCallback<GeometryChangedEvent>(OnGeometry);
             Layout();
         }
 
         /// <summary>Per frame: follows the fight state and the active pointer.</summary>
         public void Refresh(bool inFight) {
-            UpdateDiagnostic();
             bool touch = IsTouch;
             if (inFight == _inFight && touch == _wasTouch
                 && _state.CursorContext == _lastContext && _state.AwaitingTarget == _lastAwaiting) {
@@ -153,33 +136,6 @@ namespace BakAgain.UI.InGame {
                 if (arrow != null) {
                     RegisterHold(arrow, id, reqArrow: true);
                 }
-            }
-        }
-
-        private void UpdateDiagnostic() {
-            if (_diag == null || _root?.panel == null) {
-                return;
-            }
-            var mouse = UnityEngine.InputSystem.Mouse.current;
-            var pointer = UnityEngine.InputSystem.Pointer.current;
-            var touchscreen = UnityEngine.InputSystem.Touchscreen.current;
-            Vector2 sp = _pointer?.ScreenPosition ?? Vector2.zero;
-            Vector2 pp = RuntimePanelUtils.ScreenToPanel(_root.panel, new Vector2(sp.x, Screen.height - sp.y));
-            VisualElement picked = _root.panel.Pick(pp);
-            _diag.text = $"mouse: {(mouse == null ? "none" : mouse.name)}\n"
-                + $"pointer: {(pointer == null ? "none" : pointer.GetType().Name + " " + pointer.name)}\n"
-                + $"touch press: {touchscreen?.primaryTouch.press.isPressed}\n"
-                + $"Primary.IsDown: {_pointer?.Primary.IsDown}\n"
-                + $"pos {sp:F0} of {Screen.width}x{Screen.height}\n"
-                + $"pick: {picked?.name}\n"
-                + $"held (UI events): {_state.HeldTouchAction}";
-        }
-
-        private void Cycle() {
-            if (_inFight) {
-                _state.CycleCombat();
-            } else {
-                _state.CycleTravel();
             }
         }
 
@@ -263,7 +219,6 @@ namespace BakAgain.UI.InGame {
             if (_root == null) {
                 return;
             }
-            ClearArrowZones();
             if (IsTouch) {
                 RegisterReqArrows();
             }
@@ -273,12 +228,6 @@ namespace BakAgain.UI.InGame {
             float rightW = _root.layout.width - rightX;
             bool bars = !float.IsNaN(leftW) && !float.IsNaN(rightW)
                 && leftW >= _layout.MinBarWidth && rightW >= _layout.MinBarWidth;
-            bool travel = !_inFight;
-            TouchTravelVariant v = _state.Travel;
-            bool cursorFight = _inFight && _state.Combat == TouchCombatVariant.Cursor;
-            if (IsTouch && travel && v == TouchTravelVariant.Minimal) {
-                AddArrowZones();
-            }
             bool show = IsTouch && bars;
             Place(_left, 0, 0, leftW, h, show);
             Place(_right, rightX, 0, rightW, h, show);
@@ -286,12 +235,10 @@ namespace BakAgain.UI.InGame {
                 return;
             }
 
-            // Pads: T1 all four in the left bar; T2 turning left, walking right; T3 none.
+            // Travel: turning left, walking right. A fight: the four-way pad moves the cursor.
             foreach (KeyValuePair<int, VisualElement> kv in _pads) {
                 bool walk = kv.Key == Forward || kv.Key == Back;
-                // In a C3 fight the pad moves the combat cursor: always the four-way thumb layout.
-                bool split = v == TouchTravelVariant.SplitPads && !cursorFight;
-                VisualElement bar = split && walk ? _right : _left;
+                VisualElement bar = walk && !_inFight ? _right : _left;
                 if (kv.Value.parent != bar) {
                     bar.Add(kv.Value);
                 }
@@ -304,76 +251,28 @@ namespace BakAgain.UI.InGame {
                     TurnLeft => new Vector2(-cell, 0),
                     _ => new Vector2(cell, 0),
                 };
-                Place(kv.Value, centre.x + off.x - cell / 2f, centre.y + off.y - cell / 2f, cell, cell,
-                    (travel && v != TouchTravelVariant.Minimal) || cursorFight);
+                Place(kv.Value, centre.x + off.x - cell / 2f, centre.y + off.y - cell / 2f, cell, cell, true);
             }
 
             float bw = rightW * _layout.ButtonWidth;
             float bh = h * _layout.ButtonHeight;
             float bx = (rightW - bw) / 2f;
-            // C1/C2: Thrust and Swing whenever a fight is on. C3: the buttons for the cell under
-            // the cursor — Thrust/Swing on a combatant, Move on ground — renamed while a spell or
-            // item waits for a target, since the same clicks then cast it.
-            bool onTarget = !cursorFight || _state.CursorContext == CursorContext.Target;
-            bool onGround = cursorFight && _state.CursorContext == CursorContext.Ground;
-            bool casting = cursorFight && _state.AwaitingTarget;
+            // The buttons for the cell under the cursor — Thrust/Swing on a combatant, Move on
+            // ground — renamed while a spell or item waits for a target, since the same clicks then
+            // cast it.
+            bool onTarget = _inFight && _state.CursorContext == CursorContext.Target;
+            bool onGround = _inFight && _state.CursorContext == CursorContext.Ground;
+            bool casting = _inFight && _state.AwaitingTarget;
             SetLabel(_thrust, casting ? "Cast" : "Thrust");
             SetLabel(_move, casting ? "Cast here" : "Move");
-            Place(_thrust, bx, h * _layout.ThrustY, bw, bh, _inFight && onTarget);
-            Place(_swing, bx, h * _layout.SwingY, bw, bh, _inFight && onTarget && !casting);
+            Place(_thrust, bx, h * _layout.ThrustY, bw, bh, onTarget);
+            Place(_swing, bx, h * _layout.SwingY, bw, bh, onTarget && !casting);
             Place(_move, bx, h * _layout.ThrustY, bw, bh, onGround);
-            // The cycle and grid buttons: small squares in the bar's top corner (owner, 2026-10-01:
-            // the grid toggle should be much more unobtrusive).
-            float cs = rightW * _layout.CycleSize;
-            float m = rightW * _layout.CycleMargin;
-            Place(_cycle, rightW - cs - m, m, cs, cs, true);
-            Place(_grid, rightW - 2 * (cs + m), m, cs, cs, _inFight);
-        }
-
-        // T3: invisible, larger touch areas behind the four REQ arrows, inside the stage. ALL of them
-        // go before the FIRST arrow: REQ_MAIN orders the arrows 75, 72, 80, 77, so a zone placed just
-        // before its own arrow sat above the earlier ones and stole taps on their art.
-        private void AddArrowZones() {
-            VisualElement panel = null;
-            int behind = int.MaxValue;
-            foreach (int id in PadIds) {
-                VisualElement arrow = _root.Q($"imagebutton_{id}");
-                if (arrow?.parent != null) {
-                    panel = arrow.parent;
-                    behind = System.Math.Min(behind, panel.IndexOf(arrow));
-                }
-            }
-            if (panel == null) {
-                return;
-            }
-            foreach (int id in PadIds) {
-                VisualElement arrow = _root.Q($"imagebutton_{id}");
-                if (arrow?.parent != panel) {
-                    continue;
-                }
-                Rect r = arrow.layout;
-                float g = _layout.ArrowTouchGrow;
-                var zone = new VisualElement { name = $"touchpad_{id}", pickingMode = PickingMode.Position };
-                zone.style.position = Position.Absolute;
-                zone.style.left = r.center.x - r.width * g / 2f;
-                zone.style.top = r.center.y - r.height * g / 2f;
-                zone.style.width = r.width * g;
-                zone.style.height = r.height * g;
-                panel.Insert(behind++, zone);
-                RegisterHold(zone, id, reqArrow: false);
-                _arrowZones.Add(zone);
-            }
-        }
-
-        private void ClearArrowZones() {
-            foreach (VisualElement z in _arrowZones) {
-                if (_holdUnregister.TryGetValue(z, out System.Action undo)) {
-                    undo();
-                    _holdUnregister.Remove(z);
-                }
-                z.RemoveFromHierarchy();
-            }
-            _arrowZones.Clear();
+            // The grid button: a small square in the bar's top corner (owner, 2026-10-01: the grid
+            // toggle should be much more unobtrusive).
+            float gs = rightW * _layout.GridButtonSize;
+            float m = rightW * _layout.GridButtonMargin;
+            Place(_grid, rightW - gs - m, m, gs, gs, _inFight);
         }
 
         private static VisualElement Bar(string name) {
@@ -416,9 +315,6 @@ namespace BakAgain.UI.InGame {
         }
 
         public void Dispose() {
-            if (_state != null) {
-                _state.Changed -= Layout;
-            }
             _root?.UnregisterCallback<GeometryChangedEvent>(OnGeometry);
             _panelRoot?.UnregisterCallback<PointerDownEvent>(OnPressDown, TrickleDown.TrickleDown);
             _panelRoot?.UnregisterCallback<PointerMoveEvent>(OnPressMove, TrickleDown.TrickleDown);
@@ -426,7 +322,6 @@ namespace BakAgain.UI.InGame {
             _panelRoot?.UnregisterCallback<PointerCancelEvent>(OnPressCancel, TrickleDown.TrickleDown);
             _panelRoot = null;
             UnwatchRelease();
-            ClearArrowZones();
             foreach (System.Action undo in _holdUnregister.Values) {
                 undo();
             }

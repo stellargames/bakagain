@@ -14,11 +14,6 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
     /// which never saw a held finger on the owner's phone (2026-09-30).
     /// </summary>
     public class TouchHeldMovementTests {
-        private sealed class MemPrefs : IPrefsStore {
-            public int GetInt(string k, int f) => f;
-            public void SetInt(string k, int v) { }
-        }
-
         private const float DeadTime = (float)(0x5a / DialogTextSpeed.TicksPerSecond);
         private TouchInputState _saved;
         private TouchInputState _state;
@@ -27,7 +22,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
         [SetUp]
         public void SetUp() {
             _saved = TouchInputState.Instance;
-            _state = new TouchInputState(new MemPrefs());
+            _state = new TouchInputState();
             TouchInputState.Instance = _state;
         }
 

@@ -675,14 +675,10 @@ namespace BakAgain.UI.InGame {
                 _touchControls = new TouchControlsView(BakAgain.UI.InputCore.TouchInputState.Instance, _pointer,
                     new GameData.Resources.Layout.TouchControlsLayout());
                 _touchControls.Build(root, CanonicalStage.GetOrCreate(root, _loader.Frame));
-                // Combat: the selection feeds the hover pick; attacks take the mouse click's path.
+                // Combat: the cursor feeds the hover pick; attacks take the mouse click's path.
                 _touchTargeting = new CombatTouchTargeting(TouchInputState.Instance,
                     p => _interaction?.CombatantAtScreenPoint(p),
-                    (slot, party, primary) => _hotspotTarget?.Invoke(slot, party, primary),
-                    new GameData.Resources.Layout.TouchControlsLayout().SnapRadius,
-                    () => _interaction?.HandleClick(isPrimary: true).Forget(),
-                    p => _interaction?.GroundPointAtScreenPoint(p) is Vector3 floor ? _cellAtPoint?.Invoke(floor) : null,
-                    cell => _setCursorCell?.Invoke(cell, true));
+                    (slot, party, primary) => _hotspotTarget?.Invoke(slot, party, primary));
                 _touchControls.MoveRequested += GroundClickAtCursor;
                 _touchControls.MeleeRequested += thrust => _touchTargeting?.Melee(thrust);
             }
@@ -848,7 +844,6 @@ namespace BakAgain.UI.InGame {
             _touchControls?.Refresh(AFightIsRunning());
             HandleTouchLongPress();
             ClearTouchTargetingAfterAFight();
-            HandleTouchFingerHover();
             HandleTouchCursor();
             _effectCaption?.Refresh();
             RefreshCombatChrome();
@@ -1190,19 +1185,12 @@ namespace BakAgain.UI.InGame {
         private CombatTouchTargeting _touchTargeting;
         private bool _touchFightWasRunning;
 
-        // A touch fight in the given combat variant: the tap on the battlefield is the targeting's.
-        private bool TouchCombat(TouchCombatVariant variant) =>
-            TouchInputState.Instance is TouchInputState t && t.Combat == variant && AFightIsRunning()
+        // A fight played by touch: the battlefield tap places the combat cursor.
+        private bool TouchFight() =>
+            TouchInputState.Instance != null && AFightIsRunning()
             && _pointer != null && _pointer.CanPoint && !_pointer.IsPresent;
 
-        private bool _fingerOverBattlefield;
-
-        /// <summary>
-        /// C2, finger as hover: while the finger is on the battlefield, the point above it drives the
-        /// original's hover preview; lifting it there thrusts. Sliding off onto the side bar keeps the
-        /// preview without attacking, so the Swing button can swing at it.
-        /// </summary>
-        // ---- C3, the cursor (owner, 2026-10-01) -------------------------------------------------
+        // ---- The combat cursor (owner's choice, 2026-10-01) -----------------------------------
 
         private CombatCursor _combatCursor;
         private int _cursorHeldAction = -1;
@@ -1222,7 +1210,7 @@ namespace BakAgain.UI.InGame {
         /// </summary>
         private void HandleTouchCursor() {
             TouchInputState touch = TouchInputState.Instance;
-            if (touch == null || !TouchCombat(TouchCombatVariant.Cursor)) {
+            if (touch == null || !TouchFight()) {
                 _combatCursor = null;
                 return;
             }
@@ -1279,41 +1267,18 @@ namespace BakAgain.UI.InGame {
             }
         }
 
-        private void HandleTouchFingerHover() {
-            if (!TouchCombat(TouchCombatVariant.FingerHover) || _touchTargeting == null) {
-                _fingerOverBattlefield = false;
-                return;
-            }
-            if (_pointer.Primary.IsDown) {
-                _fingerOverBattlefield = ReqActionUnderPointer() == ActionWorldViewport;
-                if (_fingerOverBattlefield) {
-                    // Layout px -> screen px: the canonical frame is fitted to the screen's HEIGHT.
-                    float offset = new GameData.Resources.Layout.TouchControlsLayout().FingerHoverOffsetY
-                        * (Screen.height / (float)BakAgain.Graphics.Canonical.Height);
-                    _touchTargeting.FingerMoved(_pointer.ScreenPosition, offset);
-                }
-            } else if (_pointer.Primary.ReleasedThisFrame && _fingerOverBattlefield) {
-                _fingerOverBattlefield = false;
-                _touchTargeting.FingerLifted();
-            }
-        }
-
         // A selection must not outlive its fight: the next fight's hover would read a stale point.
         private void ClearTouchTargetingAfterAFight() {
             bool running = AFightIsRunning();
-            if (_touchFightWasRunning && !running) {
-                _touchTargeting?.Clear();
-            }
-            if (!_touchFightWasRunning && running) {
-                TouchInputState.Instance?.OnFightStarted();
+            if (_touchFightWasRunning != running) {
+                TouchInputState.Instance?.ForgetCombatPreview();
             }
             _touchFightWasRunning = running;
         }
 
         /// <summary>
-        /// Split-pad and minimal travel (T2, T3): a still finger is the right-click — the REQ element
-        /// under it gets its SecondaryAction, and the finger's release is eaten so it does not also
-        /// click. Thumb-pad travel (T1) has the Examine toggle instead.
+        /// Travel: a still finger is the right-click — the REQ element under it gets its
+        /// SecondaryAction, and the finger's release is eaten so it does not also click.
         /// </summary>
         private void HandleTouchLongPress() {
             TouchInputState touch = TouchInputState.Instance;
@@ -1452,15 +1417,8 @@ namespace BakAgain.UI.InGame {
                     break;
                 }
                 case ActionWorldViewport:
-                    if (TouchCombat(TouchCombatVariant.SelectThenConfirm)) {
-                        _touchTargeting?.Tap(_pointer.ScreenPosition);   // select first; attack on confirm
-                        break;
-                    }
-                    if (TouchCombat(TouchCombatVariant.FingerHover)) {
-                        break;   // C2 attacks when the finger lifts (HandleTouchFingerHover)
-                    }
-                    if (TouchCombat(TouchCombatVariant.Cursor)) {
-                        // C3: a tap puts the cursor on that cell; the side bar's buttons act on it.
+                    if (TouchFight()) {
+                        // A tap puts the cursor on that cell; the side bar's buttons act on it.
                         if (_combatCursor != null && _interaction?.GroundPointAtScreenPoint(_pointer.ScreenPosition) is Vector3 tapped
                             && _cellAtPoint?.Invoke(tapped) is (int tc, int tr)) {
                             _combatCursor.Cell = (tc, tr);

@@ -1,48 +1,22 @@
 namespace BakAgain.UI.InputCore {
     using UnityEngine;
 
-    public enum TouchTravelVariant { ThumbPad = 0, SplitPads = 1, Minimal = 2 }
-    public enum TouchCombatVariant { SelectThenConfirm = 0, FingerHover = 1, Cursor = 2 }
-
     /// <summary>C3: what the cell under the combat cursor holds, which picks the side bar's buttons.</summary>
     public enum CursorContext { None, Target, Ground }
     public enum SelectRoute { Primary, Swallow }
 
-    public interface IPrefsStore {
-        int GetInt(string key, int fallback);
-        void SetInt(string key, int value);
-    }
-
-    public sealed class PlayerPrefsStore : IPrefsStore {
-        public int GetInt(string key, int fallback) => PlayerPrefs.GetInt(key, fallback);
-        public void SetInt(string key, int value) { PlayerPrefs.SetInt(key, value); PlayerPrefs.Save(); }
-    }
-
     /// <summary>
-    /// The Android touch aids' shared state (spec 2026-09-29-android-touch-aids-design.md): which
-    /// variant the owner is trying, and the one-shot flags that turn the next REQ select into
-    /// something else.
+    /// The Android touch aids' shared state (spec 2026-09-29-android-touch-aids-design.md): the
+    /// held pad, the combat cursor's context, and the one-shot flags that turn the next REQ select
+    /// into something else. The owner chose split pads for travel and the cursor for combat
+    /// (2026-10-01); the other variants are gone.
     /// </summary>
     /// <remarks>
     /// Published as <see cref="Instance"/> because UserInterfaceLoader is a prefab sibling VContainer
     /// never injects (the same pattern as MenuSoundService.Instance).
     /// </remarks>
     public sealed class TouchInputState {
-        private const string TravelKey = "touch travel variant";
-        private const string CombatKey = "touch combat variant";
-        private readonly IPrefsStore _prefs;
-
         public static TouchInputState Instance { get; set; }
-
-        public TouchInputState(IPrefsStore prefs) {
-            _prefs = prefs;
-            Travel = Read<TouchTravelVariant>(TravelKey);
-            Combat = Read<TouchCombatVariant>(CombatKey);
-        }
-
-        public event System.Action Changed;
-        public TouchTravelVariant Travel { get; private set; }
-        public TouchCombatVariant Combat { get; private set; }
 
         /// <summary>
         /// The action a long-press fired the right-click on: that element's release click is eaten.
@@ -102,25 +76,10 @@ namespace BakAgain.UI.InputCore {
         /// <summary>Combat: the screen point (Input System coords, bottom-left) the hover pick uses on touch.</summary>
         public Vector2? CombatHoverScreenPoint { get; set; }
 
-        public void CycleTravel() {
-            Travel = (TouchTravelVariant)(((int)Travel + 1) % 3);
-            _prefs.SetInt(TravelKey, (int)Travel);
-            Changed?.Invoke();
-        }
-
-        public void CycleCombat() {
-            Combat = (TouchCombatVariant)(((int)Combat + 1) % 3);
-            _prefs.SetInt(CombatKey, (int)Combat);
-            Changed?.Invoke();
-        }
-
         /// <summary>
-        /// A fight starting: a selection from an earlier fight would ring an arbitrary cell.
+        /// A fight starting or ending: a preview from another fight would ring an arbitrary cell.
         /// </summary>
-        public void OnFightStarted() {
-            CombatHoverScreenPoint = null;
-            Changed?.Invoke();
-        }
+        public void ForgetCombatPreview() => CombatHoverScreenPoint = null;
 
         /// <summary>
         /// Whether a long-press on this REQ action is its right-click. Not for the four compass
@@ -142,11 +101,6 @@ namespace BakAgain.UI.InputCore {
                 }
             }
             return SelectRoute.Primary;
-        }
-
-        private T Read<T>(string key) where T : struct, System.Enum {
-            int v = _prefs.GetInt(key, 0);
-            return System.Enum.IsDefined(typeof(T), v) ? (T)(object)v : default;
         }
     }
 }

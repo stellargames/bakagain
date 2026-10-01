@@ -19,12 +19,6 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
     /// is verified on the Android emulator.
     /// </remarks>
     public class TouchControlsViewTests {
-        private sealed class MemPrefs : IPrefsStore {
-            private readonly Dictionary<string, int> _v = new Dictionary<string, int>();
-            public int GetInt(string k, int f) => _v.TryGetValue(k, out int x) ? x : f;
-            public void SetInt(string k, int x) => _v[k] = x;
-        }
-
         private static IEnumerator Harness(float width, IPointer pointer,
             System.Action<TouchControlsView, VisualElement, TouchInputState> check) {
             var host = new GameObject("TouchDoc");
@@ -41,7 +35,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             stage.style.height = 1200;
             root.Add(stage);
             doc.rootVisualElement.Add(root);
-            var state = new TouchInputState(new MemPrefs());
+            var state = new TouchInputState();
             var view = new TouchControlsView(state, pointer, new TouchControlsLayout());
             view.Build(root, stage);
             yield return null;
@@ -66,11 +60,15 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
         }
 
         [UnityTest]
-        public IEnumerator ThumbPadSitsInTheLeftBarAndExamineInTheRight() =>
+        public IEnumerator TravelSplitsThePadsTurningLeftWalkingRight() =>
             Harness(2666, Touch(), (view, root, state) => {
                 VisualElement left = root.Q("touch-left"), right = root.Q("touch-right");
-                Assert.IsTrue(left.worldBound.Contains(root.Q("touchpad_72").worldBound.center));
-                Assert.IsTrue(left.worldBound.Contains(root.Q("touchpad_77").worldBound.center));
+                Assert.IsTrue(left.Contains(root.Q("touchpad_75")), "turning on the left thumb");
+                Assert.IsTrue(left.Contains(root.Q("touchpad_77")));
+                Assert.IsTrue(right.Contains(root.Q("touchpad_72")), "walking on the right thumb");
+                Assert.IsTrue(right.Contains(root.Q("touchpad_80")));
+                Assert.IsNull(root.Q("touch-cycle"), "the variant chooser is gone (owner chose T2 + C3, 2026-10-01)");
+                Assert.IsNull(root.Q("touch-diag"), "and the developer readout with it");
                 Assert.IsNull(root.Q("touch-examine"), "long-press is the right-click now (owner, 2026-10-01)");
                 Assert.AreEqual(DisplayStyle.None, root.Q("touch-thrust").resolvedStyle.display, "no Thrust outside a fight");
             });
@@ -111,16 +109,6 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             });
 
         [UnityTest]
-        public IEnumerator CycleButtonMovesToSplitPads() =>
-            Harness(2666, Touch(), (view, root, state) => {
-                Click(root.Q("touch-cycle"));
-                Assert.AreEqual(TouchTravelVariant.SplitPads, state.Travel);
-                Assert.IsTrue(root.Q("touch-right").Contains(root.Q("touchpad_72")),
-                    "split pads: forward/back move to the right thumb");
-                Assert.IsTrue(root.Q("touch-left").Contains(root.Q("touchpad_75")), "turning stays left");
-            });
-
-        [UnityTest]
         public IEnumerator NoSideBarsNoControls() =>
             Harness(1600, Touch(), (view, root, state) => {
                 Assert.AreEqual(DisplayStyle.None, root.Q("touch-left").style.display.value);
@@ -132,35 +120,6 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             Harness(2666, new FakePointer { IsPresent = true }, (view, root, state) => {
                 Assert.AreEqual(DisplayStyle.None, root.Q("touch-left").style.display.value);
                 Assert.AreEqual(DisplayStyle.None, root.Q("touch-right").style.display.value);
-            });
-
-        /// <summary>
-        /// Final review #3: REQ_MAIN orders the arrows 75, 72, 80, 77. A zone inserted just before
-        /// its OWN arrow sat above the earlier arrows, so the enlarged Turn-Right area stole taps on
-        /// the Forward/Back art. Every zone must sit behind every arrow.
-        /// </summary>
-        [UnityTest]
-        public IEnumerator MinimalZonesSitBehindEveryArrow() =>
-            Harness(2666, Touch(), (view, root, state) => {
-                VisualElement stage = root.Q("test-stage");
-                var panel = new VisualElement { name = "req-panel" };
-                stage.Add(panel);
-                foreach (int id in new[] { 75, 72, 80, 77 }) {
-                    var arrow = new VisualElement { name = $"imagebutton_{id}" };
-                    arrow.style.position = Position.Absolute;
-                    arrow.style.left = 100 + id; arrow.style.top = 100; arrow.style.width = 40; arrow.style.height = 40;
-                    panel.Add(arrow);
-                }
-                state.CycleTravel();
-                state.CycleTravel();   // Minimal: Changed re-lays the view out and adds the zones
-                Assert.AreEqual(TouchTravelVariant.Minimal, state.Travel);
-                int lastZone = -1, firstArrow = int.MaxValue;
-                for (int i = 0; i < panel.childCount; i++) {
-                    if (panel[i].name.StartsWith("touchpad_")) lastZone = System.Math.Max(lastZone, i);
-                    if (panel[i].name.StartsWith("imagebutton_")) firstArrow = System.Math.Min(firstArrow, i);
-                }
-                Assert.AreEqual(8, panel.childCount, "four zones and four arrows");
-                Assert.Less(lastZone, firstArrow, "every zone is drawn (and picked) behind every arrow");
             });
 
         /// <summary>An IPointerEvent source for GetPooled (the LongPressSecondaryTests pattern).</summary>
@@ -234,13 +193,13 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
 
         /// <summary>Owner, 2026-10-01: the grid toggle should be much more unobtrusive.</summary>
         [UnityTest]
-        public IEnumerator TheGridButtonIsASmallCornerButtonLikeTheCycle() =>
+        public IEnumerator TheGridButtonIsASmallCornerButton() =>
             Harness(2666, Touch(), (view, root, state) => {
                 view.Refresh(inFight: true);
                 // Styles, not worldBound: the relayout this Refresh asked for has not run yet.
-                IStyle grid = root.Q("touch-grid").style, cycle = root.Q("touch-cycle").style;
+                IStyle grid = root.Q("touch-grid").style;
                 Assert.AreEqual(DisplayStyle.Flex, grid.display.value);
-                Assert.AreEqual(cycle.width.value.value, grid.width.value.value, 0.5f, "the cycle button's size");
+                Assert.Less(grid.width.value.value, root.Q("touch-thrust").style.width.value.value / 2f, "small");
                 Assert.Less(grid.top.value.value + grid.height.value.value,
                     root.Q("touch-thrust").style.top.value.value, "above the action buttons");
             });
@@ -248,13 +207,12 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
         [UnityTest]
         public IEnumerator CursorModeShowsThePadAndTheButtonsForTheCellUnderIt() =>
             Harness(2666, Touch(), (view, root, state) => {
-                state.CycleCombat();
-                state.CycleCombat();   // C3, the cursor
                 var moved = 0;
                 view.MoveRequested += () => moved++;
                 state.CursorContext = CursorContext.Target;
                 view.Refresh(inFight: true);
                 Assert.AreEqual(DisplayStyle.Flex, root.Q("touchpad_72").style.display.value, "the pad moves the cursor");
+                Assert.IsTrue(root.Q("touch-left").Contains(root.Q("touchpad_72")), "all four on the left thumb in a fight");
                 Assert.AreEqual(DisplayStyle.Flex, root.Q("touch-thrust").style.display.value);
                 Assert.AreEqual(DisplayStyle.None, root.Q("touch-move").style.display.value);
 
@@ -271,13 +229,13 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             });
 
         [UnityTest]
-        public IEnumerator InAFightThrustAndSwingShowAndRaiseTheMelee() =>
+        public IEnumerator ThrustAndSwingRaiseTheMeleeOnATarget() =>
             Harness(2666, Touch(), (view, root, state) => {
                 var asked = new List<bool>();
                 view.MeleeRequested += asked.Add;
+                state.CursorContext = CursorContext.Target;
                 view.Refresh(inFight: true);
                 Assert.AreEqual(DisplayStyle.Flex, root.Q("touch-thrust").style.display.value);
-                Assert.AreEqual(DisplayStyle.None, root.Q("touchpad_72").style.display.value, "no pad in a fight");
                 Click(root.Q("touch-thrust"));
                 Click(root.Q("touch-swing"));
                 CollectionAssert.AreEqual(new[] { true, false }, asked);
