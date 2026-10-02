@@ -138,6 +138,22 @@ namespace BakAgain.World {
         }
 
         /// <summary>
+        /// Whether the follow-road BUTTON is live: the ground under the party's own position is
+        /// road or bridge.
+        /// </summary>
+        /// <remarks>
+        /// <c>worldloop_set_flag_8b_preds</c> (WORLDLP.C:460-473) gates the menu entry on
+        /// <c>g_nWorldCrossingKind</c>, which every move, zone load and teleport landing writes for
+        /// the party's own position (WORLDMOV.C:104-115, 183, 349, 423). <see cref="CanEngageTravel"/>
+        /// is the ACTION's predicate — the snap — and is more lenient off-centre in a road cell,
+        /// where the original's button cannot be clicked at all (MENUPAGE.C:447).
+        /// </remarks>
+        public bool StandsOnRoad() {
+            _collision.BuildCandidates(_session.PositionX, _session.PositionY, DetailLevel);
+            return IsRoadAt(_session.PositionX, _session.PositionY);
+        }
+
+        /// <summary>
         /// Engage travel: snap to the centre of a nearby road cell. Fails, and leaves the party where
         /// it was, when nothing road-like is adjacent.
         /// </summary>

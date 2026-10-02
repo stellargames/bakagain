@@ -525,7 +525,7 @@ namespace BakAgain.UI.InGame {
                 return;
             }
             bool usable = _movement != null
-                && (_movement.IsTravelling || _movement.CanEngageTravel());
+                && (_movement.IsTravelling || _movement.StandsOnRoad());
             _loader.SetEntryState(ActionFollowRoad, visible: true, navigable: usable);
             // Measured against the original off-road on 2026-09-07: it shows the bare stone
             // (BICONS1#25) here and we showed the road wedge (#23, the toggle's OFF face), so
@@ -720,7 +720,7 @@ namespace BakAgain.UI.InGame {
             if (_movement == null) {
                 return;
             }
-            bool usable = _movement.IsTravelling || _movement.CanEngageTravel();
+            bool usable = _movement.IsTravelling || _movement.StandsOnRoad();
             if (usable == _followRoadUsable && _movement.IsTravelling == _followRoadOn) {
                 return;
             }

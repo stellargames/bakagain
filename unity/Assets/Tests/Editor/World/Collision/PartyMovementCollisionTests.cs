@@ -409,6 +409,24 @@ namespace BakAgain.Tests.Editor.World.Collision {
         }
 
         [Test]
+        public void TheButtonsGateIsTheGroundUnderfoot_NotTheSnap() {
+            // worldloop_set_flag_8b_preds (WORLDLP.C:460-473) gates the button on
+            // g_nWorldCrossingKind: the kind every move, zone load and teleport landing writes for the
+            // party's OWN position (WORLDMOV.C:104-115, 183, 349, 423). The snap belongs to the
+            // action. Off-centre in a road cell the button is inactive in the original; measured
+            // after leaving Romney, where the original shows the bare stone (TASK-738).
+            Rig rig = Build(RoadAtTheCellCentre());
+            rig.Session.PositionX = 1400;
+            rig.Session.PositionY = 200;
+            Assert.IsFalse(rig.Movement.StandsOnRoad(), "raw spot is not road");
+            Assert.IsTrue(rig.Movement.CanEngageTravel(), "though the snap would find it");
+
+            rig.Session.PositionX = 800;
+            rig.Session.PositionY = 800;
+            Assert.IsTrue(rig.Movement.StandsOnRoad(), "the control: on the road it is live");
+        }
+
+        [Test]
         public void FollowRoadStillRefusesWhereNoNearbyCellCentreIsRoad() {
             // The control. Without it both tests above are satisfied by a gate that says yes to
             // everything, which is the failure mode opposite to the one being fixed.
