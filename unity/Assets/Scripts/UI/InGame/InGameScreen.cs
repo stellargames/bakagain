@@ -209,6 +209,24 @@ namespace BakAgain.UI.InGame {
         private System.Func<UnityEngine.Vector3, (int RosterSlot, bool PartyMember)?>
             _combatantAtPoint;
 
+        private System.Func<Vector3, (int Column, int Row)?> _cellAtPoint;
+        private System.Action<(int Column, int Row)?, bool> _setCursorCell;
+        private System.Func<int, int, Vector3?> _cellWorld;
+        private System.Func<(int Column, int Row)?> _actingCell;
+        private System.Func<bool> _awaitingTarget;
+
+        // Touch aids: the arena cell under a floor point, and the ring on the cell a first tap chose.
+        internal void SetCombatCellSeams(System.Func<Vector3, (int Column, int Row)?> cellAt,
+            System.Action<(int Column, int Row)?, bool> setCursorCell,
+            System.Func<int, int, Vector3?> cellWorld, System.Func<(int Column, int Row)?> actingCell,
+            System.Func<bool> awaitingTarget) {
+            _cellAtPoint = cellAt;
+            _setCursorCell = setCursorCell;
+            _cellWorld = cellWorld;
+            _actingCell = actingCell;
+            _awaitingTarget = awaitingTarget;
+        }
+
         internal void SetCombatantAtPointSeam(
             System.Func<UnityEngine.Vector3, (int RosterSlot, bool PartyMember)?> at) =>
             _combatantAtPoint = at;
@@ -601,6 +619,7 @@ namespace BakAgain.UI.InGame {
                     _hotspotTarget?.Invoke(slot, party, isPrimary),
                 pickGround: p => _hotspotGround?.Invoke(p),
                 combatantAtPoint: p => _combatantAtPoint?.Invoke(p),
+                hoverPointOverride: () => TouchInputState.Instance?.CombatHoverScreenPoint,
                 lootCorpse: (corpse, isPrimary) => {
                     if (corpse == null || _pendingCamera == null) {
                         return;
@@ -650,6 +669,19 @@ namespace BakAgain.UI.InGame {
             // strip must not each own a copy -- see HudParchmentPanelView.
             _combatPanel = new BakAgain.UI.Combat.HudParchmentPanelView(_resources, _logger);
             _combatPanel.BuildAsync(CanonicalStage.GetOrCreate(root, _loader.Frame), this).Forget();
+
+            // The Android touch aids, in the side bars only (spec 2026-09-29-android-touch-aids-design.md).
+            if (BakAgain.UI.InputCore.TouchInputState.Instance != null) {
+                _touchControls = new TouchControlsView(BakAgain.UI.InputCore.TouchInputState.Instance, _pointer,
+                    new GameData.Resources.Layout.TouchControlsLayout());
+                _touchControls.Build(root, CanonicalStage.GetOrCreate(root, _loader.Frame));
+                // Combat: the cursor feeds the hover pick; attacks take the mouse click's path.
+                _touchTargeting = new CombatTouchTargeting(TouchInputState.Instance,
+                    p => _interaction?.CombatantAtScreenPoint(p),
+                    (slot, party, primary) => _hotspotTarget?.Invoke(slot, party, primary));
+                _touchControls.MoveRequested += GroundClickAtCursor;
+                _touchControls.MeleeRequested += thrust => _touchTargeting?.Melee(thrust);
+            }
 
             // Party heads into portrait hotspots (existing view).
             _partyHeads = new PartyHeadsView(_gameSession, _resources);
@@ -732,6 +764,8 @@ namespace BakAgain.UI.InGame {
             _partyHeads?.Dispose(); _partyHeads = null;
             _effectCaption?.Dispose(); _effectCaption = null;
             _combatPanel?.Dispose(); _combatPanel = null;
+            _touchControls?.Dispose(); _touchControls = null;
+            _touchTargeting = null;
             _compass = null;
             _combatFrame = null;
             _compassArrows = System.Array.Empty<VisualElement>();
@@ -761,6 +795,8 @@ namespace BakAgain.UI.InGame {
             _partyHeads?.Dispose(); _partyHeads = null;
             _effectCaption?.Dispose(); _effectCaption = null;
             _combatPanel?.Dispose(); _combatPanel = null;
+            _touchControls?.Dispose(); _touchControls = null;
+            _touchTargeting = null;
             _compass = null;
             _combatFrame = null;
             _compassArrows = System.Array.Empty<VisualElement>();
@@ -805,6 +841,10 @@ namespace BakAgain.UI.InGame {
                 return;
             }
             _compass?.Refresh();
+            _touchControls?.Refresh(AFightIsRunning());
+            HandleTouchLongPress();
+            ClearTouchTargetingAfterAFight();
+            HandleTouchCursor();
             _effectCaption?.Refresh();
             RefreshCombatChrome();
             RefreshShootPanel();
@@ -817,7 +857,9 @@ namespace BakAgain.UI.InGame {
             RefreshFollowRoadState();
             RefreshEncampButtonFace();
             _worldView?.Tick();
-            _movementDriver?.Tick(_travelHost != null && _travelHost.IsInputActive);
+            // Not in a fight: the arena runs instead of the world loop in the original, and the touch
+            // aids' C3 pad (which sets the same held-pad state) moves the combat cursor there.
+            _movementDriver?.Tick(_travelHost != null && _travelHost.IsInputActive && !AFightIsRunning());
             // The world's ambient SFX, ticked where the original ticks it — from the world loop.
             // The driver converts frames to game ticks itself, so this passing Time.deltaTime does
             // NOT tie the sound rate to the frame rate.
@@ -987,6 +1029,12 @@ namespace BakAgain.UI.InGame {
                 return;
             }
             (int RosterSlot, bool PartyMember)? hovered = _interaction?.HoverCombatant();
+            // The mouse's cursor cell, marked as the original marks it: the move marker on a cell
+            // the actor can walk to (WORLDHIT.C:490; COMBAT.C:2324-2326). Touch sets it itself.
+            if (_pointer != null && _pointer.IsPresent && AFightIsRunning()) {
+                Vector3? floor = _interaction?.HoverGroundPoint();
+                _setCursorCell?.Invoke(floor.HasValue ? _cellAtPoint?.Invoke(floor.Value) : null, false);
+            }
             var content = _combatPanelContent(
                 hovered?.RosterSlot ?? -1, hovered.HasValue && hovered.Value.PartyMember);
             _combatPanel.Show(content.Lines, content.Rules);
@@ -1131,6 +1179,163 @@ namespace BakAgain.UI.InGame {
         // transition would be started once per frame until it completed.
         private bool _partyDownExitStarted;
 
+        private TouchControlsView _touchControls;
+        private readonly TouchHoldDetector _touchHold = new TouchHoldDetector();
+        private int _touchPressSerial;
+        private CombatTouchTargeting _touchTargeting;
+        private bool _touchFightWasRunning;
+
+        // A fight played by touch: the battlefield tap places the combat cursor.
+        private bool TouchFight() =>
+            TouchInputState.Instance != null && AFightIsRunning()
+            && _pointer != null && _pointer.CanPoint && !_pointer.IsPresent;
+
+        // ---- The combat cursor (owner's choice, 2026-10-01) -----------------------------------
+
+        private CombatCursor _combatCursor;
+        private int _cursorHeldAction = -1;
+        private float _cursorRepeatIn;
+        private const float CursorRepeatDelay = 0.38f;   // the arrows' own dead time (ClassicMovementDriver)
+        private const float CursorRepeatInterval = 1f / 8.84f;
+
+        // Through the world viewport, as the ground pick goes the other way: the arena camera
+        // renders into a texture, so its own WorldToScreenPoint is not the screen.
+        private Vector2? CellOnScreen(int column, int row) =>
+            _cellWorld?.Invoke(column, row) is Vector3 world ? _interaction?.ScreenPointOfGround(world) : null;
+
+        /// <summary>
+        /// The pad moves a cell cursor (held: the arrows' dead time, then repeats); the cell under it
+        /// drives the same hover path a mouse would — its ring and the Thrust/Swing preview — and
+        /// picks the side bar's buttons.
+        /// </summary>
+        private void HandleTouchCursor() {
+            TouchInputState touch = TouchInputState.Instance;
+            if (touch == null || !TouchFight()) {
+                _combatCursor = null;
+                return;
+            }
+            if (_combatCursor == null) {
+                _combatCursor = new CombatCursor(CellOnScreen);
+                if (_actingCell?.Invoke() is (int ac, int ar)) {
+                    _combatCursor.Cell = (ac, ar);
+                }
+            }
+            int held = touch.HeldTouchAction;
+            if (held != _cursorHeldAction) {
+                _cursorHeldAction = held;
+                _cursorRepeatIn = CursorRepeatDelay;
+                StepCursor(held);
+            } else if (held >= 0) {
+                _cursorRepeatIn -= Time.unscaledDeltaTime;
+                if (_cursorRepeatIn <= 0f) {
+                    StepCursor(held);
+                    _cursorRepeatIn += CursorRepeatInterval;
+                }
+            }
+            (int c, int r) = _combatCursor.Cell;
+            Vector2? point = CellOnScreen(c, r);
+            (int RosterSlot, bool PartyMember)? occupant = point.HasValue ? _interaction?.CombatantAtScreenPoint(point.Value) : null;
+            bool waiting = _awaitingTarget?.Invoke() ?? false;
+            // An enemy offers Thrust/Swing; a party member offers nothing — unless a spell or item is
+            // waiting for a target, which may well be a friend (a heal).
+            bool target = occupant.HasValue && (!occupant.Value.PartyMember || waiting);
+            touch.CombatHoverScreenPoint = occupant.HasValue ? point : null;
+            _setCursorCell?.Invoke((c, r), true);
+            touch.CursorContext = target ? CursorContext.Target
+                : occupant.HasValue ? CursorContext.None
+                : CursorContext.Ground;
+            touch.AwaitingTarget = waiting;
+        }
+
+        private void StepCursor(int padAction) {
+            Vector2 dir = padAction switch {
+                ActionMoveForward => Vector2.up,
+                ActionMoveBackward => Vector2.down,
+                ActionTurnLeft => Vector2.left,
+                ActionTurnRight => Vector2.right,
+                _ => Vector2.zero,
+            };
+            if (dir != Vector2.zero) {
+                _combatCursor.Step(dir);
+            }
+        }
+
+        // The Move / Cast-here button: the mouse's ground click, on the cursor's cell.
+        private void GroundClickAtCursor() {
+            if (_combatCursor != null && _cellWorld?.Invoke(_combatCursor.Cell.Column, _combatCursor.Cell.Row) is Vector3 floor) {
+                _hotspotGround?.Invoke(floor);
+            }
+        }
+
+        // A selection must not outlive its fight: the next fight's hover would read a stale point.
+        private void ClearTouchTargetingAfterAFight() {
+            bool running = AFightIsRunning();
+            if (_touchFightWasRunning != running) {
+                TouchInputState.Instance?.ForgetCombatPreview();
+            }
+            _touchFightWasRunning = running;
+        }
+
+        /// <summary>
+        /// Travel: a still finger is the right-click — the REQ element under it gets its
+        /// SecondaryAction, and the finger's release is eaten so it does not also click.
+        /// </summary>
+        private void HandleTouchLongPress() {
+            TouchInputState touch = TouchInputState.Instance;
+            if (touch == null || _touchControls == null || AFightIsRunning()) {
+                // Not ticked here, so a release in these frames would never be seen: an unfinished
+                // press must not become an instant long-press on the next tap.
+                _touchHold.Reset();
+                return;
+            }
+            // The finger as UI Toolkit's own events report it: the polled pointer never saw a held
+            // finger on the owner's phone (2026-09-30). Every new press starts the detector afresh.
+            if (_touchControls.PressSerial != _touchPressSerial) {
+                _touchPressSerial = _touchControls.PressSerial;
+                _touchHold.Reset();
+            }
+            if (!_touchHold.Tick(_touchControls.TouchDown, _touchControls.TouchPosition, Time.realtimeSinceStartup)) {
+                return;
+            }
+            int? id = ReqActionOf(_touchControls.TouchTarget);
+            if (id.HasValue && TouchInputState.LongPressApplies(id.Value)) {
+                touch.SuppressSelectFor = id;   // that element's release must not also click
+                _ = SecondaryAction(id.Value);
+            }
+        }
+
+        // The REQ action of an element or its nearest named ancestor (hotspot_N / imagebutton_N).
+        private static int? ReqActionOf(VisualElement element) {
+            for (VisualElement el = element; el != null; el = el.parent) {
+                string n = el.name ?? string.Empty;
+                foreach (string prefix in new[] { "hotspot_", "imagebutton_" }) {
+                    if (n.StartsWith(prefix) && int.TryParse(n.Substring(prefix.Length), out int id)) {
+                        return id;
+                    }
+                }
+            }
+            return null;
+        }
+
+        // The REQ element under the pointer, by the same pick and naming ClassicMovementDriver uses.
+        private int? ReqActionUnderPointer() {
+            IPanel panel = _document?.rootVisualElement?.panel;
+            if (panel == null) {
+                return null;
+            }
+            Vector2 s = _pointer.ScreenPosition;
+            Vector2 p = RuntimePanelUtils.ScreenToPanel(panel, new Vector2(s.x, Screen.height - s.y));
+            for (VisualElement el = panel.Pick(p); el != null; el = el.parent) {
+                string n = el.name ?? string.Empty;
+                foreach (string prefix in new[] { "hotspot_", "imagebutton_" }) {
+                    if (n.StartsWith(prefix) && int.TryParse(n.Substring(prefix.Length), out int id)) {
+                        return id;
+                    }
+                }
+            }
+            return null;
+        }
+
         // Left-click / key dispatch. STUBBED: each branch logs its intent. The real
         // movement, encamp, cast, map, options and party-screen transitions plug in here.
         public void PrimaryAction(int menuEntryActionId) {
@@ -1212,6 +1417,14 @@ namespace BakAgain.UI.InGame {
                     break;
                 }
                 case ActionWorldViewport:
+                    if (TouchFight()) {
+                        // A tap puts the cursor on that cell; the side bar's buttons act on it.
+                        if (_combatCursor != null && _interaction?.GroundPointAtScreenPoint(_pointer.ScreenPosition) is Vector3 tapped
+                            && _cellAtPoint?.Invoke(tapped) is (int tc, int tr)) {
+                            _combatCursor.Cell = (tc, tr);
+                        }
+                        break;
+                    }
                     _interaction?.HandleClick(isPrimary: true).Forget();
                     break;
                 default:

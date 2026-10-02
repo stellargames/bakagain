@@ -1,5 +1,7 @@
 namespace GameData.Resources.Combat;
 
+using System.Collections.Generic;
+
 using System;
 
 /// <summary>State flags a combatant carries. Values are the original's <c>CAF_*</c> bits.</summary>
@@ -235,6 +237,14 @@ public sealed class Combatant {
     /// <summary>Whether the walk cycle is currently running up rather than back down.</summary>
     /// <inheritdoc cref="GaitFrame"/>
     public bool GaitAdvancing { get; set; } = true;
+
+    /// <summary>
+    /// The cells this combatant's walks have stepped through since the arena last drew it, start
+    /// cell first — <see cref="CombatWalk.Walk"/> records them and the arena slides the sprite along
+    /// them, one cell at a time, as the original draws a walk (CMBTAI.C:36-60). Empty when it has
+    /// not walked. View state, like <see cref="GaitFrame"/>: the drawing consumes and clears it.
+    /// </summary>
+    public List<(int X, int Y)> WalkedCells { get; } = new List<(int X, int Y)>();
 
     /// <summary>
     /// Which way this combatant is drawn facing, as an octant 0..7 measured <b>relative to the

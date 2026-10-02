@@ -151,6 +151,18 @@ public static class CombatWalk {
     }
 
     /// <summary>Walking onto crystal ground costs a flat 100, whatever else is true of the actor.</summary>
+    /// <summary>World units the walker's sprite crosses per combat frame: the walk is drawn as a
+    /// shape flown at speed 100 (<c>world_rndr_ranged_attack_anim(..., 100, ...)</c>, CMBTAI.C:60).</summary>
+    public const int DrawnSpeed = 100;
+
+    /// <summary>
+    /// Combat frames the original spends drawing one step of (dx, dy) cells: the octagonal
+    /// distance between the cell centres over <see cref="DrawnSpeed"/>, rounded down
+    /// (WORLDHIT.C:660-665). 3 for a straight step on the 300-unit grid, 4 for a diagonal.
+    /// </summary>
+    public static int StepFrames(int dx, int dy, int cellSize) =>
+        Math.Max(1, (int)(World.WorldDistance.Octagonal(dx * cellSize, dy * cellSize) / DrawnSpeed));
+
     public const int CrystalDamage = 100;
 
     /// <summary>
@@ -241,6 +253,13 @@ public static class CombatWalk {
         // actor STARTS adjacent to its destination, not when it becomes adjacent along the way.
         bool adjacentToTarget = distance == 1;
 
+        // A second walk before the arena redraws carries the same slide on; anything else that
+        // moved the actor in between (a shove, a teleport) makes the old cells a lie.
+        if (!probe && (actor.WalkedCells.Count == 0 || actor.WalkedCells[^1] != (startX, startY))) {
+            actor.WalkedCells.Clear();
+            actor.WalkedCells.Add((startX, startY));
+        }
+
         int steps = speed;
         var pathClear = true;
         Shove? shove = null;
@@ -257,6 +276,9 @@ public static class CombatWalk {
 
             actor.X = step.X;
             actor.Y = step.Y;
+            if (!probe && (step.X, step.Y) != actor.WalkedCells[^1]) {
+                actor.WalkedCells.Add((step.X, step.Y));
+            }
 
             // Arrival ends the walk — but the hazard below still fires on the arrival tile, because
             // the original zeroes the counter and then falls into the switch in the same iteration.

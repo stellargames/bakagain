@@ -254,3 +254,25 @@
     -unity-text-align: middle-center;
     color: var(--ui-ink);
 }
+
+/* Android touch aids (spec 2026-09-29-android-touch-aids-design.md): stone-coloured side-bar buttons. */
+.touch-button {
+    background-color: rgb(96, 70, 44);
+    border-width: 3px;
+    border-color: rgb(58, 40, 22);
+    border-radius: 6px;
+    justify-content: center;
+    opacity: 0.9;
+}
+.touch-button > Label {
+    -unity-text-align: middle-center;
+    font-size: 40px;
+    color: rgb(236, 210, 140);
+}
+.touch-button:active {
+    background-color: rgb(140, 104, 62);
+}
+.touch-armed {
+    background-color: rgb(172, 132, 70);
+    border-color: rgb(236, 210, 140);
+}

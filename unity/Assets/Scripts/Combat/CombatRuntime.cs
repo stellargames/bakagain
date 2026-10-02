@@ -3347,6 +3347,18 @@ namespace BakAgain.Combat {
         /// </remarks>
         public Combatant CombatantAtCell(int x, int y) => LiveCombatantAt(x, y);
 
+        /// <summary>
+        /// Whether <paramref name="actor"/> could walk to a cell this turn — the original's move-map
+        /// bit 1, which <c>combatgrid_build_move_attack_map</c> sets from
+        /// <c>combatgrid_actor_try_step_tile</c>, a dry run of the walker bounded by the actor's own
+        /// movement (CMBTGRID.C:1419-1431), and which picks the cursor's move marker
+        /// (<c>combatgrid_cursor_tile_movable</c>, CMBTGRID.C:1445; COMBAT.C:2324-2326).
+        /// </summary>
+        public bool CellMovable(Combatant actor, int x, int y) =>
+            actor != null && Grid != null && CombatGrid.InBounds(x, y)
+            && CombatWalk.Walk(Grid, actor, x, y, actor.Speed, probe: true, puzzle: Puzzle,
+                occupiedByLiveCombatant: TileHoldsLiveCombatant).Arrived;
+
         /// <summary>The living combatant on a tile, or null.</summary>
         private Combatant LiveCombatantAt(int x, int y) {
             foreach (Combatant c in Encounter.AllCombatants()) {

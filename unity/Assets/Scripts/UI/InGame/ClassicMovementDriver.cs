@@ -105,7 +105,11 @@ namespace BakAgain.UI.InGame {
                 // FOCUSED is what the loop then sees on the following input-less frames.
                 _heldAction = action;
                 _secondsUntilRepeat = RepeatDelaySeconds;
-                Apply(action);
+                // A held REQ arrow's first step is its own click, on release — stepping here too
+                // would make every tap two steps.
+                if (!IsHeldReqArrow(action)) {
+                    Apply(action);
+                }
                 return;
             }
             _secondsUntilRepeat -= _deltaSeconds();
@@ -113,6 +117,9 @@ namespace BakAgain.UI.InGame {
                 return;
             }
             Apply(action);
+            if (IsHeldReqArrow(action)) {
+                TouchInputState.Instance.SwallowNextArrowClick = true;   // the release must not add a step
+            }
             // One action per tick at most, and a long frame does not queue the steps it missed —
             // a hitch should cost a step, not replay several at once.
             _secondsUntilRepeat = System.Math.Max(0f, _secondsUntilRepeat + RepeatIntervalSeconds);
@@ -137,6 +144,12 @@ namespace BakAgain.UI.InGame {
             if (move.x < -dead) return TurnLeft;
             if (move.x > dead) return TurnRight;
 
+            // A finger held on a touch pad or compass arrow, as UI Toolkit's pointer events saw it.
+            int touchHeld = TouchInputState.Instance?.HeldTouchAction ?? -1;
+            if (IsMovementAction(touchHeld)) {
+                return touchHeld;
+            }
+
             IPanel panel = _document?.rootVisualElement?.panel;
             // CanPoint, not IsPresent: this is a press on the compass, and a finger presses
             // without ever hovering (TASK-67).
@@ -147,16 +160,25 @@ namespace BakAgain.UI.InGame {
                 Vector2 screen = _pointer.ScreenPosition;
                 Vector2 panelPos = RuntimePanelUtils.ScreenToPanel(
                     panel, new Vector2(screen.x, Screen.height - screen.y));
-                const string prefix = "imagebutton_";
+                // REQ_MAIN's own arrows, and the touch aids' pads (TouchControlsView), which reuse this
+                // pick — and so the original's hold-to-repeat — by carrying the same action id.
                 for (VisualElement el = panel.Pick(panelPos); el != null; el = el.parent) {
-                    string n = el.name;
-                    if (!string.IsNullOrEmpty(n) && n.StartsWith(prefix)
-                        && int.TryParse(n.Substring(prefix.Length), out int aid) && IsMovementAction(aid)) {
+                    if (TryMovementAction(el.name, "imagebutton_", out int aid)
+                        || TryMovementAction(el.name, "touchpad_", out aid)) {
                         return aid;
                     }
                 }
             }
             return -1;
+        }
+
+        private static bool IsHeldReqArrow(int action) =>
+            TouchInputState.Instance is TouchInputState t && t.HeldIsReqArrow && t.HeldTouchAction == action;
+
+        private static bool TryMovementAction(string name, string prefix, out int actionId) {
+            actionId = -1;
+            return !string.IsNullOrEmpty(name) && name.StartsWith(prefix)
+                && int.TryParse(name.Substring(prefix.Length), out actionId) && IsMovementAction(actionId);
         }
 
         private static bool IsMovementAction(int id) =>

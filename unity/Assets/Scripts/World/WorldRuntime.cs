@@ -405,25 +405,22 @@ namespace BakAgain.World {
         /// a missing COMBAT.TBL means no visible monsters, not a wedged encounter. The turn loop runs
         /// either way, which is what it did before anything was drawn at all.</para>
         /// </remarks>
-        /// <summary>How long a combatant takes to cross the cells it steps, and it is a guess.</summary>
+        /// <summary>How long a move that was not a walk (a shove, a knock-back) takes to slide.</summary>
         /// <remarks>
-        /// ponytail: a constant, not the original's timing. <c>animateCombatActorMove</c> @0x64a90
-        /// steps the sprite by a per-frame delta whose speed is not read yet; this is a legible
-        /// duration that reads as a step. Replace it with the measured rate when that routine is
-        /// ported — the shape here does not change.
+        /// A walk is timed by the original's own rate instead — see
+        /// <see cref="GameData.Resources.Combat.CombatWalk.StepFrames"/>. This is about one straight
+        /// step at that rate.
         /// </remarks>
         private const float SlideSeconds = 0.18f;
 
-        /// <summary>Gait frames advanced over one slide, however far it goes.</summary>
+        /// <summary>Gait frames advanced per cell crossed.</summary>
         /// <remarks>
-        /// ponytail: a flat count, not a distance. Three is one half of
-        /// <see cref="GameData.Resources.World.EncounterActorPose.Advance"/>'s ping-pong, so a step
-        /// reads as a stride whether it crossed one cell or four. Scaling it by cells crossed needs
-        /// the arena's cell size in Unity units, which lives on the other side of the placement
-        /// conversion; do that when the measured rate from <c>animateCombatActorMove</c> @0x64a90
-        /// arrives, since it will settle both questions at once.
+        /// ponytail: a flat count per cell. Three is one half of
+        /// <see cref="GameData.Resources.World.EncounterActorPose.Advance"/>'s ping-pong, so each step
+        /// reads as a stride. The original resets the walk animation on every step
+        /// (CMBTAI.C:56, :172) rather than running it on; that look was not asked for.
         /// </remarks>
-        private const int GaitStepsPerSlide = 3;
+        private const int GaitStepsPerCell = 3;
 
         /// <summary>Guards against a second redraw arriving mid-slide.</summary>
         private bool _sliding;
@@ -924,8 +921,66 @@ namespace BakAgain.World {
         private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
         private static Material _gridLineMaterial;
 
+        /// <summary>
+        /// The points a moved sprite passes and the seconds each leg takes: every cell its walk
+        /// stepped through, at the original's frames per step (CMBTAI.C:36-60, WORLDHIT.C:660-665),
+        /// or one straight leg for a move that was not a walk.
+        /// </summary>
+        private (List<Vector3> Points, List<float> Seconds) RouteOf(
+            GameData.Resources.Combat.Combatant who, Vector3 start, Vector3 end) {
+            var points = new List<Vector3> { start };
+            var seconds = new List<float>();
+            List<(int X, int Y)> cells = who?.WalkedCells;
+            int cellSize = _hotspots?.Start?.CombatGridCellSize ?? 0;
+            if (cells is { Count: >= 2 } && cells[^1] == (who.X, who.Y) && cellSize > 0
+                && _hotspots.CellCentreWorld(who.X, who.Y) is Vector3 endCentre) {
+                // Offsets between cell centres, laid onto the sprite's own end point: a sprite
+                // need not stand on its cell's exact centre.
+                for (var i = 1; i < cells.Count; i++) {
+                    Vector3? centre = _hotspots.CellCentreWorld(cells[i].X, cells[i].Y);
+                    points.Add(i == cells.Count - 1 || !centre.HasValue ? end : end + (centre.Value - endCentre));
+                    seconds.Add(GameData.Resources.Combat.CombatWalk.StepFrames(
+                        cells[i].X - cells[i - 1].X, cells[i].Y - cells[i - 1].Y, cellSize)
+                        * (float)GameData.Resources.Combat.SpellVisuals.FrameSeconds);
+                }
+                return (points, seconds);
+            }
+            points.Add(end);
+            seconds.Add(SlideSeconds);
+            return (points, seconds);
+        }
+
+        private static float Sum(List<float> values) {
+            float sum = 0f;
+            foreach (float v in values) {
+                sum += v;
+            }
+            return sum;
+        }
+
+        /// <summary>Where <paramref name="elapsed"/> falls on a route: its leg, the fraction of that
+        /// leg, and the legs crossed so far (leg + fraction).</summary>
+        private static float Along(List<float> legs, float elapsed, out int leg, out float k) {
+            for (leg = 0; leg < legs.Count - 1 && elapsed >= legs[leg]; leg++) {
+                elapsed -= legs[leg];
+            }
+            k = Mathf.Clamp01(elapsed / Mathf.Max(0.0001f, legs[leg]));
+            return leg + k;
+        }
+
+        // Consumed by every draw, whether or not anything slides: a path left behind would replay on
+        // the next redraw.
+        private void ForgetWalkedCells() {
+            foreach (GameData.Resources.Combat.Combatant c in
+                     _hotspots?.Combat?.Encounter?.AllCombatants()
+                     ?? System.Linq.Enumerable.Empty<GameData.Resources.Combat.Combatant>()) {
+                c?.WalkedCells.Clear();
+            }
+        }
+
         private async UniTask SlideThenRedrawAsync() {
             if (_sliding || _arenaRoot == null || _hotspots == null) {
+                ForgetWalkedCells();
                 await DrawCombatantsAsync();
                 return;
             }
@@ -933,8 +988,7 @@ namespace BakAgain.World {
             var targets = new List<Transform>();
             var gaits = new List<Encounters.DirectionalSprite>();
             var movers = new List<GameData.Resources.Combat.Combatant>();
-            var from = new List<Vector3>();
-            var to = new List<Vector3>();
+            var routes = new List<(List<Vector3> Points, List<float> Seconds)>();
             List<GameData.Resources.World.EncounterActorPlacement.Placed> placed =
                 _hotspots.PlaceCombatants();
 
@@ -952,43 +1006,52 @@ namespace BakAgain.World {
                     // A cell is 300 world units, so anything that stepped is far past this; the
                     // threshold only drops rounding on a combatant that stayed put.
                     if ((end - start).sqrMagnitude > 1f) {
+                        GameData.Resources.Combat.Combatant who =
+                            _hotspots.CombatantFor(marker.RosterSlot, marker.PartyMember);
                         targets.Add(marker.transform);
                         gaits.Add(marker.GetComponent<Encounters.DirectionalSprite>());
-                        movers.Add(_hotspots.CombatantFor(marker.RosterSlot, marker.PartyMember));
-                        from.Add(start);
-                        to.Add(end);
+                        movers.Add(who);
+                        routes.Add(RouteOf(who, start, end));
                     }
                     break;
                 }
             }
+
+            ForgetWalkedCells();
 
             if (targets.Count == 0) {
                 await DrawCombatantsAsync();
                 return;
             }
 
+            float total = 0f;
+            foreach ((List<Vector3> _, List<float> seconds) in routes) {
+                total = Mathf.Max(total, Sum(seconds));
+            }
+
             _sliding = true;
             try {
-                var stepped = 0;
-                for (var elapsed = 0f; elapsed < SlideSeconds; elapsed += Time.deltaTime) {
-                    float k = Mathf.Clamp01(elapsed / SlideSeconds);
+                var stepped = new int[targets.Count];
+                // At most one of the original's frames per frame drawn here: the original renders
+                // every frame of a walk, so a hitch (the redraw's own frame is a long one) must slow
+                // the walk rather than skip the cells it stepped through.
+                float maxStep = (float)GameData.Resources.Combat.SpellVisuals.FrameSeconds;
+                for (var elapsed = 0f; elapsed < total; elapsed += Mathf.Min(Time.deltaTime, maxStep)) {
                     for (var i = 0; i < targets.Count; i++) {
+                        // Cell by cell, each at the original's pace: segments-crossed is the
+                        // index of the current cell plus how far into it the sprite is.
+                        float crossed = Along(routes[i].Seconds, elapsed, out int seg, out float k);
                         if (targets[i] != null) {
-                            targets[i].localPosition = Vector3.Lerp(from[i], to[i], k);
+                            targets[i].localPosition = Vector3.Lerp(routes[i].Points[seg], routes[i].Points[seg + 1], k);
                         }
-                    }
-                    // *** THE LEGS SWING WITH THE SLIDE, WHICH IS THE ORIGINAL'S COUPLING. ***
-                    // animateCombatActorMove steps the creature's animation and its position in the
-                    // same loop and hands the stepped frame straight to the sprite it is sliding —
-                    // see CreatureAnimationStep.PublishOffset. Driving the gait from slide progress
-                    // rather than from a timer reproduces that: an actor that is not moving is not
-                    // animating, exactly as RoamingActor already does for the world.
-                    while (stepped < GaitStepsPerSlide
-                           && k >= (stepped + 1) / (float)GaitStepsPerSlide) {
-                        for (var i = 0; i < gaits.Count; i++) {
+                        // *** THE LEGS SWING WITH THE SLIDE, WHICH IS THE ORIGINAL'S COUPLING. ***
+                        // animateCombatActorMove steps the creature's animation and its position in
+                        // the same loop — see CreatureAnimationStep.PublishOffset. An actor that is
+                        // not moving is not animating, exactly as RoamingActor does in the world.
+                        while (stepped[i] < (int)(crossed * GaitStepsPerCell)) {
                             gaits[i]?.AdvanceGait();
+                            stepped[i]++;
                         }
-                        stepped++;
                     }
                     // *** WRITTEN BACK EVERY STEP, NOT ONCE AT THE END. *** The rebuild that follows
                     // destroys these sprites, and a slide can also be cut short by a second redraw
@@ -1167,6 +1230,9 @@ namespace BakAgain.World {
                 screen.SetCorpseLootSeam(_hotspots.LootCorpse);
                 screen.SetCombatTargetSeam(_hotspots.ResolveCombatTargetClick);
                 screen.SetCombatantAtPointSeam(_hotspots.CombatantAtPoint);
+                screen.SetCombatCellSeams(_hotspots.CellAtPoint,
+                    (cell, always) => { _hotspots.CursorCell = cell; _hotspots.CursorCellAlwaysShown = always; },
+                    _hotspots.CellCentreWorld, _hotspots.ActingCell, () => _hotspots.AwaitingCombatTarget);
                 screen.SetCombatGroundSeam(_hotspots.ResolveCombatGroundClick);
                 screen.SetCombatFaceSeam(FaceActingCombatantAt);
                 screen.SetInCombatPredicate(() => _hotspots?.Combat?.InCombat ?? false);
@@ -1326,7 +1392,9 @@ namespace BakAgain.World {
             // the arena root means it is rebuilt with the arena rather than needing invalidation.
             _arenaRoot.AddComponent<Encounters.ArenaGridOverlay>()
                 .Bind(_hotspots.ArenaOverlaySegments,
-                    () => _overlayInput?.ToggleOverlayPressed ?? false,
+                    // The G key, or the touch aids' grid button.
+                    () => (_overlayInput?.ToggleOverlayPressed ?? false)
+                        | (BakAgain.UI.InputCore.TouchInputState.Instance?.TakeGridToggle() ?? false),
                     () => _combatGridLinesEnabled,
                     on => {
                         _combatGridLinesEnabled = on;
@@ -2018,6 +2086,7 @@ namespace BakAgain.World {
                 // Each turn changes the board — someone moved, someone fell. Without this the
                 // sprites stay exactly as the fight opened.
                 redrawArena: () => SlideThenRedrawAsync().Forget(),
+                arenaBusy: () => _sliding,
                 // The loot screen is the travel HUD's, so the service asks rather than reaching for
                 // it. Same shape as showArena: a callback into whoever owns the UI.
                 openCorpseLoot: OpenCorpseLoot,
