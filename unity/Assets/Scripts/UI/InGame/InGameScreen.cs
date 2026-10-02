@@ -1220,7 +1220,7 @@ namespace BakAgain.UI.InGame {
                     _combatCursor.Cell = (ac, ar);
                 }
             }
-            int held = touch.HeldTouchAction;
+            int held = touch.TakeTouchAction();   // a quick tap still steps the cursor once
             if (held != _cursorHeldAction) {
                 _cursorHeldAction = held;
                 _cursorRepeatIn = CursorRepeatDelay;

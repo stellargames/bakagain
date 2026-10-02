@@ -58,6 +58,20 @@ namespace BakAgain.UI.InputCore {
             HeldTouchAction = actionId;
             HeldIsReqArrow = reqArrow;
             SwallowNextArrowClick = false;
+            _pendingTap = reqArrow ? -1 : actionId;   // a REQ arrow's click takes a tap's step itself
+        }
+
+        private int _pendingTap = -1;
+
+        /// <summary>
+        /// The pad to act on this frame: the one held, else a pad tapped and released since the last
+        /// frame, once. The driver reads once a frame, so a tap that began and ended in between was
+        /// never seen and took no step (emulator, 2026-10-02).
+        /// </summary>
+        public int TakeTouchAction() {
+            int action = HeldTouchAction >= 0 ? HeldTouchAction : _pendingTap;
+            _pendingTap = -1;
+            return action;
         }
 
         public void ReleaseHold(int actionId) {
@@ -79,7 +93,10 @@ namespace BakAgain.UI.InputCore {
         /// <summary>
         /// A fight starting or ending: a preview from another fight would ring an arbitrary cell.
         /// </summary>
-        public void ForgetCombatPreview() => CombatHoverScreenPoint = null;
+        public void ForgetCombatPreview() {
+            CombatHoverScreenPoint = null;
+            _pendingTap = -1;   // a cursor tap is not a travel step after the fight, nor the reverse
+        }
 
         /// <summary>
         /// Whether a long-press on this REQ action is its right-click. Not for the four compass

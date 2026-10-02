@@ -86,6 +86,7 @@ namespace BakAgain.UI.InGame {
         public void Tick(bool active) {
             if (!active) {
                 _heldAction = -1;
+                TouchInputState.Instance?.TakeTouchAction();   // a tap under a menu is not a step later
                 return;
             }
             int action = ResolveHeldMovementAction();
@@ -145,7 +146,7 @@ namespace BakAgain.UI.InGame {
             if (move.x > dead) return TurnRight;
 
             // A finger held on a touch pad or compass arrow, as UI Toolkit's pointer events saw it.
-            int touchHeld = TouchInputState.Instance?.HeldTouchAction ?? -1;
+            int touchHeld = TouchInputState.Instance?.TakeTouchAction() ?? -1;
             if (IsMovementAction(touchHeld)) {
                 return touchHeld;
             }

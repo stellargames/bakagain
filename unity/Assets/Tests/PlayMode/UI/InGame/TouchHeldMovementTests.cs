@@ -77,5 +77,61 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             Assert.AreEqual((short)-0x2000, session.Rotation, "one step, then nothing");
             Assert.AreEqual(-1, _state.HeldTouchAction);
         }
+
+        /// <summary>
+        /// Found on the emulator (2026-10-02): a quick tap on a pad, pressed and released before the
+        /// next frame, never turned the party. The driver reads the held pad once per frame, so a
+        /// press that ended in between was never seen. A tap is still a step.
+        /// </summary>
+        [Test]
+        public void ATapReleasedBeforeTheNextFrameStillTakesOneStep() {
+            var (driver, session) = Build(() => 1f / 60f);
+            _state.PressHold(77, reqArrow: false);
+            _state.ReleaseHold(77);
+            driver.Tick(active: true);
+            Assert.AreEqual((short)-0x2000, session.Rotation, "the tap's one step");
+            driver.Tick(active: true);
+            Assert.AreEqual((short)-0x2000, session.Rotation, "and only one");
+        }
+
+        [Test]
+        public void AHeldPadSeenByTheDriverLeavesNoExtraStepOnRelease() {
+            var (driver, session) = Build(() => 1f / 60f);
+            _state.PressHold(77, reqArrow: false);
+            driver.Tick(active: true);
+            _state.ReleaseHold(77);
+            driver.Tick(active: true);
+            driver.Tick(active: true);
+            Assert.AreEqual((short)-0x2000, session.Rotation, "the latched tap was the held step");
+        }
+
+        [Test]
+        public void AQuickTapOnAReqArrowIsLeftToItsClick() {
+            var (driver, session) = Build(() => 1f / 60f);
+            _state.PressHold(77, reqArrow: true);
+            _state.ReleaseHold(77);
+            driver.Tick(active: true);
+            Assert.AreEqual(0, session.Rotation, "the arrow's own click takes a tap's step");
+        }
+
+        [Test]
+        public void ATapWhileTheWorldIsNotRunningIsNoStepLater() {
+            var (driver, session) = Build(() => 1f / 60f);
+            _state.PressHold(77, reqArrow: false);
+            _state.ReleaseHold(77);
+            driver.Tick(active: false);
+            driver.Tick(active: true);
+            Assert.AreEqual(0, session.Rotation);
+        }
+
+        [Test]
+        public void AFightEdgeDropsALatchedTap() {
+            var (driver, session) = Build(() => 1f / 60f);
+            _state.PressHold(77, reqArrow: false);
+            _state.ReleaseHold(77);
+            _state.ForgetCombatPreview();
+            driver.Tick(active: true);
+            Assert.AreEqual(0, session.Rotation);
+        }
     }
 }
