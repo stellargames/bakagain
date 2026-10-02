@@ -1622,6 +1622,20 @@ namespace BakAgain.UI.Inventory {
             UpdatePaperdollBorder(dragging: true, _dragSlot, stageLocal);
         }
 
+        /// <summary>
+        /// Whether a drop keeps the dragged sprite and the target's ring up while it resolves: a shop
+        /// buy does, through the price quote (INVENTOR.C:741-743). <see cref="BuyForAsync"/> clears
+        /// them when the transaction ends.
+        /// </summary>
+        // ponytail: the ring keeps pulsing while held; the original freezes it at phase 0.
+        internal static bool HoldsDropArt(int portrait, bool lockMode, bool shopShelf) =>
+            portrait >= 0 && !lockMode && shopShelf;
+
+        private void ClearDropArt() {
+            SetHoverPortrait(-1);
+            DestroyGhost();
+        }
+
         internal void OnReleased(Vector2 stageLocal, bool wasDrag) {
             if (_pressSlot < 0 || _pickerOpen) {
                 return; // the press didn't start on an item (or the picker owns input)
@@ -1637,10 +1651,11 @@ namespace BakAgain.UI.Inventory {
             int portrait = PortraitUnder(stageLocal);
             _dropStagePos = stageLocal; // where the sprite starts its flight, if the drop transfers
             bool overWindow = IsOverContainerWindow(stageLocal);
-            SetHoverPortrait(-1);
             UpdateDiscardBorder(dragging: false, overWindow: false);
             UpdatePaperdollBorder(dragging: false, dragged, stageLocal);
-            DestroyGhost();
+            if (!HoldsDropArt(portrait, IsLockMode, ShowingShopShelf)) {
+                ClearDropArt();
+            }
             // Drop resolution order is the original's chain of `if (dragging && …)` blocks: party
             // portrait (INVENTOR.C:729), then the container window, then the paperdoll. Each returns,
             // so the first match wins.
@@ -3971,6 +3986,15 @@ namespace BakAgain.UI.Inventory {
         /// rule that infinite stock is COPIED rather than moved.</para>
         /// </remarks>
         private async Cysharp.Threading.Tasks.UniTaskVoid BuyForAsync(int slot, RuntimeContainer target,
+            int portraitSlot) {
+            try {
+                await BuyTransactionAsync(slot, target, portraitSlot);
+            } finally {
+                ClearDropArt();
+            }
+        }
+
+        private async Cysharp.Threading.Tasks.UniTask BuyTransactionAsync(int slot, RuntimeContainer target,
             int portraitSlot) {
             if (slot < 0 || slot >= _displayed.Items.Count) {
                 RenderCurrent();

@@ -317,6 +317,19 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         }
 
         /// <summary>
+        /// A drop onto a portrait from a shop shelf keeps the dragged sprite and the target's ring up
+        /// through the price quote: INVENTOR.C:741-743 paints both before cmbinv_actor_transfer_item
+        /// runs the offer. Measured buying Ale at the Black Sheep (TASK-736).
+        /// </summary>
+        [Test]
+        public void AShopDropOntoAPortraitHoldsItsDragArtThroughTheOffer() {
+            Assert.IsTrue(InventoryMenu.HoldsDropArt(portrait: 0, lockMode: false, shopShelf: true));
+            Assert.IsFalse(InventoryMenu.HoldsDropArt(portrait: -1, lockMode: false, shopShelf: true), "not on a portrait");
+            Assert.IsFalse(InventoryMenu.HoldsDropArt(portrait: 0, lockMode: false, shopShelf: false), "no offer to wait for");
+            Assert.IsFalse(InventoryMenu.HoldsDropArt(portrait: 0, lockMode: true, shopShelf: true), "the lock takes the drop");
+        }
+
+        /// <summary>
         /// The container window's drag-time border, from the two <c>invui_portrait_panel_draw</c>
         /// call sites: member view (0x57250) only while hovered — that's the live drop target;
         /// container view (0x57279, and the redraw at INVENTOR.C:399-400) always.
