@@ -41,6 +41,18 @@ namespace BakAgain.CutScenes {
             _cancellation?.Cancel();
         }
 
+        /// <summary>
+        /// Whether Activate (a click, Enter, Space) between dialogs ends the scene.
+        /// </summary>
+        /// <remarks>
+        /// <b>Only in the intro.</b> The original's chapter and scene loops (GMAIN.C:331-366) read no
+        /// input while a scene plays; a click reaches only a dialog that is waiting for one. Ending the
+        /// scene on Activate here dropped every line still to come — an impatient click in C31's
+        /// scene 2 lost "They are here." and James's two closing lines. Cancel (Esc) still ends the
+        /// cutscene; that is ours, and it asks for it explicitly.
+        /// </remarks>
+        public static bool ActivateEndsTheScene(bool attractMode) => attractMode;
+
         public async UniTask<bool> PlayCutScene(List<Frame> frames, int startFrame = 0, bool attractMode = false) {
             _cancellation = new CancellationTokenSource();
             _skipRequested = false;
@@ -49,9 +61,9 @@ namespace BakAgain.CutScenes {
             // menu, so Activate maps to cancel too (PlayIntro @ 0x20bbc: any key/click → skip credits →
             // menu). The stack guarantees only the top layer gets intents, so a mid-scene dialog
             // (which pushes its OWN Exclusive layer above) is dismissed without reaching the cutscene.
-            System.Action onActivate = attractMode
+            System.Action onActivate = ActivateEndsTheScene(attractMode)
                 ? () => _cancellation.Cancel()
-                : () => _skipRequested = true;
+                : () => { };
             var skipLayer = new BakAgain.UI.InputCore.ActionLayer(
                 "cutscene", onActivate, () => _cancellation.Cancel(),
                 onMove: null, anyIntentActivates: attractMode);
@@ -183,7 +195,10 @@ namespace BakAgain.CutScenes {
                 // cutscene's skip layer, so the dismiss routes to the dialog — it never reaches the
                 // cutscene skip layer. No _skipRequested cleanup needed (the old IInputHandler hack).
                 if (request.WaitForInput) {
-                    await _dialogManager.ShowEntry(request.Entry, _cancellation.Token);
+                    // The record's own wait bits do not apply here — see NarrativeWaitEntry.
+                    await _dialogManager.ShowEntry(
+                        GameData.Resources.Animation.CutsceneDialogCommand.NarrativeWaitEntry(request.Entry),
+                        _cancellation.Token);
                 } else {
                     await _dialogManager.DisplayEntry(request.Entry, _cancellation.Token);
                 }

@@ -131,4 +131,13 @@ public class ScreenTransitionBoxTests {
         Assert.Equal(W * 2, ScreenTransitionBox.RevealedByBoxIn(X, Y, W, H, steps)
             .Sum(s => s.Width * s.Height));
     }
+
+    [Fact]
+    public void AWipeTakesAboutAFifthOfASecondNotTwentySeconds() {
+        // C31's box-out (VGA 290x101, canonical 1450x606): the original's loop is unpaced, and in
+        // Spice86 the old picture was still up at 0.76 s after the click and the new one complete by
+        // 0.95 s. Pacing one 1/60 s tick per CANONICAL step took the port 18.7 s.
+        Assert.Equal(0.2, ScreenTransitionBox.DurationSeconds(290, 101), 3);
+        Assert.True(ScreenTransitionBox.DurationSeconds(320, 200) < 0.25);
+    }
 }

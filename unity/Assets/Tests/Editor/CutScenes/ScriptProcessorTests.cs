@@ -46,6 +46,15 @@ namespace BakAgain.Tests.CutScenes {
         }
 
         [Test]
+        public void AClickBetweenDialogsDoesNotEndTheScene() {
+            // The original's cutscene loop (GMAIN.C:355-366) reads no input while a scene plays;
+            // only the dialogs consume clicks. Ending the scene on Activate threw away every line
+            // still to come — C31's scene 2 lost "They are here." and James's two closing lines.
+            Assert.IsFalse(CutscenePlayer.ActivateEndsTheScene(attractMode: false));
+            Assert.IsTrue(CutscenePlayer.ActivateEndsTheScene(attractMode: true), "the intro still exits on any input");
+        }
+
+        [Test]
         public void AnEmptyScriptYieldsNothing() {
             Assert.IsEmpty(Run(string.Empty));
             Assert.IsEmpty(Run(null));

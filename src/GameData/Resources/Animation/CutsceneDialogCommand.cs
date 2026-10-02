@@ -114,6 +114,24 @@ public static class CutsceneDialogCommand {
     /// <c>arg2 != 3</c> or <c>arg2 &gt;= 4</c> it would be wrong for two of the six, and both
     /// readings look tidy enough to survive review.
     /// </remarks>
+    /// <summary>
+    /// The record as a waiting cutscene line shows it: a copy with the record's own wait bits cleared.
+    /// </summary>
+    /// <remarks>
+    /// <c>ttmscript_show_dialog_action</c>'s narrative case draws the record and then calls
+    /// <c>dialog_wait_for_acknowledge(100, 0, 1, 0)</c> (TTMDLG.C) — the FLAGS argument is 0, so
+    /// SkipWait (0x4000), the auto-advance timer (0x40), keep-accepting-keyboard (0x20) and the
+    /// chapter-scaled timer (0x08) never apply: the line waits for a click or the text-speed timeout.
+    /// C31's lines all carry SkipWait; honouring it flashed five past in a frame. A copy, so the
+    /// loader's cached record is untouched.
+    /// </remarks>
+    public static Dialog.DialogEntry NarrativeWaitEntry(Dialog.DialogEntry record) {
+        Dialog.DialogEntry copy = record.WithText(record.Text);
+        copy.Flags &= ~(Dialog.DialogEntryFlags.SkipWait | Dialog.DialogEntryFlags.AutoAdvanceTimer
+            | Dialog.DialogEntryFlags.KeepAcceptingKeyboard | Dialog.DialogEntryFlags.ChapterScaledTimer);
+        return copy;
+    }
+
     public static bool WaitsForInput(int arg2) => arg2 switch {
         NarrativeWaitInput => true,
         Interactive => true,

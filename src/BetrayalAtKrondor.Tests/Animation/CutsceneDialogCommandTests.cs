@@ -111,4 +111,23 @@ public class CutsceneDialogCommandTests {
         Assert.False(CutsceneDialogCommand.WaitsForInput(99));
         Assert.False(CutsceneDialogCommand.WaitsForInput(-1));
     }
+
+    [Fact]
+    public void ANarrativeLineWaitsWhateverTheRecordsOwnWaitBitsSay() {
+        // TTMDLG.C case 0 draws the record and calls dialog_wait_for_acknowledge(100, 0, 1, 0): the
+        // FLAGS argument is 0, so the record's SkipWait/auto-advance bits never apply. C31's lines all
+        // carry SkipWait, and honouring it flashed five of them past in a frame.
+        var record = new GameData.Resources.Dialog.DialogEntry {
+            Flags = GameData.Resources.Dialog.DialogEntryFlags.SkipWait
+                | GameData.Resources.Dialog.DialogEntryFlags.AutoAdvanceTimer
+                | GameData.Resources.Dialog.DialogEntryFlags.KeepAcceptingKeyboard
+                | GameData.Resources.Dialog.DialogEntryFlags.ChapterScaledTimer
+                | GameData.Resources.Dialog.DialogEntryFlags.FixedStripePattern,
+        };
+
+        GameData.Resources.Dialog.DialogEntry shown = CutsceneDialogCommand.NarrativeWaitEntry(record);
+
+        Assert.Equal(GameData.Resources.Dialog.DialogEntryFlags.FixedStripePattern, shown.Flags);
+        Assert.True((record.Flags & GameData.Resources.Dialog.DialogEntryFlags.SkipWait) != 0, "the cached record is untouched");
+    }
 }

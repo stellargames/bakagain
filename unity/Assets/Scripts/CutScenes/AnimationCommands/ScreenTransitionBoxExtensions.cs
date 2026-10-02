@@ -56,22 +56,33 @@ namespace BakAgain.CutScenes.AnimationCommands {
                     return;
                 }
 
-                // *** THE ORIGINAL'S PACE IS ONE STEP PER LOGICAL FRAME. *** The step count comes
-                // from the area's size, so a large wipe genuinely takes longer than a small one;
-                // pacing by a fixed duration instead would make every transition the same length
-                // and lose that.
-                foreach (int step in Steps(boxOut, steps)) {
-                    foreach ((int rx, int ry, int rw, int rh) in
-                             Revealed(boxOut, x, y, width, height, step)) {
-                        if (rw <= 0 || rh <= 0) {
-                            continue;
+                // *** THE ORIGINAL DOES NOT PACE THE WIPE. *** Its loop blits step after step with no
+                // wait, so the duration is the blits' (ScreenTransitionBox.MeasuredVgaStepsPerSecond:
+                // about 0.2 s for C31's 290x101). The size still decides the length — measured in
+                // VGA steps, not canonical ones, which made this one tick per canonical pixel and
+                // 18.7 s long. Each drawn frame catches up to wherever the clock says the wipe is.
+                double duration = ScreenTransitionBox.DurationSeconds(
+                    (int)(width / Canonical.VgaScaleX), (int)(height / Canonical.VgaScaleY));
+                var order = new List<int>(Steps(boxOut, steps));
+                float started = Time.realtimeSinceStartup;
+                int done = 0;
+                while (done < order.Count) {
+                    double elapsed = Time.realtimeSinceStartup - started;
+                    int target = duration <= 0 ? order.Count
+                        : Math.Min(order.Count, (int)Math.Ceiling(order.Count * elapsed / duration));
+                    target = Math.Max(target, done + 1);
+                    for (; done < target; done++) {
+                        foreach ((int rx, int ry, int rw, int rh) in
+                                 Revealed(boxOut, x, y, width, height, order[done])) {
+                            if (rw <= 0 || rh <= 0) {
+                                continue;
+                            }
+                            cutsceneState.CopyArea(newImage, shown, new Area(rx, ry, rw, rh));
                         }
-                        cutsceneState.CopyArea(newImage, shown,
-                            new Area(rx, ry, rw, rh));
                     }
 
                     Present(cutsceneState, shown);
-                    await Awaitable.WaitForSecondsAsync(CutsceneTiming.FrameDurationSeconds);
+                    await Awaitable.NextFrameAsync();
                     if (cutsceneState.EndScene) {
                         break;
                     }

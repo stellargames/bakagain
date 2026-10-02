@@ -77,6 +77,21 @@ public static class ScreenTransitionBox {
     /// <summary>The step a box-out starts from — it grows outward from the centre.</summary>
     public const int BoxOutFirstStep = 1;
 
+    /// <summary>
+    /// VGA steps per second — MEASURED, because the original does not pace the wipe at all.
+    /// </summary>
+    /// <remarks>
+    /// The 0xA034/0xA094 loop (TTM.C:930-965) blits a growing box per step with no wait between
+    /// steps, so it runs as fast as the blits do. Measured in Spice86 on C31's box-out (VGA 290x101,
+    /// 145 steps): the old picture was still up 0.76 s after the click and the new one complete by
+    /// 0.95 s, so about 0.2 s. Pacing one 1/60 s tick per CANONICAL step took the port 18.7 s.
+    /// </remarks>
+    public const double MeasuredVgaStepsPerSecond = 725;
+
+    /// <summary>How long a box wipe over a VGA-sized area lasts — see <see cref="MeasuredVgaStepsPerSecond"/>.</summary>
+    public static double DurationSeconds(int vgaWidth, int vgaHeight) =>
+        StepCount(vgaWidth, vgaHeight) / MeasuredVgaStepsPerSecond;
+
     /// <summary>The step a box-in starts from — it shrinks inward from the edge.</summary>
     /// <remarks><b>Deliberately callerless.</b> The cutscene wipe reads <see cref="StepCount"/> directly; this names the box-in's starting step beside <see cref="BoxOutFirstStep"/>.</remarks>
     public static int BoxInFirstStep(int width, int height) => StepCount(width, height);
