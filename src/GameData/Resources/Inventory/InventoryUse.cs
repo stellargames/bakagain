@@ -558,10 +558,9 @@ public static class InventoryUse {
     }
 
     /// <summary>
-    /// Category 25 is a switch on the object id, not a category effect (ITEMUSE.C:386-479). Ported:
-    /// raw manna, the shell, the practice lute and the Cup of Rlnn Skr. Still NotPorted (TASK-705):
-    /// the Wooden Chest (102, a camera raise after the screen closes) and the Brass Spyglass (7, the
-    /// look-south view).
+    /// Category 25 is a switch on the object id, not a category effect (ITEMUSE.C:386-479). All six
+    /// arms are ported: raw manna, the shell, the practice lute, the Cup of Rlnn Skr, the Brass
+    /// Spyglass (its look-down view) and the Wooden Chest (its camera lift after the screen closes).
     /// </summary>
     private static ItemUseResult UsableSpecial(RuntimeContainer container, int sourceIndex,
         RuntimeItem source, RuntimeItem? target, ObjectInfo rec, ItemUseContext? context) {
