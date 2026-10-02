@@ -59,6 +59,9 @@ namespace BakAgain.World.Scenes {
 
             int price = InnStay.CostInRoyals(shop.InnCostPerNight);
             var firstOffer = true;
+            // Taken ONCE, before the first offer (MODALSCR.C:715): the 13-hour Sick cure counts
+            // from here across every night bought, not from the start of each night.
+            long arrivedTicks = _clock.Ticks;
 
             // Up BEFORE the offer, and it stays up between nights: the original draws the panel and
             // the purse once and only then shows the nightmaster's dialog (0x50196 precedes
@@ -73,7 +76,7 @@ namespace BakAgain.World.Scenes {
                 // ShowConfirmById stopped at the index, so an accepted night was silent and the
                 // refusal had to be hand-played by key (TASK-496).
                 while (await OfferAsync(price, shop.InnRestHours, firstOffer) == AcceptedAndAffordable) {
-                    await StayTheNightAsync(shop.InnRestHours);
+                    await StayTheNightAsync(shop.InnRestHours, arrivedTicks);
                     // "In moments, they were all fast asleep…" ends the chain with SkipWait, so it is
                     // still up: the original's night redraw only repaints the top of the screen.
                     _dialogs.ClearDialog();
@@ -124,7 +127,7 @@ namespace BakAgain.World.Scenes {
         /// <para><see cref="PartyUpkeepService.RestQuality"/> is restored in a finally: leaving it
         /// raised would make walking heal the party at inn rates.</para>
         /// </remarks>
-        private async UniTask StayTheNightAsync(int wakeHour) {
+        private async UniTask StayTheNightAsync(int wakeHour, long arrivedTicks) {
             int previousQuality = _upkeep.RestQuality;
             _upkeep.RestQuality = InnStay.RestQuality;
             long startTicks = _clock.Ticks;
@@ -134,7 +137,7 @@ namespace BakAgain.World.Scenes {
                 for (var hour = 0; hour < hours; hour++) {
                     _clock.AdvanceHours(1);
                     await _upkeep.PlayAnnouncementsAsync(_dialogs);
-                    if (_clock.Ticks - startTicks >= SickCureTicks) {
+                    if (_clock.Ticks - arrivedTicks >= SickCureTicks) {
                         CureSickness();
                     }
 
@@ -151,7 +154,11 @@ namespace BakAgain.World.Scenes {
             }
         }
 
-        /// <summary>Thirteen hours of rest clears Sick outright — the same threshold camping uses.</summary>
+        /// <summary>
+        /// Thirteen hours since the party walked up to the counter clears Sick outright, checked
+        /// after every hour (MODALSCR.C:790-794). Measured in the original: a 10-hour first night,
+        /// then the cure in the second night's third hour.
+        /// </summary>
         private const long SickCureTicks = 13 * InnStay.TicksPerHour;
 
         private void CureSickness() => _session.CureSicknessAcrossParty();
