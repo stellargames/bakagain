@@ -193,6 +193,7 @@ namespace BakAgain.UI.Spells {
             if (host == null) {
                 return;
             }
+            AttachPartyMarker(host);
             host.RegisterCallback<GeometryChangedEvent>(OnInsetLaidOut);
         }
 
@@ -377,6 +378,27 @@ namespace BakAgain.UI.Spells {
         // Pen 111. Hard-coded rather than resolved through a palette because it is the same
         // (215, 0, 0) in OPTIONS.PAL and in all twelve zone palettes — see LocatorMap.MarkerPen.
         private static readonly Color MarkerColor = new Color(215f / 255f, 0f, 0f, 1f);
+
+        /// <summary>
+        /// The party's arrow at the centre, as the overhead map draws it: the original renders these
+        /// views through the map's path, which draws the MAPICONS arrow (seen in its locator and
+        /// Spyglass views, 2026-10-02).
+        /// </summary>
+        private void AttachPartyMarker(VisualElement viewport) {
+            var centre = new VisualElement {
+                name = "BakMapMarker",
+                pickingMode = PickingMode.Ignore,
+                style = {
+                    position = Position.Absolute,
+                    left = 0, top = 0, right = 0, bottom = 0,
+                    alignItems = Align.Center,
+                    justifyContent = Justify.Center,
+                },
+            };
+            int icon = OverheadMapMarker.IconIndexFor(unchecked((ushort)_session.Rotation), GameOptions.NorthUpMap);
+            centre.Add(new ArchiveImage { pickingMode = PickingMode.Ignore, address = $"MAPICONS.BMX#{icon}" });
+            viewport.Add(centre);   // not a search marker: PlaceMarkers' clear must leave it
+        }
 
         private void ClearMarkers() {
             foreach (VisualElement marker in _markers) {
