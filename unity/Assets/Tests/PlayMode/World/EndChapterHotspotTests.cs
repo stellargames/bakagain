@@ -67,6 +67,28 @@ namespace BakAgain.Tests.PlayMode.World {
         }
 
         [Test]
+        public void SceneDescription_LetsClicksThroughToTheHotspotsBeneathIt() {
+            // The original paints the description into the scene (TOWNSCN.C:216); the hotspots under
+            // it stay live. GDS6A's exit is a code-3 hotspot over the WHOLE text strip (y 684-1182),
+            // and the pickable panel swallowed every click on it: arriving in Romney at chapter 3,
+            // the party could not leave.
+            var dialogs = new DescribingDialogs();
+            _screen.Construct(dialogs, null, _session, null, null, null, null, null, null, null);
+
+            _screen.ShowSceneDescriptionAsync(new GdsScene("GDSTEST.DAT") { SceneDialogId = 4242 }).Forget();
+
+            Assert.That(dialogs.ClickThrough, Is.EqualTo(1));
+        }
+
+        private sealed class DescribingDialogs : ClearCountingDialogs {
+            public override UniTask<GameData.Resources.Dialog.DialogPlay> ResolveById(int id,
+                System.Threading.CancellationToken cancellationToken = default) =>
+                UniTask.FromResult(new GameData.Resources.Dialog.DialogPlay(
+                    new GameData.Resources.Dialog.DialogEntry { Text = "Known as the City of Guilds" },
+                    null, null));
+        }
+
+        [Test]
         public void ClearDescription_TakesTheDescriptionPanelDown() {
             // The description is shown with DisplayEntry, which leaves the panel up until something
             // clears it. Nothing did, so walking out of LaMut left the tavern's description painted
@@ -83,8 +105,9 @@ namespace BakAgain.Tests.PlayMode.World {
         /// <summary>Counts <c>ClearDialog</c>; every other member is unreachable from this test.</summary>
         private class ClearCountingDialogs : BakAgain.UI.IDialogManager {
             public int Cleared { get; private set; }
+            public int ClickThrough { get; private set; }
             public void ClearDialog() => Cleared++;
-            public void LetClicksThroughPanel() { }
+            public void LetClicksThroughPanel() => ClickThrough++;
 
             public UniTask ShowEntry(GameData.Resources.Dialog.DialogEntry entry,
                 System.Threading.CancellationToken cancellationToken = default) => UniTask.CompletedTask;

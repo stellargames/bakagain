@@ -230,6 +230,10 @@ namespace BakAgain.World.Scenes {
             await _dialogs.DisplayEntry(sign == null
                 ? play
                 : new DialogPlay(entry.WithText(description), play.Slots, play.Context, play.Dialog, play.Pushed));
+            // The original paints the description into the scene (TOWNSCN.C:216): the hotspots under
+            // it stay live. GDS6A's exit covers the whole text strip, and a pickable panel left the
+            // party unable to leave Romney at the start of chapter 3.
+            _dialogs.LetClicksThroughPanel();
             ShowSign(sign);
         }
 
