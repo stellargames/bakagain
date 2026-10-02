@@ -131,6 +131,30 @@ namespace BakAgain.CutScenes {
         }
 
         /// <summary>
+        /// The scenes a script STOPs somewhere — background loops in the original.
+        /// </summary>
+        /// <remarks>
+        /// START arms a scene object and the interpreter runs every armed scene together; STOP
+        /// (0x2010) halts one. A scene that is stopped later is one the original ran BESIDE another
+        /// — C31's fire (scene 3, which falls into scene 4's GotoFrame loop) burns while scene 1's
+        /// dialog plays and is stopped when scene 2 starts. This player runs scenes one at a time,
+        /// so it must not wait on such a scene: its loop never ends by itself (TASK-718).
+        /// </remarks>
+        public static HashSet<int> StoppedScenes(string script) {
+            var stopped = new HashSet<int>();
+            if (string.IsNullOrEmpty(script)) {
+                return stopped;
+            }
+            foreach (string line in script.Split('\n')) {
+                string trimmed = line.Trim();
+                if (trimmed.StartsWith(StopScene)) {
+                    stopped.Add(ParseSceneNumber(trimmed, StopScene));
+                }
+            }
+            return stopped;
+        }
+
+        /// <summary>
         /// Whether a command plays its scene. CONTINUE (0x2000) is <c>anim_script_object_restart</c>
         /// (ANIMSCR.C:649): rewind to the scene's start, then arm it as START (0x2005) does — so from a
         /// fresh state both play the scene from its first frame. Only g_town's LAMUT-MAIN ships one.

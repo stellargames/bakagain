@@ -35,6 +35,17 @@ namespace BakAgain.Tests.CutScenes {
         }
 
         [Test]
+        public void ASceneTheScriptStopsIsABackgroundLoop() {
+            // C31's CHAP3SCENE1 starts scene 3 (the fire, which falls into scene 4's GotoFrame loop)
+            // alongside scene 1, and scene 2's block STOPs it. The original runs it beside scene 1;
+            // a player that runs scenes one at a time must not wait on it (TASK-718).
+            const string c31 = "IF NOT PLAYED scene_1\n    START scene_1\n    START scene_3\nEND IF\n"
+                + "IF PLAYED scene_1 AND IF NOT PLAYED scene_2\n    STOP scene_3\n    START scene_2\nEND IF\n";
+            CollectionAssert.AreEquivalent(new[] { 3 }, ScriptProcessor.StoppedScenes(c31));
+            CollectionAssert.IsEmpty(ScriptProcessor.StoppedScenes("IF NOT PLAYED scene_2\n    START scene_14\n    START scene_2\nEND IF\n"));
+        }
+
+        [Test]
         public void AnEmptyScriptYieldsNothing() {
             Assert.IsEmpty(Run(string.Empty));
             Assert.IsEmpty(Run(null));

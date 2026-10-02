@@ -211,9 +211,16 @@ namespace BakAgain.CutScenes {
                 _logger.LogDebug("PlayCutsceneAsync: Processing script with ScriptProcessor.");
                 var commands = ScriptProcessor.Process(script.Script, chapterNumber, playedScenes);
                 _logger.LogDebug("PlayCutsceneAsync: ScriptProcessor finished. Starting command execution loop.");
+                HashSet<int> background = ScriptProcessor.StoppedScenes(script.Script);
 
                 foreach (var (action, sceneNumber) in commands) {
                     _logger.LogDebug("PlayCutsceneAsync: Executing command: Action={Action}, SceneNumber={SceneNumber}.", action, sceneNumber);
+                    if (background.Contains(sceneNumber)) {
+                        // A loop the original ran beside another scene and later STOPped: armed, so
+                        // it counts as played, but never waited on (ScriptProcessor.StoppedScenes).
+                        playedScenes.Add(sceneNumber);
+                        continue;
+                    }
 
                     if (!tags.TryGetValue(sceneNumber, out var startFrame)) {
                         ConditionalLoggingExtensions.LogError(_logger, "PlayCutsceneAsync: SceneNumber {SceneNumber} not found in tags. Skipping command.", sceneNumber);
@@ -282,7 +289,12 @@ namespace BakAgain.CutScenes {
                     }
 
                     var commands = ScriptProcessor.Process(script.Script, chapterNumber, playedScenes);
+                    HashSet<int> background = ScriptProcessor.StoppedScenes(script.Script);
                     foreach (var (action, sceneNumber) in commands) {
+                        if (background.Contains(sceneNumber)) {
+                            playedScenes.Add(sceneNumber);   // armed, as the original arms it; see StoppedScenes
+                            continue;
+                        }
                         if (!sceneTags.TryGetValue(sceneNumber, out var startFrame)) {
                             ConditionalLoggingExtensions.LogError(_logger, "PlayCutsceneTagsAsync: SceneNumber {SceneNumber} not found in frame tags. Skipping.", sceneNumber);
                             continue;
