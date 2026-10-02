@@ -4263,7 +4263,7 @@ using GameData.Resources.Scene;
                     // Types 2 and 3 reject an actor number of zero, which is what monsters carry.
                     return target != null && target.IsPartyMember && !target.IsDead;
                 case GameData.Resources.Spells.SpellTargetingRules.Aim.DownedActor:
-                    // Type 7 is the coup de grace: the ONE aim that wants an incapacitated target.
+                    // Type 7 is the coup de grace: the ONE aim that wants a DEAD target (CAF_DEAD).
                     return target != null && target.IsDead;
                 case GameData.Resources.Spells.SpellTargetingRules.Aim.LivingActor:
                     return target != null && !target.IsPartyMember && !target.IsDead;

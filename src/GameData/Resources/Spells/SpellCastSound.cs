@@ -78,7 +78,14 @@ public static class SpellCastSound {
         { SpellIds.GriefOfAThousandNights, 77 },                       // case 13, sound_sparkly
         { SpellIds.UnfortunateFlux, 77 },                              // case 20, sound_sparkly
         { SpellIds.SkinOfTheDragon, FieldSpells.CreationSound },       // case 23
+        { SpellIds.HochosHaven, FieldSpells.CreationSound },           // case 6 (CSPELL.C:1403)
     };
+
+    /// <summary>
+    /// The Fetters of Rime's cue — <c>audio_play(0x4d)</c>, played in the post-animation switch on
+    /// a hit (CSPELL.C:1483), not with the other per-spell cues.
+    /// </summary>
+    public const int FettersCue = 0x4d;
 
     /// <summary>Spells confirmed to cast in silence.</summary>
     /// <remarks>

@@ -74,10 +74,11 @@ public static class SpellTargetingRules {
     /// <b>Final Rest is a coup de grâce.</b>
     /// </summary>
     /// <remarks>
-    /// Targeting type 7 is the only one that demands an <i>incapacitated</i> target, and Final Rest
-    /// is the only spell that carries it. So the spell that kills outright cannot be pointed at
-    /// anything still fighting — it finishes what is already down. Nothing in the spell record says
-    /// so; the rule lives entirely in the cursor check.
+    /// Targeting type 7 is the only one that demands a <i>dead</i> target (the cursor tests
+    /// <c>CAF_DEAD</c>, COMBAT.C:2202-2207), and Final Rest is the only spell that carries it. So it
+    /// is cast on a body: its post-animation arm takes the corpse off the grid, which is what stops a
+    /// Black Slayer rising. Nothing in the spell record says so; the rule lives in the cursor check.
+    /// A Grief-frozen enemy is incapacitated but not dead, and the original refuses it.
     ///
     /// <para>It also explains why no monster can cast it: the caster AI only ever asks for types 0
     /// and 1 (see <c>MonsterSpellcasting</c>), so type 7 is out of its reach by construction.</para>

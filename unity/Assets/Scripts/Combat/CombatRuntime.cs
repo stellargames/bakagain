@@ -2617,6 +2617,28 @@ namespace BakAgain.Combat {
                 ApplyThyMastersWill(caster, target, spell, roll);
             }
 
+            // *** THE POST-ANIMATION SWITCH, ON A HIT (CSPELL.C:1460-1486). *** Two spells have their
+            // whole effect here. Final Rest (0x20) takes the target off the field and kills it with
+            // no death animation; its record deals nothing. The Fetters of Rime (0x24) plays 0x4d and
+            // hangs a Grief of 1000 Nights slot of cost x Duration on the target — Grief is what
+            // freezes it (ActiveSpellEffectPool.IncapacitatingSpells). The cost is the one already
+            // amplified and weakness-doubled, as the original's `intensity` is at this point.
+            switch (SpellCastTail.HookFor(spellId)) {
+                case SpellCastTail.PostAnimationHook.KillOutright:
+                    // Its target is always a body (the type-7 cursor wants CAF_DEAD), so this is
+                    // the corpse leaving the field: quietly, persisted as gone, and off the grid,
+                    // which is what keeps a Black Slayer from ever rising (SlayerRevival.RisesThisTick).
+                    KillAndSettle(target, playAnimation: false);
+                    target.X = GameData.Resources.Combat.SlayerRevival.OffGrid;
+                    target.Y = GameData.Resources.Combat.SlayerRevival.OffGrid;
+                    break;
+                case SpellCastTail.PostAnimationHook.RegisterGriefOfAThousandNights:
+                    _playSfx?.Invoke(SpellCastSound.FettersCue);
+                    Encounter.Effects.Register(target, SpellIds.GriefOfAThousandNights,
+                        investedCost: 0, duration: effectiveCost * spell.Duration);
+                    break;
+            }
+
             // *** FLAMECAST SPLASHES, AND THE CASTER CAN BURN. *** The post-effect switch's case 4
             // (CSPELL.C:1487) runs before the delivery and before a mirrorwall is consulted, and is
             // skipped only for a cast from a tile step — a cannon, which here has no caster.
