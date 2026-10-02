@@ -4513,11 +4513,11 @@ namespace BakAgain.Combat {
             // four orthogonal neighbours. The predicate was already here and already used for the
             // PLAYER's aim; only the monster path asked the looser question.
             //
-            // *** THE DIAGONAL ARM IS NOT PORTED, and that is a deviation, not a completion. ***
-            // The original does not merely decline on a diagonal: it clears the target, runs
-            // combataipath_select_target again, and attacks only if the NEW target is ortho-adjacent
-            // (CMBTAI.C:408-426). Ours has already spent the turn walking by this point, so it
-            // stands. TASK-461 carries the rest.
+            // *** THE DIAGONAL ARM IS PORTED UPSTREAM, not here. *** The original does not merely
+            // decline on a diagonal: it clears the target, runs combataipath_select_target again, and
+            // attacks only if the NEW target is ortho-adjacent (CMBTAI.C:408-426). That happens in
+            // MonsterTurnResolver.WalkMeleeMoveRow -> Follow, in the same turn, before this runs;
+            // compared live in both games on dir.G01/SAVE05 (TASK-461).
             //
             // *** AND THIS GATE CANNOT CURRENTLY FIRE FROM THE MONSTER PATH. *** Since TASK-438's
             // tail landed, ResolveEnemyTurn returns early unless the monster reached `dest`, and
