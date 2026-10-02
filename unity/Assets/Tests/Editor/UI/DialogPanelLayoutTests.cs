@@ -143,6 +143,21 @@ namespace BakAgain.Tests.Editor.UI {
         private static Color[] Palette() => new Color[256];
 
         [Test]
+        public void EveryBodyIsCentredInItsTextRect_StripsAndSpeakersIncluded() {
+            // textwrap_draw_aligned centres the block on 0x10 (TEXTWRAP.C:127-131), which every style
+            // row carries. Measured: Romney's six-line description starts higher than the Port
+            // Exchange's four, and a one-line cutscene reply sits lower than a four-line one.
+            foreach (DialogEntry entry in new[] { Narrative(), PillSpeaker() }) {
+                DialogStyle style = BorderlessShadowedStyle();
+                VisualElement body = DialogPanelBuilder.BuildPanel(entry, style, null, Palette())
+                    .Q("BakDialogBody");
+                Assert.AreEqual(Justify.Center, body.style.justifyContent.value, entry.DialogType.ToString());
+                Assert.AreEqual(style.TextPadTop, body.style.top.value.value, "the rect's top is the row's pad");
+                Assert.AreEqual(style.TextPadBottom, body.style.bottom.value.value, "and so is its bottom");
+            }
+        }
+
+        [Test]
         public void ANamePillCanBeBuiltOnItsOwn_forALocationSign() {
             // dialog_draw_speech_bubble draws a town scene's "#Romney#" exactly as it draws a
             // speaker (TOWNSCN.C:213), so the sign is the same pill: fill 0x0B, rim 0x0F, ink 0x0A.

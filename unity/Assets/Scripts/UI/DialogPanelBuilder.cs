@@ -392,11 +392,14 @@ namespace BakAgain.UI {
             // A full-screen parchment centres too: every g_dialog_style_table row carries 0x10,
             // which textwrap_draw_aligned reads as "centre the block" (TEXTWRAP.C:127-130).
             // Measured on the naphtha record (0x1b776e): four lines sit mid-page in the original.
-            bool centerVertically = speaker == null
-                && (style.HasBorder || entry.DialogType == DialogType.PlainFullScreen);
-            TextAnchor bodyAlign = centerVertically
-                ? (centered ? TextAnchor.MiddleCenter : TextAnchor.MiddleLeft)
-                : (centered ? TextAnchor.UpperCenter : TextAnchor.UpperLeft);
+            // EVERY body is centred, strips and speaker lines included: textwrap_draw_aligned centres
+            // the block on 0x10 (TEXTWRAP.C:127-131) and every style row carries it; CenterText
+            // only rewrites the low three bits ((field_6 & 0xF8) | 2). Measured 2026-10-02: Romney's
+            // six-line description starts higher than the Port Exchange's four, and a one-line
+            // cutscene reply sits lower than a four-line one — half a line pitch per line.
+            bool centerVertically = true;
+            // Horizontal only: GameTextBlock takes the vertical placement from its own flex.
+            TextAnchor bodyAlign = centered ? TextAnchor.UpperCenter : TextAnchor.UpperLeft;
             // *** A TextWithChoice RECORD KEEPS THE MENU ROW FREE ON EVERY PAGE. ***
             // `if (record->wFlags & 0x200) applied[3] -= 0x14` (DIALOG.C:645-647), before a line is
             // laid out — so the reserve belongs to the paging box, not to the page that happens to
@@ -439,8 +442,10 @@ namespace BakAgain.UI {
                 // Span the panel and centre the stack of lines in it: the original's
                 // (boxHeight - pitch * lineCount) / 2 for the 0x10 vertical-centre bit, which
                 // every dialogTypeData row sets (0x4b9d8-0x4b9f8).
-                block.style.top = 0;
-                block.style.bottom = 0;
+                // Within the TEXT rect: the original shrinks the area by the style's pads first. The
+                // top is the resolved inset (the row's pad, or the author's NarrativeBodyTop).
+                block.style.top = top;
+                block.style.bottom = padBottom;
                 block.style.justifyContent = Justify.Center;
             } else {
                 block.style.top = top;

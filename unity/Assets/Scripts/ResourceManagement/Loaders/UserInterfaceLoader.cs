@@ -847,6 +847,9 @@ namespace BakAgain.ResourceManagement.Loaders {
             // UIDocument on the panel lives in).
             VisualElement stage = CanonicalStage.GetOrCreate(root, _userInterface.Frame);
             stage.Clear();
+            // The hovered hotspot went with the stage and no PointerLeave will say so: let go of its
+            // cursor, or a location keeps the last scene's word ("Tavern") over the next one.
+            _cursorManager?.SetByIndex(-1);
             _navWidgets.Clear();
             _builtEntries.Clear();
             _navigableOverrides.Clear();
