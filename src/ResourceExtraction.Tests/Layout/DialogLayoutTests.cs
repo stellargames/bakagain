@@ -85,9 +85,6 @@ public class DialogLayoutTests {
     [Fact]
     public void BodyTextOffsets_AreTheOriginalsVerticalInsets() {
         Assert.Equal(LayoutLength.Px(AspectCorrection.ScaleVgaY(6)), _layout.SpeakerTop);
-        // A plain float, not a LayoutLength — see SpeakerToBodyGap's remarks: it is only ever a
-        // term in a px sum, so a percentage there could never resolve.
-        Assert.Equal((float)AspectCorrection.ScaleVgaY(20), _layout.SpeakerToBodyGap);
     }
 
     /// <summary>
@@ -165,10 +162,6 @@ public class DialogLayoutTests {
         // Auto is a real shipped value and must survive as itself: an author's override document
         // omitting the inset has to keep meaning "the style row decides", not "zero".
         Assert.Contains("\"NarrativeBodyTop\": \"auto\"", json);
-        // ...and the plain-float scalars travel as bare numbers, so no unit an author writes
-        // there can look like it survived. (SpeakerToBodyGap used to be a LayoutLength.)
-        Assert.Contains("\"SpeakerToBodyGap\": 120", json);
-        Assert.DoesNotContain("\"SpeakerToBodyGap\": \"120px\"", json);
 
         var readOptions = new JsonSerializerOptions {
             Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
@@ -177,7 +170,6 @@ public class DialogLayoutTests {
 
         Assert.Equal(_layout.NarrativeBodyTop, restored.NarrativeBodyTop);
         Assert.Equal(_layout.SpeakerTop, restored.SpeakerTop);
-        Assert.Equal(_layout.SpeakerToBodyGap, restored.SpeakerToBodyGap);
         Assert.Equal(_layout.SpeakerPillRow.Top, restored.SpeakerPillRow.Top);
         Assert.Equal(_layout.SpeakerPill.Padding!.Left, restored.SpeakerPill.Padding!.Left);
         Assert.Equal(_layout.SpeakerPill.Padding.Top, restored.SpeakerPill.Padding.Top);
@@ -196,11 +188,7 @@ public class DialogLayoutTests {
     /// defaulting or unit-blind path can reproduce them by accident.
     ///
     /// <para><b>Scope, deliberately narrow.</b> Only values the RENDERER can actually resolve as
-    /// a percentage appear here. <c>SpeakerToBodyGap</c> used to, and that was a lie in test
-    /// form: the unit really did round-trip at this layer, while <c>ResolveBodyTop</c> refused
-    /// the whole sum and dropped the body back to <c>NarrativeBodyTop</c> — an author following
-    /// this test would have moved every speaker'd body to 180px. It is a plain <c>float</c> now,
-    /// so the authoring form no longer exists to be endorsed.</para>
+    /// a percentage appear here.</para>
     /// </summary>
     [Fact]
     public void AnOverrideCanRestateTheResolvableOffsetsInPercent_AndTheUnitSurvives() {
@@ -215,8 +203,7 @@ public class DialogLayoutTests {
 
         Assert.Equal(LayoutLength.Percent(17.3f), layout.NarrativeBodyTop);
         Assert.Equal(LayoutLengthUnit.Percent, layout.NarrativeBodyTop.Unit);
-        // SpeakerTop resolves ON ITS OWN — it is the speaker label's own top inset — which is
-        // exactly why it stays a LayoutLength while SpeakerToBodyGap does not.
+        // SpeakerTop resolves ON ITS OWN — it is the speaker label's own top inset.
         Assert.Equal(LayoutLength.Percent(4.1f), layout.SpeakerTop);
         Assert.Equal(LayoutLength.Percent(6.25f), layout.SpeakerPill.Padding!.Left);
         Assert.Equal(LayoutLengthUnit.Percent, layout.SpeakerPill.Padding.Left.Unit);
@@ -243,7 +230,7 @@ public class DialogLayoutTests {
             + "\"SpeakerPill\":{\"Padding\":{"
             + "\"Left\":\"113px\",\"Top\":\"29px\",\"Right\":\"71px\",\"Bottom\":\"43px\"}},"
             + "\"SpeakerPillShadowOffset\":17,\"SpeakerPillBorderWidth\":23,"
-            + "\"NarrativeBodyTop\":\"211px\",\"SpeakerTop\":\"53px\",\"SpeakerToBodyGap\":137,"
+            + "\"NarrativeBodyTop\":\"211px\",\"SpeakerTop\":\"53px\","
             + "\"ChromeBorderWidth\":31,\"ChromeShadowOffset\":19,"
             + "\"TextShadowOffsetX\":7,\"TextShadowOffsetY\":11}}";
 
@@ -269,7 +256,6 @@ public class DialogLayoutTests {
         Assert.Equal(23f, layout.SpeakerPillBorderWidth);
         Assert.Equal(LayoutLength.Px(211f), layout.NarrativeBodyTop);
         Assert.Equal(LayoutLength.Px(53f), layout.SpeakerTop);
-        Assert.Equal(137f, layout.SpeakerToBodyGap);
         Assert.Equal(31f, layout.ChromeBorderWidth);
         Assert.Equal(19f, layout.ChromeShadowOffset);
         Assert.Equal(7f, layout.TextShadowOffsetX);
@@ -280,7 +266,6 @@ public class DialogLayoutTests {
         var shipped = new DialogLayout();
         Assert.NotEqual(shipped.SpeakerPillShadowOffset, layout.SpeakerPillShadowOffset);
         Assert.NotEqual(shipped.SpeakerPillBorderWidth, layout.SpeakerPillBorderWidth);
-        Assert.NotEqual(shipped.SpeakerToBodyGap, layout.SpeakerToBodyGap);
         Assert.NotEqual(shipped.ChromeBorderWidth, layout.ChromeBorderWidth);
         Assert.NotEqual(shipped.ChromeShadowOffset, layout.ChromeShadowOffset);
         Assert.NotEqual(shipped.TextShadowOffsetX, layout.TextShadowOffsetX);
@@ -320,7 +305,6 @@ public class DialogLayoutTests {
                 SpeakerPillBorderWidth = 23f,
                 NarrativeBodyTop = LayoutLength.Px(211f),
                 SpeakerTop = LayoutLength.Px(53f),
-                SpeakerToBodyGap = 137f,
                 ChromeBorderWidth = 31f,
                 ChromeShadowOffset = 19f,
                 TextShadowOffsetX = 7f,
@@ -344,7 +328,6 @@ public class DialogLayoutTests {
         Assert.Equal(23f, restored.SpeakerPillBorderWidth);
         Assert.Equal(LayoutLength.Px(211f), restored.NarrativeBodyTop);
         Assert.Equal(LayoutLength.Px(53f), restored.SpeakerTop);
-        Assert.Equal(137f, restored.SpeakerToBodyGap);
         Assert.Equal(31f, restored.ChromeBorderWidth);
         Assert.Equal(19f, restored.ChromeShadowOffset);
         Assert.Equal(7f, restored.TextShadowOffsetX);

@@ -332,10 +332,10 @@ namespace BakAgain.UI {
                 }
             }
 
-            // Character speech (ColoredWithoutBox) renders centered in its
-            // area, typically with the speaker name above. Narrative
-            // (PlainWithoutBox / Normal) is left-aligned with a leading
-            // paragraph indent.
+            // *** BODY TEXT IS LEFT-ALIGNED WITH A PARAGRAPH INDENT, SPEAKER OR NOT. *** This
+            // used to centre every ColoredWithoutBox body and every body with a speaker. Measured in
+            // the original on C31 (TASK-720): each #James#/#Gorath# line reads left with an indent,
+            // and the one record with CenterText ("They are here.") is the only centred one.
             //
             // The CenterText entry flag (0x0004) additionally centres each line
             // horizontally: RenderDialogText (0x49034-0x49040) rewrites the
@@ -346,7 +346,7 @@ namespace BakAgain.UI {
             // panels. (The flag is *not* typographic justification — the renderer
             // has no flush-both-margins path — despite its former name.)
             bool centerText = entry.Flags.HasFlag(DialogEntryFlags.CenterText);
-            bool centered = entry.DialogType == DialogType.ColoredWithoutBox || speaker != null || centerText;
+            bool centered = centerText;
 
             // Body text takes its colour + shadow from the resolved style's
             // pens; the speaker name always uses the engine's name pens
@@ -464,32 +464,8 @@ namespace BakAgain.UI {
         }
 
         /// <summary>
-        /// Where the body text starts, as an inset from the panel's top edge.
-        ///
-        /// <para>With no speaker it is a datum outright (<c>NarrativeBodyTop</c>). With a speaker
-        /// it is a SUM — <c>SpeakerTop</c> + one line of game text + <c>SpeakerToBodyGap</c> —
-        /// which is the only arithmetic in this file. The middle term is
-        /// <see cref="GameFontText.LineHeightPx"/>, GAME.FNT's 10 px character cell, because
-        /// <c>SpeakerToBodyGap</c> is defined as the clearance below "the bottom of the speaker
-        /// LINE". It used to be the body font SIZE, which stood in for the line height back when
-        /// the two were confusable; they never were the same number, and once the aspect stretch
-        /// arrived the font size stopped being a vertical measurement at all (task-46).</para>
-        ///
-        /// <para>That term is a design-frame px scalar, so the sum is a length only when
-        /// <c>SpeakerTop</c> is px too: "4.1% + 60px + 120px" is not a length any single unit can
-        /// carry, and stamping the bare numbers together would put the body somewhere neither the
-        /// author nor the original asked for.</para>
-        ///
-        /// <para>So a percentage there is refused loudly and the body falls back to
-        /// <c>NarrativeBodyTop</c> — a position the data really does state for "where the body
-        /// starts" — rather than to a fabricated number. Auto is fine: <c>LayoutApplier.Derived</c>
-        /// already degrades it to the design frame's own px, which is the space the line height is
-        /// in.</para>
-        ///
-        /// <para><c>SpeakerToBodyGap</c> needs no check: it is a plain <c>float</c> of
-        /// design-frame px precisely BECAUSE it can only ever be a term in this sum, so there is
-        /// no unit for an author to state and nothing to refuse. See its remarks on
-        /// <c>DialogLayout</c>.</para>
+        /// Where the body text starts, as an inset from the panel's top edge: the style row's own
+        /// top pad (or the author's <c>NarrativeBodyTop</c>), with or without a speaker.
         /// </summary>
         /// <summary>
         /// The speaker-less body's top inset: the author's value if they set one, otherwise the
@@ -512,27 +488,13 @@ namespace BakAgain.UI {
                 : new StyleLength(style.TextPadTop);
 
         private static StyleLength ResolveBodyTop(
-            DialogLayout layout, DialogStyle style, bool hasSpeaker) {
-            if (!hasSpeaker) {
-                return NarrativeTop(layout, style);
-            }
-
-            if (!LayoutApplier.IsDesignPx(layout.SpeakerTop)) {
-                LayoutApplier.RefuseUnresolvable(
-                    "DialogLayout.SpeakerTop / SpeakerToBodyGap",
-                    "SpeakerTop " + layout.SpeakerTop + ", SpeakerToBodyGap " + layout.SpeakerToBodyGap,
-                    "the body's top inset under a speaker is SpeakerTop + one line of game text ("
-                    + GameFontText.LineHeightPx + "px) + SpeakerToBodyGap, and a percentage cannot "
-                    + "be added to a px line height without measuring the panel — the body falls "
-                    + "back to NarrativeBodyTop (" + layout.NarrativeBodyTop
-                    + ") and may overlap the speaker");
-                return NarrativeTop(layout, style);
-            }
-
-            return LayoutApplier.Derived(
-                layout.SpeakerTop.Value + GameFontText.LineHeightPx + layout.SpeakerToBodyGap,
-                layout.SpeakerTop);
-        }
+            DialogLayout layout, DialogStyle style, bool hasSpeaker) =>
+            // A speaker does not move the body: the original draws the name, then `applied[1] +=
+            // header[7]` — the style's own top pad, exactly as without one (DIALOG.C:576-641). The
+            // record's text runs "#Name#\n\t…", so the newline is what puts the body a line below.
+            // The port used to add SpeakerTop + a line + a 20 VGA px gap, which put C31's lines
+            // 28 VGA px low and left room for two of the original's five (TASK-720).
+            NarrativeTop(layout, style);
 
         private static void AddDialogLabel(VisualElement panel, string text, string name, Color color,
             FontStyle weight, TextAnchor align, StyleLength top,

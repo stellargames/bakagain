@@ -43,7 +43,6 @@ namespace BakAgain.Tests.Editor.UI {
         private const float PillBorder = 23f;
         private const float NarrativeTop = 211f;
         private const float SpeakerTop = 53f;
-        private const float SpeakerGap = 137f;
         private const float ChromeBorder = 31f;
         private const float ChromeShadow = 19f;
         private const float ShadowX = 7f;
@@ -81,9 +80,6 @@ namespace BakAgain.Tests.Editor.UI {
             SpeakerPillBorderWidth = PillBorder,
             NarrativeBodyTop = LayoutLength.Px(NarrativeTop),
             SpeakerTop = LayoutLength.Px(SpeakerTop),
-            // A plain float: it is only ever a term in the px sum ResolveBodyTop computes, so
-            // there is no unit for an author to state. See DialogLayout.SpeakerToBodyGap.
-            SpeakerToBodyGap = SpeakerGap,
             ChromeBorderWidth = ChromeBorder,
             ChromeShadowOffset = ChromeShadow,
             TextShadowOffsetX = ShadowX,
@@ -167,6 +163,22 @@ namespace BakAgain.Tests.Editor.UI {
         private static DialogEntry PillSpeaker() =>
             new DialogEntry { Text = "#Gorath#Spoken body.", DialogType = DialogType.ColoredWithoutBox };
 
+        /// <summary>
+        /// Spoken lines are LEFT-aligned with an indent; only the CenterText flag centres them.
+        /// Measured in the original on C31: every #James#/#Gorath# line reads left with a paragraph
+        /// indent, and the one record carrying CenterText ("They are here.") is centred.
+        /// </summary>
+        [Test]
+        public void ASpeakersBodyIsLeftAlignedUnlessTheRecordAsksForCentring() {
+            VisualElement plain = DialogPanelBuilder.BuildPanel(PillSpeaker(), BorderlessShadowedStyle(), null, Palette());
+            Assert.AreEqual(TextAnchor.UpperLeft, plain.Q("BakDialogBody").style.unityTextAlign.value);
+
+            DialogEntry centred = PillSpeaker();
+            centred.Flags |= DialogEntryFlags.CenterText;
+            VisualElement title = DialogPanelBuilder.BuildPanel(centred, BorderlessShadowedStyle(), null, Palette());
+            Assert.AreEqual(TextAnchor.UpperCenter, title.Q("BakDialogBody").style.unityTextAlign.value);
+        }
+
         [Test]
         public void ChromeEdgeWidths_ComeFromTheLayout_OnAllFourEdges() {
             var panel = new VisualElement();
@@ -243,24 +255,18 @@ namespace BakAgain.Tests.Editor.UI {
         }
 
         /// <summary>
-        /// The one piece of arithmetic in the builder: with a speaker present the body's top inset
-        /// is <c>SpeakerTop + one line of game text + SpeakerToBodyGap</c>. Both terms are
-        /// distinct numbers here and neither equals the sum, so an implementation that dropped
-        /// either one (or that fell back to <c>NarrativeBodyTop</c>) lands on a different number.
+        /// A speaker does not move the body (DIALOG.C:576-641): it starts at the same inset as a
+        /// narrative body. The text's own "\n" after "#Name#" is what puts it a line lower.
         /// </summary>
         [Test]
-        public void BodyUnderASpeaker_IsTheSumOfSpeakerTopTheLineHeightAndTheGap() {
+        public void BodyUnderASpeaker_StartsWhereANarrativeBodyDoes() {
             VisualElement panel = DialogPanelBuilder.BuildPanel(
                 TitledSpeaker(), BorderlessShadowedStyle(), DistinctiveLayout(), Palette());
 
             VisualElement speaker = panel.Q("BakDialogSpeaker");
             Assert.IsNotNull(speaker, "no speaker label was built");
             Assert.AreEqual(SpeakerTop, speaker.style.top.value.value, "the speaker's own inset");
-
-            VisualElement body = panel.Q("BakDialogBody");
-            Assert.AreEqual(SpeakerTop + GameFontText.LineHeightPx + SpeakerGap,
-                body.style.top.value.value,
-                "the body sits one line plus the gap below the speaker");
+            Assert.AreEqual(NarrativeTop, panel.Q("BakDialogBody").style.top.value.value);
         }
 
         [Test]
@@ -437,49 +443,6 @@ namespace BakAgain.Tests.Editor.UI {
             Assert.AreEqual(PadRight, pilled.Q("BakDialogSpeakerPill").style.paddingRight.value.value);
         }
 
-        /// <summary>
-        /// The refuse-loudly guard: the body's top inset under a speaker is summed with the body
-        /// FONT SIZE, which is design-frame px, so a percentage among the offsets is not summable.
-        /// The builder must say so and fall back to a position the data really states, rather than
-        /// stamping "4.1 + 48 + 137" together and putting the body somewhere nobody asked for.
-        /// </summary>
-        [Test]
-        public void SpeakerOffsetsInPercent_AreRefusedLoudly_AndTheBodyFallsBackToNarrativeTop() {
-            DialogLayout layout = DistinctiveLayout();
-            layout.SpeakerTop = LayoutLength.Percent(4.1f);
-
-            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(
-                "DialogLayout.SpeakerTop / SpeakerToBodyGap cannot be resolved as authored"));
-
-            VisualElement panel = DialogPanelBuilder.BuildPanel(
-                TitledSpeaker(), BorderlessShadowedStyle(), layout, Palette());
-
-            Length bodyTop = panel.Q("BakDialogBody").style.top.value;
-            Assert.AreEqual(NarrativeTop, bodyTop.value,
-                "the fallback is NarrativeBodyTop, a position the data states");
-            Assert.AreEqual(LengthUnit.Pixel, bodyTop.unit);
-            // The speaker itself still honours the percentage — only the SUM was impossible.
-            Length speakerTop = panel.Q("BakDialogSpeaker").style.top.value;
-            Assert.AreEqual(LengthUnit.Percent, speakerTop.unit);
-            Assert.AreEqual(4.1f, speakerTop.value);
-        }
-
-        /// <summary>
-        /// THE FAITHFULNESS GATE for this conversion. With no layout supplied the builder uses
-        /// <c>DialogLayout</c>'s own defaults, and those must be exactly the numbers the eleven
-        /// deleted constants produced: 6 (chrome border), 6 (chrome shadow),
-        /// 36 + 48 + 120 = 204 (body under a speaker), 6 (pill row inset), 90/18 (pill
-        /// padding), 6 (pill shadow), 6 (pill border), (5, 6) (text shadow). If any of these
-        /// changes, a shipped dialog has moved.
-        ///
-        /// <para><b>The narrative body top is deliberately NOT one of them any more.</b> This gate
-        /// used to pin 180, which the conversion inherited from a constant — but 180 (VGA 30) is
-        /// not any style row's inset. The original reads it off the row (<c>y += field_7</c> at
-        /// 0x49050) and the rows disagree: 5 VGA px for the strips, 3 for the boxes, 1 for the
-        /// full-screen row. So the gate now gates what it should — that with no layout the builder
-        /// takes the ROW's inset — and the shipped-number check for the rows themselves lives with
-        /// the table, in <c>DialogStyleTableInsetTests</c>.</para>
-        /// </summary>
         [Test]
         public void WithNoLayout_TheShippedDefaultsStillRender_UnchangedFromBeforeTheConversion() {
             var chromeHost = new VisualElement();
@@ -505,20 +468,10 @@ namespace BakAgain.Tests.Editor.UI {
             VisualElement titled = DialogPanelBuilder.BuildPanel(
                 TitledSpeaker(), BorderlessShadowedStyle(), null, Palette());
             Assert.AreEqual(36f, titled.Q("BakDialogSpeaker").style.top.value.value);
-            // The literal 216, not `36 + GameFontText.LineHeightPx + 120`. This is the
-            // faithfulness gate, so it pins the SHIPPED PIXEL rather than tracking the
-            // implementation: a gate written in terms of the live metric would follow a retune
-            // silently while every dialog's body text moved. (The test that fences the TERMS of
-            // the sum is BodyUnderASpeaker_IsTheSumOfSpeakerTopTheLineHeightAndTheGap, a
-            // different job.)
-            //
-            // It was 204 until task-46. The number moved because the sum's middle term was the
-            // body font SIZE (then 48) standing in for the height of the speaker's line, which
-            // SpeakerToBodyGap's own definition says it is measured from; the real height is
-            // GAME.FNT's 10 px cell, 60 canonical px. So this is a correction of the term, not a
-            // retune of the shipped data — SpeakerTop (36) and SpeakerToBodyGap (120) are both
-            // untouched.
-            Assert.AreEqual(216f, titled.Q("BakDialogBody").style.top.value.value);
+            // The style row's own top pad, speaker or not (DIALOG.C:576-641). It was 216 — VGA 36
+            // below the area top — until TASK-720 measured C31 in the original: the body starts the
+            // style's top pad, plus the text's own leading newline, below the top.
+            Assert.AreEqual(BorderlessShadowedStyle().TextPadTop, titled.Q("BakDialogBody").style.top.value.value);
 
             VisualElement pilled = DialogPanelBuilder.BuildPanel(
                 PillSpeaker(), BorderlessShadowedStyle(), null, Palette());
