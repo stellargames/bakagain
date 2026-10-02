@@ -2080,6 +2080,13 @@ namespace BakAgain.Core {
                     return GameData.Resources.GameState.GameTime.IsNight(GameTimeIn2Seconds) ? 0 : 1;
                 case 30012:
                     return GameData.Resources.GameState.GameTime.HourOfDay(GameTimeIn2Seconds);
+                // *** VAR 29 IS THE HOUSE'S FUND, LIVE. *** GSTATE.C:109-110 answers it from
+                // dwPopup_retry_state, which TOWNSCN.C:466-473 loads from the scene container before
+                // the hotspot's dialog. The save holds the same dword (RewardMoneyCounter), but it is
+                // zeroed after every conversation, so reading it made every gambler and paying
+                // tavern "out of funds" (Romney's Black Sheep, 2026-10-03).
+                case 30029:
+                    return EstablishmentFund > 0 ? 1 : 0;
                 // *** VAR 5, THE CHAPTER'S SPEAKER, IS COMPUTED, NOT STORED. *** GSTATE.C:80:
                 // Pug when he is in the party, else g_chapterDefaultSpeaker[chapter - 1]. Falling
                 // through read whatever the save carried, so in chapter 4 -- Gorath and Owyn alone --

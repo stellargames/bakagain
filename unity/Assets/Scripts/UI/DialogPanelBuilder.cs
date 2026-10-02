@@ -445,7 +445,9 @@ namespace BakAgain.UI {
                 // Within the TEXT rect: the original shrinks the area by the style's pads first. The
                 // top is the resolved inset (the row's pad, or the author's NarrativeBodyTop).
                 block.style.top = top;
-                block.style.bottom = padBottom;
+                // A choice record lays out in a rect already shortened by the menu row
+                // (DIALOG.C:645-647), so it centres in what is left above the buttons.
+                block.style.bottom = padBottom + (reserveChoiceMenu ? GameTextBlock.ChoiceMenuReserve : 0f);
                 block.style.justifyContent = Justify.Center;
             } else {
                 block.style.top = top;

@@ -158,6 +158,17 @@ namespace BakAgain.Tests.Editor.UI {
         }
 
         [Test]
+        public void AChoiceRecordCentresAboveItsMenuRow() {
+            // DIALOG.C:645-647 takes the menu row off the rect before laying out. Measured on
+            // Romney's gambler: the port's offer sat 10 VGA rows low until this was counted.
+            DialogStyle style = BorderlessShadowedStyle();
+            DialogEntry offer = Narrative();
+            offer.Flags |= DialogEntryFlags.TextWithChoice;
+            VisualElement body = DialogPanelBuilder.BuildPanel(offer, style, null, Palette()).Q("BakDialogBody");
+            Assert.AreEqual(style.TextPadBottom + GameTextBlock.ChoiceMenuReserve, body.style.bottom.value.value);
+        }
+
+        [Test]
         public void ANamePillCanBeBuiltOnItsOwn_forALocationSign() {
             // dialog_draw_speech_bubble draws a town scene's "#Romney#" exactly as it draws a
             // speaker (TOWNSCN.C:213), so the sign is the same pill: fill 0x0B, rim 0x0F, ink 0x0A.

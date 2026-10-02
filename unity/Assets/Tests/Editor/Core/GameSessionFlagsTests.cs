@@ -6,6 +6,17 @@ namespace BakAgain.Tests.Editor.Core {
     [TestFixture]
     public class GameSessionFlagsTests {
         [Test]
+        public void Var29ReadsTheLiveEstablishmentFund() {
+            // GSTATE.C:109-110: `return dwPopup_retry_state > 0`, the working copy TOWNSCN.C:466-473
+            // loads from the house before its dialog. Answered from the save instead, Romney's
+            // gambler said "I have come to the end of my funds" while the original deals cards.
+            var session = new GameSession { EstablishmentFund = 40 };
+            Assert.AreEqual(1, session.GetGlobalValue(30029));
+            session.EstablishmentFund = 0;
+            Assert.AreEqual(0, session.GetGlobalValue(30029));
+        }
+
+        [Test]
         public void TheTimeOfDayGlobalsReadTheLiveClock_NotTheSaveTheSessionLoaded() {
             // TASK-549. Dialog Var 9/10/12 are globals 30009 (night), 30010 (day) and 30012 (hour).
             // A session that loaded at 02:20 answered them from the parsed save for the rest of the
