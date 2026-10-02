@@ -6,22 +6,20 @@ using System;
 /// The original's perspective scale, and the Unity vertical FOV that reproduces it.
 /// </summary>
 /// <remarks>
-/// <b>Two views ship with DIFFERENT scales, and that is the whole point of this class.</b> The
-/// renderer projects a point at horizontal offset <c>X</c> and depth <c>Z</c> to
-/// <c>X * (1 &lt;&lt; zoom) / Z</c> VGA pixels from the view centre (canassa
-/// <c>project_world_to_screen</c>, <c>PROJECT.C</c>), and <c>zoom</c> is a per-view field. The game
-/// builds two <c>ViewContext</c>s and never changes either one's zoom afterwards:
-/// <list type="bullet">
-/// <item><c>g_active_window</c> — built in <c>boot_start_dat_load</c>, whose last read lands on the
-/// struct's first member, so its zoom is <b>START.DAT's</b> <see cref="Config.StartData.ProjectionShift"/>
-/// = 9. This is the view <c>world_render_view</c> renders travel and combat through.</item>
-/// <item><c>g_world_widget</c> — built in <c>zone_subsystem_init</c>, which never writes zoom, so it
-/// keeps <c>VIEW_ZOOM_DEFAULT</c> = 7. This is the view the <b>map screens</b> render through
-/// (<c>world_render_scene_dispatch</c>'s full-redraw branch), and the one
-/// <c>world_render_record_marker_dot</c> scales the locator's dots by.</item>
-/// </list>
-/// So the map and the locator see <b>four times</b> as much ground as the travel view at the same
-/// camera height. A port that gives every screen the travel camera's FOV shows a quarter of the map.
+/// <b>The scale is the ZONE's, and the map views share it with travel.</b> The renderer projects a
+/// point at horizontal offset <c>X</c> and depth <c>Z</c> to <c>X * (1 &lt;&lt; zoom) / Z</c> VGA
+/// pixels from the view centre (canassa <c>project_world_to_screen</c>, <c>PROJECT.C</c>), and
+/// <c>zoom</c> is the first member of the view. <c>zone_load</c> reads it from the second word of
+/// <c>Z##DEF.DAT</c> on every zone change (ZONE.C:76-77, <c>res_fread(g_world_widget, 2, 1, file)</c>),
+/// so it is <see cref="ZoneDefinition.ViewZoomShift"/>: 9 in zones 1-9, 8 underground.
+/// <see cref="TravelProjectionShift"/> is START.DAT's 9, the default before a zone loads.
+///
+/// <para><b>Measured, 2026-10-02 (TASK-706):</b> read live from the original in zone 4, with the
+/// overhead map open: <c>g_world_widget-&gt;zoom</c> = 9 and <c>g_active_window-&gt;zoom</c> = 9.
+/// TASK-374 had given the map views a fixed 7 (<c>VIEW_ZOOM_DEFAULT</c>, which
+/// <c>ts_create_fullscreen_view</c> sets and <c>zone_load</c> then overwrites), so the overhead map,
+/// the locator and the Spyglass showed four times the ground the original shows; landmark distances
+/// from the party on the same save agreed with the factor of four.</para>
 ///
 /// <para><b>The projection is ANISOTROPIC in canonical space, and one FOV cannot express it.</b>
 /// The original projects with the same focal length in both axes — <c>nScrX</c> and <c>nScrY</c>
@@ -45,9 +43,6 @@ using System;
 public static class WorldProjection {
     /// <summary>START.DAT's shift, used by the travel and combat view.</summary>
     public const int TravelProjectionShift = 9;
-
-    /// <summary><c>VIEW_ZOOM_DEFAULT</c>, used by the overhead map and the locator inset.</summary>
-    public const int MapProjectionShift = 7;
 
     /// <summary>
     /// VGA's pixel aspect: one VGA pixel is 5 canonical units wide and 6 tall.

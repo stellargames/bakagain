@@ -154,7 +154,9 @@ namespace BakAgain.UI.Spells {
             // its own FOV even though it shares the map's projection shift.
             _world?.Environment?.SetOverheadMapMode(
                 _world.WorldCamera, on: true, cameraHeight: CameraHeight(),
-                mapViewHeightVga: ViewRectVga().Height);
+                mapViewHeightVga: ViewRectVga().Height,
+                projectionShift: _world.ZoneDefinition?.ViewZoomShift
+                    ?? WorldProjection.TravelProjectionShift);
         }
 
         private void OnLoaderBuilt(IReadOnlyList<NavWidget> widgets) {
@@ -400,7 +402,9 @@ namespace BakAgain.UI.Spells {
             // moment it is shown again.
             _world?.Environment?.SetOverheadMapMode(
                 _world.WorldCamera, on: false, cameraHeight: 0f,
-                mapViewHeightVga: ViewRectVga().Height);
+                mapViewHeightVga: ViewRectVga().Height,
+                projectionShift: _world.ZoneDefinition?.ViewZoomShift
+                    ?? WorldProjection.TravelProjectionShift);
             _world?.Movement?.SyncToCamera();
         }
 

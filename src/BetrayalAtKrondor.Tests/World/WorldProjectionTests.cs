@@ -59,33 +59,25 @@ public class WorldProjectionTests {
     }
 
     [Fact]
-    public void TheMapViewsSeeFOURTIMESTheGroundAtTheSameHeight() {
-        // Two bits of shift is a factor of four in the projected scale, and the ground extent a
-        // top-down camera covers is height * tan(halfFov), so the ratio is the tangent ratio.
-        double travel = WorldProjection.VerticalFovDegrees(
-            TravelViewHeightVga, WorldProjection.TravelProjectionShift);
-        double map = WorldProjection.VerticalFovDegrees(
-            TravelViewHeightVga, WorldProjection.MapProjectionShift);
-
-        double ratio = Math.Tan(map * Math.PI / 360.0) / Math.Tan(travel * Math.PI / 360.0);
-
-        Assert.Equal(4.0, ratio, 6);
-    }
-
-    [Fact]
     public void TheLocatorInsetIsSHORTERThanTheTravelViewSoItsFovIsNarrower() {
         // The inset is its own rectangle, not the travel one — 167x89 against 294x101. Sharing the
-        // map shift is not the same as sharing the map FOV, and using the overhead map's value here
-        // would over-reach the inset by the height ratio.
+        // zone's shift is not the same as sharing its FOV.
         (int _, int _, int _, int height) = FieldSpells.LocatorViewport;
-        double locator = WorldProjection.VerticalFovDegrees(height, WorldProjection.MapProjectionShift);
+        double locator = WorldProjection.VerticalFovDegrees(height, WorldProjection.TravelProjectionShift);
         double overhead = WorldProjection.VerticalFovDegrees(
-            TravelViewHeightVga, WorldProjection.MapProjectionShift);
+            TravelViewHeightVga, WorldProjection.TravelProjectionShift);
 
         Assert.Equal(89, height);
         Assert.True(locator < overhead, $"locator {locator:F2} should be narrower than map {overhead:F2}");
-        Assert.Equal(38.34, locator, 2);
-        Assert.Equal(43.06, overhead, 2);
+    }
+
+    [Fact]
+    public void UndergroundShiftEightSeesTwiceTheGroundOfShiftNine() {
+        // Z10-Z12 ship 8 (ZONE.C:76-77 reads it per zone): half the focal length, twice the ground.
+        double nine = WorldProjection.VerticalFovDegrees(TravelViewHeightVga, 9);
+        double eight = WorldProjection.VerticalFovDegrees(TravelViewHeightVga, 8);
+        double ratio = Math.Tan(eight * Math.PI / 360.0) / Math.Tan(nine * Math.PI / 360.0);
+        Assert.Equal(2.0, ratio, 6);
     }
 
     [Fact]
@@ -93,6 +85,6 @@ public class WorldProjectionTests {
         // A camera with FOV 0 renders nothing and looks like a black screen, not like a bad
         // argument. The map screens read their height from data that can arrive unresolved.
         Assert.Throws<ArgumentOutOfRangeException>(
-            () => WorldProjection.VerticalFovDegrees(0, WorldProjection.MapProjectionShift));
+            () => WorldProjection.VerticalFovDegrees(0, WorldProjection.TravelProjectionShift));
     }
 }

@@ -266,7 +266,9 @@ namespace BakAgain.UI.InGame {
             // travel view is whole the moment it is shown again.
             _world?.Environment?.SetOverheadMapMode(
                 _world.WorldCamera, on: false, cameraHeight: 0f,
-                mapViewHeightVga: TravelViewHeightVga);
+                mapViewHeightVga: TravelViewHeightVga,
+                projectionShift: _world?.ZoneDefinition?.ViewZoomShift
+                    ?? GameData.Resources.World.WorldProjection.TravelProjectionShift);
             // ...and put the world's own entities back if this was a dungeon automap.
             _world?.Automap?.Hide();
             // Hand the camera back. SyncToCamera re-derives height, pitch and heading from the
@@ -365,7 +367,9 @@ namespace BakAgain.UI.InGame {
             // The map reuses the travel viewport, so its rect — and therefore its FOV — is that one's.
             _world.Environment?.SetOverheadMapMode(
                 cam, on: true, cameraHeight: cam.transform.position.y,
-                mapViewHeightVga: TravelViewHeightVga);
+                mapViewHeightVga: TravelViewHeightVga,
+                projectionShift: _world?.ZoneDefinition?.ViewZoomShift
+                    ?? GameData.Resources.World.WorldProjection.TravelProjectionShift);
 
             // Underground, the map is not the world seen from above — it is the dungeon automap:
             // the same placements drawn from the map model table, of which only the ones the party

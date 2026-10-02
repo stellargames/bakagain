@@ -79,7 +79,8 @@ namespace BakAgain.World {
         /// overhead map (it reuses the travel viewport) and 89 for the locator's inset.
         /// </param>
         public void SetOverheadMapMode(
-            Camera worldCamera, bool on, float cameraHeight, int mapViewHeightVga) {
+            Camera worldCamera, bool on, float cameraHeight, int mapViewHeightVga,
+            int projectionShift = WorldProjection.TravelProjectionShift) {
             if (!_travelBackdropSaved) {
                 _travelFarClip = worldCamera != null ? worldCamera.farClipPlane : 0f;
                 _travelFov = worldCamera != null ? worldCamera.fieldOfView : 0f;
@@ -97,7 +98,7 @@ namespace BakAgain.World {
                 worldCamera.farClipPlane = on ? _travelFarClip + cameraHeight : _travelFarClip;
                 worldCamera.fieldOfView = on
                     ? (float)WorldProjection.VerticalFovDegrees(
-                        mapViewHeightVga, WorldProjection.MapProjectionShift)
+                        mapViewHeightVga, projectionShift)
                     : _travelFov;
             }
 
