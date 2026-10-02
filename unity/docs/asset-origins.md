@@ -41,4 +41,5 @@ These are either development tooling or screenshots that show original game art.
 - `Assets/_Recovery/`, `Assets/InitTestScene*.unity`: Editor crash and test-runner leftovers.
 - `.probe-shot.png`, `book-c11-page*-target.png`, `ours_puzzle13*.png`: screenshots of game art from verification sessions.
 - `docs/modding/images/inn-replaced-with-cube.png`: a screenshot of the port rendering game art. Screenshots are a website question, not a repo one.
+- **The website's screenshots** (`https://bakagain.org/shots/*.jpg`, 2026-10-02): six captures of the port running on a copy of the original, which show its art. They live on the VPS in `/srv/bakagain-static/shots/`, served by a Caddy `handle /shots/*` block, and are never committed; `website/index.html` only links to them.
 - Odin Inspector (`Assets/Plugins/Sirenix`, gitignored): commercial, unused by any script. Moved out of the project on 2026-09-26 to `~/unity-asset-backups/`.
