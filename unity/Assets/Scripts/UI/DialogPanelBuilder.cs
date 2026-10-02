@@ -563,6 +563,17 @@ namespace BakAgain.UI {
             // through, from DialogLayout.SpeakerPillRow.
             var row = new VisualElement { name = "BakDialogSpeakerRow" };
             LayoutApplier.Apply(row, layout.SpeakerPillRow);
+            row.Add(BuildNamePill(speaker, layout, palette));
+            panel.Add(row);
+        }
+
+        /// <summary>
+        /// The name bubble on its own — <c>dialog_draw_speech_bubble</c> — for a caller that places
+        /// it itself. A town scene's "#Romney#" sign is drawn by the same routine as a speaker's
+        /// name (TOWNSCN.C:213).
+        /// </summary>
+        public static VisualElement BuildNamePill(string speaker, DialogLayout layout, Color[] palette) {
+            layout = Shipped(layout);
 
             // Stack so a drop-shadow element can sit behind the pill, offset
             // down-right — the original lays a 1px pen-1 rim under the bubble
@@ -652,8 +663,7 @@ namespace BakAgain.UI {
             pill.Add(label);
             stack.Add(shadow);   // behind (added first → drawn under the pill)
             stack.Add(pill);
-            row.Add(stack);
-            panel.Add(row);
+            return stack;
         }
 
         private static void SetPillRadius(VisualElement element, float radius) {

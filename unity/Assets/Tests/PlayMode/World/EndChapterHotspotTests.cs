@@ -108,6 +108,7 @@ namespace BakAgain.Tests.PlayMode.World {
             public int ClickThrough { get; private set; }
             public void ClearDialog() => Cleared++;
             public void LetClicksThroughPanel() => ClickThrough++;
+            public UniTask<UnityEngine.Color[]> ResolvePaletteAsync() => UniTask.FromResult<UnityEngine.Color[]>(null);
 
             public UniTask ShowEntry(GameData.Resources.Dialog.DialogEntry entry,
                 System.Threading.CancellationToken cancellationToken = default) => UniTask.CompletedTask;

@@ -142,6 +142,21 @@ namespace BakAgain.Tests.Editor.UI {
 
         private static Color[] Palette() => new Color[256];
 
+        [Test]
+        public void ANamePillCanBeBuiltOnItsOwn_forALocationSign() {
+            // dialog_draw_speech_bubble draws a town scene's "#Romney#" exactly as it draws a
+            // speaker (TOWNSCN.C:213), so the sign is the same pill: fill 0x0B, rim 0x0F, ink 0x0A.
+            Color[] palette = DistinctivePalette();
+
+            VisualElement built = DialogPanelBuilder.BuildNamePill("Romney", null, palette);
+
+            VisualElement pill = built.Q("BakDialogSpeakerPill");
+            Assert.IsNotNull(pill);
+            Assert.AreEqual(palette[0x0B], pill.style.backgroundColor.value);
+            Assert.AreEqual(palette[0x0F], pill.style.borderTopColor.value);
+            Assert.AreEqual("Romney", built.Q<Label>("BakDialogSpeaker").text);
+        }
+
         // Every index a different, non-black, fully-opaque colour, so "the right pen" and "pen 0"
         // and "whatever Color's default is" are three distinguishable outcomes.
         private static Color[] DistinctivePalette() {

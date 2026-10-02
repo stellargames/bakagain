@@ -97,6 +97,9 @@ namespace BakAgain.UI {
         /// </summary>
         void SetActivePalette(Color[] palette);
 
+        /// <summary>The palette a dialog shown now would be drawn with: the active one, else the default.</summary>
+        Cysharp.Threading.Tasks.UniTask<Color[]> ResolvePaletteAsync();
+
         /// <summary>
         /// Convenience: load the DDX file matching <paramref name="id"/>, find
         /// the entry, and call <see cref="ShowEntry"/>.

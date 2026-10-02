@@ -1157,6 +1157,14 @@ namespace BakAgain.UI {
             return await RunChainAsync(play, entry, answerWithFirstPick: true, cancellationToken);
         }
 
+        public async UniTask<Color[]> ResolvePaletteAsync() {
+            EnsureInitialized();
+            Color[] palette = _activePalette;
+            return palette == null || palette.Length == 0
+                ? await _resources.GetDefaultPaletteAsync()
+                : palette;
+        }
+
         public void SetActivePalette(Color[] palette) {
             _activePalette = palette;
         }

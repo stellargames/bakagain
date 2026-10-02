@@ -34,6 +34,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         public void ClearDialog() { }
 
         public void LetClicksThroughPanel() { }
+            public Cysharp.Threading.Tasks.UniTask<UnityEngine.Color[]> ResolvePaletteAsync() => Cysharp.Threading.Tasks.UniTask.FromResult<UnityEngine.Color[]>(null);
 
         public void SetActivePalette(Color[] palette) { }
 

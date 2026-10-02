@@ -234,7 +234,7 @@ namespace BakAgain.World.Scenes {
             // it stay live. GDS6A's exit covers the whole text strip, and a pickable panel left the
             // party unable to leave Romney at the start of chapter 3.
             _dialogs.LetClicksThroughPanel();
-            ShowSign(sign);
+            ShowSign(sign, sign == null ? null : await _dialogs.ResolvePaletteAsync());
         }
 
         /// <summary>
@@ -323,17 +323,19 @@ namespace BakAgain.World.Scenes {
         /// "asked about" prompt in. Rendered as its own element over the location so it comes down
         /// with the description rather than living in the dialog's text.
         /// </remarks>
-        private void ShowSign(string sign) {
+        private void ShowSign(string sign, Color[] palette = null) {
             ClearSign();
             if (string.IsNullOrEmpty(sign)) {
                 return;
             }
             _sign = sign;
+            _signPalette = palette ?? _signPalette;
             VisualElement stage = Stage();
             if (stage == null) {
                 return;
             }
-            var label = new Label(sign) {
+            // dialog_draw_speech_bubble — the speaker's name pill (TOWNSCN.C:213).
+            var holder = new VisualElement {
                 name = SignName,
                 pickingMode = PickingMode.Ignore,
                 style = {
@@ -341,20 +343,35 @@ namespace BakAgain.World.Scenes {
                     left = Length.Percent(50),
                     top = GdsSceneInteraction.SignTop,
                     translate = new StyleTranslate(new Translate(Length.Percent(-50), 0f)),
-                    paddingLeft = GdsSceneInteraction.SignPadding,
-                    paddingRight = GdsSceneInteraction.SignPadding,
-                    backgroundColor = SignFill,
-                    color = SignInk,
                 },
             };
-            BakAgain.UI.GameFontText.Apply(label, BakAgain.UI.GameFontText.AnchorX.Centre,
-                BakAgain.UI.GameFontText.AnchorY.Top);
-            stage.Add(label);
+            if (_signPalette != null) {
+                holder.Add(BakAgain.UI.DialogPanelBuilder.BuildNamePill(sign, null, _signPalette));
+            } else {
+                var label = new Label(sign) {
+                    pickingMode = PickingMode.Ignore,
+                    style = {
+                        paddingLeft = GdsSceneInteraction.SignPadding,
+                        paddingRight = GdsSceneInteraction.SignPadding,
+                        backgroundColor = SignFill,
+                        color = SignInk,
+                    },
+                };
+                BakAgain.UI.GameFontText.Apply(label, BakAgain.UI.GameFontText.AnchorX.Centre,
+                    BakAgain.UI.GameFontText.AnchorY.Top);
+                holder.Add(label);
+            }
+            foreach (VisualElement child in holder.Query<VisualElement>().ToList()) {
+                child.pickingMode = PickingMode.Ignore;
+            }
+            stage.Add(holder);
         }
+
+        private Color[] _signPalette;
 
         private void ClearSign() {
             _sign = null;
-            Stage()?.Q<Label>(SignName)?.RemoveFromHierarchy();
+            Stage()?.Q(SignName)?.RemoveFromHierarchy();
         }
 
         /// <summary>
