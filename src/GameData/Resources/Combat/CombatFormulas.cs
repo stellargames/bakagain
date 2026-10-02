@@ -392,7 +392,9 @@ public static class CombatFormulas {
 
 /// <summary>What one <see cref="CombatFormulas.ApplyDamage"/> call did.</summary>
 public readonly struct DamageOutcome {
-    internal DamageOutcome(int dealt, int stamina, int health, int? absorbPool, bool shieldBroken, bool died) {
+    internal DamageOutcome(int dealt, int stamina, int health, int? absorbPool, bool shieldBroken, bool died,
+        bool landed = true) {
+        Landed = landed;
         DamageDealt = dealt;
         Stamina = stamina;
         Health = health;
@@ -404,6 +406,12 @@ public readonly struct DamageOutcome {
     /// <summary>Damage after every modifier — the number the original floats above the target.
     /// Note it is the pre-split total, so a hit absorbed entirely by stamina still shows in full.</summary>
     public int DamageDealt { get; }
+
+    /// <summary>
+    /// The damage reached the float stage — false when the original returns before it: an immune
+    /// target, nothing to deal, or a shield that soaked it all (COMBAT.C:330-350).
+    /// </summary>
+    public bool Landed { get; }
 
     /// <summary>Stamina after the hit.</summary>
     public int Stamina { get; }
@@ -422,8 +430,8 @@ public readonly struct DamageOutcome {
 
     // Died stays false: nothing happened, so a caller must not run death handling off this.
     internal static DamageOutcome NoEffect(int stamina, int health, int? absorbPool) =>
-        new DamageOutcome(0, stamina, health, absorbPool, shieldBroken: false, died: false);
+        new DamageOutcome(0, stamina, health, absorbPool, shieldBroken: false, died: false, landed: false);
 
     internal static DamageOutcome Absorbed(int stamina, int health, int poolAfter) =>
-        new DamageOutcome(0, stamina, health, poolAfter, shieldBroken: false, died: false);
+        new DamageOutcome(0, stamina, health, poolAfter, shieldBroken: false, died: false, landed: false);
 }

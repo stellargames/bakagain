@@ -82,12 +82,17 @@ namespace BakAgain.Combat {
         /// <para><b>Nothing draws this yet</b> — the tint needs the zone's RMP block applied to the
         /// sprite's palette. The state is faithful and ticked; the picture is TASK-103's next slice.</para>
         /// </remarks>
-        private static void MarkHit(Combatant struck, int dealt, int remapIndex = HitReaction.BlowRemap) {
-            if (struck == null) {
+        private static void MarkHit(Combatant struck, bool landed, int dealt,
+            int remapIndex = HitReaction.BlowRemap) {
+            if (struck == null || !landed) {
+                return;   // apply_damage returned before the float (COMBAT.C:330-350)
+            }
+            if (dealt <= 0) {
+                struck.DamageFloat = 0;   // "miss", and no CAF_KNOCKBACK (COMBAT.C:386-389)
                 return;
             }
-            // The floating number (COMBAT.C:382-390): the damage when it is under 1000, else nothing.
-            struck.DamageFloat = dealt < 1000 ? System.Math.Max(0, dealt) : (int?)null;
+            // The floating number (COMBAT.C:382-385): the damage when it is under 1000, else nothing.
+            struck.DamageFloat = dealt < 1000 ? dealt : (int?)null;
             (CombatantFlags flags, int timer, int remap) =
                 HitReaction.Begin(struck.Flags, remapIndex);
             struck.Flags = flags;
@@ -1361,18 +1366,14 @@ namespace BakAgain.Combat {
             if (result.Ticked) {
                 CommitAbsorb(actor, result.AbsorbPool);
             }
-            if (result.Damage > 0) {
-                // apply_damage with knockback 2 (COMBAT.C:209): the tick floats and flinches like a
-                // blow, through remap 2, and an emptied health bar dies there (COMBAT.C:377-409).
-                MarkHit(actor, result.Damage, remapIndex: 2);
-                if (actor.IsPartyMember) {
-                    WriteBack(actor);
-                }
-            } else if (result.Ticked && !result.AbsorbPool.HasValue
-                       && actor.ClassId != CombatEncounter.AlwaysActsClassId) {
-                // Halved to nothing: "miss" with no flinch (COMBAT.C:386-389). A shield that soaked
-                // it all, or an immune class, returned before the float.
-                actor.DamageFloat = 0;
+            // apply_damage with knockback 2 (COMBAT.C:209): the tick floats and flinches like a blow,
+            // through remap 2, and an emptied health bar dies there (COMBAT.C:377-409). A shield that
+            // soaked it all, or an immune class, returned before the float.
+            MarkHit(actor,
+                result.Ticked && !result.AbsorbPool.HasValue && actor.ClassId != CombatEncounter.AlwaysActsClassId,
+                result.Damage, remapIndex: 2);
+            if (result.Damage > 0 && actor.IsPartyMember) {
+                WriteBack(actor);
             }
             if (result.Died) {
                 KillAndSettle(actor);
@@ -1935,7 +1936,7 @@ namespace BakAgain.Combat {
             // up on the next redraw, which is the gap the flag exists to cross.
             attacker.SwingPending = true;
             if (result.Hit) {
-                MarkHit(defender, result.Damage);
+                MarkHit(defender, result.Landed, result.Dealt);
                 PoisonOnHitFrom(defender, swingMask, result.Damage, rnd);
             } else if (defender != null) {
                 // A missed blow floats "miss" over the defender (COMBAT.C:543, :664 — value 1 with
@@ -2125,7 +2126,7 @@ namespace BakAgain.Combat {
             defender.Health = outcome.Health;
             CommitAbsorb(defender, outcome.AbsorbPool);
             // fromDirectAttack, the same as a swing: a landed shot flinches its target.
-            MarkHit(defender, outcome.DamageDealt);
+            MarkHit(defender, outcome.Landed, outcome.DamageDealt);
 
             WearEquipped(defender, RangedExchange.TargetWearCategory,
                 RangedExchange.TargetWearSeverity, roll);
@@ -3851,7 +3852,7 @@ namespace BakAgain.Combat {
             // The original reaches this through Spell_PlayHitPaletteFlash @0x66d33, which marks the
             // target with the SAME rung a blow uses. Effects that differ carry their own constants —
             // a storm is 3, a heal is 4 — and get them when those effects are ported.
-            MarkHit(target, outcome.DamageDealt);
+            MarkHit(target, outcome.Landed, outcome.DamageDealt);
 
             if (target.Health <= 0) {
                 KillAndSettle(target);
@@ -4480,7 +4481,7 @@ namespace BakAgain.Combat {
             target.Stamina = outcome.Stamina;
             target.Health = outcome.Health;
             CommitAbsorb(target, outcome.AbsorbPool);
-            MarkHit(target, outcome.DamageDealt);
+            MarkHit(target, outcome.Landed, outcome.DamageDealt);
 
             if (target.Health <= 0) {
                 KillAndSettle(target);

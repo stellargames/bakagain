@@ -4,6 +4,7 @@ namespace BakAgain.Tests.Editor.Combat {
     using GameData;
     using GameData.Resources.Character;
     using GameData.Resources.Combat;
+    using GameData.Resources.Spells;
     using MeleeAttack = GameData.Resources.Combat.CombatActionDispatch.MeleeAttack;
     using GameData.Resources.Data;
     using GameData.Resources.Object;
@@ -131,6 +132,34 @@ namespace BakAgain.Tests.Editor.Combat {
             runtime.ResolveMelee(member, monster, MeleeAttack.Swing, _ => 0);
 
             Assert.Greater(monster.DamageFloat ?? 0, 0);
+        }
+
+        [Test]
+        public void ABlowAShieldSoaksWhollyFloatsNothing() {
+            // apply_damage returns before the float when the type-6 pool takes it all (COMBAT.C:339-350).
+            (CombatRuntime runtime, GameSession _, Combatant member, Combatant monster) =
+                Fight(Objects(), (SwordId, 100));
+            runtime.Encounter.Effects.Register(monster, SpellIds.HochosHaven, investedCost: 1,
+                duration: 500);
+
+            runtime.ResolveMelee(member, monster, MeleeAttack.Swing, _ => 0);
+
+            Assert.IsNull(monster.DamageFloat);
+        }
+
+        [Test]
+        public void ANegatedBlowFloatsMissWithoutAFlinch() {
+            // Skin of the Dragon zeroes it (COMBAT.C:349-352); damage 0 with knockback floats "miss"
+            // and sets no CAF_KNOCKBACK (COMBAT.C:377-390).
+            (CombatRuntime runtime, GameSession _, Combatant member, Combatant monster) =
+                Fight(Objects(), (SwordId, 100));
+            runtime.Encounter.Effects.Register(monster, SpellIds.SkinOfTheDragon, investedCost: 1,
+                duration: 50);
+
+            runtime.ResolveMelee(member, monster, MeleeAttack.Swing, _ => 0);
+
+            Assert.AreEqual(0, monster.DamageFloat);
+            Assert.AreEqual(0, monster.HitReactionTimer);
         }
 
         [Test]

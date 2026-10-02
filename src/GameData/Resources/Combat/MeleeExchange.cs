@@ -50,7 +50,10 @@ public static class MeleeExchange {
 
     /// <summary>What one swing did.</summary>
     public readonly struct Result {
-        public Result(bool hit, int damage, bool defenderDown, int? absorbPool = null) {
+        public Result(bool hit, int damage, bool defenderDown, int? absorbPool = null,
+            bool landed = false, int dealt = 0) {
+            Landed = landed;
+            Dealt = dealt;
             Hit = hit;
             Damage = damage;
             DefenderDown = defenderDown;
@@ -59,6 +62,12 @@ public static class MeleeExchange {
 
         /// <summary>Whether the swing landed at all.</summary>
         public bool Hit { get; }
+
+        /// <summary>The blow reached apply_damage's float stage; see <see cref="DamageOutcome.Landed"/>.</summary>
+        public bool Landed { get; }
+
+        /// <summary>The damage after every modifier, before the stamina/health split — what floats.</summary>
+        public int Dealt { get; }
 
         /// <summary>Damage actually taken off, after armour and absorption — not the roll.</summary>
         public int Damage { get; }
@@ -304,6 +313,7 @@ public static class MeleeExchange {
         defender.Health = outcome.Health;
         int taken = before - (defender.Health + defender.Stamina);
 
-        return new Result(true, taken < 0 ? 0 : taken, defender.Health <= 0, outcome.AbsorbPool);
+        return new Result(true, taken < 0 ? 0 : taken, defender.Health <= 0, outcome.AbsorbPool,
+            outcome.Landed, outcome.DamageDealt);
     }
 }
