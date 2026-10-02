@@ -108,6 +108,31 @@ namespace BakAgain.Tests.Editor.Combat {
             Assert.Less(ConditionOf(session, SwordId), 100);
         }
 
+        /// <summary>
+        /// COMBAT.C:543 and :664: a melee blow that misses floats "miss" over the defender
+        /// (dmgFloatValue 1 with a negative countdown). The port marked only hits, so a miss showed
+        /// nothing. DamageFloat 0 is the port's "miss".
+        /// </summary>
+        [Test]
+        public void AMissedBlowFloatsMissOverTheDefender() {
+            (CombatRuntime runtime, GameSession _, Combatant member, Combatant monster) =
+                Fight(Objects(), (SwordId, 100));
+
+            runtime.ResolveMelee(member, monster, MeleeAttack.Swing, _ => 99);
+
+            Assert.AreEqual(0, monster.DamageFloat, "a miss floats 'miss'");
+        }
+
+        [Test]
+        public void ALandedBlowFloatsItsDamage() {
+            (CombatRuntime runtime, GameSession _, Combatant member, Combatant monster) =
+                Fight(Objects(), (SwordId, 100));
+
+            runtime.ResolveMelee(member, monster, MeleeAttack.Swing, _ => 0);
+
+            Assert.Greater(monster.DamageFloat ?? 0, 0);
+        }
+
         [Test]
         public void AMissWearsNOTHING() {
             // Both halves are gated on the hit — the armour inside the to-hit roll, the weapon in

@@ -1921,6 +1921,10 @@ namespace BakAgain.Combat {
             if (result.Hit) {
                 MarkHit(defender, result.Damage);
                 PoisonOnHitFrom(defender, swingMask, result.Damage, rnd);
+            } else if (defender != null) {
+                // A missed blow floats "miss" over the defender (COMBAT.C:543, :664 — value 1 with
+                // a negative countdown); DamageFloat 0 is how the port says "miss".
+                defender.DamageFloat = 0;
             }
 
             PlaySwingCue(attacker, defender, result.Hit);
