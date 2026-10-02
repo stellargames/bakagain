@@ -37,6 +37,10 @@ public sealed class ItemUseContext {
     /// <summary>The chapter being played (<c>g_gameState.nChapter</c>).</summary>
     public int Chapter { get; set; }
 
+    /// <summary>In a fight: clear <c>CAF_POISON</c> on the acting combatant (ITEMUSE.C:195-197) —
+    /// the flag the arena's poison tick reads, which the condition alone does not reach.</summary>
+    public Action? ClearCombatPoison { get; set; }
+
     /// <summary>The zone's kind, Z##DEF.DAT's first word — <c>g_game_mode</c>; 2 is underground.</summary>
     public int ZoneKind { get; set; }
 
@@ -319,9 +323,10 @@ public static class InventoryUse {
                         outcome = ItemUseOutcome.NoEffect;
                         break;
                     }
-                    // ponytail: the combat half (clearing CAF_POISON on the acting combatant) is not
-                    // carried by the context; poison ticks in combat read the combatant's flag.
                     ConditionEngine.Apply(context.Conditions, ActorCondition.Poisoned, -100);
+                    if (context.InCombat) {
+                        context.ClearCombatPoison?.Invoke();   // ITEMUSE.C:195-197
+                    }
                     container.Dirty = true;
                     ItemUseResult spent = Tail(container, sourceIndex, rec, ItemUseOutcome.Handled);
                     return new ItemUseResult(spent.Outcome, AntiVenomCuredRecord, spent.DialogVar0,

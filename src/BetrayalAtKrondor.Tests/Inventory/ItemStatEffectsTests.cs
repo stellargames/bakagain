@@ -322,6 +322,39 @@ public class ItemStatEffectsTests {
         Assert.Equal(1, pack.Items[0].Variable);
     }
 
+    /// <summary>
+    /// ITEMUSE.C:195-197: in a fight it also clears CAF_POISON on the acting combatant, which is what
+    /// the arena's poison tick reads — clearing only the condition left the poison ticking.
+    /// </summary>
+    [Fact]
+    public void AntiVenomInAFightAlsoStopsTheCombatPoison() {
+        var conditions = new ActorConditions();
+        conditions[ActorCondition.Poisoned] = 40;
+        RuntimeContainer pack = Pack(Item(objectId: 113, condition: 2));
+        int cleared = 0;
+        ItemUseContext ctx = ContextWith(Stats(), conditions, new Flags());
+        ctx.InCombat = true;
+        ctx.ClearCombatPoison = () => cleared++;
+
+        InventoryUse.Use(pack, 0, InventoryUse.NoTarget, BookSet(AntiVenom()), ctx);
+
+        Assert.Equal(1, cleared);
+    }
+
+    [Fact]
+    public void AntiVenomOutsideAFightLeavesTheCombatFlagAlone() {
+        var conditions = new ActorConditions();
+        conditions[ActorCondition.Poisoned] = 40;
+        RuntimeContainer pack = Pack(Item(objectId: 113, condition: 2));
+        int cleared = 0;
+        ItemUseContext ctx = ContextWith(Stats(), conditions, new Flags());
+        ctx.ClearCombatPoison = () => cleared++;
+
+        InventoryUse.Use(pack, 0, InventoryUse.NoTarget, BookSet(AntiVenom()), ctx);
+
+        Assert.Equal(0, cleared);
+    }
+
     [Fact]
     public void AntiVenomOnAnUnpoisonedMember_NothingHappens_AndKeepsTheBulb() {
         var conditions = new ActorConditions();

@@ -1207,6 +1207,7 @@ namespace BakAgain.UI.Inventory {
                     System.Array.IndexOf(_gameSession.ActivePartyIndices ?? System.Array.Empty<byte>(),
                         (byte)character) >= 0,
                 SpellsOfCharacter = character => _gameSession.KnownSpellsOf(character),
+                ClearCombatPoison = ClearActingCombatantPoison,
                 // g_game_mode: the zone's kind, Z##DEF's first word (2 = underground).
                 ZoneKind = (int)((_resolver?.Resolve(typeof(BakAgain.World.WorldRuntime)) as BakAgain.World.WorldRuntime)
                     ?.ZoneDefinition?.ZoneLocation ?? 0),
@@ -2155,6 +2156,12 @@ namespace BakAgain.UI.Inventory {
         /// </remarks>
         public bool InCombat { get; set; }
 
+        /// <summary>
+        /// Set with <see cref="InCombat"/> by the fight that opens this pack: clears the acting
+        /// combatant's poison flag when anti-venom is used (ITEMUSE.C:195-197). Cleared on hide.
+        /// </summary>
+        public System.Action ClearActingCombatantPoison { get; set; }
+
         /// <summary>Whether the fight this pack was opened from is underground (<c>g_game_mode ==
         /// 2</c>) -- staff 2 will not fire there.</summary>
         public bool CombatUnderground { get; set; }
@@ -2949,6 +2956,7 @@ namespace BakAgain.UI.Inventory {
             // Per-open, exactly like the three above: a fight's flag left standing would make the
             // next open from the world refuse the combat-only items it should now allow.
             InCombat = false;
+            ClearActingCombatantPoison = null;
             CombatDistance = null;
             SettleContainer(_container);
             SettleContainer(_droppedBag);

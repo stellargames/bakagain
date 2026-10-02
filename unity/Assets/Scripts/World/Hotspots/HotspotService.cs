@@ -2253,6 +2253,11 @@ using GameData.Resources.Scene;
                     BakAgain.UI.Inventory.InventoryMenu menu = _inventoryMenuAccessor?.Invoke();
                     if (menu != null) {
                         menu.InCombat = true;
+                        menu.ClearActingCombatantPoison = () => {
+                            if (Combat?.Encounter?.Current is GameData.Resources.Combat.Combatant current) {
+                                current.Flags &= ~GameData.Resources.Combat.CombatantFlags.Poisoned;
+                            }
+                        };
                         menu.CombatUnderground = _underground;
                         menu.CombatDistance = CombatDistanceBetween;
                     }
@@ -3237,6 +3242,11 @@ using GameData.Resources.Scene;
                 return;
             }
             menu.InCombat = true;
+            menu.ClearActingCombatantPoison = () => {
+                if (Combat?.Encounter?.Current is GameData.Resources.Combat.Combatant current) {
+                    current.Flags &= ~GameData.Resources.Combat.CombatantFlags.Poisoned;
+                }
+            };
             menu.CombatUnderground = _underground;
             menu.CombatDistance = CombatDistanceBetween;
             RunCombatInventoryAsync(menu, navigator, acting).Forget();
