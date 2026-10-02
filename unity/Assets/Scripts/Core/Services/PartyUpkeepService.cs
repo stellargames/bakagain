@@ -152,6 +152,36 @@ namespace BakAgain.Core.Services {
         /// <para>With every active member at Near-death (<c>bCombatExitRequest</c>) the process returns
         /// without reading anything, so the flags stay set and only the dirty bit is lost.</para>
         /// </remarks>
+        /// <summary><c>lEvtArgAuxValue</c>, which a SetTextVariable of source 29 reads.</summary>
+        private const int EventAuxValueGlobal = 30018;
+
+        /// <summary>
+        /// The world loop's half of <c>evtcond_pty_dirty_flags_process</c> for bit 0: announce a
+        /// raised skill (EVTCOND.C:333-361, run from WORLDLP.C:96-99). It reads the sheet's marks and
+        /// leaves them; the character sheet clears those.
+        /// </summary>
+        public void QueueSkillNotice() {
+            if ((_session.PartyDirtyFlags & CharacterSheetRow.ImprovedDirtyBit) == 0) {
+                return;
+            }
+            byte[] roster = _session.ActivePartyIndices;
+            if (roster == null || roster.Length == 0 || EveryoneIsNearDeath(roster)) {
+                return;   // bCombatExitRequest: the original returns before reading anything
+            }
+            _session.PartyDirtyFlags &= ~CharacterSheetRow.ImprovedDirtyBit;
+            var party = new int[roster.Length];
+            for (var i = 0; i < roster.Length; i++) {
+                party[i] = roster[i];
+            }
+            SkillImprovedNotice.Notice? notice = SkillImprovedNotice.For(party,
+                flag => (_session.GetGlobalValue(flag) ?? 0) != 0);
+            if (notice is { } n) {
+                Enqueue(new ConditionAnnouncements.Announcement(n.DialogId, n.Actor, -1, 0) {
+                    AuxValue = n.Attribute,
+                });
+            }
+        }
+
         private void QueueAnnouncements() {
             // arg0 == 0 leaves the dirty bit standing, so a latched batch announces on a later hour.
             if (!AllowEventDialog || (_session.PartyDirtyFlags & ConditionAnnouncements.DirtyBit) == 0) {
@@ -224,6 +254,9 @@ namespace BakAgain.Core.Services {
                         _session.SetDialogSecondaryActorId(next.SecondActor);
                         _session.SetGlobalValue(GameData.Resources.GameState.GameStateEventFields.FieldBase,
                             next.Count);
+                    }
+                    if (next.AuxValue >= 0) {
+                        _session.SetGlobalValue(EventAuxValueGlobal, next.AuxValue);
                     }
                     await dialogs.ShowById(next.DialogId, cancellationToken);
                 }

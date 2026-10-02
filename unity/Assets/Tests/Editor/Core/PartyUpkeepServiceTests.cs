@@ -45,6 +45,28 @@ namespace BakAgain.Tests.Editor.Core {
             + _session.StatsOf(character)[(int)ActorAttribute.Stamina].Base;
 
         [Test]
+        public void ARaisedSkillQueuesItsNotice_AndTheSheetKeepsItsMark() {
+            // EVTCOND.C:333-361 from the world loop: a failed barding raised Barding party-wide, and
+            // the original said "The party's Barding ability has increased." on arrival in the world.
+            // Use accumulates; repeat until a member's skill actually goes up (the fixture's actors
+            // are not the ones that crossed a point on a single failed performance).
+            for (int i = 0; i < 500 && (_session.PartyDirtyFlags & CharacterSheetRow.ImprovedDirtyBit) == 0; i++) {
+                _session.BroadcastSkillUse(ActorAttribute.Barding, 1);
+            }
+            Assert.That(_session.PartyDirtyFlags & CharacterSheetRow.ImprovedDirtyBit, Is.Not.Zero,
+                "the precondition: the raise set the bit");
+
+            _upkeep.QueueSkillNotice();
+
+            ConditionAnnouncements.Announcement queued = System.Linq.Enumerable.Single(_upkeep.PendingAnnouncements);
+            Assert.That(queued.DialogId, Is.EqualTo(0x200b30));
+            Assert.That(queued.AuxValue, Is.EqualTo((int)ActorAttribute.Barding));
+            Assert.That(_session.PartyDirtyFlags & CharacterSheetRow.ImprovedDirtyBit, Is.Zero);
+            Assert.That(_session.GetGlobalValue(CharacterSheetRow.ChangedFlagFor(0, (int)ActorAttribute.Barding)),
+                Is.EqualTo(1), "the notice reads the mark; the sheet is what clears it");
+        }
+
+        [Test]
         public void ACaughtAfflictionIsQueuedOnTheNextHour_AndItsFlagIsReadAndCleared() {
             // TASK-500: stat_combatant_apply_condition sets CONDITION(7320 + character*7 + condition)
             // and the party-dirty bit; the hourly tick drains them into "felt ill" dialogs.

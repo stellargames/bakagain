@@ -1108,6 +1108,7 @@ namespace BakAgain.UI.InGame {
             }
             _afflictionUpkeep ??= _resolver?.Resolve(typeof(BakAgain.Core.Services.PartyUpkeepService))
                 as BakAgain.Core.Services.PartyUpkeepService;
+            _afflictionUpkeep?.QueueSkillNotice();
             if (_afflictionUpkeep == null || _afflictionUpkeep.PendingAnnouncements.Count == 0) {
                 return;
             }

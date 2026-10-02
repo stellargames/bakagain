@@ -42,6 +42,7 @@ public static class ConditionAnnouncements {
             FirstActor = firstActor;
             SecondActor = secondActor;
             Count = count;
+            AuxValue = -1;
         }
 
         public int DialogId { get; }
@@ -54,6 +55,10 @@ public static class ConditionAnnouncements {
 
         /// <summary><c>nEvtArgCount</c> — how many, which the dialog reads as Var 0.</summary>
         public int Count { get; }
+
+        /// <summary><c>lEvtArgAuxValue</c> (global 30018) to set before playing, or -1 to leave it —
+        /// the attribute a skill notice names.</summary>
+        public int AuxValue { get; init; }
     }
 
     /// <summary>Read and clear every member's flags, in affliction order, into the dialogs to play.</summary>
