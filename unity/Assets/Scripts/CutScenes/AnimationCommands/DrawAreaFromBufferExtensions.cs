@@ -13,7 +13,7 @@ namespace BakAgain.CutScenes.AnimationCommands {
             return cutsceneState => {
                 Logger.LogDebug("Running frame command: {Args}", args);
 
-                cutsceneState.CopyArea(args.BufferNumber);
+                cutsceneState.RestoreRect(args.BufferNumber);
 
                 return AwaitableUtility.Completed;
             };

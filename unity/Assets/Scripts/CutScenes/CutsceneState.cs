@@ -1,6 +1,7 @@
 namespace BakAgain.CutScenes {
     using BakAgain.Audio;
     using BakAgain.Core;
+    using BakAgain.CutScenes.Extensions;
     using BakAgain.Graphics;
     using BakAgain.ResourceManagement.Models;
     using BakAgain.Utility;
@@ -104,8 +105,6 @@ namespace BakAgain.CutScenes {
         public RenderTexture CurrentDirectBuffer => _buffers[CurrentDrawBufferIndex].DirectBuffer;
         public RenderTexture BackgroundIndexedBuffer => _buffers[BackgroundBufferIndex].IndexedBuffer;
         public RenderTexture BackgroundDirectBuffer => _buffers[BackgroundBufferIndex].DirectBuffer;
-        public RenderTexture TargetBufferIndexed => _buffers[TargetBufferIndex].IndexedBuffer;
-        public RenderTexture TargetBufferDirect => _buffers[TargetBufferIndex].DirectBuffer;
 
         /// <summary>
         ///     Current area to draw in
@@ -123,7 +122,30 @@ namespace BakAgain.CutScenes {
         public int GotoTag { get; set; }
         public ResourceSet Resources { get; set; }
         public RenderTexture OutputBuffer { get; set; }
-        public IArea[] Areas { get; set; } = new IArea[NrOfBuffers];
+
+        /// <summary>The script's saved-rect slots: <c>pFreemem[12]</c> (structs.h:1228).</summary>
+        public const int SavedRectSlotCount = 12;
+
+        /// <summary>
+        /// One saved rect per slot, or null when the slot is empty.
+        /// </summary>
+        /// <remarks>
+        /// <c>SetTargetBuffer</c> (0x1121) picks a slot, <c>CopyToTargetBuffer</c> (0x4214) saves
+        /// a rect of the current page into it, <c>DrawAreaFromBuffer</c> (0xa601) pastes it back
+        /// at its own position, and <c>DisposeTargetBuffer</c> (0xc0) frees it (TTM.C:282-288,
+        /// 464-490). They are NOT the four screen pages: aliasing slot N to page N made C61's slot
+        /// 1 the draw buffer, and every later Makala/Pug shot restored black.
+        /// </remarks>
+        private readonly SavedRect[] _savedRects = new SavedRect[SavedRectSlotCount];
+
+        private sealed class SavedRect {
+            public RenderTexture Indexed;
+            public RenderTexture Direct;
+            public IArea Area;
+        }
+
+        /// <summary>The rect saved in <paramref name="slot"/> (canonical space), or null if empty.</summary>
+        public IArea SavedRectArea(int slot) => _savedRects[slot]?.Area;
 
         public MidiPlaybackManager MidiPlayer { get; set; }
 
@@ -190,6 +212,52 @@ namespace BakAgain.CutScenes {
             }
             ReleaseRenderTexture(OutputBuffer);
             OutputBuffer = null;
+            for (int i = 0; i < _savedRects.Length; i++) {
+                FreeRect(i);
+            }
+        }
+
+        /// <summary>0x4214: save <paramref name="area"/> of the current page into <paramref name="slot"/>.</summary>
+        public void SaveRect(int slot, IArea area) {
+            SavedRect saved = _savedRects[slot] ??= new SavedRect();
+            // Page-sized, so the rect keeps its own coordinates; allocated only for slots a script uses.
+            if (!saved.Indexed) {
+                saved.Indexed = NewBufferTexture();
+                saved.Direct = NewBufferTexture();
+            }
+            Area scaled = area.Scale<Area>(ScaleFromOriginal);
+            Drawing.CopyArea(CurrentIndexedBuffer, saved.Indexed, scaled);
+            Drawing.CopyArea(CurrentDirectBuffer, saved.Direct, scaled);
+            saved.Area = area;
+        }
+
+        /// <summary>0xa601: paste <paramref name="slot"/> back where it was saved; an empty slot draws nothing.</summary>
+        public void RestoreRect(int slot) {
+            SavedRect saved = _savedRects[slot];
+            if (saved?.Area == null) {
+                return;
+            }
+            Area scaled = saved.Area.Scale<Area>(ScaleFromOriginal);
+            Drawing.CopyArea(saved.Indexed, CurrentIndexedBuffer, scaled);
+            Drawing.CopyArea(saved.Direct, CurrentDirectBuffer, scaled);
+        }
+
+        /// <summary>0xc0: free <paramref name="slot"/>.</summary>
+        public void FreeRect(int slot) {
+            SavedRect saved = _savedRects[slot];
+            if (saved == null) {
+                return;
+            }
+            ReleaseRenderTexture(saved.Indexed);
+            ReleaseRenderTexture(saved.Direct);
+            _savedRects[slot] = null;
+        }
+
+        private RenderTexture NewBufferTexture() {
+            RenderTexture page = _buffers[0].IndexedBuffer;
+            return new RenderTexture(page.width, page.height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear) {
+                filterMode = FilterMode.Point,
+            };
         }
 
         private static void ReleaseRenderTexture(RenderTexture texture) {
@@ -223,10 +291,6 @@ namespace BakAgain.CutScenes {
 
                 _buffers[i].IndexedBuffer.filterMode = FilterMode.Point;
                 _buffers[i].DirectBuffer.filterMode = FilterMode.Point;
-                // Areas[] live in canonical space: CopyArea(src) scales them by
-                // ScaleFromOriginal, and CopyToTargetBuffer stores canonical TTM
-                // areas here — the default must match that space (not buffer px).
-                Areas[i] = new Area(0, 0, Canonical.Width, Canonical.Height);
                 Logger.LogTrace("Initialize: BufferPair {BufferIndex} properties set.", i); // Was LogVerbose
             }
             OutputBuffer = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);

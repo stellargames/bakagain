@@ -61,11 +61,5 @@ namespace BakAgain.CutScenes {
             Drawing.CopyArea(cutsceneState.GetDirectBuffer(src), cutsceneState.GetDirectBuffer(dst), scaledArea);
 
         }
-
-        public static void CopyArea(this CutsceneState cutsceneState, int src) {
-            int dst = cutsceneState.CurrentDrawBufferIndex;
-            IArea area = cutsceneState.Areas[src];
-            cutsceneState.CopyArea(src, dst, area);
-        }
     }
 }

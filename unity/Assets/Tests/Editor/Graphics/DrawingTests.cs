@@ -340,88 +340,81 @@ namespace BakAgain.Tests.Editor.Graphics {
                 0.01f, "the copy covered the SCALED rectangle");
         }
 
-        [Test]
-        public void CopyToTargetBuffer_RecordsItsAreaUnderTheTARGETIndex() {
-            // The two commands are a PAIR: CopyToTargetBuffer stashes the area under the target
-            // slot, and DrawAreaFromBuffer later reads Areas[source] to know what to copy back. If
-            // it recorded under the CURRENT index instead, the pair would still work whenever the
-            // two happened to be equal and fail silently when they were not.
-            var command = new GameData.Resources.Animation.FrameCommands.CopyToTargetBuffer {
-                X = 40, Y = 30, Width = 60, Height = 40
-            };
+        // *** Saved rects are the script's OWN slots, not screen pages. *** 0x1121 picks a slot in
+        // pFreemem[12] (structs.h:1228), 0x4214 saves the rect into fresh memory there, 0xa601
+        // pastes it back at its own position and 0xc0 frees it (TTM.C:282-288, 464-490). The port
+        // aliased slot N to screen buffer N, so C61's slot 1 WAS the draw buffer: the save copied
+        // it onto itself, the scene cleared it, and every later Makala/Pug shot restored black.
 
-            command.ToAction()(_cutsceneState);
-
-            GameData.Resources.Animation.IArea recorded =
-                _cutsceneState.Areas[_cutsceneState.TargetBufferIndex];
-            Assert.IsNotNull(recorded);
-            Assert.AreEqual(40, recorded.X);
-            Assert.AreEqual(30, recorded.Y);
-            Assert.AreEqual(60, recorded.Width);
-            Assert.AreEqual(40, recorded.Height);
-        }
-
-        [Test]
-        public void TheTwoCommandsRoundTripAnAreaThroughTheTargetBuffer() {
-            // *** The pair, end to end. *** Stash the current buffer's content, overwrite it, then
-            // draw it back — and it lands in the same place, because the AREA travelled with the
-            // buffer. Reading Areas[destination] instead of Areas[source] in the single-argument
-            // CopyArea would copy the wrong rectangle here.
-            var area = new Area(40, 30, 60, 40);
+        private bool Covered(Area area) {
             Area scaled = area.Scale<Area>(_cutsceneState.ScaleFromOriginal);
             int bottomUpY = _directBuffer.height - scaled.Y - scaled.Height;
-            int probeX = scaled.X + scaled.Width / 2;
-            int probeY = bottomUpY + scaled.Height / 2;
+            return ReadPixel(_directBuffer, scaled.X + scaled.Width / 2, bottomUpY + scaled.Height / 2).a > 0.5f;
+        }
 
-            Drawing.FillArea(area, 200, _cutsceneState, isIndexed: false);
-            Assert.AreEqual(1f, ReadPixel(_directBuffer, probeX, probeY).a, 0.01f);
-
+        private void SaveInto(int slot, Area area) {
+            new GameData.Resources.Animation.FrameCommands.SetTargetBuffer { BufferNumber = slot }
+                .ToAction()(_cutsceneState);
             new GameData.Resources.Animation.FrameCommands.CopyToTargetBuffer {
                 X = area.X, Y = area.Y, Width = area.Width, Height = area.Height
             }.ToAction()(_cutsceneState);
+        }
 
-            // An indexed fill clears the direct buffer underneath, so this wipes what we stashed.
+        private void Restore(int slot) =>
+            new GameData.Resources.Animation.FrameCommands.DrawAreaFromBuffer { BufferNumber = slot }
+                .ToAction()(_cutsceneState);
+
+        [Test]
+        public void ASavedRectComesBackAfterTheDrawBufferIsCleared_EvenFromSlotOne() {
+            var area = new Area(40, 30, 60, 40);
+            Drawing.FillArea(area, 200, _cutsceneState, isIndexed: false);
+            SaveInto(_cutsceneState.CurrentDrawBufferIndex, area);   // C61 frame 31
+
+            Drawing.FillArea(area, 30, _cutsceneState, isIndexed: true);   // clears the direct pixels
+            Assert.IsFalse(Covered(area), "the draw buffer no longer has it");
+
+            Restore(_cutsceneState.CurrentDrawBufferIndex);
+            Assert.IsTrue(Covered(area), "and the slot put it back, in the same place");
+        }
+
+        [Test]
+        public void ASavedRectSurvivesAStoreScreen() {
+            // Slot 2 is not the background page: StoreScreen overwriting that page leaves it intact.
+            var area = new Area(40, 30, 60, 40);
+            Drawing.FillArea(area, 200, _cutsceneState, isIndexed: false);
+            SaveInto(_cutsceneState.BackgroundBufferIndex, area);
+
             Drawing.FillArea(area, 30, _cutsceneState, isIndexed: true);
-            Assert.AreEqual(0f, ReadPixel(_directBuffer, probeX, probeY).a, 0.01f,
-                "the current buffer no longer has it");
+            new GameData.Resources.Animation.FrameCommands.StoreScreen().ToAction()(_cutsceneState);
 
-            new GameData.Resources.Animation.FrameCommands.DrawAreaFromBuffer {
-                BufferNumber = _cutsceneState.TargetBufferIndex
-            }.ToAction()(_cutsceneState);
-
-            Assert.AreEqual(1f, ReadPixel(_directBuffer, probeX, probeY).a, 0.01f,
-                "and drawing from the target buffer put it back, in the same place");
+            Restore(_cutsceneState.BackgroundBufferIndex);
+            Assert.IsTrue(Covered(area));
         }
 
         [Test]
-        public void EveryBuffersAreaStartsAsTheWholeCANONICALScreen() {
-            // *** The unit convention, pinned. *** Areas[] are CANONICAL (1600x1200), not the
-            // original 320x200 — the extractors scale on the way out, so a shipped TTM FillArea
-            // reads X=70 Width=1455. Anything that reads these as VGA coordinates produces
-            // arithmetic that looks broken while the code is right.
-            for (int i = 0; i < _cutsceneState.Areas.Length; i++) {
-                GameData.Resources.Animation.IArea a = _cutsceneState.Areas[i];
-                Assert.AreEqual(0, a.X);
-                Assert.AreEqual(0, a.Y);
-                Assert.AreEqual(BakAgain.Graphics.Canonical.Width, a.Width);
-                Assert.AreEqual(BakAgain.Graphics.Canonical.Height, a.Height);
-            }
+        public void RestoringAnEmptySlotDrawsNothing() {
+            // `if (!*pfreemem) break;` (TTM.C:283-284).
+            var area = new Area(40, 30, 60, 40);
+            Drawing.FillArea(area, 200, _cutsceneState, isIndexed: false);
+
+            Restore(3);
+
+            Assert.IsTrue(Covered(area), "the frame is untouched");
         }
 
         [Test]
-        public void DisposeTargetBuffer_PutsTheTargetsAreaBackToTheWholeScreen() {
-            // The other end of CopyToTargetBuffer's narrowing. Without the reset, a later
-            // DrawAreaFromBuffer on that slot would keep copying the last stashed rectangle rather
-            // than the buffer — stale geometry outliving the content it described.
-            new GameData.Resources.Animation.FrameCommands.CopyToTargetBuffer {
-                X = 40, Y = 30, Width = 60, Height = 40
-            }.ToAction()(_cutsceneState);
-            Assert.AreEqual(60, _cutsceneState.Areas[_cutsceneState.TargetBufferIndex].Width);
+        public void DisposeTargetBuffer_EmptiesTheSlot() {
+            var area = new Area(40, 30, 60, 40);
+            Drawing.FillArea(area, 200, _cutsceneState, isIndexed: false);
+            SaveInto(3, area);
+            Assert.AreEqual(60, _cutsceneState.SavedRectArea(3).Width, "the slot keeps its rect");
 
             new GameData.Resources.Animation.FrameCommands.DisposeTargetBuffer().ToAction()(_cutsceneState);
+            Drawing.FillArea(area, 30, _cutsceneState, isIndexed: true);
+            Restore(3);
 
-            Assert.AreEqual(BakAgain.Graphics.Canonical.Width,
-                _cutsceneState.Areas[_cutsceneState.TargetBufferIndex].Width);
+            Assert.IsNull(_cutsceneState.SavedRectArea(3));
+            Assert.IsFalse(Covered(area), "a freed slot restores nothing");
         }
 
         [Test]
@@ -443,23 +436,16 @@ namespace BakAgain.Tests.Editor.Graphics {
         }
 
         [Test]
-        public void StoreArea_RecordsNoArea_UnlikeItsNeighbour() {
-            // *** FAITHFUL, not an oversight. *** The two neighbouring commands are different
-            // operations in the original: 0x4214 saves a rect AND stores its coordinates under the
-            // slot, while 0x4204 is a straight page-to-page blit that keeps nothing. A reader who
-            // "fixes" this to record an area would be un-porting it, which is why it is pinned.
-            GameData.Resources.Animation.IArea before =
-                _cutsceneState.Areas[_cutsceneState.BackgroundBufferIndex];
-
+        public void StoreArea_SavesIntoNoSlot_UnlikeItsNeighbour() {
+            // *** FAITHFUL, not an oversight. *** 0x4214 saves a rect into a slot; 0x4204 is a
+            // straight page-to-page blit that keeps nothing (TTM.C:658-661).
             new GameData.Resources.Animation.FrameCommands.StoreArea {
                 X = 40, Y = 30, Width = 60, Height = 40
             }.ToAction()(_cutsceneState);
 
-            GameData.Resources.Animation.IArea after =
-                _cutsceneState.Areas[_cutsceneState.BackgroundBufferIndex];
-            Assert.AreEqual(before.Width, after.Width, "the background slot's area is untouched");
-            Assert.AreEqual(BakAgain.Graphics.Canonical.Width, after.Width,
-                "and still the whole screen");
+            for (int slot = 0; slot < CutsceneState.SavedRectSlotCount; slot++) {
+                Assert.IsNull(_cutsceneState.SavedRectArea(slot));
+            }
         }
     }
 }

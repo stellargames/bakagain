@@ -14,10 +14,7 @@ namespace BakAgain.CutScenes.AnimationCommands {
             return cutsceneState => {
                 Logger.LogDebug("Running frame command: {Args}", args);
 
-                cutsceneState.TargetBufferIndexed.DiscardContents();
-                // Reset to the canonical full frame — Areas[] are canonical-space
-                // (CopyArea scales them by ScaleFromOriginal), not buffer px.
-                cutsceneState.Areas[cutsceneState.TargetBufferIndex] = new Area(0, 0, Canonical.Width, Canonical.Height);
+                cutsceneState.FreeRect(cutsceneState.TargetBufferIndex);
 
                 return AwaitableUtility.Completed;
             };

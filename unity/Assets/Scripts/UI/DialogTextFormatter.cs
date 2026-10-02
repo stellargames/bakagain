@@ -80,11 +80,13 @@ namespace BakAgain.UI {
                 return string.Empty;
             }
             // Centered title/speech text drops the indent entirely; left-aligned narrative keeps
-            // it. TrimEnd (not Trim) on narrative preserves the leading indent.
+            // it. Neither trims a leading newline: after "#Name#" it is what drops the body a line
+            // below the name (C61's centred poem was drawn through Pug's pill).
+            if (centered) {
+                return raw.Replace("\t", string.Empty).TrimStart(' ').TrimEnd();
+            }
             string tab = new string(' ', TabWidthPx / BakFontData.GetRawCharWidth(' ', BakFontData.GameFontIndex));
-            return centered
-                ? raw.Replace("\t", string.Empty).Trim()
-                : raw.Replace("\t", tab).TrimEnd();
+            return raw.Replace("\t", tab).TrimEnd();
         }
 
         /// <summary>

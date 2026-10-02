@@ -9,13 +9,12 @@ namespace BakAgain.CutScenes.AnimationCommands {
     public static class CopyToTargetBufferExtensions {
         private static readonly ILogger Logger = LogManager.LoggerFactory.CreateLogger(nameof(CopyToTargetBufferExtensions));
 
-        /// Copy an area from the screen (current renderTexture) to the target texture.
+        /// Save an area of the current page into the target slot (0x4214).
         public static Func<CutsceneState, Awaitable> ToAction(this CopyToTargetBuffer args) {
             return cutsceneState => {
                 Logger.LogDebug("Running frame command: {Args}", args);
 
-                cutsceneState.CopyArea(cutsceneState.CurrentDrawBufferIndex, cutsceneState.TargetBufferIndex, args);
-                cutsceneState.Areas[cutsceneState.TargetBufferIndex] = args;
+                cutsceneState.SaveRect(cutsceneState.TargetBufferIndex, args);
 
                 return AwaitableUtility.Completed;
             };

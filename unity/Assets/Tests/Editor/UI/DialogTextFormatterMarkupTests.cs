@@ -62,5 +62,14 @@ namespace BakAgain.Tests.Editor.UI {
                 Assert.IsFalse(formatted.Contains(c.ToString()), $"'{c}' leaked into the output");
             }
         }
+
+        [Test]
+        public void CentredSpeechKeepsTheNewlineThatPutsItBelowTheName() {
+            // C61's poem (dialog 1600104) is "#Pug#\nArrayed in flame…" with CenterText. The newline
+            // after the name is what drops the body a line below the pill (DIALOG.C:576-641); a
+            // two-sided Trim ate it and drew the first line through the pill.
+            Assert.AreEqual("\nArrayed,\nTo shriek",
+                DialogTextFormatter.Prepare("\nArrayed,\n\tTo shriek\n", centered: true));
+        }
     }
 }

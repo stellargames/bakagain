@@ -15,7 +15,7 @@ namespace BakAgain.CutScenes.AnimationCommands {
     /// <list type="bullet">
     ///   <item><c>0x4214</c> (CopyToTargetBuffer) allocates a buffer, saves the rect into it, AND
     ///     stores the rect's coordinates in <c>pRectSrcX/Y</c> and <c>pRectDstX/Y</c> under the
-    ///     slot — geometry kept alongside the pixels, which is what our <c>Areas[]</c> models.</item>
+    ///     slot — geometry kept alongside the pixels, which is what <c>CutsceneState.SaveRect</c> models.</item>
     ///   <item><c>0x4204</c> (this) is <c>adscript_rndr_blit_other_page</c>: a straight page-to-page
     ///     blit (VGA page 2 -&gt; page 1) that keeps nothing.</item>
     /// </list>

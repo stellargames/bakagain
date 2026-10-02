@@ -147,26 +147,22 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
             Assert.AreEqual(Color.yellow, Sample(_state.GetIndexedBuffer(DrawBuffer)));
         }
         [Test]
-        public void ADrawAreaFromBufferLandsInTheDRAWBuffer_notInTheTargetBuffer() {
-            // *** THE RESTORE HALF IGNORES SetTargetBuffer. *** CopyToTargetBuffer writes INTO the
-            // target, so a script that stashed a region leaves the target index pointing at it;
-            // DrawAreaFromBuffer's destination is the current draw buffer regardless, because
-            // CopyArea(src) takes its destination from CurrentDrawBufferIndex. Making the restore
-            // symmetric with the save — reading the target index at both ends — would copy the
-            // buffer onto itself and the frame would simply never change.
+        public void ASavedRectSlotIsNotAScreenBuffer() {
+            // Slot 3 and screen buffer 3 share a number and nothing else (TTM.C:464-480): saving
+            // into it leaves the page alone, and the restore lands in the DRAW buffer.
+            Fill(_state.GetIndexedBuffer(DrawBuffer), Color.green);
+            Fill(_state.GetIndexedBuffer(3), Color.red);
             _state.TargetBufferIndex = 3;
-            Fill(_state.GetIndexedBuffer(BackgroundBuffer), Color.green);
-            Fill(_state.GetIndexedBuffer(DrawBuffer), Color.blue);
-            Fill(_state.GetIndexedBuffer(3), Color.blue);
-
-            new GameData.Resources.Animation.FrameCommands.DrawAreaFromBuffer {
-                BufferNumber = BackgroundBuffer
+            new GameData.Resources.Animation.FrameCommands.CopyToTargetBuffer {
+                X = 0, Y = 0, Width = BakAgain.Graphics.Canonical.Width, Height = BakAgain.Graphics.Canonical.Height
             }.ToAction()(_state);
 
-            Assert.AreEqual(Color.green, Sample(_state.GetIndexedBuffer(DrawBuffer)),
-                "the destination is the draw buffer");
-            Assert.AreEqual(Color.blue, Sample(_state.GetIndexedBuffer(3)),
-                "and the target buffer was not written");
+            Fill(_state.GetIndexedBuffer(DrawBuffer), Color.blue);
+            new GameData.Resources.Animation.FrameCommands.DrawAreaFromBuffer { BufferNumber = 3 }
+                .ToAction()(_state);
+
+            Assert.AreEqual(Color.green, Sample(_state.GetIndexedBuffer(DrawBuffer)), "restored into the draw buffer");
+            Assert.AreEqual(Color.red, Sample(_state.GetIndexedBuffer(3)), "and screen buffer 3 was never written");
         }
 
     }

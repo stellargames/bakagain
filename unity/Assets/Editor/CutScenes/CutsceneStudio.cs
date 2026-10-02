@@ -462,8 +462,10 @@ namespace BakAgain.Editor.Cutscenes {
 
                     break;
                 case DrawAreaFromBuffer bufferCommand:
-                    var bufferArea = _cutsceneState.Areas[bufferCommand.BufferNumber];
-                    area = new Rect(bufferArea.X, bufferArea.Y, bufferArea.Width, bufferArea.Height);
+                    var bufferArea = _cutsceneState.SavedRectArea(bufferCommand.BufferNumber);
+                    area = bufferArea == null
+                        ? null
+                        : new Rect(bufferArea.X, bufferArea.Y, bufferArea.Width, bufferArea.Height);
 
                     break;
                 default:
