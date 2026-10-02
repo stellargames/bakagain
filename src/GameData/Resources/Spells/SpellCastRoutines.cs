@@ -355,7 +355,7 @@ public static class SpellCastRoutines {
     /// The routine takes the sweep's return value — the actor it struck — and runs the resistance
     /// check and the knockback on that, not on the actor the player aimed at. Same shape as Strength
     /// Drain's return leg: the sweep, not the targeting, decides who is affected.
-    /// <para><b>Deliberately callerless.</b> A recorded deviation: the port has no projectile sweep for this spell, so RunWindsOfEortis pushes the aimed target (ponytail noted there).</para>
+    /// <para><b>Deliberately callerless.</b> Not a deviation (checked 2026-10-02): the original's flight is launched with hit = 1, which never intercepts, so the actor struck IS the aimed target; RunWindsOfEortis pushes it.</para>
     /// </remarks>
     public static bool WindsOfEortisAffectsTheActorStruck => true;
 

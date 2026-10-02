@@ -2983,9 +2983,13 @@ namespace BakAgain.Combat {
         /// cannot enter. The inert direction (straight along -Y, see
         /// <see cref="SpellCastRoutines.KnockbackDy"/>) spends the allowance and moves nobody.
         ///
-        /// <para>ponytail: the victim is the aimed target. The original pushes whoever its projectile
-        /// sweep struck first, and the port has no sweep for this spell. River Song's transient slot
-        /// and the walk animation are presentation.</para>
+        /// <para><b>The victim is always the aimed target, as in the original.</b>
+        /// <c>cspell_perform_ranged_hit</c> flies its whirlwind with <c>hit = 1</c> already set, and
+        /// a flight that already hit never intercepts (WORLDHIT.C, <c>*p_hit_out != 0</c> clears the
+        /// bystander); case 27 then clears <c>pSpell</c>, so the generic miss/interception after the
+        /// switch never runs for it (CSPELL.C:653-668, 1425-1427). The to-hit roll only decides the
+        /// caster's second skill award. Checked 2026-10-02. River Song's transient slot and the walk
+        /// animation are presentation.</para>
         /// </remarks>
         private void RunWindsOfEortis(Combatant caster, Combatant victim, int cost,
             System.Func<int, int> roll) {
