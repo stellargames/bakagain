@@ -125,12 +125,15 @@ namespace BakAgain.Tests.PlayMode.Inventory {
                 ItemInspectText.StatusLine(Item(itemFlags: 0x40 | 0x10 | 0x20), Obj(), affecting: true));
         }
 
-        /// <summary>Faithful oddity: the ", " separator is appended on the broken/repairable test
-        /// alone, so a carried (non-Using) broken item's line really does start with ", ".</summary>
+        /// <summary>The ", " belongs to "Using": INVINSP.C:377-383 strcat's it only inside the branch
+        /// that wrote "Using". This test used to pin ", Broken", a misreading of that block; the
+        /// original shows "Repairable" on James's carried 74% Lamprey (TASK-731).</summary>
         [Test]
-        public void StatusLine_LeadingSeparator_WhenBrokenWithoutUsing() {
-            Assert.AreEqual(", Broken",
+        public void StatusLine_NoSeparator_WhenBrokenWithoutUsing() {
+            Assert.AreEqual("Broken",
                 ItemInspectText.StatusLine(Item(itemFlags: 0x10), Obj(), affecting: false));
+            Assert.AreEqual("Repairable",
+                ItemInspectText.StatusLine(Item(itemFlags: 0x20), Obj(), affecting: true));
         }
 
         // ---- description lookup (0x5A9A2-0x5A9DA) ---------------------------------------

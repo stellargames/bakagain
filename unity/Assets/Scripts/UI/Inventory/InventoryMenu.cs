@@ -1706,6 +1706,7 @@ namespace BakAgain.UI.Inventory {
                 // inspected item. Clearing only the cells left INVSHP2 #10/#11 showing through.
                 // Where the icon flies FROM — read before the grid is torn down.
                 Vector2 from = SlotCentreCanonical(slot);
+                Vector2 cellSize = SlotSizeCanonical(slot); // likewise: the cell is cleared below
                 _inspectSlot = slot;
                 _inspectFrom = from; // held for the fly-back: the cell is gone by then
                 _renderer.Clear();
@@ -1722,7 +1723,7 @@ namespace BakAgain.UI.Inventory {
                 // rect the original clears on every frame of the fly animation.
                 DrawPanelBackground(_container != null);
                 bool affecting = _container == null;
-                _inspect.Render(_stage, item, obj, affecting, _resources, Layout, from);
+                _inspect.Render(_stage, item, obj, affecting, _resources, Layout, from, cellSize);
                 // The original flies the icon across BEFORE showing the description (@0x5A7D8, then
                 // the ddx at @0x5A9BC), so this is awaited rather than left running underneath.
                 await _inspect.WaitForIconFlightAsync();
@@ -1770,6 +1771,11 @@ namespace BakAgain.UI.Inventory {
         /// inspect fly-in, in the same space <see cref="ItemInspectPanel"/> draws in. Falls back to
         /// the icon's own resting point (a zero-length flight) when the cell isn't found, so a
         /// missing cell degrades to "appears in place" rather than flying in from the origin.</summary>
+        private Vector2 SlotSizeCanonical(int slot) {
+            VisualElement cell = _stage?.Q($"item_slot_{slot}");
+            return cell == null ? Vector2.zero : cell.worldBound.size;
+        }
+
         private Vector2 SlotCentreCanonical(int slot) {
             VisualElement cell = _stage?.Q($"item_slot_{slot}");
             if (cell == null || _stage == null) {

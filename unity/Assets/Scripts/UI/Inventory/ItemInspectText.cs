@@ -84,15 +84,15 @@ namespace BakAgain.UI.Inventory {
                 return string.Empty;
             }
             var s = new System.Text.StringBuilder();
+            // The separator belongs to "Using": INVINSP.C:377-383 strcat's ", " only inside the
+            // branch that wrote "Using", so a carried broken item reads "Broken", not ", Broken".
+            // (Measured on James's 74% Lamprey: the original shows "Repairable".)
             if (affecting
                 && ((item.ItemFlags & ItemEquipped) != 0 || (obj?.EquipAttributeMask ?? 0) != 0)) {
                 s.Append("Using");
-            }
-            // The separator is appended whenever the item is broken OR repairable — including when
-            // no "Using" precedes it, which is faithful: the original strcat's it unconditionally
-            // on that test, so a broken carried item's line begins ", Broken".
-            if ((item.ItemFlags & (ItemBroken | ItemRepairable)) != 0) {
-                s.Append(", ");
+                if ((item.ItemFlags & (ItemBroken | ItemRepairable)) != 0) {
+                    s.Append(", ");
+                }
             }
             if ((item.ItemFlags & ItemBroken) != 0) {
                 s.Append("Broken");

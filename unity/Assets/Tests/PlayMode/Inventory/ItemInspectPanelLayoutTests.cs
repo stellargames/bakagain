@@ -177,7 +177,7 @@ namespace BakAgain.Tests.PlayMode.Inventory {
             Assert.AreEqual("Elvandar", labels[1].text, "the wrapped name's first half");
             Assert.AreEqual("Bow", labels[3].text, "and its second");
             Assert.AreEqual("Amount: 3", labels[5].text);
-            Assert.AreEqual(", Broken", labels[7].text);
+            Assert.AreEqual("Broken", labels[7].text);
         }
 
         [Test]
@@ -220,6 +220,33 @@ namespace BakAgain.Tests.PlayMode.Inventory {
                 Assert.Greater(Mathf.Abs(label.style.top.value.value - SynthName1Y), 0.001f,
                     "nothing is drawn on the first name line when the name does not wrap");
             }
+        }
+
+        /// <summary>
+        /// The flying icon carries the item's enchantment icons at its source cell's top-left
+        /// (<c>invui_status_icons_render(flags, x + g_nInvSelItemIconDx + 1, ...)</c>, INVINSP.C:188-191):
+        /// relative to the sprite they sit where they sat in the cell. James's blessed sword keeps
+        /// its gold cross while it is inspected.
+        /// </summary>
+        [Test]
+        public void EnchantmentIcons_RideWithTheIcon_AtTheCellsTopLeft() {
+            VisualElement root = BuildPanelRoot();
+            var panel = new ItemInspectPanel();
+            InventoryLayout layout = SyntheticLayout();
+            layout.StatusIconInsetX = 7f;
+            layout.StatusIconInsetY = 9f;
+            layout.StatusIconStepX = 11f;
+            var blessed = new RuntimeItem(80, 3,
+                (ushort)(GameData.ItemFlags.Blessed3 | GameData.ItemFlags.Poisoned));
+
+            panel.Render(root, blessed, Obj(wordWrap: 0), affecting: true,
+                resources: BuildResources(), layout: layout, from: new Vector2(137f, 219f),
+                cellSize: new Vector2(64f, 48f));
+
+            VisualElement icon = root.Q("inspect_icon");
+            // Sprite 4x4 centred in a 64x48 cell: the cell's top-left is (-30,-22) from the sprite's.
+            Assert.AreEqual(new Vector2(-30f + 7f, -22f + 9f), Inset(icon.Q("inspect_status_12"), "first"));
+            Assert.AreEqual(new Vector2(-30f + 7f + 11f, -22f + 9f), Inset(icon.Q("inspect_status_20"), "second"));
         }
 
         /// <summary>The icon flight moves on a lattice whose spacing is data. The synthetic icon

@@ -197,8 +197,10 @@ namespace BakAgain.UI.Inventory {
         /// draws in (the item's grid cell centre).
         /// </summary>
         internal void Render(VisualElement root, RuntimeItem item, ObjectInfo obj, bool affecting,
-            IResourceProviderService resources, InventoryLayout layout, Vector2 from) {
+            IResourceProviderService resources, InventoryLayout layout, Vector2 from,
+            Vector2 cellSize = default) {
             Clear();
+            _cellSize = cellSize;
             _flightDone = new UniTaskCompletionSource(); // Clear() completed the previous one
             _layout = layout ?? new InventoryLayout();
             _shadowInsetWarned = false;
@@ -360,6 +362,41 @@ namespace BakAgain.UI.Inventory {
         // The icon is centred on InventoryLayout.InspectIcon at its native size — the same "native
         // size, centred" treatment the grid gives item icons, just anchored to a point instead of
         // a cell.
+        private Vector2 _cellSize;
+
+        /// <summary>
+        /// The item's enchantment icons, riding on the flying icon at the source cell's top-left —
+        /// <c>invui_status_icons_render(flags, x + g_nInvSelItemIconDx + 1, y + ...Dy + 1)</c>
+        /// (INVINSP.C:188-191), the same offset from the sprite they had in the cell. The rule is
+        /// <see cref="ItemStatusIcons"/>; inset and step are the grid's layout data.
+        /// </summary>
+        // ponytail: assumes the sprite was centred in its cell; a shop cell raises it (/4), so its
+        // icons sit a little low during a shop inspect. Pass the real offset if that is ever seen.
+        private async UniTask AddStatusIconsAsync(VisualElement icon, Sprite sprite, ushort itemFlags,
+            int generation) {
+            IReadOnlyList<int> indices = ItemStatusIcons.SpriteIndices(itemFlags);
+            float cellLeft = (sprite.rect.width - _cellSize.x) / 2f;
+            float cellTop = (sprite.rect.height - _cellSize.y) / 2f;
+            for (int i = 0; i < indices.Count; i++) {
+                Sprite status = await _resources.LoadAssetAsync<Sprite>($"INVSHP2.BMX#{indices[i]}", this);
+                if (status == null || generation != _generation || icon.panel == null) {
+                    continue;
+                }
+                icon.Add(new VisualElement {
+                    name = $"inspect_status_{indices[i]}",
+                    pickingMode = PickingMode.Ignore,
+                    style = {
+                        position = Position.Absolute,
+                        left = cellLeft + _layout.StatusIconInsetX + i * _layout.StatusIconStepX,
+                        top = cellTop + _layout.StatusIconInsetY,
+                        width = status.rect.width,
+                        height = status.rect.height,
+                        backgroundImage = new StyleBackground(status),
+                    },
+                });
+            }
+        }
+
         private async UniTaskVoid AddIconAsync(VisualElement root, ObjectInfo obj, ushort itemFlags,
             int generation) {
             // Same key resolution the grid uses — ItemIconResolver is the single owner of the
@@ -395,6 +432,7 @@ namespace BakAgain.UI.Inventory {
             _icon = icon;
             root.Add(icon);
             _elements.Add(icon);
+            AddStatusIconsAsync(icon, sprite, itemFlags, generation).Forget();
             if (!TryResolveIconRestingPoint(at, out Vector2 to)) {
                 // No flight: the icon keeps the resting style written above, which is where it
                 // would have ended up anyway. Release the awaiter so the screen still proceeds.
