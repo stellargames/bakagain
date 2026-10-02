@@ -30,8 +30,10 @@ public class SaveGamePartyConfigurationData {
     public byte AttributeIncreasedFlag { get; }
     public short RewardMoneyCounter { get; }
     /// <summary>
-    /// Six int16 — canassa's <c>aSkillTrainRate</c>. <b>Its purpose is not established</b>; the one
-    /// routine that appeared to read it was a base+displacement into the next array.
+    /// Six int16 — canassa's <c>aSkillTrainRate</c>: each member's study rate, <c>26 / skills
+    /// marked</c>, rewritten at boot and by the character screen (CHARSCRN.C:366, misnamed
+    /// <c>charscreen_recalc_condition_tick</c>). The port derives the same value from the flags —
+    /// <see cref="Character.SkillEmphasis.TrainRate"/> — so nothing reads this copy.
     /// </summary>
     /// <remarks>
     /// It held TWO entries and a stray padding byte until 2026-08-24, which left the whole rest of
