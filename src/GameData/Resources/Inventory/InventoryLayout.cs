@@ -384,6 +384,18 @@ public class InventoryLayout {
     /// canonical 5.</summary>
     public float ContainerBorderWidthX { get; set; } = 5f;
 
+    /// <summary>Where an item cell's first enchantment icon sits, in design-frame px from the
+    /// cell's top-left: <c>invui_status_icons_render(flags, rect.x + 1, rect.y + 1)</c>
+    /// (INVENTOR.C:443-444) — one original px each way.</summary>
+    public float StatusIconInsetX { get; set; } = 5f;
+
+    /// <inheritdoc cref="StatusIconInsetX"/>
+    public float StatusIconInsetY { get; set; } = 6f;
+
+    /// <summary>The step between enchantment icons, in design-frame px: <c>x += 10</c>
+    /// (INVENTOR.C:323), ten original px.</summary>
+    public float StatusIconStepX { get; set; } = 50f;
+
     /// <summary>Top/bottom border width, in design-frame px, of the container window's drag-time
     /// highlight. One original px -> canonical 6.</summary>
     public float ContainerBorderWidthY { get; set; } = 6f;

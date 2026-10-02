@@ -863,6 +863,9 @@ namespace BakAgain.UI.Inventory {
             _selectedSlot = -1;
             UpdateContainerImage();
             RefreshNavWidgets();
+            // The container window's frame is part of the REDRAW in a non-member view — a shop, chest
+            // or corpse always shows it (INVENTOR.C:399-400) — so place it here, not only on a drag.
+            UpdateDiscardBorder(dragging: false, overWindow: false);
         }
 
         // REQ_INV's action-128 element is a full-screen (1600×1200) ClickArea. UserInterfaceLoader adds
@@ -2741,10 +2744,11 @@ namespace BakAgain.UI.Inventory {
         /// <c>invui_portrait_panel_draw</c>: while dragging a MEMBER's item the window pulses when
         /// hovered (0x57250 passes 1 only for <c>pEntries[3]</c> + member mode); while dragging in
         /// the CONTAINER view it takes a steady pen instead (0x57279 passes -1 when the displayed
-        /// container isn't a member inventory). Not dragging → no border at all.
+        /// container isn't a member inventory) — and the redraw draws the latter on every frame
+        /// whatever the cursor does (INVENTOR.C:399-400), so a shop, chest or corpse always has it.
         /// </summary>
         internal static bool ShouldShowContainerBorder(bool dragging, bool overWindow, bool memberView) =>
-            dragging && (!memberView || overWindow);
+            !memberView || (dragging && overWindow);
 
         /// <summary>Which INVENTOR.PAL pen the window's border takes — see the constants.</summary>
         internal static int ContainerBorderPen(bool memberView, int pulsePhase) => memberView

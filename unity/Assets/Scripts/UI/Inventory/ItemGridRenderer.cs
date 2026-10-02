@@ -477,6 +477,9 @@ namespace BakAgain.UI.Inventory {
                     LoadIconAsync(cell, obj, item.ItemFlags, gen,
                         mode == InventoryLayoutMode.Shop ? grid.CellHeight.Value : 0f).Forget();
                 }
+                if (resources != null) {
+                    AddStatusIconsAsync(cell, item.ItemFlags, gen).Forget();
+                }
             }
 
             if (needsFillReposition && generalHost != null) {
@@ -1063,6 +1066,40 @@ namespace BakAgain.UI.Inventory {
                 }
             }
             return true;
+        }
+
+        /// <summary>
+        /// The enchantment icons at the cell's top-left — see <see cref="ItemStatusIcons"/>. Drawn
+        /// after the item, so they sit on top of it as in the original.
+        /// </summary>
+        private async UniTask AddStatusIconsAsync(VisualElement cell, ushort itemFlags, int gen) {
+            IReadOnlyList<int> indices = ItemStatusIcons.SpriteIndices(itemFlags);
+            for (int i = 0; i < indices.Count; i++) {
+                string key = $"INVSHP2.BMX#{indices[i]}";
+                if (!_spriteCache.TryGetValue(key, out Sprite sprite)) {
+                    sprite = await _resources.LoadAssetAsync<Sprite>(key, this);
+                    if (sprite == null) {
+                        continue;
+                    }
+                    _spriteCache[key] = sprite;
+                }
+                if (gen != _generation || cell.panel == null) {
+                    return;
+                }
+                var icon = new VisualElement {
+                    name = $"{cell.name}_status_{indices[i]}",
+                    pickingMode = PickingMode.Ignore,
+                    style = {
+                        position = Position.Absolute,
+                        left = _layout.StatusIconInsetX + i * _layout.StatusIconStepX,
+                        top = _layout.StatusIconInsetY,
+                        width = sprite.rect.width,
+                        height = sprite.rect.height,
+                    },
+                };
+                icon.SetBackgroundSpriteNativeSizeTopLeft(sprite);
+                cell.Add(icon);
+            }
         }
 
         private async UniTask LoadIconAsync(VisualElement cell, ObjectInfo obj, ushort itemFlags,

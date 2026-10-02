@@ -319,7 +319,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         /// <summary>
         /// The container window's drag-time border, from the two <c>invui_portrait_panel_draw</c>
         /// call sites: member view (0x57250) only while hovered — that's the live drop target;
-        /// container view (0x57279) for the whole drag, where it is decoration only.
+        /// container view (0x57279, and the redraw at INVENTOR.C:399-400) always.
         /// </summary>
         [Test]
         public void ContainerBorder_ShowsOnHoverInMemberView_AndAlwaysInContainerView() {
@@ -331,7 +331,11 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
 
             Assert.IsTrue(InventoryMenu.ShouldShowContainerBorder(true, false, memberView: false),
                 "container view: the whole drag, wherever the cursor is");
-            Assert.IsFalse(InventoryMenu.ShouldShowContainerBorder(false, false, memberView: false));
+            // The screen REDRAW draws it too — `if (actor->bResidence != RES_PARTY_SLOT)
+            // invui_portrait_panel_draw(-1, 0)` (INVENTOR.C:399-400) — so a shop, chest or corpse
+            // shows it with no drag at all. Measured at Romney's Port Exchange, 2026-10-02.
+            Assert.IsTrue(InventoryMenu.ShouldShowContainerBorder(false, false, memberView: false),
+                "container view: always, from the redraw");
         }
 
         /// <summary>
