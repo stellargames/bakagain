@@ -278,6 +278,9 @@ public static class MeleeExchange {
 
         bool parrying = (defender.Flags & CombatantFlags.Parry) != 0;
         if (!CombatFormulas.MeleeHits(rnd(100), chance, parrying)) {
+            CombatAdvancement.OnMeleeMissed(advancement.DefenderDefense,
+                parrying && defender.CanAct(strict: false),
+                advancement.DefenderStudy, advancement.DefenderMark);
             return Result.Miss;
         }
 

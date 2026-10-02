@@ -1946,7 +1946,7 @@ namespace BakAgain.Combat {
 
             PlaySwingCue(attacker, defender, result.Hit);
 
-            // *** GEAR WEARS ONLY ON A LANDED HIT, and both halves are gated separately. *** The
+            // *** THE ARMOUR WEARS ONLY ON A LANDED HIT; THE WEAPON ALSO ON AN UNPARRIED MISS. *** The
             // armour wear happens INSIDE the original's to-hit roll — `if (threshold < accuracy) {
             // damage_equipped_items(target, 4, 0x100); result = 1; }` — so it is the hit itself that
             // scuffs the armour, before any damage is worked out. The weapon wears in the caller's
@@ -1960,6 +1960,12 @@ namespace BakAgain.Combat {
                     WearEquipped(attacker, MeleeWeaponCategory,
                         CombatActionDispatch.WearSeverityOf(attack), roll);
                 }
+            } else if (weapon.Info != null && defender != null
+                       && !((defender.Flags & CombatantFlags.Parry) != 0 && defender.CanAct(false))) {
+                // A miss nobody parried still works the weapon (COMBAT.C:551-552, :670-671), at the
+                // same severity as a hit. Measured in the original: 0x4 stamped, 73 -> 71 once.
+                WearEquipped(attacker, MeleeWeaponCategory,
+                    CombatActionDispatch.WearSeverityOf(attack), rnd ?? (n => UnityEngine.Random.Range(0, n)));
             }
 
             // *** A SWING THAT PUTS SOMEONE DOWN HAS TO KILL THEM. *** MeleeExchange REPORTS

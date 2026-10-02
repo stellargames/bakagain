@@ -89,6 +89,16 @@ namespace BakAgain.Tests.Editor.Combat {
             return (runtime, session, fight.Party[0], fight.Enemies[0]);
         }
 
+        private static ushort FlagsOf(GameSession session, byte objectId) {
+            foreach (GameData.Resources.Inventory.RuntimeItem item
+                    in session.GetActorInventory(PartyPosition).Items) {
+                if (item.ObjectId == objectId) {
+                    return item.ItemFlags;
+                }
+            }
+            return 0;
+        }
+
         private static byte ConditionOf(GameSession session, byte objectId) {
             foreach (GameData.Resources.Inventory.RuntimeItem item
                     in session.GetActorInventory(PartyPosition).Items) {
@@ -163,14 +173,28 @@ namespace BakAgain.Tests.Editor.Combat {
         }
 
         [Test]
-        public void AMissWearsNOTHING() {
-            // Both halves are gated on the hit — the armour inside the to-hit roll, the weapon in
-            // the caller's hit branch.
+        public void AnUnparriedMissStillWorksTheWeapon() {
+            // COMBAT.C:551-552 (swing) and :670-671 (thrust): a miss nobody parried calls
+            // cbstat_damage_equipped_items on the attacker's weapon, which in V102CD stamps 0x4
+            // before its break roll. Measured in the original: misses set the Broadsword's 0x4 and
+            // one took it from 73 to 71; parried misses left it untouched.
             (CombatRuntime runtime, GameSession session, Combatant member, Combatant monster) =
                 Fight(Objects(), (SwordId, 100));
 
             runtime.ResolveMelee(member, monster, MeleeAttack.Swing, _ => 99);
 
+            Assert.AreNotEqual(0, FlagsOf(session, SwordId) & (ushort)ItemDegradation.UsedInAnger);
+        }
+
+        [Test]
+        public void AParriedMissLeavesTheWeaponAlone() {
+            (CombatRuntime runtime, GameSession session, Combatant member, Combatant monster) =
+                Fight(Objects(), (SwordId, 100));
+            monster.Flags |= CombatantFlags.Parry;
+
+            runtime.ResolveMelee(member, monster, MeleeAttack.Swing, _ => 99);
+
+            Assert.AreEqual(0, FlagsOf(session, SwordId) & (ushort)ItemDegradation.UsedInAnger);
             Assert.AreEqual(100, ConditionOf(session, SwordId));
         }
 

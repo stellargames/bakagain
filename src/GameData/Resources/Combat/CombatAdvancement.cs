@@ -42,6 +42,20 @@ public static class CombatAdvancement {
     }
 
     /// <summary>
+    /// The defender's awards for a melee attack that MISSED — Defense once more, and once more
+    /// again unless the miss was a parry (COMBAT.C:541/:550 for the swing, :663/:669 for the thrust).
+    /// </summary>
+    /// <param name="parried">The defender's Parry flag was up and it could act (<c>CanAct(false)</c>).</param>
+    public static void OnMeleeMissed(ActorStat? defenderDefense, bool parried,
+        Func<ActorAttribute, int>? defenderStudy = null,
+        Action<ActorAttribute, StatEngine.StatChange>? defenderMark = null) {
+        Award(defenderDefense, ActorAttribute.Defense, defenderStudy, defenderMark);
+        if (!parried) {
+            Award(defenderDefense, ActorAttribute.Defense, defenderStudy, defenderMark);
+        }
+    }
+
+    /// <summary>
     /// The awards made when a melee swing actually connects: the attacker improves Melee
     /// <b>again</b> and also improves Strength.
     ///

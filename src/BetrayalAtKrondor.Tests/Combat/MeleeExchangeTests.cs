@@ -65,6 +65,30 @@ public class MeleeExchangeTests {
         Assert.Contains((0, ActorAttribute.Strength), marked);
     }
 
+    /// <summary>
+    /// A miss pays the defender Defense again, and a third time unless they parried —
+    /// COMBAT.C:541 and :550 (swing), :663 and :669 (thrust).
+    /// </summary>
+    [Theory]
+    [InlineData(false, 3)]
+    [InlineData(true, 2)]
+    public void AMissPaysTheDefenderDefenseAgainAndAgainUnlessTheyParried(bool parrying, int defenseMarks) {
+        int marks = 0;
+        var advancement = new MeleeExchange.Advancement(
+            new ActorStat { Base = 40, Max = 99 }, new ActorStat { Base = 40, Max = 99 },
+            new ActorStat { Base = 40, Max = 99 },
+            defenderMark: (attribute, _) => { if (attribute == ActorAttribute.Defense) marks++; });
+        Combatant defender = Fighter();
+        if (parrying) {
+            defender.Flags |= CombatantFlags.Parry;
+        }
+
+        MeleeExchange.Resolve(Fighter(), defender, Bruiser, Unarmoured, AlwaysMisses,
+            advancement: advancement);
+
+        Assert.Equal(defenseMarks, marks);
+    }
+
     [Fact]
     public void AFixedBlowReplacesTheWeaponRoll() {
         // COMBAT.C:534-535: a non-zero damage argument IS the blow (the 0x13/0x31 RNDR(25, 49)).
