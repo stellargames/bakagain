@@ -46,11 +46,22 @@ public static class TownApproach {
     /// <remarks>
     /// The routine writes the record's heading straight into the camera rotation and only then runs
     /// the travel loop, so the approach is a walk in a fixed direction rather than a turn-as-you-go.
-    /// The heading is also what the party is left facing when the location closes.
+    /// It is NOT what the party is left facing — see <see cref="FacingAfter"/>.
     ///
     /// <para><b>Deliberately callerless.</b> A pinned fact about the approach's order; the remark above says what it decides.</para>
     /// </remarks>
     public static bool HeadingIsSetBeforeWalking => true;
+
+    /// <summary>
+    /// <b>The party is left facing AWAY from the door</b> — the record's heading plus 180°.
+    /// </summary>
+    /// <remarks>
+    /// <c>approachWalkToScenePosition</c> @0x6ddc2 puts the camera back at the destination and
+    /// writes <c>heading + 0x8000</c> into its yaw before the scene runs (canassa MAP.C:556), so
+    /// leaving the location the party looks back the way it came. Measured in the original
+    /// (2026-10-02): LaMut's <c>def_town:0</c>, heading 0x4000 (west), leaves it facing east, 0xC000.
+    /// </remarks>
+    public static short FacingAfter(int heading) => unchecked((short)(heading + 0x8000));
 
     /// <summary>
     /// <b>Underground, the approach walks in half-size steps.</b>

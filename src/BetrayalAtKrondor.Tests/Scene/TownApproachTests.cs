@@ -36,4 +36,12 @@ public class TownApproachTests {
         Assert.Equal(400, TownApproach.StepFor(400, underground: false));
         Assert.Equal(200, TownApproach.StepFor(400, underground: true));
     }
+
+    [Fact]
+    public void ThePartyIsLeftFacingAwayFromTheDoor() {
+        // approachWalkToScenePosition @0x6ddc2: rotation = heading + 0x8000. Measured: LaMut's
+        // def_town:0 (0x4000, west) leaves the party facing east, yaw 0xC000.
+        Assert.Equal(unchecked((short)0xC000), TownApproach.FacingAfter(0x4000));
+        Assert.Equal((short)0x2000, TownApproach.FacingAfter(0xA000));
+    }
 }

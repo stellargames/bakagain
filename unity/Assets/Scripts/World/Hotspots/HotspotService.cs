@@ -653,13 +653,12 @@ using GameData.Resources.Scene;
             int tileY = GameData.Resources.World.WorldPlacement.TileOf(_session.PositionY);
             (long x, long y) = TownApproach.DestinationOf(tileX, tileY, offset);
 
-            // ponytail: placed, not walked — the party arrives facing the right way at the right
-            // spot, but without the original's step-by-step approach animation. Upgrade to an
-            // animated travel when the movement seam can be driven toward a destination; the
-            // destination and heading are already the faithful ones.
+            // ponytail: placed, not walked — the party ends at the right spot, but without the
+            // original's step-by-step approach animation. Upgrade to an animated travel when the
+            // movement seam can be driven toward a destination; the end pose is already faithful.
             _session.PositionX = (int)x;
             _session.PositionY = (int)y;
-            _session.Rotation = unchecked((short)heading);
+            _session.Rotation = GameData.Resources.Scene.TownApproach.FacingAfter(heading);
         }
 
         private DefZoneEntry ZoneRecord(TileEventTrigger trigger) =>
