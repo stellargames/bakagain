@@ -24,6 +24,17 @@ namespace BakAgain.Tests.CutScenes {
                 .ToList();
 
         [Test]
+        public void ContinuePlaysTheSceneJustAsStartDoes() {
+            // 0x2000 is anim_script_object_restart (ANIMSCR.C:649): rewind to the scene's start and
+            // arm it; 0x2005 arms without rewinding. From a fresh state both play the scene from its
+            // first frame. g_town's LAMUT-MAIN is the one shipped script that uses it, and skipping
+            // it left LaMut's picture blank (TASK-717).
+            Assert.IsTrue(ScriptProcessor.Plays(CutsceneAction.Start));
+            Assert.IsTrue(ScriptProcessor.Plays(CutsceneAction.Continue));
+            Assert.IsFalse(ScriptProcessor.Plays(CutsceneAction.Stop));
+        }
+
+        [Test]
         public void AnEmptyScriptYieldsNothing() {
             Assert.IsEmpty(Run(string.Empty));
             Assert.IsEmpty(Run(null));

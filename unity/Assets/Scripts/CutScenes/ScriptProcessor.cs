@@ -130,6 +130,14 @@ namespace BakAgain.CutScenes {
             }
         }
 
+        /// <summary>
+        /// Whether a command plays its scene. CONTINUE (0x2000) is <c>anim_script_object_restart</c>
+        /// (ANIMSCR.C:649): rewind to the scene's start, then arm it as START (0x2005) does — so from a
+        /// fresh state both play the scene from its first frame. Only g_town's LAMUT-MAIN ships one.
+        /// </summary>
+        public static bool Plays(CutsceneAction action) =>
+            action == CutsceneAction.Start || action == CutsceneAction.Continue;
+
         private static bool TryProcessSceneCommand(string line, out (CutsceneAction, int) command) {
             command = default;
             try {

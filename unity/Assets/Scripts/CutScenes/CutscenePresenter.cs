@@ -222,6 +222,7 @@ namespace BakAgain.CutScenes {
                     _logger.LogDebug("PlayCutsceneAsync: Start frame for scene {SceneNumber} is {StartFrame}.", sceneNumber, startFrame);
 
                     switch (action) {
+                        case CutsceneAction.Continue:   // a rewind-then-start; see ScriptProcessor.Plays
                         case CutsceneAction.Start:
                             _logger.LogDebug("PlayCutsceneAsync: Calling player.PlayCutScene for scene {SceneNumber} from frame {StartFrame}.", sceneNumber, startFrame);
                             var notCancelled = await player.PlayCutScene(cutsceneResource.Frames, startFrame, attractMode);
@@ -286,7 +287,7 @@ namespace BakAgain.CutScenes {
                             ConditionalLoggingExtensions.LogError(_logger, "PlayCutsceneTagsAsync: SceneNumber {SceneNumber} not found in frame tags. Skipping.", sceneNumber);
                             continue;
                         }
-                        if (action != CutsceneAction.Start) {
+                        if (!ScriptProcessor.Plays(action)) {
                             ConditionalLoggingExtensions.LogWarning(_logger, "PlayCutsceneTagsAsync: Unsupported CutsceneAction '{Action}' for scene {SceneNumber}. Skipping.", action, sceneNumber);
                             continue;
                         }
