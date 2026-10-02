@@ -223,6 +223,8 @@ public class DialogStyleTable : IResource {
             BodyTextPenColor = 0x00,
             TextShadowPenSource = 0x00,
             DefaultArea = LayoutHint.PxRect(65, 66, 1470, 606),
+            // VGA x 13 = 0x0D: dialog_frame_draw draws no border or bevel there (DIALOG.C:346-357).
+            FramelessAtDefaultLeft = true,
             // field_9=field_A=10 VGA px -> canonical (x5).
             TextPadLeft = 50f,
             TextPadRight = 50f,
@@ -288,6 +290,8 @@ public class DialogStyleTable : IResource {
             BodyTextPenColor = 0x00,
             TextShadowPenSource = 0x00,
             DefaultArea = LayoutHint.PxRect(65, 66, 1470, 726),
+            // VGA x 13 = 0x0D: dialog_frame_draw draws no border or bevel there (DIALOG.C:346-357).
+            FramelessAtDefaultLeft = true,
             // field_9=field_A=10 VGA px -> canonical (x5).
             TextPadLeft = 50f,
             TextPadRight = 50f,

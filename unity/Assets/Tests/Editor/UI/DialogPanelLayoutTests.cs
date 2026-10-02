@@ -169,6 +169,22 @@ namespace BakAgain.Tests.Editor.UI {
         }
 
         [Test]
+        public void TheFramelessColumnKeepsTheFillAndDropsBorderAndBevel() {
+            // DIALOG.C:346-357. Measured on the Black Sheep's price quote: the original is flat.
+            DialogStyle style = BoxedStyle();
+            style.FramelessAtDefaultLeft = true;
+            var host = new VisualElement();
+            DialogPanelBuilder.BuildChrome(host, style, null, Palette(), area: style.DefaultArea);
+            Assert.IsNull(host.Q("BakDialogShadow"), "no bevel");
+            Assert.AreEqual(0f, host.Q("BakDialogChrome").style.borderTopWidth.value, "no border");
+
+            var moved = new VisualElement();
+            DialogPanelBuilder.BuildChrome(moved, style, null, Palette(),
+                area: GameData.Resources.Layout.LayoutHint.PxRect(300, 300, 600, 300));
+            Assert.IsNotNull(moved.Q("BakDialogShadow"), "a resized box gets its frame back");
+        }
+
+        [Test]
         public void ANamePillCanBeBuiltOnItsOwn_forALocationSign() {
             // dialog_draw_speech_bubble draws a town scene's "#Romney#" exactly as it draws a
             // speaker (TOWNSCN.C:213), so the sign is the same pill: fill 0x0B, rim 0x0F, ink 0x0A.

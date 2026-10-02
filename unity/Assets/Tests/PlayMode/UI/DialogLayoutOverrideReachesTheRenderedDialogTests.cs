@@ -70,6 +70,18 @@ namespace BakAgain.Tests.PlayMode.UI {
         /// A bordered dialog (the default fallback row 2) wears the override document's chrome
         /// edge width — and still sits at the shipped rect the document never mentioned.
         /// </summary>
+        // Row 2, resized away from VGA x 13 so its frame is drawn.
+        private static DialogEntry FramedEntry() {
+            var entry = new DialogEntry { Flags = DialogEntryFlags.SkipOpenWipe };
+            entry.Actions.Add(new GameData.Resources.Dialog.Actions.ResizeDialogAction {
+                Left = GameData.Resources.Layout.LayoutLength.Px(300f),
+                Top = GameData.Resources.Layout.LayoutLength.Px(300f),
+                Width = GameData.Resources.Layout.LayoutLength.Px(900f),
+                Height = GameData.Resources.Layout.LayoutLength.Px(400f),
+            });
+            return entry;
+        }
+
         [UnityTest]
         public IEnumerator TheChromeEdgeWidth_ComesFromTheOverrideDocument_NotFromABuilderConstant() =>
             UniTask.ToCoroutine(async () => {
@@ -82,8 +94,9 @@ namespace BakAgain.Tests.PlayMode.UI {
                     try {
                         DialogManager manager = Wire(host);
 
-                        // A bare entry resolves to row 2 — bordered, so it builds chrome.
-                        await manager.DisplayEntry(new DialogEntry { Flags = DialogEntryFlags.SkipOpenWipe });
+                        // A bare entry resolves to row 2 — bordered, so it builds chrome. Moved off row 2's own column,
+                        // where the original draws no frame (DIALOG.C:346-357, TASK-735).
+                        await manager.DisplayEntry(FramedEntry());
 
                         VisualElement panel =
                             host.GetComponent<UIDocument>().rootVisualElement.Q("BakDialogPanel");
@@ -97,13 +110,17 @@ namespace BakAgain.Tests.PlayMode.UI {
                             + "reached DialogPanelBuilder");
                         Assert.AreEqual(31f, box.style.borderLeftWidth.value, "all four edges");
 
-                        // Untouched by the document: the panel is still at row 2's shipped rect,
-                        // and the panel shadow still at the shipped offset. A whole-document
+                        // Untouched by the document: the panel shadow still at the shipped offset,
+                        // and an unresized panel still at row 2's shipped rect. A whole-document
                         // replace (rather than a merge) would have lost both.
-                        Assert.AreEqual(new Length(65f, LengthUnit.Pixel), panel.style.left.value,
-                            "the document named no rect, so row 2's shipped one must survive");
                         Assert.AreEqual(-6f, panel.Q("BakDialogShadow").style.translate.value.x.value,
                             "the document named no shadow offset, so the shipped 6 must survive");
+                        manager.ClearDialog();
+                        await manager.DisplayEntry(new DialogEntry { Flags = DialogEntryFlags.SkipOpenWipe });
+                        VisualElement bare =
+                            host.GetComponent<UIDocument>().rootVisualElement.Q("BakDialogPanel");
+                        Assert.AreEqual(new Length(65f, LengthUnit.Pixel), bare.style.left.value,
+                            "the document named no rect, so row 2's shipped one must survive");
                     } finally {
                         Object.DestroyImmediate(host);
                     }
@@ -217,10 +234,10 @@ namespace BakAgain.Tests.PlayMode.UI {
                         DialogManager manager = Wire(host);
                         var callersTree = new VisualElement { name = "CallersOwnTree" };
 
-                        // Same bare entry as the panel test — row 2, bordered, so it builds chrome —
+                        // Same framed entry as the panel test — row 2, moved off its frameless column —
                         // but built into the caller's tree instead of shown through the overlay.
                         VisualElement box = await manager.BuildStyledBoxAsync(
-                            new DialogEntry { Flags = DialogEntryFlags.SkipOpenWipe }, callersTree);
+                            FramedEntry(), callersTree);
 
                         Assert.IsNotNull(box, "BuildStyledBoxAsync built no box at all");
                         VisualElement chrome = box.Q("BakDialogChrome");
@@ -231,9 +248,11 @@ namespace BakAgain.Tests.PlayMode.UI {
                             + "to BuildChrome, which no other test in this fixture would notice");
                         Assert.AreEqual(31f, chrome.style.borderLeftWidth.value, "all four edges");
 
-                        // Untouched by the document: the box is still at row 2's shipped rect, so a
-                        // whole-document replace (rather than a merge) is ruled out here too.
-                        Assert.AreEqual(new Length(65f, LengthUnit.Pixel), box.style.left.value,
+                        // Untouched by the document: an unresized box is still at row 2's shipped
+                        // rect, so a whole-document replace (rather than a merge) is ruled out here too.
+                        VisualElement bareBox = await manager.BuildStyledBoxAsync(
+                            new DialogEntry { Flags = DialogEntryFlags.SkipOpenWipe }, callersTree);
+                        Assert.AreEqual(new Length(65f, LengthUnit.Pixel), bareBox.style.left.value,
                             "the document named no rect, so row 2's shipped one must survive");
                     } finally {
                         Object.DestroyImmediate(host);

@@ -106,7 +106,8 @@ namespace BakAgain.UI {
         // a static so that a mod author's override document reaches it; see Shipped for what a
         // null means.
         public static VisualElement BuildPanel(
-            DialogEntry entry, DialogStyle style, DialogLayout layout, Color[] palette, string resolvedText) {
+            DialogEntry entry, DialogStyle style, DialogLayout layout, Color[] palette, string resolvedText,
+            LayoutHint area = null) {
             // The panel's canonical rect and the label font size are applied
             // by ApplyCanonicalLayout rather than baked in here. BuildPanel
             // only assembles the structure: flex layout, padding, debug
@@ -161,7 +162,7 @@ namespace BakAgain.UI {
                 panel.style.borderLeftWidth = 1;
             }
 
-            AddChrome(panel, style, layout, palette, entry.Flags);
+            AddChrome(panel, style, layout, palette, entry.Flags, area);
             BuildDialogText(panel, entry, style, layout, palette, resolvedText);
 
             return panel;
@@ -193,21 +194,23 @@ namespace BakAgain.UI {
         /// </summary>
         public static void BuildChrome(
             VisualElement panel, DialogStyle style, DialogLayout layout, Color[] palette,
-            DialogEntryFlags flags = DialogEntryFlags.None) =>
-            AddChrome(panel, style, layout, palette, flags);
+            DialogEntryFlags flags = DialogEntryFlags.None, LayoutHint area = null) =>
+            AddChrome(panel, style, layout, palette, flags, area);
 
         private static void AddChrome(VisualElement panel, DialogStyle style, DialogLayout layout,
-            Color[] palette, DialogEntryFlags flags) {
+            Color[] palette, DialogEntryFlags flags, LayoutHint area = null) {
             if (style == null || style is { UsesTexturedFill: false, HasBorder: false, HasDropShadow: false }) {
                 return;
             }
+            // No border and no bevel in the frameless column (DIALOG.C:346-357) — the fill still.
+            bool frame = style.DrawsFrame(area);
 
             layout = Shipped(layout);
 
             // Drop shadow (pen 0 = black): a full-size layer behind the box,
             // nudged down-left so only its left + bottom edges peek out past the
             // border. Added first so the opaque box draws over the rest of it.
-            if (style.HasDropShadow) {
+            if (frame && style.HasDropShadow) {
                 var shadow = new VisualElement {
                     name = "BakDialogShadow",
                     style = {
@@ -265,7 +268,7 @@ namespace BakAgain.UI {
                     box.style.backgroundColor = new StyleColor(StripeFillApprox);
                 }
             }
-            if (style.HasBorder) {
+            if (frame && style.HasBorder) {
                 // Bevelled single border: highlight (ShadowPenColor, e.g. pen 4
                 // gold) on the lit TOP + RIGHT edges, border pen (pen 1, dark
                 // brown) on the shaded LEFT + BOTTOM edges. HasDropShadow is

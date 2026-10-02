@@ -172,6 +172,23 @@ public class DialogStyle {
     public bool HasBorder => BorderPenColor != 0;
 
     /// <summary>
+    /// The row's default column is one the frame is never drawn in.
+    /// </summary>
+    /// <remarks>
+    /// <c>dialog_frame_draw</c> skips both the border and the bevel when the rect's x is
+    /// <c>0x0D</c> (DIALOG.C:346-357), and rows 2 and 5 default there — so an unresized "Normal"
+    /// box or a shop's price quote is a flat panel, while a <c>ResizeDialog</c> that moves it
+    /// brings the frame back. The extractor's knowledge of that column is recorded here as "my
+    /// default left edge", so no consumer needs the VGA coordinate.
+    /// </remarks>
+    public bool FramelessAtDefaultLeft { get; set; }
+
+    /// <summary>Whether the border and bevel are drawn for a box shown at <paramref name="area"/>.</summary>
+    public bool DrawsFrame(Layout.LayoutHint? area) =>
+        !(FramelessAtDefaultLeft && area != null && DefaultArea != null
+          && area.Left.Equals(DefaultArea.Left));
+
+    /// <summary>
     /// True → draw the chrome's 4-line 3D bevel (highlight on top+right in
     /// <see cref="ShadowPenColor"/>, black on left+bottom) AND apply a 1-pixel
     /// inset to the fill/border. Suppressed when the area's <c>x == 0x0D</c>.

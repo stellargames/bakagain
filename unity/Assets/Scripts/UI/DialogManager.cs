@@ -1854,7 +1854,7 @@ namespace BakAgain.UI {
             LayoutApplier.Apply(box, area);
             // The intra-panel geometry (chrome edge widths here) rides on the same resource as the
             // rows, so a mod author's DIALSTYL.json reaches the styled box too.
-            DialogPanelBuilder.BuildChrome(box, style, styleTable.Layout, palette);
+            DialogPanelBuilder.BuildChrome(box, style, styleTable.Layout, palette, area: area);
             host.Add(box);
             _logger.LogDebug(
                 "Built styled box from entry id={EntryId} styleId={StyleId} area=({L},{T},{W},{H})",
@@ -2075,7 +2075,7 @@ namespace BakAgain.UI {
                 }
 
                 _activeArea = area;
-                _activePanel = DialogPanelBuilder.BuildPanel(entry, style, styleTable.Layout, palette, resolved);
+                _activePanel = DialogPanelBuilder.BuildPanel(entry, style, styleTable.Layout, palette, resolved, area);
 
                 // Confirm / choice mode: one button per branch, labelled from
                 // KEYWORD.DAT via the branch's keyword index. These are the
