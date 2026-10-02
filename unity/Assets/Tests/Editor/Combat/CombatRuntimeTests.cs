@@ -1792,6 +1792,73 @@ namespace BakAgain.Tests.Editor.Combat {
         }
 
         [Test]
+        public void APoisonTickFloatsItsDamageAndFlinches() {
+            // combat_arena_poison_tick goes through combat_arena_apply_damage with knockback 2
+            // (COMBAT.C:209), which floats the damage and starts the recoil (COMBAT.C:377-385).
+            (CombatRuntime runtime, Combatant member, Combatant monster) = MeleeFight();
+            monster.Flags |= CombatantFlags.Poisoned;
+            int before = monster.Health + monster.Stamina;
+
+            runtime.AdvanceToPartyTurn(m => runtime.ResolveEnemyTurn(m, Melee(), _ => 99));
+
+            Assert.AreEqual(before - (monster.Health + monster.Stamina), monster.DamageFloat);
+            Assert.AreEqual(2, monster.HitReactionRemap);
+        }
+
+        [Test]
+        public void APoisonResistantClassTakesHalfAndARoundedAwayTickFloatsMiss() {
+            // The tick passes damage flags 1 (COMBAT.C:209), and cbstat_apply_weakness_penalty halves
+            // for a class whose mask has that bit (CBSTAT.C:154): a roll of 1 becomes 0, which floats
+            // "miss" (COMBAT.C:386-389). Measured on a chapter-1 monster in Spice86: "miss", and "1".
+            (CombatRuntime runtime, Combatant member, Combatant monster) = MeleeFight();
+            var table = new GameData.Resources.Combat.CombatAffinityTables("t");
+            for (int i = 0; i <= monster.ClassId; i++) {
+                table.Creatures.Add(new GameData.Resources.Combat.CreatureAffinity { ClassId = i });
+            }
+            table.Creatures[monster.ClassId].ResistanceFlags = 1;
+            runtime.Affinity = table;
+            monster.Flags |= CombatantFlags.Poisoned;
+
+            int ticks = 0;
+            for (int round = 0; round < 12; round++) {
+                int before = monster.Health + monster.Stamina;
+                monster.DamageFloat = null;
+                bool acted = false;
+                runtime.AdvanceToPartyTurn(m => {
+                    acted = true;
+                    runtime.ResolveEnemyTurn(m, Melee(), _ => 99);
+                });
+                runtime.ResolveRest(member);
+                if (!acted) {
+                    continue;   // no turn, so no outgoing tick
+                }
+                ticks++;
+                int lost = before - (monster.Health + monster.Stamina);
+
+                Assert.LessOrEqual(lost, 1, $"round {round}");
+                Assert.AreEqual(lost, monster.DamageFloat, $"round {round}: 0 is the port's \"miss\"");
+            }
+            Assert.GreaterOrEqual(ticks, 4);
+        }
+
+        [Test]
+        public void ALethalPoisonTickKills() {
+            // A tick that empties health dies on the spot (COMBAT.C:407-409), before the pick.
+            (CombatRuntime runtime, Combatant member, Combatant monster) = MeleeFight();
+            monster.Flags |= CombatantFlags.Poisoned;
+
+            // Brought low DURING its turn: health-scaled speed would otherwise never pick it, and
+            // the tick is the outgoing actor's.
+            runtime.AdvanceToPartyTurn(m => {
+                runtime.ResolveEnemyTurn(m, Melee(), _ => 99);
+                m.Stamina = 0;
+                m.Health = 1;
+            });
+
+            Assert.IsTrue(monster.IsDead);
+        }
+
+        [Test]
         public void AnUnpoisonedCombatantIsUntouchedByThePicker() {
             // The discriminating half: if the tick ignored the flag, every fight would bleed.
             //

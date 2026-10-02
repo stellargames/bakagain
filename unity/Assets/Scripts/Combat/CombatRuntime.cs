@@ -82,14 +82,14 @@ namespace BakAgain.Combat {
         /// <para><b>Nothing draws this yet</b> — the tint needs the zone's RMP block applied to the
         /// sprite's palette. The state is faithful and ticked; the picture is TASK-103's next slice.</para>
         /// </remarks>
-        private static void MarkHit(Combatant struck, int dealt) {
+        private static void MarkHit(Combatant struck, int dealt, int remapIndex = HitReaction.BlowRemap) {
             if (struck == null) {
                 return;
             }
             // The floating number (COMBAT.C:382-390): the damage when it is under 1000, else nothing.
             struck.DamageFloat = dealt < 1000 ? System.Math.Max(0, dealt) : (int?)null;
             (CombatantFlags flags, int timer, int remap) =
-                HitReaction.Begin(struck.Flags, HitReaction.BlowRemap);
+                HitReaction.Begin(struck.Flags, remapIndex);
             struck.Flags = flags;
             struck.HitReactionTimer = timer;
             struck.HitReactionRemap = remap;
@@ -1353,13 +1353,29 @@ namespace BakAgain.Combat {
 
             // Poison is a direct attack in PoisonTick's own reading, so the shield and the negation
             // apply to it exactly as they do to a blow.
+            // Damage flags 1: a class with that bit in its masks takes half again, or half.
+            (bool weak, bool resists) = DamageAffinityOf(actor, 1);
             PoisonTick.Result result = PoisonTick.Apply(
-                actor, n => UnityEngine.Random.Range(0, n), absorbPool: AbsorbPoolOf(actor));
+                actor, n => UnityEngine.Random.Range(0, n), absorbPool: AbsorbPoolOf(actor),
+                weakToDamageType: weak, resistsDamageType: resists);
             if (result.Ticked) {
                 CommitAbsorb(actor, result.AbsorbPool);
             }
-            if (result.Damage > 0 && actor.IsPartyMember) {
-                WriteBack(actor);
+            if (result.Damage > 0) {
+                // apply_damage with knockback 2 (COMBAT.C:209): the tick floats and flinches like a
+                // blow, through remap 2, and an emptied health bar dies there (COMBAT.C:377-409).
+                MarkHit(actor, result.Damage, remapIndex: 2);
+                if (actor.IsPartyMember) {
+                    WriteBack(actor);
+                }
+            } else if (result.Ticked && !result.AbsorbPool.HasValue
+                       && actor.ClassId != CombatEncounter.AlwaysActsClassId) {
+                // Halved to nothing: "miss" with no flinch (COMBAT.C:386-389). A shield that soaked
+                // it all, or an immune class, returned before the float.
+                actor.DamageFloat = 0;
+            }
+            if (result.Died) {
+                KillAndSettle(actor);
             }
         }
 
