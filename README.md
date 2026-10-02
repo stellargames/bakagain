@@ -44,6 +44,10 @@ Put replacement assets in an `Overrides/` folder next to the game files. See `un
   of the engine.
 - **canassa**, for [betrayal-at-krondor](https://github.com/canassa/betrayal-at-krondor), a
   reconstruction of the original source.
+- **OpenRakis**, for [Spice86](https://github.com/OpenRakis/Spice86), the PC emulator used to run
+  the original game side by side with the port.
+- **mrexodia**, for [ida-pro-mcp](https://github.com/mrexodia/ida-pro-mcp), the IDA Pro MCP server
+  used for the reverse engineering.
 
 ## License
 
