@@ -1357,7 +1357,7 @@ namespace BakAgain.Combat {
             (bool weak, bool resists) = DamageAffinityOf(actor, 1);
             PoisonTick.Result result = PoisonTick.Apply(
                 actor, n => UnityEngine.Random.Range(0, n), absorbPool: AbsorbPoolOf(actor),
-                weakToDamageType: weak, resistsDamageType: resists);
+                weakToDamageType: weak, resistsDamageType: resists, negated: DamageNegatedFor(actor));
             if (result.Ticked) {
                 CommitAbsorb(actor, result.AbsorbPool);
             }

@@ -58,6 +58,7 @@ public static class PoisonTick {
     /// <param name="absorbPool">Remaining points of an active absorb shield, or null when none.</param>
     /// <param name="weakToDamageType">Creature is weak to poison.</param>
     /// <param name="resistsDamageType">Creature resists poison.</param>
+    /// <param name="negated">Skin of the Dragon is up: the tick is zeroed (COMBAT.C:349-352).</param>
     /// <remarks>
     /// <b>1 or 2 points</b> — <c>RND2(2) + 1</c>, a flat roll with no stat, weapon or level input.
     ///
@@ -71,7 +72,7 @@ public static class PoisonTick {
     /// <para><see cref="CombatEncounter.AlwaysActsClassId"/> is immune, as it is to all damage.</para>
     /// </remarks>
     public static Result Apply(Combatant actor, Func<int, int> rnd, int? absorbPool = null,
-        bool weakToDamageType = false, bool resistsDamageType = false) {
+        bool weakToDamageType = false, bool resistsDamageType = false, bool negated = false) {
         if (actor == null) {
             throw new ArgumentNullException(nameof(actor));
         }
@@ -91,7 +92,7 @@ public static class PoisonTick {
             rolled, actor.Stamina, actor.Health,
             immune: actor.ClassId == CombatEncounter.AlwaysActsClassId,
             applyArmor: false, armorRating: 0,
-            absorbPool: absorbPool, fromDirectAttack: true, negated: false,
+            absorbPool: absorbPool, fromDirectAttack: true, negated: negated,
             weakToDamageType: weakToDamageType, resistsDamageType: resistsDamageType,
             rnd: rnd);
 

@@ -96,6 +96,19 @@ public class PoisonTickTests {
     }
 
     [Fact]
+    public void SkinOfTheDragonZeroesIt() {
+        // source_type 0 with effect 0x17 up: damage = 0 (COMBAT.C:349-352), before the modifiers.
+        Combatant actor = Poisoned(health: 20, stamina: 10);
+
+        PoisonTick.Result result = PoisonTick.Apply(actor, Rolls(1), negated: true);
+
+        Assert.True(result.Ticked);
+        Assert.Equal(0, result.Damage);
+        Assert.Equal(10, actor.Stamina);
+        Assert.Equal(20, actor.Health);
+    }
+
+    [Fact]
     public void TheAlwaysActsClassIsImmune() {
         Combatant actor = Poisoned(health: 20, stamina: 10);
         actor.ClassId = CombatEncounter.AlwaysActsClassId;

@@ -5,6 +5,7 @@ namespace BakAgain.Tests.Editor.Combat {
     using GameData;
     using GameData.Resources.Character;
     using GameData.Resources.Combat;
+    using GameData.Resources.Spells;
     using MeleeAttack = GameData.Resources.Combat.CombatActionDispatch.MeleeAttack;
     using NUnit.Framework;
 
@@ -1839,6 +1840,21 @@ namespace BakAgain.Tests.Editor.Combat {
                 Assert.AreEqual(lost, monster.DamageFloat, $"round {round}: 0 is the port's \"miss\"");
             }
             Assert.GreaterOrEqual(ticks, 4);
+        }
+
+        [Test]
+        public void UnderSkinOfTheDragonAPoisonTickFloatsMissAndTakesNothing() {
+            // Effect 0x17 zeroes source-0 damage (COMBAT.C:349-352); knockback 2 then floats "miss".
+            (CombatRuntime runtime, Combatant member, Combatant monster) = MeleeFight();
+            monster.Flags |= CombatantFlags.Poisoned;
+            runtime.Encounter.Effects.Register(monster, SpellIds.SkinOfTheDragon, investedCost: 1,
+                duration: 50);
+            int before = monster.Health + monster.Stamina;
+
+            runtime.AdvanceToPartyTurn(m => runtime.ResolveEnemyTurn(m, Melee(), _ => 99));
+
+            Assert.AreEqual(before, monster.Health + monster.Stamina);
+            Assert.AreEqual(0, monster.DamageFloat);
         }
 
         [Test]
