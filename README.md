@@ -38,6 +38,13 @@ files skip when it is not present.
 
 Put replacement assets in an `Overrides/` folder next to the game files. See `unity/docs/modding/`.
 
+## Thanks
+
+- **xavieran**, for [BaKGL](https://github.com/xavieran/BaKGL), an open-source reimplementation
+  of the engine.
+- **canassa**, for [betrayal-at-krondor](https://github.com/canassa/betrayal-at-krondor), a
+  reconstruction of the original source.
+
 ## License
 
 - **Code:** MIT (`LICENSE`).
