@@ -859,7 +859,13 @@ namespace BakAgain.UI.InGame {
             _worldView?.Tick();
             // Not in a fight: the arena runs instead of the world loop in the original, and the touch
             // aids' C3 pad (which sets the same held-pad state) moves the combat cursor there.
-            _movementDriver?.Tick(_travelHost != null && _travelHost.IsInputActive && !AFightIsRunning());
+            bool travelling = _travelHost != null && _travelHost.IsInputActive && !AFightIsRunning();
+            if (travelling && _gameSession != null && _gameSession.CameraLiftRequested && !_lifting) {
+                _gameSession.CameraLiftRequested = false;
+                LiftCameraAsync().Forget();
+            }
+            // While lifted the arrows look around instead of walking (the original's loop owns them).
+            _movementDriver?.Tick(travelling && !_lifting);
             // The world's ambient SFX, ticked where the original ticks it — from the world loop.
             // The driver converts frames to game ticks itself, so this passing Time.deltaTime does
             // NOT tie the sound rate to the frame rate.
@@ -1178,6 +1184,73 @@ namespace BakAgain.UI.InGame {
         // Update runs every frame and the exit is asynchronous, so without this the menu
         // transition would be started once per frame until it completed.
         private bool _partyDownExitStarted;
+
+        // ---- The Wooden Chest's lift (ITEMUSE.C itemuse_cam_vert_raise_anim, CMBINV.C:463-466) ----
+
+        private bool _lifting;
+
+        /// <summary>The Wooden Chest's lift sound (<c>audio_sfx_play_n_times(0xc, 0, 0)</c>).</summary>
+        private const int LiftCue = 0x0c;
+
+        /// <summary>
+        /// The camera rises 0x1194 world units and back down, held 35 frames at the top, one height
+        /// per original frame; left/right turn it and up/down tilt it while it is up, and it is put
+        /// back exactly as it was (<c>*g_world_camera = savedCamera</c>).
+        /// </summary>
+        /// <remarks>
+        /// Paced at the rate measured in the original, about 11 s in all
+        /// (<see cref="GameData.Resources.World.CameraLift.MeasuredSecondsPerStep"/>).
+        /// </remarks>
+        private async UniTaskVoid LiftCameraAsync() {
+            BakAgain.World.WorldRuntime world = _resolver?.Resolve(typeof(BakAgain.World.WorldRuntime))
+                as BakAgain.World.WorldRuntime;
+            Camera cam = world?.WorldCamera;
+            if (cam == null || world.Movement == null) {
+                return;
+            }
+            _lifting = true;
+            world.Movement.CameraSuspended = true;
+            Vector3 basePosition = cam.transform.position;
+            Quaternion baseRotation = cam.transform.rotation;
+            float yaw = 0f, pitch = 0f;   // BaK angle units, added to the start pose
+            BakAgain.Audio.MenuSoundService.Instance?.Play(LiftCue);
+            var frame = System.TimeSpan.FromSeconds(GameData.Resources.World.CameraLift.MeasuredSecondsPerStep);
+            try {
+                foreach (int height in GameData.Resources.World.CameraLift.Heights(
+                    GameData.Resources.World.CameraLift.WoodenChestAmplitude,
+                    GameData.Resources.World.CameraLift.WoodenChestApexHold)) {
+                    Vector2 move = _gameplay?.Move ?? Vector2.zero;
+                    if (move.x < -0.5f) {
+                        yaw += GameData.Resources.World.CameraLift.TurnStep;
+                    } else if (move.x > 0.5f) {
+                        yaw -= GameData.Resources.World.CameraLift.TurnStep;
+                    } else if (move.y > 0.5f) {
+                        pitch = Mathf.Max(pitch - GameData.Resources.World.CameraLift.PitchStep,
+                            GameData.Resources.World.CameraLift.PitchMin);
+                    } else if (move.y < -0.5f) {
+                        pitch = Mathf.Min(pitch + GameData.Resources.World.CameraLift.PitchStep,
+                            GameData.Resources.World.CameraLift.PitchMax);
+                    }
+                    const float degreesPerBakUnit = 360f / 65536f;
+                    cam.transform.position = basePosition
+                        + Vector3.up * (height / BakAgain.World.Converters.BakCoordinateConverter.WorldScale);
+                    // Positive BaK yaw turns left (counter-clockwise from above).
+                    cam.transform.rotation = Quaternion.AngleAxis(-yaw * degreesPerBakUnit, Vector3.up)
+                        * baseRotation * Quaternion.AngleAxis(-pitch * degreesPerBakUnit, Vector3.right);
+                    await UniTask.Delay(frame, DelayType.DeltaTime);
+                    if (this == null) {
+                        return;
+                    }
+                }
+            } finally {
+                if (cam != null) {
+                    cam.transform.SetPositionAndRotation(basePosition, baseRotation);
+                }
+                world.Movement.CameraSuspended = false;
+                world.Movement.SyncToCamera();
+                _lifting = false;
+            }
+        }
 
         private TouchControlsView _touchControls;
         private readonly TouchHoldDetector _touchHold = new TouchHoldDetector();

@@ -37,6 +37,9 @@ public sealed class ItemUseContext {
     /// <summary>The chapter being played (<c>g_gameState.nChapter</c>).</summary>
     public int Chapter { get; set; }
 
+    /// <summary>The zone's kind, Z##DEF.DAT's first word — <c>g_game_mode</c>; 2 is underground.</summary>
+    public int ZoneKind { get; set; }
+
     /// <summary>A location (GDS) scene is on screen — the original's <c>g_dialog_in_scene</c>.</summary>
     public bool InLocationScene { get; set; }
 
@@ -124,7 +127,7 @@ public enum ItemUseOutcome {
 public readonly struct ItemUseResult {
     public ItemUseResult(ItemUseOutcome outcome, int dialogId, int dialogVar0, bool sourceRemoved,
         int musicTrack = Audio.MusicPlayback.QueryOnly, int prefaceDialogId = 0,
-        bool opensSpyglassView = false) {
+        bool opensSpyglassView = false, bool raisesCameraOnClose = false) {
         Outcome = outcome;
         DialogId = dialogId;
         DialogVar0 = dialogVar0;
@@ -132,7 +135,14 @@ public readonly struct ItemUseResult {
         MusicTrack = musicTrack;
         PrefaceDialogId = prefaceDialogId;
         OpensSpyglassView = opensSpyglassView;
+        RaisesCameraOnClose = raisesCameraOnClose;
     }
+
+    /// <summary>
+    /// The Wooden Chest's result 0x66: when the inventory screen closes, the camera rises and falls
+    /// (<c>itemuse_cam_vert_raise_anim(0x1194, 0x23)</c>, CMBINV.C:463-466).
+    /// </summary>
+    public bool RaisesCameraOnClose { get; }
 
     /// <summary>
     /// After <see cref="DialogId"/>, show the Brass Spyglass's look-down view
@@ -214,6 +224,8 @@ public static class InventoryUse {
     private const byte ShellId = 16;               // 0x10
     private const byte CupOfRlnnSkrId = 8;
     private const byte BrassSpyglassId = 7;
+    private const byte WoodenChestId = 102;
+    private const int UndergroundZoneKind = 2;
     private const byte GuardaRevancheId = 22;      // 0x16
     private const byte ExoticSwordId = 23;         // 0x17
     private const byte FirstQuarrelId = 36;        // 0x24 Quarrels / Elven / Tsurani
@@ -562,6 +574,18 @@ public static class InventoryUse {
                 return PractiseLute(container, sourceIndex, source, rec, context);
             case CupOfRlnnSkrId:
                 return DrinkFromTheCup(container, sourceIndex, source, rec, context);
+            case WoodenChestId: {
+                // ITEMUSE.C:389-397: outcome 1 (the tail's text and a charge) and result 0x66,
+                // which raises the camera once the inventory closes. Not in a scene, a fight or
+                // underground (g_game_mode 2).
+                if (context == null || context.InCombat || context.InLocationScene
+                    || context.ZoneKind == UndergroundZoneKind) {
+                    return new ItemUseResult(ItemUseOutcome.Handled, NotNowRecord, source.ObjectId, false);
+                }
+                ItemUseResult tail = Tail(container, sourceIndex, rec, ItemUseOutcome.Applied);
+                return new ItemUseResult(tail.Outcome, tail.DialogId, tail.DialogVar0, tail.SourceRemoved,
+                    raisesCameraOnClose: true);
+            }
             case BrassSpyglassId:
                 // ITEMUSE.C:398-405: the item-7 text, then the look-down view, and -1 so the tail
                 // adds nothing. A scene or a fight gets "not the time nor the place" instead.

@@ -1207,6 +1207,9 @@ namespace BakAgain.UI.Inventory {
                     System.Array.IndexOf(_gameSession.ActivePartyIndices ?? System.Array.Empty<byte>(),
                         (byte)character) >= 0,
                 SpellsOfCharacter = character => _gameSession.KnownSpellsOf(character),
+                // g_game_mode: the zone's kind, Z##DEF's first word (2 = underground).
+                ZoneKind = (int)((_resolver?.Resolve(typeof(BakAgain.World.WorldRuntime)) as BakAgain.World.WorldRuntime)
+                    ?.ZoneDefinition?.ZoneLocation ?? 0),
                 // g_dialog_in_scene: a location (GDS) screen is up behind this inventory.
                 InLocationScene = UnityEngine.Object.FindAnyObjectByType<BakAgain.World.Scenes.LocationScreen>()
                     is BakAgain.World.Scenes.LocationScreen location && location.gameObject.activeInHierarchy,
@@ -3771,6 +3774,9 @@ namespace BakAgain.UI.Inventory {
 
             PlayItemUseCue(result.Outcome, slot);
 
+            if (result.RaisesCameraOnClose) {
+                _gameSession.CameraLiftRequested = true;   // the travel screen runs it once this closes
+            }
             if (result.Outcome == ItemUseOutcome.NotPorted) {
                 _logger.LogInformation(
                     "Use of object {Object} (category {Category}) has no ported dispatch branch yet "

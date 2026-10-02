@@ -1974,6 +1974,12 @@ namespace BakAgain.Core {
         /// </remarks>
         public bool HotspotPassRequested { get; set; }
 
+        /// <summary>
+        /// The Wooden Chest's result 0x66: raise the camera once the inventory is closed
+        /// (CMBINV.C:463-466). The travel screen takes it and clears it.
+        /// </summary>
+        public bool CameraLiftRequested { get; set; }
+
         /// <summary>How many dialog plays are in progress (DialogManager brackets each whole play).
         /// A requested hotspot pass waits for zero: the original's dialog is modal.</summary>
         public int DialogsPlaying { get; set; }
