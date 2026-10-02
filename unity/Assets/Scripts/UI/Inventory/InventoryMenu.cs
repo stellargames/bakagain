@@ -1194,6 +1194,11 @@ namespace BakAgain.UI.Inventory {
                 Chapter = _gameSession.Chapter,
                 Zone = _gameSession.CurrentZone,
                 InCombat = InCombat,
+                // The Cup of Rlnn Skr reaches Owyn and Pug by character, in the party or not.
+                IsPartyMember = character =>
+                    System.Array.IndexOf(_gameSession.ActivePartyIndices ?? System.Array.Empty<byte>(),
+                        (byte)character) >= 0,
+                SpellsOfCharacter = character => _gameSession.KnownSpellsOf(character),
             };
         }
 

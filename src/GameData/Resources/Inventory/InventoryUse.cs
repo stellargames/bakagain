@@ -37,6 +37,14 @@ public sealed class ItemUseContext {
     /// <summary>The chapter being played (<c>g_gameState.nChapter</c>).</summary>
     public int Chapter { get; set; }
 
+    /// <summary>Whether a character (character-table index) travels in the active party —
+    /// <c>gstate_is_party_member</c>.</summary>
+    public Func<int, bool>? IsPartyMember { get; set; }
+
+    /// <summary>A character's known-spell bitmap by character-table index, whether or not they are
+    /// in the party — the Cup reaches <c>characters[CHR_OWYN]</c> and <c>[CHR_PUG]</c> directly.</summary>
+    public Func<int, ushort[]?>? SpellsOfCharacter { get; set; }
+
     /// <summary>The zone the party is in (<c>g_gameState.nZoneId</c>).</summary>
     public int Zone { get; set; }
 
@@ -193,6 +201,7 @@ public static class InventoryUse {
     private const byte CrystalStaffId = 1;         // the Raw Manna target
     private const byte RawMannaId = 14;            // 0x0e
     private const byte ShellId = 16;               // 0x10
+    private const byte CupOfRlnnSkrId = 8;
     private const byte GuardaRevancheId = 22;      // 0x16
     private const byte ExoticSwordId = 23;         // 0x17
     private const byte FirstQuarrelId = 36;        // 0x24 Quarrels / Elven / Tsurani
@@ -525,9 +534,10 @@ public static class InventoryUse {
     }
 
     /// <summary>
-    /// Category 25 is a switch on the object id, not a category effect (ITEMUSE.C:386-459). Only
-    /// its two target-directed cases are portable today; the rest (the chest, the spyglass view,
-    /// the lute, Pug's spell sharing) need screens or runtimes the remake lacks.
+    /// Category 25 is a switch on the object id, not a category effect (ITEMUSE.C:386-479). Ported:
+    /// raw manna, the shell, the practice lute and the Cup of Rlnn Skr. Still NotPorted (TASK-705):
+    /// the Wooden Chest (102, a camera raise after the screen closes) and the Brass Spyglass (7, the
+    /// look-south view).
     /// </summary>
     private static ItemUseResult UsableSpecial(RuntimeContainer container, int sourceIndex,
         RuntimeItem source, RuntimeItem? target, ObjectInfo rec, ItemUseContext? context) {
@@ -538,6 +548,8 @@ public static class InventoryUse {
                 return AwakenExoticSwords(container, target, rec, sourceIndex);
             case Audio.MusicSelection.PracticeLuteItemId:
                 return PractiseLute(container, sourceIndex, source, rec, context);
+            case CupOfRlnnSkrId:
+                return DrinkFromTheCup(container, sourceIndex, source, rec, context);
             default:
                 return new ItemUseResult(ItemUseOutcome.NotPorted, 0, 0, false);
         }
@@ -641,6 +653,47 @@ public static class InventoryUse {
         }
         container.Dirty = true;
         return new ItemUseResult(ItemUseOutcome.Handled, UsedRecord, source.ObjectId, removed);
+    }
+
+    /// <summary>Character-table indices (<c>CHR_OWYN</c>, <c>CHR_PUG</c>).</summary>
+    private const int OwynCharacter = 2, PugCharacter = 3;
+
+    /// <summary><c>RND(0x2d)</c>: the spell the Cup teaches Pug is drawn from ids 0..44.</summary>
+    private const int CupSpellRoll = 0x2d;
+
+    /// <summary><c>lEvtArgGoldCost</c>, global 30014 — the Cup's "taught something" for its scene.</summary>
+    private const int EvtArgGoldCostGlobal = 30014;
+
+    /// <summary>
+    /// The Cup of Rlnn Skr (ITEMUSE.C:460-479): with Pug in the party, Pug learns a random spell —
+    /// rolled once more if the first is already known — and then Owyn's and Pug's books become their
+    /// union. Without Pug the outcome stays 0: "nothing happens", and the cup is kept.
+    /// </summary>
+    /// <remarks>
+    /// Whether the roll taught anything is written to <c>lEvtArgGoldCost</c> (0 first, then the
+    /// result), and the item-8 arm of record 0x1B7742 branches on it (var 14 &gt;= 1): the two
+    /// scenes differ in what the joined minds find. The union reaches both characters through the
+    /// character table, as the original does, so it works with Owyn out of the party.
+    /// </remarks>
+    private static ItemUseResult DrinkFromTheCup(RuntimeContainer container, int sourceIndex,
+        RuntimeItem source, ObjectInfo rec, ItemUseContext? context) {
+        if (context?.IsPartyMember == null || context.SpellsOfCharacter == null
+            || context.Random == null) {
+            return new ItemUseResult(ItemUseOutcome.NotPorted, 0, 0, false);
+        }
+        if (!context.IsPartyMember(PugCharacter)) {
+            return new ItemUseResult(ItemUseOutcome.NoEffect, NoEffectRecord, source.ObjectId, false);
+        }
+        ushort[]? pug = context.SpellsOfCharacter(PugCharacter);
+        if (pug == null) {
+            return new ItemUseResult(ItemUseOutcome.NotPorted, 0, 0, false);
+        }
+        context.WriteFlag?.Invoke(EvtArgGoldCostGlobal, 0);
+        bool taught = Spells.SpellBook.Learn(pug, context.Random(CupSpellRoll))
+            || Spells.SpellBook.Learn(pug, context.Random(CupSpellRoll));
+        context.WriteFlag?.Invoke(EvtArgGoldCostGlobal, taught ? 1 : 0);
+        Spells.SpellBook.Share(context.SpellsOfCharacter(OwynCharacter), pug);
+        return Tail(container, sourceIndex, rec, ItemUseOutcome.Applied);
     }
 
     /// <summary>
