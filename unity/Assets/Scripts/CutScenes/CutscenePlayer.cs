@@ -202,10 +202,9 @@ namespace BakAgain.CutScenes {
                 // cutscene's skip layer, so the dismiss routes to the dialog — it never reaches the
                 // cutscene skip layer. No _skipRequested cleanup needed (the old IInputHandler hack).
                 if (request.WaitForInput) {
-                    // The record's own wait bits do not apply here — see NarrativeWaitEntry.
-                    await _dialogManager.ShowEntry(
-                        GameData.Resources.Animation.CutsceneDialogCommand.NarrativeWaitEntry(request.Entry),
-                        _cancellation.Token);
+                    // The command already chose which of the record's wait bits apply — see
+                    // CutsceneDialogCommand.WaitingEntry.
+                    await _dialogManager.ShowEntry(request.Entry, _cancellation.Token);
                 } else {
                     await _dialogManager.DisplayEntry(request.Entry, _cancellation.Token);
                 }

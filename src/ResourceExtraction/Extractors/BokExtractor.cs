@@ -95,10 +95,23 @@ public class BokExtractor : ExtractorBase<BookResource> {
         while (resourceReader.PeekChar() < UpperCharacterLimit) {
             sb.Append(resourceReader.ReadChar());
         }
-        textSegment.Text = sb.ToString();
+        textSegment.Text = BookText(sb.ToString());
 
         return textSegment;
     }
+
+    /// <summary>
+    /// The text as the book renderer lays it out: a newline is never a line break.
+    /// </summary>
+    /// <remarks>
+    /// <c>booktext_layout_line</c> (BOOKTEXT.C:270-363) ends a line only on overflow or a control
+    /// code; '\n' is merely a break opportunity that switches justification off for its line. The
+    /// one shipped newline is C21's trailing "Gorath!\n", which kept as a break became a justified
+    /// line plus an empty one.
+    /// </remarks>
+    // ponytail: a mid-text newline becomes a space and its line stays justified; no shipped
+    // paragraph has one, model the justify-off if one appears.
+    public static string BookText(string raw) => raw.TrimEnd('\n').Replace('\n', ' ');
 
     private static Paragraph StartNewParagraph(BinaryReader resourceReader) {
         var paragraph = new Paragraph {

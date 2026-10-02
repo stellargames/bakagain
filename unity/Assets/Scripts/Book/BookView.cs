@@ -233,23 +233,28 @@ namespace BakAgain.Book {
                 int baseWidth = (int)(page.Width - leftOffset - rightMargin);
                 int firstLineWidth = baseWidth - paragraph.StartIndent;
 
+                // A continuation resumes at a CHARACTER and lays out only the rest — see BookResume.
+                int startChar = isContinuation ? currentLineOffset : 0;
+                IReadOnlyList<TextSegment> segments = startChar > 0
+                    ? BookResume.Tail(paragraph.TextSegments, startChar)
+                    : paragraph.TextSegments;
+
                 string wrappedText;
                 if (page.ReservedAreas.Count > 0) {
                     // Use per-line width calculation for pages with reserved areas
                     wrappedText = BakTextWrapper.WrapParagraphWithReservedAreas(
-                        paragraph.TextSegments, page, paragraph,
-                        (int)(page.YOffset + nextCursorY), fontIndex);
+                        segments, page, paragraph,
+                        (int)(page.YOffset + nextCursorY), fontIndex, continuation: isContinuation);
                 } else {
                     wrappedText = BakTextWrapper.WrapParagraph(
-                        paragraph.TextSegments, baseWidth, firstLineWidth, fontIndex);
+                        segments, baseWidth, isContinuation ? baseWidth : firstLineWidth, fontIndex);
                 }
 
                 // Split wrapped text into lines
                 var allLines = wrappedText.Split('\n');
                 int totalLines = allLines.Length;
 
-                // For continuations, take only lines from currentLineOffset onward
-                int startLine = isContinuation ? currentLineOffset : 0;
+                int startLine = 0;
                 int remainingLines = totalLines - startLine;
 
                 // Check how many lines fit in the remaining page space
@@ -342,8 +347,8 @@ namespace BakAgain.Book {
                     if (isFirstLine && !displacedByReservedArea && paragraph.StartIndent > 0)
                         richText.Append($"<space={paragraph.StartIndent * sx}px>");
 
-                    int charOffset = GetCharOffsetAtLine(wrappedText, absoluteLine, paragraph.TextSegments);
-                    AppendRichText(richText, allLines[absoluteLine], paragraph.TextSegments, palette, charOffset);
+                    int charOffset = GetCharOffsetAtLine(wrappedText, absoluteLine, segments);
+                    AppendRichText(richText, allLines[absoluteLine], segments, palette, charOffset);
 
                     tmp.richText = true;
                     tmp.text = richText.ToString();
@@ -356,7 +361,10 @@ namespace BakAgain.Book {
                 if (paragraphSplit) {
                     // Paragraph was split — next page continues from this paragraph at the split point
                     RenderPageNumber();
-                    return (paragraphIndex, startLine + linesToShow);
+                    // The tail's offset is relative to where this page started; Tail drops leading
+                    // spaces, so map through the full text rather than adding blindly.
+                    return (paragraphIndex, BookResume.Absolute(paragraph.TextSegments, startChar,
+                        GetCharOffsetAtLine(wrappedText, linesToShow, segments)));
                 }
 
                 paragraphIndex++;

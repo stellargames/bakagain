@@ -2508,7 +2508,7 @@ namespace BakAgain.UI {
                 return null; // no preferences yet: behave as Slow and wait for the player
             }
             return GameData.Resources.Config.DialogTextSpeed.AutoDismissSeconds(
-                entry?.Text?.Length ?? 0, prefs.TextSpeed);
+                entry?.Text?.Length ?? 0, prefs.TextSpeed, entry?.Flags ?? 0);
         }
 
         /// <summary>

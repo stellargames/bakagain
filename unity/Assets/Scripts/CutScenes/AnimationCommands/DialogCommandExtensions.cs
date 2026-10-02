@@ -92,7 +92,7 @@ namespace BakAgain.CutScenes.AnimationCommands {
                 return;
             }
 
-            bool waitForInput = GameData.Resources.Animation.CutsceneDialogCommand.WaitsForInput(args.Arg2);
+            bool waitForInput = GameData.Resources.Animation.CutsceneDialogCommand.WaitsForInput(args.Arg2, entry.Flags);
 
             // No area override: per anim_show_dialog at 0x53df0, the original
             // cutscene narrative path (cases 0/3) calls RenderDialogText with
@@ -107,7 +107,9 @@ namespace BakAgain.CutScenes.AnimationCommands {
             // field_3 - 1, speaker name = pen 0x0A / shadow 1) resolve against
             // the same indexed palette the original engine used.
             cutsceneState.RequestedDialogs.Enqueue(new CutsceneDialogRequest {
-                Entry = entry,
+                Entry = waitForInput
+                    ? GameData.Resources.Animation.CutsceneDialogCommand.WaitingEntry(args.Arg2, entry)
+                    : entry,
                 Palette = cutsceneState.CurrentPalette,
                 WaitForInput = waitForInput,
             });

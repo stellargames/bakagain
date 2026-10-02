@@ -64,4 +64,13 @@ public class DialogTextSpeedTests {
             DialogTextSpeed.AutoDismissTicks(0, TextSpeed.Fast),
             DialogTextSpeed.AutoDismissTicks(-5, TextSpeed.Fast));
     }
+
+    [Fact]
+    public void ARecordCarrying0x20NeverTimesOut() {
+        // `while (deadline > g_timer_ticks || (flags & 0x20))` (DIALOG.C:238): with 0x20 the
+        // deadline never ends the wait, whatever the text speed.
+        Assert.Null(DialogTextSpeed.AutoDismissSeconds(100, TextSpeed.Fast,
+            GameData.Resources.Dialog.DialogEntryFlags.KeepAcceptingKeyboard));
+        Assert.NotNull(DialogTextSpeed.AutoDismissSeconds(100, TextSpeed.Fast, 0));
+    }
 }

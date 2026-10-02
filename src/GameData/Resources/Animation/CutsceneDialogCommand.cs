@@ -49,7 +49,7 @@ public static class CutsceneDialogCommand {
     // Arg2 values for a Display command. Named because three of the six wait for input and three do
     // not, and the split is not a range — see WaitsForInput.
     private const int NarrativeWaitInput = 0;
-    private const int SelectFont = 1;
+    private const int ShowByKey = 1;   // dialog_show_by_key with the cursor on; was misread as "select font"
     private const int OpenBook = 2;
     private const int NarrativeAutoAdvance = 3;
     private const int Interactive = 4;
@@ -132,9 +132,28 @@ public static class CutsceneDialogCommand {
         return copy;
     }
 
-    public static bool WaitsForInput(int arg2) => arg2 switch {
+    /// <summary>The record as a waiting Display command shows it.</summary>
+    /// <remarks>
+    /// Mode 0 waits with flags 0 (TTMDLG.C:99), so its record's wait bits are cleared — see
+    /// <see cref="NarrativeWaitEntry"/>. Modes 1 and 4 wait with the RECORD's flags (DIALOG.C:685),
+    /// whose 0x20 is what keeps the line up until the click; stripping it timed C42's lines out.
+    /// </remarks>
+    public static Dialog.DialogEntry WaitingEntry(int arg2, Dialog.DialogEntry record) =>
+        arg2 is ShowByKey or Interactive ? record : NarrativeWaitEntry(record);
+
+    /// <summary>Whether a Display command stops for the player.</summary>
+    /// <remarks>
+    /// Modes 1 and 4 are both <c>dialog_show_by_key(key, 0)</c> (TTMDLG.C:104-117), which waits only
+    /// when the RECORD carries 0x20 and not 0x40 (DIALOG.C:673-686) — the port's names for those
+    /// bits are <see cref="Dialog.DialogEntryFlags.KeepAcceptingKeyboard"/> and
+    /// <see cref="Dialog.DialogEntryFlags.AutoAdvanceTimer"/>. Mode 1 was read as "select font" and
+    /// never waited, so C42's conversation ran fifteen lines past in a few seconds.
+    /// </remarks>
+    public static bool WaitsForInput(int arg2, Dialog.DialogEntryFlags recordFlags) => arg2 switch {
         NarrativeWaitInput => true,
-        Interactive => true,
+        ShowByKey or Interactive =>
+            (recordFlags & Dialog.DialogEntryFlags.KeepAcceptingKeyboard) != 0
+            && (recordFlags & Dialog.DialogEntryFlags.AutoAdvanceTimer) == 0,
         Simple => true,
         _ => false,
     };

@@ -93,14 +93,30 @@ public class CutsceneDialogCommandTests {
 
     [Fact]
     public void WAITINGForInputIsNotARange() {
-        // *** Three of six wait, and they are not contiguous. *** Both `arg2 != 3` and `arg2 >= 4`
-        // look like reasonable simplifications and both are wrong for two of the six modes.
-        Assert.True(CutsceneDialogCommand.WaitsForInput(0));    // narrative, waits
-        Assert.False(CutsceneDialogCommand.WaitsForInput(1));   // select font
-        Assert.False(CutsceneDialogCommand.WaitsForInput(2));   // open book
-        Assert.False(CutsceneDialogCommand.WaitsForInput(3));   // narrative, auto-advances
-        Assert.True(CutsceneDialogCommand.WaitsForInput(4));    // interactive
-        Assert.True(CutsceneDialogCommand.WaitsForInput(5));    // simple
+        // *** Not contiguous. *** Both `arg2 != 3` and `arg2 >= 4` look like reasonable
+        // simplifications and both are wrong.
+        const GameData.Resources.Dialog.DialogEntryFlags none = 0;
+        Assert.True(CutsceneDialogCommand.WaitsForInput(0, none));    // narrative, waits
+        Assert.False(CutsceneDialogCommand.WaitsForInput(2, none));   // open book
+        Assert.False(CutsceneDialogCommand.WaitsForInput(3, none));   // narrative, auto-advances
+        Assert.True(CutsceneDialogCommand.WaitsForInput(5, none));    // dialog_play_record
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(4)]
+    public void MODES1And4WaitOnlyWhenTheRECORDSaysSo(int arg2) {
+        // Both are dialog_show_by_key(key, 0) (TTMDLG.C:104-117), which waits only if the record
+        // carries 0x20 and not 0x40 (DIALOG.C:673-686). C42's conversation is mode 1 with 0x20 on
+        // every line but two: the port treated 1 as "select font", never waited, and ran fifteen
+        // lines past in a few seconds.
+        Assert.True(CutsceneDialogCommand.WaitsForInput(arg2,
+            GameData.Resources.Dialog.DialogEntryFlags.KeepAcceptingKeyboard));
+        Assert.False(CutsceneDialogCommand.WaitsForInput(arg2,
+            GameData.Resources.Dialog.DialogEntryFlags.SkipWait));
+        Assert.False(CutsceneDialogCommand.WaitsForInput(arg2,
+            GameData.Resources.Dialog.DialogEntryFlags.KeepAcceptingKeyboard
+            | GameData.Resources.Dialog.DialogEntryFlags.AutoAdvanceTimer));
     }
 
     [Fact]
@@ -108,8 +124,8 @@ public class CutsceneDialogCommandTests {
         // A cutscene that stops for a keypress nobody knows to give is unrecoverable; one that
         // advances through an unknown mode merely looks wrong. The safe default is the one that
         // keeps playing.
-        Assert.False(CutsceneDialogCommand.WaitsForInput(99));
-        Assert.False(CutsceneDialogCommand.WaitsForInput(-1));
+        Assert.False(CutsceneDialogCommand.WaitsForInput(99, 0));
+        Assert.False(CutsceneDialogCommand.WaitsForInput(-1, 0));
     }
 
     [Fact]
@@ -129,5 +145,26 @@ public class CutsceneDialogCommandTests {
 
         Assert.Equal(GameData.Resources.Dialog.DialogEntryFlags.FixedStripePattern, shown.Flags);
         Assert.True((record.Flags & GameData.Resources.Dialog.DialogEntryFlags.SkipWait) != 0, "the cached record is untouched");
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(4)]
+    public void AShowByKeyLineKeepsTheRecordsFlags(int arg2) {
+        // dialog_show_by_key waits with the RECORD's flags (DIALOG.C:685), and 0x20 there is what
+        // keeps it waiting for the click. Stripping it as mode 0 does timed C42's lines out.
+        var record = new GameData.Resources.Dialog.DialogEntry {
+            Flags = GameData.Resources.Dialog.DialogEntryFlags.KeepAcceptingKeyboard,
+        };
+        Assert.Same(record, CutsceneDialogCommand.WaitingEntry(arg2, record));
+    }
+
+    [Fact]
+    public void ANarrativeLineIsShownWithItsWaitBitsCleared() {
+        var record = new GameData.Resources.Dialog.DialogEntry {
+            Flags = GameData.Resources.Dialog.DialogEntryFlags.KeepAcceptingKeyboard,
+        };
+        Assert.Equal((GameData.Resources.Dialog.DialogEntryFlags)0,
+            CutsceneDialogCommand.WaitingEntry(0, record).Flags);
     }
 }

@@ -141,7 +141,8 @@ namespace BakAgain.Book {
             Paragraph paragraph,
             int paragraphScreenY,
             int fontIndex = 0,
-            int extraCharSpacing = 0
+            int extraCharSpacing = 0,
+            bool continuation = false
         ) {
             var sb = new StringBuilder();
             foreach (var seg in segments)
@@ -152,7 +153,8 @@ namespace BakAgain.Book {
                 return text;
 
             int baseAvailableWidth = page.Width - paragraph.XOffset - paragraph.Width;
-            bool isFirstLine = true;
+            // A continued paragraph's first line on the new page is not its first line: no indent.
+            bool isFirstLine = !continuation;
 
             var result = new StringBuilder(text.Length + text.Length / 40);
             int lineY = paragraphScreenY;

@@ -43,7 +43,13 @@ public static class DialogTextSpeed {
     /// <para>Not modelled: the engine's flag-8 dialogs, which use the timeout even at Slow and
     /// divide it by <c>chapter / 5 + 2</c> so the same text gets briefer as the story runs on.</para>
     /// </summary>
-    public static double? AutoDismissSeconds(int characters, TextSpeed speed) {
+    public static double? AutoDismissSeconds(int characters, TextSpeed speed,
+        Dialog.DialogEntryFlags recordFlags = 0) {
+        // `while (deadline > g_timer_ticks || (flags & 0x20))` (DIALOG.C:238): a record carrying
+        // 0x20 waits for the player whatever the deadline says.
+        if ((recordFlags & Dialog.DialogEntryFlags.KeepAcceptingKeyboard) != 0) {
+            return null;
+        }
         if (speed == TextSpeed.Slow) {
             return null;
         }
