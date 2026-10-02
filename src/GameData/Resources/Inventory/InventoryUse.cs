@@ -37,6 +37,9 @@ public sealed class ItemUseContext {
     /// <summary>The chapter being played (<c>g_gameState.nChapter</c>).</summary>
     public int Chapter { get; set; }
 
+    /// <summary>A location (GDS) scene is on screen — the original's <c>g_dialog_in_scene</c>.</summary>
+    public bool InLocationScene { get; set; }
+
     /// <summary>Whether a character (character-table index) travels in the active party —
     /// <c>gstate_is_party_member</c>.</summary>
     public Func<int, bool>? IsPartyMember { get; set; }
@@ -120,14 +123,22 @@ public enum ItemUseOutcome {
 /// whether the used item left the container (so a caller re-renders rather than re-indexes).</summary>
 public readonly struct ItemUseResult {
     public ItemUseResult(ItemUseOutcome outcome, int dialogId, int dialogVar0, bool sourceRemoved,
-        int musicTrack = Audio.MusicPlayback.QueryOnly, int prefaceDialogId = 0) {
+        int musicTrack = Audio.MusicPlayback.QueryOnly, int prefaceDialogId = 0,
+        bool opensSpyglassView = false) {
         Outcome = outcome;
         DialogId = dialogId;
         DialogVar0 = dialogVar0;
         SourceRemoved = sourceRemoved;
         MusicTrack = musicTrack;
         PrefaceDialogId = prefaceDialogId;
+        OpensSpyglassView = opensSpyglassView;
     }
+
+    /// <summary>
+    /// After <see cref="DialogId"/>, show the Brass Spyglass's look-down view
+    /// (<c>itemuse_view_look_south_modal</c>, ITEMUSE.C:33-78) until a key or button.
+    /// </summary>
+    public bool OpensSpyglassView { get; }
 
     public ItemUseOutcome Outcome { get; }
 
@@ -202,6 +213,7 @@ public static class InventoryUse {
     private const byte RawMannaId = 14;            // 0x0e
     private const byte ShellId = 16;               // 0x10
     private const byte CupOfRlnnSkrId = 8;
+    private const byte BrassSpyglassId = 7;
     private const byte GuardaRevancheId = 22;      // 0x16
     private const byte ExoticSwordId = 23;         // 0x17
     private const byte FirstQuarrelId = 36;        // 0x24 Quarrels / Elven / Tsurani
@@ -550,6 +562,14 @@ public static class InventoryUse {
                 return PractiseLute(container, sourceIndex, source, rec, context);
             case CupOfRlnnSkrId:
                 return DrinkFromTheCup(container, sourceIndex, source, rec, context);
+            case BrassSpyglassId:
+                // ITEMUSE.C:398-405: the item-7 text, then the look-down view, and -1 so the tail
+                // adds nothing. A scene or a fight gets "not the time nor the place" instead.
+                if (context == null || context.InCombat || context.InLocationScene) {
+                    return new ItemUseResult(ItemUseOutcome.Handled, NotNowRecord, source.ObjectId, false);
+                }
+                return new ItemUseResult(ItemUseOutcome.Handled, UsedRecord, source.ObjectId, false,
+                    opensSpyglassView: true);
             default:
                 return new ItemUseResult(ItemUseOutcome.NotPorted, 0, 0, false);
         }

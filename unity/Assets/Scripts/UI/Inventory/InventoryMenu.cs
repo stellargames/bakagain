@@ -269,7 +269,8 @@ namespace BakAgain.UI.Inventory {
             RiftMapScreen riftMap = null,
             BakAgain.Audio.MidiPlaybackManager midi = null,
             BakAgain.Core.Services.IGameClock clock = null,
-            BakAgain.Core.Services.PartyUpkeepService upkeep = null) {
+            BakAgain.Core.Services.PartyUpkeepService upkeep = null,
+            VContainer.IObjectResolver resolver = null) {
             _gameSession = gameSession ?? throw new ArgumentNullException(nameof(gameSession));
             _resources = resources ?? throw new ArgumentNullException(nameof(resources));
             _navigator = navigator ?? throw new ArgumentNullException(nameof(navigator));
@@ -277,6 +278,9 @@ namespace BakAgain.UI.Inventory {
             _dialogs = dialogs ?? throw new ArgumentNullException(nameof(dialogs));
             _upkeep = upkeep;
             _riftMap = riftMap;       // optional: a bare harness has no screens to push
+            // Resolved when the Spyglass is used, not here: the locator screen needs WorldRuntime,
+            // which reaches this menu through LocationScreen, so a constructor link is a cycle.
+            _resolver = resolver;
             _inputStack = inputStack; // quantity-picker modality; optional for bare test harnesses
             // Optional too: without a world on screen a discard still claims and persists its bag,
             // and the next zone build spawns the entity for it.
@@ -288,6 +292,10 @@ namespace BakAgain.UI.Inventory {
         }
 
         private BakAgain.Audio.MidiPlaybackManager _midi;
+        private VContainer.IObjectResolver _resolver;
+
+        private BakAgain.UI.Spells.ILocatorMapView LocatorMap =>
+            _resolver?.Resolve(typeof(BakAgain.UI.Spells.ILocatorMapView)) as BakAgain.UI.Spells.ILocatorMapView;
 
         private BakAgain.Core.Services.IGameClock _clock;
         private BakAgain.Core.Services.PartyUpkeepService _upkeep;
@@ -1199,6 +1207,9 @@ namespace BakAgain.UI.Inventory {
                     System.Array.IndexOf(_gameSession.ActivePartyIndices ?? System.Array.Empty<byte>(),
                         (byte)character) >= 0,
                 SpellsOfCharacter = character => _gameSession.KnownSpellsOf(character),
+                // g_dialog_in_scene: a location (GDS) screen is up behind this inventory.
+                InLocationScene = UnityEngine.Object.FindAnyObjectByType<BakAgain.World.Scenes.LocationScreen>()
+                    is BakAgain.World.Scenes.LocationScreen location && location.gameObject.activeInHierarchy,
             };
         }
 
@@ -2511,6 +2522,11 @@ namespace BakAgain.UI.Inventory {
         /// <see cref="InventoryUse"/> decides whether there is one — it plays once ever, gated on
         /// the map's viewed flag read before that same use writes it.
         /// </remarks>
+        private async UniTaskVoid LookThroughSpyglassAsync(int dialogId, int var0) {
+            await ShowVar0MessageAsync(dialogId, var0);
+            await LocatorMap.RunSpyglassAsync();
+        }
+
         private async UniTaskVoid ShowMapAsync(int prefaceDialogId, int var0) {
             if (prefaceDialogId != 0) {
                 await ShowVar0MessageAsync(prefaceDialogId, var0);
@@ -3767,6 +3783,9 @@ namespace BakAgain.UI.Inventory {
                 // itself and closes when it does, which is the original's shape (it never opened a
                 // navigable screen for this).
                 ShowMapAsync(result.PrefaceDialogId, result.DialogVar0).Forget();
+            } else if (result.OpensSpyglassView && LocatorMap != null) {
+                // The text first, then the view, as ITEMUSE.C:400-401 plays them.
+                LookThroughSpyglassAsync(result.DialogId, result.DialogVar0).Forget();
             } else if (result.DialogId != 0) {
                 if (result.MusicTrack != GameData.Resources.Audio.MusicPlayback.QueryOnly
                         && _midi != null) {

@@ -349,6 +349,12 @@ public static class FieldSpells {
     /// <summary>The inset the world view is clipped to while the locator is open.</summary>
     public static (int X, int Y, int Width, int Height) LocatorViewport => (134, 16, 167, 89);
 
+    /// <summary>The Brass Spyglass's view: the main world viewport, 20 rows taller (ITEMUSE.C:47-50).</summary>
+    public static (int X, int Y, int Width, int Height) SpyglassViewport => (13, 11, 294, 121);
+
+    /// <summary>The Spyglass's camera height, in percent of the zone's maximum (ITEMUSE.C:52, 0x62).</summary>
+    public const int SpyglassHeightPercent = 98;
+
     // ---------------------------------------------------------------- which effect, which text
     // The six timed handlers each own one slot of the running-effects mask and one dialog record.
 

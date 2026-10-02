@@ -70,6 +70,12 @@ namespace BakAgain.UI.Spells {
         private WorldViewportView _worldView;
         private UniTaskCompletionSource _closed;
         private FieldSpells.LocatorTarget _target;
+
+        /// <summary>Showing the Brass Spyglass's view rather than a locator spell's inset.</summary>
+        private bool _spyglass;
+
+        /// <summary>The Spyglass's sound as its view opens (ITEMUSE.C:71, audio_sfx_play_n_times(0x3b)).</summary>
+        private const int SpyglassCue = 0x3b;
         private readonly List<VisualElement> _markers = new List<VisualElement>();
 
         private void Awake() {
@@ -87,6 +93,37 @@ namespace BakAgain.UI.Spells {
             _worldViewport = worldViewport;
             _viewportRegistry = viewportRegistry;
         }
+
+        /// <inheritdoc />
+        /// <remarks>
+        /// The same machinery as a locator spell, with the differences ITEMUSE.C:33-78 makes: the
+        /// whole world viewport (20 rows taller) instead of the inset, the camera at 98% of the
+        /// zone's maximum height, no REQ_CMAP over it, and any arrow key or button closes it
+        /// (<c>dialog_poll_arrow_or_button</c>). Its markers are the valuables search's own scan,
+        /// <c>proxscan_paged_dispatch_all</c>, with no contents check.
+        /// </remarks>
+        public async UniTask RunSpyglassAsync() {
+            _spyglass = true;
+            // Over the inventory it is used from, as the original draws into the open screen; still
+            // under the dialog overlay. Screens share one panel at order 0.
+            // GetComponent, not _document: Awake has not run on a prefab that was never active.
+            UIDocument document = GetComponent<UIDocument>();
+            float order = document != null ? document.sortingOrder : 0f;
+            if (document != null) {
+                document.sortingOrder = SpyglassSortingOrder;
+            }
+            try {
+                Audio.MenuSoundService.Instance?.Play(SpyglassCue);
+                await RunAsync(FieldSpells.LocatorTarget.Valuables);
+            } finally {
+                _spyglass = false;
+                if (document != null) {
+                    document.sortingOrder = order;
+                }
+            }
+        }
+
+        private const float SpyglassSortingOrder = 1f;
 
         /// <inheritdoc />
         public async UniTask RunAsync(FieldSpells.LocatorTarget target) {
@@ -117,7 +154,7 @@ namespace BakAgain.UI.Spells {
             // its own FOV even though it shares the map's projection shift.
             _world?.Environment?.SetOverheadMapMode(
                 _world.WorldCamera, on: true, cameraHeight: CameraHeight(),
-                mapViewHeightVga: FieldSpells.LocatorViewport.Height);
+                mapViewHeightVga: ViewRectVga().Height);
         }
 
         private void OnLoaderBuilt(IReadOnlyList<NavWidget> widgets) {
@@ -135,6 +172,16 @@ namespace BakAgain.UI.Spells {
             // REQ_CMAP carries no ClickArea for the inset, so the rect comes from the spell's own
             // data rather than from the layout — the one place this screen has coordinates at all.
             _worldView.Attach(root, InsetRect());
+            if (_spyglass) {
+                // No REQ_CMAP over the Spyglass, and any click on the view closes it. Its widgets
+                // are the stage's imagebutton_N elements, beside the world view's host.
+                root.Query<VisualElement>().Where(e => e.name != null && e.name.StartsWith("imagebutton_"))
+                    .ForEach(e => {
+                        e.style.display = DisplayStyle.None;
+                        _hiddenForSpyglass.Add(e);
+                    });
+                root.RegisterCallback<PointerDownEvent>(OnSpyglassPointerDown, TrickleDown.TrickleDown);
+            }
             // *** NOT NOW — the inset has no resolved size yet. *** TryProject divides by the host's
             // resolvedStyle width and height, which are 0 until UI Toolkit has laid the screen out,
             // so placing markers here would put every dot in the top-left corner (or reject the lot).
@@ -154,8 +201,8 @@ namespace BakAgain.UI.Spells {
         /// than a field in a resource. <see cref="Canonical"/> carries the same factors the extractor
         /// applies to everything else.
         /// </remarks>
-        private static Rect InsetRect() {
-            (int x, int y, int width, int height) = FieldSpells.LocatorViewport;
+        private Rect InsetRect() {
+            (int x, int y, int width, int height) = ViewRectVga();
 
             return new Rect(
                 x * Canonical.VgaScaleX, y * Canonical.VgaScaleY,
@@ -186,7 +233,16 @@ namespace BakAgain.UI.Spells {
 
         private float CameraHeight() => _world?.ZoneDefinition == null
             ? 0f
-            : _world.ZoneDefinition.MapMaxZ;
+            : _spyglass
+                ? _world.ZoneDefinition.MapMaxZ * FieldSpells.SpyglassHeightPercent / 100f
+                : _world.ZoneDefinition.MapMaxZ;
+
+        private (int X, int Y, int Width, int Height) ViewRectVga() =>
+            _spyglass ? FieldSpells.SpyglassViewport : FieldSpells.LocatorViewport;
+
+        private readonly List<VisualElement> _hiddenForSpyglass = new List<VisualElement>();
+
+        private void OnSpyglassPointerDown(PointerDownEvent evt) => Close();
 
         /// <summary>
         /// Puts a dot on every marked thing.
@@ -332,20 +388,26 @@ namespace BakAgain.UI.Spells {
                 _loader.Built -= OnLoaderBuilt;
             }
             ClearMarkers();
+            foreach (VisualElement child in _hiddenForSpyglass) {
+                child.style.display = StyleKeyword.Null;
+            }
+            _hiddenForSpyglass.Clear();
+            _document?.rootVisualElement?.UnregisterCallback<PointerDownEvent>(
+                OnSpyglassPointerDown, TrickleDown.TrickleDown);
             _worldView?.Dispose();
             _worldView = null;
             // Sky, horizon, fog and far plane before the camera, so the travel view is whole the
             // moment it is shown again.
             _world?.Environment?.SetOverheadMapMode(
                 _world.WorldCamera, on: false, cameraHeight: 0f,
-                mapViewHeightVga: FieldSpells.LocatorViewport.Height);
+                mapViewHeightVga: ViewRectVga().Height);
             _world?.Movement?.SyncToCamera();
         }
 
         // --- IActionHandler ---
 
         public void PrimaryAction(int menuEntryActionId) {
-            if (menuEntryActionId == CloseActionId) {
+            if (_spyglass || menuEntryActionId == CloseActionId) {
                 Close();
             }
         }
@@ -361,7 +423,13 @@ namespace BakAgain.UI.Spells {
 
         public bool WantsText => false;
 
-        public bool OnDirection(NavDirection dir, bool ctrl) => false;
+        public bool OnDirection(NavDirection dir, bool ctrl) {
+            if (!_spyglass) {
+                return false;
+            }
+            Close();   // the Spyglass ends on any arrow key
+            return true;
+        }
 
         public bool OnTab(bool shift) => false;
 

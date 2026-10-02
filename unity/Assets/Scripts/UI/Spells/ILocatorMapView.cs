@@ -14,5 +14,12 @@ namespace BakAgain.UI.Spells {
     public interface ILocatorMapView {
         /// <summary>Shows the inset for one search and returns when the player closes it.</summary>
         UniTask RunAsync(FieldSpells.LocatorTarget target);
+
+        /// <summary>
+        /// The Brass Spyglass's look-down view — <c>itemuse_view_look_south_modal</c> (ITEMUSE.C:33-78):
+        /// the valuables' markers over the world seen from above, in the main viewport, until a key
+        /// or button. Returns when it closes.
+        /// </summary>
+        UniTask RunSpyglassAsync();
     }
 }
