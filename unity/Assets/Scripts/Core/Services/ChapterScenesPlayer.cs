@@ -121,24 +121,27 @@ namespace BakAgain.Core.Services {
                             await ShowChapterSummaryAsync(chapterNr);
                         }
                         ChapterPart part = chapter.Parts[i];
+                        // *** THE CHAPTER BOOK OPENS WITH ITS OWN TRACK -- EVEN WHEN THERE IS NO BOOK. ***
+                        // gmain_play_chapter_intro reads CHAPSONG.DAT and starts the song
+                        // BEFORE showing C<chapter><part>.BOK. Nothing did that here, so the
+                        // chapter intros ran on whatever was already playing.
+                        //
+                        // The loop index IS the original's `part`: it composes the book name as
+                        // C + chapter + part, which is why part 1 is C11.BOK and lands at i = 0.
+                        //
+                        // gmain_play_chapter_intro starts it before bookview_show, which simply fails
+                        // when the part has no book (chapter 8's close plays 1025 over C82.ADS alone).
+                        //
+                        // -999 passes straight through — ChapterSongMap.NoChange and
+                        // MusicPlayback.QueryOnly are the same sentinel, so the four chapters
+                        // that leave the music alone for their second book need no special case.
+                        if (_music != null) {
+                            await _music.PlayTrackAsync(
+                                GameData.Resources.Audio.MusicSelection.ForChapterBook(
+                                    songs, chapterNr, i + 1),
+                                _resources, this);
+                        }
                         if (!string.IsNullOrEmpty(part.Book)) {
-                            // *** THE CHAPTER BOOK OPENS WITH ITS OWN TRACK. ***
-                            // gmain_play_chapter_intro reads CHAPSONG.DAT and starts the song
-                            // BEFORE showing C<chapter><part>.BOK. Nothing did that here, so the
-                            // chapter intros ran on whatever was already playing.
-                            //
-                            // The loop index IS the original's `part`: it composes the book name as
-                            // C + chapter + part, which is why part 1 is C11.BOK and lands at i = 0.
-                            //
-                            // -999 passes straight through — ChapterSongMap.NoChange and
-                            // MusicPlayback.QueryOnly are the same sentinel, so the four chapters
-                            // that leave the music alone for their second book need no special case.
-                            if (_music != null) {
-                                await _music.PlayTrackAsync(
-                                    GameData.Resources.Audio.MusicSelection.ForChapterBook(
-                                        songs, chapterNr, i + 1),
-                                    _resources, this);
-                            }
                             await _navigator.Push((IScreen)_bookView);
                             try {
                                 await _bookPresenter.ShowBookAsync(part.Book);

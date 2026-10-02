@@ -72,16 +72,15 @@ namespace BakAgain.CutScenes {
             try {
                 for (int index = startFrame; index < frames.Count; index++) {
                     Frame frame = frames[index];
-                    await _frameProcessor.ProcessFrameRuntimeAsync(frame.Commands, _cutsceneState, _cancellation.Token);
+                    // A dialog is shown where it sits in the frame, and a sound queued before it
+                    // starts before the wait (TTMDLG.C:84-99).
+                    await _frameProcessor.ProcessFrameRuntimeAsync(frame.Commands, _cutsceneState, _cancellation.Token,
+                        () => {
+                            StartRequestedAudio();
+                            return ProcessDialogRequests();
+                        });
 
-                    // Start any audio that was requested during the frame
-                    while (_cutsceneState.RequestedAudio.Count > 0) {
-                        if (_cutsceneState.RequestedAudio.Dequeue() is { } audioResource) {
-                            StartAudio(audioResource);
-                        }
-                    }
-
-                    // Process any dialog requests from the frame
+                    StartRequestedAudio();
                     await ProcessDialogRequests();
 
                     if (_cutsceneState.EndScene || _skipRequested) {
@@ -161,6 +160,14 @@ namespace BakAgain.CutScenes {
                 await _frameProcessor.HoldPaletteCyclesAsync(_cutsceneState, cancellationToken);
             } catch (OperationCanceledException) {
                 // Cancelled by the player or the owning screen — expected exit path.
+            }
+        }
+
+        private void StartRequestedAudio() {
+            while (_cutsceneState.RequestedAudio.Count > 0) {
+                if (_cutsceneState.RequestedAudio.Dequeue() is { } audioResource) {
+                    StartAudio(audioResource);
+                }
             }
         }
 

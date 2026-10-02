@@ -14,7 +14,8 @@ namespace BakAgain.Core.States {
 
         /// <summary>Which parts to play for the mode, as a start index and a count, clamped to the
         /// parts the chapter has. EndOnly is part 2 alone — <c>gmain_play_chapter_cutscene(n, 2, 1)</c>
-        /// (GMAIN.C:745) — so a one-part chapter closes with nothing.</summary>
+        /// (GMAIN.C:745). A part is a book OR an animation, so only a chapter with neither C&lt;n&gt;2.BOK nor
+        /// C&lt;n&gt;2.ADS closes with nothing.</summary>
         public static (int First, int Count) PartRange(Chapter chapter, ChapterScenesMode mode) {
             if (mode != ChapterScenesMode.EndOnly) {
                 return (0, PartCount(chapter, mode));

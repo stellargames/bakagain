@@ -79,7 +79,7 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
             public bool HitTheBudget { get; private set; }
 
             public UniTask ProcessFrameRuntimeAsync(IEnumerable<FrameCommand> commands,
-                CutsceneState state, CancellationToken cancellationToken) {
+                CutsceneState state, CancellationToken cancellationToken, System.Func<UniTask> showDialogs = null) {
                 cancellationToken.ThrowIfCancellationRequested();
                 foreach (FrameCommand command in commands) {
                     switch (command) {

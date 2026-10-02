@@ -30,7 +30,7 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
             public readonly Dictionary<int, System.Action<CutsceneState>> OnFrame = new();
 
             public UniTask ProcessFrameRuntimeAsync(IEnumerable<FrameCommand> commands,
-                CutsceneState state, CancellationToken cancellationToken) {
+                CutsceneState state, CancellationToken cancellationToken, System.Func<UniTask> showDialogs = null) {
                 cancellationToken.ThrowIfCancellationRequested();
                 // The marker command carries the frame's identity; the loop never looks at it.
                 foreach (FrameCommand c in commands) {

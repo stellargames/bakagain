@@ -60,4 +60,19 @@ public class ChapterCatalogBuilderTests {
         Assert.Equal("C21.BOK", c2.Parts[0].Book);
         Assert.Equal("C21", c2.Parts[0].Animation);
     }
+
+    [Fact]
+    public void Build_KeepsAPartWhoseAnimationShipsWithoutABook() {
+        // Chapter 6 ships C62.ADS but no C62.BOK. gmain_play_chapter_cutscene(6, 2, 1) shows the
+        // book if it opens and plays the ADS regardless (GMAIN.C:348-368), and C62.ADS is the
+        // whole chapter-6 close: it opens C63.BOK itself and plays the elf court. Keying the
+        // part on the book dropped it, so the port closed chapters 2, 4, 6, 7 and 8 with nothing.
+        var present = new HashSet<string> { "CHAPTER6.ADS", "C61.BOK", "C61.ADS", "C62.ADS" };
+        ChapterCatalog catalog = ChapterCatalogBuilder.Build(ChapterCatalog.ResourceId, new FakeProvider(present));
+
+        Chapter c6 = catalog.Chapters[5];
+        Assert.Equal(2, c6.Parts.Count);
+        Assert.Equal(string.Empty, c6.Parts[1].Book);
+        Assert.Equal("C62", c6.Parts[1].Animation);
+    }
 }

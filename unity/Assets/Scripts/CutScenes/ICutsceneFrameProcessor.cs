@@ -5,7 +5,13 @@ namespace BakAgain.CutScenes {
     using System.Threading;
 
     public interface ICutsceneFrameProcessor {
-        UniTask ProcessFrameRuntimeAsync(IEnumerable<FrameCommand> commands, CutsceneState state, CancellationToken cancellationToken);
+        /// <param name="showDialogs">
+        /// Shows the queued dialog requests. Called as soon as a command queues one, so the line is
+        /// up before the rest of the frame runs — the original shows it mid-frame and waits
+        /// (TTMDLG.C:84-99). Null leaves them for the caller after the frame.
+        /// </param>
+        UniTask ProcessFrameRuntimeAsync(IEnumerable<FrameCommand> commands, CutsceneState state,
+            CancellationToken cancellationToken, System.Func<UniTask> showDialogs = null);
 
         UniTask ProcessFrameEditorAsync(IEnumerable<FrameCommand> commands, CutsceneState state, CancellationToken cancellationToken);
 

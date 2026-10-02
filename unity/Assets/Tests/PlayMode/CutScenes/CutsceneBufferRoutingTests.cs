@@ -165,5 +165,33 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
             Assert.AreEqual(Color.red, Sample(_state.GetIndexedBuffer(3)), "and screen buffer 3 was never written");
         }
 
+        [UnityEngine.TestTools.UnityTest]
+        public System.Collections.IEnumerator ADialogIsShownWHEREItSitsInTheFrame_beforeTheCommandsAfterIt() =>
+            Cysharp.Threading.Tasks.UniTask.ToCoroutine(async () => {
+            // ttmscript_show_dialog_action (TTMDLG.C:84-99) presents only the text strip and waits
+            // for the click before the next opcode runs. C71's last frame is "Dialog 149 |
+            // FillArea(whole screen) | FadeOut | EndScene": the port ran the fill first and showed
+            // Arutha's line over black.
+            var processor = new CutsceneFrameProcessor(
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<CutsceneFrameProcessor>.Instance, null);
+            var commands = new System.Collections.Generic.List<GameData.Resources.Animation.FrameCommands.FrameCommand> {
+                new GameData.Resources.Animation.FrameCommands.SetFramesDuration { Amount = 3 },
+                new GameData.Resources.Animation.FrameCommands.DialogCommand { Dialog16Id = 53, Arg2 = 2 },
+                new GameData.Resources.Animation.FrameCommands.SetFramesDuration { Amount = 0 },
+            };
+            int? durationWhenShown = null;
+            // The fixture's 64x64 canvas has mips, so the frame's final present logs a CopyTexture
+            // mismatch; that render is not what this test is about.
+            UnityEngine.TestTools.LogAssert.ignoreFailingMessages = true;
+
+            await processor.ProcessFrameRuntimeAsync(commands, _state, System.Threading.CancellationToken.None,
+                showDialogs: () => {
+                    durationWhenShown ??= _state.FramesDuration;
+                    _state.RequestedDialogs.Clear();
+                    return Cysharp.Threading.Tasks.UniTask.CompletedTask;
+                });
+
+            Assert.AreEqual(3, durationWhenShown, "shown before the command after it ran");
+        });
     }
 }

@@ -38,7 +38,8 @@ namespace BakAgain.CutScenes
         /// <para>A command that throws is logged and the frame carries on. Cancellation is not a
         /// failure and is rethrown, so a skipped cutscene does not log ~40 errors on its way out.</para>
         /// </remarks>
-        private async UniTask RunCommandsAsync(IEnumerable<FrameCommand> commands, CutsceneState state, CancellationToken cancellationToken)
+        private async UniTask RunCommandsAsync(IEnumerable<FrameCommand> commands, CutsceneState state,
+            CancellationToken cancellationToken, Func<UniTask> showDialogs = null)
         {
             state.PrepareBuffers();
 
@@ -57,6 +58,12 @@ namespace BakAgain.CutScenes
                 {
                     _logger.LogError(e, "Exception during frame command execution");
                 }
+                // The screen still holds the last presented frame, which is what the original
+                // shows under the line: C71 blacks out AFTER Arutha's last one, not before it.
+                if (showDialogs != null && state.RequestedDialogs.Count > 0)
+                {
+                    await showDialogs();
+                }
             }
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -65,13 +72,14 @@ namespace BakAgain.CutScenes
             state.RenderOutput();
         }
 
-        public async UniTask ProcessFrameRuntimeAsync(IEnumerable<FrameCommand> commands, CutsceneState state, CancellationToken cancellationToken)
+        public async UniTask ProcessFrameRuntimeAsync(IEnumerable<FrameCommand> commands, CutsceneState state,
+            CancellationToken cancellationToken, Func<UniTask> showDialogs = null)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             double segmentStartTimeReal = Time.realtimeSinceStartupAsDouble;
 
-            await RunCommandsAsync(commands, state, cancellationToken);
+            await RunCommandsAsync(commands, state, cancellationToken, showDialogs);
 
 #if UNITY_EDITOR
             // The frame is drawn and not yet held -- the same point in the loop the emulator-side
