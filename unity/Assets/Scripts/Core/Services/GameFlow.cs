@@ -828,10 +828,14 @@ namespace BakAgain.Core.Services {
             TravelScreen.SetWorldCamera(_world.WorldCamera);
             TravelScreen.SetMovement(_world.Movement);
             TravelScreen.SetWorldLoopSeam(PumpWorldLoop);
-            await _navigator.ResetTo(TravelScreen);
             // The chapter goal is drawn over the loading map with SkipWait (GMAIN.C:178), so nothing
-            // dismissed it: the world taking the screen is what ends it (TASK-496).
+            // dismissed it: the world taking the screen is what ends it (TASK-496). Cleared BEFORE
+            // the swap, not after: ResetTo hides the map first and then awaits the travel screen's
+            // show, and in that gap the caption sat over the bare world -- on a chapter-end load for
+            // the whole run-up to the closing scenes, where the original shows the world without it
+            // (TASK-725).
             _dialogManager.ClearDialog();
+            await _navigator.ResetTo(TravelScreen);
         }
 
         private async UniTask RunExclusive(string name, Func<UniTask> body) {
