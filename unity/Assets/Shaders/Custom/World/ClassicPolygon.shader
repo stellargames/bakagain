@@ -47,6 +47,7 @@ Shader "BakAgain/ClassicPolygon" {
             #pragma fragment frag
             #pragma multi_compile_fog
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
             #include "Assets/Shaders/Custom/World/BakLighting.hlsl"
 
             struct Attributes {
@@ -101,7 +102,14 @@ Shader "BakAgain/ClassicPolygon" {
                 #else
                     output.positionCS.z -= paintNudge;
                 #endif
+                // Vertex colours are the palette's sRGB bytes and Unity does not convert them, so in
+                // Linear colour space they are linearised here or the output encode brightens every
+                // flat face a second time (TASK-747: pen 190 (73,44,24) drew as (146,115,86)).
                 output.color = input.color;
+                #if !defined(UNITY_COLORSPACE_GAMMA)
+                    output.color.rgb = SRGBToLinear(input.color.rgb);
+                    input.mapColor.rgb = SRGBToLinear(input.mapColor.rgb);
+                #endif
                 output.fogCoord = ComputeFogFactor(output.positionCS.z);
                 output.mapColor = input.mapColor;
                 return output;
