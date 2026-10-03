@@ -36,8 +36,12 @@ namespace BakAgain.UI.InGame {
         private bool _subscribed;
         private int _generation;
 
+        /// <summary>HEADS.BMX's empty bowl: the original draws it in every slot past the party size
+        /// (RESBLIT.C:226-229, index CHARACTER_POOL_SIZE), on the travel frame and the inventory.</summary>
+        public const int EmptySlotHeadId = 6;
+
         public PartyHeadsView(GameSession session, IResourceProviderService resources,
-            int placeholderHeadId = -1, int firstActionId = DefaultFirstActionId) {
+            int placeholderHeadId = EmptySlotHeadId, int firstActionId = DefaultFirstActionId) {
             _firstActionId = firstActionId;
             _session = session;
             _resources = resources;

@@ -49,6 +49,29 @@ namespace BakAgain.Tests.UI.InGame {
             Assert.That(resources.LoadCalls, Is.EqualTo(9));
         }
 
+        // RESBLIT.C:226-229: every slot past partySize gets HEADS.BMX#6 (CHARACTER_POOL_SIZE), the
+        // empty bowl. Seen in chapter 6 (Owyn and Pug): the original drew the bowl, the port a black hole.
+        [Test]
+        public void ATwoMemberParty_DrawsTheEmptyBowlInTheThirdSlot() {
+            var session = new GameSession();
+            session.SetActiveParty(2, new byte[] { 2, 1 });
+            var resources = new FakeResourceProviderService();
+            foreach (int id in new[] { 1, 2, 6 }) {
+                resources.Register($"HEADS.BMX#{id}",
+                    Sprite.Create(new Texture2D(1, 1), new Rect(0, 0, 1, 1), Vector2.zero));
+            }
+            var root = new VisualElement();
+            for (int action = 2; action <= 4; action++) {
+                root.Add(new VisualElement { name = $"hotspot_{action}" });
+            }
+            var view = new PartyHeadsView(session, resources);
+            view.Attach(root);
+            view.RenderAsync().Forget();
+
+            Assert.That(root.Q("partyhead_2").style.display.value, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(resources.LoadCalls, Is.EqualTo(3));
+        }
+
         private static (PartyHeadsView, FakeResourceProviderService, VisualElement, GameSession) Build() {
             var session = new GameSession();
             session.SetActiveParty(3, new byte[] { 4, 2, 1 });
