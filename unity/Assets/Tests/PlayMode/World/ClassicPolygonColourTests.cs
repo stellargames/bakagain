@@ -11,6 +11,27 @@ namespace BakAgain.Tests.PlayMode.World {
     public class ClassicPolygonColourTests {
         [Test]
         public void AFlatFaceRendersItsPaletteColour() {
+            Color32 got = Render(new Color32(73, 44, 24, 255), darken: 0f);
+            Assert.That(got.r, Is.InRange(71, 75), $"got {got}");
+            Assert.That(got.g, Is.InRange(42, 46), $"got {got}");
+            Assert.That(got.b, Is.InRange(22, 26), $"got {got}");
+        }
+
+        /// <summary>
+        /// The original darkens by blending each PALETTE entry toward black (docs/specs/lighting-system.md:58),
+        /// i.e. in display space: half darkness is half the palette value. Lerping in linear space left
+        /// night scenes far too bright (c492 at 02:34, darkness 0.77: the port's well roof was 1.6x the
+        /// original's).
+        /// </summary>
+        [Test]
+        public void DarknessScalesThePaletteValue_NotTheLinearOne() {
+            Color32 got = Render(new Color32(73, 44, 24, 255), darken: 0.5f);
+            Assert.That(got.r, Is.InRange(34, 39), $"got {got}");
+            Assert.That(got.g, Is.InRange(20, 24), $"got {got}");
+            Assert.That(got.b, Is.InRange(10, 14), $"got {got}");
+        }
+
+        private static Color32 Render(Color32 c, float darken) {
             var go = new GameObject("quad");
             var camGo = new GameObject("cam");
             var rt = new RenderTexture(8, 8, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
@@ -20,7 +41,7 @@ namespace BakAgain.Tests.PlayMode.World {
                     triangles = new[] { 0, 1, 2, 0, 2, 3 },
                     normals = new[] { Vector3.back, Vector3.back, Vector3.back, Vector3.back },
                 };
-                var c = new Color32(73, 44, 24, 255);
+                Shader.SetGlobalVector("_BakLightDarken", new Vector4(0, 0, 0, darken));
                 mesh.colors32 = new[] { c, c, c, c };
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;
                 go.AddComponent<MeshRenderer>().sharedMaterial = new Material(Shader.Find("BakAgain/ClassicPolygon"));
@@ -39,12 +60,9 @@ namespace BakAgain.Tests.PlayMode.World {
                 var read = new Texture2D(8, 8, TextureFormat.RGBA32, false);
                 read.ReadPixels(new Rect(0, 0, 8, 8), 0, 0);
                 RenderTexture.active = null;
-                Color32 got = read.GetPixel(4, 4);
-
-                Assert.That(got.r, Is.InRange(71, 75), $"got {got}");
-                Assert.That(got.g, Is.InRange(42, 46), $"got {got}");
-                Assert.That(got.b, Is.InRange(22, 26), $"got {got}");
+                return read.GetPixel(4, 4);
             } finally {
+                Shader.SetGlobalVector("_BakLightDarken", Vector4.zero);
                 RenderTexture.active = null;
                 Object.DestroyImmediate(go);
                 Object.DestroyImmediate(camGo);
