@@ -261,16 +261,27 @@ namespace BakAgain.UI.Character {
         /// 0x58060), and splitting it is how a port ends up either highlighting a rating forever or
         /// losing the highlight before the player saw it.
         /// </remarks>
-        private static bool TakeChangeMark(Core.GameSession session, int characterIndex,
-            int attribute) {
+        /// <para><b>Remembered for the rest of the opening</b> (TASK-753): the screen redraws on
+        /// every REQ rebuild, and a second take found the flag already cleared and drew the row plain.
+        /// The original draws once and the red stays up; <see cref="ForgetMarks"/> ends the opening.</para>
+        internal bool TakeChangeMark(Core.GameSession session, int characterIndex, int attribute) {
             int key = CharacterSheetPanelRow.ChangedFlagFor(characterIndex, attribute);
+            if (_takenMarks.TryGetValue(key, out bool taken)) {
+                return taken;
+            }
             bool changed = (session.GetGlobalValue(key) ?? 0) != 0;
             if (changed) {
                 session.SetGlobalValue(key, 0);
             }
+            _takenMarks[key] = changed;
 
             return changed;
         }
+
+        private readonly Dictionary<int, bool> _takenMarks = new();
+
+        /// <summary>The sheet closed: the next opening reads the flags afresh.</summary>
+        internal void ForgetMarks() => _takenMarks.Clear();
 
         private void DrawRating(VisualElement host, int attribute, int value, int maximum,
             bool changed, PaletteResource palette) {

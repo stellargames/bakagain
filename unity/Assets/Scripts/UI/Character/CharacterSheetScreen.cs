@@ -132,6 +132,7 @@ namespace BakAgain.UI.Character {
                 _ui.Built -= OnBuilt;
             }
             _sheet.Clear();
+            _sheet.ForgetMarks();
         }
 
         /// <summary>
@@ -307,6 +308,7 @@ namespace BakAgain.UI.Character {
 
             _bookOpen = true;
             _sheet.Clear();
+            _sheet.ForgetMarks();
             await _book.RenderAsync(stage, page, known, _resources, _palette, _logger);
         }
 

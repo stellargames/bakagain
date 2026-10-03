@@ -167,6 +167,7 @@ namespace BakAgain.UI.Character {
                 _ui.Built -= OnBuilt;
             }
             _sheet.Clear();
+            _sheet.ForgetMarks();
             (_quote?.parent ?? _quote)?.RemoveFromHierarchy();
             _quote = null;
         }

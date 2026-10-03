@@ -29,6 +29,24 @@ namespace BakAgain.Tests.PlayMode.UI.Character {
             _view = new CharacterSheetView();
         }
 
+        // TASK-753. The screen redraws the sheet on every REQ rebuild, and the first draw takes (and
+        // clears) the "improved" marks, so the second drew every row plain. Measured on c740: the
+        // original showed Owyn's 7 marked rows in pen 0x89 for as long as the sheet was open.
+        [Test]
+        public void AMarkTakenOnceStaysShownForTheRestOfTheOpening() {
+            var view = new CharacterSheetView();
+            var session = new GameSession();
+            int key = CharacterSheetPanelRow.ChangedFlagFor(2, 4);
+            session.SetGlobalValue(key, 1);
+
+            Assert.IsTrue(view.TakeChangeMark(session, 2, 4));
+            Assert.AreEqual(0, session.GetGlobalValue(key) ?? 0, "taking it clears the flag, as the original does");
+            Assert.IsTrue(view.TakeChangeMark(session, 2, 4), "a redraw during the same opening still shows it");
+
+            view.ForgetMarks();
+            Assert.IsFalse(view.TakeChangeMark(session, 2, 4), "the next opening sees it cleared");
+        }
+
         [Test]
         public void OnlyTheFirstTwoRatingsAreDrawnAsCurrentOfMaximum() {
             Render();
