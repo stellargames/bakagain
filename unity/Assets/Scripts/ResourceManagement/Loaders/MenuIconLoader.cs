@@ -104,8 +104,8 @@ namespace BakAgain.ResourceManagement.Loaders {
         }
 
         // menu_type_3_4 (0x2b898): a Toggle draws IconBase when on, IconBase+2 when off, and the
-        // highlight (`di` flag) adds +1 — so hovering shows IconBase+1 (on) / IconBase+3 (off),
-        // exactly as an ImageButton swaps to IconBase+1 on hover.
+        // highlight (`di` flag) adds +1 while PRESSED (MENUPAGE.C:168-169) — IconBase+1 (on) /
+        // IconBase+3 (off), exactly as an ImageButton swaps to IconBase+1 while pressed.
         private void ApplyToggleIcon(int actionId, UiElement entry, bool on, bool hovered) {
             if (!_toggleElements.TryGetValue(actionId, out VisualElement icon)) {
                 return;

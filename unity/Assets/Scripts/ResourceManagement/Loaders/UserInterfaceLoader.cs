@@ -548,6 +548,26 @@ namespace BakAgain.ResourceManagement.Loaders {
         /// </remarks>
         internal static int HoverIcon(int baseIcon) => baseIcon < 0 ? baseIcon : baseIcon + 1;
 
+        /// <summary>
+        /// The +1 face is the PRESSED face: lit while the button is held on the entry, put back on
+        /// release or when the pointer leaves.
+        /// </summary>
+        /// <remarks>
+        /// menupage_draw_entries passes <c>(entry == g_pMenuPressAnchor) ? g_wMenuDragSubMode : 0</c>
+        /// (MENUPAGE.C:168-169), and the poll sets the anchor only while the button is down on the
+        /// entry (MENUPAGE.C:438-491). This used to light on hover; the original's combat shield
+        /// stays on its plain face under the pointer. Trickle-down so a Clickable, which captures
+        /// and stops the press, does not hide it.
+        /// </remarks>
+        // ponytail: dragging a held press onto ANOTHER button lights that one in the original (the
+        // anchor follows the hover while held); here only the pressed button lights.
+        internal static void RegisterPressFace(VisualElement element, System.Action<bool> setPressed) {
+            element.RegisterCallback<PointerDownEvent>(_ => setPressed(true), TrickleDown.TrickleDown);
+            element.RegisterCallback<PointerUpEvent>(_ => setPressed(false), TrickleDown.TrickleDown);
+            element.RegisterCallback<PointerLeaveEvent>(_ => setPressed(false));
+            element.RegisterCallback<PointerCaptureOutEvent>(_ => setPressed(false));
+        }
+
         /// <summary>The face an entry wears right now, gate included.</summary>
         /// <remarks>
         /// <see cref="FaceIcon"/> answers the AUTHORED question — the <c>Disabled</c> field the REQ
@@ -1087,15 +1107,13 @@ namespace BakAgain.ResourceManagement.Loaders {
                 // runtime, or SetEntryState's re-raise repaints the lit face over it.
                 _icons.LoadAndApplyIcon(button, LiveFaceIcon(menuEntry, baseIcon));
                 if (menuEntry.Disabled == 0) {
-                    // Hover highlight (the original's `di` flag): IconBase+1 on enter, back on
-                    // leave — but never while gated, because the gate returns before the hover
+                    // Press highlight (the original's `di` flag): IconBase+1 while pressed, back on
+                    // release or leave — see RegisterPressFace — but never while gated, because the gate returns before the hover
                     // frame is computed AND the hit-test that would raise these is off anyway.
-                    button.RegisterCallback<PointerEnterEvent>(_ => _icons.LoadAndApplyIcon(button,
-                        _gated.Contains(menuEntry.ActionId)
-                            ? DisabledButtonIcon
-                            : HoverIcon(BaseIcon())));
-                    button.RegisterCallback<PointerLeaveEvent>(_ => _icons.LoadAndApplyIcon(button,
-                        LiveFaceIcon(menuEntry, BaseIcon())));
+                    RegisterPressFace(button, pressed => _icons.LoadAndApplyIcon(button,
+                        _gated.Contains(menuEntry.ActionId) ? DisabledButtonIcon
+                        : pressed ? HoverIcon(BaseIcon())
+                        : LiveFaceIcon(menuEntry, BaseIcon())));
                 }
             }
             RegisterCursorHover(button, menuEntry);
@@ -1158,14 +1176,12 @@ namespace BakAgain.ResourceManagement.Loaders {
                 activators = {new ManipulatorActivationFilter {button = MouseButton.RightMouse}}
             });
 
-            // Hover highlight (the original's `di` flag in menu_type_3_4): swap to the +1 icon frame
-            // while hovered, re-querying the on/off state so the right frame shows. Disabled entries
+            // Press highlight (the original's `di` flag in menu_type_3_4): swap to the +1 icon frame
+            // while pressed — see RegisterPressFace — re-querying the on/off state so the right frame shows. Disabled entries
             // aren't highlighted in the original (their hit-test is skipped), so skip the swap there.
             if (menuEntry.Disabled == 0) {
-                icon.RegisterCallback<PointerEnterEvent>(_ =>
-                    _icons.SetToggleHovered(menuEntry.ActionId, menuEntry, hovered: true));
-                icon.RegisterCallback<PointerLeaveEvent>(_ =>
-                    _icons.SetToggleHovered(menuEntry.ActionId, menuEntry, hovered: false));
+                RegisterPressFace(icon, pressed =>
+                    _icons.SetToggleHovered(menuEntry.ActionId, menuEntry, hovered: pressed));
             }
 
             RegisterCursorHover(icon, menuEntry);
