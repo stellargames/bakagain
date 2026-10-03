@@ -110,7 +110,7 @@ namespace BakAgain.World {
         /// <summary>The UV window for a camera yaw in degrees: the ring slice the original blits.</summary>
         public void UpdateHeading(float yawDegrees) {
             if (_material == null) return;
-            int yaw16 = Mathf.RoundToInt(yawDegrees / 360f * 65536f) & 0xffff;
+            int yaw16 = GameData.Resources.World.HorizonPanorama.YawFromClockwiseDegrees(yawDegrees);
             _material.mainTextureScale = new Vector2(
                 (float)GameData.Resources.World.HorizonPanorama.VisibleRingFraction(_panelVgaWidth), 1f);
             _material.mainTextureOffset = new Vector2(
