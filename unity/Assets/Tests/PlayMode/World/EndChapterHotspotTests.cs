@@ -130,6 +130,8 @@ namespace BakAgain.Tests.PlayMode.World {
             public void SetActivePalette(Color[] palette) { }
             public UniTask<int> ShowById(int id,
                 System.Threading.CancellationToken cancellationToken = default) => UniTask.FromResult(-1);
+            public UniTask<bool> ShowAcceptOrCancelById(int id, System.Threading.CancellationToken ct = default) =>
+                UniTask.FromResult(false);
             public UniTask<bool> ShowConfirmById(int id,
                 System.Threading.CancellationToken cancellationToken = default) => UniTask.FromResult(false);
             public UniTask<int> ShowChoiceById(int id,

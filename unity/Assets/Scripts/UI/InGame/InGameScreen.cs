@@ -810,29 +810,54 @@ namespace BakAgain.UI.InGame {
         // swappable IMovementDriver.
         /// <summary>
         /// The bookmark quick-save — <c>mainmenu_save_bookmark</c>, reached from the world loop's
-        /// action 0x30.
+        /// action 0x30. The rules (slot, header name, dialogs) are <see cref="BookmarkSave"/>.
         /// </summary>
-        /// <remarks>
-        /// <b>It writes slot 0 of the CURRENT save directory</b>, so it refuses when there is none —
-        /// the button cannot work until the player has saved once, because there is nowhere to put
-        /// the file. The rules (slot, header name, dialogs) are <see cref="BookmarkSave"/>.
-        ///
-        /// <para><b>A failed write says nothing</b>, deliberately: only the success path speaks in
-        /// the original, and the failure is not one the player can act on.</para>
-        /// </remarks>
         private async void SaveBookmark() {
-            if (!BookmarkSave.CanSave(_gameSession != null && _gameSession.HasSaveLocation)) {
-                await _dialogManager.ShowById(BookmarkSave.NoSlotDialog);
+            await SaveBookmarkFlow(_dialogManager, _gameSession != null && _gameSession.HasSaveLocation,
+                async () => {
+                    bool ok = await _saveGameService.SaveAsync(
+                        _gameSession.CurrentSaveDirectory, BookmarkSave.Slot, BookmarkSave.HeaderName);
+                    if (!ok) {
+                        _logger.LogError("Bookmark write failed for {Dir}.", _gameSession.CurrentSaveDirectory);
+                    }
+                    return ok;
+                });
+        }
+
+        /// <summary>
+        /// MAINMENU.C:1450-1499 in order: no directory -> 0x8f; the verify prompt (on by default),
+        /// declined -> 0x14d; accepted -> 0x14e stays drawn while the file is written; then SILENCE on
+        /// success and 0x90 only on failure (TASK-752 — this was inverted, so every good bookmark said
+        /// it could not be saved).
+        /// </summary>
+        internal static async UniTask SaveBookmarkFlow(BakAgain.UI.IDialogManager dialogs, bool hasSaveDirectory,
+            System.Func<UniTask<bool>> write) {
+            if (!BookmarkSave.CanSave(hasSaveDirectory)) {
+                await dialogs.ShowById(BookmarkSave.NoSlotDialog);
                 return;
             }
-            bool ok = await _saveGameService.SaveAsync(
-                _gameSession.CurrentSaveDirectory, BookmarkSave.Slot, BookmarkSave.HeaderName);
+            if (BookmarkSave.VerifiesByDefault) {
+                if (!await dialogs.ShowAcceptOrCancelById(BookmarkSave.VerifyPromptDialog)) {
+                    // Drawn without a wait and left on screen until the world next repaints, which
+                    // without input is never: measured on c740, still up seconds later. Shown here
+                    // as a page the next input dismisses (that input is not also passed to the world).
+                    await dialogs.ShowById(BookmarkSave.VerifyDeclinedDialog);
+                    return;
+                }
+                await DisplayById(dialogs, BookmarkSave.VerifyAcceptedDialog);
+            }
+            bool ok = await write();
+            dialogs.ClearDialog();
             if (!ok) {
-                // Silent by design — see the remark above.
-                _logger.LogError("Bookmark write failed for {Dir}.", _gameSession.CurrentSaveDirectory);
-                return;
+                await dialogs.ShowById(BookmarkSave.WriteFailedDialog);
             }
-            await _dialogManager.ShowById(BookmarkSave.SavedDialog);
+        }
+
+        private static async UniTask DisplayById(BakAgain.UI.IDialogManager dialogs, int id) {
+            GameData.Resources.Dialog.DialogPlay play = await dialogs.ResolveById(id);
+            if (play != null) {
+                await dialogs.DisplayEntry(play);
+            }
         }
 
 

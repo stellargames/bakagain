@@ -46,10 +46,12 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         public virtual UniTask<int> ShowById(int id, System.Threading.CancellationToken ct = default) =>
             UniTask.FromResult(BakAgain.UI.DialogManager.NoDialogResult);
 
-        public UniTask<GameData.Resources.Dialog.DialogPlay> ResolveById(int id,
+        public virtual UniTask<GameData.Resources.Dialog.DialogPlay> ResolveById(int id,
             System.Threading.CancellationToken ct = default) =>
             UniTask.FromResult<GameData.Resources.Dialog.DialogPlay>(null);
 
+        public virtual UniTask<bool> ShowAcceptOrCancelById(int id, System.Threading.CancellationToken ct = default) =>
+            UniTask.FromResult(false);
         public UniTask<bool> ShowConfirmById(int id, System.Threading.CancellationToken ct = default) =>
             UniTask.FromResult(false);
 

@@ -137,6 +137,13 @@ namespace BakAgain.UI {
         UniTask<bool> ShowConfirmById(int id, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Shows a record with no branches and waits for a left click or Activate (true) or a right
+        /// click or Cancel (false) — the original's own key/mouse poll after a non-waiting
+        /// dialog_play_record, as the bookmark's verify prompt does (MAINMENU.C:1456-1475).
+        /// </summary>
+        UniTask<bool> ShowAcceptOrCancelById(int id, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// The same choice path, but answering <b>which</b> branch was taken rather than only
         /// whether it was the first — the flag its <c>FlagCondition</c> carries, or -1 when nothing
         /// could be resolved.

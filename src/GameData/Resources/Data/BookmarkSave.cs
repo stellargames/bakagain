@@ -34,8 +34,13 @@ public static class BookmarkSave {
     /// <summary>Shown when there is no save directory to bookmark into.</summary>
     public const int NoSlotDialog = 0x8f;
 
-    /// <summary>Shown once the bookmark is written.</summary>
-    public const int SavedDialog = 0x90;
+    /// <summary>"The Bookmark could not be saved!" — shown only when the write FAILS.</summary>
+    /// <remarks>
+    /// <b>Corrected 2026-10-03 (TASK-752): this was read as the success line.</b> savegame_write
+    /// returns <c>ok = 1</c> on success (SAVEGAME.C:57-75), and MAINMENU.C:1491-1495 returns on a
+    /// non-zero result before playing 0x90. The record's own text says it is the failure report.
+    /// </remarks>
+    public const int WriteFailedDialog = 0x90;
 
     /// <summary>Shown when the world loop refuses the action outright.</summary>
     /// <remarks>
@@ -45,15 +50,20 @@ public static class BookmarkSave {
     public const int RefusedDialog = 0xe6;
 
     /// <summary>
-    /// <b>A failed write says NOTHING.</b>
+    /// <b>Only a failed write speaks</b>; a good one is silent.
     /// </summary>
     /// <remarks>
-    /// On a write failure the original clears its save-valid flag and returns — no dialog, no retry.
-    /// Only the success path speaks. Worth preserving deliberately rather than "improving" with an
-    /// error box: a port that adds one is adding a message the game never shows, and the failure it
-    /// reports is one the player cannot act on anyway.
+    /// Corrected 2026-10-03 (TASK-752). This said the opposite, from reading <c>savegame_write != 0</c>
+    /// as a failure; it is the success value (SAVEGAME.C:57, <c>ok = 1</c>). On success the routine
+    /// returns with only the verify prompt's "Saving Bookmark..." having shown.
     /// </remarks>
-    public static bool ReportsWriteFailure => false;
+    public static bool ReportsWriteFailure => true;
+
+    /// <summary>
+    /// Whether the verify prompt runs: <c>g_cfgBookmarkVerify</c>, TRUE unless KRONDOR.CFG turns it off
+    /// (CFGPARSE.C:41, 86). The port reads no such file, so it is always on.
+    /// </summary>
+    public static bool VerifiesByDefault => true;
 
     // ---- the optional confirmation ---------------------------------------------------------------
 

@@ -32,10 +32,19 @@ public class BookmarkSaveTests {
     }
 
     [Fact]
-    public void AFAILEDWRITESAYSNOTHING() {
-        // Only the success path speaks. Adding an error box would show a message the game never has,
-        // about a failure the player cannot act on.
-        Assert.False(BookmarkSave.ReportsWriteFailure);
+    public void ONLYAFAILEDWRITESPEAKS() {
+        // savegame_write returns ok = 1 on SUCCESS (SAVEGAME.C:57-75), and MAINMENU.C:1491-1495 returns
+        // on a non-zero result before dialog_play_record(0x90, 1). So a good write is silent and 0x90,
+        // "The Bookmark could not be saved!", is the failure report (TASK-752: the port had it inverted).
+        Assert.True(BookmarkSave.ReportsWriteFailure);
+        Assert.Equal(0x90, BookmarkSave.WriteFailedDialog);
+    }
+
+    [Fact]
+    public void THEVERIFYPROMPTISONBYDEFAULT() {
+        // g_cfgBookmarkVerify = TRUE (CFGPARSE.C:41); only a KRONDOR.CFG token turns it off, and the
+        // port reads no such file.
+        Assert.True(BookmarkSave.VerifiesByDefault);
     }
 
     [Fact]

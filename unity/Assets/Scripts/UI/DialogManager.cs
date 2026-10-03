@@ -1813,6 +1813,37 @@ namespace BakAgain.UI {
             await ShowEntryCore(play.Entry, play, waitForInput: false, renderChoices: false, cancellationToken);
         }
 
+        /// <inheritdoc />
+        public async UniTask<bool> ShowAcceptOrCancelById(int id, CancellationToken cancellationToken = default) {
+            if (!TryEnsureReady()) {
+                return false;
+            }
+            DialogPlay play = await ResolveById(id, cancellationToken);
+            if (play?.Entry == null) {
+                return false;
+            }
+            await ShowEntryCore(play.Entry, play, waitForInput: false, renderChoices: false, cancellationToken);
+            VisualElement scrim = EnsureModalScrim(_rootDocument.rootVisualElement, onTop: true);
+            bool? answer = null;
+            var layer = new BakAgain.UI.InputCore.ActionLayer(LayerIdPrefix + "accept-cancel",
+                () => answer = true, () => answer = false, onMove: _ => { });
+            void OnPointerUp(PointerUpEvent evt) => answer = evt.button == 0;
+            _stack?.Push(layer);
+            scrim.RegisterCallback<PointerUpEvent>(OnPointerUp);
+            try {
+                await UniTask.Yield(PlayerLoopTiming.Update); // not the click that opened it
+                answer = null;
+                while (answer == null && !cancellationToken.IsCancellationRequested && scrim.panel != null) {
+                    await UniTask.Yield(PlayerLoopTiming.Update);
+                }
+            } finally {
+                scrim.UnregisterCallback<PointerUpEvent>(OnPointerUp);
+                _stack?.Remove(layer);
+                ClearDialog();
+            }
+            return answer == true;
+        }
+
         public void ClearDialog() {
             Deactivate();
         }
