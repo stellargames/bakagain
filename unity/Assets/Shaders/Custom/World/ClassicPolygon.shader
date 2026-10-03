@@ -119,9 +119,11 @@ Shader "BakAgain/ClassicPolygon" {
                 // Flat-filled faces take the overhead map's pen remap the same way terrain does
                 // — baked per face, switched globally. See ClassicTerrain for why it is not a lookup.
                 half4 color = lerp(input.color, half4(input.mapColor.rgb, 1.0), _MapMode);
-                color.rgb = ApplyBakLighting(color.rgb);
                 // URP distance fog
                 color.rgb = MixFog(color.rgb, input.fogCoord);
+                // Lighting AFTER fog: the original darkens the whole palette, the fog pens included,
+                // so distant fogged terrain darkens at night like everything else (TASK-761).
+                color.rgb = ApplyBakLighting(color.rgb);
                 return color;
             }
             ENDHLSL

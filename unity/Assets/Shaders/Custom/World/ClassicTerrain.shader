@@ -121,10 +121,12 @@ Shader "BakAgain/ClassicTerrain" {
                 // every zone palette. Texture drops out entirely: the map draws flat fills.
                 color = lerp(color, half4(input.mapColor.rgb, 1.0), _MapMode);
                 color.a = 1.0;
-                color.rgb = ApplyBakLighting(color.rgb);
 
                 // URP distance fog
                 color.rgb = MixFog(color.rgb, input.fogCoord);
+                // Lighting AFTER fog: the original darkens the whole palette, the fog pens included,
+                // so distant fogged terrain darkens at night like everything else (TASK-761).
+                color.rgb = ApplyBakLighting(color.rgb);
                 return color;
             }
             ENDHLSL

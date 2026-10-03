@@ -96,11 +96,13 @@ Shader "BakAgain/ClassicSprite" {
                 half4 color = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv);
                 clip(color.a - _AlphaCutoff);
                 color.rgb = lerp(color.rgb, _FlashColor.rgb, _FlashColor.a);
-                color.rgb = ApplyBakLighting(color.rgb);
                 // The sprite haze when a range is set, else URP distance fog.
                 color.rgb = input.spriteFog >= 0
                     ? lerp(color.rgb, unity_FogColor.rgb, input.spriteFog)
                     : MixFog(color.rgb, input.fogCoord);
+                // Lighting AFTER fog: the original darkens the whole palette, the fog pens included,
+                // so distant fogged terrain darkens at night like everything else (TASK-761).
+                color.rgb = ApplyBakLighting(color.rgb);
                 return color;
             }
             ENDHLSL

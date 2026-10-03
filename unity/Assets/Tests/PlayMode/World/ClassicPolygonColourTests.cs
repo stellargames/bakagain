@@ -60,8 +60,34 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.That(got.b, Is.InRange(38, 42), $"got {got}");
         }
 
+        /// <summary>
+        /// Night darkens the fog too: the original darkens the whole palette, so a far face blended
+        /// toward the fog pen is darkened like everything else. The port mixed fog in AFTER the
+        /// darkness, so distant terrain glowed in the undarkened fog colour at night (TASK-761:
+        /// c781 at 22:00, darkness 0.77, fog (77,65,56)).
+        /// </summary>
+        [Test]
+        public void FarFogIsDarkenedAtNight() {
+            bool fog = RenderSettings.fog; FogMode mode = RenderSettings.fogMode; Color fc = RenderSettings.fogColor;
+            float fs = RenderSettings.fogStartDistance, fe = RenderSettings.fogEndDistance;
+            try {
+                RenderSettings.fog = true;
+                RenderSettings.fogMode = FogMode.Linear;
+                RenderSettings.fogColor = new Color32(80, 60, 40, 255);
+                RenderSettings.fogStartDistance = 0.001f;
+                RenderSettings.fogEndDistance = 0.002f;
+                Color32 got = Render(new Color32(200, 200, 200, 255), darken: 0.5f, perspective: true);
+                Assert.That(got.r, Is.InRange(37, 43), $"got {got}");
+                Assert.That(got.g, Is.InRange(27, 33), $"got {got}");
+                Assert.That(got.b, Is.InRange(17, 23), $"got {got}");
+            } finally {
+                RenderSettings.fog = fog; RenderSettings.fogMode = mode; RenderSettings.fogColor = fc;
+                RenderSettings.fogStartDistance = fs; RenderSettings.fogEndDistance = fe;
+            }
+        }
+
         private static Color32 Render(Color32 c, float darken, string shader = "BakAgain/ClassicPolygon",
-            Vector4? mapColor = null, Color32? texel = null) {
+            Vector4? mapColor = null, Color32? texel = null, bool perspective = false) {
             var go = new GameObject("quad");
             var camGo = new GameObject("cam");
             var rt = new RenderTexture(8, 8, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
@@ -91,7 +117,8 @@ namespace BakAgain.Tests.PlayMode.World {
 
                 var cam = camGo.AddComponent<Camera>();
                 camGo.transform.position = new Vector3(1000, 1000, 0);
-                cam.orthographic = true;
+                cam.orthographic = !perspective;
+                cam.fieldOfView = 30f;
                 cam.orthographicSize = 0.5f;
                 cam.clearFlags = CameraClearFlags.SolidColor;
                 cam.backgroundColor = Color.black;

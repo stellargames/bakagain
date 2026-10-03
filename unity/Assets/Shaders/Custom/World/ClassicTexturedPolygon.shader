@@ -87,9 +87,11 @@ Shader "BakAgain/ClassicTexturedPolygon" {
                 // face VgaColor is the slot INDEX, so the vertex colour is an unrelated pen; multiplying
                 // by it turned chests near-black (TASK-750).
                 half4 color = tex;
-                color.rgb = ApplyBakLighting(color.rgb);
                 // URP distance fog
                 color.rgb = MixFog(color.rgb, input.fogCoord);
+                // Lighting AFTER fog: the original darkens the whole palette, the fog pens included,
+                // so distant fogged terrain darkens at night like everything else (TASK-761).
+                color.rgb = ApplyBakLighting(color.rgb);
                 return color;
             }
             ENDHLSL
