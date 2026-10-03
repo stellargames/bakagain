@@ -160,11 +160,15 @@ namespace BakAgain.UI.Character {
                     left = x,
                     top = y,
                     width = SpellBookPageLayout.TextWidth,
+                    // Centred in the row's 30-line box: textwrap_draw_aligned's flag 0x10
+                    // (TEXTWRAP.C, voff = (max_height - lines * line_height) / 2; CHARSCRN.C:83-87).
+                    height = SpellBookPageLayout.TextHeight,
                     color = colour,
                     whiteSpace = WhiteSpace.Normal,   // the list wraps inside its width
                 },
             };
-            GameFontText.Apply(label, GameFontText.AnchorX.Left, GameFontText.AnchorY.Top);
+            GameFontText.Apply(label, GameFontText.AnchorX.Left, GameFontText.AnchorY.Middle);
+            label.style.unityTextAlign = TextAnchor.MiddleLeft;
             host.Add(label);
             _elements.Add(label);
         }

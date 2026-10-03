@@ -131,6 +131,10 @@ namespace BakAgain.UI.Character {
             if (_ui != null) {
                 _ui.Built -= OnBuilt;
             }
+            _bookScrim?.RemoveFromHierarchy();
+            _bookScrim = null;
+            _bookOpen = false;
+            _book.Clear();
             _sheet.Clear();
             _sheet.ForgetMarks();
         }
@@ -225,6 +229,14 @@ namespace BakAgain.UI.Character {
 
         /// <inheritdoc/>
         public void PrimaryAction(int menuEntryActionId) {
+            // *** ANY INPUT CLOSES THE BOOK. *** charscreen_draw_spell_book_actor waits on
+            // dialog_poll_arrow_or_button (CHARSCRN.C:93-95): any key but an arrow, or any button.
+            // The sheet's entries are hidden under it and must not act (TASK-754).
+            if (_bookOpen) {
+                CloseSpellBook();
+
+                return;
+            }
             int row = SkillEmphasis.RowForAction(menuEntryActionId);
             if (row >= 0) {
                 ToggleEmphasis(row);
@@ -309,7 +321,35 @@ namespace BakAgain.UI.Character {
             _bookOpen = true;
             _sheet.Clear();
             _sheet.ForgetMarks();
+            SetSheetControlsShown(stage, false);
             await _book.RenderAsync(stage, page, known, _resources, _palette, _logger);
+            // The page is the whole screen in the original: a click anywhere dismisses it.
+            _bookScrim = new VisualElement {
+                name = "BakSpellBookScrim",
+                pickingMode = PickingMode.Position,
+                style = { position = Position.Absolute, left = 0, top = 0, right = 0, bottom = 0 },
+            };
+            _bookScrim.RegisterCallback<PointerUpEvent>(_ => CloseSpellBook());
+            GetComponent<UIDocument>()?.rootVisualElement.Add(_bookScrim);
+        }
+
+        private VisualElement _bookScrim;
+
+        /// <summary>The sheet's REQ entries and name plate, hidden while the book is the screen.</summary>
+        private void SetSheetControlsShown(VisualElement stage, bool shown) {
+            if (!shown) {
+                foreach (VisualElement plate in stage.Query<VisualElement>(className: NamePlateClass).ToList()) {
+                    plate.RemoveFromHierarchy();
+                }
+            }
+            if (_ui?.CurrentNavWidgets == null) {
+                return;
+            }
+            foreach (BakAgain.UI.InputCore.NavWidget widget in _ui.CurrentNavWidgets) {
+                if (widget?.Element != null) {
+                    widget.Element.style.visibility = shown ? StyleKeyword.Null : Visibility.Hidden;
+                }
+            }
         }
 
         /// <summary>Whether the book is showing instead of the sheet.</summary>
@@ -319,8 +359,17 @@ namespace BakAgain.UI.Character {
 
         /// <summary>Puts the sheet back after the book.</summary>
         private void CloseSpellBook() {
+            if (!_bookOpen) {
+                return;
+            }
             _bookOpen = false;
+            _bookScrim?.RemoveFromHierarchy();
+            _bookScrim = null;
             _book.Clear();
+            VisualElement stage = Stage();
+            if (stage != null) {
+                SetSheetControlsShown(stage, true);
+            }
             DrawAsync().Forget();
         }
 
