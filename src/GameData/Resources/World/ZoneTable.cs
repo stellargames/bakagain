@@ -565,10 +565,8 @@ public class GidRegion
     /// <summary>+0x04 (i16). Z value at the slope's anchor when the query point lies inside
     /// this region. Read at IDA 0x29eaa (flat) and 0x2a100 (sloped). The runtime then
     /// shifts by <c>worldItem.shiftScale</c> and adds <c>worldItem.z</c>.
-    /// Extracted value carries the ×1.2 world-up aspect bake applied to DAT vertices and bboxes
-    /// (see ZoneTableExtractor.WorldUpAspectScale) — this is a world-up Z, so it must stretch with
-    /// the geometry it describes. Added 2026-07-20; previously shipped unscaled, leaving every
-    /// elevation 20% below its own surface.</summary>
+    /// The file's own value: the 2026-07-20 world-up ×1.2 bake was removed with the vertex bake in
+    /// TASK-762 (the camera carries the VGA aspect), so it stays level with its geometry.</summary>
     public short BaseElevation { get; set; }
 
     /// <summary>+0x03 (u8). Slope-correction scale exponent. 0 = no slope contribution.
@@ -634,10 +632,8 @@ public class GidSubedge
 /// </summary>
 public class GidSlopePlane
 {
-    /// <summary>+0x00 (i8). X gradient coefficient. Carries the ×1.2 world-up aspect bake
-    /// (2026-07-20): the gradient term is a Z value like BaseElevation, so scaling only the base
-    /// would pivot the ramp about its anchor instead of stretching it. Quantisation across the 95
-    /// shipped sloped regions is ≤1.5%.</summary>
+    /// <summary>+0x00 (i8). X gradient coefficient, the file's own value (no world-up bake since
+    /// TASK-762).</summary>
     public sbyte A { get; set; }
 
     /// <summary>+0x01 (i8). Y gradient coefficient. Scaled with <see cref="A"/>; scaling both

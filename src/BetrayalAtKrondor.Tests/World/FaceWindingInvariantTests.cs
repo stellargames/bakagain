@@ -31,7 +31,7 @@ using Xunit;
 ///
 /// <para>The uniform sign is negative because vertex order runs opposite the stored normal's
 /// direction; that is a convention, not an inconsistency, and a fixed convention is exactly what
-/// culling needs. Note the extractor's per-axis scaling (VertexScale, plus the ×1.2 world-up aspect)
+/// culling needs. Note the extractor's per-axis scaling (VertexScale)
 /// is all POSITIVE, so it preserves orientation and cannot flip this sign.</para>
 /// </remarks>
 public class FaceWindingInvariantTests {

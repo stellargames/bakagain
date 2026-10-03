@@ -139,7 +139,7 @@ namespace BakAgain.World.Converters {
                     var pv = new Vector3[pool.Count];
                     for (int i = 0; i < pool.Count; i++) {
                         var v = pool[i];
-                        // Pools ship pre-scaled (extractor bakes VertexScale + the world-up aspect),
+                        // Pools ship pre-scaled (extractor bakes VertexScale),
                         // so this is a pure axis swap + world-scale divide.
                         pv[i] = BakCoordinateConverter.ConvertPosition(v.X, v.Y, v.Z);
                     }

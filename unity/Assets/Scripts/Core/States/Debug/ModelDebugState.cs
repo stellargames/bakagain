@@ -814,8 +814,8 @@ namespace BakAgain.Core.States.Debug {
 
             // GID polygons live in entity-local map space (X, Y planar; elevation as BaK Z) and,
             // unlike DAT vertices/bbox, are NOT pre-scaled by the extractor — so the 2^VertexScale
-            // shift is still applied here. Elevations already carry the ×1.2 world-up bake, and
-            // ×1.2-then-shift equals shift-then-×1.2, so the overlay stays aligned with the mesh.
+            // shift is still applied here. Elevations are taken literally (no world-up bake
+            // since TASK-762), so the overlay stays aligned with the mesh.
             int vertexScale = 1 << dat.VertexScale;
             bool sloped = gid.IsSloped;
 
