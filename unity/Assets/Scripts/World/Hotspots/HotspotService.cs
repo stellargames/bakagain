@@ -2716,12 +2716,17 @@ using GameData.Resources.Scene;
             // enters when the cursor is over a reachable enemy. Nothing armed and nothing aimable
             // under the cursor leaves the parchment down, which is where the actor stats panel goes
             // when it lands (TASK-241).
+            // Inspect arms stateA = 3 and nothing else, so the loop keeps drawing the acting
+            // member's stats (COMBAT.C:2062-2067, 2552-2558): straight to the default panel, with
+            // no melee preview (that is stateA == 0's).
+            bool inspecting = _pendingCombatMode
+                == GameData.Resources.Combat.CombatCommandOutcome.PendingMode.InspectTarget;
             if (_pendingCombatMode
-                != GameData.Resources.Combat.CombatCommandOutcome.PendingMode.None) {
+                != GameData.Resources.Combat.CombatCommandOutcome.PendingMode.None && !inspecting) {
                 return (null, null);
             }
 
-            var melee = MeleePanelContent(acting, target);
+            var melee = inspecting ? (null, null) : MeleePanelContent(acting, target);
             // Set from the SAME call that decides the panel, so the ring and the prompt cannot
             // disagree about whether this click would land. Cleared when it would not.
             _targetHighlightCell = melee.Item1 != null && target != null

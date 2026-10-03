@@ -184,6 +184,29 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
                 "the spell is still armed, so pointing at the enemy still aims it");
         }
 
+        [Test]
+        public void ArmingInspectKeepsTheActingMembersStatsOnTheParchment() {
+            // Case 47 only sets stateA = 3; with no spell chosen the turn loop keeps drawing
+            // combat_actor_draw_stats_panel(g_current_actor) (COMBAT.C:2062-2067, 2552-2558).
+            // Measured in the zone-1 ambush: the original kept Locklear's stats, the port blanked them.
+            Rig rig = Build();
+            Assert.IsTrue(rig.Service.StartCombat(CombTrigger()));
+            CombatEncounter fight = rig.Service.Combat.Encounter;
+            for (int i = 0; i < 4 && (fight.Current == null || !fight.Current.IsPartyMember); i++) {
+                fight.EndTurn();
+                fight.PickNext();
+            }
+            Assert.IsTrue(fight.Current?.IsPartyMember ?? false, "the fixture needs a party member's turn");
+
+            rig.Service.OnCombatCommandForTest(CombatCommands.Command.Inspect, CombatCommands.InspectId);
+            Assert.AreEqual(CombatCommandOutcome.PendingMode.InspectTarget, rig.Service.PendingModeForTest,
+                "the control: Inspect really is armed");
+
+            var panel = rig.Service.CombatPanelContent(-1, partyMember: false);
+            Assert.IsNotNull(panel.Lines, "the stats stay up while an enemy is being picked");
+            Assert.IsNotEmpty(panel.Lines);
+        }
+
         /// <summary>
         /// <b>Spending a turn leaves NOTHING armed</b> — the other half of the rule TASK-546 kept.
         /// </summary>
