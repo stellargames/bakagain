@@ -69,6 +69,9 @@ namespace BakAgain.UI.InGame {
         private readonly IPointer _pointer;
         private readonly System.Func<float> _deltaSeconds;
         private int _heldAction = -1;
+        // The held action came from a REQ compass arrow (touch or mouse): that arrow's own click
+        // takes a tap's step on release, so the press must not take one too.
+        private bool _heldIsReqArrow;
         private float _secondsUntilRepeat;
 
         /// <param name="deltaSeconds">Seconds since the previous tick. Defaults to
@@ -108,7 +111,7 @@ namespace BakAgain.UI.InGame {
                 _secondsUntilRepeat = RepeatDelaySeconds;
                 // A held REQ arrow's first step is its own click, on release — stepping here too
                 // would make every tap two steps.
-                if (!IsHeldReqArrow(action)) {
+                if (!_heldIsReqArrow) {
                     Apply(action);
                 }
                 return;
@@ -118,8 +121,8 @@ namespace BakAgain.UI.InGame {
                 return;
             }
             Apply(action);
-            if (IsHeldReqArrow(action)) {
-                TouchInputState.Instance.SwallowNextArrowClick = true;   // the release must not add a step
+            if (_heldIsReqArrow && TouchInputState.Instance is TouchInputState state) {
+                state.SwallowNextArrowClick = true;   // the release must not add a step
             }
             // One action per tick at most, and a long frame does not queue the steps it missed —
             // a hitch should cost a step, not replay several at once.
@@ -138,6 +141,7 @@ namespace BakAgain.UI.InGame {
         // The movement action currently held: a held arrow key, else the movement button the pointer
         // is held over (REQ_MAIN ImageButtons are named "imagebutton_{ActionId}"). -1 if none.
         private int ResolveHeldMovementAction() {
+            _heldIsReqArrow = false;
             Vector2 move = _gameplay.Move;
             const float dead = 0.5f;
             if (move.y > dead) return MoveForward;
@@ -148,6 +152,7 @@ namespace BakAgain.UI.InGame {
             // A finger held on a touch pad or compass arrow, as UI Toolkit's pointer events saw it.
             int touchHeld = TouchInputState.Instance?.TakeTouchAction() ?? -1;
             if (IsMovementAction(touchHeld)) {
+                _heldIsReqArrow = IsHeldReqArrow(touchHeld);
                 return touchHeld;
             }
 
@@ -164,8 +169,11 @@ namespace BakAgain.UI.InGame {
                 // REQ_MAIN's own arrows, and the touch aids' pads (TouchControlsView), which reuse this
                 // pick — and so the original's hold-to-repeat — by carrying the same action id.
                 for (VisualElement el = panel.Pick(panelPos); el != null; el = el.parent) {
-                    if (TryMovementAction(el.name, "imagebutton_", out int aid)
-                        || TryMovementAction(el.name, "touchpad_", out aid)) {
+                    if (TryMovementAction(el.name, "imagebutton_", out int aid)) {
+                        _heldIsReqArrow = true;   // a mouse on the REQ arrow: its click steps (TASK-739)
+                        return aid;
+                    }
+                    if (TryMovementAction(el.name, "touchpad_", out aid)) {
                         return aid;
                     }
                 }
