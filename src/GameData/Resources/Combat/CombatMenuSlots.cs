@@ -164,6 +164,15 @@ public static class CombatMenuSlots {
         PageOfSlot(slotIndex) == currentPage && quarrelsOfThatKind != 0;
 
     /// <summary>
+    /// Whether an UNCLAIMED cell is drawn as the blank stone: only on the page being shown.
+    /// </summary>
+    /// <remarks>shootmenu_rebuild gives the empty cells action -1/-2 and makes the one equal to
+    /// <c>-page</c> active with its enable gate set (COMBAT.C), which widget_menu_draw paints as the
+    /// bare disc (TASK-758). The other page's empty cells are not drawn.</remarks>
+    public static bool EmptyCellShowsBlankStone(int slotIndex, int currentPage) =>
+        PageOfSlot(slotIndex) == currentPage;
+
+    /// <summary>
     /// Packs the kinds an actor carries into cells, the way <c>shootmenu_rebuild</c> does.
     /// </summary>
     /// <param name="quarrelsOfKind">How many of each of the eight kinds the actor holds.</param>

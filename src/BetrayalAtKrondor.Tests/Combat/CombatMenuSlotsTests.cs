@@ -138,4 +138,15 @@ public class CombatMenuSlotsTests {
         Assert.NotEqual(CombatMenuSlots.NeverActivatedActionId,
             CombatMenuSlots.DistinctEnableGateActionId);
     }
+
+    [Fact]
+    public void AnEmptyCellOnTheShownPageIsABlankStone_NotAHole() {
+        // shootmenu_rebuild (COMBAT.C): unclaimed cells get action -1 (first four) or -2 (last four);
+        // the one matching -page is ACTIVE with its enable gate set, i.e. drawn as the blank stone
+        // 0x32 and not clickable. The port hid them, showing the travel HUD through (TASK-758).
+        Assert.True(CombatMenuSlots.EmptyCellShowsBlankStone(0, CombatMenuSlots.FirstPage));
+        Assert.True(CombatMenuSlots.EmptyCellShowsBlankStone(3, CombatMenuSlots.FirstPage));
+        Assert.False(CombatMenuSlots.EmptyCellShowsBlankStone(4, CombatMenuSlots.FirstPage));
+        Assert.True(CombatMenuSlots.EmptyCellShowsBlankStone(4, CombatMenuSlots.SecondPage));
+    }
 }

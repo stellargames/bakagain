@@ -221,15 +221,36 @@ namespace BakAgain.UI.Combat {
 
                     bool live = CombatMenuSlots.QuarrelIsAvailable(cell, _page,
                         _quarrelsOfKind[CombatMenuSlots.QuarrelKindFor(actionId)]);
+                    _ui.SetEntryGate(actionId, false);
                     _ui.SetEntryState(actionId, live, live);
                 }
 
-                // Everything the actor is not carrying: hidden wherever the file put it. Done after
-                // the packed pass so a kind that IS carried is never hidden by its own authored twin.
+                // *** AN EMPTY CELL IS A BLANK STONE, NOT A HOLE. *** shootmenu_rebuild leaves the
+                // shown page's unclaimed cells active with the enable gate set — the bare disc,
+                // unclickable (CombatMenuSlots.EmptyCellShowsBlankStone). Hiding them showed the
+                // travel HUD's buttons through (TASK-758). An unclaimed quarrel entry is parked on
+                // each such cell and gated; the rest stay hidden. There are always enough: k kinds
+                // carried leaves 8-k ids for at most 8-k empty cells.
+                var spare = new Queue<int>();
                 foreach (int actionId in CombatMenuSlots.ActionIdByQuarrelKind) {
                     if (Array.IndexOf(_cells, actionId) < 0) {
-                        _ui.SetEntryState(actionId, false, false);
+                        spare.Enqueue(actionId);
                     }
+                }
+                for (var cell = 0; cell < _cells.Length && cell < authored.Count; cell++) {
+                    if (_cells[cell] >= 0 || !CombatMenuSlots.EmptyCellShowsBlankStone(cell, _page)
+                        || spare.Count == 0 || !_ui.TryGetEntryRect(authored[cell], out Rect stone)) {
+                        continue;
+                    }
+                    int actionId = spare.Dequeue();
+                    _ui.SetEntryPosition(actionId, stone.x, stone.y);
+                    _ui.SetEntryGate(actionId, true);
+                    _ui.SetEntryState(actionId, true, false);
+                }
+                while (spare.Count > 0) {
+                    int actionId = spare.Dequeue();
+                    _ui.SetEntryGate(actionId, false);
+                    _ui.SetEntryState(actionId, false, false);
                 }
             } finally {
                 _applyingLayout = false;
