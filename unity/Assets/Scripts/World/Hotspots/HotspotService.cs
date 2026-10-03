@@ -2474,7 +2474,8 @@ using GameData.Resources.Scene;
                 case GameData.Resources.Combat.CombatCommands.Command.CharacterScreen:
                     // *** SHIFT TURNS THE PACK INTO THE SHEET. *** combat_arena_suspend_char_screen
                     // (COMBAT.C:1875) runs charscreen_info_loop while either Shift key is down, and
-                    // the inventory otherwise. Neither is an action, so no turn is spent (TASK-514).
+                    // the inventory otherwise. Closing either spends the turn unless an item armed a
+                    // target (COMBAT.C:2111-2127; TASK-759 corrected TASK-514's "no turn is spent").
                     if (GameData.Resources.Combat.CombatCommands.SuspendScreenFor(ShiftHeld())
                         == GameData.Resources.Combat.CombatCommands.SuspendScreen.CharacterSheet) {
                         OpenCombatCharacterSheet(acting);
@@ -3257,8 +3258,10 @@ using GameData.Resources.Scene;
 
         private async Cysharp.Threading.Tasks.UniTaskVoid RunCombatSheetAsync(
             BakAgain.UI.Character.CharacterSheetScreen sheet, int partySlot) {
+            Combatant acting = Combat?.Encounter?.Current;
             await sheet.RunAsync(partySlot);
             RaiseCombatHudAgain();
+            SpendTurnAfterSuspendScreen(acting);
         }
 
         /// <summary>
@@ -3375,10 +3378,25 @@ using GameData.Resources.Scene;
             Combat?.RefreshPartyStatsFromSession();
 
             int command = menu.PendingCombatCommandId;
-            if (command == GameData.Resources.Combat.CombatItemUse.NoItemUsed) {
+            if (command != GameData.Resources.Combat.CombatItemUse.NoItemUsed) {
+                ResolveCombatItem(acting, command);
+            }
+            SpendTurnAfterSuspendScreen(acting);
+        }
+
+        /// <summary>The pack or sheet closed: the turn is spent unless an item armed a target —
+        /// <see cref="GameData.Resources.Combat.CombatCommands.SuspendScreenSpendsTheTurn"/> (TASK-759).</summary>
+        private void SpendTurnAfterSuspendScreen(Combatant acting) {
+            if (Combat?.Encounter == null || acting == null) {
                 return;
             }
-            ResolveCombatItem(acting, command);
+            bool armed = _pendingCombatMode
+                != GameData.Resources.Combat.CombatCommandOutcome.PendingMode.None;
+            if (!GameData.Resources.Combat.CombatCommands.SuspendScreenSpendsTheTurn(armed)) {
+                return;
+            }
+            acting.Flags &= ~GameData.Resources.Combat.CombatantFlags.Ready;
+            RefreshCombatHud();
         }
 
         /// <summary>

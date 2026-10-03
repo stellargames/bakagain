@@ -136,4 +136,11 @@ public class CombatCommandsTests {
         Assert.Equal(CombatCommands.SuspendScreen.CharacterSheet,
             CombatCommands.SuspendScreenFor(modifierHeld: true));
     }
+
+    [Fact]
+    public void LeavingThePackOrSheetSpendsTheTurn_UnlessSomethingWasArmed() {
+        // COMBAT.C:2111-2127 (TASK-759).
+        Assert.True(CombatCommands.SuspendScreenSpendsTheTurn(leftSomethingArmed: false));
+        Assert.False(CombatCommands.SuspendScreenSpendsTheTurn(leftSomethingArmed: true));
+    }
 }

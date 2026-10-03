@@ -281,4 +281,18 @@ public static class CombatCommands {
     /// </remarks>
     public static SuspendScreen SuspendScreenFor(bool modifierHeld) =>
         modifierHeld ? SuspendScreen.CharacterSheet : SuspendScreen.Inventory;
+
+    /// <summary>
+    /// Whether leaving the combat pack or sheet spends the acting member's turn.
+    /// </summary>
+    /// <remarks>
+    /// <b>It does, unless the screen left something to aim.</b> Case 22 (COMBAT.C:2111-2127) clears
+    /// <c>CAF_READY</c> and ends the turn after <c>combat_arena_suspend_char_screen</c> returns, with
+    /// one exception: <c>combat_arena_resume_dispatch</c> opened the cast menu (a scroll) and set the
+    /// spell result, which goes on to target selection instead. The port arms its targeted items the
+    /// same way, so "armed" is the exception. Measured on t739 (zone-1 ambush): Owyn opened his pack
+    /// and closed it, and the original went on to Locklear (TASK-759). TASK-514 had asserted the
+    /// opposite without comparing whose turn followed.
+    /// </remarks>
+    public static bool SuspendScreenSpendsTheTurn(bool leftSomethingArmed) => !leftSomethingArmed;
 }
