@@ -185,6 +185,32 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
         }
 
         [Test]
+        public void WhileTheAssessmentIsUp_TheParchmentKeepsTheInspectorsStats_NotTheMeleePreview() {
+            // CBENC.C:307-349 plays 0x84, paints the rows and plays 0x85 inside the inspect click;
+            // the turn loop does not run, so the HUD keeps what case 47's stateA = 3 left there --
+            // the acting member's stats (TASK-743). Measured in the zone-1 ambush.
+            Rig rig = Build();
+            Assert.IsTrue(rig.Service.StartCombat(CombTrigger()));
+            CombatEncounter fight = rig.Service.Combat.Encounter;
+            for (int i = 0; i < 4 && (fight.Current == null || !fight.Current.IsPartyMember); i++) {
+                fight.EndTurn();
+                fight.PickNext();
+            }
+            Assert.IsTrue(fight.Current?.IsPartyMember ?? false, "the fixture needs a party member's turn");
+            Combatant enemy = fight.Enemies[0];
+            fight.Current.X = enemy.X - 1;
+            fight.Current.Y = enemy.Y;
+            var stats = rig.Service.CombatPanelContent(-1, partyMember: false);
+            Assert.IsNotNull(stats.Lines, "the control: the acting member's stats are the default panel");
+            CollectionAssert.AreNotEqual(stats.Lines, rig.Service.CombatPanelContent(0, partyMember: false).Lines,
+                "the control: hovering the adjacent enemy normally shows the melee preview");
+
+            rig.Service.AssessingForTest = true;
+
+            CollectionAssert.AreEqual(stats.Lines, rig.Service.CombatPanelContent(0, partyMember: false).Lines);
+        }
+
+        [Test]
         public void TheAssessmentPageIsTheOpeningRecordsOwnText_NoRowsAndNoMenuReserve() {
             // CBENC.C:307-349 paints the rows into 0x84's page; they are not text. And 0x84 carries
             // no TextWithChoice, so its text is laid out without the menu row's reserve (TASK-742).
@@ -206,8 +232,11 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
             var panel = GameData.Resources.Layout.LayoutHint.PxRect(65, 66, 1470, 726);
             Assert.AreEqual((285f, 342f), HotspotService.AssessmentRowInPanel(
                 new GameData.Resources.Combat.HudPanelLine("Health:", 70, 68), panel));
-            Assert.AreEqual((1230f, 522f, 190f, 108f), HotspotService.BoxInPanel(
-                GameData.Resources.Layout.LayoutHint.PxRect(1295, 588, 190, 108), panel));
+            // 0x85's box is VGA (259,98,38,18); its one button is laid out inside it like any
+            // choice row (ASKABOUT.C:400-410): w = "Accept" (29) + 10, x = 38/2 + 4 - 39/2, y = 18 - (10 + 11),
+            // so the original draws Accept at VGA (263,95,39,14): x 263-301, as measured in the zone-1 ambush.
+            Assert.AreEqual((263f * 5 - 65, 95f * 6 - 66, 39f * 5, 14f * 6), HotspotService.AcceptButtonInPanel(
+                GameData.Resources.Layout.LayoutHint.PxRect(1295, 588, 190, 108), "Accept", panel));
         }
 
         [Test]

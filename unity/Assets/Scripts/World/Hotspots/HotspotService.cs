@@ -2719,7 +2719,7 @@ using GameData.Resources.Scene;
             // Inspect arms stateA = 3 and nothing else, so the loop keeps drawing the acting
             // member's stats (COMBAT.C:2062-2067, 2552-2558): straight to the default panel, with
             // no melee preview (that is stateA == 0's).
-            bool inspecting = _pendingCombatMode
+            bool inspecting = _assessing || _pendingCombatMode
                 == GameData.Resources.Combat.CombatCommandOutcome.PendingMode.InspectTarget;
             if (_pendingCombatMode
                 != GameData.Resources.Combat.CombatCommandOutcome.PendingMode.None && !inspecting) {
@@ -3068,24 +3068,30 @@ using GameData.Resources.Scene;
                 }
             }
 
-            await _dialogs.ShowEntry(page, (panel, area) => {
-                foreach (GameData.Resources.Combat.HudPanelLine line in lines) {
-                    (float left, float top) = AssessmentRowInPanel(line, area);
-                    panel.Add(BakAgain.UI.Combat.HudParchmentPanelView.LineLabel(line, left, top));
-                }
-                UnityEngine.UIElements.VisualElement row =
-                    UnityEngine.UIElements.UQueryExtensions.Q(panel, "BakDialogConfirmRow");
-                UnityEngine.UIElements.Button button = row == null ? null
-                    : UnityEngine.UIElements.UQueryExtensions.Q<UnityEngine.UIElements.Button>(row);
-                if (acceptBox != null && button != null) {
-                    (float l, float t, float w, float h) = BoxInPanel(acceptBox, area);
-                    button.style.position = UnityEngine.UIElements.Position.Absolute;
-                    button.style.left = l;
-                    button.style.top = t;
-                    button.style.width = w;
-                    button.style.height = h;
-                }
-            });
+            _assessing = true;
+            try {
+                await _dialogs.ShowEntry(page, (panel, area) => {
+                    foreach (GameData.Resources.Combat.HudPanelLine line in lines) {
+                        (float left, float top) = AssessmentRowInPanel(line, area);
+                        panel.Add(BakAgain.UI.Combat.HudParchmentPanelView.LineLabel(line, left, top));
+                    }
+                    UnityEngine.UIElements.VisualElement row =
+                        UnityEngine.UIElements.UQueryExtensions.Q(panel, "BakDialogConfirmRow");
+                    UnityEngine.UIElements.Button button = row == null ? null
+                        : UnityEngine.UIElements.UQueryExtensions.Q<UnityEngine.UIElements.Button>(row);
+                    if (acceptBox != null && button != null) {
+                        (float l, float t, float w, float h) = AcceptButtonInPanel(acceptBox,
+                            UnityEngine.UIElements.UQueryExtensions.Q<UnityEngine.UIElements.Label>(button)?.text ?? "", area);
+                        button.style.position = UnityEngine.UIElements.Position.Absolute;
+                        button.style.left = l;
+                        button.style.top = t;
+                        button.style.width = w;
+                        button.style.height = h;
+                    }
+                });
+            } finally {
+                _assessing = false;
+            }
             RefreshCombatHud();
         }
 
@@ -3105,11 +3111,23 @@ using GameData.Resources.Scene;
             (line.X * BakAgain.Graphics.Canonical.VgaScaleX - area.Left.Value,
              line.Y * BakAgain.Graphics.Canonical.VgaScaleY - area.Top.Value);
 
-        /// <summary>A screen box (canonical px) in the panel's own space.</summary>
-        internal static (float Left, float Top, float Width, float Height) BoxInPanel(
-            GameData.Resources.Layout.LayoutHint box, GameData.Resources.Layout.LayoutHint area) =>
-            (box.Left.Value - area.Left.Value, box.Top.Value - area.Top.Value,
-             box.Width.Value, box.Height.Value);
+        /// <summary>0x85's Accept button (canonical px) in the panel's own space.</summary>
+        /// <remarks>The ResizeDialog rect is the PAGE, not the button: its one entry is laid out
+        /// inside it like any choice row (ASKABOUT.C:400-410, <see cref="GameData.Resources.Dialog.DialogButtonRow"/>),
+        /// which puts it at VGA (263,95,39,14) rather than (259,98,38,18) (TASK-743).</remarks>
+        internal static (float Left, float Top, float Width, float Height) AcceptButtonInPanel(
+            GameData.Resources.Layout.LayoutHint box, string label, GameData.Resources.Layout.LayoutHint area) {
+            (int x, int y, int w, int h) = GameData.Resources.Dialog.DialogButtonRow.ButtonRectOnCanonicalPanel(
+                0, (int)box.Width.Value, (int)box.Height.Value, 1,
+                BakAgain.Book.BakFontData.WidestRaw(new[] { label }, BakAgain.Book.BakFontData.GameFontIndex),
+                BakAgain.Book.BakFontData.GameFontHeight);
+            return (box.Left.Value - area.Left.Value + x, box.Top.Value - area.Top.Value + y, w, h);
+        }
+
+        /// <summary>The assessment is on screen: the original runs it inside the inspect click, so the
+        /// turn loop never redraws the HUD and it keeps the inspector's stats (CBENC.C:307).</summary>
+        private bool _assessing;
+        internal bool AssessingForTest { set => _assessing = value; }
 
         /// <summary>
         /// A click on the field with no command armed: melee, or the actor's own two self-commands.
