@@ -126,7 +126,7 @@ namespace BakAgain.World {
                 // model debug viewer assembles the same context and calls the same
                 // WorldEntityBuilder, so the two render through one path rather than two.
                 var renderCtx = WorldEntityRenderContext.Create(
-                    unityPalette, profile, detect, underground);
+                    unityPalette, profile, detect, underground, zoneNumber);
 
                 // Slot-bitmap texturing: the extractor bakes each textured face's resource key
                 // directly (see WorldEntityRenderContext.EnsureSlotTexturesAsync), so the loader

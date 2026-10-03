@@ -259,8 +259,8 @@ namespace BakAgain.World {
         /// </summary>
         public static WorldEntityRenderContext Create(
             Color[] palette, IWorldRenderProfile profile,
-            DetectData detect = null, bool underground = false) {
-            var penTextures = TerrainPenTextures.LoadAll();
+            DetectData detect = null, bool underground = false, int zone = 1) {
+            var penTextures = TerrainPenTextures.LoadAll(zone);
             return new WorldEntityRenderContext {
                 Palette = palette,
                 Profile = profile,

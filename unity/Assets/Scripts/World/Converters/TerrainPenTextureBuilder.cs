@@ -26,14 +26,21 @@ namespace BakAgain.World.Converters {
     }
 
     /// <summary>
-    /// Bakes the tileable terrain textures from the player's own <c>Z01L.SCX</c> and maps TBL
+    /// Bakes the tileable terrain textures from the player's own <c>Z##L.SCX</c> and maps TBL
     /// face pen colors to <see cref="TerrainPen"/> values. <see cref="TerrainPen.FlatFill"/> has
     /// no texture.
     /// </summary>
+    /// <remarks>
+    /// <b>Per zone</b>: the original loads the strip image of the zone it enters
+    /// (<c>zone_load_scx_image</c>, ZONE.C:355). This baked Z01L.SCX once for the whole session, so
+    /// zone 9's brown dirt was drawn as zone 1's grass (TASK-745).
+    /// </remarks>
     public static class TerrainPenTextures {
-        private const string SourceScx = "Z01L.SCX";
-        private const string SourcePalette = "Z01.PAL";
         private const float NoiseAmplitude = 0.015f;
+
+        /// <summary>The strip image and the palette it is drawn in, for one zone.</summary>
+        public static (string Scx, string Palette) SourceKeys(int zone) =>
+            ($"Z{zone:D2}L.SCX", $"Z{zone:D2}.PAL");
 
         /// <summary>Each pen's strip of the SCX: first DOS row and height. Order matters — the
         /// strips are baked in this order from one seeded random sequence.</summary>
@@ -49,7 +56,7 @@ namespace BakAgain.World.Converters {
             (TerrainPen.GroundLod, 0, 50),
         };
 
-        private static Dictionary<TerrainPen, Texture2D> _baked;
+        private static readonly Dictionary<int, Dictionary<TerrainPen, Texture2D>> _baked = new();
 
         /// <summary>All textured pens (everything except <see cref="TerrainPen.FlatFill"/>).</summary>
         public static readonly TerrainPen[] TexturedPens = {
@@ -65,22 +72,24 @@ namespace BakAgain.World.Converters {
         };
 
         /// <summary>
-        /// Every textured pen's texture, baked once per session. If the SCX cannot be loaded each
-        /// pen falls back to white.
+        /// Every textured pen's texture for <paramref name="zone"/>, baked once per zone per session.
+        /// If the SCX cannot be loaded each pen falls back to white.
         /// </summary>
-        public static Dictionary<TerrainPen, Texture2D> LoadAll() {
-            if (_baked != null) {
-                return _baked;
+        public static Dictionary<TerrainPen, Texture2D> LoadAll(int zone = 1) {
+            if (_baked.TryGetValue(zone, out Dictionary<TerrainPen, Texture2D> cached)) {
+                return cached;
             }
-            _baked = new Dictionary<TerrainPen, Texture2D>();
-            UnityEngine.Color[] scx = ScxTileBaker.LoadPixels(SourceScx, SourcePalette);
+            var baked = new Dictionary<TerrainPen, Texture2D>();
+            _baked[zone] = baked;
+            (string scxKey, string paletteKey) = SourceKeys(zone);
+            UnityEngine.Color[] scx = ScxTileBaker.LoadPixels(scxKey, paletteKey);
             var rng = new System.Random(42);
             foreach (var (pen, dosRow, height) in Strips) {
-                _baked[pen] = scx == null
+                baked[pen] = scx == null
                     ? Texture2D.whiteTexture
                     : ScxTileBaker.Bake(scx, 0, dosRow, 320, height, NoiseAmplitude, rng);
             }
-            return _baked;
+            return baked;
         }
 
         /// <summary>
