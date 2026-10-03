@@ -2614,6 +2614,10 @@ using GameData.Resources.Scene;
         /// turn to the next character for pressing a cancel.
         /// </remarks>
         private void OnShootCancelled() {
+            if (_autoResolving) {
+                _autoResolveBail = true;   // the auto-resolve HUD's Exit; its finally restores the menus
+                return;
+            }
             // Back is the ONE way out of target selection without acting, so it has to disarm the
             // mode too: COMBAT.C ~2085 sets stateA = -1 alongside swapping the menu back.
             _pendingCombatMode = GameData.Resources.Combat.CombatCommandOutcome.PendingMode.None;
@@ -2653,7 +2657,9 @@ using GameData.Resources.Scene;
         /// and nothing in the original depends on it lingering.
         /// </remarks>
         public int ActingPortraitHeadId() {
-            Combatant acting = Combat?.Encounter?.Current;
+            Combatant acting = _autoResolving && _autoPanelActor != null
+                ? _autoPanelActor
+                : Combat?.Encounter?.Current;
             return acting != null && acting.IsPartyMember ? acting.ClassId : -1;
         }
 
@@ -2679,6 +2685,14 @@ using GameData.Resources.Scene;
                 System.Collections.Generic.IReadOnlyList<GameData.Resources.Combat.HudPanelRule> Rules)
             CombatPanelContent(int rosterSlot, bool partyMember) {
             GameData.Resources.Combat.CombatEncounter fight = Combat?.Encounter;
+            // Auto-resolve shows the last party member's stats and nothing else (TASK-757).
+            if (_autoResolving && _autoPanelActor != null && fight != null) {
+                var held = Combat.ActorStatsFor(_autoPanelActor);
+                return held == null
+                    ? (null, null)
+                    : (GameData.Resources.Combat.ActorStatsPanel.Lines(
+                        held.Value.Name, held.Value.Values), null);
+            }
             Combatant acting = fight?.Current;
             if (acting == null) {
                 return (null, null);
@@ -4141,7 +4155,31 @@ using GameData.Resources.Scene;
             }
 
             _autoResolveBail = false;
+            _autoPanelActor = Combat.Encounter.Current;
+            // *** THE HUD IS THE SHOOT MENU, WITH ONLY ITS EXIT LIVE. *** combat_arena_turn_loop
+            // (COMBAT.C) draws g_shoot_menu after combat_arena_menu_entry_flags gates every entry but
+            // 0x21, and polls it for 0x21 or a cancel to stop. The melee commands are not on screen
+            // (TASK-757). Exit raises Cancelled, which bails.
+            BakAgain.UI.Combat.ShootMenu shoot = _shootMenuAccessor?.Invoke();
+            if (shoot != null) {
+                shoot.Cancelled -= OnShootCancelled;
+                shoot.Cancelled += OnShootCancelled;
+                _combatMenuAccessor?.Invoke()?.Close();
+                shoot.OpenForAutoResolve();
+            }
             AutoResolveAsync().Forget();
+        }
+
+        /// <summary>
+        /// The party member the HUD keeps showing while auto-resolve runs: combat_arena_turn_loop
+        /// draws the stats panel for each party turn and never for a monster's, so the last party
+        /// member stays up through the enemy turns (TASK-757).
+        /// </summary>
+        private Combatant _autoPanelActor;
+
+        internal void AutoResolveHudForTest(Combatant shown) {
+            _autoResolving = true;
+            _autoPanelActor = shown;
         }
 
         /// <summary>Set by any press that ends auto-resolve — Back, Cancel, or another command.</summary>
@@ -4185,6 +4223,7 @@ using GameData.Resources.Scene;
                         break;
                     }
 
+                    _autoPanelActor = acting;
                     // The party member's turn, played by the same AI — and through the same
                     // delivery, which is what lets an auto-resolved party actually use Bane of
                     // Black Slayers and Final Rest on the creatures those spells exist for.
@@ -4197,6 +4236,14 @@ using GameData.Resources.Scene;
                 }
             } finally {
                 _autoResolving = false;
+                _autoPanelActor = null;
+                BakAgain.UI.Combat.ShootMenu shoot = _shootMenuAccessor?.Invoke();
+                if (shoot != null && shoot.IsOpen) {
+                    shoot.Close();
+                    if (Combat?.Encounter != null) {
+                        _combatMenuAccessor?.Invoke()?.Open();
+                    }
+                }
                 _redrawArena?.Invoke();
                 RefreshCombatHud();
             }

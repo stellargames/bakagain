@@ -211,6 +211,29 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
         }
 
         [Test]
+        public void AutoResolveKeepsTheLastPartyMembersPanelThroughEnemyTurns() {
+            // combat_arena_turn_loop draws the stats panel for party turns only, so the last party
+            // member stays up while the monsters act (TASK-757). The port blanked panel and portrait.
+            Rig rig = Build();
+            Assert.IsTrue(rig.Service.StartCombat(CombTrigger()));
+            CombatEncounter fight = rig.Service.Combat.Encounter;
+            Combatant member = fight.Party[0];
+            for (int i = 0; i < 8 && (fight.Current == null || fight.Current.IsPartyMember); i++) {
+                fight.EndTurn();
+                fight.PickNext();
+            }
+            Assert.IsFalse(fight.Current?.IsPartyMember ?? true, "the fixture needs an enemy's turn");
+            Assert.AreEqual(-1, rig.Service.ActingPortraitHeadId(), "the control: no portrait on an enemy turn");
+
+            rig.Service.AutoResolveHudForTest(member);
+
+            Assert.AreEqual(member.ClassId, rig.Service.ActingPortraitHeadId());
+            var panel = rig.Service.CombatPanelContent(-1, partyMember: false);
+            Assert.IsNotNull(panel.Lines);
+            Assert.IsNotEmpty(panel.Lines);
+        }
+
+        [Test]
         public void TheAssessmentPageIsTheOpeningRecordsOwnText_NoRowsAndNoMenuReserve() {
             // CBENC.C:307-349 paints the rows into 0x84's page; they are not text. And 0x84 carries
             // no TextWithChoice, so its text is laid out without the menu row's reserve (TASK-742).

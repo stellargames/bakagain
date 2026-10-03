@@ -103,10 +103,23 @@ namespace BakAgain.UI.Combat {
 
             _cells = CombatMenuSlots.PackCells(_quarrelsOfKind);
             _page = CombatMenuSlots.FirstPage;
+            _autoResolveFace = false;
             HoveredActionId = -1;
             gameObject.SetActive(true);
             ApplyLayout();
         }
+
+        /// <summary>
+        /// Raise it as auto-resolve's HUD: no quarrels, every entry gated except Exit (0x21) —
+        /// combat_arena_menu_entry_flags (COMBAT.C), TASK-757. MORE is a blank stone too.
+        /// </summary>
+        public void OpenForAutoResolve() {
+            Open(Array.Empty<int>());
+            _autoResolveFace = true;
+            ApplyLayout();
+        }
+
+        private bool _autoResolveFace;
 
         /// <summary>Drop it and hand the HUD back to the melee menu.</summary>
         public void Close() => gameObject.SetActive(false);
@@ -252,6 +265,10 @@ namespace BakAgain.UI.Combat {
                     _ui.SetEntryGate(actionId, false);
                     _ui.SetEntryState(actionId, false, false);
                 }
+
+                // MORE is gated with the rest in auto-resolve, ungated otherwise.
+                _ui.SetEntryGate(CombatMenuSlots.PageFlipActionId, _autoResolveFace);
+                _ui.SetEntryState(CombatMenuSlots.PageFlipActionId, true, !_autoResolveFace);
             } finally {
                 _applyingLayout = false;
             }
