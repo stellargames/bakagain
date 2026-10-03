@@ -22,10 +22,6 @@ namespace BakAgain.World {
         // regardless of camera FOV (the original draws the horizon bitmap at a fixed viewport height;
         // the real game uses a narrow ~11° vFOV, WorldTestState a wide 60°).
         private const float Distance = 400f;    // in front of the camera, behind world geometry
-        private const float QuadWidth = 1000f;  // over-spans the horizontal FOV at Distance (no edge gap)
-        private const float QuadHeight = 70f;    // strip height above the horizon, calibrated at RefFov
-        private const float RefFov = 60f;        // FOV at which QuadHeight gives the intended look
-        private static readonly float RefTanHalf = Mathf.Tan(RefFov * 0.5f * Mathf.Deg2Rad);
 
         /// <summary>Bind the world camera; the backdrop follows it (yaw only) and scrolls by heading.</summary>
         public void SetCamera(Camera worldCamera) => _camera = worldCamera;
@@ -37,12 +33,13 @@ namespace BakAgain.World {
             // UV scroll, mirroring the original's per-heading panel offset (drawHorizonSkyAndGround).
             float yaw = _camera.transform.eulerAngles.y;
             transform.SetPositionAndRotation(_camera.transform.position, Quaternion.Euler(0f, yaw, 0f));
-            // FOV-aware vertical size: keep the strip a constant fraction of the viewport height by
-            // scaling Y with tan(vFOV/2). The quad base is at local y=0 (eye level → screen centre),
-            // so scaling around the origin anchors the mountain base on the horizon. X is NOT scaled
-            // (the quad over-spans horizontally, so a narrow FOV just shows a centred slice — no gap).
-            float tanHalf = Mathf.Tan(_camera.fieldOfView * 0.5f * Mathf.Deg2Rad);
-            transform.localScale = new Vector3(1f, tanHalf / RefTanHalf, 1f);
+            // *** SCREEN SPACE AT NATIVE SIZE (TASK-760). *** The quad exactly fills the viewport's
+            // width at Distance and is the panorama's own rows tall (HorizonPanorama), base on the
+            // horizon (eye level); the UV window then shows the slice the original blits.
+            float tanV = Mathf.Tan(_camera.fieldOfView * 0.5f * Mathf.Deg2Rad);
+            float tanH = tanV * _camera.aspect;
+            transform.localScale = new Vector3(2f * Distance * tanH,
+                2f * Distance * tanV * (float)GameData.Resources.World.HorizonPanorama.HeightFraction(_panelVgaHeight), 1f);
             UpdateHeading(yaw);
         }
 
@@ -52,19 +49,20 @@ namespace BakAgain.World {
         public void Initialize(Texture2D[] panels) {
             if (panels == null || panels.Length < 4) return;
 
-            // Stitch order: [W=3, N=0, E=1, S=2, W=3, N=0] for seamless wrap
+            // The ring in panel order; the texture repeats, so it wraps by itself.
             int panelWidth = panels[0].width;
             int panelHeight = panels[0].height;
-            int totalWidth = panelWidth * 6;
+            int totalWidth = panelWidth * GameData.Resources.World.HorizonPanorama.PanelCount;
+            _panelVgaWidth = Mathf.Max(1, panelWidth / BakAgain.Graphics.Canonical.VgaScaleX);
+            _panelVgaHeight = Mathf.Max(1, panelHeight / BakAgain.Graphics.Canonical.VgaScaleY);
 
             var stitched = new Texture2D(totalWidth, panelHeight, TextureFormat.RGBA32, false) {
                 wrapMode = TextureWrapMode.Repeat,
                 filterMode = FilterMode.Point
             };
 
-            int[] order = { 3, 0, 1, 2, 3, 0 };
-            for (int i = 0; i < 6; i++) {
-                var pixels = panels[order[i]].GetPixels();
+            for (int i = 0; i < GameData.Resources.World.HorizonPanorama.PanelCount; i++) {
+                var pixels = panels[i].GetPixels();
                 stitched.SetPixels(i * panelWidth, 0, panelWidth, panelHeight, pixels);
             }
 
@@ -106,19 +104,24 @@ namespace BakAgain.World {
             if (filter != null && filter.sharedMesh != null) Destroy(filter.sharedMesh);
         }
 
-        /// <summary>Update UV offset based on camera yaw (0-360 degrees).</summary>
+        private int _panelVgaWidth = 256;
+        private int _panelVgaHeight = 29;
+
+        /// <summary>The UV window for a camera yaw in degrees: the ring slice the original blits.</summary>
         public void UpdateHeading(float yawDegrees) {
             if (_material == null) return;
-            // Map 0-360 to 0-1 UV offset (panel 1 starts at 1/6)
-            float offset = (yawDegrees / 360f) + (1f / 6f);
-            _material.mainTextureOffset = new Vector2(offset, 0);
+            int yaw16 = Mathf.RoundToInt(yawDegrees / 360f * 65536f) & 0xffff;
+            _material.mainTextureScale = new Vector2(
+                (float)GameData.Resources.World.HorizonPanorama.VisibleRingFraction(_panelVgaWidth), 1f);
+            _material.mainTextureOffset = new Vector2(
+                (float)GameData.Resources.World.HorizonPanorama.LeftEdgeRingFraction(yaw16, _panelVgaWidth), 0f);
         }
 
         private static Mesh CreateHorizonQuad() {
             var mesh = new Mesh { name = "HorizonQuad" };
-            const float hw = QuadWidth * 0.5f;
-            const float yb = 0f;          // base at eye level → projects to the horizon (screen centre); FOV-scaled around here
-            const float yt = QuadHeight;  // strip rises above the horizon
+            const float hw = 0.5f;        // unit quad; LateUpdate scales it to the viewport
+            const float yb = 0f;          // base at eye level → projects to the horizon
+            const float yt = 1f;
             mesh.vertices = new[] {
                 new Vector3(-hw, yb, Distance),
                 new Vector3(hw, yb, Distance),
