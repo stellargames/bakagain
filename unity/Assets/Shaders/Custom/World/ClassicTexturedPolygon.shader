@@ -83,7 +83,10 @@ Shader "BakAgain/ClassicTexturedPolygon" {
             half4 frag(Varyings input) : SV_Target {
                 half4 tex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv);
                 clip(tex.a - _AlphaCutoff); // palette index 0 = transparent (see-through gaps)
-                half4 color = tex * input.color;
+                // The bitmap alone, as the original's drawTexturedPolygon draws it. On a slot-textured
+                // face VgaColor is the slot INDEX, so the vertex colour is an unrelated pen; multiplying
+                // by it turned chests near-black (TASK-750).
+                half4 color = tex;
                 color.rgb = ApplyBakLighting(color.rgb);
                 // URP distance fog
                 color.rgb = MixFog(color.rgb, input.fogCoord);

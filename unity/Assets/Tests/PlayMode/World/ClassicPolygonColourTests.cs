@@ -45,8 +45,23 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.That(got.b, Is.InRange(18, 22), $"got {got}");
         }
 
+        /// <summary>
+        /// A slot-textured face (Flags 0x10) is the bitmap alone: the original's drawTexturedPolygon has
+        /// no tint, and on such a face VgaColor is the slot index, not a pen. The port multiplied the
+        /// bitmap by palette[slot index]: chests on c597n at noon drew (3,2,1)..(19,9,2) where the
+        /// original shows (69,44,28)..(93,56,40) (TASK-750).
+        /// </summary>
+        [Test]
+        public void ASlotTexturedFaceDrawsItsBitmapUntinted() {
+            Color32 got = Render(new Color32(60, 44, 36, 255), darken: 0f, shader: "BakAgain/ClassicTexturedPolygon",
+                texel: new Color32(93, 56, 40, 255));
+            Assert.That(got.r, Is.InRange(91, 95), $"got {got}");
+            Assert.That(got.g, Is.InRange(54, 58), $"got {got}");
+            Assert.That(got.b, Is.InRange(38, 42), $"got {got}");
+        }
+
         private static Color32 Render(Color32 c, float darken, string shader = "BakAgain/ClassicPolygon",
-            Vector4? mapColor = null) {
+            Vector4? mapColor = null, Color32? texel = null) {
             var go = new GameObject("quad");
             var camGo = new GameObject("cam");
             var rt = new RenderTexture(8, 8, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
@@ -63,7 +78,15 @@ namespace BakAgain.Tests.PlayMode.World {
                     mesh.SetUVs(2, new System.Collections.Generic.List<Vector4> { mc, mc, mc, mc });
                     Shader.SetGlobalFloat("_MapMode", 1f);
                 }
-                go.AddComponent<MeshRenderer>().sharedMaterial = new Material(Shader.Find(shader));
+                var material = new Material(Shader.Find(shader));
+                if (texel is Color32 t) {
+                    var tex = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+                    tex.SetPixel(0, 0, t);
+                    tex.Apply();
+                    material.SetTexture("_MainTex", tex);
+                    mesh.uv = new[] { Vector2.zero, Vector2.up, Vector2.one, Vector2.right };
+                }
+                go.AddComponent<MeshRenderer>().sharedMaterial = material;
                 go.transform.position = new Vector3(1000, 1000, 5);
 
                 var cam = camGo.AddComponent<Camera>();
