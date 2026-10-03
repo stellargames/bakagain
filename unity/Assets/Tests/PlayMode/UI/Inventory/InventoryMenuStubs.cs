@@ -34,6 +34,9 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         public void ClearDialog() { }
 
         public void LetClicksThroughPanel() { }
+            public Cysharp.Threading.Tasks.UniTask ShowEntry(GameData.Resources.Dialog.DialogEntry entry,
+                System.Action<UnityEngine.UIElements.VisualElement, GameData.Resources.Layout.LayoutHint> decorate,
+                System.Threading.CancellationToken cancellationToken = default) => Cysharp.Threading.Tasks.UniTask.CompletedTask;
             public Cysharp.Threading.Tasks.UniTask<UnityEngine.Color[]> ResolvePaletteAsync() => Cysharp.Threading.Tasks.UniTask.FromResult<UnityEngine.Color[]>(null);
 
         public void SetActivePalette(Color[] palette) { }

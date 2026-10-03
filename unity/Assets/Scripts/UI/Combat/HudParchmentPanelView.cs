@@ -247,6 +247,14 @@ namespace BakAgain.UI.Combat {
         }
 
         private void AddLine(HudPanelLine line) {
+            Label label = LineLabel(line, line.X * Canonical.VgaScaleX, line.Y * Canonical.VgaScaleY);
+            _root.Add(label);
+            _drawn.Add(label);
+        }
+
+        /// <summary>One parchment line as a label at the given canonical position — shared with the
+        /// combat assessment, whose rows are drawn the same way (CBENC.C:307-349).</summary>
+        public static Label LineLabel(HudPanelLine line, float left, float top) {
             GameFontText.AnchorX anchor = line.Align switch {
                 HudPanelAlign.Centre => GameFontText.AnchorX.Centre,
                 HudPanelAlign.Right => GameFontText.AnchorX.Right,
@@ -256,8 +264,8 @@ namespace BakAgain.UI.Combat {
                 pickingMode = PickingMode.Ignore,
                 style = {
                     position = Position.Absolute,
-                    left = line.X * Canonical.VgaScaleX,
-                    top = line.Y * Canonical.VgaScaleY,
+                    left = left,
+                    top = top,
                     color = InkColor,
                     // font_draw_text_ds's alignment: 1 is x -= width/2, 2 is x -= width, 0 draws
                     // from x. Expressed as a translate so the label keeps its intrinsic width.
@@ -270,8 +278,7 @@ namespace BakAgain.UI.Combat {
                 },
             };
             GameFontText.Apply(label, anchor, GameFontText.AnchorY.Top);
-            _root.Add(label);
-            _drawn.Add(label);
+            return label;
         }
     }
 }

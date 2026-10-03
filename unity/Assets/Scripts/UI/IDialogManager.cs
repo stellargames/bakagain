@@ -27,6 +27,17 @@ namespace BakAgain.UI {
         UniTask ShowEntry(DialogEntry entry, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Render <paramref name="entry"/> with its branches as buttons, hand the laid-out panel and
+        /// its area to <paramref name="decorate"/>, then await the choice — for a caller that paints
+        /// into the page the way the original does after drawing it (the combat assessment's rows,
+        /// CBENC.C:307-349). The entry's own flags are untouched, so no menu-row reserve is taken
+        /// from a record that does not carry TextWithChoice.
+        /// </summary>
+        UniTask ShowEntry(DialogEntry entry,
+            System.Action<UnityEngine.UIElements.VisualElement, GameData.Resources.Layout.LayoutHint> decorate,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Render a resolved <see cref="DialogPlay"/> — the entry plus the text-variable slots the
         /// branch walk accumulated for it. Prefer this over the bare-entry overload whenever the
         /// caller resolved through <c>DialogExecutor</c>: the bare overload has to seed its own

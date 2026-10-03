@@ -185,6 +185,32 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
         }
 
         [Test]
+        public void TheAssessmentPageIsTheOpeningRecordsOwnText_NoRowsAndNoMenuReserve() {
+            // CBENC.C:307-349 paints the rows into 0x84's page; they are not text. And 0x84 carries
+            // no TextWithChoice, so its text is laid out without the menu row's reserve (TASK-742).
+            var opening = new GameData.Resources.Dialog.DialogEntry {
+                Text = "Locklear studied his opponent.",
+                Flags = GameData.Resources.Dialog.DialogEntryFlags.SkipWait,
+            };
+            GameData.Resources.Dialog.DialogEntry page = HotspotService.AssessmentPage(opening);
+            Assert.AreEqual(opening.Text, page.Text);
+            Assert.AreEqual((GameData.Resources.Dialog.DialogEntryFlags)0, page.Flags & (
+                GameData.Resources.Dialog.DialogEntryFlags.SkipWait
+                | GameData.Resources.Dialog.DialogEntryFlags.TextWithChoice));
+        }
+
+        [Test]
+        public void AssessmentRowsAndTheAcceptBoxSitWhereTheOriginalDrawsThem_InThePanelsSpace() {
+            // A row at screen VGA (70,68) inside a panel whose area starts at canonical (65,66):
+            // canonical (350-65, 408-66). 0x85's ResizeDialog box is relative the same way.
+            var panel = GameData.Resources.Layout.LayoutHint.PxRect(65, 66, 1470, 726);
+            Assert.AreEqual((285f, 342f), HotspotService.AssessmentRowInPanel(
+                new GameData.Resources.Combat.HudPanelLine("Health:", 70, 68), panel));
+            Assert.AreEqual((1230f, 522f, 190f, 108f), HotspotService.BoxInPanel(
+                GameData.Resources.Layout.LayoutHint.PxRect(1295, 588, 190, 108), panel));
+        }
+
+        [Test]
         public void ArmingInspectKeepsTheActingMembersStatsOnTheParchment() {
             // Case 47 only sets stateA = 3; with no spell chosen the turn loop keeps drawing
             // combat_actor_draw_stats_panel(g_current_actor) (COMBAT.C:2062-2067, 2552-2558).

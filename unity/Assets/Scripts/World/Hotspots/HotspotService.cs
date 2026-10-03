@@ -3051,30 +3051,65 @@ using GameData.Resources.Scene;
                 return;
             }
 
-            // WithText clones, so clearing SkipWait here cannot reach the loader's cached copy —
-            // the trap that remark exists for. Without clearing it the composed page would not wait
-            // either, which is the same bug one layer along.
-            GameData.Resources.Dialog.DialogEntry page = entry.WithText(
-                GameData.Resources.Combat.CombatAssessment.ComposePageText(entry.Text, lines));
-            page.Flags &= ~GameData.Resources.Dialog.DialogEntryFlags.SkipWait;
-
-            // *** 0x85 IS THE ACCEPT BUTTON. *** The closing record carries no text of its own —
-            // it is TextWithChoice with a single branch on keyword key 260, which KEYWORD.DAT
-            // labels "Accept", and a ResizeDialog putting that button's own box at the panel's
-            // bottom right. Since the page above stands in for 0x84's abandoned page, it takes
-            // 0x85's row too, and the player acknowledges the assessment the way the original asks
-            // rather than by clicking anywhere. Confirmed live 2026-09-20: a click at VGA (283,102)
-            // — inside 0x85's box — is what dismisses the original's panel.
+            // *** THE ROWS ARE PAINTED INTO 0x84'S PAGE, NOT WRITTEN INTO ITS TEXT. *** Each
+            // survivor of the roll is drawn at its own screen position, wrapping to a second
+            // column (CBENC.C:307-349), and 0x85 then puts its Accept box at its ResizeDialog
+            // rectangle, bottom right. One waiting page still stands in for the pair — see the
+            // remarks — but now with the original's placement (TASK-742).
+            GameData.Resources.Dialog.DialogEntry page = AssessmentPage(entry);
             GameData.Resources.Dialog.DialogPlay closing = await _dialogs.ResolveById(
                 GameData.Resources.Combat.CombatAssessment.ClosingDialog);
-            if (closing?.Entry?.Branches is { Count: > 0 } accept) {
+            GameData.Resources.Layout.LayoutHint acceptBox = null;
+            if (closing?.Entry is { } close && close.Branches is { Count: > 0 } accept) {
                 page.Branches = accept;
-                page.Flags |= GameData.Resources.Dialog.DialogEntryFlags.TextWithChoice;
+                if (close.TryGetResizeAction(out GameData.Resources.Dialog.Actions.ResizeDialogAction resize)
+                    && resize != null) {
+                    acceptBox = resize.ToLayoutHint();
+                }
             }
 
-            await _dialogs.ShowEntry(page);
+            await _dialogs.ShowEntry(page, (panel, area) => {
+                foreach (GameData.Resources.Combat.HudPanelLine line in lines) {
+                    (float left, float top) = AssessmentRowInPanel(line, area);
+                    panel.Add(BakAgain.UI.Combat.HudParchmentPanelView.LineLabel(line, left, top));
+                }
+                UnityEngine.UIElements.VisualElement row =
+                    UnityEngine.UIElements.UQueryExtensions.Q(panel, "BakDialogConfirmRow");
+                UnityEngine.UIElements.Button button = row == null ? null
+                    : UnityEngine.UIElements.UQueryExtensions.Q<UnityEngine.UIElements.Button>(row);
+                if (acceptBox != null && button != null) {
+                    (float l, float t, float w, float h) = BoxInPanel(acceptBox, area);
+                    button.style.position = UnityEngine.UIElements.Position.Absolute;
+                    button.style.left = l;
+                    button.style.top = t;
+                    button.style.width = w;
+                    button.style.height = h;
+                }
+            });
             RefreshCombatHud();
         }
+
+        /// <summary>0x84's own page for the assessment: its text, waiting (SkipWait cleared on a
+        /// clone), and no TextWithChoice — the record has none, so its text takes no menu reserve.</summary>
+        internal static GameData.Resources.Dialog.DialogEntry AssessmentPage(
+            GameData.Resources.Dialog.DialogEntry opening) {
+            GameData.Resources.Dialog.DialogEntry page = opening.WithText(opening.Text);
+            page.Flags &= ~(GameData.Resources.Dialog.DialogEntryFlags.SkipWait
+                | GameData.Resources.Dialog.DialogEntryFlags.TextWithChoice);
+            return page;
+        }
+
+        /// <summary>A row's screen position (original px) in the panel's own canonical space.</summary>
+        internal static (float Left, float Top) AssessmentRowInPanel(
+            GameData.Resources.Combat.HudPanelLine line, GameData.Resources.Layout.LayoutHint area) =>
+            (line.X * BakAgain.Graphics.Canonical.VgaScaleX - area.Left.Value,
+             line.Y * BakAgain.Graphics.Canonical.VgaScaleY - area.Top.Value);
+
+        /// <summary>A screen box (canonical px) in the panel's own space.</summary>
+        internal static (float Left, float Top, float Width, float Height) BoxInPanel(
+            GameData.Resources.Layout.LayoutHint box, GameData.Resources.Layout.LayoutHint area) =>
+            (box.Left.Value - area.Left.Value, box.Top.Value - area.Top.Value,
+             box.Width.Value, box.Height.Value);
 
         /// <summary>
         /// A click on the field with no command armed: melee, or the actor's own two self-commands.

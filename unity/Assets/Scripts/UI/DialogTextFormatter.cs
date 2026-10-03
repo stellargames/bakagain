@@ -86,6 +86,12 @@ namespace BakAgain.UI {
                 return raw.Replace("\t", string.Empty).TrimStart(' ').TrimEnd();
             }
             string tab = new string(' ', TabWidthPx / BakFontData.GetRawCharWidth(' ', BakFontData.GameFontIndex));
+            // Whitespace-only lines at the end are still lines to the original's wrap, and count
+            // when the block is centred: 0x84 ends in three, the space the assessment rows are drawn
+            // into (TASK-742). Only that record has them; anything else trims as before.
+            if (System.Text.RegularExpressions.Regex.IsMatch(raw, "(\n[ \t]+)+$")) {
+                return raw.Replace("\t", tab).TrimEnd('\r', '\n');
+            }
             return raw.Replace("\t", tab).TrimEnd();
         }
 

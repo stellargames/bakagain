@@ -1746,6 +1746,16 @@ namespace BakAgain.UI {
 
         public UniTask ShowEntry(DialogEntry entry, CancellationToken cancellationToken = default) => Playing(() => ShowEntryOnce(entry, cancellationToken), "ShowEntry " + entry?.Id);
 
+        public UniTask ShowEntry(DialogEntry entry, System.Action<VisualElement, LayoutHint> decorate,
+            CancellationToken cancellationToken = default) =>
+            Playing(async () => {
+                if (!TryEnsureReady() || entry == null) {
+                    return;
+                }
+                await ShowEntryCore(entry, play: null, waitForInput: true,
+                    renderChoices: entry.Branches is { Count: > 0 }, cancellationToken, decorate);
+            }, "ShowEntry(decorated) " + entry?.Id);
+
         private async UniTask ShowEntryOnce(DialogEntry entry, CancellationToken cancellationToken = default) {
             if (!TryEnsureReady()) {
                 return;
@@ -1924,7 +1934,7 @@ namespace BakAgain.UI {
         // → narrative dismiss-on-click and resolve with -1.
         private async UniTask<int> ShowEntryCore(
             DialogEntry entry, DialogPlay play, bool waitForInput, bool renderChoices,
-            CancellationToken cancellationToken) {
+            CancellationToken cancellationToken, System.Action<VisualElement, LayoutHint> decorate = null) {
             // Tear down any previous panel before showing the new one — the
             // cutscene path can fire a clear + show in the same frame, and the
             // in-game path expects modal one-at-a-time semantics.
@@ -2123,6 +2133,9 @@ namespace BakAgain.UI {
                 // Place the panel at its absolute canonical rect and size the
                 // label fonts. Static in canonical units — no resize tracking.
                 ApplyCanonicalLayout();
+                if (decorate != null && _activePanel != null) {
+                    decorate(_activePanel, area);
+                }
 
                 // Faithful open-wipe: reveal the laid-out panel centre-out (the original's box-out,
                 // anim_screenTransitionEffect @ 0x53ab5), unless the entry opts out via SkipOpenWipe.

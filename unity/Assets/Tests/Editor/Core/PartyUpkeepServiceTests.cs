@@ -346,6 +346,9 @@ namespace BakAgain.Tests.Editor.Core {
                 => UniTask.FromResult<DialogPlay>(null);
             public void ClearDialog() { }
             public void LetClicksThroughPanel() { }
+            public Cysharp.Threading.Tasks.UniTask ShowEntry(GameData.Resources.Dialog.DialogEntry entry,
+                System.Action<UnityEngine.UIElements.VisualElement, GameData.Resources.Layout.LayoutHint> decorate,
+                System.Threading.CancellationToken cancellationToken = default) => Cysharp.Threading.Tasks.UniTask.CompletedTask;
             public Cysharp.Threading.Tasks.UniTask<UnityEngine.Color[]> ResolvePaletteAsync() => Cysharp.Threading.Tasks.UniTask.FromResult<UnityEngine.Color[]>(null);
             public void SetActivePalette(UnityEngine.Color[] palette) { }
             public UniTask<bool> ShowConfirmById(int id, CancellationToken cancellationToken = default)
