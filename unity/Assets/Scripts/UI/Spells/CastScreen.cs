@@ -1489,9 +1489,9 @@ namespace BakAgain.UI.Spells {
         /// The icon a ring position draws, honouring the slider when one is open.
         /// </summary>
         /// <remarks>
-        /// Three roles in priority order: the hovered position wins, then the chosen band, then
-        /// the untouched ring. The band deliberately does NOT mark anchors - that is what makes it
-        /// read as one continuous run rather than a ring with six studs in it.
+        /// Three roles in priority order: the hovered position wins, then the affordable band, then
+        /// the untouched ring — CSPELL.C:2051-2060, redrawn every pass. Both the ring and the band
+        /// mark their fifths (TASK-755).
         /// </remarks>
         private int IconAt(int position) {
             if (_sliderSpell < 0) {
@@ -1500,10 +1500,9 @@ namespace BakAgain.UI.Spells {
             if (position == _hoveredPosition) {
                 return CastRingLayout.SliderHoverIcon;
             }
-            if (_hoveredPosition >= 0
-                && CastRingLayout.IsInChosenBand(position, _minimumPower,
-                    CastRingLayout.PowerAtPosition(_hoveredPosition))) {
-                return CastRingLayout.SliderFilledIcon;
+            if (CastRingLayout.IsInAffordableBand(position, _minimumPower, _maximumPower)) {
+                return CastRingLayout.IconFor(CastRingLayout.SliderFilledIcon, position,
+                    CastRingLayout.BandMarksAnchors);
             }
             return CastRingLayout.IconFor(CastRingLayout.SliderRingIcon, position, markAnchors: true);
         }

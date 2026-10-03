@@ -83,12 +83,8 @@ public static class CastRingLayout {
     /// </remarks>
     public const int SliderRingIcon = 2;
 
-    /// <summary>The icon the chosen band is overdrawn with — anchors are <b>not</b> marked in it.</summary>
-    /// <remarks>
-    /// The band pass passes zero for the anchor flag, so a category anchor inside the chosen band
-    /// loses its marker. That is what makes the band read as one continuous run rather than a ring
-    /// with six studs in it.
-    /// </remarks>
+    /// <summary>The icon the affordable band is overdrawn with; its fifths are marked (icon 3), as
+    /// the ring's are (TASK-755 corrected the earlier "anchors are not marked" reading).</summary>
     public const int SliderFilledIcon = 1;
 
     /// <summary>
@@ -115,16 +111,20 @@ public static class CastRingLayout {
     /// </remarks>
     public static bool InfoPanelFollowsTheCursor => true;
 
-    /// <summary>Whether a ring position falls inside the chosen band.</summary>
+    /// <summary>Whether a ring position falls inside the affordable band.</summary>
     /// <param name="position">Ring position, 0-based.</param>
-    /// <param name="minimumPower">The spell's minimum cost — where the band always starts.</param>
-    /// <param name="chosenPower">The power currently under the cursor.</param>
+    /// <param name="minimumPower">The spell's minimum cost — the band's low end.</param>
+    /// <param name="maximumPower">The highest power this caster can afford — the band's high end.</param>
     /// <remarks>
-    /// The band runs from the spell's <i>minimum</i> power, not from zero: the low end of the band is
-    /// fixed by the spell and only its top end follows the cursor.
+    /// <b>Corrected 2026-10-03 (TASK-755): the band does not follow the cursor.</b> Every pass of the
+    /// selection loop redraws <c>baseCost - 1 .. maxPower</c> (end exclusive, CSPELL.C:2051-2054); only
+    /// the intro animation (2045-2050) grows it, and the cursor adds just the one hover icon on top.
     /// </remarks>
-    public static bool IsInChosenBand(int position, int minimumPower, int chosenPower) =>
-        position >= PositionForPower(minimumPower) && position <= PositionForPower(chosenPower);
+    public static bool IsInAffordableBand(int position, int minimumPower, int maximumPower) =>
+        position >= minimumPower - 1 && position < maximumPower;
+
+    /// <summary>The band pass marks its fifths: <c>cspell_draw_spr_path_5th_off(1, ..., 1)</c>.</summary>
+    public const bool BandMarksAnchors = true;
 
     /// <summary>Whether a ring position is one of the six category anchors.</summary>
     public static bool IsAnchor(int position) => (position + 1) % PositionsPerCategory == 0;

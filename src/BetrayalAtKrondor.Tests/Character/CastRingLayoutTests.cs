@@ -136,12 +136,23 @@ public class CastRingLayoutTests {
     }
 
     [Fact]
-    public void TheChosenBandStartsAtTheSpellsMinimumNotAtZero() {
-        // Minimum power 5, cursor on power 9 -> positions 4..8 inclusive.
-        Assert.False(CastRingLayout.IsInChosenBand(3, minimumPower: 5, chosenPower: 9));
-        Assert.True(CastRingLayout.IsInChosenBand(4, minimumPower: 5, chosenPower: 9));
-        Assert.True(CastRingLayout.IsInChosenBand(8, minimumPower: 5, chosenPower: 9));
-        Assert.False(CastRingLayout.IsInChosenBand(9, minimumPower: 5, chosenPower: 9));
+    public void TheBandIsTheWholeAffordableRange_NotUpToTheCursor() {
+        // CSPELL.C:2051-2054: every pass of the loop redraws positions baseCost-1 .. maxPower (end
+        // exclusive) with the band icon; the cursor only adds the one hover icon on top (TASK-755).
+        // Powers 5..15: positions 4..14.
+        Assert.False(CastRingLayout.IsInAffordableBand(3, minimumPower: 5, maximumPower: 15));
+        Assert.True(CastRingLayout.IsInAffordableBand(4, minimumPower: 5, maximumPower: 15));
+        Assert.True(CastRingLayout.IsInAffordableBand(14, minimumPower: 5, maximumPower: 15));
+        Assert.False(CastRingLayout.IsInAffordableBand(15, minimumPower: 5, maximumPower: 15));
+    }
+
+    [Fact]
+    public void TheBandMarksItsFifths() {
+        // The band pass is cspell_draw_spr_path_5th_off(1, ..., 1): anchor flag 1, so a fifth
+        // position inside the band draws icon 3, not 1.
+        Assert.True(CastRingLayout.BandMarksAnchors);
+        Assert.Equal(3, CastRingLayout.IconFor(CastRingLayout.SliderFilledIcon, position: 9,
+            markAnchors: CastRingLayout.BandMarksAnchors));
     }
 
     [Fact]
