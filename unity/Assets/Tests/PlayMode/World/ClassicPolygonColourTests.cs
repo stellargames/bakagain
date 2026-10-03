@@ -31,7 +31,22 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.That(got.b, Is.InRange(10, 14), $"got {got}");
         }
 
-        private static Color32 Render(Color32 c, float darken) {
+        /// <summary>
+        /// The overhead map draws each terrain face in its map pen (Z##.DAT's remap), passed raw in
+        /// TEXCOORD2. In zone 1 at 09:33 the original's grass read (24,44,20); the port drew
+        /// (86,115,79), the same pen sRGB-encoded twice (TASK-749).
+        /// </summary>
+        [Test]
+        public void TheOverheadMapDrawsTerrainInItsPaletteColour() {
+            Color32 got = Render(new Color32(24, 44, 20, 255), darken: 0f, shader: "BakAgain/ClassicTerrain",
+                mapColor: new Vector4(24 / 255f, 44 / 255f, 20 / 255f, 1f));
+            Assert.That(got.r, Is.InRange(22, 26), $"got {got}");
+            Assert.That(got.g, Is.InRange(42, 46), $"got {got}");
+            Assert.That(got.b, Is.InRange(18, 22), $"got {got}");
+        }
+
+        private static Color32 Render(Color32 c, float darken, string shader = "BakAgain/ClassicPolygon",
+            Vector4? mapColor = null) {
             var go = new GameObject("quad");
             var camGo = new GameObject("cam");
             var rt = new RenderTexture(8, 8, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
@@ -44,7 +59,11 @@ namespace BakAgain.Tests.PlayMode.World {
                 Shader.SetGlobalVector("_BakLightDarken", new Vector4(0, 0, 0, darken));
                 mesh.colors32 = new[] { c, c, c, c };
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;
-                go.AddComponent<MeshRenderer>().sharedMaterial = new Material(Shader.Find("BakAgain/ClassicPolygon"));
+                if (mapColor is Vector4 mc) {
+                    mesh.SetUVs(2, new System.Collections.Generic.List<Vector4> { mc, mc, mc, mc });
+                    Shader.SetGlobalFloat("_MapMode", 1f);
+                }
+                go.AddComponent<MeshRenderer>().sharedMaterial = new Material(Shader.Find(shader));
                 go.transform.position = new Vector3(1000, 1000, 5);
 
                 var cam = camGo.AddComponent<Camera>();
@@ -63,6 +82,7 @@ namespace BakAgain.Tests.PlayMode.World {
                 return read.GetPixel(4, 4);
             } finally {
                 Shader.SetGlobalVector("_BakLightDarken", Vector4.zero);
+                Shader.SetGlobalFloat("_MapMode", 0f);
                 RenderTexture.active = null;
                 Object.DestroyImmediate(go);
                 Object.DestroyImmediate(camGo);

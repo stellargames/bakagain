@@ -84,7 +84,13 @@ Shader "BakAgain/ClassicTerrain" {
                     output.positionCS.z -= paintNudge;
                 #endif
                 output.fogCoord = ComputeFogFactor(output.positionCS.z);
+                // The map pen arrives as raw sRGB palette bytes; linearise it or the overhead map is
+                // washed out (TASK-749). The vertex colour is left alone: its 0.3 blend is part of the
+                // settled ground look.
                 output.mapColor = input.mapColor;
+                #if !defined(UNITY_COLORSPACE_GAMMA)
+                    output.mapColor.rgb = SRGBToLinear(input.mapColor.rgb);
+                #endif
                 return output;
             }
 
