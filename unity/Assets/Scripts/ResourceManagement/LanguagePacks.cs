@@ -20,6 +20,10 @@ namespace BakAgain.ResourceManagement {
         /// <summary>The pack in effect for this session.</summary>
         public static LanguagePack Current => _current ??= Load(BakResourceSettings.Language, BakResourceSettings.OverridePath);
 
+        /// <summary>Forget the loaded pack, so the next read of <see cref="Current"/> re-reads the
+        /// setting and the file.</summary>
+        public static void Reload() => _current = null;
+
         /// <summary>The pack file a locale is read from, under the override folder.</summary>
         public static string PathFor(string overridePath, string locale) =>
             Path.Combine(overridePath ?? string.Empty, "Lang", locale, locale + ".po");
