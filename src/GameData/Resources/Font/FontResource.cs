@@ -1,6 +1,7 @@
 namespace GameData.Resources.Font;
 
 using System.Collections.Generic;
+using System.Linq;
 
 /// <summary>
 /// A <c>.FNT</c> font: its metrics and one bitmap per glyph.
@@ -76,11 +77,65 @@ public class FontResource : IResource {
     public FontPixelFormat PixelFormat =>
         GlyphFormat > MonochromeGlyphFormat ? FontPixelFormat.Paletted : FontPixelFormat.Monochrome;
 
+    /// <summary>
+    /// Glyphs by Unicode code point, outside the file's contiguous run — what a language pack's font
+    /// adds (TASK-778). One here wins over the run's glyph for the same character.
+    /// </summary>
+    /// <remarks>
+    /// The shipped text fonts cover ASCII 32-127 in one run, which is all the original could type.
+    /// A translation needs letters anywhere in Unicode, and only the few it uses, so they are sparse.
+    /// </remarks>
+    public Dictionary<int, FontGlyph> ExtraGlyphs { get; set; } = new Dictionary<int, FontGlyph>();
+
     /// <summary>The glyph for a character code, or null when the font does not carry it.</summary>
     public FontGlyph? GlyphFor(int character) {
+        if (ExtraGlyphs.TryGetValue(character, out FontGlyph? extra)) {
+            return extra;
+        }
         int index = character - FirstCharacter;
 
         return index >= 0 && index < Glyphs.Count ? Glyphs[index] : null;
+    }
+
+    /// <summary>Every character the font draws with the glyph <see cref="GlyphFor"/> gives it, in code order.</summary>
+    public IEnumerable<(int Character, FontGlyph Glyph)> AllGlyphs() {
+        var all = new SortedDictionary<int, FontGlyph>(ExtraGlyphs);
+        for (int i = 0; i < Glyphs.Count; i++) {
+            if (!all.ContainsKey(FirstCharacter + i)) {
+                all[FirstCharacter + i] = Glyphs[i];
+            }
+        }
+        foreach (KeyValuePair<int, FontGlyph> entry in all) {
+            yield return (entry.Key, entry.Value);
+        }
+    }
+
+    /// <summary>
+    /// Rows from the top of the cell to the baseline: one row below where most capitals end.
+    /// </summary>
+    /// <remarks>
+    /// The most common lowest-ink row of A-Z, not the lowest, because Q and J have tails. The
+    /// header's own baseline byte disagrees between the fonts (GAME's matches this, BOOK's is one
+    /// row higher), so <see cref="Baseline"/> is not used. A font with no capitals has its baseline
+    /// at the bottom of the cell.
+    /// </remarks>
+    public int CapitalBaseline() {
+        var votes = new Dictionary<int, int>();
+        for (int c = 'A'; c <= 'Z'; c++) {
+            FontGlyph? g = GlyphFor(c);
+            int lowest = -1;
+            for (int y = 0; g != null && y < Height; y++) {
+                for (int x = 0; x < g.Width; x++) {
+                    if (g.PixelAt(x, y) != 0) {
+                        lowest = y;
+                    }
+                }
+            }
+            if (lowest >= 0) {
+                votes[lowest] = votes.TryGetValue(lowest, out int n) ? n + 1 : 1;
+            }
+        }
+        return votes.Count == 0 ? Height : votes.OrderByDescending(v => v.Value).First().Key + 1;
     }
 }
 

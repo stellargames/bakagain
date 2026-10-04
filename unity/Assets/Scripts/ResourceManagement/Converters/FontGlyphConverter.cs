@@ -68,10 +68,10 @@ namespace BakAgain.ResourceManagement.Converters {
             if (font?.Glyphs == null) {
                 return sprites;
             }
-            for (var i = 0; i < font.Glyphs.Count; i++) {
-                Sprite sprite = ToSprite(font, font.Glyphs[i], ink, palette);
+            foreach (var (character, glyph) in font.AllGlyphs()) {
+                Sprite sprite = ToSprite(font, glyph, ink, palette);
                 if (sprite != null) {
-                    sprites[font.FirstCharacter + i] = sprite;
+                    sprites[character] = sprite;
                 }
             }
 

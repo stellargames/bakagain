@@ -114,6 +114,9 @@ namespace BakAgain.ResourceManagement {
                     // The active language pack's translations go in as the resource loads, so every
                     // reader of it sees them (TASK-773). English is a no-op.
                     LanguagePacks.Current.Apply(resource, resourceId);
+                    if (resource is GameData.Resources.Font.FontResource font) {
+                        LanguagePacks.MergeFont(font);
+                    }
 
                     _extractedResourceCache[resourceId] = resource;
                 }

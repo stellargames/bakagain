@@ -1,4 +1,5 @@
 namespace BakAgain.ResourceManagement {
+    using GameData.Resources.Font;
     using GameData.Resources.Text;
     using System;
     using System.IO;
@@ -27,6 +28,37 @@ namespace BakAgain.ResourceManagement {
         /// <summary>The pack file a locale is read from, under the override folder.</summary>
         public static string PathFor(string overridePath, string locale) =>
             Path.Combine(overridePath ?? string.Empty, "Lang", locale, locale + ".po");
+
+        /// <summary>The pack's pixel font for a game font: <c>fonts/&lt;GAME|BOOK&gt;.bdf</c> beside the PO file.</summary>
+        public static string FontPathFor(string overridePath, string locale, string fontId) =>
+            Path.Combine(overridePath ?? string.Empty, "Lang", locale, "fonts",
+                Path.GetFileNameWithoutExtension(fontId) + ".bdf");
+
+        /// <summary>
+        /// Merge the active pack's BDF for <paramref name="font"/>, if it has one, so the letters
+        /// its translation uses can be drawn and measured (TASK-778). Like the text, a broken font
+        /// file is a warning, never a failed start.
+        /// </summary>
+        public static void MergeFont(FontResource font) {
+            if (Current == LanguagePack.English || font.PixelFormat != FontPixelFormat.Monochrome) {
+                return;
+            }
+            string path = FontPathFor(BakResourceSettings.OverridePath, BakResourceSettings.Language, font.Id);
+            if (!File.Exists(path)) {
+                return;
+            }
+            try {
+                using var reader = new StreamReader(path);
+                var clipped = ResourceExtraction.Text.BdfFont.MergeInto(font, reader);
+                Debug.Log($"Language pack font {path}: {font.ExtraGlyphs.Count} glyphs merged into {font.Id}.");
+                if (clipped.Count > 0) {
+                    Debug.LogWarning($"{path}: ink outside {font.Id}'s {font.Height}-row cell was clipped for "
+                        + string.Join(", ", System.Linq.Enumerable.Select(clipped, c => $"U+{c:X4}")) + ".");
+                }
+            } catch (Exception e) {
+                Debug.LogWarning($"Language pack font {path} could not be read ({e.Message}); its letters will not draw.");
+            }
+        }
 
         private static LanguagePack Load(string locale, string overridePath) {
             if (string.IsNullOrEmpty(locale) || locale == LanguagePack.English.Locale
