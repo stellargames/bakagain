@@ -32,6 +32,33 @@ namespace BakAgain.ResourceManagement {
             }
         }
 
+        private static GameData.Resources.Config.ResourceConfig _resourceConfig;
+
+        /// <summary>
+        /// The game folder's RESOURCE.CFG, read once — the original parses it at startup
+        /// (CFGPARSE.C). A missing file reads as the defaults.
+        /// </summary>
+        public static GameData.Resources.Config.ResourceConfig ResourceConfig =>
+            _resourceConfig ??= GameData.Resources.Config.ResourceConfig.Parse(ReadGameFile("RESOURCE.CFG"));
+
+        /// <summary>A file in the game folder, matched without regard to case (DOS names it in capitals).</summary>
+        private static string ReadGameFile(string name) {
+            try {
+                string dir = GamePath;
+                if (string.IsNullOrEmpty(dir) || !System.IO.Directory.Exists(dir)) {
+                    return null;
+                }
+                foreach (string file in System.IO.Directory.EnumerateFiles(dir)) {
+                    if (string.Equals(System.IO.Path.GetFileName(file), name, StringComparison.OrdinalIgnoreCase)) {
+                        return System.IO.File.ReadAllText(file);
+                    }
+                }
+            } catch (System.IO.IOException) {
+            } catch (UnauthorizedAccessException) {
+            }
+            return null;
+        }
+
         public static void Save() {
             PlayerPrefs.Save();
         }

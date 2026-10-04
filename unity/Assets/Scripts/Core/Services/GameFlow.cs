@@ -419,13 +419,7 @@ namespace BakAgain.Core.Services {
             }
 
             // stat_party_heal_all(100): the active party, each through stat_combatant_heal.
-            foreach (byte member in _session.ActivePartyIndices ?? System.Array.Empty<byte>()) {
-                GameData.Resources.Character.ActorStat[] stats = _session.StatsOf(member);
-                if (stats != null && GameData.Resources.Character.CharacterHeal.Apply(stats,
-                        _session.ConditionsOf(member), GameData.Resources.Character.CharacterHeal.FullHealAmount)) {
-                    _session.LastRestTicks = _session.GameTimeIn2Seconds;
-                }
-            }
+            _session.HealActiveParty(GameData.Resources.Character.CharacterHeal.FullHealAmount);
         }
 
         /// <summary>

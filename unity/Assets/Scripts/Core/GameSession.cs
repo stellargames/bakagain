@@ -138,6 +138,19 @@ namespace BakAgain.Core {
 
         // Live mutable state — gameplay updates these every step / tick.
         public int PartyGold { get; set; }
+
+        /// <summary>
+        /// <c>stat_party_heal_all(amount)</c>: each active member through <c>stat_combatant_heal</c>.
+        /// A heal that changes a pool stamps <see cref="LastRestTicks"/>, as the chapter heal does.
+        /// </summary>
+        public void HealActiveParty(int amount) {
+            foreach (byte member in ActivePartyIndices ?? System.Array.Empty<byte>()) {
+                GameData.Resources.Character.ActorStat[] stats = StatsOf(member);
+                if (stats != null && GameData.Resources.Character.CharacterHeal.Apply(stats, ConditionsOf(member), amount)) {
+                    LastRestTicks = GameTimeIn2Seconds;
+                }
+            }
+        }
         public long GameTimeIn2Seconds { get; set; }
 
         /// <summary>
@@ -1944,6 +1957,12 @@ namespace BakAgain.Core {
         /// degrades to the save-only behaviour every caller had before this source existed.
         /// </summary>
         public GameData.Resources.Data.FixedObjectSet FixedObjects { get; set; }
+
+        /// <summary>
+        /// Sets the chapter outright, for the one caller that borrows another: CHEAT CENTRAL's chest
+        /// runs as chapter 9 and puts the real one back (TOWNSCN.C:715-720).
+        /// </summary>
+        public void SetChapter(int chapter) => Chapter = chapter;
 
         // Test seam: set containers + chapter without a full SaveGame hydration. Also rebuilds
         // the runtime layer (mirrors Initialize) so GetActorInventory/GetRuntimeContainerAt are

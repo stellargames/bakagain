@@ -86,7 +86,10 @@ namespace BakAgain.UI.InGame {
             CampMenu campMenu, IFullMapView fullMap,
             BakAgain.UI.Inventory.InventoryMenu inventoryMenu,
             BakAgain.UI.Character.CharacterSheetScreen characterSheet,
-            IPointer pointer, IGameplayInput gameplay, IMapOptionInput mapOptions) {
+            IPointer pointer, IGameplayInput gameplay, IMapOptionInput mapOptions,
+            ICheatInput cheat, BakAgain.UI.Cheats.ChestCheatScreen cheatChest) {
+            _cheat = cheat;
+            _cheatChest = cheatChest;
             _session = session;
             _world = world;
             _dialogs = dialogs;
@@ -104,6 +107,7 @@ namespace BakAgain.UI.InGame {
         }
 
         protected override void OnAfterShow() {
+            _closingForWorldExit = false;
             if (_loader == null) {
                 return;
             }
@@ -277,6 +281,50 @@ namespace BakAgain.UI.InGame {
             Movement?.SyncToCamera();
         }
 
+        private ICheatInput _cheat;
+        private BakAgain.UI.Cheats.ChestCheatScreen _cheatChest;
+        private float _cheatHeldSince = -1f;
+
+        /// <summary>
+        /// RShift+Alt+` HELD opens CHEAT CENTRAL's cipher chest (MAP.C:423-433). The modifiers are
+        /// tested at the press; letting go of ` before the hold is up cancels it.
+        /// </summary>
+        private void OpenCheatChestOnALongHold(bool ownsInput) {
+            if (!ownsInput || _cheat == null || _cheatChest == null) {
+                _cheatHeldSince = -1f;
+                return;
+            }
+            if (_cheat.CheatKeyPressed && _cheat.CheatChordHeld) {
+                _cheatHeldSince = Time.unscaledTime;
+            }
+            if (_cheatHeldSince < 0f) {
+                return;
+            }
+            if (!_cheat.CheatKeyHeld) {
+                _cheatHeldSince = -1f;
+                return;
+            }
+            if (Time.unscaledTime - _cheatHeldSince < GameData.Resources.World.CheatCentral.ChestHoldSeconds) {
+                return;
+            }
+            _cheatHeldSince = -1f;
+            _cheatChest.OpenWithCipherAsync().Forget();
+        }
+
+        private bool _closingForWorldExit;
+
+        /// <summary>
+        /// A world-loop exit request ends the map, checked every pass as the map loop does
+        /// (MAP.C:447) — the cheat chest's chapter skip raises one under this screen.
+        /// </summary>
+        private void CloseOnAWorldExitRequest(bool ownsInput) {
+            if (!ownsInput || _closingForWorldExit || _session == null || _session.ChapterTransitionPending == 0) {
+                return;
+            }
+            _closingForWorldExit = true;
+            _navigator?.Pop().Forget();
+        }
+
         private void Update() {
             if (_worldView == null) {
                 return;
@@ -286,6 +334,8 @@ namespace BakAgain.UI.InGame {
             bool ownsInput = _layerHost != null && _layerHost.IsInputActive;
             _movementDriver?.Tick(ownsInput);
             ToggleNorthUpIfAsked(ownsInput);
+            OpenCheatChestOnALongHold(ownsInput);
+            CloseOnAWorldExitRequest(ownsInput);
             // After the driver, because a step re-syncs the camera to the travel pose.
             ApplyMapCamera();
             RefreshMarker();

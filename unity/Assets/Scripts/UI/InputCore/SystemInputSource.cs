@@ -137,12 +137,15 @@ namespace BakAgain.UI.InputCore {
 
             _toggleOverlay = new InputAction("ToggleCombatOverlay", InputActionType.Button, binding: "<Keyboard>/g");
             _toggleOverlay.Enable();
+
+            _cheatKey = new InputAction("CheatCentral", InputActionType.Button, binding: "<Keyboard>/backquote");
+            _cheatKey.Enable();
         }
 
         private void DisposeGameplay() {
             foreach (InputAction action in new[] {
                     _move, _look, _run, _ascend, _descend, _zoom, _revealCredits,
-                    _toggleOverlay }) {
+                    _toggleOverlay, _cheatKey }) {
                 Release(action);
             }
         }
@@ -179,6 +182,21 @@ namespace BakAgain.UI.InputCore {
         private InputAction _revealCredits;
 
         public bool RevealRareCredits => _revealCredits.IsPressed();
+
+        private InputAction _cheatKey;
+
+        public bool CheatKeyPressed => _cheatKey?.WasPressedThisFrame() ?? false;
+        public bool CheatKeyHeld => _cheatKey?.IsPressed() ?? false;
+        public bool SkipChapterKeyPressed => _revealCredits?.WasPressedThisFrame() ?? false;
+
+        public bool CheatChordHeld {
+            get {
+                Keyboard kb = Keyboard.current;
+                return kb != null && GameData.Resources.World.CheatCentral.ModifiersMatch(
+                    kb.rightShiftKey.isPressed, kb.leftAltKey.isPressed || kb.rightAltKey.isPressed,
+                    kb.leftShiftKey.isPressed, kb.leftCtrlKey.isPressed || kb.rightCtrlKey.isPressed);
+            }
+        }
     }
 
     // The overhead map's north-up toggle. Shares the 'N' key with the credits Easter egg above and

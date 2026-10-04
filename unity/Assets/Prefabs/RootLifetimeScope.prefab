@@ -67,6 +67,8 @@ MonoBehaviour:
   innScreenPrefab: {fileID: 8884565557960522096, guid: 5d969ee119b35f4c48cb23d96c1dfda9, type: 3}
   riftMapScreenPrefab: {fileID: 5080074986040699954, guid: b111c3827743c1e3d9ec48464289a100, type: 3}
   puzzleScreenPrefab: {fileID: 6321020500852115182, guid: e90a0741474ab736a9cd5221a497f617, type: 3}
+  knockKnockCheatScreenPrefab: {fileID: 2751508304866502123, guid: 34d408e6b46e6e850bc6415932d1fe10, type: 3}
+  chestCheatScreenPrefab: {fileID: 8696348163770072265, guid: 15f87f29311272079be4e87090237ef3, type: 3}
   bookViewPrefab: {fileID: 3570945004412942817, guid: e59eb39a11639c94896a06a59e2609dc, type: 3}
   dialogManagerPrefab: {fileID: 645967921563507053, guid: f7bed9e9fecbfe6409f3680f06e0600b, type: 3}
   fullMapViewPrefab: {fileID: 1908337328350798230, guid: 3b3959a18a2b5664cae6a8d5a51447e5, type: 3}

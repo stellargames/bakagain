@@ -31,10 +31,15 @@ public static class CheatCentral {
     public const string Title = "-> CHEAT CENTRAL <-";
     public const string Subtitle = "Enjoy with caution...";
 
-    /// <summary>Both captions, centred at VGA x 0xa0; y 0x14 and 0x23.</summary>
-    public const int CaptionCentreXVga = 0xa0;
-    public const int TitleYVga = 0x14;
-    public const int SubtitleYVga = 0x23;
+    /// <summary>
+    /// Both captions, in canonical (square, 1600x1200) units: the original centres them at VGA
+    /// x 0xa0 with tops at y 0x14 and 0x23, and draws the shadow one VGA pixel down-right.
+    /// </summary>
+    public const int CaptionCentreX = 0xa0 * 5;
+    public const int TitleY = 0x14 * 6;
+    public const int SubtitleY = 0x23 * 6;
+    public const int CaptionShadowX = 5;
+    public const int CaptionShadowY = 6;
 
     public const string KnockKnockReq = "REQ_KNOC.DAT";
     public const string ChestReq = "REQ_CHET.DAT";
@@ -63,6 +68,12 @@ public static class CheatCentral {
     /// <summary>TOWN_VISITED(i), i &lt; 15 (GSTATE.H:79): the flags the teleport list reads ("All: Teleports").</summary>
     public const int TownVisitedBase = 6480;
     public const int TownCount = 15;
+
+    /// <summary>
+    /// How long the map screen wants ` held. The original spins 500,000 polls (MAP.C:426), a time
+    /// that depends on the CPU; ponytail: one second stands in, measure a 486 if it matters.
+    /// </summary>
+    public const float ChestHoldSeconds = 1f;
 
     /// <summary>The scancode both entries test with the modifiers: the ` key.</summary>
     public const int TriggerScanCode = 0x29;

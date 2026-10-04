@@ -861,6 +861,18 @@ namespace BakAgain.UI.InGame {
         }
 
 
+        /// <summary>
+        /// RShift+Alt+` with RESOURCE.CFG's knockknock switch set opens CHEAT CENTRAL (WORLDLP.C:379).
+        /// </summary>
+        private void OpenCheatCentralOnItsChord() {
+            var keys = _resolver?.Resolve<BakAgain.UI.InputCore.ICheatInput>();
+            if (keys == null || !keys.CheatKeyPressed || !keys.CheatChordHeld
+                || !BakAgain.ResourceManagement.BakResourceSettings.ResourceConfig.KnockKnock) {
+                return;
+            }
+            _navigator?.Push(_resolver.Resolve<BakAgain.UI.Cheats.KnockKnockCheatScreen>()).Forget();
+        }
+
         private void Update() {
             if (!_visible) {
                 return;
@@ -891,6 +903,9 @@ namespace BakAgain.UI.InGame {
             }
             // While lifted the arrows look around instead of walking (the original's loop owns them).
             _movementDriver?.Tick(travelling && !_lifting);
+            if (travelling) {
+                OpenCheatCentralOnItsChord();
+            }
             // The world's ambient SFX, ticked where the original ticks it — from the world loop.
             // The driver converts frames to game ticks itself, so this passing Time.deltaTime does
             // NOT tie the sound rate to the frame rate.

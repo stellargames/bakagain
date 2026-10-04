@@ -54,9 +54,6 @@ namespace BakAgain.World.Interaction {
         private const int DdxChest         = 91;   // locked/trapped describe
         private const int DdxPuzzle        = 92;
 
-        /// <summary>ddx 11 — what the cipher screen says on the way in (CIPHER.C:62).</summary>
-        private const int PuzzleIntroDialog = 11;
-
         /// <summary>No dialog — the decision acts instead of speaking.</summary>
         public const int NoDialog = 0;
 
@@ -396,18 +393,8 @@ namespace BakAgain.World.Interaction {
                 return;
             }
 
-            // *** THE CIPHER SCREEN INTRODUCES ITSELF. *** cipher_dial_puzzle_run opens with
-            // `dialog_play_record(0xb, 1)` (CIPHER.C:62) — ddx 11, "Rough in its construction and
-            // banded with iron, the moredhel box would be impossible to open without solving its
-            // wordlock…" — before the dial is drawn, and BEFORE the puzzle table is loaded. We went
-            // straight to the dial. Observed in the original at zone-1 puzzle chest 35 and settled
-            // by dismissing with a KEY, so no second click could have produced it.
-            //
-            // It belongs to the runner, not to this handler — the same shape as the picklock
-            // prompt — but PuzzleService has no dialog layer, and this is the only caller. Move it
-            // in if a second one ever appears.
-            await _dialog.ShowById(PuzzleIntroDialog);
-
+            // The cipher screen's own opening line (ddx 11, CIPHER.C:62) is PuzzleScreen.RunAsync's
+            // to play. This handler played it as well, so the player dismissed it twice.
             // PuzzleService says which file or entry failed, so there is nothing to add here.
             CipherPuzzle puzzle = await _puzzles.LoadAsync(puzzleId);
             if (puzzle == null) {

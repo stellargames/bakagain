@@ -89,6 +89,13 @@ namespace BakAgain.Core.DI {
         [SerializeField]
         private BakAgain.UI.Puzzle.PuzzleScreen puzzleScreenPrefab;
 
+        /// <summary>The hidden CHEAT CENTRAL menus (TASK-692): REQ_KNOC from travel, REQ_CHET from the map.</summary>
+        [SerializeField]
+        private BakAgain.UI.Cheats.KnockKnockCheatScreen knockKnockCheatScreenPrefab;
+
+        [SerializeField]
+        private BakAgain.UI.Cheats.ChestCheatScreen chestCheatScreenPrefab;
+
         [SerializeField]
         private BookView bookViewPrefab;
 
@@ -201,6 +208,8 @@ namespace BakAgain.Core.DI {
             builder.RegisterComponentInNewPrefab(riftMapScreenPrefab, Lifetime.Singleton);
             builder.RegisterComponentInNewPrefab(innScreenPrefab, Lifetime.Singleton);
             builder.RegisterComponentInNewPrefab(puzzleScreenPrefab, Lifetime.Singleton);
+            builder.RegisterComponentInNewPrefab(knockKnockCheatScreenPrefab, Lifetime.Singleton);
+            builder.RegisterComponentInNewPrefab(chestCheatScreenPrefab, Lifetime.Singleton);
             builder.Register<BakAgain.UI.Puzzle.PuzzleService>(Lifetime.Singleton);
             builder.Register<BakAgain.UI.Spells.FieldSpellCaster>(Lifetime.Singleton);
             builder.Register<BakAgain.World.WorldLightingService>(Lifetime.Singleton);

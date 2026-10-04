@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &2020746282566840517
+--- !u!1 &4021819250236743089
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,26 +8,26 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 4055943928654468675}
-  - component: {fileID: 5585719366504560390}
-  - component: {fileID: 3163544503384005063}
-  - component: {fileID: 2093290545016010248}
-  - component: {fileID: 7025265839174235654}
-  - component: {fileID: 6321020500852115182}
+  - component: {fileID: 7441003842697709865}
+  - component: {fileID: 1535543099225363101}
+  - component: {fileID: 6852025117718629184}
+  - component: {fileID: 1319010970480647187}
+  - component: {fileID: 6584773151883290156}
+  - component: {fileID: 2751508304866502123}
   m_Layer: 0
-  m_Name: PuzzleScreen
+  m_Name: KnockKnockCheatScreen
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 0
---- !u!4 &4055943928654468675
+--- !u!4 &7441003842697709865
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2020746282566840517}
+  m_GameObject: {fileID: 4021819250236743089}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -36,13 +36,13 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &5585719366504560390
+--- !u!114 &1535543099225363101
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2020746282566840517}
+  m_GameObject: {fileID: 4021819250236743089}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
@@ -51,7 +51,7 @@ MonoBehaviour:
   m_PanelSettings: {fileID: 11400000, guid: e1ac2bea2a13f4a4abb255bc71d7cc98, type: 2}
   m_ParentUI: {fileID: 0}
   sourceAsset: {fileID: 0}
-  m_SortingOrder: 2
+  m_SortingOrder: 0
   m_Position: 0
   m_WorldSpaceSizeMode: 1
   m_WorldSpaceWidth: 1920
@@ -59,58 +59,59 @@ MonoBehaviour:
   m_PivotReferenceSize: 0
   m_Pivot: 0
   m_WorldSpaceCollider: {fileID: 0}
---- !u!114 &3163544503384005063
+--- !u!114 &6852025117718629184
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2020746282566840517}
+  m_GameObject: {fileID: 4021819250236743089}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 21ff0e1c919a7e748b19c8adf28e0c79, type: 3}
   m_Name: 
   m_EditorClassIdentifier: BakAgain::BakAgain.ResourceManagement.Loaders.BackgroundImageLoader
-  imageAddress: PUZZLE.SCX
---- !u!114 &2093290545016010248
+  imageAddress: DIALOG.SCX
+--- !u!114 &1319010970480647187
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2020746282566840517}
+  m_GameObject: {fileID: 4021819250236743089}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe1c4a73d9e01d84789076c77c494557, type: 3}
   m_Name: 
   m_EditorClassIdentifier: BakAgain::BakAgain.ResourceManagement.Loaders.UserInterfaceLoader
-  userInterfaceAddress: REQ_PUZL.DAT
+  userInterfaceAddress: REQ_KNOC.DAT
   labelAddress: 
   inputFormAddress: 
   cursorSet: POINTER
   hitTestOnly: 0
---- !u!114 &7025265839174235654
+--- !u!114 &6584773151883290156
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2020746282566840517}
+  m_GameObject: {fileID: 4021819250236743089}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 12afead34023b4776aa6ea81f091eb07, type: 3}
   m_Name: 
   m_EditorClassIdentifier: BakAgain::BakAgain.UI.InputCore.MenuLayerHost
   capturesExclusively: 0
---- !u!114 &6321020500852115182
+--- !u!114 &2751508304866502123
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2020746282566840517}
+  m_GameObject: {fileID: 4021819250236743089}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aac9bf9cacb2f993abb818f2805138c4, type: 3}
+  m_Script: {fileID: 11500000, guid: 84c80aead1a26b2ec91ea500dfae055d, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: BakAgain::BakAgain.UI.Puzzle.PuzzleScreen
+  m_EditorClassIdentifier: BakAgain::BakAgain.UI.Cheats.KnockKnockCheatScreen
+  _fadeSeconds: 0.15
