@@ -97,11 +97,30 @@ public class GlyphSynthesisTests {
         FontResource font = Font();
         FontGlyph original = font.GlyphFor('A')!;
 
-        IReadOnlyList<int> missing = GlyphSynthesis.AddComposed(font, new[] { (int)'A', 'ж', 'ß' });
+        IReadOnlyList<int> missing = GlyphSynthesis.AddComposed(font, new[] { (int)'A', 'ж', '中' });
 
-        Assert.Equal(new[] { (int)'ж', 'ß' }, missing);
+        Assert.Equal(new[] { (int)'ж', '中' }, missing);
         Assert.Same(original, font.GlyphFor('A'));
         Assert.Null(font.GlyphFor('ж'));
+    }
+
+    [Fact]
+    public void SharpSIsAReshapedB() {
+        FontResource font = Font();
+        // A B: stem on column 0, bars on rows 1, 4 and 7 closing onto it.
+        FontGlyph b = font.Glyphs['B' - 'A'];
+        string[] shape = { "....", "###.", "#..#", "#..#", "###.", "#..#", "#..#", "###.", "....", "...." };
+        for (int y = 0; y < 10; y++) {
+            b.Rows[y][0] = System.Convert.ToByte(shape[y].Replace('#', '1').Replace('.', '0').PadRight(8, '0'), 2);
+        }
+
+        Assert.Empty(GlyphSynthesis.AddComposed(font, new[] { (int)'ß' }));
+
+        FontGlyph sharp = font.GlyphFor('ß')!;
+        Assert.False(sharp.IsSet(0, 1), "the stem's top corner is an arch");
+        Assert.False(sharp.IsSet(1, 4), "the middle bar is open at the stem");
+        Assert.False(sharp.IsSet(1, 7), "so is the foot");
+        Assert.True(sharp.IsSet(0, 5) && sharp.IsSet(2, 7));
     }
 
     [Fact]

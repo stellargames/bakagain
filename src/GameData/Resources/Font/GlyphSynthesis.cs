@@ -98,6 +98,11 @@ public static class GlyphSynthesis {
             }
             return joined;
         }
+        if (c == 'ß' || c == 'ẞ') {
+            Grid? sharp = Grid.Of(font, 'B');
+            sharp?.ReshapeIntoSharpS();
+            return sharp;
+        }
         if (Stroked.TryGetValue(c, out char stroked)) {
             Grid? grid = Grid.Of(font, stroked);
             grid?.Stroke(char.ToLowerInvariant(stroked) == 'l');
@@ -263,6 +268,37 @@ public static class GlyphSynthesis {
                 }
                 for (int x = 0; x < Width; x++) {
                     _ink[0, x] = false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// ß from B: the same stem and two bowls at ascender height, reshaped so it stops reading as a
+        /// B — the stem's top corner rounded into an arch, and the bars that close the bowls onto the
+        /// stem (the middle and the bottom) opened by one pixel, as pixel fonts draw an ß.
+        /// </summary>
+        public void ReshapeIntoSharpS() {
+            int top = TopInk();
+            // The stem: the column with ink on the most rows, and its neighbours nearly as full.
+            int[] inkRows = Enumerable.Range(0, Width)
+                .Select(x => Enumerable.Range(0, Height).Count(y => _ink[y, x])).ToArray();
+            int most = inkRows.Max();
+            int stem = Array.IndexOf(inkRows, most);
+            int stemRight = stem;
+            while (stemRight + 1 < Width && inkRows[stemRight + 1] >= most - 2) {
+                stemRight++;
+            }
+            for (int y = top + 2; y < Height && stemRight + 1 < Width; y++) {
+                if (_ink[y, stemRight] && _ink[y, stemRight + 1]) {
+                    _ink[y, stemRight + 1] = false;
+                }
+            }
+            for (int x = 0; x < Width; x++) {
+                if (_ink[top, x]) {
+                    if (x <= stem) {
+                        _ink[top, x] = false;
+                    }
+                    break;
                 }
             }
         }

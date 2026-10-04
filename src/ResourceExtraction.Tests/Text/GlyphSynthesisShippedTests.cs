@@ -13,8 +13,8 @@ using Xunit.Abstractions;
 /// (TASK-778). Prints them, so a change in the marks can be looked at. Skips without the game data.
 /// </summary>
 public class GlyphSynthesisShippedTests {
-    // Dutch, German, French, Spanish, Portuguese, Italian, Scandinavian, Polish, Czech — less ß.
-    private const string European = "äëïöüÄËÏÖÜéèêáàâíìîóòôúùûçñãõÉÈÊÁÀÂÍÓÚÇÑåÅæÆøØœŒąćęłńśźżĄĆĘŁŃŚŹŻčďěňřšťůžČĎĚŇŘŠŤŮŽ’“”–…";
+    // Dutch, German, French, Spanish, Portuguese, Italian, Scandinavian, Polish, Czech.
+    private const string European = "ßäëïöüÄËÏÖÜéèêáàâíìîóòôúùûçñãõÉÈÊÁÀÂÍÓÚÇÑåÅæÆøØœŒąćęłńśźżĄĆĘŁŃŚŹŻčďěňřšťůžČĎĚŇŘŠŤŮŽ’“”–…";
 
     private readonly ITestOutputHelper _out;
     public GlyphSynthesisShippedTests(ITestOutputHelper output) => _out = output;
@@ -42,7 +42,7 @@ public class GlyphSynthesisShippedTests {
 
         IReadOnlyList<int> missing = GlyphSynthesis.AddComposed(font, European.Select(c => (int)c));
 
-        foreach (string line in Dump(font, "aäAÄiïíeéêoøæOØÆcçnñlłsšzżuůEĘ…")) {
+        foreach (string line in Dump(font, "aäAÄiïíeéêoøæOØÆcçnñlłsšzżuůEĘ…Bbhß")) {
             _out.WriteLine(line);
         }
         Assert.Empty(missing);
