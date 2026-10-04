@@ -62,5 +62,31 @@ namespace BakAgain.Tests.PlayMode.UI.Localization {
 
             Assert.AreEqual(UiStringCatalog.Embedded.Get(key), UiStrings.Catalog.Get(key));
         });
+
+        /// <summary>
+        /// A resource extracted from the archive arrives translated — the hook in
+        /// <c>BakResourceProvider</c>, through Addressables as every screen loads it. Keyword 255 is
+        /// "Yes". Skips without the game data.
+        /// </summary>
+        [Test]
+        public void AnArchiveResourceArrivesTranslated() {
+            File.AppendAllText(LanguagePacks.PathFor(_dir, "xx"),
+                $"\nmsgctxt \"{TextKey.Keyword(255)}\"\nmsgid \"Yes\"\nmsgstr \"Jawohl\"\n");
+            LanguagePacks.Reload();
+            GameData.Resources.Data.KeywordList keywords;
+            try {
+                keywords = UnityEngine.AddressableAssets.Addressables
+                    .LoadAssetAsync<GameData.Resources.Data.KeywordList>("KEYWORD.DAT")
+                    .WaitForCompletion();
+            } catch (System.Exception) {
+                Assert.Ignore("No game data to extract from.");
+                return;
+            }
+            if (keywords == null) {
+                Assert.Ignore("No game data to extract from.");
+            }
+
+            Assert.AreEqual("Jawohl", keywords.Keywords[255]);
+        }
     }
 }
