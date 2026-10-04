@@ -317,9 +317,11 @@ namespace BakAgain.World {
                 }
             }
 
+            List<GameData.Resources.Combat.ArenaScenery.Placement> notInFight = SceneryMissingFromFight(cellSize);
             foreach (WorldEntity entity in _zoneRoot.GetComponentsInChildren<WorldEntity>()) {
                 float depth = Vector3.Dot(entity.transform.position - camPos, camForward);
-                if (!StandsBetweenCameraAndArena(entity.EntityType, depth, arenaDepth)) {
+                if (!StandsBetweenCameraAndArena(entity.EntityType, depth, arenaDepth)
+                    && !IsAmong(entity, notInFight)) {
                     continue;
                 }
                 foreach (Renderer r in entity.GetComponentsInChildren<Renderer>()) {
@@ -337,6 +339,52 @@ namespace BakAgain.World {
                 "Arena scenery cull: {Count} renderers hidden in front of the arena's near edge "
                 + "at {Depth} units.",
                 _arenaCulledRenderers.Count, arenaDepth);
+        }
+
+        /// <summary>
+        /// The placements the original leaves out of the fight: arena scenery its backdrop drops and
+        /// its combatant table does not re-add (<see cref="GameData.Resources.Combat.ArenaScenery.HiddenInFight"/>,
+        /// TASK-790) — a tree in the wedge nearest the camera stood on the board and hid an opponent.
+        /// </summary>
+        private List<GameData.Resources.Combat.ArenaScenery.Placement> SceneryMissingFromFight(int cellSize) {
+            var missing = new List<GameData.Resources.Combat.ArenaScenery.Placement>();
+            if (_zoneIsUnderground || _zoneSceneBuilder?.Collision == null) {
+                return missing; // the underground fight stands inside its corridor, see below
+            }
+            long px = _gameSession.PositionX, py = _gameSession.PositionY;
+            int heading = _gameSession.Rotation;
+            var kept = GameData.Resources.Combat.ArenaScenery.Kept(
+                SceneryOnTile(GameData.Resources.World.WorldPlacement.TileOf(px),
+                    GameData.Resources.World.WorldPlacement.TileOf(py)),
+                px, py, heading, cellSize);
+            foreach (Collision.ProximityRecord r in _zoneSceneBuilder.Collision.Placements) {
+                if (r.Entry?.Dat == null) {
+                    continue;
+                }
+                var placement = new GameData.Resources.Combat.ArenaScenery.Placement(
+                    (int)r.Entry.Dat.EntityType, r.X, r.Y);
+                if (GameData.Resources.Combat.ArenaScenery.HiddenInFight(placement, kept, px, py, heading, cellSize)) {
+                    missing.Add(placement);
+                }
+            }
+            return missing;
+        }
+
+        /// <summary>Whether a scene entity is one of <paramref name="placements"/>: same kind, same
+        /// spot to within the round trip through Unity space.</summary>
+        private static bool IsAmong(WorldEntity entity,
+            List<GameData.Resources.Combat.ArenaScenery.Placement> placements) {
+            if (placements.Count == 0) {
+                return false;
+            }
+            (int x, int y) = BakCoordinateConverter.ToBakXY(entity.transform.position);
+            int kind = (int)entity.EntityType;
+            foreach (GameData.Resources.Combat.ArenaScenery.Placement p in placements) {
+                if (p.Kind == kind && System.Math.Abs(p.X - x) <= 2 && System.Math.Abs(p.Y - y) <= 2) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>

@@ -74,4 +74,45 @@ public class ArenaSceneryTests {
         Assert.Equal(ArenaScenery.WorldToCell(0, 5000, 0, Cell),
             ArenaScenery.WorldToCell(-5000, 0, 0x4000, Cell));
     }
+
+    // --- what the fight still draws (PROXSCAN.C:326-331 + CMBTGRID.C:409-418), TASK-790 ---
+
+    private static bool Hidden(ArenaScenery.Placement p, params ArenaScenery.Placement[] partyTile) =>
+        ArenaScenery.HiddenInFight(p, ArenaScenery.Kept(partyTile, 0, 0, 0, Cell), 0, 0, 0, Cell);
+
+    [Fact]
+    public void ATreeInTheWedgeNearestTheCameraIsGone() {
+        ArenaScenery.Placement tree = At(Tree, 3, 8);
+        Assert.True(ArenaScenery.InNearWedge(3, 8));
+
+        Assert.True(Hidden(tree, tree), "the original deletes it: not in the backdrop, not in the table");
+    }
+
+    [Fact]
+    public void ATreeTheTableKeepsIsStillDrawn() {
+        ArenaScenery.Placement tree = At(Tree, 6, 11);
+
+        Assert.False(Hidden(tree, tree));
+    }
+
+    [Fact]
+    public void ScenerySomeOtherTileOwnsIsGoneFromTheArena() {
+        // Only the party's own tile is re-added; a tree on the grid from the next tile is not.
+        Assert.True(Hidden(At(Tree, 6, 11)));
+    }
+
+    [Fact]
+    public void ScenerySoCloseItIsOffTheGridIsGoneToo() {
+        var underfoot = new ArenaScenery.Placement(Tree, 0, 1000);
+        Assert.Null(ArenaScenery.WorldToCell(underfoot.X, underfoot.Y, 0, Cell));
+
+        Assert.True(Hidden(underfoot, underfoot), "within 4000 units");
+        Assert.False(Hidden(new ArenaScenery.Placement(Tree, 20000, 20000)), "far off the grid stays");
+    }
+
+    [Fact]
+    public void UnlistedKindsAreNotTouched() {
+        // Only combatgrid_obj_kind_prox_actv's kinds leave the backdrop.
+        Assert.False(Hidden(At(1, 3, 8)));
+    }
 }

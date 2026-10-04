@@ -14,7 +14,8 @@ using System.Collections.Generic;
 ///
 /// <para><b>Only the party's own map tile.</b> The first list is
 /// <c>g_apCombat_zone_actor_lists[0]</c>, the tile the party stands on (WCURSOR.C:287 compares it
-/// to <c>pos / 64000</c>). A tree across the tile edge is drawn but does not wall its cell.</para>
+/// to <c>pos / 64000</c>). A tree across the tile edge neither walls its cell nor is drawn in the
+/// fight (<see cref="HiddenInFight"/>).</para>
 ///
 /// <para>Not ported: the second list, <c>g_pVisible_entry_pool</c>, which holds the time-of-day
 /// spawns (ACTSPAWN.C) rather than scenery.</para>
@@ -33,8 +34,58 @@ public static class ArenaScenery {
     /// <returns>The cells walled.</returns>
     public static List<(int X, int Y)> Wall(CombatGrid grid, IEnumerable<Placement> tileObjects,
         long partyX, long partyY, int heading, int cellSize) {
-        var claimed = new List<(int X, int Y)>();
         var walled = new List<(int X, int Y)>();
+        foreach ((Placement p, (int X, int Y) cell) in Table(tileObjects, partyX, partyY, heading, cellSize)) {
+            if (Blocks(p.Kind)) {
+                grid.SetTerrain(cell.X, cell.Y, CombatTerrain.OutOfBounds);
+                walled.Add(cell);
+            }
+        }
+        return walled;
+    }
+
+    /// <summary>The objects <c>g_combatant_table</c> keeps — the scenery the fight draws (TASK-790).</summary>
+    public static HashSet<Placement> Kept(IEnumerable<Placement> tileObjects,
+        long partyX, long partyY, int heading, int cellSize) {
+        var kept = new HashSet<Placement>();
+        foreach ((Placement p, _) in Table(tileObjects, partyX, partyY, heading, cellSize)) {
+            kept.Add(p);
+        }
+        return kept;
+    }
+
+    /// <summary>
+    /// Whether a placed object is missing from the fight — <c>proxscan_region_bucket</c> /
+    /// <c>proxscan_world_objects</c> (PROXSCAN.C:326-331, :377-381) and the table walk together.
+    /// </summary>
+    /// <remarks>
+    /// <b>The fight's backdrop is drawn without arena scenery.</b> Every listed kind on the grid,
+    /// or within 4000 units of the party, is left out of the world view the fight is drawn over;
+    /// what the fight shows of it is only what the table re-adds (<see cref="Kept"/>), cell by cell.
+    /// So a tree in the wedge nearest the camera, one on a neighbouring map tile, a second object on
+    /// a claimed cell and anything past the fifteenth are simply gone — none of them can stand
+    /// between the camera and a combatant.
+    /// </remarks>
+    public static bool HiddenInFight(Placement p, ISet<Placement> kept,
+        long partyX, long partyY, int heading, int cellSize) {
+        if (!Listed(p.Kind) || kept.Contains(p)) {
+            return false;
+        }
+        long dx = p.X - partyX, dy = p.Y - partyY;
+        return WorldToCell(dx, dy, heading, cellSize) != null
+            || World.WorldDistance.Octagonal(unchecked((int)dx), unchecked((int)dy)) < FightBackdropRadius;
+    }
+
+    /// <summary>The radius inside which listed scenery leaves the fight's backdrop (PROXSCAN.C:330).</summary>
+    public const int FightBackdropRadius = 4000;
+
+    /// <summary>
+    /// The table walk itself (CMBTGRID.C:409-430): listed objects on the grid, in file order, a
+    /// near-wedge blocker skipped (bar a StoneSlab), one per cell, at most fifteen.
+    /// </summary>
+    private static IEnumerable<(Placement P, (int X, int Y) Cell)> Table(IEnumerable<Placement> tileObjects,
+        long partyX, long partyY, int heading, int cellSize) {
+        var claimed = new List<(int X, int Y)>();
         foreach (Placement p in tileObjects) {
             if (!Listed(p.Kind)) {
                 continue;
@@ -44,25 +95,20 @@ public static class ArenaScenery {
                 continue;
             }
             (int x, int y) = cell.Value;
-            bool blocks = Blocks(p.Kind);
             // A blocker in the wedge nearest the camera is left out, and takes no table slot —
             // except a StoneSlab (kind 0x1d).
-            if (blocks && InNearWedge(x, y) && p.Kind != 0x1d) {
+            if (Blocks(p.Kind) && InNearWedge(x, y) && p.Kind != 0x1d) {
                 continue;
             }
             if (claimed.Contains((x, y))) {
                 continue;
             }
             claimed.Add((x, y));
-            if (blocks) {
-                grid.SetTerrain(x, y, CombatTerrain.OutOfBounds);
-                walled.Add((x, y));
-            }
+            yield return (p, (x, y));
             if (claimed.Count >= TableCapacity) {
-                break;
+                yield break;
             }
         }
-        return walled;
     }
 
     /// <summary>
