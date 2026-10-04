@@ -33,7 +33,8 @@ public class PitSwingTests {
         // z = 0x1C2 - isqrt(0x4DEF9 - d^2). At the centre that is 450 - isqrt(319737) = 450 - 565.
         // A NEGATIVE number, and that is not a bug to clamp away: the anchor sits below the lip, so
         // the party dips into the chasm before rising to the far side.
-        Assert.Equal(PitRopeCrossing.SagAnchorHeight - 565, PitRopeCrossing.SagHeightAt(0));
+        // In square-world units since TASK-764: the original's -115 x1.2.
+        Assert.Equal(GameData.Resources.World.WorldUp.FromOriginal(PitRopeCrossing.SagAnchorHeight - 565), PitRopeCrossing.SagHeightAt(0));
     }
 
     [Fact]
@@ -41,7 +42,8 @@ public class PitSwingTests {
         // The original's isqrt never rounds up. A float sqrt would give a subtly different dip at
         // every frame of the crossing, which is a visibly different swing rather than a rounding
         // detail.
-        Assert.Equal(PitRopeCrossing.SagAnchorHeight - 565, PitRopeCrossing.SagHeightAt(0));
+        // In square-world units since TASK-764: the original's -115 x1.2.
+        Assert.Equal(GameData.Resources.World.WorldUp.FromOriginal(PitRopeCrossing.SagAnchorHeight - 565), PitRopeCrossing.SagHeightAt(0));
         // 565^2 = 319225 <= 319737 < 566^2 = 320356, so 565 is the truncated root.
         Assert.True(565 * 565 <= 0x4DEF9);
         Assert.True(566 * 566 > 0x4DEF9);

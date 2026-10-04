@@ -94,8 +94,9 @@ public class PitDescentTests {
     [Fact]
     public void TheCameraDropsEightyUnitsPerFrame() {
         Assert.Equal(0, PitDescent.DropAtStep(0));
-        Assert.Equal(-0x50, PitDescent.DropAtStep(1));
-        Assert.Equal(-0x50 * 8, PitDescent.DropAtStep(8));
+        // The original's 0x50 per frame, in square-world units (WorldUp, TASK-764).
+        Assert.Equal(-GameData.Resources.World.WorldUp.FromOriginal(0x50), PitDescent.DropAtStep(1));
+        Assert.Equal(-GameData.Resources.World.WorldUp.FromOriginal(0x50) * 8, PitDescent.DropAtStep(8));
     }
 
     [Fact]
@@ -103,8 +104,8 @@ public class PitDescentTests {
         int normal = PitDescent.DropAtStep(PitDescent.StepsFor(false) - 1);
         int held = PitDescent.DropAtStep(PitDescent.StepsFor(true) - 1);
 
-        Assert.Equal(-640, normal);   // 8 * 0x50
-        Assert.Equal(-960, held);     // 12 * 0x50
+        Assert.Equal(-768, normal);   // 8 * 0x50, x1.2
+        Assert.Equal(-1152, held);    // 12 * 0x50, x1.2
     }
 
     [Fact]

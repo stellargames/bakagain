@@ -30,12 +30,21 @@ public static class HorizonPanorama {
     /// <summary>The viewport's left edge on screen: REQ_MAIN 192 at canonical x 65, VGA 13.</summary>
     public const int ViewportVgaLeft = 13;
 
+    /// <summary>Texture pixels per VGA pixel: Z##H.BMX is extracted at canonical scale.</summary>
+    private const int TexturePixelsAcross = 5;
+    private const int TexturePixelsDown = 6;
+
+    private static int VgaWidth(int panelTextureWidth) => Math.Max(1, panelTextureWidth / TexturePixelsAcross);
+
     /// <summary>
     /// The ring position (0..1 of a full ring) at the viewport's left edge, for a 16-bit yaw.
     /// </summary>
     /// <remarks>With Y = yaw &gt;&gt; 6 = 256q + r, panel (3 - q) is drawn at x = r, so screen
     /// x = 0 shows ring pixel (3 - q) * 256 - r = 768 - Y (mod 1024).</remarks>
-    public static double LeftEdgeRingFraction(int yaw16, int panelVgaWidth) {
+    /// <param name="panelTextureWidth">One panel's canonical texture width (the Unity side never
+    /// sees VGA pixels, TASK-764).</param>
+    public static double LeftEdgeRingFraction(int yaw16, int panelTextureWidth) {
+        int panelVgaWidth = VgaWidth(panelTextureWidth);
         int ring = PanelCount * panelVgaWidth;
         int y = ((yaw16 & 0xffff) / YawUnitsPerPixel) % ring;
         // + ViewportVgaLeft: the panels are blitted at ABSOLUTE screen x, and the viewport starts 13
@@ -45,12 +54,12 @@ public static class HorizonPanorama {
     }
 
     /// <summary>How much of the ring the viewport shows across its width.</summary>
-    public static double VisibleRingFraction(int panelVgaWidth) =>
-        (double)ViewportVgaWidth / (PanelCount * panelVgaWidth);
+    public static double VisibleRingFraction(int panelTextureWidth) =>
+        (double)ViewportVgaWidth / (PanelCount * VgaWidth(panelTextureWidth));
 
     /// <summary>The panorama's height as a fraction of the viewport's: its own rows, 1:1.</summary>
-    public static double HeightFraction(int panelVgaHeight) =>
-        (double)panelVgaHeight / ViewportVgaHeight;
+    public static double HeightFraction(int panelTextureHeight) =>
+        (double)panelTextureHeight / (ViewportVgaHeight * TexturePixelsDown);
 
     /// <summary>
     /// The original's 16-bit yaw for a CLOCKWISE heading in degrees (0 = north, 90 = east).

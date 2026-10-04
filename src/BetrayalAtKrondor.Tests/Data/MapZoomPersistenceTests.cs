@@ -51,7 +51,10 @@ public class MapZoomPersistenceTests {
             "test", 0, 0, 0);
 
         int at = r.Bytes.Length - SaveGameOffsets.BodySize;
-        Assert.Equal(4321, System.BitConverter.ToInt32(r.Bytes, at + SaveGameOffsets.PositionZ));
+        // PositionZ is written back in the original's units (WorldUp, TASK-764); MapCameraZ is a
+        // top-down viewing distance and is not scaled.
+        Assert.Equal(GameData.Resources.World.WorldUp.ToOriginal(4321),
+            System.BitConverter.ToInt32(r.Bytes, at + SaveGameOffsets.PositionZ));
         Assert.Equal(8765, System.BitConverter.ToInt32(r.Bytes, at + SaveGameOffsets.MapCameraZ));
         Assert.NotEqual(SaveGameOffsets.PositionZ, SaveGameOffsets.MapCameraZ);
     }

@@ -78,14 +78,15 @@ public class TrapPropEmergenceTests {
         emergence.Begin(puzzle, Rolls(0));   // every prop takes the minimum
 
         int first = emergence.BurialAt(puzzle.Grid, 0, 1);
-        Assert.Equal(TrapPropEmergence.MinimumDuration, first);
+        // The timer is the original's depth; BurialAt answers in square-world units (TASK-764).
+        Assert.Equal(GameData.Resources.World.WorldUp.FromOriginal(TrapPropEmergence.MinimumDuration), first);
 
         emergence.AdvanceFrame(puzzle.Grid);
         int second = emergence.BurialAt(puzzle.Grid, 0, 1);
 
         // One frame is exactly TicksPerFrame closer to the surface — the rate the film showed as a
         // constant ~4 screen px per frame.
-        Assert.Equal(first - TrapPropEmergence.TicksPerFrame, second);
+        Assert.Equal(GameData.Resources.World.WorldUp.FromOriginal(TrapPropEmergence.MinimumDuration - TrapPropEmergence.TicksPerFrame), second);
     }
 
     [Fact]

@@ -39,7 +39,7 @@ namespace BakAgain.World {
             float tanV = Mathf.Tan(_camera.fieldOfView * 0.5f * Mathf.Deg2Rad);
             float tanH = tanV * _camera.aspect;
             transform.localScale = new Vector3(2f * Distance * tanH,
-                2f * Distance * tanV * (float)GameData.Resources.World.HorizonPanorama.HeightFraction(_panelVgaHeight), 1f);
+                2f * Distance * tanV * (float)GameData.Resources.World.HorizonPanorama.HeightFraction(_panelHeight), 1f);
             UpdateHeading(yaw);
         }
 
@@ -53,8 +53,8 @@ namespace BakAgain.World {
             int panelWidth = panels[0].width;
             int panelHeight = panels[0].height;
             int totalWidth = panelWidth * GameData.Resources.World.HorizonPanorama.PanelCount;
-            _panelVgaWidth = Mathf.Max(1, panelWidth / BakAgain.Graphics.Canonical.VgaScaleX);
-            _panelVgaHeight = Mathf.Max(1, panelHeight / BakAgain.Graphics.Canonical.VgaScaleY);
+            _panelWidth = Mathf.Max(1, panelWidth);
+            _panelHeight = Mathf.Max(1, panelHeight);
 
             var stitched = new Texture2D(totalWidth, panelHeight, TextureFormat.RGBA32, false) {
                 wrapMode = TextureWrapMode.Repeat,
@@ -104,17 +104,18 @@ namespace BakAgain.World {
             if (filter != null && filter.sharedMesh != null) Destroy(filter.sharedMesh);
         }
 
-        private int _panelVgaWidth = 256;
-        private int _panelVgaHeight = 29;
+        // One panel's canonical texture size; HorizonPanorama does the original-pixel arithmetic.
+        private int _panelWidth = 1280;
+        private int _panelHeight = 174;
 
         /// <summary>The UV window for a camera yaw in degrees: the ring slice the original blits.</summary>
         public void UpdateHeading(float yawDegrees) {
             if (_material == null) return;
             int yaw16 = GameData.Resources.World.HorizonPanorama.YawFromClockwiseDegrees(yawDegrees);
             _material.mainTextureScale = new Vector2(
-                (float)GameData.Resources.World.HorizonPanorama.VisibleRingFraction(_panelVgaWidth), 1f);
+                (float)GameData.Resources.World.HorizonPanorama.VisibleRingFraction(_panelWidth), 1f);
             _material.mainTextureOffset = new Vector2(
-                (float)GameData.Resources.World.HorizonPanorama.LeftEdgeRingFraction(yaw16, _panelVgaWidth), 0f);
+                (float)GameData.Resources.World.HorizonPanorama.LeftEdgeRingFraction(yaw16, _panelWidth), 0f);
         }
 
         private static Mesh CreateHorizonQuad() {

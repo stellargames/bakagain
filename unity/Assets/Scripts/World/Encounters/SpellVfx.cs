@@ -329,7 +329,7 @@ namespace BakAgain.World.Encounters {
             line.useWorldSpace = true;
             line.startWidth = line.endWidth = 0.12f;
             line.startColor = line.endColor = PaletteColour(0xaf);
-            const float z = 235f / BakCoordinateConverter.WorldScale;
+            const float z = SpellHeights.CrystalBeam / BakCoordinateConverter.WorldScale;
             const float jitter = 200f / BakCoordinateConverter.WorldScale;
             for (var frame = 0; frame < 10; frame++) {
                 TintFor(walker, TintWhite, 1);
@@ -371,7 +371,7 @@ namespace BakAgain.World.Encounters {
             Vector3 full = sprite.transform.localScale;
             float world = Vector3.Distance(start, end) * BakCoordinateConverter.WorldScale;
             int steps = Mathf.Max(1, Mathf.CeilToInt(world / Mathf.Max(1, speed)));
-            float lift = shape == 4 || grow ? 0f : 200f / BakCoordinateConverter.WorldScale;
+            float lift = shape == 4 || grow ? 0f : SpellHeights.Flight / BakCoordinateConverter.WorldScale;
             for (var s = 1; s <= steps && sprite != null; s++) {
                 float t = s / (float)steps;
                 float k = !grow ? 1f : t < 0.25f ? 0.25f : Mathf.Lerp(0.25f, 1f, (t - 0.25f) / 0.75f);
@@ -593,11 +593,10 @@ namespace BakAgain.World.Encounters {
             // The original draws bolts both behind and in FRONT of the sprite (CACTOR.C:939, 1063);
             // at the sprite's own depth the sprite hides the bolt's root, so pull it toward the eye.
             Vector3 front = cam != null ? -cam.transform.forward * 0.3f : Vector3.zero;
-            // The original's bolt climbs from z=250 to the top of the screen in 10 px rises, each
-            // ending ±10 px sideways. ponytail: one original px is taken as 12 world units — about
-            // right at arena depth — so 20 rises climb 2,400 units.
+            // The original's bolt climbs from its chest base to the top of the screen in 10 px rises,
+            // each ending ±10 px sideways; SpellHeights says how big a pixel is taken to be.
             const int segments = 20;
-            const float px = 12f / BakCoordinateConverter.WorldScale;
+            const float px = SpellHeights.BoltUnitsPerPixelAcross / BakCoordinateConverter.WorldScale;
             for (var i = 0; i < _lines.Count; i++) {
                 if (i >= count) {
                     _lines[i].enabled = false;
@@ -607,7 +606,8 @@ namespace BakAgain.World.Encounters {
                 var pts = new Vector3[bolt.Count];
                 for (var v = 0; v < bolt.Count; v++) {
                     pts[v] = transform.position + front + right * (bolt[v].SidewaysPx * px)
-                             + Vector3.up * ((250f + bolt[v].Up * segments * 10f * 12f) / BakCoordinateConverter.WorldScale);
+                             + Vector3.up * ((SpellHeights.BoltBase + bolt[v].Up * segments * 10f * SpellHeights.BoltUnitsPerPixelUp)
+                                             / BakCoordinateConverter.WorldScale);
                 }
                 _lines[i].enabled = true;
                 SetLine(_lines[i], pts, Pen(0xaf), 0.12f, world: true);

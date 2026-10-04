@@ -202,7 +202,9 @@ public static class PitRopeCrossing {
         if (d >= SagRadius) {
             return 0;
         }
-        return SagAnchorHeight - IntegerSquareRoot(SagRadiusSquared - (d * d));
+        // Computed in the original's units (it mixes a ground distance into a height), then
+        // converted to the square world's (WorldUp, TASK-764).
+        return WorldUp.FromOriginal(SagAnchorHeight - IntegerSquareRoot(SagRadiusSquared - (d * d)));
     }
 
     /// <summary>Whether the swing cue fires at this point of the crossing.</summary>

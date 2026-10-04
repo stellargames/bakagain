@@ -85,14 +85,26 @@ public class ZoneTableExtractor : ExtractorBase<ZoneTable>
     //          0xFF in shipped data on non-flagged entities).
     private const byte EF_UNBOUNDED = 0x20;
 
-    // *** NO WORLD-UP ASPECT BAKE (TASK-762). *** This used to scale every model height, bbox and
-    // terrain elevation by 1.2 to compensate for the VGA pixel aspect. TASK-439 then put the same
-    // 1.2 into the camera (WorldProjection.CameraAspect), measured against the original's flat
-    // arena grid — so geometry with height got it twice. On c504 (same position in both games)
-    // the Lapping Meadows inn wall was 1.20x taller in the port, horizontally identical. The
-    // original projects isotropically in VGA pixels (R3D.ASM @@projectScreen, PROJECT.C) and does
-    // nothing to heights, so the coordinates are taken literally here.
-
+    // Non-square-pixel (1.2) aspect bake. The original 320×200 mode-13h image was shown on a
+    // 4:3 CRT, so pixels were 1.2× taller than wide and the 3D renderer applied NO compensation
+    // (one focal constant for X and Y — verified in IDA: projectPoint32/perspectiveDivide32).
+    // Vertices were therefore authored to be viewed THROUGH that vertical stretch: a house meant
+    // to read as 2:1 was stored as 2.4:1 raw coords. Rendering raw coords on modern square pixels
+    // makes everything ~20% too squat, so we bake the 1.2 back into the world-up axis here.
+    //
+    // World-up is BaK Z (BakCoordinateConverter: Unity.Y = BaK.Z). Ground-plane X/Y are left
+    // literal so movement, footprint collision and pathing are untouched.
+    //
+    // This lives in the extractor on purpose: original-game models get the authored-CRT look,
+    // while mod models bypass the extractor (straight through the converter/loader in square-pixel
+    // space) and keep true proportions. See memory project-3d-aspect-camera / project-aspect-correction.
+    // NEVER do this as a viewport/screen-space stretch — the remake's camera can pitch, which would
+    // shear geometry pitch-dependently; a world-space per-vertex bake is the only faithful form.
+    //
+    // TASK-762 removed this bake in favour of the camera's 6:5 aspect (TASK-439); TASK-764 put it
+    // back and made the camera square. The 439 symptom was most likely a bake that stopped at geometry: the
+    // eye and camera heights stayed in the original's units. Every world height now carries the
+    // same factor — see GameData.Resources.World.WorldUp.
     /// <summary>
     /// Bake the per-entity VertexScale exponent into a model-space coordinate triple, then apply
     /// the world-up aspect scale to Z. The shift is applied FIRST so the ×1.2 rounds once, on the
@@ -113,8 +125,24 @@ public class ZoneTableExtractor : ExtractorBase<ZoneTable>
         int factor = 1 << vertexScale;
         raw.X *= factor;
         raw.Y *= factor;
-        raw.Z *= factor;
+        raw.Z = GameData.Resources.World.WorldUp.FromOriginal(raw.Z * factor);
         return raw;
+    }
+
+    /// <summary>
+    /// World-up bake for a GID slope-plane gradient coefficient. The elevation of a sloped region
+    /// is <c>Base + ((A·dx + B·dy) · SlopeShift) &gt;&gt; 12</c> — the gradient term is a Z value like
+    /// Base, so both must be scaled or the ramp pivots about its anchor instead of stretching.
+    /// A/B are scaled (rather than SlopeShift) because they carry far more headroom: across the 95
+    /// shipped sloped regions this quantises the slope by ≤1.5%, versus ≤11.1% via SlopeShift.
+    /// Scaling both coefficients keeps their ratio, so the verbatim SlopeBearing (atan2(A, −B))
+    /// stays consistent — measured worst-case drift 0.40°, below the 1.4° resolution of the
+    /// byte-encoded bearing itself.
+    /// </summary>
+    private static sbyte ScaleWorldUp(sbyte gradient)
+    {
+        int scaled = GameData.Resources.World.WorldUp.FromOriginal(gradient);
+        return (sbyte)Math.Clamp(scaled, sbyte.MinValue, sbyte.MaxValue);
     }
 
     public override ZoneTable Extract(string id, Stream resourceStream)
@@ -364,7 +392,11 @@ public class ZoneTableExtractor : ExtractorBase<ZoneTable>
 
             var region = new GidRegion
             {
-                BaseElevation = baseElevation,
+                // ×1.2 world-up aspect bake, matching the per-vertex/bbox bake (WorldUpAspectScale).
+                // GID elevations describe the same world-up axis as the geometry they sit under.
+                // Cast is safe: elevations are ground-height values, not vertex-scaled — the
+                // largest shipped |BaseElevation| is 250, so ×1.2 stays far inside short range.
+                BaseElevation = (short)GameData.Resources.World.WorldUp.FromOriginal(baseElevation),
                 SlopeShift = sloped ? slopeShiftOrPad : (byte)0,
             };
 
@@ -415,8 +447,10 @@ public class ZoneTableExtractor : ExtractorBase<ZoneTable>
         reader.BaseStream.Seek(pos, SeekOrigin.Begin);
         return new GidSlopePlane
         {
-            A = reader.ReadSByte(),
-            B = reader.ReadSByte(),
+            // Gradient scaled with BaseElevation — see the sbyte ScaleWorldUp overload.
+            // AnchorX/Y are ground-plane coordinates and are deliberately left literal.
+            A = ScaleWorldUp(reader.ReadSByte()),
+            B = ScaleWorldUp(reader.ReadSByte()),
             AnchorX = reader.ReadInt16(),
             AnchorY = reader.ReadInt16(),
         };

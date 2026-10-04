@@ -74,13 +74,13 @@ namespace BakAgain.World {
         /// <param name="worldCamera">The world camera, whose far plane and FOV are adjusted.</param>
         /// <param name="on">True to enter map mode, false to restore travel.</param>
         /// <param name="cameraHeight">The map camera's height above the ground, in Unity units.</param>
-        /// <param name="mapViewHeightVga">
-        /// Height, in the original's VGA pixels, of the rectangle the map is drawn into: 101 for the
-        /// overhead map (it reuses the travel viewport) and 89 for the locator's inset.
+        /// <param name="mapViewHeight">
+        /// Canonical height of the rectangle the map is drawn into: the travel viewport's for the
+        /// overhead map, the inset's for the locator.
         /// </param>
+        /// <param name="focalLength">The zone's focal length in canonical units (ZoneDefinition.FocalLength).</param>
         public void SetOverheadMapMode(
-            Camera worldCamera, bool on, float cameraHeight, int mapViewHeightVga,
-            int projectionShift = WorldProjection.TravelProjectionShift) {
+            Camera worldCamera, bool on, float cameraHeight, float mapViewHeight, int focalLength) {
             if (!_travelBackdropSaved) {
                 _travelFarClip = worldCamera != null ? worldCamera.farClipPlane : 0f;
                 _travelFov = worldCamera != null ? worldCamera.fieldOfView : 0f;
@@ -97,8 +97,7 @@ namespace BakAgain.World {
                 worldCamera.backgroundColor = on ? MapFillColor : SkyColor;
                 worldCamera.farClipPlane = on ? _travelFarClip + cameraHeight : _travelFarClip;
                 worldCamera.fieldOfView = on
-                    ? (float)WorldProjection.VerticalFovDegrees(
-                        mapViewHeightVga, projectionShift)
+                    ? (float)WorldProjection.VerticalFovDegrees(mapViewHeight, focalLength)
                     : _travelFov;
             }
 

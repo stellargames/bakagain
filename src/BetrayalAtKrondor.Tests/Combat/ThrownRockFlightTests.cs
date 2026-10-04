@@ -55,7 +55,7 @@ public class ThrownRockFlightTests {
 
         Assert.All(arc, s => Assert.True(s.Height > 0, $"height {s.Height} is at or below the ground"));
         Assert.All(arc.Where(s => s.Skipped),
-            s => Assert.Equal(ThrownRockFlight.GroundClamp, s.Height));
+            s => Assert.Equal(GameData.Resources.World.WorldUp.FromOriginal(ThrownRockFlight.GroundClamp), s.Height));
     }
 
     [Fact]
@@ -64,7 +64,7 @@ public class ThrownRockFlightTests {
         // would lose 6 units of launch on every shot and shift every skip one step earlier.
         IReadOnlyList<ThrownRockFlight.Step> arc = ThrownRockFlight.Arc(1, 23);
 
-        Assert.Equal(ThrownRockFlight.LaunchHeight + 23, arc[0].Height);
+        Assert.Equal(GameData.Resources.World.WorldUp.FromOriginal(ThrownRockFlight.LaunchHeight + 23), arc[0].Height);
     }
 
     [Fact]

@@ -46,29 +46,32 @@ public class ZoneTableExtractorTests {
         Assert.Equal(6, face.NormalVertexIndex);
     }
 
-    // GID sloped-region sentinels: taken literally since TASK-762 removed the world-up bake.
-    private const short GidBaseElevation = 250;
-    private const sbyte GidSlopeA = 7;
-    private const sbyte GidSlopeB = -5;
+    // GID sloped-region sentinels. Chosen so the ×1.2 bake is observable and, for A, so the
+    // result needs rounding (7 × 1.2 = 8.4 → 8) rather than landing exactly.
+    private const short GidBaseElevation = 250;   // → 300
+    private const sbyte GidSlopeA = 7;            // → 8
+    private const sbyte GidSlopeB = -5;           // → -6
     private const byte GidSlopeMagnitude = 11;
     private const byte GidSlopeBearing = 0xA0;
 
     [Fact]
-    public void Sloped_region_base_elevation_is_the_files_own_value() {
+    public void Sloped_region_base_elevation_gets_the_world_up_aspect_bake() {
         var region = Assert.Single(Extract(BuildMinimalTbl(withGid: true)).Entries[0].Gid.Regions);
 
-        // TASK-762: no world-up bake. The camera already carries the VGA pixel aspect
-        // (WorldProjection, TASK-439); scaling heights as well made everything 1.2x too tall.
-        Assert.Equal(GidBaseElevation, region.BaseElevation);
+        // DAT vertices and bboxes are baked ×1.2 (WorldUpAspectScale). GID elevations describe
+        // the same world-up axis, so an unscaled elevation sits 20% below its own geometry.
+        Assert.Equal(300, region.BaseElevation);
     }
 
     [Fact]
-    public void Sloped_region_gradient_is_the_files_own_value() {
+    public void Sloped_region_gradient_scales_with_its_elevation() {
         var region = Assert.Single(Extract(BuildMinimalTbl(withGid: true)).Entries[0].Gid.Regions);
 
+        // elevation(P) = Base + ((A·dx + B·dy) · SlopeShift) >> 12 — the gradient term is also a
+        // Z value, so scaling Base alone would pivot the ramp instead of stretching it.
         Assert.NotNull(region.Slope);
-        Assert.Equal(GidSlopeA, region.Slope!.A);
-        Assert.Equal(GidSlopeB, region.Slope!.B);
+        Assert.Equal(8, region.Slope!.A);    // 7 × 1.2 = 8.4 → 8
+        Assert.Equal(-6, region.Slope!.B);   // -5 × 1.2 = -6
     }
 
     [Fact]
@@ -81,13 +84,14 @@ public class ZoneTableExtractorTests {
         Assert.Equal(GidSlopeBearing, region.SlopeBearing);
     }
 
-    // Geometry fixture: VertexScale 2 → factor 4, the same on every axis.
+    // Geometry fixture: VertexScale 2 → factor 4. Raw values chosen so the baked results are
+    // unambiguous and the Z bake (×1.2, applied after the shift) lands exactly.
     private const byte GeomVertexScale = 2;
     private const short GeomVertexX = 100;   // → 400
     private const short GeomVertexY = 200;   // → 800
-    private const short GeomVertexZ = 300;   // → 300 × 4 = 1200
+    private const short GeomVertexZ = 300;   // → 300 × 4 × 1.2 = 1440
     private const short GeomExtent = 1000;   // → 4000
-    private const short GeomBboxMinZ = -50;  // → -200
+    private const short GeomBboxMinZ = -50;  // → -50 × 4 × 1.2 = -240
 
     [Fact]
     public void Vertex_pool_is_stored_pre_scaled_by_the_vertex_scale_exponent() {
@@ -98,14 +102,14 @@ public class ZoneTableExtractorTests {
         var v = Assert.Single(dat.Lods[0].VertexPools[0]);
         Assert.Equal(GeomVertexX << GeomVertexScale, v.X);
         Assert.Equal(GeomVertexY << GeomVertexScale, v.Y);
-        Assert.Equal(GeomVertexZ << GeomVertexScale, v.Z);   // no world-up bake (TASK-762)
+        Assert.Equal(1440, v.Z);   // shift first, then the ×1.2 world-up bake
     }
 
     [Fact]
     public void Bounding_box_is_scaled_the_same_way_as_the_vertices_it_bounds() {
         var dat = Extract(BuildTblWithGeometry()).Entries[0].Dat;
 
-        Assert.Equal(GeomBboxMinZ << GeomVertexScale, dat.Min!.Z);
+        Assert.Equal(-240, dat.Min!.Z);
     }
 
     [Fact]

@@ -36,8 +36,9 @@ public static class PitDescent {
     /// </summary>
     public const int HeldKeyDescentSteps = 0xd;
 
-    /// <summary>World units the camera drops per frame.</summary>
-    public const int UnitsPerStep = 0x50;
+    /// <summary>World units the camera drops per frame: the original's 0x50, in square-world units
+    /// (WorldUp, TASK-764).</summary>
+    public const int UnitsPerStep = 96;
 
     /// <summary>Sound effect played for the fall.</summary>
     public const int FallSoundId = 0x2f;

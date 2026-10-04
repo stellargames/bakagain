@@ -112,7 +112,7 @@ public static class SaveGameWriter {
         PatchU8(SaveGameOffsets.WorldY, fields.WorldY);
         PatchI32(SaveGameOffsets.PositionX, fields.PositionX);
         PatchI32(SaveGameOffsets.PositionY, fields.PositionY);
-        PatchI32(SaveGameOffsets.PositionZ, fields.PositionZ);
+        PatchI32(SaveGameOffsets.PositionZ, WorldUp.ToOriginal(fields.PositionZ));
         PatchI16(SaveGameOffsets.Rotation, fields.Rotation);
         if (fields.MapCameraZ.HasValue) {
             PatchI32(SaveGameOffsets.MapCameraZ, fields.MapCameraZ.Value);

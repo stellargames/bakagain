@@ -21,7 +21,7 @@ namespace BakAgain.World.Converters {
         /// Build a billboard for a decoded <see cref="SpriteBMeshFace"/>, sized to match the
         /// original engine exactly (renderSprite2 0x23031 + RenderWorldItem 0x2a95a).
         ///
-        /// <para>The sprite's larger world dimension is <c>SizeScale / 128</c> of the entity's own
+        /// <para>The sprite's larger side IN THE ORIGINAL'S PIXELS is <c>SizeScale / 128</c> of the entity's own
         /// world extent (the texture's pixel dimensions only set the aspect ratio); the quad is
         /// pivoted at the decoded anchor hotspot (<see cref="SpriteBMeshFace.AnchorX"/>,
         /// <see cref="SpriteBMeshFace.AnchorY"/>) so the projected anchor sits at the placement
@@ -36,31 +36,17 @@ namespace BakAgain.World.Converters {
         /// <returns>Mesh (anchored unit quad) and the localScale to apply to the GameObject.</returns>
         public static (Mesh mesh, Vector3 localScale) BuildBillboard(
             SpriteBMeshFace face, int entityExtentBak, int texW, int texH) {
-            // Anchor as a fraction of the bitmap: U from left, V from top (renderSprite2 subtracts
-            // anchor*scale from the projected anchor-vertex screen position).
-            // AnchorX/AnchorY are in ORIGINAL unscaled bitmap px, but texW/texH are the *canonical*
-            // sprite texture dims — the BMX extraction upscales sprites by (VgaScaleX, VgaScaleY) =
-            // (5, 6). Scale the anchor by the same factors so the pivot fraction matches the texture;
-            // otherwise the hotspot lands ~1/5 (X) / ~1/6 (Y) of the way in and ground sprites sink
-            // ~84% into the terrain (verified Z01 2026-06-18: AnchorY 90 of an unscaled-94px tree vs
-            // texH 564 gave pivotV 0.16 instead of 0.96).
-            float pivotU = texW > 0 ? Mathf.Clamp01((float)face.AnchorX * Canonical.VgaScaleX / texW) : 0.5f;
-            float pivotV = texH > 0 ? Mathf.Clamp01((float)face.AnchorY * Canonical.VgaScaleY / texH) : 1f;
+            // Anchor and size are RE knowledge (the anchor is in the source bitmap's pixels, and the
+            // extent fits the larger ORIGINAL-pixel side); the model answers both for the canonical
+            // texture, already in the square world (TASK-764). Converting to Unity units is ours.
+            (double pivotU, double pivotV) = face.AnchorFraction(texW, texH);
+            (double width, double height) = SpriteBMeshFace.BillboardWorldSize(
+                SpriteBMeshFace.WorldExtentFor(face.SizeScale, entityExtentBak), texW, texH);
 
-            // How big the sprite is in GAME units is RE knowledge (the 128ths fraction and the
-            // "0 means 256" rule) and lives on the model. Converting to Unity units is ours: the
-            // same BaK->Unity scale as mesh vertices, so billboards and polygon entities share one
-            // coordinate space.
-            float largerExtent =
-                SpriteBMeshFace.WorldExtentFor(face.SizeScale, entityExtentBak)
-                / BakCoordinateConverter.WorldScale;
-
-            // Preserve the texture's pixel aspect: larger pixel axis maps to largerExtent.
-            int maxDim = Mathf.Max(texW, texH);
-            float perPixel = maxDim > 0 ? largerExtent / maxDim : 0f;
-
-            var mesh = CreateAnchoredQuad(pivotU, pivotV);
-            var localScale = new Vector3(texW * perPixel, texH * perPixel, 1f);
+            var mesh = CreateAnchoredQuad((float)pivotU, (float)pivotV);
+            var localScale = new Vector3(
+                (float)(width / BakCoordinateConverter.WorldScale),
+                (float)(height / BakCoordinateConverter.WorldScale), 1f);
             return (mesh, localScale);
         }
 

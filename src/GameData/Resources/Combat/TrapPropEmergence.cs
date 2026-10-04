@@ -176,7 +176,8 @@ public sealed class TrapPropEmergence {
             return 0;
         }
         int timer = grid.EffectTimerAt(x, y);
-        return timer > 0 ? timer : 0;
+        // The timer is the original's Z; the depth is in square-world units (WorldUp, TASK-764).
+        return timer > 0 ? GameData.Resources.World.WorldUp.FromOriginal(timer) : 0;
     }
 
     /// <summary>

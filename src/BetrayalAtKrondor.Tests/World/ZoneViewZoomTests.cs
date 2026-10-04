@@ -10,13 +10,13 @@ using Xunit;
 /// <remarks>
 /// <c>zone_load</c> (canassa <c>SRC/R3D/SCENE/ZONE.C:67-89</c>) re-reads it out of
 /// <c>Z##DEF.DAT</c> on every zone change, into the first two bytes of <c>g_world_widget</c>. The
-/// port read <see cref="WorldProjection.TravelProjectionShift"/> everywhere, so Mac Mordain Cadal
+/// port read START.DAT's shift everywhere, so Mac Mordain Cadal
 /// rendered at twice the original's scale — measured from the same save on both sides, the corridor
 /// wall stood 300 canonical units tall against the original's 150.
 /// </remarks>
 public class ZoneViewZoomTests {
-    /// <summary>The travel view's VGA rectangle is 294x101.</summary>
-    private const int TravelViewHeightVga = 101;
+    /// <summary>The travel view's canonical height (VGA 101 x6).</summary>
+    private const int TravelViewHeight = 606;
 
     [Fact]
     public void ADungeonsZoomIsOneBitLessThanTheOverworlds() {
@@ -32,20 +32,12 @@ public class ZoneViewZoomTests {
     public void OneBitOfShiftIsAFactorOfTWOOnScreen() {
         // Which is the whole point: a dungeon camera at the same height sees twice the ground, so
         // reading the overworld constant there magnifies everything by two.
-        double over = WorldProjection.VerticalFovDegrees(TravelViewHeightVga, 9);
-        double dung = WorldProjection.VerticalFovDegrees(TravelViewHeightVga, 8);
+        double over = WorldProjection.VerticalFovDegrees(TravelViewHeight, 5 << 9);
+        double dung = WorldProjection.VerticalFovDegrees(TravelViewHeight, 5 << 8);
 
         double ratio = System.Math.Tan(dung * System.Math.PI / 360.0)
             / System.Math.Tan(over * System.Math.PI / 360.0);
 
         Assert.Equal(2.0, ratio, 6);
-    }
-
-    [Fact]
-    public void TheOverworldZoneStillAgreesWithTheTravelConstant() {
-        // So the fix cannot quietly move the overworld while correcting the dungeons.
-        var overworld = new ZoneDefinition("Z01DEF.DAT") { ZonePointer = 9 };
-
-        Assert.Equal(WorldProjection.TravelProjectionShift, overworld.ViewZoomShift);
     }
 }

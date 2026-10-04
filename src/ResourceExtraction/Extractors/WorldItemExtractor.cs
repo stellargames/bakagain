@@ -55,7 +55,8 @@ public class WorldItemExtractor : ExtractorBase<WorldTile>
                 {
                     X = reader.ReadUInt32(),
                     Y = reader.ReadUInt32(),
-                    Z = reader.ReadUInt32()
+                    // World-up, scaled with the geometry it places (WorldUp, TASK-764).
+                    Z = (uint)WorldUp.FromOriginal((int)reader.ReadUInt32())
                 }
             };
 

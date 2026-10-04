@@ -1,6 +1,7 @@
 namespace ResourceExtraction.Extractors;
 
 using GameData.Resources.Config;
+using GameData.Resources.World;
 using ResourceExtraction.Imaging;
 using System.IO;
 
@@ -17,11 +18,13 @@ public class StartDataExtractor : ExtractorBase<StartData> {
     public override StartData Extract(string id, Stream resourceStream) {
         using var reader = new BinaryReader(resourceStream);
 
-        return new StartData(id) {
-            CombatCameraHeightAboveGround = reader.ReadInt16(),
-            CombatCameraHeightUnderground = reader.ReadInt16(),
-            CombatCameraPitchAboveGround = reader.ReadInt16(),
-            CombatCameraPitchUnderground = reader.ReadInt16(),
+        var start = new StartData(id) {
+            // Heights, so they join the square world (WorldUp, TASK-764).
+            CombatCameraHeightAboveGround = (short)WorldUp.FromOriginal(reader.ReadInt16()),
+            CombatCameraHeightUnderground = (short)WorldUp.FromOriginal(reader.ReadInt16()),
+            // Pitches turn with the world's heights (WorldUp.PitchFromOriginal, TASK-764).
+            CombatCameraPitchAboveGround = WorldUp.PitchFromOriginal(reader.ReadInt16()),
+            CombatCameraPitchUnderground = WorldUp.PitchFromOriginal(reader.ReadInt16()),
             CombatGridCellSize = reader.ReadInt16(),
             // Screen coordinates, so they cross into canonical space here and the original's
             // 320x200 stops at this boundary.
@@ -31,5 +34,9 @@ public class StartDataExtractor : ExtractorBase<StartData> {
             ViewportHeight = AspectCorrection.ScaleVgaY(reader.ReadInt16()),
             ProjectionShift = reader.ReadInt16(),
         };
+        // The projection's focal length: 1 << shift VGA pixels, which are 5 canonical units ACROSS.
+        // One square-pixel number, so the camera needs neither the shift nor the 6:5 (TASK-764).
+        start.FocalLength = AspectCorrection.ScaleVgaX(1 << start.ProjectionShift);
+        return start;
     }
 }

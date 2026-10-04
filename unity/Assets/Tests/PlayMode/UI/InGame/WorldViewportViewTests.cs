@@ -26,6 +26,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
         private sealed class StubViewport : IWorldViewport {
             public Area CanonicalRect => new Area(65, 66, 1470, 606);
             public float ViewportAspect => 1470f / 606f;
+            public int FocalLength => 2560;
             public Rect ToScreenRect(Rect stageScreenRect) => stageScreenRect;
             public Vector2Int RenderTextureSize(Rect stageScreenRect) => new Vector2Int(256, 128);
         }

@@ -2,10 +2,18 @@ namespace GameData.Resources.Combat;
 
 using System;
 using System.Collections.Generic;
+using static GameData.Resources.Combat.ParticlePoints;
 
 /// <summary>A particle position in original world units, relative to the tile centre: X/Y on the
 /// ground, Z up.</summary>
 public readonly record struct ParticlePoint(float X, float Y, float Z);
+
+/// <summary>Builds the points below: the simulation runs in the original's units, and Z leaves it
+/// in the square world's (WorldUp, TASK-764). X and Y are ground and pass through.</summary>
+internal static class ParticlePoints {
+    internal static ParticlePoint Point(float x, float y, float z) =>
+        new ParticlePoint(x, y, z * (float)GameData.Resources.World.WorldUp.Aspect);
+}
 
 /// <summary>
 /// The combat spell particle systems of <c>WORLDFX.C</c>, stepped one original combat frame at a
@@ -46,7 +54,7 @@ public static class SpellParticles {
             get {
                 for (var i = 0; i < Count; i++) {
                     if (_z[i] > -1) {
-                        yield return new ParticlePoint(_x[i], _y[i], _z[i]);
+                        yield return Point(_x[i], _y[i], _z[i]);
                     }
                 }
             }
@@ -58,7 +66,7 @@ public static class SpellParticles {
             get {
                 for (var i = 0; i < Count; i++) {
                     if (_z[i] > -1) {
-                        yield return new ParticlePoint(_x[i], _y[i], 0);
+                        yield return Point(_x[i], _y[i], 0);
                     }
                 }
             }
@@ -139,7 +147,7 @@ public static class SpellParticles {
                 for (var i = 0; i < Count; i++) {
                     if (_radius[i] > 0x4b) {
                         double a = _angle[i] / FullTurn * 2 * Math.PI;
-                        yield return new ParticlePoint(
+                        yield return Point(
                             (float)(_radius[i] * Math.Cos(a)), (float)(_radius[i] * Math.Sin(a)), _height[i]);
                     }
                 }
@@ -231,7 +239,7 @@ public static class SpellParticles {
     /// x ±150, y 0..149, z 0..349; one in four is drawn as a "+".</summary>
     public static IEnumerable<(ParticlePoint At, bool Cross)> Sparkles(Func<int, int> rnd) {
         for (var i = 0; i < 6; i++) {
-            var at = new ParticlePoint(rnd(300) - 150, rnd(150), rnd(350));
+            var at = Point(rnd(300) - 150, rnd(150), rnd(350));
             yield return (at, rnd(4) == 0);
         }
     }

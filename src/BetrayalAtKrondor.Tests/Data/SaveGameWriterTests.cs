@@ -34,7 +34,8 @@ public class SaveGameWriterTests {
         WorldY: body[SaveGameOffsets.WorldY],
         PositionX: BitConverter.ToInt32(body, SaveGameOffsets.PositionX),
         PositionY: BitConverter.ToInt32(body, SaveGameOffsets.PositionY),
-        PositionZ: BitConverter.ToInt32(body, SaveGameOffsets.PositionZ),
+        // What the extractor hands the session: the eye height in square-world units (TASK-764).
+        PositionZ: GameData.Resources.World.WorldUp.FromOriginal(BitConverter.ToInt32(body, SaveGameOffsets.PositionZ)),
         Rotation: BitConverter.ToInt16(body, SaveGameOffsets.Rotation));
 
     [Fact]

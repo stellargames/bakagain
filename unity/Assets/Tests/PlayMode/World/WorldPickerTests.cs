@@ -9,6 +9,7 @@ namespace BakAgain.Tests.PlayMode.World {
         private sealed class FullViewport : IWorldViewport {
             public Area CanonicalRect => new Area(0, 0, 1600, 1200);
             public float ViewportAspect => 1600f / 1200f;
+            public int FocalLength => 2560;
             // The "viewport" is the whole stage rect it's handed — matches the old fixed
             // full-screen-Vector2 stub's behaviour now that ToScreenRect maps through the stage.
             public Rect ToScreenRect(Rect stageScreenRect) => stageScreenRect;

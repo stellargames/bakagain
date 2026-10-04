@@ -38,6 +38,13 @@ namespace BakAgain.World {
         float ViewportAspect { get; }
 
         /// <summary>
+        /// The travel and combat view's focal length in canonical units (StartData.FocalLength);
+        /// a zone's own is ZoneDefinition.FocalLength. Pair it with <see cref="CanonicalRect"/>'s
+        /// height in WorldProjection.VerticalFovDegrees.
+        /// </summary>
+        int FocalLength { get; }
+
+        /// <summary>
         /// Maps <see cref="CanonicalRect"/> proportionally into <paramref name="stageScreenRect"/>
         /// — the <c>CanonicalStage</c>'s already-resolved on-screen rect (Unity screen-space
         /// pixels, origin bottom-left, matching <see cref="UI.IGameViewport"/>). The stage has

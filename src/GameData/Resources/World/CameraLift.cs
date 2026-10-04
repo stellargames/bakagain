@@ -17,8 +17,8 @@ using System.Collections.Generic;
 /// including any turn or tilt made while up.
 /// </remarks>
 public static class CameraLift {
-    /// <summary>0x1194: the Wooden Chest's lift, in world units.</summary>
-    public const int WoodenChestAmplitude = 0x1194;
+    /// <summary>The Wooden Chest's lift: the original's 0x1194, in square-world units (WorldUp, TASK-764).</summary>
+    public const int WoodenChestAmplitude = 5400;
 
     /// <summary>0x23: extra frames held at the top.</summary>
     public const int WoodenChestApexHold = 0x23;

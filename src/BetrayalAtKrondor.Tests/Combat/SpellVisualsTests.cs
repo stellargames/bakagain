@@ -87,7 +87,8 @@ public class SpellVisualsTests {
         int frames = 0;
         while (vortex.Step()) {
             frames++;
-            Assert.All(vortex.Points, p => Assert.InRange(p.Z, 100, 350));
+            // 100..350 in the original's units, x1.2 into the square world (TASK-764).
+            Assert.All(vortex.Points, p => Assert.InRange(p.Z, 119.99f, 420.01f));
         }
         Assert.Empty(vortex.Points);
         Assert.InRange(frames, 35, 330); // 175..324 units at 1..5 a frame

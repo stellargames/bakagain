@@ -13,8 +13,8 @@ public class ZoneDefExtractorTests
         using var writer = new BinaryWriter(stream);
         writer.Write((short)2);      // ZoneLocation
         writer.Write((short)0x10);   // ZonePointer
-        writer.Write((uint)0xAABBCCDD); // DefaultCameraZ
-        writer.Write((ushort)0x05);  // DefaultCameraPitch
+        writer.Write((uint)230);     // DefaultCameraZ (a shipped eye height)
+        writer.Write((ushort)280);   // DefaultCameraPitch (the shipped outdoor value)
         writer.Write((ushort)0x01);  // Flags
         writer.Write((byte)0x0A);    // SkyColor
         writer.Write((byte)0x0B);    // GroundColor
@@ -36,8 +36,9 @@ public class ZoneDefExtractorTests
         var result = extractor.Extract("Z01DEF.DAT", stream);
 
         Assert.Equal((short)2, result.ZoneLocation);
-        Assert.Equal(0xAABBCCDDu, result.DefaultCameraZ);
-        Assert.Equal((ushort)0x05, result.DefaultCameraPitch);
+        Assert.Equal(276u, result.DefaultCameraZ);
+        Assert.Equal(5 << 0x10, result.FocalLength);   // 1 << shift VGA px, 5 canonical units each   // 230 x1.2: a side-on height (WorldUp, TASK-764)
+        Assert.Equal((ushort)336, result.DefaultCameraPitch);   // turned with the world (WorldUp.PitchFromOriginal)
         Assert.Equal(ZoneFlags.NoHorizon, result.Flags);  // 0x01
         Assert.Equal((byte)0x0A, result.SkyColor);
         Assert.Equal((byte)0x0B, result.GroundColor);

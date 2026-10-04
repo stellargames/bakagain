@@ -150,13 +150,12 @@ namespace BakAgain.UI.Spells {
                 _loader.Built += OnLoaderBuilt;
             }
             ApplyCamera();
-            // The inset is SHORTER than the travel viewport (89 VGA rows against 101), so it needs
-            // its own FOV even though it shares the map's projection shift.
+            // The inset is SHORTER than the travel viewport, so it needs its own FOV even though it
+            // shares the zone's focal length.
             _world?.Environment?.SetOverheadMapMode(
                 _world.WorldCamera, on: true, cameraHeight: CameraHeight(),
-                mapViewHeightVga: ViewRectVga().Height,
-                projectionShift: _world.ZoneDefinition?.ViewZoomShift
-                    ?? WorldProjection.TravelProjectionShift);
+                mapViewHeight: InsetRect().height,
+                focalLength: _world.ZoneDefinition?.FocalLength ?? _worldViewport.FocalLength);
         }
 
         private void OnLoaderBuilt(IReadOnlyList<NavWidget> widgets) {
@@ -424,9 +423,8 @@ namespace BakAgain.UI.Spells {
             // moment it is shown again.
             _world?.Environment?.SetOverheadMapMode(
                 _world.WorldCamera, on: false, cameraHeight: 0f,
-                mapViewHeightVga: ViewRectVga().Height,
-                projectionShift: _world.ZoneDefinition?.ViewZoomShift
-                    ?? WorldProjection.TravelProjectionShift);
+                mapViewHeight: InsetRect().height,
+                focalLength: _world.ZoneDefinition?.FocalLength ?? _worldViewport.FocalLength);
             _world?.Movement?.SyncToCamera();
         }
 

@@ -135,7 +135,8 @@ public static class ThrownRockFlight {
                 delta = -delta;
                 height = GroundClamp;
             }
-            steps.Add(new Step(height, skipped));
+            // The arc runs in the original's units; the height leaves in the square world's (WorldUp).
+            steps.Add(new Step(GameData.Resources.World.WorldUp.FromOriginal(height), skipped));
             delta -= Gravity;
         }
 

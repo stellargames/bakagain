@@ -179,8 +179,7 @@ namespace BakAgain.World {
             // START.DAT's zoom, which g_active_window carries for travel and combat alike
             // (WorldProjection). Measured against the original at ambush 305: 94 of 104 cells, the
             // 10 this zoom puts off screen.
-            probe.fieldOfView = (float)GameData.Resources.World.WorldProjection.VerticalFovDegrees(
-                TravelViewHeightVga, GameData.Resources.World.WorldProjection.TravelProjectionShift);
+            probe.fieldOfView = TravelFov(null);
             probe.aspect = _worldCamera.aspect;
 
             // ponytail: colliders built per probe, one fight trigger at a time; cache per zone if it shows up in a profile.
@@ -652,7 +651,7 @@ namespace BakAgain.World {
             // starts every shape at z=200 except the growing whirlwind (4) and a flying creature
             // (WORLDHIT.C:641-645); the thrown rock keeps its own arc (ThrownRockFlight).
             if (effectId != GameData.Resources.Combat.CombatEffectSprite.Shot && effectId != 4) {
-                Vector3 lift = Vector3.up * (200f / BakCoordinateConverter.WorldScale);
+                Vector3 lift = Vector3.up * (GameData.Resources.Combat.SpellHeights.Flight / BakCoordinateConverter.WorldScale);
                 from += lift;
                 to += lift;
             }
@@ -1105,9 +1104,9 @@ namespace BakAgain.World {
         /// columns and buried the combatants standing there (TASK-653).
         ///
         /// <para><b>A render texture on a quad, not a URP overlay camera.</b> An overlay rebuilds its
-        /// projection from the stack's pixel rect and drops the explicit
-        /// <c>WorldProjection.CameraAspect</c>, which spread the arena ~1.2x sideways; the arena
-        /// camera is left exactly as it is and only its background changes. The quad's shader must
+        /// projection from the stack's pixel rect, which once dropped an explicit 6:5 camera aspect
+        /// (gone since TASK-764) and spread the arena ~1.2x sideways; the arena camera is left
+        /// exactly as it is and only its background changes. The quad's shader must
         /// not take fog — the underground haze blacked out <c>Unlit/Texture</c> at this depth.</para>
         ///
         /// <para><b>Once, like the original.</b> The camera does not move during a fight (only the
@@ -1521,8 +1520,7 @@ namespace BakAgain.World {
             }
             // The arena pinned the camera to its own zoom; the walking view is the ZONE's again.
             if (_worldCamera != null && _zoneDef != null) {
-                _worldCamera.fieldOfView = (float)GameData.Resources.World.WorldProjection
-                    .VerticalFovDegrees(TravelViewHeightVga, _zoneDef.ViewZoomShift);
+                _worldCamera.fieldOfView = TravelFov(_zoneDef.FocalLength);
             }
         }
 
@@ -1572,9 +1570,7 @@ namespace BakAgain.World {
             // grid it projects at ~32.4° horizontal, which is shift 9, while zones 10-12 ship 8.
             // Reusing the walking camera means we inherit the zone's, which halved the underground
             // arena on screen (TASK-604). RestoreWalkingCamera puts the zone's back.
-            _worldCamera.fieldOfView = (float)GameData.Resources.World.WorldProjection
-                .VerticalFovDegrees(TravelViewHeightVga,
-                    GameData.Resources.World.WorldProjection.TravelProjectionShift);
+            _worldCamera.fieldOfView = TravelFov(null);
         }
 
         /// <summary>
@@ -1983,8 +1979,7 @@ namespace BakAgain.World {
             // as the original's (TASK-441). CreateWorldCamera's value is the overworld default;
             // this is the zone's own, and it has to be applied after the def is loaded.
             if (_worldCamera != null) {
-                _worldCamera.fieldOfView = (float)GameData.Resources.World.WorldProjection
-                    .VerticalFovDegrees(TravelViewHeightVga, zoneDef.ViewZoomShift);
+                _worldCamera.fieldOfView = TravelFov(zoneDef.FocalLength);
             }
 
             // Seed the overhead map's remembered height — but only on a CHANGE of zone, which is the
@@ -2271,10 +2266,26 @@ namespace BakAgain.World {
             return UniTask.CompletedTask;
         }
 
-        /// <summary>The travel view's VGA rectangle is 294x101 — REQ_MAIN's ClickArea 192.</summary>
-        private const int TravelViewHeightVga = 101;
+        private IWorldViewport _viewport;
 
-        private static Camera CreateWorldCamera() {
+        /// <summary>
+        /// The world camera's vertical FOV through the travel viewport, at a zone's focal length, or
+        /// START.DAT's (the travel and combat lens) when <paramref name="focalLength"/> is null.
+        /// </summary>
+        /// <remarks>
+        /// The camera is square and takes the viewport's own aspect: the original's 6:5 pixel is in
+        /// the world's heights, not here (WorldProjection, TASK-764).
+        /// </remarks>
+        private float TravelFov(int? focalLength) {
+            _viewport ??= _resolver?.Resolve(typeof(IWorldViewport)) as IWorldViewport;
+            if (_viewport == null) {
+                return _worldCamera != null ? _worldCamera.fieldOfView : 60f;
+            }
+            return (float)GameData.Resources.World.WorldProjection.VerticalFovDegrees(
+                _viewport.CanonicalRect.Height, focalLength ?? _viewport.FocalLength);
+        }
+
+        private Camera CreateWorldCamera() {
             var go = new GameObject("WorldCamera");
             var cam = go.AddComponent<Camera>();
             cam.nearClipPlane = 0.1f;
@@ -2282,14 +2293,7 @@ namespace BakAgain.World {
             // The original's 3D viewport is a narrow, zoomed view — not the Unity default 60°.
             // Without this the world looks far too wide-angle. The map screens are NOT this lens —
             // see WorldProjection and ZoneEnvironment.SetOverheadMapMode.
-            //
-            // *** THE ASPECT MATTERS AS MUCH AS THE FOV, and lives in WorldViewportView. *** This is
-            // the true VERTICAL half-angle; the horizontal is restored by overriding the camera's
-            // aspect with WorldProjection.CameraAspect, because the original's projection is
-            // isotropic in NON-SQUARE VGA pixels and so anisotropic in canonical ones. Reading the
-            // number here and not the override is what left the world 1/1.2 too short (TASK-439).
-            cam.fieldOfView = (float)GameData.Resources.World.WorldProjection.VerticalFovDegrees(
-                TravelViewHeightVga, GameData.Resources.World.WorldProjection.TravelProjectionShift);
+            cam.fieldOfView = TravelFov(null);
             return cam;
         }
     }

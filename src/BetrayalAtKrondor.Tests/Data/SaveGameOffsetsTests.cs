@@ -48,7 +48,8 @@ public class SaveGameOffsetsTests {
         Assert.Equal((byte)41, s.WorldYCoordinate);
         Assert.Equal(11, s.PositionX);
         Assert.Equal(22, s.PositionY);
-        Assert.Equal(33, s.PositionZ);
+        // The eye height enters the square world on the way in (WorldUp, TASK-764): 33 -> 40.
+        Assert.Equal(GameData.Resources.World.WorldUp.FromOriginal(33), s.PositionZ);
         Assert.Equal((short)512, s.CurrentZRotation);
     }
 

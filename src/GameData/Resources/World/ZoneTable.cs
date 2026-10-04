@@ -367,6 +367,41 @@ public class SpriteBMeshFace : MeshFaceRecord
         return effective * extent / SizeScaleDivisor;
     }
 
+    /// <summary>Texture pixels per source-bitmap pixel: BMX sprites are extracted at canonical scale.</summary>
+    private const int TexturePixelsAcross = 5;
+    private const int TexturePixelsDown = 6;
+
+    /// <summary>
+    /// The billboard's world width and height for a sprite whose larger axis spans
+    /// <paramref name="worldExtent"/> (<see cref="WorldExtentFor"/>), from its canonical texture.
+    /// </summary>
+    /// <remarks>
+    /// <b>The extent is the larger side in the ORIGINAL's pixels.</b> <c>worldrender_sprite_billboard</c>
+    /// (WORLDRND.C:171-180) scales both sides by one factor chosen so that the larger VGA-pixel side
+    /// spans the projected extent. The texture is 5x6 per VGA pixel, so its larger CANONICAL side is
+    /// the height for anything less than 1.2x wider than tall — fitting that to the extent drew tall
+    /// sprites 1/1.2 too small. Height comes out 1.2x its VGA proportion, the same world-up stretch
+    /// every other height gets (<see cref="WorldUp"/>, TASK-764).
+    /// </remarks>
+    public static (double Width, double Height) BillboardWorldSize(
+        int worldExtent, int textureWidth, int textureHeight) {
+        double vgaW = textureWidth / (double)TexturePixelsAcross;
+        double vgaH = textureHeight / (double)TexturePixelsDown;
+        double larger = Math.Max(vgaW, vgaH);
+        if (larger <= 0) {
+            return (0, 0);
+        }
+        double perVgaPixel = worldExtent / larger;
+        return (vgaW * perVgaPixel, vgaH * perVgaPixel * WorldUp.Aspect);
+    }
+
+    /// <summary>
+    /// The anchor as a fraction of the canonical texture: U from the left, V from the top.
+    /// </summary>
+    public (double U, double V) AnchorFraction(int textureWidth, int textureHeight) => (
+        textureWidth > 0 ? Math.Clamp(AnchorX * TexturePixelsAcross / (double)textureWidth, 0, 1) : 0.5,
+        textureHeight > 0 ? Math.Clamp(AnchorY * TexturePixelsDown / (double)textureHeight, 0, 1) : 1);
+
     /// <summary>+0x04. Anchor/hotspot <b>Y</b> in unscaled source-bitmap pixels. Scaled by the
     /// sprite's <c>si</c> factor and subtracted from the projected anchor-vertex screen Y to get
     /// the bitmap's top edge (renderSprite2 0x231c2 low byte → 0x23260). Typically near the
@@ -565,8 +600,10 @@ public class GidRegion
     /// <summary>+0x04 (i16). Z value at the slope's anchor when the query point lies inside
     /// this region. Read at IDA 0x29eaa (flat) and 0x2a100 (sloped). The runtime then
     /// shifts by <c>worldItem.shiftScale</c> and adds <c>worldItem.z</c>.
-    /// The file's own value: the 2026-07-20 world-up ×1.2 bake was removed with the vertex bake in
-    /// TASK-762 (the camera carries the VGA aspect), so it stays level with its geometry.</summary>
+    /// Extracted value carries the ×1.2 world-up aspect bake applied to DAT vertices and bboxes
+    /// (see ZoneTableExtractor.WorldUpAspectScale) — this is a world-up Z, so it must stretch with
+    /// the geometry it describes. Added 2026-07-20; previously shipped unscaled, leaving every
+    /// elevation 20% below its own surface.</summary>
     public short BaseElevation { get; set; }
 
     /// <summary>+0x03 (u8). Slope-correction scale exponent. 0 = no slope contribution.
@@ -632,8 +669,10 @@ public class GidSubedge
 /// </summary>
 public class GidSlopePlane
 {
-    /// <summary>+0x00 (i8). X gradient coefficient, the file's own value (no world-up bake since
-    /// TASK-762).</summary>
+    /// <summary>+0x00 (i8). X gradient coefficient. Carries the ×1.2 world-up aspect bake
+    /// (2026-07-20): the gradient term is a Z value like BaseElevation, so scaling only the base
+    /// would pivot the ramp about its anchor instead of stretching it. Quantisation across the 95
+    /// shipped sloped regions is ≤1.5%.</summary>
     public sbyte A { get; set; }
 
     /// <summary>+0x01 (i8). Y gradient coefficient. Scaled with <see cref="A"/>; scaling both

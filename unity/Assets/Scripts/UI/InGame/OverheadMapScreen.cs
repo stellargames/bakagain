@@ -270,9 +270,8 @@ namespace BakAgain.UI.InGame {
             // travel view is whole the moment it is shown again.
             _world?.Environment?.SetOverheadMapMode(
                 _world.WorldCamera, on: false, cameraHeight: 0f,
-                mapViewHeightVga: TravelViewHeightVga,
-                projectionShift: _world?.ZoneDefinition?.ViewZoomShift
-                    ?? GameData.Resources.World.WorldProjection.TravelProjectionShift);
+                mapViewHeight: _worldViewport.CanonicalRect.Height,
+                focalLength: _world?.ZoneDefinition?.FocalLength ?? _worldViewport.FocalLength);
             // ...and put the world's own entities back if this was a dungeon automap.
             _world?.Automap?.Hide();
             // Hand the camera back. SyncToCamera re-derives height, pitch and heading from the
@@ -375,18 +374,6 @@ namespace BakAgain.UI.InGame {
         /// <see cref="LocalMapScreen.MapRendersWithYaw"/>, which is the other half of the same
         /// decision <see cref="RefreshMarker"/> makes about the icon.
         /// </remarks>
-        /// <summary>
-        /// The height, in the original's VGA pixels, of the rect the map is drawn into.
-        /// </summary>
-        /// <remarks>
-        /// Derived from the RE-verified travel viewport rather than written as 101, because this
-        /// screen has no rect of its own — it renders through the same hole in the chrome. It feeds
-        /// <see cref="ZoneEnvironment.SetOverheadMapMode"/>'s FOV, which is what makes the map cover
-        /// the ground the original covers.
-        /// </remarks>
-        private int TravelViewHeightVga => Mathf.RoundToInt(
-            _worldViewport.CanonicalRect.Height / (float)BakAgain.Graphics.Canonical.VgaScaleY);
-
         private void ApplyMapCamera() {
             Camera cam = _world?.WorldCamera;
             if (cam == null || _session == null) {
@@ -417,9 +404,8 @@ namespace BakAgain.UI.InGame {
             // The map reuses the travel viewport, so its rect — and therefore its FOV — is that one's.
             _world.Environment?.SetOverheadMapMode(
                 cam, on: true, cameraHeight: cam.transform.position.y,
-                mapViewHeightVga: TravelViewHeightVga,
-                projectionShift: _world?.ZoneDefinition?.ViewZoomShift
-                    ?? GameData.Resources.World.WorldProjection.TravelProjectionShift);
+                mapViewHeight: _worldViewport.CanonicalRect.Height,
+                focalLength: _world?.ZoneDefinition?.FocalLength ?? _worldViewport.FocalLength);
 
             // Underground, the map is not the world seen from above — it is the dungeon automap:
             // the same placements drawn from the map model table, of which only the ones the party

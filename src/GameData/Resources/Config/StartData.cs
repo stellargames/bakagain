@@ -131,4 +131,11 @@ public class StartData : IResource {
     /// meaningless here.
     /// </remarks>
     public int ProjectionShift { get; set; }
+
+    /// <summary>
+    /// The travel and combat view's focal length in canonical (square) units — the distance at
+    /// which one world unit spans one canonical unit. 2560 as shipped (shift 9). The camera's field
+    /// of view is <c>2 atan(viewportHeight / 2 / FocalLength)</c>; see <c>WorldProjection</c>.
+    /// </summary>
+    public int FocalLength { get; set; }
 }

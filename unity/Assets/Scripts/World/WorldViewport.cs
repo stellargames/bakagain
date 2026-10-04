@@ -58,6 +58,8 @@ namespace BakAgain.World {
 
         public float ViewportAspect => (float)ViewportWidth / ViewportHeight;
 
+        public int FocalLength => Start.FocalLength;
+
         public Rect ToScreenRect(Rect stageScreenRect) {
             // The stage has already resolved the fit (pillarboxed under Contain, full-window under
             // Fill). Mapping the RE-verified viewport rect proportionally into whatever box the

@@ -41,10 +41,15 @@ public class ZoneDefinition : IResource
     /// <para><see cref="ZonePointer"/> is that field, and the name is a leftover from a layout pass
     /// that did not have <c>zone_load</c> to read against. Renaming the serialized property means
     /// regenerating <c>generated/</c>, so it is TASK-441's job; this is the name to USE meanwhile.
-    /// Feed it to <c>WorldProjection.VerticalFovDegrees</c>, never the hard-coded
-    /// <c>TravelProjectionShift</c>.</para>
+    /// The camera reads <see cref="FocalLength"/>, which the extractor derives from it.</para>
     /// </remarks>
     public int ViewZoomShift => ZonePointer;
+
+    /// <summary>
+    /// The walking view's focal length in canonical (square) units: 2560 in zones 1-9, 1280
+    /// underground. Feed it to <c>WorldProjection.VerticalFovDegrees</c> (TASK-764).
+    /// </summary>
+    public int FocalLength { get; set; }
 
     /// <summary>
     /// Height of the player's eye while walking this zone — 230 in every outdoor zone, 250

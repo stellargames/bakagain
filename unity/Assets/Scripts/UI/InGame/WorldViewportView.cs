@@ -213,18 +213,9 @@ namespace BakAgain.UI.InGame {
             if (_camera != null) {
                 _cameraOwner = this;
                 _camera.targetTexture = _rt;
-                // *** THE CAMERA'S ASPECT IS NOT THE VIEWPORT'S. *** The original projects with one
-                // focal length in both axes, but those are VGA pixels, which are 5 canonical units
-                // wide and 6 tall — so in canonical space its vertical focal length is 6/5 of the
-                // horizontal, and a square-pixel Unity camera cannot have both right from one
-                // fieldOfView. The FOV carries the true vertical; this restores the horizontal.
-                //
-                // Set here rather than once at creation because Unity recomputes aspect from the
-                // target texture, and Tick reallocates that on every window change — so an override
-                // applied anywhere else silently reverts. Measured before and after against the
-                // original's own tactical grid (TASK-439).
-                _camera.aspect = (float)GameData.Resources.World.WorldProjection.CameraAspect(
-                    _rtSize.x, _rtSize.y);
+                // The camera's aspect is the render texture's own: the world is square (TASK-764), so
+                // there is nothing to correct here. Unity derives it from the target texture.
+                _camera.ResetAspect();
                 // This view is now displaying the world, so let the camera render.
                 _camera.enabled = true;
             } else {

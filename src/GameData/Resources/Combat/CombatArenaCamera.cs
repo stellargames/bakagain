@@ -49,7 +49,8 @@ public static class CombatArenaCamera {
     /// puts it 4.7° BELOW — the near row crosses frame centre. No field of view can do that, which is
     /// what sent TASK-604 looking for a pose difference in the first place.</para>
     /// </remarks>
-    public const int UndergroundHeightRaise = 510;
+    /// <para>612 is the original's 510 in square-world units (WorldUp, TASK-764).</para>
+    public const int UndergroundHeightRaise = 612;
 
     /// <summary>The arena camera's height, in game units.</summary>
     /// <remarks>

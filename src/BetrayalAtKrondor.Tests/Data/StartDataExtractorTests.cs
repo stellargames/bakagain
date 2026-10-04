@@ -38,10 +38,14 @@ public class StartDataExtractorTests {
     public void TheCombatCameraSitsLowerAndLooksSteeperUnderground() {
         StartData start = Extract();
 
-        Assert.Equal(1024, start.CombatCameraHeightAboveGround);
-        Assert.Equal(800, start.CombatCameraHeightUnderground);
-        Assert.Equal(-2112, start.CombatCameraPitchAboveGround);
-        Assert.Equal(-3030, start.CombatCameraPitchUnderground);
+        // The shipped 1024 and 800, in square-world units (WorldUp, TASK-764).
+        Assert.Equal(1229, start.CombatCameraHeightAboveGround);
+        Assert.Equal(960, start.CombatCameraHeightUnderground);
+        // Shift 9 as a square-pixel focal length: 512 VGA px x5 (TASK-764).
+        Assert.Equal(2560, start.FocalLength);
+        // The shipped -2112 and -3030, turned with the world's heights (TASK-764).
+        Assert.Equal(-2519, start.CombatCameraPitchAboveGround);
+        Assert.Equal(-3593, start.CombatCameraPitchUnderground);
 
         // The relationship, not just the numbers: a dungeon is a tighter space, so the eye drops and
         // the view tips further down. A field-order slip that swapped the pairs would satisfy the

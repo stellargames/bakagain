@@ -3,6 +3,7 @@ namespace ResourceExtraction.Extractors;
 using GameData.Resources.Data;
 using GameData.Resources.Dialog.Actions;
 using GameData.Resources.Location;
+using GameData.Resources.World;
 
 using System;
 using System.Collections.Generic;
@@ -253,7 +254,9 @@ public class SaveGameExtractor : ExtractorBase<SaveGame> {
         byte worldYCoordinate = sectionReader.ReadByte();
         int positionX = sectionReader.ReadInt32();
         int positionY = sectionReader.ReadInt32();
-        int positionZ = sectionReader.ReadInt32();
+        // The eye height, a world-up value: into the square world on the way in, and back out in
+        // SaveGameWriter so the original still reads the file (WorldUp, TASK-764).
+        int positionZ = WorldUp.FromOriginal(sectionReader.ReadInt32());
         short currentZRotation = sectionReader.ReadInt16();
 
         int zoneNumber = sectionReader.ReadByte();
