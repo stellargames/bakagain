@@ -14,11 +14,26 @@
     </ItemGroup>
 
     <ItemGroup>
+      <PackageReference Include="Karambolo.PO" Version="1.13.0" />
       <PackageReference Include="Melanchall.DryWetMidi" Version="8.0.0" />
     </ItemGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Unity' ">
         <OutputPath>..\..\unity\Assets\Plugins\</OutputPath>
     </PropertyGroup>
+
+    <!-- Packages Unity cannot get from its UnityNuGet registry are copied next to the plugin on the
+         Unity build (built, never committed — like the plugin itself). Only these, by package id:
+         copying every dependency would duplicate the ones Unity's registry already supplies. -->
+    <PropertyGroup>
+        <UnityCopiedPackages>;Karambolo.PO;Karambolo.Common;</UnityCopiedPackages>
+    </PropertyGroup>
+    <Target Name="CopyPackagesForUnity" AfterTargets="Build" Condition=" '$(Configuration)' == 'Unity' ">
+        <ItemGroup>
+            <_UnityPackageDllKept Include="@(ReferencePath)" Condition=" $(UnityCopiedPackages.Contains(';%(ReferencePath.Filename);')) " />
+        </ItemGroup>
+        <Copy SourceFiles="@(_UnityPackageDllKept)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+        <Message Importance="high" Text="Copied for Unity: @(_UnityPackageDllKept->'%(Filename)%(Extension)')" />
+    </Target>
     
 </Project>

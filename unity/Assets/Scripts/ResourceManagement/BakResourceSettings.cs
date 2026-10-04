@@ -7,6 +7,7 @@ namespace BakAgain.ResourceManagement {
         private const string EnableOverridesKey = "enable overrides";
         private const string OverridesDirectoryKey = "overrides directory";
         private const string OriginalGamePathKey = "original game path";
+        private const string LanguageKey = "language";
 
         public static bool OverrideEnabled {
             get => PlayerPrefs.GetInt(EnableOverridesKey, 0) == 1;
@@ -57,6 +58,19 @@ namespace BakAgain.ResourceManagement {
             } catch (UnauthorizedAccessException) {
             }
             return null;
+        }
+
+        /// <summary>
+        /// The active language's locale (<c>en</c> = the original's English). A pack for any other
+        /// locale is read from <c>&lt;OverridePath&gt;/Lang/&lt;locale&gt;/&lt;locale&gt;.po</c>; it takes
+        /// effect on the next start (TASK-773).
+        /// </summary>
+        public static string Language {
+            get => PlayerPrefs.GetString(LanguageKey, "en");
+            set {
+                PlayerPrefs.SetString(LanguageKey, value);
+                Save();
+            }
         }
 
         public static void Save() {

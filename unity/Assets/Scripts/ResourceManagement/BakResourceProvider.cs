@@ -111,6 +111,10 @@ namespace BakAgain.ResourceManagement {
                             zoneTable, resourceId, _resourceProvider);
                     }
 
+                    // The active language pack's translations go in as the resource loads, so every
+                    // reader of it sees them (TASK-773). English is a no-op.
+                    LanguagePacks.Current.Apply(resource, resourceId);
+
                     _extractedResourceCache[resourceId] = resource;
                 }
 

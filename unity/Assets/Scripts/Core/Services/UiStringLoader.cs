@@ -12,7 +12,9 @@ namespace BakAgain.Core.Services {
     /// </summary>
     public static class UiStringLoader {
         public static async UniTask InstallAsync(IResourceProviderService resources, ILogger logger) {
-            UiStringCatalog catalog = UiStringCatalog.Embedded;
+            // The original English, translated by the active pack; a mod's own override (below) still
+            // wins over both (TASK-773).
+            UiStringCatalog catalog = UiStringCatalog.Embedded.TranslatedBy(LanguagePacks.Current);
             try {
                 var overrideText = await resources.LoadAssetAsync<UnityEngine.TextAsset>(
                     UiStringCatalog.ResourceId, owner: typeof(UiStringLoader));

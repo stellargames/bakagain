@@ -51,6 +51,18 @@ public sealed class UiStringCatalog {
         return new UiStringCatalog(merged);
     }
 
+    /// <summary>This catalog with every entry <paramref name="pack"/> translates replaced (TASK-773);
+    /// untranslated entries keep the original English.</summary>
+    public UiStringCatalog TranslatedBy(LanguagePack pack) {
+        var translated = new Dictionary<string, string>(_entries);
+        foreach (string key in _entries.Keys) {
+            if (pack.TryGet(key, out string text)) {
+                translated[key] = text;
+            }
+        }
+        return new UiStringCatalog(translated);
+    }
+
     private static UiStringCatalog? _embedded;
 
     /// <summary>The catalog compiled into this assembly. One copy, nothing to hand-sync.</summary>
