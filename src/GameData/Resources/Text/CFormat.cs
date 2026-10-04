@@ -6,7 +6,8 @@ using System.Text;
 /// <summary>
 /// The sliver of C <c>printf</c> the catalog's format strings actually use: <c>%d</c>, <c>%ld</c>,
 /// <c>%s</c> (and <c>%Fs</c>, the far-pointer variant the original's 16-bit compiler emitted), plus
-/// <c>%%</c> for a literal percent. Conversions consume arguments in order.
+/// <c>%%</c> for a literal percent. Conversions consume arguments in order, unless they name one
+/// POSIX-style (<c>%2$d</c>) — which only a translation does, to reorder.
 ///
 /// <para><b>Width, precision and flags are NOT supported</b>, and — contrary to what this comment
 /// used to claim — they do occur in the extracted catalog. A conversion carrying any of them is not
@@ -41,6 +42,17 @@ public static class CFormat {
                 i = j;
                 continue;
             }
+            // POSIX positional argument, "%2$d": how a translation reorders (TASK-776). The original
+            // never uses it, so English is unaffected.
+            int position = -1;
+            int digits = j;
+            while (digits < format.Length && char.IsDigit(format[digits])) {
+                digits++;
+            }
+            if (digits > j && digits < format.Length && format[digits] == '$') {
+                position = int.Parse(format.Substring(j, digits - j), CultureInfo.InvariantCulture) - 1;
+                j = digits + 1;
+            }
             // Skip length modifiers: l, ld, F (far), h.
             while (j < format.Length && (format[j] == 'l' || format[j] == 'F' || format[j] == 'h')) {
                 j++;
@@ -51,8 +63,8 @@ public static class CFormat {
             }
             char conv = format[j];
             if (conv == 'd' || conv == 's' || conv == 'c' || conv == 'u') {
-                object? value = args != null && arg < args.Length ? args[arg] : null;
-                arg++;
+                int index = position >= 0 ? position : arg++;
+                object? value = args != null && index < args.Length ? args[index] : null;
                 if (value != null) {
                     sb.Append(System.Convert.ToString(value, CultureInfo.InvariantCulture));
                 }

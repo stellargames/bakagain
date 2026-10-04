@@ -11,6 +11,7 @@ public class PotTemplateTests {
         new("base:ddx:dial_z00:10274", "hadn't been <hi/>expected<reset/>.\"", "DIAL_Z00.DDX"),
         new("base:keyword:255", "Yes", "KEYWORD.DAT"),
         new("base:keyword:256", "Yes", "KEYWORD.DAT"),
+        new("base:uistring:money.gold_and_silver", "%d sovereigns and %d royals", "KRONDOR.EXE"),
     };
 
     private static string Pot() {
@@ -46,5 +47,16 @@ public class PotTemplateTests {
         Assert.True(pack.TryGet("base:keyword:255", out string yes));
         Assert.Equal("Ja", yes);
         Assert.Equal(2, pack.TranslatedCount);
+    }
+
+    [Fact]
+    public void APrintfStringIsFlaggedCFormat_SoTheToolsCheckItsPlaceholders() {
+        string pot = Pot();
+        int flag = pot.IndexOf("#, c-format", System.StringComparison.Ordinal);
+
+        Assert.True(flag >= 0);
+        Assert.True(flag > pot.IndexOf("msgctxt \"base:keyword:256\"", System.StringComparison.Ordinal),
+            "only on the printf entry");
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(pot, "c-format"));
     }
 }
