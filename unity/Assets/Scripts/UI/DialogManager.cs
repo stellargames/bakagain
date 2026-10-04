@@ -564,7 +564,7 @@ namespace BakAgain.UI {
                 pickingMode = PickingMode.Ignore,
                 style = { color = textColor, unityTextAlign = TextAnchor.MiddleCenter },
             };
-            GameFontText.Apply(label, GameFontText.AnchorX.Centre, GameFontText.AnchorY.Middle);
+            GameFontText.Apply(label);
             plate.Add(label);
             return plate;
         }
@@ -1248,8 +1248,8 @@ namespace BakAgain.UI {
             //
             // The measurement is the game's own bitmap font, not the rendered SDF text: UI
             // Toolkit's MeasureTextSize reads 0 before the first layout pass and the row has to be
-            // placed as it is built. The two agree to about a percent, because Canonical
-            // .GameFontSizePx (55) was calibrated against these very advances.
+            // placed as it is built. The two agree to about a percent, because
+            // GameFontText.FontSizePx (55) is derived from these very advances.
             int widestLabel = BakAgain.Book.BakFontData.WidestRaw(
                 labels, BakAgain.Book.BakFontData.GameFontIndex);
             (int panelWidth, int panelHeight) = CanonicalPanelSize();

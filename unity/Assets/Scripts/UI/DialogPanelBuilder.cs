@@ -538,7 +538,7 @@ namespace BakAgain.UI {
             label.style.top = top;
             // The game font's size and aspect stretch, from their single owner. The stretch needs
             // the edge the text is anchored from; this label is placed by its top.
-            GameFontText.Apply(label, GameFontText.HorizontalAnchor(align), GameFontText.AnchorY.Top);
+            GameFontText.Apply(label);
             if (hasShadow) {
                 // Mirrors RenderDialogText's two-pass shadow at 0x48d7b: the
                 // back pass is drawn in ShadowPenColor offset by 1 px before
@@ -668,7 +668,7 @@ namespace BakAgain.UI {
             // a line beyond it — 5 canonical px at each edge, which the pill's 18 px vertical
             // padding absorbs. Centred, because the pill centres its label rather than placing it
             // by an edge.
-            GameFontText.Apply(label, GameFontText.AnchorX.Centre, GameFontText.AnchorY.Middle);
+            GameFontText.Apply(label);
 
             pill.Add(label);
             stack.Add(shadow);   // behind (added first → drawn under the pill)

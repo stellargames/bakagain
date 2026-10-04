@@ -244,8 +244,7 @@ namespace BakAgain.ResourceManagement.Loaders {
                 // Same shape as a text button: this element carries the background and (when
                 // selected) the bevel, so the text goes in a child that can be stretched without
                 // taking them with it. Left-anchored, because a row is middle-LEFT aligned.
-                BakAgain.UI.GameFontText.Caption(
-                    label, _source.GetItemLabel(actionId, index), BakAgain.UI.GameFontText.AnchorX.Left);
+                BakAgain.UI.GameFontText.Caption(label, _source.GetItemLabel(actionId, index));
                 // Selected row: same background, distinguished by the bevel box +
                 // cream (pen 0x0A) text with a pen-1 drop shadow (the .--selected
                 // and .bevel-raised classes).

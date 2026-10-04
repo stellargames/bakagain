@@ -140,7 +140,7 @@ namespace BakAgain.UI.InGame {
             // The spell font spends a byte on each pixel, so a symbol carries its own indices; the
             // ink only stands in if the palette is missing.
             Sprite sprite = ResourceManagement.Converters.FontGlyphConverter.ToSprite(
-                _font.GlyphFor(glyph), Color.white, _palette);
+                _font, _font.GlyphFor(glyph), Color.white, _palette);
             _glyphs[glyph] = sprite;
 
             return sprite;

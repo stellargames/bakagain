@@ -53,11 +53,13 @@ namespace BakAgain.ResourceManagement.Loaders {
                     continue;
                 }
                 bool centered = entry.Attributes.HasFlag(LabelAttributes.Centered);
-                // Position is data-driven (inline); colour + size/wrap/alignment come
-                // from .req-label (+ --title / --centered).
+                // Position is data-driven (inline), and so is the size — the font's own
+                // (GameFontText.FontSizePx); colour, wrap and alignment come from .req-label
+                // (+ --title / --centered).
                 var label = new Label(entry.Text) {
                     style = {
                         top = entry.YPosition,
+                        fontSize = BakAgain.UI.GameFontText.FontSizePx,
                     }
                 };
                 label.AddToClassList("req-label");

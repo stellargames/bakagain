@@ -525,7 +525,7 @@ namespace BakAgain.UI.Character {
                         : new StyleTranslate(new Translate(0f, 0f)),
                 },
             };
-            GameFontText.Apply(label, GameFontText.HorizontalAnchor(align), GameFontText.AnchorY.Top);
+            GameFontText.Apply(label);
             host.Add(label);
             _elements.Add(label);
         }

@@ -12,9 +12,9 @@ namespace BakAgain.ResourceManagement.Converters {
     /// through the TMP assets instead. Nothing here is a substitute for those — it is the only way
     /// to get at the symbols, which no other resource carries.
     ///
-    /// <para>Scaled into canonical space on the way out, the way the extracted bitmaps already are:
-    /// the glyph is VGA-sized, and a caller placing it at a canonical position would otherwise get
-    /// something five times too small next to everything around it.</para>
+    /// <para>Each glyph pixel becomes the block the font declares (<see cref="FontResource.PixelWidth"/>
+    /// x <see cref="FontResource.PixelHeight"/> canonical units, 5 x 6 for the original's fonts), so
+    /// the sprite lands at canonical scale next to everything around it (TASK-765).</para>
     /// </summary>
     public static class FontGlyphConverter {
         /// <summary>The glyph as a sprite, or null when there is nothing to draw.</summary>
@@ -24,14 +24,16 @@ namespace BakAgain.ResourceManagement.Converters {
         /// that away.
         /// </param>
         /// <param name="palette">Resolves a paletted glyph's indices; ignored by a monochrome one.</param>
-        public static Sprite ToSprite(FontGlyph glyph, Color ink,
+        public static Sprite ToSprite(FontResource font, FontGlyph glyph, Color ink,
             GameData.Resources.Palette.PaletteResource palette = null) {
-            if (glyph == null || glyph.Width <= 0 || glyph.Rows.Count == 0) {
+            if (font == null || glyph == null || glyph.Width <= 0 || glyph.Rows.Count == 0) {
                 return null;
             }
 
-            int width = glyph.Width * BakAgain.Graphics.Canonical.VgaScaleX;
-            int height = glyph.Rows.Count * BakAgain.Graphics.Canonical.VgaScaleY;
+            int pixelW = System.Math.Max(1, (int)System.Math.Round(font.PixelWidth));
+            int pixelH = System.Math.Max(1, (int)System.Math.Round(font.PixelHeight));
+            int width = glyph.Width * pixelW;
+            int height = glyph.Rows.Count * pixelH;
             var texture = new Texture2D(width, height, TextureFormat.RGBA32, mipChain: false) {
                 filterMode = FilterMode.Point,   // the original's pixels, not a blur of them
                 wrapMode = TextureWrapMode.Clamp,
@@ -41,9 +43,9 @@ namespace BakAgain.ResourceManagement.Converters {
             Color32 lit = ink;
             for (var y = 0; y < height; y++) {
                 // Texture rows run bottom-up; the glyph's run top-down.
-                int glyphRow = glyph.Rows.Count - 1 - (y / BakAgain.Graphics.Canonical.VgaScaleY);
+                int glyphRow = glyph.Rows.Count - 1 - (y / pixelH);
                 for (var x = 0; x < width; x++) {
-                    int index = glyph.PixelAt(x / BakAgain.Graphics.Canonical.VgaScaleX, glyphRow);
+                    int index = glyph.PixelAt(x / pixelW, glyphRow);
                     if (index == 0) {
                         continue;
                     }
@@ -67,7 +69,7 @@ namespace BakAgain.ResourceManagement.Converters {
                 return sprites;
             }
             for (var i = 0; i < font.Glyphs.Count; i++) {
-                Sprite sprite = ToSprite(font.Glyphs[i], ink, palette);
+                Sprite sprite = ToSprite(font, font.Glyphs[i], ink, palette);
                 if (sprite != null) {
                     sprites[font.FirstCharacter + i] = sprite;
                 }

@@ -20,6 +20,21 @@ public class FontResource : IResource {
     public string Id { get; }
     public ResourceType Type => ResourceType.FNT;
 
+    /// <summary>
+    /// The width of one glyph pixel in canonical (square) units.
+    /// </summary>
+    /// <remarks>
+    /// <b>The font says what shape its pixels are, so nothing downstream has to know.</b> The
+    /// original's fonts were drawn on non-square pixels — 5 x 6 canonical units in the 320x200 VGA
+    /// screens, 2 x 96/35 in the 640x350 EGA book — and the extractor states that here. A font made
+    /// for a mod declares its own (1 x 1 for square pixels at canonical scale), and renders at that
+    /// shape with no correction applied to it (TASK-765).
+    /// </remarks>
+    public double PixelWidth { get; set; } = 1;
+
+    /// <inheritdoc cref="PixelWidth"/>
+    public double PixelHeight { get; set; } = 1;
+
     /// <summary>Rows per glyph — every glyph in a font is the same height.</summary>
     public int Height { get; set; }
 

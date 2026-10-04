@@ -354,7 +354,7 @@ namespace BakAgain.UI.InGame {
             }
             var label = new Label(text) { pickingMode = PickingMode.Ignore };
             label.style.position = Position.Absolute;
-            GameFontText.Apply(label, GameFontText.AnchorX.Centre, GameFontText.AnchorY.Top);
+            GameFontText.Apply(label);
             viewport.Add(label);
             FloatTextAsync(label, viewport, world, pens).Forget();
         }

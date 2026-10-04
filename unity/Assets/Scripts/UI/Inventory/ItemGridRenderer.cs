@@ -276,8 +276,7 @@ namespace BakAgain.UI.Inventory {
                     color = Color.black,
                 };
             }
-            BakAgain.UI.GameFontText.Apply(label,
-                BakAgain.UI.GameFontText.AnchorX.Centre, BakAgain.UI.GameFontText.AnchorY.Bottom);
+            BakAgain.UI.GameFontText.Apply(label);
             cell.Add(label);
         }
 
@@ -455,8 +454,7 @@ namespace BakAgain.UI.Inventory {
                     // Size + the anisotropy stretch, shared with every other game-font surface
                     // (task-45). Anchored bottom-right because the label is pinned to that corner,
                     // so the glyphs grow upward and the baseline stays on the cell's lower edge.
-                    BakAgain.UI.GameFontText.Apply(qty,
-                        BakAgain.UI.GameFontText.AnchorX.Right, BakAgain.UI.GameFontText.AnchorY.Bottom);
+                    BakAgain.UI.GameFontText.Apply(qty);
                     if (onlyWhileSelected) {
                         // Built but hidden: selection is applied after the render (the outline works
                         // the same way), so the label is here waiting rather than forcing a rebuild

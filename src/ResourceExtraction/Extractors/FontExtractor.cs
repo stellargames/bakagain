@@ -4,9 +4,11 @@ using GameData.Resources.Font;
 
 using ResourceExtraction.Compression;
 using ResourceExtraction.Extensions;
+using ResourceExtraction.Imaging;
 
 using ResourceExtractor.Compression;
 
+using System;
 using System.IO;
 using System.Text;
 
@@ -59,6 +61,12 @@ public class FontExtractor : ExtractorBase<FontResource> {
             FirstCharacter = firstCharacter,
             GlyphFormat = (byte)-(sbyte)formatByte,
         };
+        // The shape of the screen the original draws this font on: BOOK.FNT in the 640x350 EGA book
+        // mode, every other font in 320x200 VGA — in canonical (square) units, the same factors the
+        // bitmaps are corrected by (BitmapExtractor.ApplyAspectCorrection).
+        bool book = id.StartsWith("BOOK", StringComparison.OrdinalIgnoreCase);
+        font.PixelWidth = book ? AspectCorrection.EgaScaleX : AspectCorrection.VgaScaleX;
+        font.PixelHeight = book ? AspectCorrection.EgaScaleY : AspectCorrection.VgaScaleY;
 
         // *** THE OFFSET TABLE IS WHAT SAYS HOW WIDE A ROW IS. *** A glyph's span divided by the
         // font's height gives its bytes per row. Deriving the stride from the WIDTH instead reads a

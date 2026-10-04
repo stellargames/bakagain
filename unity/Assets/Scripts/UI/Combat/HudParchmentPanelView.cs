@@ -255,11 +255,6 @@ namespace BakAgain.UI.Combat {
         /// <summary>One parchment line as a label at the given canonical position — shared with the
         /// combat assessment, whose rows are drawn the same way (CBENC.C:307-349).</summary>
         public static Label LineLabel(HudPanelLine line, float left, float top) {
-            GameFontText.AnchorX anchor = line.Align switch {
-                HudPanelAlign.Centre => GameFontText.AnchorX.Centre,
-                HudPanelAlign.Right => GameFontText.AnchorX.Right,
-                _ => GameFontText.AnchorX.Left,
-            };
             var label = new Label(line.Text) {
                 pickingMode = PickingMode.Ignore,
                 style = {
@@ -277,7 +272,7 @@ namespace BakAgain.UI.Combat {
                         }, 0f)),
                 },
             };
-            GameFontText.Apply(label, anchor, GameFontText.AnchorY.Top);
+            GameFontText.Apply(label);
             return label;
         }
     }

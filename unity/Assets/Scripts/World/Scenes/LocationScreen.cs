@@ -357,8 +357,7 @@ namespace BakAgain.World.Scenes {
                         color = SignInk,
                     },
                 };
-                BakAgain.UI.GameFontText.Apply(label, BakAgain.UI.GameFontText.AnchorX.Centre,
-                    BakAgain.UI.GameFontText.AnchorY.Top);
+                BakAgain.UI.GameFontText.Apply(label);
                 holder.Add(label);
             }
             foreach (VisualElement child in holder.Query<VisualElement>().ToList()) {

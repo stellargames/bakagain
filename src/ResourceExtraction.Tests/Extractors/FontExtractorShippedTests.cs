@@ -31,6 +31,28 @@ public class FontExtractorShippedTests {
         Assert.All(font.Glyphs, g => Assert.All(g.Rows, r => Assert.Equal(g.BytesPerRow, r.Length)));
     }
 
+    /// <summary>
+    /// A font says how big its pixels are in canonical (square) units — the original's are not
+    /// square, so text renders at their shape without Unity knowing about VGA (TASK-765). BOOK.FNT
+    /// is drawn in the 640x350 EGA book mode, everything else in 320x200 VGA.
+    /// </summary>
+    [Theory]
+    [InlineData("GAME.FNT", 5.0, 6.0)]
+    [InlineData("SPELL.FNT", 5.0, 6.0)]
+    [InlineData("PUZZLE.FNT", 5.0, 6.0)]
+    [InlineData("BOOK.FNT", 2.0, 96.0 / 35.0)]
+    public void EachFontDeclaresTheShapeOfItsPixels(string name, double width, double height) {
+        string? path = Find(name);
+        if (path == null) {
+            return;
+        }
+
+        FontResource font = Read(path, name);
+
+        Assert.Equal(width, font.PixelWidth, 9);
+        Assert.Equal(height, font.PixelHeight, 9);
+    }
+
     [Fact]
     public void TheSpellFontIsSymbolsRatherThanLetters() {
         string? path = Find("SPELL.FNT");

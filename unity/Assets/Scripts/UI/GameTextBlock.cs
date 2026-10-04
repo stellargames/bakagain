@@ -35,7 +35,6 @@ namespace BakAgain.UI {
         private string _text = string.Empty;
         private Color[] _palette;
         private int _bodyPen;
-        private GameFontText.AnchorX _lineAnchor = GameFontText.AnchorX.Left;
         private TextAnchor _lineAlign = TextAnchor.UpperLeft;
         private int _lineGapVgaRows = GameFontText.DialogLineGapVgaRows;
         private Color _color = Color.white;
@@ -184,7 +183,6 @@ namespace BakAgain.UI {
             _palette = palette;
             _bodyPen = bodyPen;
             _lineAlign = HorizontalOnly(align);
-            _lineAnchor = GameFontText.HorizontalAnchor(align);
             _lineGapVgaRows = lineGapVgaRows;
             _firstLine = 0;
             _flowedAtWidth = -1;
@@ -337,7 +335,7 @@ namespace BakAgain.UI {
                 },
             };
             label.enableRichText = true;
-            GameFontText.Apply(label, _lineAnchor, GameFontText.AnchorY.Top);
+            GameFontText.Apply(label);
             ApplyInk(label);
             return label;
         }

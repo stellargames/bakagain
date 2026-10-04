@@ -997,7 +997,7 @@ namespace BakAgain.UI.Spells {
             // symbol carries its own indices and its own shading; the ink only stands in if the
             // palette fails to load, and inventing a colour for that would be inventing the look.
             Sprite sprite = ResourceManagement.Converters.FontGlyphConverter.ToSprite(
-                _spellFont.GlyphFor(glyphIndex), Color.white, _symbolPalette);
+                _spellFont, _spellFont.GlyphFor(glyphIndex), Color.white, _symbolPalette);
             _symbolSprites[glyphIndex] = sprite;
 
             return sprite;
@@ -1201,7 +1201,7 @@ namespace BakAgain.UI.Spells {
                 },
             };
             label.AddToClassList(InfoClass);
-            GameFontText.Apply(label, GameFontText.AnchorX.Centre, GameFontText.AnchorY.Top);
+            GameFontText.Apply(label);
 
             return label;
         }
@@ -1453,7 +1453,7 @@ namespace BakAgain.UI.Spells {
             // The game font's size and its VGA aspect stretch, from the one owner of both. Anchored
             // at the top because the panel's y positions are the original's line tops, so the text
             // must grow downward from them rather than about its middle.
-            GameFontText.Apply(label, GameFontText.AnchorX.Centre, GameFontText.AnchorY.Top);
+            GameFontText.Apply(label);
             return label;
         }
 
@@ -1469,7 +1469,7 @@ namespace BakAgain.UI.Spells {
                 },
             };
             label.AddToClassList(InfoClass);
-            GameFontText.Apply(label, GameFontText.AnchorX.Left, GameFontText.AnchorY.Top);
+            GameFontText.Apply(label);
             return label;
         }
 

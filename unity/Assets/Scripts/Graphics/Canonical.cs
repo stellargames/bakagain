@@ -62,35 +62,5 @@ namespace BakAgain.Graphics {
 
         /// <summary>Horizontal canonical px per EGA px (book space).</summary>
         public const int EgaScaleX = 2;
-
-        /// <summary>
-        /// Canonical font size for the game font — which is the font for the WHOLE UI, not just
-        /// part of it: the original selects <c>game.fnt</c> once during
-        /// <c>InitializeGameHardware</c> (@0x41a52 -> <c>fontSelect(pGameFont)</c>) and every
-        /// surface after that draws in it. So this one size covers dialog and menu body text as
-        /// much as it does the inventory's quantity/percent labels and the item-inspect view.
-        ///
-        /// <para>There used to be a second constant here — <c>MenuFontSizePx = 8 * VgaScaleY</c>
-        /// (= 48) — for the dialog/menu half. It was a fabrication: there is no <b>8</b> anywhere
-        /// in the original, whose character cell is 10 px tall. It rendered dialog body text at
-        /// roughly two-thirds of the original's scale (measured line pitch 7.25 VGA rows against
-        /// the original's 11) and it is deleted rather than corrected, because two sizes for one
-        /// font could only drift apart again (task-46).</para>
-        ///
-        /// <para>Deliberately NOT <c>BakFontData.GameFontHeight * VgaScaleY</c> (= 60), which looks
-        /// like the obvious derivation and is wrong: 10 is the original's character-CELL height,
-        /// while a font asset's size is its EM size, and the "Game SDF" asset's em runs ~9% larger
-        /// than that cell. Rendering at 60 made every string ~8% wider than the original, which
-        /// pushed item names out of the inspect panel (task-45). (60 is not a useless number, mind
-        /// — it is the right answer to a DIFFERENT question, "how tall is one line?", and that is
-        /// what <c>GameFontText.LineHeightPx</c> is. Just never a font size.)</para>
-        ///
-        /// <para>Measured against the extracted GAME.FNT advances (2026-07-27): at fontSize 60 the
-        /// glyph advances came out 1.067–1.093× the original's per glyph (mean 1.084), implying
-        /// 55.3. Per-glyph exact solutions span 54.9–56.3 because the original widths are whole
-        /// pixels while the font's advances are continuous, so no single value is exact for every
-        /// character; 55 is the best fit and is already what ClassicTheme.tss uses.</para>
-        /// </summary>
-        public const float GameFontSizePx = 55f;
     }
 }

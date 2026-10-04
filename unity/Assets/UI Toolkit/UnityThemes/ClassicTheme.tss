@@ -31,9 +31,8 @@
     -unity-text-align: middle-center;
     font-size: 55px;
     white-space: nowrap;
-    /* The caption is a CHILD (GameFontText.Caption) so it can carry the vertical stretch without
-       the bevel going with it, which is why this element centres its content rather than its own
-       text. The font-size and text-align above stay: colour, font and shadow are inherited
+    /* The caption is a CHILD (GameFontText.Caption), inert to the pointer, which is why this
+       element centres its content rather than its own text. The font-size and text-align above stay: colour, font and shadow are inherited
        properties in UI Toolkit, so .keyword-asked's recolouring still reaches the caption. */
     align-items: center;
     justify-content: center;
@@ -173,17 +172,13 @@
     background-color: rgba(0, 0, 0, 0);
 }
 
-/* LBL_*.DAT captions (MenuLabelRenderer). Same font, same size and same aspect stretch as every
-   other game-font surface — see BakAgain.UI.GameFontText, which is this rule's code-side twin
-   (a USS class cannot call it, so the two facts are restated here). font-size was 48px, the
-   fabricated 8 x VgaScaleY, and there was no stretch at all: captions rendered ~13% narrow and a
-   sixth too short (task-46). Origin top-left because a caption is placed by its glyph-cell top,
-   which is the original's convention. */
+/* LBL_*.DAT captions (MenuLabelRenderer). Same font and size as every other game-font surface —
+   BakAgain.UI.GameFontText; the renderers set the size from the font data, 55px is the shipped
+   GAME.FNT's value as a fallback. No stretch: the font is built at the original's pixel shape
+   (TASK-765). */
 .req-label {
     position: absolute;
     font-size: 55px;
-    scale: 1 1.2;
-    transform-origin: left top;
     white-space: nowrap;
     -unity-text-align: upper-left;
     color: var(--ui-ink);

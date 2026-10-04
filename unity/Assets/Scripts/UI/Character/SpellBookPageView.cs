@@ -167,7 +167,7 @@ namespace BakAgain.UI.Character {
                     whiteSpace = WhiteSpace.Normal,   // the list wraps inside its width
                 },
             };
-            GameFontText.Apply(label, GameFontText.AnchorX.Left, GameFontText.AnchorY.Middle);
+            GameFontText.Apply(label);
             label.style.unityTextAlign = TextAnchor.MiddleLeft;
             host.Add(label);
             _elements.Add(label);

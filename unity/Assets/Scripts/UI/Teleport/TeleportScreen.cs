@@ -506,7 +506,7 @@ namespace BakAgain.UI.Teleport {
                 },
             };
             label.AddToClassList(PanelClass);
-            GameFontText.Apply(label, GameFontText.AnchorX.Centre, GameFontText.AnchorY.Top);
+            GameFontText.Apply(label);
             return label;
         }
 
@@ -520,7 +520,7 @@ namespace BakAgain.UI.Teleport {
                 },
             };
             label.AddToClassList(PanelClass);
-            GameFontText.Apply(label, GameFontText.AnchorX.Left, GameFontText.AnchorY.Top);
+            GameFontText.Apply(label);
             return label;
         }
 

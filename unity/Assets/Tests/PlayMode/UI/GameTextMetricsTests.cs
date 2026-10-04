@@ -88,7 +88,7 @@ namespace BakAgain.Tests.PlayMode.UI {
                              * Canonical.VgaScaleX;
 
             var probe = new Label();
-            GameFontText.Apply(probe, GameFontText.AnchorX.Left, GameFontText.AnchorY.Top);
+            GameFontText.Apply(probe);
             float size = probe.style.fontSize.value.value;
             float measured =
                 (Measure(size, "M" + new string(' ', Samples) + "M").x - Measure(size, "MM").x)
@@ -128,7 +128,7 @@ namespace BakAgain.Tests.PlayMode.UI {
                              * Canonical.VgaScaleX;
 
             var probe = new Label();
-            GameFontText.Apply(probe, GameFontText.AnchorX.Left, GameFontText.AnchorY.Top);
+            GameFontText.Apply(probe);
             float size = probe.style.fontSize.value.value;
             float measured = Measure(size, indented).x - Measure(size, "M").x;
 
@@ -141,14 +141,14 @@ namespace BakAgain.Tests.PlayMode.UI {
 
         [Test]
         public void GameFontText_LinePitchIsTheOriginalCharacterCell() {
-            // The vertical stretch is a transform, so it multiplies the laid-out pitch rather than
-            // changing it — measure the pitch the text engine produces, then apply the stretch the
-            // styling applies, and the product is what the player sees.
+            // The pitch the text engine lays out IS what the player sees: the font is built at the
+            // original's pixel shape (5 x 6 canonical units), so no transform multiplies it any more
+            // (TASK-765). Asserting the laid-out pitch is what catches the font losing that shape.
             var probe = new Label();
-            GameFontText.Apply(probe, GameFontText.AnchorX.Left, GameFontText.AnchorY.Top);
-            float stretch = probe.style.scale.value.value.y;
+            GameFontText.Apply(probe);
+            Assert.AreEqual(StyleKeyword.Null, probe.style.scale.keyword, "no stretch is applied");
 
-            float pitch = MeasuredLinePitch(probe.style.fontSize.value.value) * stretch;
+            float pitch = MeasuredLinePitch(probe.style.fontSize.value.value);
 
             Assert.That(pitch,
                 Is.EqualTo(GameFontCellHeightVgaPx * Canonical.VgaScaleY).Within(1f),
@@ -170,7 +170,7 @@ namespace BakAgain.Tests.PlayMode.UI {
         [UnityTest]
         public IEnumerator TheDialogBody_IsStyledByTheSharedGameFontOwner() {
             var reference = new Label();
-            GameFontText.Apply(reference, GameFontText.AnchorX.Left, GameFontText.AnchorY.Top);
+            GameFontText.Apply(reference);
 
             var host = new GameObject("DialogBodyFontUnderTest");
             var panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
@@ -200,12 +200,9 @@ namespace BakAgain.Tests.PlayMode.UI {
             Assert.That(body.style.fontSize.value.value,
                 Is.EqualTo(reference.style.fontSize.value.value).Within(0.001f),
                 "The dialog body must render at the same size as every other game-font surface.");
-            Assert.That(body.style.scale.value.value.y,
-                Is.EqualTo(reference.style.scale.value.value.y).Within(0.001f),
-                "The dialog body must carry the same aspect stretch — canonical space is "
-                + "anisotropic (x" + Canonical.VgaScaleX + " horizontal against x"
-                + Canonical.VgaScaleY + " vertical) while the font renderer scales isotropically, "
-                + "so a width-correct size alone leaves the glyphs a sixth too short.");
+            Assert.AreEqual(StyleKeyword.Null, body.style.scale.keyword,
+                "The dialog body must not be stretched: the font already has the original's "
+                + "pixel shape (TASK-765).");
         }
 
         // Width of ten copies of one character, against ten times its GAME.FNT advance converted
@@ -218,7 +215,7 @@ namespace BakAgain.Tests.PlayMode.UI {
             float expected = fntPx * Canonical.VgaScaleX * Samples;
 
             var probe = new Label();
-            GameFontText.Apply(probe, GameFontText.AnchorX.Left, GameFontText.AnchorY.Top);
+            GameFontText.Apply(probe);
             float measured = Measure(probe.style.fontSize.value.value, new string(ch, Samples)).x;
 
             Assert.That(measured, Is.EqualTo(expected).Within(expected * AdvanceTolerance),
@@ -241,7 +238,7 @@ namespace BakAgain.Tests.PlayMode.UI {
         // every paragraph indent in the game.
         private Vector2 Measure(float fontSize, string text) {
             var label = new Label(text);
-            GameFontText.Apply(label, GameFontText.AnchorX.Left, GameFontText.AnchorY.Top);
+            GameFontText.Apply(label);
             label.style.unityFontDefinition = new StyleFontDefinition(_font);
             label.style.fontSize = fontSize;
             return label.MeasureTextSize(text, 100000f, VisualElement.MeasureMode.AtMost,

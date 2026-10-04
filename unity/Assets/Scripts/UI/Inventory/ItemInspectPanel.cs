@@ -338,9 +338,7 @@ namespace BakAgain.UI.Inventory {
             };
             // Size + aspect correction live in one place for all game-font text (task-45). The text
             // is positioned by the top of its glyph cell, so the stretch anchors there.
-            GameFontText.Apply(label,
-                centred ? GameFontText.AnchorX.Centre : GameFontText.AnchorX.Left,
-                GameFontText.AnchorY.Top);
+            GameFontText.Apply(label);
             root.Add(label);
             _elements.Add(label);
         }

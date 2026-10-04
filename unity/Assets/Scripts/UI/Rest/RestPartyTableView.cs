@@ -122,7 +122,7 @@ namespace BakAgain.UI.Rest {
                 style = { position = Position.Absolute, left = x, top = y },
             };
             label.style.color = PaletteColors.ResolvePen(_palette, pen, Color.black);
-            GameFontText.Apply(label, GameFontText.AnchorX.Left, GameFontText.AnchorY.Top);
+            GameFontText.Apply(label);
 
             return label;
         }
@@ -155,7 +155,7 @@ namespace BakAgain.UI.Rest {
                     + text.Substring(onlyLeadingChars);
             }
             label.style.color = ink;
-            GameFontText.Apply(label, GameFontText.AnchorX.Centre, GameFontText.AnchorY.Top);
+            GameFontText.Apply(label);
 
             return label;
         }

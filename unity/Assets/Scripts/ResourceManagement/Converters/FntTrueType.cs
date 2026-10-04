@@ -19,6 +19,11 @@ namespace BakAgain.ResourceManagement.Converters {
     /// 11 and 16 px, ascender 8 and 11 px, descender 2 and 4 px, and a glyph advance of its width.</para>
     /// <para>Each glyph is a set of rectangles, one per vertical stack of identical horizontal
     /// runs of ink. They touch but never overlap, which a non-zero fill renders as their union.</para>
+    /// <para><b>Pixels take the shape the font declares</b> (<see cref="FontResource.PixelWidth"/>,
+    /// <see cref="FontResource.PixelHeight"/>): a row is that much taller than a column is wide, and
+    /// the em stays a count of pixel WIDTHS, so advances and font sizes are unchanged. The original's
+    /// fonts come out 1.2x (VGA) or 1.37x (the EGA book) taller natively — no text needs stretching
+    /// afterwards, and a square-pixel mod font is not stretched at all (TASK-765).</para>
     /// </remarks>
     public static class FntTrueType {
         /// <summary>Font units per pixel. The em (units) is this times the em in pixels.</summary>
@@ -32,11 +37,14 @@ namespace BakAgain.ResourceManagement.Converters {
             int ascentPx = AscentPx(font);
             int descentPx = font.Height - ascentPx;
             int unitsPerEm = emPx * UnitsPerPixel;
+            double rowUnits = UnitsPerPixel * (font.PixelWidth > 0 && font.PixelHeight > 0
+                ? font.PixelHeight / font.PixelWidth : 1.0);
+            short Y(int rowsAboveBaseline) => (short)Math.Round(rowsAboveBaseline * rowUnits);
 
             // Glyph 0 is .notdef (empty); glyph i+1 is character FirstCharacter + i.
-            var glyphs = new List<Glyph> { new Glyph(0, new List<Rect>(), ascentPx) };
+            var glyphs = new List<Glyph> { new Glyph(0, new List<Rect>(), ascentPx, Y) };
             foreach (FontGlyph g in font.Glyphs) {
-                glyphs.Add(new Glyph(g.Width * UnitsPerPixel, Rectangles(g, font.Height), ascentPx));
+                glyphs.Add(new Glyph(g.Width * UnitsPerPixel, Rectangles(g, font.Height), ascentPx, Y));
             }
 
             var tables = new SortedDictionary<string, byte[]>(StringComparer.Ordinal);
@@ -53,8 +61,8 @@ namespace BakAgain.ResourceManagement.Converters {
             short xMax = glyphs.Where(g => g.HasInk).Select(g => g.XMax).DefaultIfEmpty().Max();
             short yMin = glyphs.Where(g => g.HasInk).Select(g => g.YMin).DefaultIfEmpty().Min();
             short yMax = glyphs.Where(g => g.HasInk).Select(g => g.YMax).DefaultIfEmpty().Max();
-            short ascender = (short)(ascentPx * UnitsPerPixel);
-            short descender = (short)(-descentPx * UnitsPerPixel);
+            short ascender = Y(ascentPx);
+            short descender = Y(-descentPx);
             int maxAdvance = glyphs.Max(g => g.Advance);
             int firstChar = font.FirstCharacter;
             int lastChar = font.FirstCharacter + font.Glyphs.Count - 1;
@@ -200,11 +208,12 @@ namespace BakAgain.ResourceManagement.Converters {
             public readonly List<(short X0, short X1, short Top, short Bottom)> Rects = new();
 
             /// <param name="ascentPx">Rows above the baseline, which sits at y = 0.</param>
-            public Glyph(int advance, List<Rect> pixels, int ascentPx) {
+            /// <param name="y">Font units for a count of rows above the baseline.</param>
+            public Glyph(int advance, List<Rect> pixels, int ascentPx, Func<int, short> y) {
                 Advance = advance;
                 foreach (Rect r in pixels) {
                     Rects.Add(((short)(r.X0 * UnitsPerPixel), (short)(r.X1 * UnitsPerPixel),
-                        (short)((ascentPx - r.Top) * UnitsPerPixel), (short)((ascentPx - r.Bottom) * UnitsPerPixel)));
+                        y(ascentPx - r.Top), y(ascentPx - r.Bottom)));
                 }
             }
 

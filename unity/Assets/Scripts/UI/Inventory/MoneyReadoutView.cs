@@ -84,7 +84,7 @@ namespace BakAgain.UI.Inventory {
             label.style.unityTextAlign = TextAnchor.UpperRight;
             // Anchored right/top — the pair of edges the hint pins — so the game font's aspect
             // stretch grows away from them instead of dragging the anchor.
-            GameFontText.Apply(label, GameFontText.AnchorX.Right, GameFontText.AnchorY.Top);
+            GameFontText.Apply(label);
             root.Add(label);
             _elements.Add(label);
         }

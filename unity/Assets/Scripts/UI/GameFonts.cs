@@ -21,6 +21,19 @@ namespace BakAgain.UI {
         /// <summary>GAME.FNT for UI Toolkit: every screen, dialog and caption. Null until installed.</summary>
         public static FontAsset Game { get; private set; }
 
+        /// <summary>
+        /// GAME.FNT itself — its cell height and the shape of its pixels, which is what line
+        /// heights are measured in. Builds the fonts if nothing has yet.
+        /// </summary>
+        public static FontResource GameFont {
+            get {
+                Build();
+                return _gameFont;
+            }
+        }
+
+        private static FontResource _gameFont;
+
         /// <summary>BOOK.FNT for the TextMesh Pro book view. Null until installed.</summary>
         public static TMP_FontAsset Book { get; private set; }
 
@@ -55,14 +68,14 @@ namespace BakAgain.UI {
             // From a Font, not from the file path: UI Toolkit's text generator renders from the
             // asset's source Font and draws nothing ("FontAsset is invalid. Please assign a Source
             // Font File") for an asset made straight from a path.
-            Game = FontAsset.CreateFontAsset(LoadTrueType(dir, "GAME.FNT", "Game"), 90, 18,
+            Game = FontAsset.CreateFontAsset(LoadTrueType(dir, "GAME.FNT", "Game", out _gameFont), 90, 18,
                 GlyphRenderMode.SDFAA_HINTED, 1024, 1024, UnityEngine.TextCore.Text.AtlasPopulationMode.Dynamic, true);
-            Book = TMP_FontAsset.CreateFontAsset(LoadTrueType(dir, "BOOK.FNT", "Book"), 90, 9,
+            Book = TMP_FontAsset.CreateFontAsset(LoadTrueType(dir, "BOOK.FNT", "Book", out _), 90, 9,
                 GlyphRenderMode.SDFAA, 1024, 1024, TMPro.AtlasPopulationMode.Dynamic, true);
         }
 
-        private static Font LoadTrueType(string dir, string fntKey, string family) {
-            FontResource fnt = Addressables.LoadAssetAsync<FontResource>(fntKey).WaitForCompletion();
+        private static Font LoadTrueType(string dir, string fntKey, string family, out FontResource fnt) {
+            fnt = Addressables.LoadAssetAsync<FontResource>(fntKey).WaitForCompletion();
             string path = Path.Combine(dir, family + ".ttf");
             File.WriteAllBytes(path, FntTrueType.Build(fnt, family));
 

@@ -42,15 +42,9 @@ namespace BakAgain.Book {
         // the wrap decisions).
         private const float BookFontEmHeight = 30f;
 
-        // The original book is 640x350 EGA; the extractor square-pixel-corrects it to 1280x960 — a
-        // horizontal factor of x2 (1280/640) but a taller vertical factor of x960/350. The font is
-        // sized on the horizontal factor (so widths/line-breaks match the wrap), so to reproduce the
-        // original's non-square pixels each glyph must be stretched vertically by the ratio of the two
-        // factors (= (960/350)/(1280/640) ≈ 1.371). Applied as a localScale.y on each text line.
-        private const float EgaBookWidth = 640f;
-        private const float EgaBookHeight = 350f;
-        private const float FontVerticalStretch =
-            (BookSpaceHeight * EgaBookWidth) / (BookSpaceWidth * EgaBookHeight);
+        // No vertical stretch on the text (TASK-765): BOOK.FNT declares its EGA pixels' shape
+        // (2 x 96/35 canonical units) and is built at it, so glyphs come out the original's height
+        // with the font sized on the horizontal factor alone.
 
         public void SetBackground(Sprite background) {
             backgroundImage.texture = background.texture;
@@ -286,8 +280,7 @@ namespace BakAgain.Book {
                 //  - justify EVERY line except the paragraph's final one (ragged left), as the DOS
                 //    original does — TMP's TopJustified can't, because our pre-wrapped '\n' breaks make
                 //    every line look like a paragraph's final line, so nothing gets justified;
-                //  - position each line at an exact LineSpacing interval (no font-line-height slack); and
-                //  - apply the vertical glyph stretch (see FontVerticalStretch) per line.
+                //  - position each line at an exact LineSpacing interval (no font-line-height slack).
                 for (int li = 0; li < linesToShow; li++) {
                     int absoluteLine = startLine + li;
                     float lineY = nextCursorY + li * paragraph.LineSpacing;
@@ -306,10 +299,6 @@ namespace BakAgain.Book {
                     rt.pivot = Vector2.up;
                     rt.anchoredPosition = new Vector2(lineLeft * sx, -lineY * sy);
                     rt.sizeDelta = new Vector2(lineWidth * sx, paragraph.LineSpacing * sy);
-                    // The book is square-pixel-corrected with a taller vertical factor than horizontal;
-                    // the font is sized on the horizontal factor (widths/line-breaks match), so stretch
-                    // it vertically to restore the original's non-square glyph aspect.
-                    rt.localScale = new Vector3(1f, FontVerticalStretch, 1f);
 
                     // Font selection
                     if (GameFonts.Book != null) {

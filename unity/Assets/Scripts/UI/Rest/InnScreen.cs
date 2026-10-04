@@ -248,7 +248,7 @@ namespace BakAgain.UI.Rest {
                     color = ink,
                 },
             };
-            GameFontText.Apply(label, GameFontText.AnchorX.Left, GameFontText.AnchorY.Top);
+            GameFontText.Apply(label);
             parent.Add(label);
         }
     }

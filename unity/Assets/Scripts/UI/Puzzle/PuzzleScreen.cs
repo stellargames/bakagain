@@ -727,7 +727,7 @@ namespace BakAgain.UI.Puzzle {
                 return cached;
             }
             Sprite sprite = ResourceManagement.Converters.FontGlyphConverter.ToSprite(
-                font.GlyphFor(letter), PaletteColors.ResolvePen(_palette, pen, Color.white),
+                font, font.GlyphFor(letter), PaletteColors.ResolvePen(_palette, pen, Color.white),
                 _palette);
             _glyphs[key] = sprite;
 

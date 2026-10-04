@@ -148,6 +148,7 @@ namespace BakAgain.ResourceManagement.Loaders {
                         style = {
                             left = field.LabelX,
                             top = field.LabelY,
+                            fontSize = BakAgain.UI.GameFontText.FontSizePx,
                         }
                     };
                     caption.AddToClassList("req-label");
@@ -189,6 +190,7 @@ namespace BakAgain.ResourceManagement.Loaders {
                         position = Position.Absolute,
                         left = TextInsetX,
                         top = TextInsetY,
+                        fontSize = BakAgain.UI.GameFontText.FontSizePx,
                     }
                 };
                 text.AddToClassList("req-label");

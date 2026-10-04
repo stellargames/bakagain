@@ -107,7 +107,7 @@ namespace BakAgain.UI.Cheats {
                 },
             };
             label.AddToClassList(CaptionClass);
-            GameFontText.Apply(label, GameFontText.AnchorX.Centre, GameFontText.AnchorY.Top);
+            GameFontText.Apply(label);
             stage.Add(label);
         }
 

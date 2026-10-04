@@ -23,6 +23,9 @@ public static class AspectCorrection {
     /// <summary>Horizontal replication factor for EGA (640x350-space) pixels.</summary>
     public const int EgaScaleX = 2;
 
+    /// <summary>Vertical canonical units per EGA book pixel: the 350-row page resampled to 960.</summary>
+    public const double EgaScaleY = 96.0 / 35.0;
+
     /// <summary>Width of the original VGA mode 13h framebuffer.</summary>
     public const int VgaWidth = 320;
 
@@ -66,7 +69,7 @@ public static class AspectCorrection {
     /// Scales an EGA (640x350-space) Y coordinate or height into canonical 1280x960 space.
     /// Uses the same 96/35 vertical resample as <see cref="CorrectEga"/> so coordinates and pixels align.
     /// </summary>
-    public static int ScaleEgaY(int y) => (int)System.Math.Round(y * 96.0 / 35.0);
+    public static int ScaleEgaY(int y) => (int)System.Math.Round(y * EgaScaleY);
 
     /// <summary>
     /// Nearest-neighbour resamples an 8-bpp bitmap (one byte per palette index) to the given
@@ -109,7 +112,7 @@ public static class AspectCorrection {
     /// </summary>
     public static byte[] CorrectEga(byte[] source, int width, int height, bool columnMajor, out int newWidth, out int newHeight) {
         newWidth = width * 2;
-        newHeight = (int)System.Math.Round(height * 96.0 / 35.0);
+        newHeight = (int)System.Math.Round(height * EgaScaleY);
 
         return ResampleNearest(source, width, height, newWidth, newHeight, columnMajor);
     }
