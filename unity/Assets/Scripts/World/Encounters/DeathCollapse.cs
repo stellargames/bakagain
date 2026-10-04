@@ -22,9 +22,8 @@ namespace BakAgain.World.Encounters {
     /// would stretch them.</para>
     ///
     /// <para><b>Timing is the original's.</b> <c>combat_actor_play_anim_sprite1</c> @0x5ef0c passes
-    /// <c>frameDelay 4</c> on the animation clock, so each frame holds four ticks of
-    /// <see cref="GameTick.TicksPerSecond"/> — about 270 ms for the run, the same order as the
-    /// movement slide.</para>
+    /// <c>frameDelay 4</c> on the animation clock, which is the ARENA FRAME (<see cref="GameData.Resources.Combat.ArenaFrame"/>):
+    /// each picture holds four drawn frames, ~0.25 s, ~1 s for the run.</para>
     ///
     /// <para><b>Whether it has played lives on the COMBATANT</b>, because a corpse is rebuilt on
     /// every combat redraw and a flag here would make the body fall over again each time.</para>
@@ -33,11 +32,12 @@ namespace BakAgain.World.Encounters {
         /// <summary>Frames in the run — <c>framesPerDir</c>.</summary>
         public const int Frames = 4;
 
-        /// <summary>Ticks each frame holds — <c>frameDelay</c>.</summary>
+        /// <summary>Arena frames each picture holds — <c>frameDelay</c>.</summary>
         public const int FrameDelayTicks = 4;
 
-        /// <summary>How long one frame is shown.</summary>
-        public static float FrameSeconds => (float)(FrameDelayTicks / GameTick.TicksPerSecond);
+        /// <summary>How long one picture is shown: <see cref="FrameDelayTicks"/> ARENA frames
+        /// (<see cref="GameData.Resources.Combat.ArenaFrame"/>), not timer ticks (TASK-768).</summary>
+        public static float FrameSeconds => (float)(FrameDelayTicks / GameData.Resources.Combat.ArenaFrame.PerSecond);
 
         /// <summary>The bitmap index currently on screen, or -1 before the run starts.</summary>
         /// <remarks>

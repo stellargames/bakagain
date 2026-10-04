@@ -27,11 +27,12 @@ namespace BakAgain.World.Encounters {
         /// <summary>Frames in the run — <c>framesPerDir</c>.</summary>
         public const int Frames = 4;
 
-        /// <summary>Ticks each frame holds — <c>frameDelay</c>.</summary>
+        /// <summary>Arena frames each picture holds — <c>frameDelay</c>.</summary>
         public const int FrameDelayTicks = 4;
 
-        /// <summary>How long one frame is shown.</summary>
-        public static float FrameSeconds => (float)(FrameDelayTicks / GameTick.TicksPerSecond);
+        /// <summary>How long one picture is shown: <see cref="FrameDelayTicks"/> ARENA frames
+        /// (<see cref="GameData.Resources.Combat.ArenaFrame"/>), not timer ticks (TASK-768).</summary>
+        public static float FrameSeconds => (float)(FrameDelayTicks / GameData.Resources.Combat.ArenaFrame.PerSecond);
 
         /// <summary>The bitmap index currently on screen, or -1 outside a run.</summary>
         public int CurrentFrame { get; private set; } = -1;
