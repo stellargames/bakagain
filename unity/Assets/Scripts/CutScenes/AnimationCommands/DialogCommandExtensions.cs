@@ -56,18 +56,16 @@ namespace BakAgain.CutScenes.AnimationCommands {
 
             Drawing.DrawImage(dialogScreen, 0, 0, Orientation.Normal, Vector3.one, cutsceneState);
 
-            // Draw flat area behind "window", just larger than the window, to act
-            // as a border. RE-derived VGA rect (14, 10, 291, 103), in canonical px.
-            Drawing.FillArea(
-                new Area(14 * Canonical.VgaScaleX, 10 * Canonical.VgaScaleY,
-                    291 * Canonical.VgaScaleX, 103 * Canonical.VgaScaleY),
+            // Draw flat area behind "window", just larger than the window, to act as a border; then
+            // the background into the window (rects from CutsceneDialogPlate, canonical).
+            var border = GameData.Resources.Animation.CutsceneDialogPlate.Border;
+            Drawing.FillArea(new Area(border.X, border.Y, border.Width, border.Height),
                 DialogPlateFillPenIndex, cutsceneState, true);
 
-            // Draw background in dialog "window" — VGA rect (15, 11, 289, 102).
+            var window = GameData.Resources.Animation.CutsceneDialogPlate.Window;
             cutsceneState.CopyArea(
                 cutsceneState.BackgroundBufferIndex, cutsceneState.CurrentDrawBufferIndex,
-                new Area(15 * Canonical.VgaScaleX, 11 * Canonical.VgaScaleY,
-                    289 * Canonical.VgaScaleX, 102 * Canonical.VgaScaleY));
+                new Area(window.X, window.Y, window.Width, window.Height));
             cutsceneState.CopyBuffer(cutsceneState.CurrentDrawBufferIndex, cutsceneState.BackgroundBufferIndex);
 
             // Clear the text overlay

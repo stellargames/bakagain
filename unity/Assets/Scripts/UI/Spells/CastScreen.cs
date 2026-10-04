@@ -713,9 +713,8 @@ namespace BakAgain.UI.Spells {
         /// Strokes one school's figure, in canonical coordinates over the whole stage.
         /// </summary>
         /// <remarks>
-        /// The vertices are absolute VGA positions inside the ring's own rect, so scaling by the
-        /// canonical factors puts them where the original draws them and nothing here needs to know
-        /// where the ring is. <see cref="Painter2D"/> rather than styles because this is an
+        /// The vertices are the ring's own positions, which CastRingSigil turns canonical, so
+        /// nothing here needs to know where the ring is. <see cref="Painter2D"/> rather than styles because this is an
         /// arbitrary closed path, the same reason <c>RestDialShadow</c> uses it.
         ///
         /// <para>A school change plays the morph over it first — <see cref="MorphSigilAsync"/>.</para>
@@ -727,11 +726,13 @@ namespace BakAgain.UI.Spells {
         private static void StrokeFigure(MeshGenerationContext context, int[] xs, int[] ys, Color ink) {
             Painter2D painter = context.painter2D;
             painter.strokeColor = ink;
-            painter.lineWidth = Canonical.VgaScaleX;   // one original pixel
+            painter.lineWidth = GameData.Resources.Spells.CastRingSigil.StrokeWidth;
             foreach (int[] edge in GameData.Resources.Spells.CastRingSigil.Edges) {
+                (float x0, float y0) = GameData.Resources.Spells.CastRingSigil.ToCanonical(xs[edge[0]], ys[edge[0]]);
+                (float x1, float y1) = GameData.Resources.Spells.CastRingSigil.ToCanonical(xs[edge[1]], ys[edge[1]]);
                 painter.BeginPath();
-                painter.MoveTo(new Vector2(xs[edge[0]] * Canonical.VgaScaleX, ys[edge[0]] * Canonical.VgaScaleY));
-                painter.LineTo(new Vector2(xs[edge[1]] * Canonical.VgaScaleX, ys[edge[1]] * Canonical.VgaScaleY));
+                painter.MoveTo(new Vector2(x0, y0));
+                painter.LineTo(new Vector2(x1, y1));
                 painter.Stroke();
             }
         }

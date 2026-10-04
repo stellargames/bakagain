@@ -214,9 +214,11 @@ namespace BakAgain.UI {
                 return;
             }
 
-            // The original's box width is a whole VGA number and its overflow test is an integer
-            // comparison, so the wrap runs in that space rather than in canonical px.
-            int maxWidth = Mathf.FloorToInt(width / Canonical.VgaScaleX);
+            // The original's box width is a whole number of FONT pixels and its overflow test is an
+            // integer comparison, so the wrap runs in that space rather than in canonical px — the
+            // font says how wide its pixel is (TASK-765).
+            GameData.Resources.Font.FontResource font = GameFonts.GameFont;
+            int maxWidth = Mathf.FloorToInt(width / (float)font.PixelWidth);
             if (maxWidth <= 0) {
                 return;
             }
@@ -237,7 +239,7 @@ namespace BakAgain.UI {
                 //
                 // Quantised to whole lines on purpose: sub-pixel jitter in the resolved height
                 // would otherwise re-enter this from the GeometryChangedEvent every frame.
-                float gap = _lineGapVgaRows * Canonical.VgaScaleY;
+                float gap = _lineGapVgaRows * (float)font.PixelHeight;
                 fit = Mathf.Max(1, Mathf.FloorToInt((room + gap) / pitch));
             }
 

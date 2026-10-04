@@ -117,6 +117,24 @@ public static class PicklockWorkingSet {
     /// <summary>The body's baseline in VGA px.</summary>
     public const int BodyVgaY = 63;
 
+    // The same places in canonical units (5 x 6 per VGA px), which is all a renderer reads (TASK-765).
+
+    /// <summary>The panel's left edge, canonical.</summary>
+    public const int PanelX = PanelVgaX * 5;
+
+    /// <summary>The panel's width, canonical.</summary>
+    public const int PanelWidth = PanelVgaWidth * 5;
+
+    /// <summary>The latch's left edge, canonical.</summary>
+    public const int LatchX = LatchVgaX * 5;
+
+    /// <summary>The body's top, canonical.</summary>
+    public const int BodyY = BodyVgaY * 6;
+
+    /// <summary>The latch's top, canonical, raised <paramref name="openingOffset"/> VGA rows by the
+    /// open animation (<see cref="OpeningLatchOffsets"/>; 0 at rest).</summary>
+    public static int LatchY(int openingOffset = 0) => (LatchVgaY - openingOffset) * 6;
+
     /// <summary>
     /// The body's left edge in VGA px — <b>centred in the panel, not placed at its origin</b>.
     /// </summary>

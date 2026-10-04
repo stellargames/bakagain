@@ -1269,8 +1269,7 @@ namespace BakAgain.UI.Inventory {
             // hanging from a hasp. Reversing them puts the latch in front, which looks like a
             // separate object lying on the lock.
             await AddLockPieceAsync(layer, PicklockWorkingSet.LatchImageIndex,
-                PicklockWorkingSet.LatchVgaX * BakAgain.Graphics.Canonical.VgaScaleX,
-                PicklockWorkingSet.LatchVgaY * BakAgain.Graphics.Canonical.VgaScaleY);
+                PicklockWorkingSet.LatchX, PicklockWorkingSet.LatchY());
 
             // The body is CENTRED in the panel, not placed at its origin: the four difficulty
             // images have different widths, so a fixed x would step the lock sideways as the
@@ -1280,12 +1279,10 @@ namespace BakAgain.UI.Inventory {
                 PicklockWorkingSet.LockIconSet + "#"
                 + PicklockWorkingSet.LockImageIndexFor(_lockDifficulty), this);
             if (body != null) {
-                const int scaleX = BakAgain.Graphics.Canonical.VgaScaleX;
-                int panelLeft = PicklockWorkingSet.PanelVgaX * scaleX;
-                int panelWidth = PicklockWorkingSet.PanelVgaWidth * scaleX;
                 AddLockSprite(layer, body,
-                    panelLeft + Mathf.RoundToInt((panelWidth - body.rect.width) / 2f),
-                    PicklockWorkingSet.BodyVgaY * BakAgain.Graphics.Canonical.VgaScaleY);
+                    PicklockWorkingSet.PanelX
+                        + Mathf.RoundToInt((PicklockWorkingSet.PanelWidth - body.rect.width) / 2f),
+                    PicklockWorkingSet.BodyY);
             }
         }
 
@@ -1485,8 +1482,8 @@ namespace BakAgain.UI.Inventory {
                 // canonical across and 24 down, and no single radius is right on both. The scalar
                 // above stays for the double-click position tolerance, which is a different
                 // question.
-                StartsDrag = moved => GameData.Resources.Inventory.InventoryDragGesture.StartsDrag(
-                    moved.x / Canonical.VgaScaleX, moved.y / Canonical.VgaScaleY),
+                StartsDrag = moved => GameData.Resources.Inventory.InventoryDragGesture.StartsDragCanonical(
+                    moved.x, moved.y),
             };
             _gesture.Pressed += OnPrimaryPressed;
             _gesture.SecondaryPressed += OnSecondaryPressed;
@@ -3054,11 +3051,12 @@ namespace BakAgain.UI.Inventory {
             // draw_rect_filled with an outline PEN (0x8b over fill 0x8f), so its width is the
             // blitter's single pixel — and a single original pixel is 5 canonical across against 6
             // down. The old flat 8f was neither, and no flat value could have been both.
-            int vga = on ? InventoryDragGesture.OutlineWidthVga : 0;
-            e.style.borderTopWidth = vga * Canonical.VgaScaleY;
-            e.style.borderBottomWidth = vga * Canonical.VgaScaleY;
-            e.style.borderLeftWidth = vga * Canonical.VgaScaleX;
-            e.style.borderRightWidth = vga * Canonical.VgaScaleX;
+            int top = on ? InventoryDragGesture.OutlineTopWidth : 0;
+            int side = on ? InventoryDragGesture.OutlineSideWidth : 0;
+            e.style.borderTopWidth = top;
+            e.style.borderBottomWidth = top;
+            e.style.borderLeftWidth = side;
+            e.style.borderRightWidth = side;
             e.style.borderTopColor = OutlineRed;
             e.style.borderBottomColor = OutlineRed;
             e.style.borderLeftColor = OutlineRed;
@@ -3155,11 +3153,11 @@ namespace BakAgain.UI.Inventory {
         /// (stopping at the front rather than wrapping), right shift straight to the front.
         /// </remarks>
         private void TurnShelfPage() {
-            UnityEngine.InputSystem.Keyboard keys = UnityEngine.InputSystem.Keyboard.current;
+            BakAgain.UI.InputCore.IGameplayInput keys = BakAgain.UI.InputCore.InputDriver.Gameplay;
             GameData.Resources.Shop.ShopPaging.Turn turn =
-                keys?.rightShiftKey.isPressed == true
+                keys?.RightShift == true
                     ? GameData.Resources.Shop.ShopPaging.Turn.First
-                    : keys?.leftShiftKey.isPressed == true
+                    : keys?.LeftShift == true
                         ? GameData.Resources.Shop.ShopPaging.Turn.Previous
                         : GameData.Resources.Shop.ShopPaging.Turn.Next;
 
@@ -3553,8 +3551,7 @@ namespace BakAgain.UI.Inventory {
 
             VisualElement latch = layer[0]; // [0] is the latch — the order DrawLockAsync adds in
             foreach (int offset in PicklockWorkingSet.OpeningLatchOffsets()) {
-                latch.style.top = (PicklockWorkingSet.LatchVgaY - offset)
-                    * BakAgain.Graphics.Canonical.VgaScaleY;
+                latch.style.top = PicklockWorkingSet.LatchY(offset);
                 await UniTask.NextFrame();
             }
         }

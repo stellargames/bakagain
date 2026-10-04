@@ -55,23 +55,23 @@ public static class SpellEffectCaption {
     /// <summary>The plaque the symbols sit on.</summary>
     public const string PlaqueImage = "CAST.BMX";
 
-    /// <summary>Left edge of the plaque, in original pixels.</summary>
-    public const int PlaqueX = 0x80;
+    /// <summary>Left edge of the plaque, canonical: the original's x 0x80 (TASK-765).</summary>
+    public const int PlaqueX = 0x80 * 5;
 
-    /// <summary>Top edge of the plaque, in original pixels.</summary>
-    public const int PlaqueY = 2;
+    /// <summary>Top edge of the plaque, canonical: the original's y 2.</summary>
+    public const int PlaqueY = 2 * 6;
 
     /// <summary>
-    /// The X the caption is centred on, in original pixels.
+    /// The X the caption is centred on, canonical: the original's x 160.
     /// </summary>
     /// <remarks>
     /// <b>The screen's centre, not the plaque's.</b> They agree here — the plaque is 64 wide at
     /// x 128 — but the original centres on the screen and would keep doing so if the art moved.
     /// </remarks>
-    public const int TextCentreX = 160;
+    public const int TextCentreX = 160 * 5;
 
-    /// <summary>Top of the caption text, in original pixels.</summary>
-    public const int TextY = 1;
+    /// <summary>Top of the caption text, canonical: the original's y 1.</summary>
+    public const int TextY = 1 * 6;
 
     /// <summary>
     /// Whether an empty mask still draws the plaque.

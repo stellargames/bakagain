@@ -48,19 +48,10 @@ namespace BakAgain.Graphics {
         /// <summary>Canonical frame height (VGA 200 × 6).</summary>
         public const int Height = 1200;
 
-        /// <summary>Horizontal canonical px per VGA px.</summary>
-        public const int VgaScaleX = 5;
-
-        /// <summary>Vertical canonical px per VGA px (carries the ×1.2 pixel-aspect stretch).</summary>
-        public const int VgaScaleY = 6;
-
         /// <summary>Canonical book-space width (EGA 640 × 2).</summary>
         public const int BookWidth = 1280;
 
         /// <summary>Canonical book-space height (EGA 350 × 96/35).</summary>
         public const int BookHeight = 960;
-
-        /// <summary>Horizontal canonical px per EGA px (book space).</summary>
-        public const int EgaScaleX = 2;
     }
 }

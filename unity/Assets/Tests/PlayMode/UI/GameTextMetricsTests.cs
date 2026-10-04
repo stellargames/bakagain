@@ -85,7 +85,7 @@ namespace BakAgain.Tests.PlayMode.UI {
         public void GameFontSize_ReproducesTheOriginalSpaceAdvance() {
             const int Samples = 10;
             float expected = BakFontData.GetRawCharWidth(' ', BakFontData.GameFontIndex)
-                             * Canonical.VgaScaleX;
+                             * GameData.Resources.Layout.OriginalPixel.Width;
 
             var probe = new Label();
             GameFontText.Apply(probe);
@@ -97,7 +97,7 @@ namespace BakAgain.Tests.PlayMode.UI {
             Assert.That(measured, Is.EqualTo(expected).Within(expected * AdvanceTolerance),
                 "the space must advance " + expected + " canonical px — GAME.FNT's "
                 + BakFontData.GetRawCharWidth(' ', BakFontData.GameFontIndex) + " px times the x"
-                + Canonical.VgaScaleX + " horizontal factor. This is a property of the FONT ASSET's "
+                + GameData.Resources.Layout.OriginalPixel.Width + " horizontal factor. This is a property of the FONT ASSET's "
                 + "space glyph; if it goes red, that glyph's horizontal advance was reverted.");
         }
 
@@ -125,7 +125,7 @@ namespace BakAgain.Tests.PlayMode.UI {
 
             float expected = (indented.Length - 1)
                              * BakFontData.GetRawCharWidth(' ', BakFontData.GameFontIndex)
-                             * Canonical.VgaScaleX;
+                             * GameData.Resources.Layout.OriginalPixel.Width;
 
             var probe = new Label();
             GameFontText.Apply(probe);
@@ -151,9 +151,9 @@ namespace BakAgain.Tests.PlayMode.UI {
             float pitch = MeasuredLinePitch(probe.style.fontSize.value.value);
 
             Assert.That(pitch,
-                Is.EqualTo(GameFontCellHeightVgaPx * Canonical.VgaScaleY).Within(1f),
+                Is.EqualTo(GameFontCellHeightVgaPx * GameData.Resources.Layout.OriginalPixel.Height).Within(1f),
                 "One line of game text must advance by GAME.FNT's 10 px character cell — "
-                + GameFontCellHeightVgaPx * Canonical.VgaScaleY + " canonical px. The dialog body "
+                + GameFontCellHeightVgaPx * GameData.Resources.Layout.OriginalPixel.Height + " canonical px. The dialog body "
                 + "rendered at 7.25 VGA rows instead of 10 for as long as it was sized by the "
                 + "fabricated 8 * VgaScaleY (task-46).");
         }
@@ -212,7 +212,7 @@ namespace BakAgain.Tests.PlayMode.UI {
             // The raw FNT advance, scaled by the VGA horizontal factor — the space UI text is laid
             // out in.
             float fntPx = BakFontData.GetRawCharWidth(ch, BakFontData.GameFontIndex);
-            float expected = fntPx * Canonical.VgaScaleX * Samples;
+            float expected = fntPx * GameData.Resources.Layout.OriginalPixel.Width * Samples;
 
             var probe = new Label();
             GameFontText.Apply(probe);
@@ -220,7 +220,7 @@ namespace BakAgain.Tests.PlayMode.UI {
 
             Assert.That(measured, Is.EqualTo(expected).Within(expected * AdvanceTolerance),
                 "'" + ch + "' x" + Samples + " must be " + expected + " canonical px wide — its "
-                + "GAME.FNT advance of " + fntPx + " px times the x" + Canonical.VgaScaleX
+                + "GAME.FNT advance of " + fntPx + " px times the x" + GameData.Resources.Layout.OriginalPixel.Width
                 + " horizontal factor.");
         }
 

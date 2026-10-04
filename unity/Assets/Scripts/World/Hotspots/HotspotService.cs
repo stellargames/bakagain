@@ -3120,11 +3120,10 @@ using GameData.Resources.Scene;
             return page;
         }
 
-        /// <summary>A row's screen position (original px) in the panel's own canonical space.</summary>
+        /// <summary>A row's screen position in the panel's own canonical space.</summary>
         internal static (float Left, float Top) AssessmentRowInPanel(
             GameData.Resources.Combat.HudPanelLine line, GameData.Resources.Layout.LayoutHint area) =>
-            (line.X * BakAgain.Graphics.Canonical.VgaScaleX - area.Left.Value,
-             line.Y * BakAgain.Graphics.Canonical.VgaScaleY - area.Top.Value);
+            (line.X - area.Left.Value, line.Y - area.Top.Value);
 
         /// <summary>0x85's Accept button (canonical px) in the panel's own space.</summary>
         /// <remarks>The ResizeDialog rect is the PAGE, not the button: its one entry is laid out
@@ -3135,7 +3134,7 @@ using GameData.Resources.Scene;
             (int x, int y, int w, int h) = GameData.Resources.Dialog.DialogButtonRow.ButtonRectOnCanonicalPanel(
                 0, (int)box.Width.Value, (int)box.Height.Value, 1,
                 BakAgain.Book.BakFontData.WidestRaw(new[] { label }, BakAgain.Book.BakFontData.GameFontIndex),
-                BakAgain.Book.BakFontData.GameFontHeight);
+                BakAgain.Book.BakFontData.GetFontHeight(BakAgain.Book.BakFontData.GameFontIndex));
             return (box.Left.Value - area.Left.Value + x, box.Top.Value - area.Top.Value + y, w, h);
         }
 
@@ -3229,8 +3228,7 @@ using GameData.Resources.Scene;
         /// more than before, when the command fell to "not wired yet".</para>
         /// </remarks>
         private static bool ShiftHeld() =>
-            UnityEngine.InputSystem.Keyboard.current is { } keyboard
-            && (keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed);
+            BakAgain.UI.InputCore.InputDriver.Gameplay is { } keys && (keys.LeftShift || keys.RightShift);
 
         /// <summary>The acting fighter's character sheet — the Shift arm of combat command 22.</summary>
         /// <remarks>

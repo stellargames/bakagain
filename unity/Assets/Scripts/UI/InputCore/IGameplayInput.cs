@@ -8,5 +8,7 @@ namespace BakAgain.UI.InputCore {
         bool Run { get; }         // sprint/fast modifier
         float Vertical { get; }   // ascend/descend for fly cameras (+1/-1)
         float Zoom { get; }       // zoom/speed delta (scroll / trigger)
+        bool LeftShift { get; }   // held: the original's commands read the two shifts apart
+        bool RightShift { get; }  //   (shop paging back vs to-front, combat Shift arms)
     }
 }

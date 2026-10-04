@@ -41,6 +41,12 @@ public static class InventoryDragGesture {
     /// the rule stays in the units the routine wrote it in and the caller divides each axis by its
     /// own scale before asking.
     /// </remarks>
+    /// <summary>
+    /// <see cref="StartsDrag"/> for a movement in canonical units (5 x 6 per original pixel), which
+    /// is what a renderer measures (TASK-765).
+    /// </summary>
+    public static bool StartsDragCanonical(float dx, float dy) => StartsDrag(dx / 5f, dy / 6f);
+
     public static bool StartsDrag(float dxVga, float dyVga) {
         float x = dxVga < 0 ? -dxVga : dxVga;
         float y = dyVga < 0 ? -dyVga : dyVga;
@@ -93,6 +99,12 @@ public static class InventoryDragGesture {
     /// cell-drawing loop.</para>
     /// </remarks>
     public const int OutlineWidthVga = 1;
+
+    /// <summary>The outline's side borders in canonical units: one original pixel across.</summary>
+    public const int OutlineSideWidth = OutlineWidthVga * 5;
+
+    /// <summary>The outline's top and bottom borders in canonical units: one original pixel down.</summary>
+    public const int OutlineTopWidth = OutlineWidthVga * 6;
 
     /// <summary>INVENTOR.PAL pen for the selected cell's outline. Fixed.</summary>
     /// <remarks><b>Deliberately callerless.</b> InventoryMenu hard-codes this pen's INVENTOR.PAL value as OutlineRed (124,16,8; the palette gives 125,16,8).</remarks>

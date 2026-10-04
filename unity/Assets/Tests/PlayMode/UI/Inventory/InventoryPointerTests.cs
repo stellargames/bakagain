@@ -121,7 +121,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         /// </remarks>
         private static float SelectedBorderY =>
             GameData.Resources.Inventory.InventoryDragGesture.OutlineWidthVga
-            * BakAgain.Graphics.Canonical.VgaScaleY;
+            * GameData.Resources.Layout.OriginalPixel.Height;
 
         [Test]
         public void TheSelectionBorderIsTHICKERTopAndBottomThanLeftAndRight() {
@@ -131,9 +131,9 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             InventoryMenu menu = BuildMenu(out VisualElement itemSlot0);
             Click(Vector2.zero);
 
-            Assert.AreEqual(BakAgain.Graphics.Canonical.VgaScaleY,
+            Assert.AreEqual(GameData.Resources.Layout.OriginalPixel.Height,
                 itemSlot0.style.borderTopWidth.value, 0.001f);
-            Assert.AreEqual(BakAgain.Graphics.Canonical.VgaScaleX,
+            Assert.AreEqual(GameData.Resources.Layout.OriginalPixel.Width,
                 itemSlot0.style.borderLeftWidth.value, 0.001f);
             Assert.Greater(itemSlot0.style.borderTopWidth.value,
                 itemSlot0.style.borderLeftWidth.value);

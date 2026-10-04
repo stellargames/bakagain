@@ -6,5 +6,7 @@ namespace BakAgain.UI.InputCore {
         public bool Run { get; set; }
         public float Vertical { get; set; }
         public float Zoom { get; set; }
+        public bool LeftShift { get; set; }
+        public bool RightShift { get; set; }
     }
 }

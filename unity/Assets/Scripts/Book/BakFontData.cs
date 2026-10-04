@@ -1,62 +1,30 @@
 namespace BakAgain.Book {
-    using BakAgain.Graphics;
 
     /// <summary>
-    /// Character width tables extracted from the original game's FNT files.
-    /// Used by BakTextWrapper to replicate exact line-breaking behavior.
+    /// Character widths and heights of the two text fonts, read from the extracted FNT resources.
+    /// Used by BakTextWrapper and every self-sizing label to replicate the original's measurement.
     /// </summary>
+    /// <remarks>
+    /// <b>Read from the font, not from a copy of it (TASK-765).</b> This used to carry BOOK.FNT's
+    /// and GAME.FNT's width tables as literals, so a replacement font rendered with its own glyphs
+    /// but wrapped and sized to the original's widths. <see cref="BakAgain.UI.GameFonts"/> loads the
+    /// resources synchronously on first use, so the measurement is available whenever text is laid
+    /// out.
+    /// </remarks>
     public static class BakFontData {
-        // BOOK.FNT: height=15, baseline=10, firstChar=32 (space), 96 characters
-        // Proportional serif font used for book/scroll text at 640x350 EGA resolution.
-        private static readonly byte[] BookWidths = {
-            // 32-47:  sp  !  "  #  $  %  &  '  (  )  *  +  ,  -  .  /
-                        8, 3, 6, 9, 8,12,10, 3, 5, 5, 8, 8, 3, 8, 3,11,
-            // 48-63:   0  1  2  3  4  5  6  7  8  9  :  ;  <  =  >  ?
-                        7, 7, 8, 7, 9, 7, 7, 8, 7, 7, 3, 3, 6, 7, 6, 7,
-            // 64-79:   @  A  B  C  D  E  F  G  H  I  J  K  L  M  N  O
-                       11,14,10, 8,11,11,10,11,13, 9, 6,13,10,15,12, 9,
-            // 80-95:   P  Q  R  S  T  U  V  W  X  Y  Z  [  \  ]  ^  _
-                       10,10,13, 8,10,12,10,13,14, 9,10, 5, 7, 5, 8, 9,
-            // 96-111:  `  a  b  c  d  e  f  g  h  i  j  k  l  m  n  o
-                        8,10, 8, 7,11, 8, 8, 8,10, 7, 5,10, 6,15,11, 8,
-            // 112-127: p  q  r  s  t  u  v  w  x  y  z  {  |  }  ~ DEL
-                        9, 9, 7, 7, 7,11, 9,14,11, 9, 9, 6, 2, 6, 1, 1,
-        };
-
-        private const int BookFirstChar = 32;
-        public const int BookFontHeight = 15;
-
-        // GAME.FNT: height=10, baseline=8, firstChar=32 (space), 95 characters
-        // Compact UI font used for in-game text at 320x200 VGA resolution.
-        private static readonly byte[] GameWidths = {
-            // 32-47:  sp  !  "  #  $  %  &  '  (  )  *  +  ,  -  .  /
-                        4, 2, 4, 8, 6, 7, 7, 3, 3, 3, 6, 6, 3, 4, 2, 4,
-            // 48-63:   0  1  2  3  4  5  6  7  8  9  :  ;  <  =  >  ?
-                        5, 4, 5, 5, 5, 5, 5, 5, 5, 5, 2, 3, 4, 4, 4, 5,
-            // 64-79:   @  A  B  C  D  E  F  G  H  I  J  K  L  M  N  O
-                        7, 5, 5, 5, 5, 5, 5, 5, 5, 4, 5, 5, 5, 8, 5, 5,
-            // 80-95:   P  Q  R  S  T  U  V  W  X  Y  Z  [  \  ]  ^  _
-                        5, 5, 5, 5, 6, 5, 6, 8, 6, 5, 5, 3, 4, 3, 4, 5,
-            // 96-110:  `  a  b  c  d  e  f  g  h  i  j  k  l  m  n
-                        3, 5, 5, 5, 5, 5, 5, 5, 5, 2, 5, 5, 2, 8, 5,
-            // 111-126: o  p  q  r  s  t  u  v  w  x  y  z  {  |  }  ~
-                        5, 5, 5, 5, 5, 4, 5, 5, 8, 5, 5, 5, 4, 2, 4, 5,
-        };
-
-        private const int GameFirstChar = 32;
-        public const int GameFontHeight = 10;
+        private static GameData.Resources.Font.FontResource Font(int fontIndex) =>
+            fontIndex == 0 ? BakAgain.UI.GameFonts.BookFont : BakAgain.UI.GameFonts.GameFont;
 
         /// <summary>
         /// Returns the canonical-px (1280×960 book space) advance width of a
         /// character in the specified font. Font 0 = BOOK.FNT, Font 1+ =
-        /// GAME.FNT (fallback). The width tables above are raw FNT pixels (RE
-        /// data — keep them as extracted); the EGA horizontal factor converts
-        /// an advance to canonical px so wrap math compares like-for-like with
-        /// canonical BOK coordinates. The integer factor preserves the DOS
+        /// GAME.FNT (fallback). The raw width times the font's own pixel width
+        /// (2 for BOOK.FNT's EGA pixels), so wrap math compares like-for-like
+        /// with canonical BOK coordinates; an integer factor preserves the DOS
         /// wrapper's exact break decisions.
         /// </summary>
         public static int GetCharWidth(char ch, int fontIndex) {
-            return GetRawCharWidth(ch, fontIndex) * Canonical.EgaScaleX;
+            return (int)System.Math.Round(GetRawCharWidth(ch, fontIndex) * Font(fontIndex).PixelWidth);
         }
 
         /// <summary>
@@ -70,11 +38,9 @@ namespace BakAgain.Book {
         /// CP437 glyphs — goes negative and takes the out-of-range branch. Those codes therefore
         /// occupy no width in the original's own wrap and width sums, and must not here either.</para>
         ///
-        /// <para>Callers that lay text out in a canonical space scale this themselves by that
-        /// space's horizontal factor: <see cref="Canonical.EgaScaleX"/> for the 1280×960 book
-        /// frame (see <see cref="GetCharWidth"/>), <see cref="Canonical.VgaScaleX"/> for the
-        /// 1600×1200 UI frame. Wrap decisions are made in raw FNT px, where they are exactly the
-        /// DOS wrapper's integer comparisons.</para>
+        /// <para>Callers that lay text out in canonical space scale this by the font's
+        /// <c>PixelWidth</c> (see <see cref="GetCharWidth"/>). Wrap decisions are made in raw FNT
+        /// px, where they are exactly the DOS wrapper's integer comparisons.</para>
         ///
         /// <para>The one metric this does NOT reproduce is the tab: <c>getCharMetrics</c> gives
         /// <c>'\t'</c> the current <c>tabWidth</c> (<c>0x16176</c>) rather than 0. That global is
@@ -82,23 +48,9 @@ namespace BakAgain.Book {
         /// a font property and does not belong in a font table — see
         /// <c>DialogTextFormatter</c>, which resolves tabs before anything measures them.</para>
         /// </summary>
-        public static int GetRawCharWidth(char ch, int fontIndex) {
-            byte[] widths;
-            int firstChar;
-
-            if (fontIndex == 0) {
-                widths = BookWidths;
-                firstChar = BookFirstChar;
-            } else {
-                widths = GameWidths;
-                firstChar = GameFirstChar;
-            }
-
-            int index = ch - firstChar;
-            if (index < 0 || index >= widths.Length)
-                return 0;
-            return widths[index];
-        }
+        public static int GetRawCharWidth(char ch, int fontIndex) =>
+            // GlyphFor answers null outside the font, which is the zero the engine gives.
+            Font(fontIndex).GlyphFor(ch)?.Width ?? 0;
 
         /// <summary>
         /// A whole string's width in RAW FNT pixels — <c>getStringWidthInPixels</c> (@0x15be5),
@@ -162,8 +114,6 @@ namespace BakAgain.Book {
         /// <summary>
         /// Returns the line height for the specified font.
         /// </summary>
-        public static int GetFontHeight(int fontIndex) {
-            return fontIndex == 0 ? BookFontHeight : GameFontHeight;
-        }
+        public static int GetFontHeight(int fontIndex) => Font(fontIndex).Height;
     }
 }

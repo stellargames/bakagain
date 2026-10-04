@@ -108,7 +108,7 @@ public class LocatorMapTests {
     public void ItOpensAtTheZonesMAXIMUMZoomWhateverTheMapWasLeftAt() {
         Assert.True(LocatorMap.OpensAtMaximumZoom);
         // And the inset it draws into is the one the spell installs, not the travel viewport.
-        Assert.Equal((134, 16, 167, 89), FieldSpells.LocatorViewport);
+        Assert.Equal((134 * 5, 16 * 6, 167 * 5, 89 * 6), FieldSpells.LocatorViewport);   // VGA, canonical
     }
 
     [Fact]
@@ -117,8 +117,8 @@ public class LocatorMapTests {
         // they are the same rectangle, so a port that keeps one and forgets the other is drawing
         // markers outside the hole they belong in.
         (int x, int y, int width, int height) = FieldSpells.LocatorViewport;
-        Assert.Equal(300, x + width - 1);
-        Assert.Equal(104, y + height - 1);
+        Assert.Equal(300, (x + width) / 5 - 1);   // canonical back to the original's VGA edges
+        Assert.Equal(104, (y + height) / 6 - 1);
     }
 
     [Fact]

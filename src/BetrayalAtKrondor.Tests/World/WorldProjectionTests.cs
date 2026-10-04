@@ -49,10 +49,10 @@ public class WorldProjectionTests {
         // The inset is its own rectangle, not the travel one — 167x89 against 294x101. Sharing the
         // zone's focal length is not the same as sharing its FOV.
         (int _, int _, int _, int height) = FieldSpells.LocatorViewport;
-        double locator = WorldProjection.VerticalFovDegrees(height * 6, TravelFocalLength);
+        double locator = WorldProjection.VerticalFovDegrees(height, TravelFocalLength);
         double overhead = WorldProjection.VerticalFovDegrees(TravelViewHeight, TravelFocalLength);
 
-        Assert.Equal(89, height);
+        Assert.Equal(89 * 6, height);
         Assert.True(locator < overhead, $"locator {locator:F2} should be narrower than map {overhead:F2}");
     }
 

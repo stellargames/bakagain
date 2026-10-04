@@ -88,6 +88,10 @@ public static class ScreenTransitionBox {
     /// </remarks>
     public const double MeasuredVgaStepsPerSecond = 725;
 
+    /// <summary><see cref="DurationSeconds"/> for a box measured in canonical units (5 x 6 per VGA
+    /// step), which is what a renderer has (TASK-765).</summary>
+    public static double DurationSecondsCanonical(int width, int height) => DurationSeconds(width / 5, height / 6);
+
     /// <summary>How long a box wipe over a VGA-sized area lasts — see <see cref="MeasuredVgaStepsPerSecond"/>.</summary>
     public static double DurationSeconds(int vgaWidth, int vgaHeight) =>
         StepCount(vgaWidth, vgaHeight) / MeasuredVgaStepsPerSecond;

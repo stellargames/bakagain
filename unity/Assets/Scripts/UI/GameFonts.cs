@@ -34,6 +34,16 @@ namespace BakAgain.UI {
 
         private static FontResource _gameFont;
 
+        /// <summary>BOOK.FNT itself, for the book's measurements. Builds the fonts if nothing has yet.</summary>
+        public static FontResource BookFont {
+            get {
+                Build();
+                return _bookFont;
+            }
+        }
+
+        private static FontResource _bookFont;
+
         /// <summary>BOOK.FNT for the TextMesh Pro book view. Null until installed.</summary>
         public static TMP_FontAsset Book { get; private set; }
 
@@ -70,7 +80,7 @@ namespace BakAgain.UI {
             // Font File") for an asset made straight from a path.
             Game = FontAsset.CreateFontAsset(LoadTrueType(dir, "GAME.FNT", "Game", out _gameFont), 90, 18,
                 GlyphRenderMode.SDFAA_HINTED, 1024, 1024, UnityEngine.TextCore.Text.AtlasPopulationMode.Dynamic, true);
-            Book = TMP_FontAsset.CreateFontAsset(LoadTrueType(dir, "BOOK.FNT", "Book", out _), 90, 9,
+            Book = TMP_FontAsset.CreateFontAsset(LoadTrueType(dir, "BOOK.FNT", "Book", out _bookFont), 90, 9,
                 GlyphRenderMode.SDFAA, 1024, 1024, TMPro.AtlasPopulationMode.Dynamic, true);
         }
 

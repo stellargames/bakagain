@@ -92,8 +92,8 @@ namespace BakAgain.UI.Combat {
                 pickingMode = PickingMode.Ignore,
                 style = {
                     position = Position.Absolute,
-                    left = ShootTargetPanel.PanelX * Canonical.VgaScaleX,
-                    top = ShootTargetPanel.PanelY * Canonical.VgaScaleY,
+                    left = ShootTargetPanel.PanelX,
+                    top = ShootTargetPanel.PanelY,
                     width = parchment.rect.width,
                     height = parchment.rect.height,
                     backgroundImage = Background.FromSprite(parchment),
@@ -197,8 +197,8 @@ namespace BakAgain.UI.Combat {
                 pickingMode = PickingMode.Ignore,
                 style = {
                     position = Position.Absolute,
-                    left = ActorStatsPanel.PortraitX * Canonical.VgaScaleX,
-                    top = ActorStatsPanel.PortraitY * Canonical.VgaScaleY,
+                    left = ActorStatsPanel.PortraitX,
+                    top = ActorStatsPanel.PortraitY,
                 },
             };
             // Onto the STAGE, not the panel root: the panel root is hidden whenever no panel is up,
@@ -233,10 +233,10 @@ namespace BakAgain.UI.Combat {
                 pickingMode = PickingMode.Ignore,
                 style = {
                     position = Position.Absolute,
-                    left = rule.X * Canonical.VgaScaleX,
-                    top = rule.Y * Canonical.VgaScaleY,
-                    width = rule.Width * Canonical.VgaScaleX,
-                    height = Canonical.VgaScaleY,
+                    left = rule.X,
+                    top = rule.Y,
+                    width = rule.Width,
+                    height = rule.Height,
                     backgroundColor = rule.Pen >= 0 && rule.Pen < RulePenFallback.Length
                         ? RulePenFallback[rule.Pen]
                         : RulePenFallback[RulePenFallback.Length - 1],
@@ -247,7 +247,7 @@ namespace BakAgain.UI.Combat {
         }
 
         private void AddLine(HudPanelLine line) {
-            Label label = LineLabel(line, line.X * Canonical.VgaScaleX, line.Y * Canonical.VgaScaleY);
+            Label label = LineLabel(line, line.X, line.Y);
             _root.Add(label);
             _drawn.Add(label);
         }

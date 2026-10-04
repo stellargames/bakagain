@@ -61,7 +61,7 @@ namespace BakAgain.Tests.PlayMode.UI {
 
             // The wrap region is the box minus the style's text pads — the original shrinks its
             // rect the same way before laying the text out (0x49043-0x4905f).
-            int maxWidth = Mathf.FloorToInt(body.resolvedStyle.width / Canonical.VgaScaleX);
+            int maxWidth = Mathf.FloorToInt(body.resolvedStyle.width / GameData.Resources.Layout.OriginalPixel.Width);
             Assert.That(maxWidth, Is.EqualTo(OriginalTextBoxVgaPx).Within(1),
                 "the body must wrap inside the original's text box (the 294 px row-2 box less its "
                 + "two 10 px pads), not inside the whole panel");
@@ -96,7 +96,7 @@ namespace BakAgain.Tests.PlayMode.UI {
             // plus RenderDialogText's lineGapExtra of 1 (0x490d1) — the sum the block advances by
             // at 0x4bb07.
             const int OriginalPitchVgaRows = 10 + GameFontText.DialogLineGapVgaRows;
-            float expected = OriginalPitchVgaRows * Canonical.VgaScaleY;
+            float expected = OriginalPitchVgaRows * GameData.Resources.Layout.OriginalPixel.Height;
 
             for (int i = 1; i < tops.Count; i++) {
                 Assert.That(tops[i] - tops[i - 1], Is.EqualTo(expected).Within(0.01f),

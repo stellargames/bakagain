@@ -121,6 +121,13 @@ public static class LocatorMap {
     /// </remarks>
     public const int MarkerRadius = 2;
 
+    /// <summary>The marker dot's size in canonical units: its VGA diameter at 5 x 6, so it is the
+    /// original's slightly tall dot (TASK-765).</summary>
+    public const int MarkerWidth = MarkerRadius * 2 * 5;
+
+    /// <inheritdoc cref="MarkerWidth"/>
+    public const int MarkerHeight = MarkerRadius * 2 * 6;
+
     /// <summary>The pen a marker is drawn in: 111, a saturated red.</summary>
     /// <remarks>
     /// Like the overhead map's own party arrow, this pen holds the same RGB (215, 0, 0) in the UI

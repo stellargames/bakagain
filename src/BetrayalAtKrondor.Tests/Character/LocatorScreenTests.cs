@@ -38,7 +38,7 @@ public class LocatorScreenTests {
     [Fact]
     public void TheScreenBorrowsTheWorldViewRatherThanBeingAMapScreen() {
         Assert.True(FieldSpells.LocatorReusesTheWorldViewport);
-        Assert.Equal((134, 16, 167, 89), FieldSpells.LocatorViewport);
+        Assert.Equal((134 * 5, 16 * 6, 167 * 5, 89 * 6), FieldSpells.LocatorViewport);   // VGA, canonical
     }
 
     [Fact]

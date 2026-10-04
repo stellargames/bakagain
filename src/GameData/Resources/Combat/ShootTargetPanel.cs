@@ -31,10 +31,10 @@ public static class ShootTargetPanel {
     // SpellEffectCaption states its plaque in, and for the same reason: nothing reads these from a
     // resource, so they are transcribed once here rather than spelled into the view.
     /// <summary>Left edge of the parchment.</summary>
-    public const int PanelX = 0x49;
+    public const int PanelX = 0x49 * 5;   // canonical: the original's x 0x49 (TASK-765)
 
     /// <summary>Top edge of the parchment.</summary>
-    public const int PanelY = 0x81;
+    public const int PanelY = 0x81 * 6;
 
     /// <summary>The x every centred line centres on.</summary>
     public const int CentreX = 0x82;

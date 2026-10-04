@@ -128,4 +128,13 @@ public static class CastRingSigil {
 
     /// <summary>Whether <paramref name="school"/> has a figure.</summary>
     public static bool Has(int school) => school >= 0 && school < VertexX.Length;
+
+    /// <summary>
+    /// A vertex (the original's VGA pixels, as <see cref="VertexX"/>, <see cref="VertexY"/> and
+    /// <see cref="Morph"/> give them) in canonical units, where a renderer draws it (TASK-765).
+    /// </summary>
+    public static (float X, float Y) ToCanonical(int x, int y) => (x * 5f, y * 6f);
+
+    /// <summary>The figure's line width in canonical units: one original pixel across.</summary>
+    public const float StrokeWidth = 5f;
 }

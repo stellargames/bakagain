@@ -33,6 +33,14 @@ public static class TeleportCost {
     /// costs to reach — only where the artist put its dot. So a port that "improves" this by using
     /// the real coordinates from <c>teleport.json</c> would reprice every journey in the game.
     /// </remarks>
+    /// <summary>
+    /// <see cref="Price"/> for two pin positions in canonical units — measured back in the original's
+    /// pixels (5 x 6 each), because the octagonal distance over canonical coordinates would stretch
+    /// every north-south journey against every east-west one (TASK-765).
+    /// </summary>
+    public static long PriceCanonical(int fromX, int fromY, int toX, int toY, int baseCost, int costPerUnit) =>
+        Price(fromX / 5, fromY / 6, toX / 5, toY / 6, baseCost, costPerUnit);
+
     public static long Price(int sourceX, int sourceY, int destinationX, int destinationY,
         int baseCost, int costPerUnit) {
         int distance = OctagonalDistance(sourceX - destinationX, sourceY - destinationY);

@@ -373,7 +373,7 @@ namespace BakAgain.UI.InGame {
                 float x = Mathf.Clamp(vp.x * r.width - w / 2f, 2f, Mathf.Max(2f, r.width - w - 2f));
                 // The TEXT TOP sits 5 VGA rows above the sprite's top (`y = scrY - 5`), so the number
                 // overlaps the head; clamped 2 rows inside the view and 12 above its bottom.
-                float row = BakAgain.Graphics.Canonical.VgaScaleY;
+                float row = GameData.Resources.Layout.OriginalPixel.Height;
                 float y = Mathf.Clamp((1f - vp.y) * r.height - 5 * row, 2 * row, r.height - 12 * row);
                 label.style.left = x;
                 label.style.top = y;

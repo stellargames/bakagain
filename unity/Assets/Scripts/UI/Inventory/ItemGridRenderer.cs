@@ -271,8 +271,7 @@ namespace BakAgain.UI.Inventory {
                 // One VGA pixel up and left, in colour 0 — the original's own offset, expressed in
                 // the canonical units this label is laid out in.
                 label.style.textShadow = new TextShadow {
-                    offset = new Vector2(-BakAgain.Graphics.Canonical.VgaScaleX,
-                        -BakAgain.Graphics.Canonical.VgaScaleY),
+                    offset = new Vector2(-GameData.Resources.Layout.OriginalPixel.Width, -GameData.Resources.Layout.OriginalPixel.Height),
                     color = Color.black,
                 };
             }

@@ -240,10 +240,34 @@ public static class TeleportMenu {
     }
 
     /// <summary>The spark's offset from a pin's top-left corner, in VGA pixels.</summary>
+    /// <summary>
+    /// The flight's step count for a canonical displacement: one step per ORIGINAL pixel along the
+    /// longer axis, as the original walks it (TASK-765).
+    /// </summary>
+    public static int FlightSteps(float dx, float dy) {
+        float ax = dx < 0 ? -dx : dx, ay = dy < 0 ? -dy : dy;
+        return (int)System.Math.Round(ax > ay ? ax / 5f : ay / 6f);
+    }
+
+    /// <summary>
+    /// <see cref="FlightArcOffset"/> as a canonical displacement: perpendicular to the long axis, in
+    /// that axis' own pixel scale (6 down when the flight runs across, 5 across when it runs down).
+    /// </summary>
+    public static (float X, float Y) FlightBow(int step, int steps, bool acrossIsLonger) {
+        int bow = FlightArcOffset(step, steps);
+        return acrossIsLonger ? (0f, -bow * 6f) : (-bow * 5f, 0f);
+    }
+
     public const int SparkOffsetX = 3;
 
     /// <summary>The spark's offset from a pin's top-left corner, in VGA pixels.</summary>
     public const int SparkOffsetY = 1;
+
+    /// <summary>The spark's offset from the path in canonical units.</summary>
+    public const int SparkOffsetCanonicalX = SparkOffsetX * 5;
+
+    /// <inheritdoc cref="SparkOffsetCanonicalX"/>
+    public const int SparkOffsetCanonicalY = SparkOffsetY * 6;
 
     // ---- panel layout ---------------------------------------------------------------------
     //

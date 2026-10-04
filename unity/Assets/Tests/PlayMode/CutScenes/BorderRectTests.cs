@@ -47,8 +47,8 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
             // horizontally and would not match the source art.
             DrawingUtils.BorderRects b = DrawingUtils.GetBorderRects(Rect(0, 0, 400, 200), Vector2.one);
 
-            Assert.AreEqual(Canonical.VgaScaleX, b.Left.width);
-            Assert.AreEqual(Canonical.VgaScaleY, b.Top.height);
+            Assert.AreEqual(GameData.Resources.Layout.OriginalPixel.Width, b.Left.width);
+            Assert.AreEqual(GameData.Resources.Layout.OriginalPixel.Height, b.Top.height);
             Assert.AreNotEqual(b.Left.width, b.Top.height, "the two axes scale differently");
         }
 
@@ -58,8 +58,8 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
             // rectangle rather than hanging off it.
             DrawingUtils.BorderRects b = DrawingUtils.GetBorderRects(Rect(100, 50, 400, 200), Vector2.one);
 
-            Assert.AreEqual(100f + 400f - Canonical.VgaScaleX, b.Right.x);
-            Assert.AreEqual(50f + 200f - Canonical.VgaScaleY, b.Bottom.y);
+            Assert.AreEqual(100f + 400f - GameData.Resources.Layout.OriginalPixel.Width, b.Right.x);
+            Assert.AreEqual(50f + 200f - GameData.Resources.Layout.OriginalPixel.Height, b.Bottom.y);
             Assert.AreEqual(100f + 400f, b.Right.x + b.Right.width, "the right edge ends at the far side");
             Assert.AreEqual(50f + 200f, b.Bottom.y + b.Bottom.height, "the bottom edge ends at the far side");
         }

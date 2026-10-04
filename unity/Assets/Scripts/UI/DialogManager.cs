@@ -328,8 +328,8 @@ namespace BakAgain.UI {
         /// the two cannot drift apart.
         /// </remarks>
         private static void AddViewportOutline(VisualElement backdrop, Rect hole, Color[] palette) {
-            float x = DialogBackdrop.ViewportOutlineInset * Canonical.VgaScaleX;
-            float y = DialogBackdrop.ViewportOutlineInset * Canonical.VgaScaleY;
+            float x = DialogBackdrop.ViewportOutlineInset * GameData.Resources.Layout.OriginalPixel.Width;
+            float y = DialogBackdrop.ViewportOutlineInset * GameData.Resources.Layout.OriginalPixel.Height;
             Color pen = PaletteColors.ResolvePen(palette, DialogBackdrop.ViewportOutlinePen);
             var outline = new VisualElement {
                 name = "BakDialogViewportOutline",
@@ -555,8 +555,8 @@ namespace BakAgain.UI {
                 },
             };
             if (edge is Color rim) {
-                plate.style.borderLeftWidth = plate.style.borderRightWidth = Canonical.VgaScaleX;
-                plate.style.borderTopWidth = plate.style.borderBottomWidth = Canonical.VgaScaleY;
+                plate.style.borderLeftWidth = plate.style.borderRightWidth = GameData.Resources.Layout.OriginalPixel.Width;
+                plate.style.borderTopWidth = plate.style.borderBottomWidth = GameData.Resources.Layout.OriginalPixel.Height;
                 plate.style.borderLeftColor = plate.style.borderRightColor = rim;
                 plate.style.borderTopColor = plate.style.borderBottomColor = rim;
             }
@@ -1302,7 +1302,7 @@ namespace BakAgain.UI {
                     (int x, int y, int w, int h) =
                         GameData.Resources.Dialog.DialogButtonRow.ButtonRectOnCanonicalPanel(
                             resultIndex, panelWidth, panelHeight, labels.Count, widestLabel,
-                            BakAgain.Book.BakFontData.GameFontHeight);
+                            BakAgain.Book.BakFontData.GetFontHeight(BakAgain.Book.BakFontData.GameFontIndex));
                     button.style.left = x;
                     button.style.top = y;
                     button.style.width = w;

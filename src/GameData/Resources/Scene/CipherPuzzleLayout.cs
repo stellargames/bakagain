@@ -77,6 +77,20 @@ public static class CipherPuzzleLayout {
     /// <remarks>Fixed, and unrelated to whatever the REQ file's entries claim.</remarks>
     public const int RowTopVga = 0x57;
 
+    // The same in canonical units (5 x 6 per original pixel), which is what a renderer reads (TASK-765).
+
+    /// <summary>A cell's padding across, canonical.</summary>
+    public const int CellPaddingX = CellPaddingVga * 5;
+
+    /// <summary>A cell's padding down, canonical.</summary>
+    public const int CellPaddingY = CellPaddingVga * 6;
+
+    /// <summary>The gap between cells, canonical.</summary>
+    public const int ColumnGap = ColumnGapVga * 5;
+
+    /// <summary>The row's top, canonical.</summary>
+    public const int RowTop = RowTopVga * 6;
+
     /// <summary>How wide the whole row of <paramref name="width"/> cells is.</summary>
     /// <remarks>
     /// <c>width * (cell + gap) - gap</c> — the trailing gap is taken back off, so a one-letter word
@@ -357,6 +371,10 @@ public static class CipherPuzzleLayout {
     /// to reproduce in a retained-mode UI.</para>
     /// </remarks>
     public static (int X, int Y)[] LatchOriginsVga() => new[] { (0x1e, 0x17), (0x100, 0x14) };
+
+    /// <summary><see cref="LatchOriginsVga"/> in canonical units.</summary>
+    public static (int X, int Y)[] LatchOrigins() =>
+        System.Array.ConvertAll(LatchOriginsVga(), p => (p.X * 5, p.Y * 6));
 
     /// <summary>
     /// The two refusals a gated puzzle gives, recorded and NOT ported.

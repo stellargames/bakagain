@@ -60,8 +60,8 @@ namespace BakAgain.UI.InGame {
                 pickingMode = PickingMode.Ignore,
                 style = {
                     position = Position.Absolute,
-                    left = SpellEffectCaption.PlaqueX * Canonical.VgaScaleX,
-                    top = SpellEffectCaption.PlaqueY * Canonical.VgaScaleY,
+                    left = SpellEffectCaption.PlaqueX,
+                    top = SpellEffectCaption.PlaqueY,
                     width = plaque.rect.width,
                     height = plaque.rect.height,
                     backgroundImage = Background.FromSprite(plaque),
@@ -74,8 +74,8 @@ namespace BakAgain.UI.InGame {
                 pickingMode = PickingMode.Ignore,
                 style = {
                     position = Position.Absolute,
-                    left = SpellEffectCaption.TextCentreX * Canonical.VgaScaleX,
-                    top = SpellEffectCaption.TextY * Canonical.VgaScaleY,
+                    left = SpellEffectCaption.TextCentreX,
+                    top = SpellEffectCaption.TextY,
                     flexDirection = FlexDirection.Row,
                     translate = new StyleTranslate(new Translate(Length.Percent(-50f), 0)),
                 },

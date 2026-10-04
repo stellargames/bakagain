@@ -145,19 +145,15 @@ namespace BakAgain.UI.Teleport {
         /// The fare to a temple, in royals.
         /// </summary>
         /// <remarks>
-        /// <b>Measured in the original's pixels, not ours.</b> The pin rects reach us already scaled
-        /// into canonical space, and that scale is anisotropic (x5 across, x6 down) — so running the
-        /// octagonal distance over canonical coordinates would stretch every north-south journey
-        /// against every east-west one and reprice the whole map. Divide back first.
+        /// <b>Measured in the original's pixels, not ours</b> — TeleportCost.PriceCanonical does the
+        /// conversion, so the octagonal distance is not stretched north-south against east-west.
         /// </remarks>
         private long FareTo(int temple) {
             Rect from = PinRect(_currentTemple);
             Rect to = PinRect(temple);
-            return TeleportCost.Price(
-                Mathf.RoundToInt(from.x) / Canonical.VgaScaleX,
-                Mathf.RoundToInt(from.y) / Canonical.VgaScaleY,
-                Mathf.RoundToInt(to.x) / Canonical.VgaScaleX,
-                Mathf.RoundToInt(to.y) / Canonical.VgaScaleY,
+            return TeleportCost.PriceCanonical(
+                Mathf.RoundToInt(from.x), Mathf.RoundToInt(from.y),
+                Mathf.RoundToInt(to.x), Mathf.RoundToInt(to.y),
                 _baseCost, _costPerUnit);
         }
 
@@ -364,9 +360,7 @@ namespace BakAgain.UI.Teleport {
             var start = new Vector2(a.x, a.y);
             Vector2 delta = new Vector2(b.x, b.y) - start;
             bool acrossIsLonger = Mathf.Abs(delta.x) > Mathf.Abs(delta.y);
-            int steps = Mathf.RoundToInt(acrossIsLonger
-                ? Mathf.Abs(delta.x) / Canonical.VgaScaleX
-                : Mathf.Abs(delta.y) / Canonical.VgaScaleY);
+            int steps = TeleportMenu.FlightSteps(delta.x, delta.y);
             if (steps <= 0) {
                 return;
             }
@@ -378,19 +372,13 @@ namespace BakAgain.UI.Teleport {
                 }
 
                 float progress = (float)step / steps;
-                int bow = TeleportMenu.FlightArcOffset(step, steps);
-                Vector2 at = start + (delta * progress);
-                // The bow is perpendicular to the long axis, and in that axis' own pixel scale.
-                if (acrossIsLonger) {
-                    at.y -= bow * Canonical.VgaScaleY;
-                } else {
-                    at.x -= bow * Canonical.VgaScaleX;
-                }
+                (float bowX, float bowY) = TeleportMenu.FlightBow(step, steps, acrossIsLonger);
+                Vector2 at = start + (delta * progress) + new Vector2(bowX, bowY);
 
                 Clear(stage, SparkClass);
                 VisualElement spark = Marker(sprite, SparkClass,
-                    at.x + (TeleportMenu.SparkOffsetX * Canonical.VgaScaleX),
-                    at.y + (TeleportMenu.SparkOffsetY * Canonical.VgaScaleY));
+                    at.x + TeleportMenu.SparkOffsetCanonicalX,
+                    at.y + TeleportMenu.SparkOffsetCanonicalY);
                 stage.Add(spark);
                 await UniTask.Yield(PlayerLoopTiming.Update);
             }
@@ -483,7 +471,7 @@ namespace BakAgain.UI.Teleport {
             element.style.color = PaletteColors.ResolvePen(_palette, pen, Color.black);
             if (value) {
                 element.style.textShadow = new StyleTextShadow(new TextShadow {
-                    offset = new Vector2(Canonical.VgaScaleX, Canonical.VgaScaleY),
+                    offset = new Vector2(GameData.Resources.Layout.OriginalPixel.Width, GameData.Resources.Layout.OriginalPixel.Height),
                     color = PaletteColors.ResolvePen(_palette, TeleportMenu.ValueShadowPen, Color.black),
                 });
             }

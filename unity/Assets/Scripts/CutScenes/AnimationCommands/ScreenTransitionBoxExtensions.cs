@@ -61,8 +61,7 @@ namespace BakAgain.CutScenes.AnimationCommands {
                 // about 0.2 s for C31's 290x101). The size still decides the length — measured in
                 // VGA steps, not canonical ones, which made this one tick per canonical pixel and
                 // 18.7 s long. Each drawn frame catches up to wherever the clock says the wipe is.
-                double duration = ScreenTransitionBox.DurationSeconds(
-                    (int)(width / Canonical.VgaScaleX), (int)(height / Canonical.VgaScaleY));
+                double duration = ScreenTransitionBox.DurationSecondsCanonical((int)width, (int)height);
                 var order = new List<int>(Steps(boxOut, steps));
                 float started = Time.realtimeSinceStartup;
                 int done = 0;

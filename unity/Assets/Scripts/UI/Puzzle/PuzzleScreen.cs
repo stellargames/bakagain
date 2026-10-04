@@ -299,7 +299,7 @@ namespace BakAgain.UI.Puzzle {
             // port was drawing it at 105, which put the text a third of the way down the plate
             // instead of two thirds.
             float lineHeight = (font.Height + CipherPuzzleLayout.RiddleLineSpacing)
-                * Canonical.VgaScaleY;
+                * (float)font.PixelHeight;
             float boxLeft = _textArea.Left.Value;
             float boxWidth = _textArea.Width.Value;
             float boxTop = _textArea.Top.Value
@@ -308,12 +308,12 @@ namespace BakAgain.UI.Puzzle {
             foreach ((int yOffset, int pen) in CipherPuzzleLayout.TextPasses()) {
                 for (var line = 0; line < lines.Length; line++) {
                     float x = boxLeft + ((boxWidth - LineWidth(font, lines[line])) / 2f);
-                    float y = boxTop + (line * lineHeight) + (yOffset * Canonical.VgaScaleY);
+                    float y = boxTop + (line * lineHeight) + (yOffset * (float)font.PixelHeight);
                     foreach (char letter in lines[line]) {
                         // Advance on the GLYPH's width even when it has no sprite: a space has a
                         // width and no ink, and dropping its advance would close every gap up.
                         GameData.Resources.Font.FontGlyph metrics = font.GlyphFor(letter);
-                        float advance = (metrics?.Width ?? 0) * Canonical.VgaScaleX;
+                        float advance = (metrics?.Width ?? 0) * (float)font.PixelWidth;
                         Sprite glyph = GlyphSprite(font, fontKey, pen, letter);
                         if (glyph != null) {
                             layer.Add(new VisualElement {
@@ -348,7 +348,7 @@ namespace BakAgain.UI.Puzzle {
         private static float LineWidth(GameData.Resources.Font.FontResource font, string line) {
             var width = 0f;
             foreach (char letter in line) {
-                width += (font.GlyphFor(letter)?.Width ?? 0) * Canonical.VgaScaleX;
+                width += (font.GlyphFor(letter)?.Width ?? 0) * (float)font.PixelWidth;
             }
 
             return width;
@@ -538,14 +538,13 @@ namespace BakAgain.UI.Puzzle {
         /// the middle as the word gets longer, which is the point of the screen and is exactly what
         /// the authored left-aligned rects do not do.
         ///
-        /// <para>The padding and gap are the original's pixels and so are scaled into canonical
-        /// space here; the glyph box is already canonical, because the font sprites are.</para>
+        /// <para>The padding and gap come canonical from CipherPuzzleLayout; the glyph box is
+        /// canonical because the font sprites are.</para>
         /// </remarks>
         private Rect ColumnBox(int column, int glyphWidth, int glyphHeight) {
-            int padding = CipherPuzzleLayout.CellPaddingVga * Canonical.VgaScaleX;
-            int gap = CipherPuzzleLayout.ColumnGapVga * Canonical.VgaScaleX;
-            int cellWidth = glyphWidth + padding;
-            int cellHeight = glyphHeight + (CipherPuzzleLayout.CellPaddingVga * Canonical.VgaScaleY);
+            int gap = CipherPuzzleLayout.ColumnGap;
+            int cellWidth = glyphWidth + CipherPuzzleLayout.CellPaddingX;
+            int cellHeight = glyphHeight + CipherPuzzleLayout.CellPaddingY;
             // The row is laid out for the WHOLE word, including any dead columns a space leaves —
             // the original steps x past a space rather than closing the gap up, so a word with one
             // keeps its letters where they would be if it were interactive throughout.
@@ -554,7 +553,7 @@ namespace BakAgain.UI.Puzzle {
 
             return new Rect(
                 CipherPuzzleLayout.ColumnX(column, startX, cellWidth, gap),
-                CipherPuzzleLayout.RowTopVga * Canonical.VgaScaleY,
+                CipherPuzzleLayout.RowTop,
                 cellWidth, cellHeight);
         }
 
@@ -658,7 +657,7 @@ namespace BakAgain.UI.Puzzle {
                             left = CipherPuzzleLayout.GlyphX((int)box.x, (int)box.width,
                                 (int)glyph.rect.width),
                             top = CipherPuzzleLayout.GlyphY((int)box.y, (int)box.height,
-                                (int)glyph.rect.height) + (yOffset * Canonical.VgaScaleY),
+                                (int)glyph.rect.height) + (yOffset * (float)font.PixelHeight),
                             width = glyph.rect.width,
                             height = glyph.rect.height,
                             backgroundImage = new StyleBackground(glyph),
@@ -760,10 +759,10 @@ namespace BakAgain.UI.Puzzle {
                     position = Position.Absolute,
                     left = box.x, top = box.y, width = box.width, height = box.height,
                     backgroundColor = Pen(CipherPuzzleLayout.BevelFillPen),
-                    borderTopWidth = Canonical.VgaScaleY,
-                    borderBottomWidth = Canonical.VgaScaleY,
-                    borderLeftWidth = Canonical.VgaScaleX,
-                    borderRightWidth = Canonical.VgaScaleX,
+                    borderTopWidth = GameData.Resources.Layout.OriginalPixel.Height,
+                    borderBottomWidth = GameData.Resources.Layout.OriginalPixel.Height,
+                    borderLeftWidth = GameData.Resources.Layout.OriginalPixel.Width,
+                    borderRightWidth = GameData.Resources.Layout.OriginalPixel.Width,
                     borderTopColor = Pen(CipherPuzzleLayout.BevelOutlinePen),
                     borderLeftColor = Pen(CipherPuzzleLayout.BevelLeftPen),
                     borderRightColor = Pen(CipherPuzzleLayout.BevelRightPen),
@@ -828,9 +827,10 @@ namespace BakAgain.UI.Puzzle {
             // frames. Counting frames in CANONICAL pixels instead makes the same distance take
             // fifty-seven — the wheel still lands correctly and just crawls, which is the sort of
             // wrong that looks deliberate.
-            int fontHeightVga = Book.BakFontData.GameFontHeight;
-            int frames = CipherPuzzleLayout.RollFrames(fontHeightVga);
-            int travel = CipherPuzzleLayout.RollTravel(fontHeightVga) * Canonical.VgaScaleY;
+            GameData.Resources.Font.FontResource rollFont = GameFonts.GameFont;
+            int frames = CipherPuzzleLayout.RollFrames(rollFont.Height);
+            int travel = (int)System.Math.Round(
+                CipherPuzzleLayout.RollTravel(rollFont.Height) * rollFont.PixelHeight);
             for (var frame = 0; frame <= frames; frame++) {
                 float at = travel * (frame / (float)frames);
                 falling.style.top = at;
@@ -949,7 +949,7 @@ namespace BakAgain.UI.Puzzle {
         /// </remarks>
         private async Cysharp.Threading.Tasks.UniTaskVoid PlaySolveSequenceAsync() {
             _solving = true;
-            (int X, int Y)[] latches = CipherPuzzleLayout.LatchOriginsVga();
+            (int X, int Y)[] latches = CipherPuzzleLayout.LatchOrigins();
             var bolt = 0;
             foreach (double delay in CipherPuzzleSound.BoltDelaysSeconds) {
                 await Cysharp.Threading.Tasks.UniTask.Delay(
@@ -988,7 +988,7 @@ namespace BakAgain.UI.Puzzle {
         /// The sprite carries its own size — <see cref="ArchiveImage"/> sizes to it — so only the
         /// origin is placed, scaled out of the original's VGA pixels.
         /// </remarks>
-        private void ShowLatch(int index, (int X, int Y) originVga) {
+        private void ShowLatch(int index, (int X, int Y) origin) {
             VisualElement stage = CanonicalStage.Find(GetComponent<UIDocument>()?.rootVisualElement);
             if (stage == null) {
                 return;
@@ -1001,8 +1001,8 @@ namespace BakAgain.UI.Puzzle {
                 pickingMode = PickingMode.Ignore,
                 style = {
                     position = Position.Absolute,
-                    left = originVga.X * Canonical.VgaScaleX,
-                    top = originVga.Y * Canonical.VgaScaleY,
+                    left = origin.X,
+                    top = origin.Y,
                 },
             });
         }

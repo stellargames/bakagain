@@ -33,8 +33,9 @@ public class ActorStatsPanelTests {
             HudPanelLine label = lines.Single(l => l.Text == ActorStatsPanel.Rows[row].Label);
             HudPanelLine value = lines.Single(l => l.Text == Values[row].ToString());
             Assert.Equal(label.Y, value.Y);
-            Assert.Equal(ActorStatsPanel.LabelX, label.X);
-            Assert.Equal(ActorStatsPanel.ValueX, value.X);
+            // The original's columns, placed in canonical units (TASK-765).
+            Assert.Equal(ActorStatsPanel.LabelX * 5, label.X);
+            Assert.Equal(ActorStatsPanel.ValueX * 5, value.X);
         }
     }
 
@@ -53,9 +54,9 @@ public class ActorStatsPanelTests {
         HudPanelLine name = lines[0];
 
         Assert.Equal(HudPanelAlign.Centre, name.Align);
-        Assert.Equal(ShootTargetPanel.CentreX, name.X);
-        Assert.Equal(ActorStatsPanel.NameY, name.Y);
-        Assert.True(ActorStatsPanel.RowTop(0) - name.Y > ActorStatsPanel.RowStep);
+        Assert.Equal(ShootTargetPanel.CentreX * 5, name.X);
+        Assert.Equal(ActorStatsPanel.NameY * 6, name.Y);
+        Assert.True(ActorStatsPanel.RowTop(0) - ActorStatsPanel.NameY > ActorStatsPanel.RowStep);
         Assert.Equal(ActorStatsPanel.RowTop(0) + ActorStatsPanel.RowStep, ActorStatsPanel.RowTop(1));
     }
 

@@ -37,7 +37,7 @@ namespace BakAgain.Tests.PlayMode.UI {
 
         // Deliberately SHORT: five line pitches of room for a record that wraps to far more, so
         // there is more than one page to turn. 11 VGA rows * 6 = 66 canonical px per line.
-        private const float ShortPanelHeight = 5f * 11f * Canonical.VgaScaleY;
+        private const float ShortPanelHeight = 5f * 11f * GameData.Resources.Layout.OriginalPixel.Height;
 
         // DIAL_Z27:17958 (id 2700045), verbatim. @4 is the party-member token the formatter
         // resolves; it stays in place here because the wrap measures it at the original's metrics.
@@ -173,8 +173,8 @@ namespace BakAgain.Tests.PlayMode.UI {
         private static DialogStyle ShippedRow2Style() {
             DialogStyle style = BoxedStyle();
             style.DefaultArea = LayoutHint.PxRect(65f, 66f, PanelWidth, ShippedRow2Height);
-            style.TextPadTop = ShippedPadVga * Canonical.VgaScaleY;
-            style.TextPadBottom = ShippedPadVga * Canonical.VgaScaleY;
+            style.TextPadTop = ShippedPadVga * GameData.Resources.Layout.OriginalPixel.Height;
+            style.TextPadBottom = ShippedPadVga * GameData.Resources.Layout.OriginalPixel.Height;
             return style;
         }
 
@@ -208,7 +208,7 @@ namespace BakAgain.Tests.PlayMode.UI {
         // The wrap the block itself would produce, computed from the SAME resolved width so the
         // expectation cannot drift from the box under test.
         private static List<string> WrappedLines(VisualElement body) {
-            int maxWidth = Mathf.FloorToInt(body.resolvedStyle.width / Canonical.VgaScaleX);
+            int maxWidth = Mathf.FloorToInt(body.resolvedStyle.width / GameData.Resources.Layout.OriginalPixel.Width);
             string prepared = DialogTextFormatter.Prepare(DwarfRecord, centered: false);
             var lines = new List<string>();
             foreach (GameTextWrapper.Line line in GameTextWrapper.Wrap(prepared, maxWidth)) {

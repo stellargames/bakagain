@@ -197,18 +197,9 @@ namespace BakAgain.UI.Spells {
         }
 
         /// <summary>The inset the world is shown in, in canonical space.</summary>
-        /// <remarks>
-        /// <c>FieldSpells.LocatorViewport</c> is the original's VGA rect — one of the few pieces of
-        /// extracted data that is not already canonical, because it is a constant in the code rather
-        /// than a field in a resource. <see cref="Canonical"/> carries the same factors the extractor
-        /// applies to everything else.
-        /// </remarks>
         private Rect InsetRect() {
-            (int x, int y, int width, int height) = ViewRectVga();
-
-            return new Rect(
-                x * Canonical.VgaScaleX, y * Canonical.VgaScaleY,
-                width * Canonical.VgaScaleX, height * Canonical.VgaScaleY);
+            (int x, int y, int width, int height) = ViewRect();
+            return new Rect(x, y, width, height);
         }
 
         /// <summary>
@@ -239,7 +230,7 @@ namespace BakAgain.UI.Spells {
                 ? _world.ZoneDefinition.MapMaxZ * FieldSpells.SpyglassHeightPercent / 100f
                 : _world.ZoneDefinition.MapMaxZ;
 
-        private (int X, int Y, int Width, int Height) ViewRectVga() =>
+        private (int X, int Y, int Width, int Height) ViewRect() =>
             _spyglass ? FieldSpells.SpyglassViewport : FieldSpells.LocatorViewport;
 
         private readonly List<VisualElement> _hiddenForSpyglass = new List<VisualElement>();
@@ -350,9 +341,9 @@ namespace BakAgain.UI.Spells {
         // The dot is radius 2 in the original's pixels. Canonical space stretches x5 horizontally
         // and x6 vertically, so a round dot there is a slightly tall one here — the same stretch
         // every other piece of original art gets.
-        private const float DotWidth = LocatorMap.MarkerRadius * 2 * Canonical.VgaScaleX;
+        private const float DotWidth = LocatorMap.MarkerWidth;
 
-        private const float DotHeight = LocatorMap.MarkerRadius * 2 * Canonical.VgaScaleY;
+        private const float DotHeight = LocatorMap.MarkerHeight;
 
         private VisualElement MakeDot(Vector2 at) {
             var dot = new VisualElement {

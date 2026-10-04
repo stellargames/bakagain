@@ -35,10 +35,10 @@ public static class ActorStatsPanel {
     public const string PortraitImage = "HEADS.BMX";
 
     /// <inheritdoc cref="PortraitImage"/>
-    public const int PortraitX = 0x0e;
+    public const int PortraitX = 0x0e * 5;   // canonical: the original's x 0x0e (TASK-765)
 
     /// <inheritdoc cref="PortraitImage"/>
-    public const int PortraitY = 0x8f;
+    public const int PortraitY = 0x8f * 6;
 
     /// <summary>Left edge of the stat labels.</summary>
     public const int LabelX = 0x4e;

@@ -69,8 +69,9 @@ public class MeleeStatsPanelTests {
         HudPanelLine damage = lines.Single(l => l.Text == "12");
         HudPanelLine accuracy = lines.Single(l => l.Text == "33%");
         Assert.NotEqual(damage.X, accuracy.X);
-        Assert.Equal(0xad, damage.X);
-        Assert.Equal(0xa5, accuracy.X);
+        // The original's x, in canonical units (HudPanelLine places at 5 x 6, TASK-765).
+        Assert.Equal(0xad * 5, damage.X);
+        Assert.Equal(0xa5 * 5, accuracy.X);
     }
 
     [Fact]
@@ -98,8 +99,8 @@ public class MeleeStatsPanelTests {
         // A bevel, not a line: pens 2 and 3 one row apart. Drawing one row loses the bevel.
         IReadOnlyList<HudPanelRule> rules = MeleeStatsPanel.Rules();
         Assert.Equal(2, rules.Count);
-        Assert.Equal(rules[0].Y + 1, rules[1].Y);
+        Assert.Equal(rules[0].Y + rules[0].Height, rules[1].Y);   // one original row apart
         Assert.NotEqual(rules[0].Pen, rules[1].Pen);
-        Assert.All(rules, r => Assert.Equal(MeleeStatsPanel.ThrustX, r.X));
+        Assert.All(rules, r => Assert.Equal(MeleeStatsPanel.ThrustX * 5, r.X));
     }
 }

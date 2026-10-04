@@ -43,8 +43,8 @@ namespace BakAgain.Graphics
 
             int width = x2 - x1;
             int height = y2 - y1;
-            int thicknessX = Mathf.Max(1, Mathf.RoundToInt(Canonical.VgaScaleX * scale.x));
-            int thicknessY = Mathf.Max(1, Mathf.RoundToInt(Canonical.VgaScaleY * scale.y));
+            int thicknessX = Mathf.Max(1, Mathf.RoundToInt(GameData.Resources.Layout.OriginalPixel.Width * scale.x));
+            int thicknessY = Mathf.Max(1, Mathf.RoundToInt(GameData.Resources.Layout.OriginalPixel.Height * scale.y));
 
             return new BorderRects(
                 top: new Rect(x1, y1, width, thicknessY),

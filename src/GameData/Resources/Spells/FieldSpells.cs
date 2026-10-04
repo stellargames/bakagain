@@ -346,11 +346,15 @@ public static class FieldSpells {
     /// </remarks>
     public static bool LocatorReusesTheWorldViewport => true;
 
-    /// <summary>The inset the world view is clipped to while the locator is open.</summary>
-    public static (int X, int Y, int Width, int Height) LocatorViewport => (134, 16, 167, 89);
+    /// <summary>
+    /// The inset the world view is clipped to while the locator is open, in canonical units: the
+    /// original's VGA rect (134, 16, 167, 89) at 5 x 6 (TASK-765).
+    /// </summary>
+    public static (int X, int Y, int Width, int Height) LocatorViewport => (134 * 5, 16 * 6, 167 * 5, 89 * 6);
 
-    /// <summary>The Brass Spyglass's view: the main world viewport, 20 rows taller (ITEMUSE.C:47-50).</summary>
-    public static (int X, int Y, int Width, int Height) SpyglassViewport => (13, 11, 294, 121);
+    /// <summary>The Brass Spyglass's view: the main world viewport, 20 rows taller (ITEMUSE.C:47-50);
+    /// canonical, the original's VGA (13, 11, 294, 121) at 5 x 6.</summary>
+    public static (int X, int Y, int Width, int Height) SpyglassViewport => (13 * 5, 11 * 6, 294 * 5, 121 * 6);
 
     /// <summary>The Spyglass's camera height, in percent of the zone's maximum (ITEMUSE.C:52, 0x62).</summary>
     public const int SpyglassHeightPercent = 98;
