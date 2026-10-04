@@ -66,6 +66,14 @@ namespace BakAgain.UI {
             Dialog dialog = await handle;
 
             if (handle.Status == AsyncOperationStatus.Succeeded) {
+                // The format's formatting tags become the codes the renderer reads (TASK-774) —
+                // here, after the language pack and any mod file, the one place every Dialog
+                // passes. Idempotent, so the Addressables-cached instance can come through again.
+                foreach (DialogEntry entry in dialog.Entries) {
+                    if (!string.IsNullOrEmpty(entry.Text)) {
+                        entry.Text = DialogTextRuns.FromMarkup(entry.Text);
+                    }
+                }
                 return dialog;
             }
             _logger.LogError("Failed to load Dialog with filename {Filename}", key);
