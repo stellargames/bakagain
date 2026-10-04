@@ -118,8 +118,11 @@ namespace BakAgain.Tests.PlayMode.UI {
             UniTask<int> showing = manager.ShowById(RouterId);
             // A text-less router completes at once, but a TEXT entry lays out, wipes open and settles
             // its pagination before it can skip the wait, which takes many frames. Bounded so a wait
-            // that never ends still fails instead of hanging.
-            for (int frame = 0; frame < 300 && showing.Status == UniTaskStatus.Pending; frame++) {
+            // that never ends still fails instead of hanging — in TIME, not frames: run alone, the
+            // first text entry also pays the cold Addressables and font start, and 300 frames ran
+            // out before it did (TASK-788). The full suite had always warmed it up first.
+            float deadline = Time.realtimeSinceStartup + 10f;
+            while (showing.Status == UniTaskStatus.Pending && Time.realtimeSinceStartup < deadline) {
                 yield return null;
             }
 
