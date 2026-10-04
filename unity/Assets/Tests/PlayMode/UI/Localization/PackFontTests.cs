@@ -18,6 +18,7 @@ namespace BakAgain.Tests.PlayMode.UI.Localization {
         private string _savedLanguage;
         private string _savedOverridePath;
         private FontResource _font;
+        private System.Collections.Generic.HashSet<int> _extrasBefore;
 
         [SetUp]
         public void SetUp() {
@@ -38,15 +39,20 @@ namespace BakAgain.Tests.PlayMode.UI.Localization {
         [TearDown]
         public void TearDown() {
             // The FontResource is the Addressables-cached one; leave it as other tests expect it.
-            _font?.ExtraGlyphs.Remove(228);
+            if (_font != null && _extrasBefore != null) {
+                foreach (int c in System.Linq.Enumerable.ToList(_font.ExtraGlyphs.Keys)) {
+                    if (!_extrasBefore.Contains(c)) {
+                        _font.ExtraGlyphs.Remove(c);
+                    }
+                }
+            }
             BakResourceSettings.Language = _savedLanguage;
             BakResourceSettings.OverridePath = _savedOverridePath;
             LanguagePacks.Reload();
             Directory.Delete(_dir, true);
         }
 
-        [Test]
-        public void ThePacksLetterIsInTheGameFontAndItsTrueType() {
+        private void LoadGameFont() {
             try {
                 _font = UnityEngine.AddressableAssets.Addressables
                     .LoadAssetAsync<FontResource>("GAME.FNT").WaitForCompletion();
@@ -56,6 +62,31 @@ namespace BakAgain.Tests.PlayMode.UI.Localization {
             if (_font == null) {
                 Assert.Ignore("No game data to extract from.");
             }
+            _extrasBefore = new System.Collections.Generic.HashSet<int>(_font.ExtraGlyphs.Keys);
+        }
+
+        [Test]
+        public void ALetterThePackDoesNotDrawIsComposed_AndReachesTheTrueType() {
+            File.Delete(LanguagePacks.FontPathFor(_dir, "xx", "GAME.FNT"));
+            File.AppendAllText(LanguagePacks.PathFor(_dir, "xx"), "\nmsgctxt \"k2\"\nmsgid \"b\"\nmsgstr \"Café\"\n");
+            LanguagePacks.Reload();
+            LoadGameFont();
+            _font.ExtraGlyphs.Remove('é');   // in case an earlier test composed it on the cached font
+
+            LanguagePacks.MergeFont(_font);
+
+            Assert.IsNotNull(_font.GlyphFor('é'), "é composed from e");
+            string path = Path.Combine(_dir, "Composed.ttf");
+            File.WriteAllBytes(path, FntTrueType.Build(_font, "Composed"));
+            UnityEngine.TextCore.Text.FontAsset asset = UnityEngine.TextCore.Text.FontAsset.CreateFontAsset(
+                new Font(path), 90, 18, UnityEngine.TextCore.LowLevel.GlyphRenderMode.SDFAA_HINTED, 1024, 1024,
+                UnityEngine.TextCore.Text.AtlasPopulationMode.Dynamic, true);
+            Assert.IsTrue(asset.HasCharacter('é', false, true));
+        }
+
+        [Test]
+        public void ThePacksLetterIsInTheGameFontAndItsTrueType() {
+            LoadGameFont();
 
             // Loaded fresh, the provider has merged it already; an earlier test may have cached the
             // font first, which is why the merge is also called here — it is idempotent.

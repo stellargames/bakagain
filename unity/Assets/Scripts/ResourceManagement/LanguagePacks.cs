@@ -35,28 +35,36 @@ namespace BakAgain.ResourceManagement {
                 Path.GetFileNameWithoutExtension(fontId) + ".bdf");
 
         /// <summary>
-        /// Merge the active pack's BDF for <paramref name="font"/>, if it has one, so the letters
-        /// its translation uses can be drawn and measured (TASK-778). Like the text, a broken font
-        /// file is a warning, never a failed start.
+        /// Give <paramref name="font"/> every letter the active pack's text uses (TASK-778): first the
+        /// pack's own BDF, if it has one, then whatever is still missing composed from the font's
+        /// own letters (<see cref="GlyphSynthesis"/>). Like the text, a broken font file is a
+        /// warning, never a failed start.
         /// </summary>
         public static void MergeFont(FontResource font) {
             if (Current == LanguagePack.English || font.PixelFormat != FontPixelFormat.Monochrome) {
                 return;
             }
             string path = FontPathFor(BakResourceSettings.OverridePath, BakResourceSettings.Language, font.Id);
-            if (!File.Exists(path)) {
-                return;
-            }
-            try {
-                using var reader = new StreamReader(path);
-                var clipped = ResourceExtraction.Text.BdfFont.MergeInto(font, reader);
-                Debug.Log($"Language pack font {path}: {font.ExtraGlyphs.Count} glyphs merged into {font.Id}.");
-                if (clipped.Count > 0) {
-                    Debug.LogWarning($"{path}: ink outside {font.Id}'s {font.Height}-row cell was clipped for "
-                        + string.Join(", ", System.Linq.Enumerable.Select(clipped, c => $"U+{c:X4}")) + ".");
+            if (File.Exists(path)) {
+                try {
+                    using var reader = new StreamReader(path);
+                    var clipped = ResourceExtraction.Text.BdfFont.MergeInto(font, reader);
+                    Debug.Log($"Language pack font {path}: {font.ExtraGlyphs.Count} glyphs merged into {font.Id}.");
+                    if (clipped.Count > 0) {
+                        Debug.LogWarning($"{path}: ink outside {font.Id}'s {font.Height}-row cell was clipped for "
+                            + string.Join(", ", System.Linq.Enumerable.Select(clipped, c => $"U+{c:X4}")) + ".");
+                    }
+                } catch (Exception e) {
+                    Debug.LogWarning($"Language pack font {path} could not be read ({e.Message}).");
                 }
-            } catch (Exception e) {
-                Debug.LogWarning($"Language pack font {path} could not be read ({e.Message}); its letters will not draw.");
+            }
+            int before = font.ExtraGlyphs.Count;
+            var missing = GlyphSynthesis.AddComposed(font, Current.Characters());
+            Debug.Log($"{font.Id}: composed {font.ExtraGlyphs.Count - before} letters for '{Current.Locale}'.");
+            if (missing.Count > 0) {
+                Debug.LogWarning($"{font.Id} cannot draw "
+                    + string.Join(" ", System.Linq.Enumerable.Select(missing, c => $"'{char.ConvertFromUtf32(c)}' U+{c:X4}"))
+                    + $"; add them to the pack's fonts/{System.IO.Path.GetFileNameWithoutExtension(font.Id)}.bdf.");
             }
         }
 

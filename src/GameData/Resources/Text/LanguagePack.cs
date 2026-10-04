@@ -29,6 +29,19 @@ public sealed class LanguagePack {
     /// <summary>How many keys carry a translation.</summary>
     public int TranslatedCount => _text.Count(e => !string.IsNullOrEmpty(e.Value));
 
+    /// <summary>Every character the translations use, as code points — what the fonts must draw.</summary>
+    public IEnumerable<int> Characters() {
+        var seen = new HashSet<int>();
+        foreach (string text in _text.Values) {
+            for (int i = 0; i < text.Length; i += char.IsSurrogatePair(text, i) ? 2 : 1) {
+                int c = char.ConvertToUtf32(text, i);
+                if (seen.Add(c)) {
+                    yield return c;
+                }
+            }
+        }
+    }
+
     /// <summary>The translation of <paramref name="key"/>, if the pack has one.</summary>
     public bool TryGet(string key, out string text) {
         if (_text.TryGetValue(key, out string? value) && !string.IsNullOrEmpty(value)) {
