@@ -48,7 +48,8 @@ public class EmbeddedCatalogMatchesGeneratedTests {
             }
         }
         foreach (KeyValuePair<string, string> kv in embedded) {
-            if (!onDisk.ContainsKey(kv.Key)) {
+            // The port's templates are composed from the EXE entries, not extracted (TASK-776).
+            if (!onDisk.ContainsKey(kv.Key) && !kv.Key.StartsWith("port:template:", StringComparison.Ordinal)) {
                 problems.Add($"{kv.Key}: in the embedded catalog, missing from generated/");
             }
         }

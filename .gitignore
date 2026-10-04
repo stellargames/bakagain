@@ -2,4 +2,5 @@
 /unity/Assets/Plugins/netstandard2.1/GameData.*
 /unity/Assets/Plugins/netstandard2.1/ResourceExtraction.*
 /unity/Assets/Plugins/netstandard2.1/Karambolo.*
+/unity/Assets/Plugins/netstandard2.1/Jeffijoe.MessageFormat.*
 !/unity/Assets/Plugins/netstandard2.1/*.meta

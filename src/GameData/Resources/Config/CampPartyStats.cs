@@ -113,10 +113,10 @@ public static class CampPartyStats {
     public const string SeparatorKey = "base:uistring:encamp.current_of_max_separator";
 
     /// <summary>A member's health-and-stamina reading, e.g. "100 of 100".</summary>
+    /// <remarks>The original's concatenation, as a template a translation can reorder (TASK-776);
+    /// its English is built from <see cref="SeparatorKey"/>.</remarks>
     public static string HealthStaminaText(int current, int maximum) =>
-        current.ToString(System.Globalization.CultureInfo.InvariantCulture)
-        + Text.UiStrings.Get(SeparatorKey)
-        + maximum.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        Text.UiTemplates.Format(Text.UiTemplates.CurrentOfMax, ("current", current), ("max", maximum));
 
     /// <summary>
     /// Every value is centred on its column, exactly as the headings are.

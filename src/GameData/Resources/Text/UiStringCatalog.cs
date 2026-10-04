@@ -17,7 +17,13 @@ public sealed class UiStringCatalog {
 
     private readonly Dictionary<string, string> _entries;
 
-    private UiStringCatalog(Dictionary<string, string> entries) => _entries = entries;
+    private UiStringCatalog(Dictionary<string, string> entries, string locale = "en") {
+        _entries = entries;
+        Locale = locale;
+    }
+
+    /// <summary>The language the entries are in — what a template's plural rules follow (TASK-776).</summary>
+    public string Locale { get; }
 
     public IReadOnlyDictionary<string, string> Entries => _entries;
 
@@ -26,6 +32,15 @@ public sealed class UiStringCatalog {
     public string Get(string key) => _entries.TryGetValue(key, out string v) ? v : "";
 
     public bool TryGet(string key, out string value) => _entries.TryGetValue(key, out value);
+
+    /// <summary>A catalog of exactly these entries.</summary>
+    public static UiStringCatalog From(IEnumerable<KeyValuePair<string, string>> entries) {
+        var copy = new Dictionary<string, string>();
+        foreach (KeyValuePair<string, string> kv in entries) {
+            copy[kv.Key] = kv.Value;
+        }
+        return new UiStringCatalog(copy);
+    }
 
     /// <summary>Parses a flat key/value JSON document into a catalog.</summary>
     /// <exception cref="JsonException">The input is not well-formed JSON. Deliberately not
@@ -48,7 +63,7 @@ public sealed class UiStringCatalog {
                 merged[kv.Key] = kv.Value;
             }
         }
-        return new UiStringCatalog(merged);
+        return new UiStringCatalog(merged, Locale);
     }
 
     /// <summary>This catalog with every entry <paramref name="pack"/> translates replaced (TASK-773);
@@ -60,7 +75,7 @@ public sealed class UiStringCatalog {
                 translated[key] = text;
             }
         }
-        return new UiStringCatalog(translated);
+        return new UiStringCatalog(translated, string.IsNullOrEmpty(pack.Locale) ? Locale : pack.Locale);
     }
 
     private static UiStringCatalog? _embedded;
@@ -82,6 +97,11 @@ public sealed class UiStringCatalog {
                     using Stream s = asm.GetManifestResourceStream(name);
                     using var r = new StreamReader(s);
                     _embedded = FromJson(r.ReadToEnd());
+                    // The port's templates, composed from the EXE's own pieces (TASK-776), so a
+                    // pack translates them and the POT lists them like any other entry.
+                    foreach (KeyValuePair<string, string> template in UiTemplates.EnglishFor(_embedded)) {
+                        _embedded._entries[template.Key] = template.Value;
+                    }
                 }
             }
             return _embedded;

@@ -24,7 +24,10 @@ public static class PotTemplate {
             var comments = new List<POComment> {
                 new POReferenceComment { References = new List<POSourceReference> { new(entry.Source, 0) } },
             };
-            if (PrintfConversion.IsMatch(entry.Text)) {
+            if (GameData.Resources.Text.UiTemplates.IsTemplate(entry.Key)) {
+                // Weblate's flag for ICU MessageFormat: it then checks placeholders and plurals.
+                comments.Add(new POFlagsComment { Flags = new HashSet<string> { "icu-message-format" } });
+            } else if (PrintfConversion.IsMatch(entry.Text)) {
                 // gettext's own flag: the tools then check a translation keeps the conversions,
                 // and accept them reordered as %2$d (CFormat reads both).
                 comments.Add(new POFlagsComment { Flags = new HashSet<string> { "c-format" } });

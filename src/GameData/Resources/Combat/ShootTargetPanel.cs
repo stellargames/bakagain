@@ -69,8 +69,6 @@ public static class ShootTargetPanel {
     /// <summary>Drawn one pixel past the accuracy value. The damage value has none.</summary>
     public const string PercentSign = "%";
 
-    /// <summary>Follows the count on the no-target line: "<c>7 quarrels remaining</c>".</summary>
-    public const string QuarrelsRemainingLabel = "quarrels remaining";
 
     /// <summary>Top of the name line at <paramref name="index"/>, counting from zero.</summary>
     public static int NameLineTop(int index) => PromptY + LineStep * (index + 1);
@@ -152,7 +150,9 @@ public static class ShootTargetPanel {
         int statsTop = StatsTop(content.NameLines.Count);
         if (!content.HasTarget) {
             lines.Add(new HudPanelLine(
-                content.QuarrelsRemaining + " " + QuarrelsRemainingLabel, NoTargetX, statsTop));
+                // "7 quarrels remaining", through a template a translation can reorder (TASK-776).
+                Text.UiTemplates.Format(Text.UiTemplates.QuarrelsRemaining, ("count", content.QuarrelsRemaining)),
+                NoTargetX, statsTop));
             return lines;
         }
 

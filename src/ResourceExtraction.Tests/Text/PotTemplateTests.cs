@@ -59,4 +59,13 @@ public class PotTemplateTests {
             "only on the printf entry");
         Assert.Single(System.Text.RegularExpressions.Regex.Matches(pot, "c-format"));
     }
+
+    [Fact]
+    public void ATemplateIsFlaggedIcuMessageFormat() {
+        var text = new StringWriter();
+        PotTemplate.Write(new[] { new TextEntry(UiTemplates.AskedAbout, "{name} asked about:", "BaK-Again") }, text);
+
+        Assert.Contains("#, icu-message-format", text.ToString());
+        Assert.DoesNotContain("c-format", text.ToString());
+    }
 }

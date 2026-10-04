@@ -21,6 +21,7 @@ Bundled or build-time components and their licenses:
 | [Simple File Browser](https://github.com/yasirkula/UnitySimpleFileBrowser) 1.7.7 | picking the game folder | MIT |
 | [Melanchall DryWetMidi](https://github.com/melanchall/drywetmidi) 8.0.0 | building MIDI files from game audio | MIT |
 | [Karambolo.PO](https://github.com/adams85/po) 1.13.0 + Karambolo.Common 3.4.1 | reading gettext PO language packs | MIT |
+| [MessageFormat](https://github.com/jeffijoe/messageformat.net) 8.0.0 | ICU MessageFormat templates (plurals, reordering) in translations | MIT |
 | [CommunityToolkit.HighPerformance](https://github.com/CommunityToolkit/dotnet) 8.3.2 | data extraction | MIT |
 | Mono I18N (`I18N.dll`, `I18N.West.dll`) | the DOS code page (437) in players | MIT |
 | [Victor Mono](https://rubjo.github.io/victor-mono/) | debug/monospace text | SIL OFL 1.1 |

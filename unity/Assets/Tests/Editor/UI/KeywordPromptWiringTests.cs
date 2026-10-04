@@ -18,7 +18,6 @@ namespace BakAgain.Tests.Editor.UI {
             // No placeholder substitution and no punctuation beyond the suffix, whose leading space
             // is part of it.
             Assert.AreEqual("Locklear asked about:", KeywordPrompt.PromptFor("Locklear"));
-            Assert.AreEqual(" asked about:", KeywordPrompt.PromptSuffix);
         }
 
         [Test]

@@ -23,10 +23,11 @@
     </PropertyGroup>
 
     <!-- Packages Unity cannot get from its UnityNuGet registry are copied next to the plugin on the
-         Unity build (built, never committed — like the plugin itself). Only these, by package id:
-         copying every dependency would duplicate the ones Unity's registry already supplies. -->
+         Unity build (built, never committed — like the plugin itself). Only these:
+         copying every dependency would duplicate the ones Unity's registry already supplies. Matched by
+         ASSEMBLY file name, which is not always the package id (MessageFormat ships Jeffijoe.MessageFormat). -->
     <PropertyGroup>
-        <UnityCopiedPackages>;Karambolo.PO;Karambolo.Common;</UnityCopiedPackages>
+        <UnityCopiedPackages>;Karambolo.PO;Karambolo.Common;Jeffijoe.MessageFormat;</UnityCopiedPackages>
     </PropertyGroup>
     <Target Name="CopyPackagesForUnity" AfterTargets="Build" Condition=" '$(Configuration)' == 'Unity' ">
         <ItemGroup>

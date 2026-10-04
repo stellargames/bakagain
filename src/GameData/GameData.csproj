@@ -12,13 +12,14 @@
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Unity' ">
-        <DefineConstants/>
+        <DefineConstants />
         <OutputPath>..\..\unity\Assets\Plugins\</OutputPath>
         <DebugSymbols>true</DebugSymbols>
         <DebugType>full</DebugType>
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="MessageFormat" Version="8.0.0" />
         <PackageReference Include="System.Text.Json" Version="8.0.5" />
     </ItemGroup>
 

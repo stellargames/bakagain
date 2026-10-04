@@ -1374,9 +1374,13 @@ internal static class Program {
         var entries = ResourceExtraction.Text.TextInventory.Enumerate(provider).ToList();
         string exePath = Path.Combine(gamePath, "KRONDOR.EXE");
         if (File.Exists(exePath)) {
-            entries.AddRange(ExeStringManifest.Extract(File.ReadAllBytes(exePath))
+            IDictionary<string, string> exe = ExeStringManifest.Extract(File.ReadAllBytes(exePath));
+            entries.AddRange(exe
                 .OrderBy(kv => kv.Key, StringComparer.Ordinal)
                 .Select(kv => new ResourceExtraction.Text.TextEntry(kv.Key, kv.Value, "KRONDOR.EXE")));
+            // The port's sentences, composed from those pieces (TASK-776).
+            entries.AddRange(GameData.Resources.Text.UiTemplates.EnglishFor(GameData.Resources.Text.UiStringCatalog.From(exe))
+                .Select(kv => new ResourceExtraction.Text.TextEntry(kv.Key, kv.Value, "BaK-Again")));
         } else {
             Console.Error.WriteLine($"KRONDOR.EXE not found at {exePath}; its strings are not in the template.");
         }

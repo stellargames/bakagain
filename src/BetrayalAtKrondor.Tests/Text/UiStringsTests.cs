@@ -85,6 +85,11 @@ public class UiStringsTests {
         using var reader = new StreamReader(stream);
         UiStringCatalog fromStream = UiStringCatalog.FromJson(reader.ReadToEnd());
 
-        Assert.Equal(fromStream.Entries.Count, UiStringCatalog.Embedded.Entries.Count);
+        // Plus the port's templates, composed from those entries (TASK-776).
+        Assert.Equal(fromStream.Entries.Count + System.Linq.Enumerable.Count(UiTemplates.EnglishFor(fromStream)),
+            UiStringCatalog.Embedded.Entries.Count);
+        foreach (var entry in fromStream.Entries) {
+            Assert.Equal(entry.Value, UiStringCatalog.Embedded.Get(entry.Key));
+        }
     }
 }
