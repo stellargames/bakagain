@@ -75,19 +75,59 @@ public static class TextSlots {
             for (int q = 0; q < book.Pages[p].Paragraphs.Count; q++) {
                 Paragraph paragraph = book.Pages[p].Paragraphs[q];
                 if (paragraph.TextSegments.Any(s => !string.IsNullOrEmpty(s.Text))) {
-                    // ponytail: a translation replaces the paragraph as ONE run in the first segment's
-                    // style; the italic runs come back with explicit markup (TASK-774).
                     yield return new TextSlot(TextKey.BookParagraph(resourceId, p, q),
-                        () => Join(paragraph.TextSegments),
-                        t => {
-                            paragraph.TextSegments[0].Text = t;
-                            for (int i = 1; i < paragraph.TextSegments.Count; i++) {
-                                paragraph.TextSegments[i].Text = string.Empty;
-                            }
-                        });
+                        () => BookMarkup(paragraph.TextSegments),
+                        t => paragraph.TextSegments = FromBookMarkup(t, paragraph.TextSegments[0]));
                 }
             }
         }
+    }
+
+    private const string ItalicOpen = "<i>";
+    private const string ItalicClose = "</i>";
+
+    /// <summary>
+    /// A paragraph's segments as one string, the italic ones inside <c>&lt;i&gt;</c> pairs (TASK-774).
+    /// </summary>
+    /// <remarks>
+    /// Italic is the only thing the shipped books vary between a paragraph's segments — font,
+    /// colour and offset are the same in every one of the 35 multi-segment paragraphs — so it is
+    /// the only thing the markup carries. Empty segments draw nothing and are not written.
+    /// </remarks>
+    private static string BookMarkup(IEnumerable<TextSegment> segments) {
+        var text = new StringBuilder();
+        foreach (TextSegment segment in segments) {
+            if (string.IsNullOrEmpty(segment.Text)) {
+                continue;
+            }
+            bool italic = segment.FontStyle.HasFlag(FontStyle.Italic);
+            text.Append(italic ? ItalicOpen : string.Empty).Append(segment.Text).Append(italic ? ItalicClose : string.Empty);
+        }
+        return text.ToString();
+    }
+
+    /// <summary>A translation's markup back into segments, styled like <paramref name="template"/> apart from italic.</summary>
+    private static List<TextSegment> FromBookMarkup(string markup, TextSegment template) {
+        var segments = new List<TextSegment>();
+        var italic = false;
+        int at = 0;
+        while (at < markup.Length) {
+            string tag = italic ? ItalicClose : ItalicOpen;
+            int next = markup.IndexOf(tag, at, StringComparison.Ordinal);
+            int end = next < 0 ? markup.Length : next;
+            if (end > at) {
+                segments.Add(new TextSegment {
+                    Font = template.Font,
+                    YOffset = template.YOffset,
+                    Color = template.Color,
+                    FontStyle = italic ? template.FontStyle | FontStyle.Italic : template.FontStyle & ~FontStyle.Italic,
+                    Text = markup.Substring(at, end - at),
+                });
+            }
+            at = next < 0 ? markup.Length : next + tag.Length;
+            italic = !italic;
+        }
+        return segments;
     }
 
     private static IEnumerable<TextSlot> OfUserInterface(UserInterface ui, string resourceId) {
@@ -201,13 +241,5 @@ public static class TextSlots {
                 yield return new TextSlot(TextKey.MonsterName(creature.Number), () => creature.Name, t => creature.Name = t);
             }
         }
-    }
-
-    private static string Join(IEnumerable<TextSegment> segments) {
-        var text = new StringBuilder();
-        foreach (TextSegment segment in segments) {
-            text.Append(segment.Text);
-        }
-        return text.ToString();
     }
 }
