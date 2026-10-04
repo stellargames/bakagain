@@ -86,8 +86,23 @@ namespace BakAgain.Tests.PlayMode.World {
             }
         }
 
+        /// <summary>
+        /// A sprite at the camera is faded out (TASK-746, owner: fade rather than the original's hard
+        /// cull); one at the original's 1500-unit threshold or beyond is drawn whole.
+        /// </summary>
+        [Test]
+        public void ASpriteAtTheCameraIsFadedOut_ButOneAtTheThresholdIsWhole() {
+            BakAgain.World.Rendering.ClassicRenderProfile.ApplySpriteNearFade();
+            Color32 near = Render(new Color32(0, 0, 0, 255), darken: 0f, shader: "BakAgain/ClassicSprite",
+                texel: new Color32(200, 100, 50, 255), perspective: true, distance: 5f);
+            Color32 far = Render(new Color32(0, 0, 0, 255), darken: 0f, shader: "BakAgain/ClassicSprite",
+                texel: new Color32(200, 100, 50, 255), perspective: true, distance: 16f);
+            Assert.That(near.r, Is.LessThan(10), $"near {near}");
+            Assert.That(far.r, Is.GreaterThan(150), $"far {far}");
+        }
+
         private static Color32 Render(Color32 c, float darken, string shader = "BakAgain/ClassicPolygon",
-            Vector4? mapColor = null, Color32? texel = null, bool perspective = false) {
+            Vector4? mapColor = null, Color32? texel = null, bool perspective = false, float distance = 5f) {
             var go = new GameObject("quad");
             var camGo = new GameObject("cam");
             var rt = new RenderTexture(8, 8, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
@@ -113,7 +128,7 @@ namespace BakAgain.Tests.PlayMode.World {
                     mesh.uv = new[] { Vector2.zero, Vector2.up, Vector2.one, Vector2.right };
                 }
                 go.AddComponent<MeshRenderer>().sharedMaterial = material;
-                go.transform.position = new Vector3(1000, 1000, 5);
+                go.transform.position = new Vector3(1000, 1000, distance);
 
                 var cam = camGo.AddComponent<Camera>();
                 camGo.transform.position = new Vector3(1000, 1000, 0);

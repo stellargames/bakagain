@@ -28,6 +28,7 @@ Shader "BakAgain/ClassicSprite" {
                 float2 uv : TEXCOORD0;
                 float fogCoord : TEXCOORD1;
                 float spriteFog : TEXCOORD2;
+                float nearFade : TEXCOORD3;
             };
 
             CBUFFER_START(UnityPerMaterial)
@@ -45,6 +46,10 @@ Shader "BakAgain/ClassicSprite" {
             // with no range set (end <= start) the shared URP fog applies as before.
             float _BakSpriteFogStart;
             float _BakSpriteFogEnd;
+            // Near fade (TASK-746, SpriteNearFade): hidden within _BakSpriteNearHide, whole from
+            // _BakSpriteNearShow, Unity units. Unset (0,0) means no fade.
+            float _BakSpriteNearHide;
+            float _BakSpriteNearShow;
 
             Varyings vert(Attributes input) {
                 Varyings output;
@@ -89,12 +94,21 @@ Shader "BakAgain/ClassicSprite" {
                 output.spriteFog = _BakSpriteFogEnd > _BakSpriteFogStart
                     ? saturate((spriteDistance - _BakSpriteFogStart) / (_BakSpriteFogEnd - _BakSpriteFogStart))
                     : -1;
+                output.nearFade = _BakSpriteNearShow > _BakSpriteNearHide
+                    ? saturate((spriteDistance - _BakSpriteNearHide) / (_BakSpriteNearShow - _BakSpriteNearHide))
+                    : 1;
                 return output;
             }
 
             half4 frag(Varyings input) : SV_Target {
                 half4 color = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv);
                 clip(color.a - _AlphaCutoff);
+                // Ordered 4x4 dither: a screen-door fade that stays in the opaque queue.
+                if (input.nearFade < 1) {
+                    uint2 px = (uint2)input.positionCS.xy & 3;
+                    const float bayer[16] = { 0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5 };
+                    clip(input.nearFade - (bayer[px.y * 4 + px.x] + 0.5) / 16.0);
+                }
                 color.rgb = lerp(color.rgb, _FlashColor.rgb, _FlashColor.a);
                 // The sprite haze when a range is set, else URP distance fog.
                 color.rgb = input.spriteFog >= 0

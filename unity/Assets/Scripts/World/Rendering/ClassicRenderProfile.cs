@@ -117,7 +117,19 @@ namespace BakAgain.World.Rendering {
             // because the original's distance remap reaches only sprites.
             Shader.SetGlobalFloat(SpriteFogStartId, spriteFogStart);
             Shader.SetGlobalFloat(SpriteFogEndId, spriteFogEnd);
+            ApplySpriteNearFade();
         }
+
+        /// <summary>The sprite near fade, in Unity units — <see cref="GameData.Resources.World.SpriteNearFade"/>.</summary>
+        internal static void ApplySpriteNearFade() {
+            Shader.SetGlobalFloat(SpriteNearHideId,
+                GameData.Resources.World.SpriteNearFade.HiddenWithin / BakAgain.World.Converters.BakCoordinateConverter.WorldScale);
+            Shader.SetGlobalFloat(SpriteNearShowId,
+                GameData.Resources.World.SpriteNearFade.ShownFrom / BakAgain.World.Converters.BakCoordinateConverter.WorldScale);
+        }
+
+        internal static readonly int SpriteNearHideId = Shader.PropertyToID("_BakSpriteNearHide");
+        internal static readonly int SpriteNearShowId = Shader.PropertyToID("_BakSpriteNearShow");
 
         internal static readonly int SpriteFogStartId = Shader.PropertyToID("_BakSpriteFogStart");
         internal static readonly int SpriteFogEndId = Shader.PropertyToID("_BakSpriteFogEnd");
