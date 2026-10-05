@@ -543,10 +543,13 @@ namespace BakAgain.UI.InGame {
             }
         }
 
-        private void ShowFullMap() {
+        private void ShowFullMap() => ShowFullMapAsync().Forget();
+
+        private async UniTaskVoid ShowFullMapAsync() {
             if (_fullMap == null) {
                 return;
             }
+            await _session.PlaceMapMarkerAsync(_resources, this);
             _fullMap.SetMarker(_session.MapMarkerVisible, _session.MapMarkerXPercent,
                 _session.MapMarkerYPercent, _session.MapMarkerIcon);
             // The player opened this one, so it needs REQ_FMAP's Exit widget. The loading-screen

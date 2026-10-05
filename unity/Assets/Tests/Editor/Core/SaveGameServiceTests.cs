@@ -11,6 +11,7 @@ namespace BakAgain.Tests.Editor.Core {
         private GameSession _session;
         private FakeSaveGameDirectoryService _saves;
         private SaveGameService _service;
+        private FakeResourceProviderService _resources;
 
         [SetUp]
         public void SetUp() {
@@ -20,7 +21,7 @@ namespace BakAgain.Tests.Editor.Core {
                 new SaveGameBuilder().WithBackingBody().Build(),
                 GameSessionSource.NewGame);
             _saves = new FakeSaveGameDirectoryService();
-            _service = new SaveGameService(_session, _saves, new NullLogger<SaveGameService>(), new GameClock(_session));
+            _service = new SaveGameService(_session, _saves, new NullLogger<SaveGameService>(), new GameClock(_session), _resources = new FakeResourceProviderService());
         }
 
         [Test]
@@ -112,10 +113,39 @@ namespace BakAgain.Tests.Editor.Core {
                 movementAiType: 0, preferredArrowType: -1, lastSpellSymbolFile: 0,
                 floatingDamageValue: 0, floatingDamageTimer: -1);
 
+        /// <summary>
+        /// TASK-794: the header's map marker is where the party stands at the save — FMAP_XY.DAT at
+        /// the party's tile, icon from the heading (MAINMENU.C:963-970) — not the loaded header's.
+        /// </summary>
+        [Test]
+        public void SaveAsync_WritesTheMarkerForThePartysTileIntoTheHeader() {
+            var positions = new GameData.Resources.Location.FullMapPositions("FMAP_XY.DAT");
+            positions.Zones.Add(new GameData.Resources.Location.FullMapZone {
+                Markers = { null, new GameData.Resources.Location.MapMarker { X = 800, Y = 600 } },
+            });
+            var zoneRef = new GameData.Resources.World.ZoneRef("Z01REF.DAT");
+            zoneRef.Tiles.Add(new GameData.Resources.World.TileCoordinate { X = 9, Y = 9 });
+            zoneRef.Tiles.Add(new GameData.Resources.World.TileCoordinate { X = 10, Y = 20 });
+            _resources.Register("FMAP_XY.DAT", positions);
+            _resources.Register("Z01REF.DAT", zoneRef);
+            _session.CurrentZone = 1;
+            _session.PositionX = 10 * 64000 + 3;
+            _session.PositionY = 20 * 64000 + 3;
+            _session.Rotation = 0x4000;
+            _saves.WriteResult = true;
+
+            Assert.That(_service.SaveAsync("SAVES.G01", 1, "my save").AsTask().Result, Is.True);
+
+            byte[] bytes = _saves.LastWrittenBytes;
+            Assert.That(System.BitConverter.ToInt16(bytes, ResourceExtraction.SaveGameOffsets.HeaderWorldX), Is.EqualTo(160));
+            Assert.That(System.BitConverter.ToInt16(bytes, ResourceExtraction.SaveGameOffsets.HeaderWorldY), Is.EqualTo(100));
+            Assert.That(System.BitConverter.ToInt16(bytes, ResourceExtraction.SaveGameOffsets.HeaderMapIcon), Is.EqualTo(8));
+        }
+
         [Test]
         public void SaveAsync_ReturnsFalse_WhenNoActiveSession() {
             var freshSession = new GameSession(); // never Initialize'd → not active, no body
-            var service = new SaveGameService(freshSession, _saves, new NullLogger<SaveGameService>(), new GameClock(freshSession));
+            var service = new SaveGameService(freshSession, _saves, new NullLogger<SaveGameService>(), new GameClock(freshSession), new FakeResourceProviderService());
 
             bool ok = service.SaveAsync("SAVES.G01", 1, "my save").AsTask().Result;
 

@@ -136,6 +136,26 @@ namespace BakAgain.Core {
         public float MapMarkerYPercent { get; private set; }
         public int MapMarkerIcon { get; private set; }
 
+        /// <summary>
+        /// Puts the marker where the party stands now, as the original does every time the player
+        /// opens the full map and at every save (FMAP.C:89-94, MAINMENU.C:963-970) — TASK-794.
+        /// </summary>
+        public async Cysharp.Threading.Tasks.UniTask PlaceMapMarkerAsync(
+                BakAgain.ResourceManagement.IResourceProviderService resources, object owner) {
+            var positions = await resources.LoadAssetAsync<GameData.Resources.Location.FullMapPositions>(
+                "FMAP_XY.DAT", owner);
+            var zoneRef = await resources.LoadAssetAsync<GameData.Resources.World.ZoneRef>(
+                $"Z{CurrentZone:D2}REF.DAT", owner);
+            if (positions == null || zoneRef == null) {
+                return;
+            }
+            FullMapIcon m = positions.MarkerFor(CurrentZone, zoneRef, PositionX, PositionY, Rotation);
+            MapMarkerVisible = m.Visible;
+            MapMarkerXPercent = m.XPercent;
+            MapMarkerYPercent = m.YPercent;
+            MapMarkerIcon = m.IconIndex;
+        }
+
         // Live mutable state — gameplay updates these every step / tick.
         public int PartyGold { get; set; }
 
