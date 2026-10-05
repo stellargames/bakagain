@@ -58,6 +58,113 @@ namespace BakAgain.UI.FullMap {
             _viewportRegistry = viewportRegistry;
         }
 
+        // ---- town names under the pointer (TASK-793) --------------------------------------------
+
+        /// <summary>FMAP_TWN.DAT — the towns' names and positions, and the icon geometry.</summary>
+        private GameData.Resources.Location.FullMapTowns _towns;
+
+        /// <summary>The game font's glyphs in the map palette's pen 0, by character.</summary>
+        private System.Collections.Generic.Dictionary<int, Sprite> _labelGlyphs;
+
+        private RectTransform _labelRoot;
+        private int _hoverTown = -1;
+        private bool _hoverEnabled;
+
+        /// <summary>
+        /// Loads what the hover label needs, once: the town table, and the game font drawn in pen 0
+        /// of FULLMAP.PAL — <c>fmap_screen_run</c> draws the name with text style 1 (no background
+        /// fill) and ink 0 (SCREENS/FMAP.C).
+        /// </summary>
+        private async UniTask EnsureTownLabelsAsync() {
+            if (_towns == null) {
+                _towns = await _resources.LoadAssetAsync<GameData.Resources.Location.FullMapTowns>(
+                    "FMAP_TWN.DAT", owner: this);
+            }
+            if (_labelGlyphs == null) {
+                var palette = await _resources.LoadAssetAsync<GameData.Resources.Palette.PaletteResource>(
+                    "FULLMAP.PAL", owner: this);
+                Color ink = BakAgain.Graphics.PaletteColors.ResolvePen(palette, 0, Color.black);
+                _labelGlyphs = ResourceManagement.Converters.FontGlyphConverter.ToSprites(GameFonts.GameFont, ink);
+            }
+            if (_labelRoot == null && backgroundImage != null) {
+                var go = new GameObject("TownLabel", typeof(RectTransform));
+                _labelRoot = go.GetComponent<RectTransform>();
+                _labelRoot.SetParent(backgroundImage.transform, worldPositionStays: false);
+                _labelRoot.anchorMin = Vector2.zero;
+                _labelRoot.anchorMax = Vector2.one;
+                _labelRoot.offsetMin = Vector2.zero;
+                _labelRoot.offsetMax = Vector2.zero;
+            }
+        }
+
+        /// <summary>
+        /// The town under the pointer, re-tested every frame as the original's loop does, and its
+        /// name drawn only when the town changes — <c>fmap_hit_test_cursor</c> and the label block
+        /// of <c>fmap_screen_run</c> (SCREENS/FMAP.C).
+        /// </summary>
+        private void Update() {
+            // The shared pointer seam (InputDriver), so a test or the driver's fake pointer reaches it.
+            BakAgain.UI.InputCore.IPointer pointer = BakAgain.UI.InputCore.InputDriver.Pointer;
+            if (!_hoverEnabled || _towns == null || pointer == null || !pointer.CanPoint || backgroundImage == null) {
+                return;
+            }
+            int town = -1;
+            RectTransform map = backgroundImage.rectTransform;
+            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(map, pointer.ScreenPosition, null, out Vector2 local)
+                && map.rect.width > 0f && map.rect.height > 0f) {
+                // Canonical 1600x1200, top-left origin — the space the town table is in.
+                int x = Mathf.FloorToInt((local.x - map.rect.xMin) / map.rect.width * BakAgain.Graphics.Canonical.Width);
+                int y = Mathf.FloorToInt((map.rect.yMax - local.y) / map.rect.height * BakAgain.Graphics.Canonical.Height);
+                town = _towns.TownAt(x, y);
+            }
+            if (town != _hoverTown) {
+                _hoverTown = town;
+                DrawTownLabel(town);
+            }
+        }
+
+        /// <summary>The town's name in the game font's own pixels, placed in fractions of the map.</summary>
+        private void DrawTownLabel(int town) {
+            if (_labelRoot == null) {
+                return;
+            }
+            for (int i = _labelRoot.childCount - 1; i >= 0; i--) {
+                Destroy(_labelRoot.GetChild(i).gameObject);
+            }
+            if (town < 0 || _labelGlyphs == null) {
+                return;
+            }
+            GameData.Resources.Font.FontResource font = GameFonts.GameFont;
+            string name = _towns.Towns[town].Name;
+            float pixelW = (float)font.PixelWidth, pixelH = (float)font.PixelHeight;
+            int labelHeight = Mathf.RoundToInt((font.Height + 1) * pixelH);
+            (int centreX, int top) = _towns.LabelPlacement(town, labelHeight);
+            float width = 0f;
+            foreach (char c in name) {
+                width += (font.GlyphFor(c)?.Width ?? 0) * pixelW;
+            }
+            float x = centreX - width / 2f;
+            const float w = BakAgain.Graphics.Canonical.Width, h = BakAgain.Graphics.Canonical.Height;
+            foreach (char c in name) {
+                GameData.Resources.Font.FontGlyph glyph = font.GlyphFor(c);
+                float advance = (glyph?.Width ?? 0) * pixelW;
+                if (glyph != null && _labelGlyphs.TryGetValue(c, out Sprite sprite) && sprite != null) {
+                    var go = new GameObject(c.ToString(), typeof(RectTransform), typeof(Image));
+                    var rt = go.GetComponent<RectTransform>();
+                    rt.SetParent(_labelRoot, worldPositionStays: false);
+                    float glyphH = glyph.Rows.Count * pixelH;
+                    rt.anchorMin = new Vector2(x / w, 1f - (top + glyphH) / h);
+                    rt.anchorMax = new Vector2((x + advance) / w, 1f - top / h);
+                    rt.offsetMin = Vector2.zero;
+                    rt.offsetMax = Vector2.zero;
+                    Image image = go.GetComponent<Image>();
+                    image.sprite = sprite;
+                    image.raycastTarget = false;
+                }
+                x += advance;
+            }
+        }
+
         // Screen-space rect of the displayed (aspect-fitted, possibly letter-boxed) map.
         // Registered with the GameViewportRegistry while the map is up so UI Toolkit overlays
         // — the chapter-description dialog shown on top — lay out against the map area rather
@@ -265,10 +372,15 @@ namespace BakAgain.UI.FullMap {
             }
 
             // Only the player-opened map gets a way out; as a loading screen this must offer none,
-            // because the flow behind it dismisses it when the world is ready.
+            // because the flow behind it dismisses it when the world is ready. The town names
+            // belong to the same interactive loop (fmap_screen_run), so they come with it.
             if (_onExit != null) {
                 await EnsureExitButtonAsync();
+                await EnsureTownLabelsAsync();
             }
+            _hoverTown = -1;
+            DrawTownLabel(-1);
+            _hoverEnabled = _onExit != null;
             if (_exitButton != null) {
                 _exitButton.gameObject.SetActive(_onExit != null);
             }
@@ -288,6 +400,7 @@ namespace BakAgain.UI.FullMap {
             // Stop providing the map viewport before fading — once we're hiding, overlays
             // should fall back to the default (full-window) rect rather than a vanishing map.
             _viewportRegistry?.SetProvider(null);
+            _hoverEnabled = false;
             if (!gameObject.activeSelf) {
                 return;
             }

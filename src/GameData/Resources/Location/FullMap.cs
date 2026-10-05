@@ -37,6 +37,33 @@ public class FullMapTowns : IResource {
     public int IconHeight { get; set; }
 
     public List<FullMapTown> Towns { get; set; } = new();
+
+    /// <summary>
+    /// The town whose icon is under the canonical point, or -1 — <c>fmap_hit_test_cursor</c>
+    /// (SCREENS/FMAP.C:285): a box from <c>X - (IconWidth - IconAnchorX) / 2</c>, IconWidth wide and
+    /// IconHeight tall, inclusive at both ends; the first town in file order wins.
+    /// </summary>
+    public int TownAt(int x, int y) {
+        int halfW = (IconWidth - IconAnchorX) >> 1;
+        int halfH = (IconHeight - IconAnchorY) >> 1;
+        for (int i = 0; i < Towns.Count; i++) {
+            int x0 = Towns[i].X - halfW;
+            int y0 = Towns[i].Y - halfH;
+            if (x >= x0 && x <= x0 + IconWidth && y >= y0 && y <= y0 + IconHeight) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /// <summary>
+    /// Where a town's name is drawn (<c>fmap_screen_run</c>, SCREENS/FMAP.C): centred on
+    /// <c>X + IconAnchorX / 2</c>, its top one label height above the town's Y. The label height is
+    /// the game font's cell plus one row (<c>fmap_twn_load</c>), which the caller knows in its own
+    /// units.
+    /// </summary>
+    public (int CentreX, int Top) LabelPlacement(int town, int labelHeight) =>
+        (Towns[town].X + IconAnchorX / 2, Towns[town].Y - labelHeight);
 }
 
 public class FullMapTown {
