@@ -53,9 +53,48 @@ namespace BakAgain.UI.FullMap {
         private GameViewportRegistry _viewportRegistry;
 
         [Inject]
-        public void Construct(IResourceProviderService resources, GameViewportRegistry viewportRegistry) {
+        public void Construct(IResourceProviderService resources, GameViewportRegistry viewportRegistry,
+            BakAgain.UI.InputCore.InputLayerStack inputStack, IDialogManager dialogs) {
             _resources = resources;
             _viewportRegistry = viewportRegistry;
+            _inputStack = inputStack;
+            _dialogs = dialogs;
+        }
+
+        private BakAgain.UI.InputCore.InputLayerStack _inputStack;
+        private IDialogManager _dialogs;
+        private BakAgain.UI.InputCore.ActionLayer _layer;
+
+        /// <summary>Right-click help on Exit — FMAP.C:207-209.</summary>
+        private const int ExitHelpDialog = 0x80;
+
+        /// <summary>
+        /// The player's map takes the keyboard while it is up: Esc (scancode 1) and E (0x12) close
+        /// it and every other key is read and dropped (fmap_screen_run, FMAP.C:206-216) — TASK-803.
+        /// </summary>
+        private void PushInputLayer() {
+            PopInputLayer();
+            if (_inputStack == null || _onExit == null) {
+                return;
+            }
+            _layer = new BakAgain.UI.InputCore.ActionLayer("full-map",
+                onActivate: null,
+                onCancel: () => _onExit?.Invoke(),
+                skipActivates: false,
+                onAccelerator: c => {
+                    if (GameData.Resources.World.KeyScancode.Of(c) == 0x12) {
+                        _onExit?.Invoke();
+                    }
+                    return true;
+                });
+            _inputStack.Push(_layer);
+        }
+
+        private void PopInputLayer() {
+            if (_layer != null) {
+                _inputStack?.Remove(_layer);
+                _layer = null;
+            }
         }
 
         // ---- town names under the pointer (TASK-793) --------------------------------------------
@@ -105,6 +144,7 @@ namespace BakAgain.UI.FullMap {
         private void Update() {
             // The shared pointer seam (InputDriver), so a test or the driver's fake pointer reaches it.
             BakAgain.UI.InputCore.IPointer pointer = BakAgain.UI.InputCore.InputDriver.Pointer;
+            PollExitButton(pointer);
             if (!_hoverEnabled || _towns == null || pointer == null || !pointer.CanPoint || backgroundImage == null) {
                 return;
             }
@@ -120,6 +160,25 @@ namespace BakAgain.UI.FullMap {
             if (town != _hoverTown) {
                 _hoverTown = town;
                 DrawTownLabel(town);
+            }
+        }
+
+        /// <summary>
+        /// Exit, polled like the town names: this canvas has no uGUI EventSystem, so the Button's
+        /// own onClick never fires — a click on Exit did nothing and the player's map could only be
+        /// left by keyboard (TASK-803). Left closes; right is the button's help (FMAP.C:206-210).
+        /// </summary>
+        private void PollExitButton(BakAgain.UI.InputCore.IPointer pointer) {
+            if (_onExit == null || _exitButton == null || !_exitButton.gameObject.activeInHierarchy
+                || pointer == null || !pointer.CanPoint
+                || !RectTransformUtility.RectangleContainsScreenPoint(
+                    _exitButton.rectTransform, pointer.ScreenPosition, null)) {
+                return;
+            }
+            if (pointer.Primary.ReleasedThisFrame) {
+                _onExit.Invoke();
+            } else if (pointer.Secondary.ReleasedThisFrame) {
+                _dialogs?.ShowById(ExitHelpDialog).Forget();
             }
         }
 
@@ -323,7 +382,7 @@ namespace BakAgain.UI.FullMap {
             _exitButton.sprite = await _resources.LoadAssetAsync<Sprite>(
                 GameData.Resources.Menu.UiElement.IconKeyForCombined(entry.IconBase), owner: this);
             _exitButton.raycastTarget = true;
-            go.GetComponent<Button>().onClick.AddListener(() => _onExit?.Invoke());
+            // Clicks are polled in PollExitButton; there is no EventSystem for onClick (TASK-803).
         }
 
         // IScreen: shown/hidden only by the ScreenNavigator.
@@ -381,6 +440,7 @@ namespace BakAgain.UI.FullMap {
             _hoverTown = -1;
             DrawTownLabel(-1);
             _hoverEnabled = _onExit != null;
+            PushInputLayer();
             if (_exitButton != null) {
                 _exitButton.gameObject.SetActive(_onExit != null);
             }
@@ -401,6 +461,7 @@ namespace BakAgain.UI.FullMap {
             // should fall back to the default (full-window) rect rather than a vanishing map.
             _viewportRegistry?.SetProvider(null);
             _hoverEnabled = false;
+            PopInputLayer();
             if (!gameObject.activeSelf) {
                 return;
             }
