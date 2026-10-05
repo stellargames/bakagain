@@ -47,6 +47,11 @@ public static class UiTemplates {
     public const string BootGameDirectory = "port:template:boot_game_directory";
     public const string BootContinue = "port:template:boot_continue";
 
+    // The touch controls' own words; the original had no touch screen.
+    public const string TouchMove = "port:template:touch_move";
+    public const string TouchCast = "port:template:touch_cast";
+    public const string TouchCastHere = "port:template:touch_cast_here";
+
     /// <summary>CHEAT CENTRAL's subtitle.</summary>
     public const string CheatCentralSubtitle = "port:template:cheat_central_subtitle";
 
@@ -56,6 +61,9 @@ public static class UiTemplates {
         (CurrentOfMax, c => "{current}" + Literal(c.Get("base:uistring:encamp.current_of_max_separator")) + "{max}"),
         // Port text with no EXE source: the English lives here, and a pack translates it by key.
         (PartyPickerCancel, _ => "Cancel"),
+        (TouchMove, _ => "Move"),
+        (TouchCast, _ => "Cast"),
+        (TouchCastHere, _ => "Cast here"),
         (BootLoading, _ => Literal("Loading Betrayal at Krondor... please wait.")),
         (BootDataFiles, _ => Literal("This game requires the original data files of the \"Betrayal at Krondor\" game. "
             + "If you do not have a copy of that game you can buy one at "

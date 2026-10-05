@@ -66,9 +66,9 @@ namespace BakAgain.UI.InGame {
                 RegisterHold(_pads[id], id, reqArrow: false);
             }
             _grid = Button("touch-grid", "#", _state.RequestGridToggle);
-            _thrust = Button("touch-thrust", "Thrust", () => MeleeRequested?.Invoke(true));
-            _swing = Button("touch-swing", "Swing", () => MeleeRequested?.Invoke(false));
-            _move = Button("touch-move", "Move", () => MoveRequested?.Invoke());
+            _thrust = Button("touch-thrust", GameData.Resources.Text.UiStrings.Get("base:uistring:combat.weapon_table_thrust"), () => MeleeRequested?.Invoke(true));
+            _swing = Button("touch-swing", GameData.Resources.Text.UiStrings.Get("base:uistring:combat.weapon_table_swing"), () => MeleeRequested?.Invoke(false));
+            _move = Button("touch-move", GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.TouchMove), () => MoveRequested?.Invoke());
             _right.Add(_grid);
             _right.Add(_thrust);
             _right.Add(_swing);
@@ -263,8 +263,9 @@ namespace BakAgain.UI.InGame {
             bool onTarget = _inFight && _state.CursorContext == CursorContext.Target;
             bool onGround = _inFight && _state.CursorContext == CursorContext.Ground;
             bool casting = _inFight && _state.AwaitingTarget;
-            SetLabel(_thrust, casting ? "Cast" : "Thrust");
-            SetLabel(_move, casting ? "Cast here" : "Move");
+            SetLabel(_thrust, casting ? GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.TouchCast)
+                : GameData.Resources.Text.UiStrings.Get("base:uistring:combat.weapon_table_thrust"));
+            SetLabel(_move, GameData.Resources.Text.UiTemplates.Format(casting ? GameData.Resources.Text.UiTemplates.TouchCastHere : GameData.Resources.Text.UiTemplates.TouchMove));
             Place(_thrust, bx, h * _layout.ThrustY, bw, bh, onTarget);
             Place(_swing, bx, h * _layout.SwingY, bw, bh, onTarget && !casting);
             Place(_move, bx, h * _layout.ThrustY, bw, bh, onGround);
