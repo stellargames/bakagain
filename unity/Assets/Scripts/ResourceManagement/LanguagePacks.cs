@@ -25,6 +25,13 @@ namespace BakAgain.ResourceManagement {
         /// setting and the file.</summary>
         public static void Reload() => _current = null;
 
+        /// <summary>
+        /// A boot screen's text: shown before the game data — and so before the UI string catalog
+        /// — is installed, it reads the embedded catalog through the active pack itself.
+        /// </summary>
+        public static string BootText(string key) =>
+            UiTemplates.Format(UiStringCatalog.Embedded.TranslatedBy(Current), key);
+
         /// <summary>The pack file a locale is read from, under the override folder.</summary>
         public static string PathFor(string overridePath, string locale) =>
             Path.Combine(overridePath ?? string.Empty, "Lang", locale, locale + ".po");
