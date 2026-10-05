@@ -20,14 +20,18 @@ namespace BakAgain.Core {
         /// <c>bool_NonRotatingMap</c>, toggled by 'N' on the map screen (CD build only).
         /// </summary>
         /// <remarks>
-        /// Off by default, matching the original's own default: the map turns with the party unless
-        /// the player says otherwise. What the flag then changes is split across two places on
+        /// <b>Defaults to RESOURCE.CFG's <c>nonrotatingmap</c></b>, which the shipped CD install sets
+        /// to 1 — so the original, as players ran it, held north up. A folder without the key falls
+        /// back to north up as well (owner, 2026-10-05). The player's own toggle, once made, wins.
+        /// What the flag then changes is split across two places on
         /// purpose — see <c>LocalMapScreen.MapRendersWithYaw</c> for the camera and
         /// <c>OverheadMapMarker.IconIndexFor</c> for the marker — because the heading goes into
         /// exactly one of them.
         /// </remarks>
         public static bool NorthUpMap {
-            get => PlayerPrefs.GetInt(NorthUpMapKey, 0) == 1;
+            get => PlayerPrefs.HasKey(NorthUpMapKey)
+                ? PlayerPrefs.GetInt(NorthUpMapKey, 0) == 1
+                : BakAgain.ResourceManagement.BakResourceSettings.ResourceConfig.NonRotatingMap ?? true;
             set {
                 PlayerPrefs.SetInt(NorthUpMapKey, value ? 1 : 0);
                 PlayerPrefs.Save();

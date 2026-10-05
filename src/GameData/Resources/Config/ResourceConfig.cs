@@ -20,6 +20,12 @@ public sealed class ResourceConfig {
     /// <summary>"bookmarkverify": the bookmark's confirmation prompt, on unless set to 0.</summary>
     public bool BookmarkVerify { get; private set; } = true;
 
+    /// <summary>
+    /// "NonRotatingMap" (CD build, CFGPARSE.C:88-91): the overhead map holds north up. Null when the
+    /// file does not set it — the caller decides the default.
+    /// </summary>
+    public bool? NonRotatingMap { get; private set; }
+
     /// <summary>The value length that unlocks <see cref="KnockKnock"/>.</summary>
     public const int KnockKnockValueLength = 29;
 
@@ -39,6 +45,10 @@ public sealed class ResourceConfig {
                 i += 2;
             } else if (key.Equals("bookmarkverify", StringComparison.OrdinalIgnoreCase)) {
                 config.BookmarkVerify = int.TryParse(Clip(tokens[i + 2]), out int v) ? v != 0 : false;
+                i += 2;
+            } else if (key.Equals("nonrotatingmap", StringComparison.OrdinalIgnoreCase)) {
+                // atoi: anything that is not a number reads as 0.
+                config.NonRotatingMap = int.TryParse(Clip(tokens[i + 2]), out int v) && v != 0;
                 i += 2;
             }
         }
