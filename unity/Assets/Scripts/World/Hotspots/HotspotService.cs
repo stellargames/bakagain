@@ -4064,7 +4064,7 @@ using GameData.Resources.Scene;
             // school buttons — the field layout offers a combatant the field's spells and hides
             // every combat one behind a disabled stone (TASK-367).
             screen.CombatCaster = acting;
-            await navigator.Push(screen);
+            await screen.PushAsync(navigator);
             await screen.SelectCaster(slot);
         }
 

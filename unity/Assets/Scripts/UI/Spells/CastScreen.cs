@@ -145,6 +145,7 @@ namespace BakAgain.UI.Spells {
             }
 
             _ui.Built += OnBuilt;
+            CoverWithSnapshot();
 
             // Reconcile against IsBuilt, not just the event: the loader's build is cached and async,
             // so it can finish BEFORE a sibling component subscribes and the event never arrives.
@@ -177,6 +178,8 @@ namespace BakAgain.UI.Spells {
         /// </remarks>
         private void OnDisable() {
             RememberSelection();
+            EndOpenWipe();
+            _fillFrame = -1;
             // Both halves of "this open is over". CombatCaster going null puts the FIELD layout
             // back for whoever opens next, which is why no field caller has to remember to; and
             // CasterId has to go with it, because ApplyInitialSelectionAsync is what re-resolves
@@ -222,7 +225,9 @@ namespace BakAgain.UI.Spells {
         }
 
         private void OnBuilt(IReadOnlyList<BakAgain.UI.InputCore.NavWidget> widgets) {
-            OpenAsync().Forget();
+            // The loaders create the stage after OnEnable laid the cover, so lift it back on top.
+            _wipeCover?.BringToFront();
+            OpenThenWipeAsync().Forget();
             // *** IN A FIGHT THE STRIP BELONGS TO THE COMBAT HUD, NOT THE TRAVEL HUD. ***
             // The original overlays only the world-view rect (see ChromeSplitY) and leaves whatever
             // was beneath it showing: in the field that is the travel HUD's heads and compass, in a
@@ -317,6 +322,153 @@ namespace BakAgain.UI.Spells {
         private async UniTask OpenAsync() {
             await ApplyInitialSelectionAsync();
             await DrawRingAndNamesAsync();
+        }
+
+        private async UniTask OpenThenWipeAsync() {
+            await OpenAsync();
+            await PlayOpenWipeAsync();
+        }
+
+        // ------------------------------------------------------------ the opening wipe (TASK-815)
+
+        private Texture2D _openingSnapshot;
+        private VisualElement _wipeCover;
+        private readonly List<VisualElement> _wipeCurtains = new();
+
+        /// <summary>
+        /// Raises the screen the way the original opens it: a copy of what was showing, then the
+        /// panel revealed over the world view from the centre outward
+        /// (<see cref="CastOpenWipe"/>). Openers call this instead of pushing directly.
+        /// </summary>
+        /// <remarks>
+        /// <b>The copy has to be taken before the push.</b> Pushing deactivates the travel HUD,
+        /// whose RenderTexture is the world view, so afterwards there is nothing left to reveal the
+        /// panel over. The original does the same thing in its own terms: it copies the front page
+        /// into the back page before the cast panel is drawn (CSPELL.C:2114).
+        /// </remarks>
+        public async UniTask PushAsync(BakAgain.UI.Navigation.IScreenNavigator navigator) {
+            await Awaitable.EndOfFrameAsync();
+            DestroySnapshot();
+            // The screen's alpha is not coverage — the panel leaves it at zero — so the capture is
+            // copied into an opaque texture, or the cover draws as a hole.
+            Texture2D shot = ScreenCapture.CaptureScreenshotAsTexture();
+            _openingSnapshot = new Texture2D(shot.width, shot.height, TextureFormat.RGB24, false);
+            _openingSnapshot.SetPixels32(shot.GetPixels32());
+            _openingSnapshot.Apply();
+            Destroy(shot);
+            await navigator.Push(this);
+        }
+
+        /// <summary>The whole screen as it was, over everything, until the wipe takes over.</summary>
+        private void CoverWithSnapshot() {
+            VisualElement root = GetComponent<UIDocument>()?.rootVisualElement;
+            if (_openingSnapshot == null || root == null) {
+                return;
+            }
+            _wipeCover = SnapshotImage(0, 0, root.layout.width, root.layout.height, fill: true);
+            root.Add(_wipeCover);
+        }
+
+        private async UniTask PlayOpenWipeAsync() {
+            VisualElement root = GetComponent<UIDocument>()?.rootVisualElement;
+            VisualElement stage = Stage();
+            if (_openingSnapshot == null || root == null || stage == null) {
+                EndOpenWipe();
+                return;
+            }
+            // A cached build can finish before the panel's first layout pass; the rect is NaN until then.
+            Rect wb = stage.worldBound;
+            for (int wait = 0; wait < 30 && (float.IsNaN(wb.width) || float.IsNaN(root.layout.width)); wait++) {
+                await UniTask.Yield();
+                wb = stage.worldBound;
+            }
+            if (float.IsNaN(wb.width) || wb.width <= 0 || _openingSnapshot == null) {
+                EndOpenWipe();
+                return;
+            }
+
+            // Canonical -> panel. The cover and curtains live on the root, in panel space, so the
+            // snapshot (a screen image) lines up with the screen whatever the stage's fit.
+            float sx = wb.width / Canonical.Width;
+            float sy = wb.height / Canonical.Height;
+            float rootW = root.layout.width;
+            float rootH = root.layout.height;
+            (int rx, int ry, int rw, int rh) = CastOpenWipe.CanonicalRect;
+            float top = wb.y + ry * sy;
+            float height = rh * sy;
+
+            // The party bar and the frame outside the rect arrive at once; only the rect wipes.
+            _wipeCover?.RemoveFromHierarchy();
+            _wipeCover = null;
+            VisualElement left = Curtain(root, rootW, rootH);
+            VisualElement right = Curtain(root, rootW, rootH);
+
+            float tick = 1f / (float)CastOpenWipe.TicksPerSecond;
+            for (int step = 1; step <= CastOpenWipe.StepCount && _openingSnapshot != null; step++) {
+                (int bx, int bw) = CastOpenWipe.RevealedBand(step);
+                PlaceCurtain(left, wb.x + rx * sx, top, (bx - rx) * sx, height);
+                PlaceCurtain(right, wb.x + (bx + bw) * sx, top, (rx + rw - bx - bw) * sx, height);
+                await UniTask.Delay(System.TimeSpan.FromSeconds(tick), ignoreTimeScale: true);
+            }
+            EndOpenWipe();
+        }
+
+        private VisualElement Curtain(VisualElement root, float rootW, float rootH) {
+            var curtain = new VisualElement {
+                name = "cast_wipe_curtain",
+                pickingMode = PickingMode.Ignore,
+                style = { position = Position.Absolute, overflow = Overflow.Hidden },
+            };
+            curtain.Add(SnapshotImage(0, 0, rootW, rootH, fill: false));
+            root.Add(curtain);
+            _wipeCurtains.Add(curtain);
+            return curtain;
+        }
+
+        private static void PlaceCurtain(VisualElement curtain, float x, float y, float w, float h) {
+            curtain.style.left = x;
+            curtain.style.top = y;
+            curtain.style.width = Mathf.Max(0f, w);
+            curtain.style.height = h;
+            // The snapshot inside stays pinned to the screen while its window moves.
+            VisualElement image = curtain[0];
+            image.style.left = -x;
+            image.style.top = -y;
+        }
+
+        private VisualElement SnapshotImage(float x, float y, float w, float h, bool fill) {
+            var image = new VisualElement {
+                name = "cast_wipe_snapshot",
+                pickingMode = PickingMode.Ignore,
+                style = {
+                    position = Position.Absolute,
+                    backgroundImage = Background.FromTexture2D(_openingSnapshot),
+                    backgroundSize = new BackgroundSize(Length.Percent(100), Length.Percent(100)),
+                },
+            };
+            if (fill) {
+                image.style.left = 0; image.style.top = 0; image.style.right = 0; image.style.bottom = 0;
+            } else {
+                image.style.left = x; image.style.top = y; image.style.width = w; image.style.height = h;
+            }
+            return image;
+        }
+
+        private void EndOpenWipe() {
+            _wipeCover?.RemoveFromHierarchy();
+            _wipeCover = null;
+            foreach (VisualElement curtain in _wipeCurtains) {
+                curtain.RemoveFromHierarchy();
+            }
+            _wipeCurtains.Clear();
+            DestroySnapshot();
+        }
+
+        private void DestroySnapshot() {
+            if (_openingSnapshot != null) {
+                Destroy(_openingSnapshot);
+                _openingSnapshot = null;
+            }
         }
 
         /// <summary>
@@ -1040,7 +1192,7 @@ namespace BakAgain.UI.Spells {
         private void Update() {
             _compass?.Refresh();
 
-            if (_pointer == null || _ring?.Positions == null || !Tracks(_pointer)) {
+            if (_pointer == null || _ring?.Positions == null || !Tracks(_pointer) || _fillFrame >= 0) {
                 return;
             }
 
@@ -1172,6 +1324,7 @@ namespace BakAgain.UI.Spells {
                 return;
             }
 
+            await PlayRingFillAsync();
             await RefreshHoverAsync();
         }
 
@@ -1277,6 +1430,52 @@ namespace BakAgain.UI.Spells {
                 CommittedSpell = spell;
             }
             Committed?.Invoke(_sliderSpell, power, duration);
+        }
+
+        /// <summary>The frame of the slider's opening sweep being shown, or -1.</summary>
+        private int _fillFrame = -1;
+
+        /// <summary>
+        /// The ring turning over and the band growing to the caster's reach before the slider
+        /// takes input — <see cref="CastRingLayout.FillIconAt"/>.
+        /// </summary>
+        /// <remarks>
+        /// One frame per <c>screen_frame_present</c> in the original. ponytail: paced at the VGA
+        /// refresh (70 Hz) on the assumption that the present waits for the retrace the open
+        /// transition hooked; not yet measured against the running original.
+        /// </remarks>
+        private async UniTask PlayRingFillAsync() {
+            VisualElement stage = Stage();
+            if (stage == null || _ring?.Positions == null) {
+                return;
+            }
+            int spell = _sliderSpell;
+            int frames = CastRingLayout.FillFrameCount(_maximumPower);
+            for (int f = 0; f < frames && _sliderSpell == spell && isActiveAndEnabled; f++) {
+                _fillFrame = f;
+                await PaintRingIconsAsync(stage);
+                await UniTask.Delay(System.TimeSpan.FromSeconds(1.0 / RingFillFramesPerSecond),
+                    ignoreTimeScale: true);
+            }
+            _fillFrame = -1;
+        }
+
+        private const double RingFillFramesPerSecond = 70.0;
+
+        /// <summary>Re-skins the ring's existing icons without rebuilding the screen.</summary>
+        private async UniTask PaintRingIconsAsync(VisualElement stage) {
+            for (var i = 0; i < _ring.Positions.Count; i++) {
+                VisualElement element = stage.Q<VisualElement>($"ring_{i}");
+                if (element == null) {
+                    continue;
+                }
+                var sprite = await _resources.GetOrLoadAsync<Sprite>($"{CastRingLayout.IconSet}#{IconAt(i)}");
+                if (sprite != null) {
+                    element.style.backgroundImage = new StyleBackground(sprite);
+                    element.style.width = sprite.rect.width;
+                    element.style.height = sprite.rect.height;
+                }
+            }
         }
 
         private async UniTask RefreshHoverAsync() {
@@ -1526,6 +1725,9 @@ namespace BakAgain.UI.Spells {
         /// mark their fifths (TASK-755).
         /// </remarks>
         private int IconAt(int position) {
+            if (_fillFrame >= 0) {
+                return CastRingLayout.FillIconAt(_fillFrame, position, _minimumPower, _maximumPower);
+            }
             if (_sliderSpell < 0) {
                 return CastRingLayout.IconFor(baseIcon, position, markAnchors: true);
             }

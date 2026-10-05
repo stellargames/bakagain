@@ -1511,7 +1511,7 @@ namespace BakAgain.UI.InGame {
                     // The button is already greyed out when nobody can cast (see the enable pass
                     // above), so reaching here means the party has a caster.
                     if (_castScreen != null) {
-                        _navigator.Push(_castScreen).Forget();
+                        _castScreen.PushAsync(_navigator).Forget();
                     }
 
                     break;
