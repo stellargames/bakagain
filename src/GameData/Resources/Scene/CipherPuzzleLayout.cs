@@ -377,28 +377,24 @@ public static class CipherPuzzleLayout {
         System.Array.ConvertAll(LatchOriginsVga(), p => (p.X * 5, p.Y * 6));
 
     /// <summary>
-    /// The two refusals a gated puzzle gives, recorded and NOT ported.
+    /// The help a secondary click gives: 0xcd on a tumbler ("Left click on the tumbler to turn
+    /// it..."), 0xce on Exit ("Left click on this button to exit the puzzle...").
     /// </summary>
     /// <remarks>
-    /// <b>CIPHER.C:165 and :174 play 0xcd and 0xce when <c>menupage_state_0e7c() != 1</c></b> — a
-    /// wheel click and a solve attempt respectively, each refused with its own line.
-    ///
-    /// <para><b>The gate IS established: it is the mouse button, not a mode.</b>
-    /// <c>menupage_state_0e7c</c> returns <c>g_wMenuDragState</c>, which
-    /// <see cref="GameData.Resources.Menu.MenuClickButton"/> documents as 1 = primary, 2 = secondary,
-    /// 0 = nothing held. So <c>!= 1</c> refuses anything that is not a left click — and note
-    /// MenuClickButton's own warning that <c>!= 1</c> lumps "nothing held" in with the secondary
-    /// button, which is right only where a click cannot be reached with no button down.
-    /// The earlier note here cited TASK-514 as leaving this unread; that task is Done.</para>
-    ///
-    /// <para><b>Deliberately callerless.</b> Still unwired — the cipher screen does not yet route a
-    /// secondary click to these refusals; the ids and the rule are recorded so it can.</para>
+    /// CIPHER.C:157-176 plays them when <c>menupage_state_0e7c() != 1</c> — that is the mouse button
+    /// (<see cref="GameData.Resources.Menu.MenuClickButton"/>: 1 = primary), not a mode. They were
+    /// recorded here as "refusals"; the text says what they are (TASK-802).
     /// </remarks>
-    public const int RefusedTurnDialog = 0xcd;
+    public const int TumblerHelpDialog = 0xcd;
 
-    /// <inheritdoc cref="RefusedTurnDialog"/>
-    /// <remarks><b>Deliberately callerless.</b> See RefusedTurnDialog.</remarks>
-    public const int RefusedSolveDialog = 0xce;
+    /// <inheritdoc cref="TumblerHelpDialog"/>
+    public const int ExitHelpDialog = 0xce;
+
+    /// <summary>The help record for a secondary click on <paramref name="actionId"/>, or 0.</summary>
+    public static int HelpDialogFor(int actionId) =>
+        actionId >= FirstColumnActionId && actionId <= 0x93 ? TumblerHelpDialog
+        : actionId == 0x12 ? ExitHelpDialog
+        : 0;
 
     /// <summary>
     /// How long the alien-to-readable dissolve takes, in seconds.
