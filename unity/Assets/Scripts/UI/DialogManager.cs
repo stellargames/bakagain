@@ -1231,7 +1231,7 @@ namespace BakAgain.UI {
             if (labels == null) {
                 labels = new System.Collections.Generic.List<string>();
                 if (branches == null || branches.Count == 0) {
-                    labels.Add("OK");
+                    labels.Add(GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.Ok)); // TASK-775
                 } else {
                     for (int i = 0; i < branches.Count; i++) {
                         labels.Add(ResolveChoiceLabel(keywords, branches[i], i));

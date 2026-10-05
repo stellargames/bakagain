@@ -58,13 +58,13 @@ public static class ShootTargetPanel {
     public const int NoTargetX = LabelX + 5;
 
     /// <summary>The heading, centred on <see cref="CentreX"/>.</summary>
-    public const string Prompt = "Choose a target";
+    public static string Prompt => Text.UiStrings.Get("base:uistring:combat.choose_target_ranged"); // TASK-775: the EXE's own entry, so a pack translates it
 
     /// <summary>Label of the hit-chance row.</summary>
-    public const string AccuracyLabel = "Accuracy:";
+    public static string AccuracyLabel => Text.UiStrings.Get("base:uistring:combat.accuracy_label_ranged"); // TASK-775: the EXE's own entry, so a pack translates it
 
     /// <summary>Label of the damage row.</summary>
-    public const string DamageLabel = "Damage:";
+    public static string DamageLabel => Text.UiStrings.Get("base:uistring:combat.damage_label_ranged"); // TASK-775: the EXE's own entry, so a pack translates it
 
     /// <summary>Drawn one pixel past the accuracy value. The damage value has none.</summary>
     public const string PercentSign = "%";

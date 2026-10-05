@@ -66,22 +66,22 @@ public static class MeleeStatsPanel {
     public const int SwingAccuracyCentreX = 0xbc - 0x17;
 
     /// <summary>Column headings.</summary>
-    public const string ThrustHeading = "Thrust";
+    public static string ThrustHeading => Text.UiStrings.Get("base:uistring:combat.weapon_table_thrust"); // TASK-775: the EXE's own entry, so a pack translates it
 
     /// <inheritdoc cref="ThrustHeading"/>
-    public const string SwingHeading = "Swing";
+    public static string SwingHeading => Text.UiStrings.Get("base:uistring:combat.weapon_table_swing"); // TASK-775: the EXE's own entry, so a pack translates it
 
     /// <summary>Row labels.</summary>
-    public const string DamageLabel = "Damage";
+    public static string DamageLabel => Text.UiStrings.Get("base:uistring:combat.weapon_table_damage"); // TASK-775: the EXE's own entry, so a pack translates it
 
     /// <inheritdoc cref="DamageLabel"/>
-    public const string AccuracyLabel = "Accuracy";
+    public static string AccuracyLabel => Text.UiStrings.Get("base:uistring:combat.weapon_table_accuracy"); // TASK-775: the EXE's own entry, so a pack translates it
 
     /// <summary>The mouse-button labels on the bottom row.</summary>
-    public const string ThrustButton = "Left";
+    public static string ThrustButton => Text.UiStrings.Get("base:uistring:combat.weapon_table_left"); // TASK-775: the EXE's own entry, so a pack translates it
 
     /// <inheritdoc cref="ThrustButton"/>
-    public const string SwingButton = "Right";
+    public static string SwingButton => Text.UiStrings.Get("base:uistring:combat.weapon_table_right"); // TASK-775: the EXE's own entry, so a pack translates it
 
     /// <summary>Palette pens of the two rows of the bevelled rule, in draw order.</summary>
     public static readonly int[] RulePens = { 2, 3 };

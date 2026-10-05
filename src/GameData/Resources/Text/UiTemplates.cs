@@ -26,10 +26,50 @@ public static class UiTemplates {
     /// <summary>"<c>{current}</c> of <c>{max}</c>" — the camp screen's health and stamina.</summary>
     public const string CurrentOfMax = "port:template:current_of_max";
 
+    /// <summary>"Cancel" — the party picker's last row; no EXE entry carries it alone.</summary>
+    public const string PartyPickerCancel = "port:template:party_picker_cancel";
+
+    /// <summary>"GoodBye" — the ask-about menu's farewell, a literal in ASKABOUT.C:310.</summary>
+    public const string Farewell = "port:template:farewell";
+
+    /// <summary>"OK" — the button of a dialog record with no branches.</summary>
+    public const string Ok = "port:template:ok";
+
+    /// <summary>"Give: <c>{n}</c>", with " (All)" at the maximum — INVINSP.C:90-98, from the
+    /// EXE's own pieces. <c>{max}</c> is <c>yes</c> or <c>no</c>.</summary>
+    public const string QuantityGive = "port:template:quantity_give";
+
+    // The boot screens, shown before the game data is found (TASK-775, decision 5: one system).
+    public const string BootLoading = "port:template:boot_loading";
+    public const string BootDataFiles = "port:template:boot_data_files";
+    public const string BootEnableOverrides = "port:template:boot_enable_overrides";
+    public const string BootOverrideDirectory = "port:template:boot_override_directory";
+    public const string BootGameDirectory = "port:template:boot_game_directory";
+    public const string BootContinue = "port:template:boot_continue";
+
+    /// <summary>CHEAT CENTRAL's subtitle.</summary>
+    public const string CheatCentralSubtitle = "port:template:cheat_central_subtitle";
+
     private static readonly (string Key, Func<UiStringCatalog, string> English)[] Templates = {
         (AskedAbout, c => "{name}" + Literal(c.Get("base:uistring:dialog.asked_about_suffix"))),
         (QuarrelsRemaining, c => "{count} " + Literal(c.Get("base:uistring:combat.quarrels_remaining"))),
         (CurrentOfMax, c => "{current}" + Literal(c.Get("base:uistring:encamp.current_of_max_separator")) + "{max}"),
+        // Port text with no EXE source: the English lives here, and a pack translates it by key.
+        (PartyPickerCancel, _ => "Cancel"),
+        (BootLoading, _ => Literal("Loading Betrayal at Krondor... please wait.")),
+        (BootDataFiles, _ => Literal("This game requires the original data files of the \"Betrayal at Krondor\" game. "
+            + "If you do not have a copy of that game you can buy one at "
+            + "<a href=\"https://www.gog.com/game/betrayal_at_krondor\"><u>GOG</u> (https://www.gog.com/game/betrayal_at_krondor)</a>"
+            + "\n\nIt is possible to customize/mod/override all the game data by placing files in an override folder.")),
+        (BootEnableOverrides, _ => "Enable overrides"),
+        (BootOverrideDirectory, _ => "Override directory"),
+        (BootGameDirectory, _ => "Game files directory"),
+        (BootContinue, _ => "Continue"),
+        (Farewell, _ => "GoodBye"),
+        (Ok, _ => "OK"),
+        (QuantityGive, c => Literal(c.Get("base:uistring:quantity.give_prefix")) + "{n}{max, select, yes {"
+            + Literal(c.Get("base:uistring:quantity.all_suffix")) + "} other {}}"),
+        (CheatCentralSubtitle, _ => Literal("Enjoy with caution...")),
     };
 
     /// <summary>Whether a catalog key is one of these templates (its text is MessageFormat, not plain).</summary>

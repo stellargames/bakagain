@@ -24,7 +24,7 @@ public static class PartyMemberPicker {
     public const int FirstActionId = KeywordMenu.FirstKeywordActionId;
 
     /// <summary>The last button's label, which is not a party member.</summary>
-    public const string CancelLabel = "Cancel";
+    public static string CancelLabel => Text.UiTemplates.Format(Text.UiTemplates.PartyPickerCancel); // TASK-775
 
     /// <summary>Buttons the row has: one per active member, plus cancel.</summary>
     public static int ButtonCount(int activePartyMembers) => activePartyMembers + 1;

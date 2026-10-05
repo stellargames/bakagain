@@ -32,6 +32,6 @@ public sealed class QuantityPickerModel {
     /// <summary>The accept-button text (INVINSP.C:90-98): "Give: N", with " (All)" at the
     /// maximum; 0 reads "None: (Cancel)" — and accepting there cancels.</summary>
     public string Label => Value == 0
-        ? "None: (Cancel)"
-        : "Give: " + Value + (Value == Max ? " (All)" : string.Empty);
+        ? Text.UiStrings.Get("base:uistring:quantity.none_cancel")
+        : Text.UiTemplates.Format(Text.UiTemplates.QuantityGive, ("n", Value), ("max", Value == Max ? "yes" : "no"));
 }
