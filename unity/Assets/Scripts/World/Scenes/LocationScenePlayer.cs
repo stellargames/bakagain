@@ -250,6 +250,16 @@ namespace BakAgain.World.Scenes {
                 PlayTrackAsync(scene.Song).Forget();
             }
 
+            // g_dialog_in_scene: a party speaker stands on the script's slot-5 backdrop (TASK-810).
+            var dialogs = ResolveOptional<UI.IDialogManager>();
+            if (dialogs != null) {
+                dialogs.SceneSpeakerBackdrop = () =>
+                    _presenter.TryGetSlotResources(GameData.Resources.Dialog.PartySpeakerBackdrop.Slot,
+                        out string image, out string palette)
+                        ? (image, palette)
+                        : null;
+            }
+
             List<string> tags = await ResolveTagsAsync(scene);
             if (tags.Count == 0) {
                 _logger.LogError(
@@ -440,6 +450,10 @@ namespace BakAgain.World.Scenes {
 
         /// <summary>Takes the location down: ends the held picture and hides the click overlay.</summary>
         public void Hide() {
+            var dialogs = ResolveOptional<UI.IDialogManager>();
+            if (dialogs != null) {
+                dialogs.SceneSpeakerBackdrop = null;
+            }
             _showing?.Cancel();
             _showing?.Dispose();
             _showing = null;

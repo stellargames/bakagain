@@ -40,6 +40,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             public Cysharp.Threading.Tasks.UniTask<UnityEngine.Color[]> ResolvePaletteAsync() => Cysharp.Threading.Tasks.UniTask.FromResult<UnityEngine.Color[]>(null);
 
         public void SetActivePalette(Color[] palette) { }
+        public System.Func<(string Image, string Palette)?> SceneSpeakerBackdrop { get; set; }
 
         // virtual so a fixture that needs to observe the call (MenderQuoteTests) can override
         // just this one and keep the rest of the inert surface.

@@ -402,6 +402,7 @@ namespace BakAgain.UI {
             // and taking it literally is what left the ask-about page with no portrait.
             int actor = _speakerActor;
             BakAgain.Graphics.Area view = _worldViewport.CanonicalRect;
+            string backdropPalette = AddPartySpeakerBackdrop(stage, actor, view);
 
             var face = new VisualElement {
                 name = "BakDialogSpeakerFace",
@@ -427,9 +428,9 @@ namespace BakAgain.UI {
             // Null when a cutscene installed its own via SetActivePalette: that path hands over a
             // Color[] with no name, and the key needs a name. Naming OPTIONS.PAL there anyway would
             // be worse than leaving it — it would confidently composite against the wrong screen.
-            string hostPalette = _activePalette == null || _activePalette.Length == 0
+            string hostPalette = backdropPalette ?? (_activePalette == null || _activePalette.Length == 0
                 ? DialogResourceLoader.DefaultDialogPaletteKey
-                : null;
+                : null);
             ActorFaceView.ApplyAsync(face, actor, _sprites, alternate: false, logger: _logger,
                     sizeToSprite: true, hostPalette: hostPalette)
                 .ContinueWith(drew => {
@@ -440,7 +441,51 @@ namespace BakAgain.UI {
                 .Forget();
         }
 
+        public Func<(string Image, string Palette)?> SceneSpeakerBackdrop { get; set; }
+
+        private VisualElement _speakerBackdrop;
+
+        /// <summary>
+        /// DIALOG.C:980-987: in a location a party speaker's face goes on the scene script's slot-5
+        /// image, blitted over the viewport, with that slot's palette as the face's surround.
+        /// </summary>
+        /// <returns>The host palette for the face, or null when no backdrop applies.</returns>
+        private string AddPartySpeakerBackdrop(VisualElement stage, int actor, BakAgain.Graphics.Area view) {
+            if (!GameData.Resources.Dialog.PartySpeakerBackdrop.Applies(actor)
+                || SceneSpeakerBackdrop?.Invoke() is not { } slot || string.IsNullOrEmpty(slot.Image)) {
+                return null;
+            }
+
+            var backdrop = new VisualElement {
+                name = "BakDialogPartySpeakerBackdrop",
+                pickingMode = PickingMode.Ignore,
+                style = {
+                    position = Position.Absolute,
+                    left = view.X, top = view.Y, width = view.Width, height = view.Height,
+                },
+            };
+            stage.Add(backdrop);
+            _speakerBackdrop = backdrop;
+            // The script names a .bmp; the archive holds it as a BMX. ponytail: the face's surround
+            // takes the slot's palette by NAME, which every shipped pairing provides.
+            string key = GameData.PaletteMapping.WithHostPalette(
+                System.IO.Path.ChangeExtension(slot.Image, ".BMX").ToUpperInvariant() + "#0", slot.Palette);
+            _sprites.GetOrLoadAsync<Sprite>(key).ContinueWith(sprite => {
+                if (sprite == null) {
+                    _logger?.LogWarning($"Party speaker backdrop {key} did not load.");
+                } else if (_speakerBackdrop == backdrop) {
+                    backdrop.style.backgroundImage = Background.FromSprite(sprite);
+                    backdrop.style.backgroundSize = new BackgroundSize(Length.Percent(100), Length.Percent(100));
+                }
+            }).Forget();
+            return slot.Palette;
+        }
+
         private void RemoveSpeakerFace() {
+            if (_speakerBackdrop != null) {
+                _speakerBackdrop.RemoveFromHierarchy();
+                _speakerBackdrop = null;
+            }
             if (_speakerFace != null) {
                 _speakerFace.RemoveFromHierarchy();
                 _speakerFace = null;

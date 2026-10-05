@@ -14,6 +14,18 @@ namespace BakAgain.CutScenes {
         private readonly ICutscenePlayerFactory _playerFactory;
         private readonly BakAgain.Core.GameSession _session;
         private CutscenePlayer _currentPlayer;
+        private CutsceneState _currentState;
+
+        public bool TryGetSlotResources(int slot, out string image, out string palette) {
+            image = null;
+            palette = null;
+            if (_currentState == null) {
+                return false;
+            }
+            _currentState.ImageSlots.TryGetValue(slot, out image);
+            _currentState.PaletteSlotNames.TryGetValue(slot, out palette);
+            return image != null;
+        }
 
         public CutscenePresenter(ILogger<CutscenePresenter> logger, IResourceCache resourceCache,
             ICutscenePlayerFactory playerFactory, BakAgain.Core.GameSession session) {
@@ -82,6 +94,9 @@ namespace BakAgain.CutScenes {
                 }
                 _disposed = true;
                 _owner._currentPlayer = null;
+                if (_owner._currentState == State) {
+                    _owner._currentState = null;
+                }
                 Player?.Dispose();
                 State?.Dispose();
             }
@@ -126,6 +141,7 @@ namespace BakAgain.CutScenes {
             try {
                 player = _playerFactory.Create(state);
                 _currentPlayer = player;
+                _currentState = state;
                 _logger.LogDebug("{Caller}: state and player ready; pre-processing frames.", caller);
 
                 Dictionary<int, int> tags = await PreProcessAndMapTagsAsync(resource, player);
@@ -135,6 +151,7 @@ namespace BakAgain.CutScenes {
                 return new CutsceneSession(this, resource, state, player, tags);
             } catch {
                 _currentPlayer = null;
+                _currentState = null;
                 player?.Dispose();
                 state.Dispose();
                 throw;

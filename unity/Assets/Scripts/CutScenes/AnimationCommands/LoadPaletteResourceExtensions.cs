@@ -21,6 +21,7 @@ namespace BakAgain.CutScenes.AnimationCommands {
 
                     return;
                 }
+                cutsceneState.PaletteSlotNames[cutsceneState.CurrentPaletteSlot] = args.Filename;
                 cutsceneState.SetPalette(paletteResource.Colors.ToUnity());
             };
         }
