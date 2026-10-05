@@ -37,6 +37,9 @@ namespace BakAgain.Book {
         private const float BookSpaceWidth = Canonical.BookWidth;
         private const float BookSpaceHeight = Canonical.BookHeight;
 
+        /// <summary>Two EGA rows in book space (x96/35): the original's `bottom - 1 &lt;= y_bot` margin.</summary>
+        private const float LineFitSlack = 2f * 96f / 35f;
+
         // BOOK.FNT glyph box height in canonical book px (15 EGA px x2 — the horizontal factor,
         // matching the x2-scaled advances the wrapper measures with, so rendered line widths track
         // the wrap decisions).
@@ -180,9 +183,11 @@ namespace BakAgain.Book {
                     tmp.font = GameFonts.Book; // Original game uses selectBokFont(1): BOOK.FNT
 
                 bool isOddPage = (page.PageDisplayNumber % 2) != 0;
+                // font_draw_text_ds takes the TOP of the text at y = height - 19 (BOOKTEXT.C:405);
+                // anchoring the bottom there put the numeral one text height high (TASK-767).
                 tmp.alignment = isOddPage
-                    ? TextAlignmentOptions.BottomRight
-                    : TextAlignmentOptions.BottomLeft;
+                    ? TextAlignmentOptions.TopRight
+                    : TextAlignmentOptions.TopLeft;
 
                 var rt = numGo.GetComponent<RectTransform>();
                 rt.anchorMin = Vector2.up;
@@ -191,11 +196,11 @@ namespace BakAgain.Book {
                 float pageNumY = -(BookSpaceHeight - 52f) * sy; // 19 EGA px ×96/35
 
                 if (isOddPage) {
-                    rt.pivot = new Vector2(1f, 0f);
+                    rt.pivot = new Vector2(1f, 1f);
                     // 2 EGA px right inset ×2 canonical.
                     rt.anchoredPosition = new Vector2((page.XOffset + page.Width - 4) * sx, pageNumY);
                 } else {
-                    rt.pivot = new Vector2(0f, 0f);
+                    rt.pivot = new Vector2(0f, 1f);
                     rt.anchoredPosition = new Vector2(page.XOffset * sx, pageNumY);
                 }
                 rt.sizeDelta = new Vector2(400 * sx, 82 * sy); // 200×30 EGA px scaled
@@ -252,7 +257,9 @@ namespace BakAgain.Book {
                 int remainingLines = totalLines - startLine;
 
                 // Check how many lines fit in the remaining page space
-                float availableSpace = page.Height - nextCursorY;
+                // booktext_layout_next_run (BOOKTEXT.C:78-81) refuses a line whose bottom reaches
+                // rect.bottom - 1, so a line needs its height PLUS two EGA rows (TASK-767).
+                float availableSpace = page.Height - nextCursorY - LineFitSlack;
                 int fittingLines;
 
                 if (availableSpace < paragraph.LineSpacing) {
