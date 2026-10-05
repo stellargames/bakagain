@@ -69,8 +69,13 @@ namespace BakAgain.ResourceManagement {
         }
 
         private static LanguagePack Load(string locale, string overridePath) {
-            if (string.IsNullOrEmpty(locale) || locale == LanguagePack.English.Locale
-                || string.IsNullOrEmpty(overridePath)) {
+            if (string.IsNullOrEmpty(locale) || locale == LanguagePack.English.Locale) {
+                return LanguagePack.English;
+            }
+            if (locale == PseudoLocalization.Locale) {
+                return LanguagePack.Pseudo; // built in: no file (TASK-780)
+            }
+            if (string.IsNullOrEmpty(overridePath)) {
                 return LanguagePack.English;
             }
             string path = PathFor(overridePath, locale);

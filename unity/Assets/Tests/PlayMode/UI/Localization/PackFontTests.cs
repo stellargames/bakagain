@@ -105,7 +105,8 @@ namespace BakAgain.Tests.PlayMode.UI.Localization {
             Assert.IsTrue(asset.HasCharacter('A', false, true) && asset.HasCharacter('~', false, true),
                 "the TrueType still maps the original's ASCII run");
             Assert.IsTrue(asset.HasCharacter('ä', false, true), "and maps ä");
-            Assert.IsFalse(asset.HasCharacter('ö', false, true), "and nothing it does not have");
+            // 'ő': no pack in this run and not the pseudo language (whose letters a qps boot composes first).
+            Assert.IsFalse(asset.HasCharacter('ő', false, true), "and nothing it does not have");
         }
     }
 }

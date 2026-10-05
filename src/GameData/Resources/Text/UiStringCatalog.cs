@@ -71,7 +71,7 @@ public sealed class UiStringCatalog {
     public UiStringCatalog TranslatedBy(LanguagePack pack) {
         var translated = new Dictionary<string, string>(_entries);
         foreach (string key in _entries.Keys) {
-            if (pack.TryGet(key, out string text)) {
+            if (pack.TryTranslate(key, _entries[key], out string text)) {
                 translated[key] = text;
             }
         }
