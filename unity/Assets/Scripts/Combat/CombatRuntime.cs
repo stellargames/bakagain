@@ -2187,8 +2187,8 @@ namespace BakAgain.Combat {
         /// is not the same rule.</b> <c>cspell_aoe_storm_damage_all</c> — reached from inside the
         /// resolver — reads the flag a second time and adds 50% to its own flat base damage, so an
         /// amplified AoE storm is boosted TWICE: once on the cost here, once on that flat number.
-        /// We clear at the read because that AoE arm is not ported; whoever ports it must move the
-        /// clear to the end of the resolution or the second boost silently goes missing.</para>
+        /// That storm arm is RunMadGodsRage, which reads and clears the flag itself, so the second
+        /// boost lives there.</para>
         /// </remarks>
         public bool SurchargeNextCast { get; set; }
 

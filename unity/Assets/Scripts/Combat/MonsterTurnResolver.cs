@@ -256,8 +256,7 @@ namespace BakAgain.Combat {
             // branch yields an action is the pattern's call, and monster_chooseCrossbowAction tests
             // it at the head of the attempt loop — before the first attempt, not merely between
             // them. With no attempt committing, the turn falls through to the fatigue/morale
-            // fallback, whose advance-on-target half is what MeleeOrMove expresses here. (Its REST
-            // half is TASK-97's remaining work, the same deferral PickCastTarget already documents.)
+            // fallback (CBTAITRN.C:361-367) — advance or rest on the roll; see CrossbowFallback.
             //
             // *** NO SHIPPED MONSTER REACHES THIS, AND THAT IS NOT AN ACCIDENT. *** Measured over
             // all 35 MONST files: of the 16 with AccuracyCrossbow > 0, the 8 carrying
@@ -270,7 +269,7 @@ namespace BakAgain.Combat {
             // it away on the grounds that nothing hits it, and do not claim it changes shipped
             // behaviour either — an earlier commit message of mine did, and was wrong.
             if (action == AiAction.Shoot && !MonsterActionPatterns.Shoots(profile.CrossbowPattern)) {
-                action = AiAction.MeleeOrMove;
+                return CrossbowFallback(encounter, monster, profile);
             }
 
             // *** AN ENGAGED SHOOTER DOES NOT SHOOT, AND THAT TEST WAS MISSING ENTIRELY. ***
@@ -717,11 +716,10 @@ namespace BakAgain.Combat {
         /// <see cref="MonsterSpellcasting.TargetModeOf"/>'s business; what matters here is that the
         /// role comes from the ROW, not from the action.
         ///
-        /// <para>Two things are deliberately not ported, and neither is guessed at: slots 1 and 8
-        /// are routines of their own that have not been decoded individually, so an attempt landing
-        /// on one is skipped; and when no attempt commits, the original falls back to a
-        /// fatigue/morale choice between resting and advancing, which is TASK-97's remaining work.
-        /// Here that simply yields no target.</para>
+        /// <para>Slot 1 is the heal routine (<c>combat_ai_try_cast_heal</c>, see TryHeal); slot 8
+        /// (<c>combat_ai_try_aoe_cast_spell_7</c>) is spent doing nothing, its body unreachable in the
+        /// shipped binary (SlotAction.SpecialLast). When no attempt commits, CasterFallback is the
+        /// tail of <c>combat_ai_take_turn</c> (CBTAI.C:373-381).</para>
         /// </remarks>
 
         /// <summary>
