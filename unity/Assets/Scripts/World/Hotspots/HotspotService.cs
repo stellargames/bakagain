@@ -6054,7 +6054,13 @@ using GameData.Resources.Scene;
         private async UniTask<T> LoadOrNull<T>(string address, object owner, bool optional = false)
             where T : class {
             try {
-                return await _resources.LoadAssetAsync<T>(address, owner);
+                T loaded = await _resources.LoadAssetAsync<T>(address, owner);
+                if (loaded == null && !optional && _logger != null) {
+                    LoggerExtensions.LogWarning(_logger,
+                        "Hotspots: REQUIRED resource {Address} did not load. The feature that reads it "
+                        + "will run degraded and silent.", address);
+                }
+                return loaded;
             } catch (System.Exception e) {
                 if (_logger == null) {
                     return null;

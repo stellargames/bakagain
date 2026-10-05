@@ -31,6 +31,16 @@ namespace BakAgain.ResourceManagement {
                 return null;
             }
 
+            // *** ASK THE LOCATORS FIRST. *** Addressables logs an InvalidKeyException to the console
+            // for a key no locator knows, before the failed handle ever reaches us — and the sparse
+            // per-id files (T####.DAT tile events, MONST#.DAT) are absent for most ids by design, so a
+            // session's console filled with dozens of red "exceptions" that were all normal absence,
+            // hiding the real ones. An unknown key is a null, as a failed load already was.
+            if (!IsLocated(key, typeof(T))) {
+                _logger.LogDebug("No resource at key: {Key}", key);
+                return null;
+            }
+
             AsyncOperationHandle<T> handle = Addressables.LoadAssetAsync<T>(key);
 
             if (!_handlesByOwner.TryGetValue(owner, out List<AsyncOperationHandle> handleList)) {
@@ -50,6 +60,15 @@ namespace BakAgain.ResourceManagement {
             _logger.LogError("Failed to load asset with key: {Key}. Reason: {Exception}", key, handle.OperationException);
 
             return null;
+        }
+
+        private static bool IsLocated(object key, System.Type type) {
+            foreach (UnityEngine.AddressableAssets.ResourceLocators.IResourceLocator locator in Addressables.ResourceLocators) {
+                if (locator.Locate(key, type, out _)) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public void ReleaseAssets(object owner) {
