@@ -572,7 +572,14 @@ namespace BakAgain.World {
         }
 
         /// <summary>The arena's spell-visual player (TASK-117), built on first use.</summary>
-        private Encounters.SpellVfx SpellVfx => _spellVfx ??= new Encounters.SpellVfx(
+        private Encounters.SpellVfx SpellVfx => _spellVfx ??= NewSpellVfx();
+
+        private Encounters.SpellVfx NewSpellVfx() {
+            Encounters.SpellVfx.LoadRemapsAsync(_resources, this).Forget();
+            return CreateSpellVfx();
+        }
+
+        private Encounters.SpellVfx CreateSpellVfx() => new Encounters.SpellVfx(
             SpriteOf,
             () => _zoneRoot != null ? _zoneRoot.transform : null,
             () => _zoneSceneBuilder?.RenderContext?.Palette,

@@ -169,7 +169,7 @@ namespace BakAgain.World.Encounters {
             // The struck target glows through its remap for ten frames while the sparks fly —
             // seen in the original as a solid red Flamecast victim.
             if (tint != 0) {
-                TintFor(target, RemapTint(tint), SpellVisuals.ImpactTintFrames);
+                TintFor(target, RemapTint(tint, _palette()), SpellVisuals.ImpactTintFrames);
             }
             var burst = new SpellParticles.SparkBurst(spread, Rnd);
             using var cloud = new GlowCloud(_root(), "SparkBurst");
@@ -417,6 +417,47 @@ namespace BakAgain.World.Encounters {
             1 => TintRed, 2 => TintGreen, 4 => TintBlue, _ => TintWhite,
         };
 
+        /// <summary>The target pens of each remap table, by remap number; set once the RMPs load.</summary>
+        private static readonly Dictionary<int, IReadOnlyList<int>> RemapPens = new();
+
+        /// <summary>Loads RED/GREEN/WHITE/BLUE.RMP once (TASK-805).</summary>
+        internal static async UniTask LoadRemapsAsync(BakAgain.ResourceManagement.IResourceProviderService resources,
+            object owner) {
+            for (int remap = 1; remap <= 4; remap++) {
+                if (RemapPens.ContainsKey(remap) || resources == null) {
+                    continue;
+                }
+                var table = await resources.LoadAssetAsync<GameData.Resources.Palette.RemapResource>(
+                    GameData.Resources.Palette.SpellRemap.FileFor(remap), owner);
+                IReadOnlyList<int> pens = GameData.Resources.Palette.SpellRemap.TargetPens(table);
+                if (pens.Count > 0) {
+                    RemapPens[remap] = pens;
+                }
+            }
+        }
+
+        /// <summary>
+        /// A remap's tint in the active palette: the average of the shades its table maps onto,
+        /// at the translucency the tint has always had. Falls back to the fixed colour until the
+        /// tables are loaded.
+        /// </summary>
+        internal static Color RemapTint(int remap, Color[] palette) {
+            Color fixedTint = RemapTint(remap);
+            int key = remap is 1 or 2 or 4 ? remap : 3;
+            if (palette == null || !RemapPens.TryGetValue(key, out IReadOnlyList<int> pens)) {
+                return fixedTint;
+            }
+            float r = 0, g = 0, b = 0;
+            int n = 0;
+            foreach (int pen in pens) {
+                if (pen >= 0 && pen < palette.Length) {
+                    r += palette[pen].r; g += palette[pen].g; b += palette[pen].b;
+                    n++;
+                }
+            }
+            return n == 0 ? fixedTint : new Color(r / n, g / n, b / n, fixedTint.a);
+        }
+
         private Color PaletteColour(int index) {
             Color[] pal = _palette();
             return pal != null && index >= 0 && index < pal.Length ? pal[index] : Color.white;
@@ -512,7 +553,7 @@ namespace BakAgain.World.Encounters {
                 // over it (WORLDFX.C:519), so the colour shows only round the edges. A soft glow
                 // placed just behind the sprite does the same: the sprite's depth hides its middle.
                 _halo = new GlowCloud(transform.parent, "Halo");
-                Color tint = SpellVfx.RemapTint(_look.Colour);
+                Color tint = SpellVfx.RemapTint(_look.Colour, _palette);
                 // Measured against the original: the rim is a faint edge, not an aura — the sprite is
                 // only enlarged by 3x2 px under the remap. Kept soft and low so it reads the same.
                 tint.a = 0.3f;
