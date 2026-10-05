@@ -335,6 +335,21 @@ namespace BakAgain.UI.InGame {
             _navigator?.Pop().Forget();
         }
 
+        /// <summary>
+        /// A fight that starts while the map is up — the party walked into an encounter on it —
+        /// takes the screen. The original runs the fight full-screen from inside the map loop
+        /// (hotspotevt_type1_encounter_run via hotspotevt_disp_pending_events, MAP.C:214); here the
+        /// map closed nothing and the fight played out unseen beneath it. ponytail: the map is not
+        /// reopened after the fight as the original's loop does; the player lands on the travel view.
+        /// </summary>
+        private void CloseWhenAFightStarts() {
+            if (_closingForWorldExit || _world == null || !_world.FightInProgress) {
+                return;
+            }
+            _closingForWorldExit = true;
+            _navigator?.Pop().Forget();
+        }
+
         private void Update() {
             if (_worldView == null) {
                 return;
@@ -347,6 +362,7 @@ namespace BakAgain.UI.InGame {
             ToggleNorthUpIfAsked(ownsInput);
             OpenCheatChestOnALongHold(ownsInput);
             CloseOnAWorldExitRequest(ownsInput);
+            CloseWhenAFightStarts();
             // After the driver, because a step re-syncs the camera to the travel pose.
             ApplyMapCamera();
             RefreshMarker();
