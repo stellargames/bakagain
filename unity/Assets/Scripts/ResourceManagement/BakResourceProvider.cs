@@ -114,6 +114,12 @@ namespace BakAgain.ResourceManagement {
                     // The active language pack's translations go in as the resource loads, so every
                     // reader of it sees them (TASK-773). English is a no-op.
                     LanguagePacks.Current.Apply(resource, resourceId);
+                    // The format's formatting tags become the renderer's codes here, for every
+                    // reader of the Dialog (TASK-774) — the cutscene engine loads it through the
+                    // cache and never passes the dialog loader.
+                    if (resource is GameData.Resources.Dialog.Dialog dialogResource) {
+                        GameData.Resources.Dialog.DialogTextRuns.ToRuntime(dialogResource);
+                    }
                     if (resource is GameData.Resources.Font.FontResource font) {
                         LanguagePacks.MergeFont(font);
                     }

@@ -122,6 +122,19 @@ public static class DialogTextRuns {
         return markup;
     }
 
+    /// <summary>
+    /// Every entry of <paramref name="dialog"/> from the format's tags to the run-time codes, in place.
+    /// Idempotent. Called where a Dialog enters the game, whichever loader asked for it: the
+    /// dialog loader, the cutscene engine and the resource cache all read the same instance.
+    /// </summary>
+    public static void ToRuntime(Dialog dialog) {
+        foreach (DialogEntry entry in dialog.Entries) {
+            if (!string.IsNullOrEmpty(entry.Text)) {
+                entry.Text = FromMarkup(entry.Text);
+            }
+        }
+    }
+
     private static string TagFor(char code) => Array.Find(Tags, t => t.Code == code).Tag;
 
     /// <summary>The run-time code's low nibble — the only part the original switches on — or -1.</summary>

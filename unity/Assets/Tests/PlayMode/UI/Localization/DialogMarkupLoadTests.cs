@@ -77,5 +77,25 @@ namespace BakAgain.Tests.PlayMode.UI.Localization {
             Assert.AreEqual("Kapitel Eins:  <color=#FF0000><i>Straße</i></color>",
                 DialogTextFormatter.Format(title.Text, centered: true, palette, bodyPen: 0));
         });
+
+        [Test]
+        public void ADialogLoadedPastTheDialogLoaderIsInRunTimeCodesToo() {
+            // The cutscene engine reads DDX through the resource cache, never the dialog loader;
+            // its Gorath line showed a literal "<i/>" before the providers converted (TASK-787).
+            Dialog dialog;
+            try {
+                dialog = UnityEngine.AddressableAssets.Addressables.LoadAssetAsync<Dialog>("DIAL_Z16.DDX").WaitForCompletion();
+            } catch (System.Exception) {
+                dialog = null;
+            }
+            if (dialog == null) {
+                Assert.Ignore("No game data to extract from.");
+                return;
+            }
+
+            DialogEntry line = dialog.Entries.Single(e => e.Key == "base:ddx:dial_z16:4392");
+            StringAssert.DoesNotContain("<i/>", line.Text);
+            StringAssert.Contains(DialogTextRuns.Italic.ToString(), line.Text);
+        }
     }
 }
