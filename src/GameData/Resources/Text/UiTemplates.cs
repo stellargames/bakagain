@@ -52,6 +52,12 @@ public static class UiTemplates {
     public const string TouchCast = "port:template:touch_cast";
     public const string TouchCastHere = "port:template:touch_cast_here";
 
+    /// <summary>"<c>{n}</c>%" — every percentage the port builds; "94 %" in a language that spaces it.</summary>
+    public const string PercentKey = "port:template:percent";
+
+    /// <summary><paramref name="n"/> as a percentage, through <see cref="PercentKey"/>.</summary>
+    public static string Percent(object n) => Format(PercentKey, ("n", n));
+
     /// <summary>CHEAT CENTRAL's subtitle.</summary>
     public const string CheatCentralSubtitle = "port:template:cheat_central_subtitle";
 
@@ -61,6 +67,7 @@ public static class UiTemplates {
         (CurrentOfMax, c => "{current}" + Literal(c.Get("base:uistring:encamp.current_of_max_separator")) + "{max}"),
         // Port text with no EXE source: the English lives here, and a pack translates it by key.
         (PartyPickerCancel, _ => "Cancel"),
+        (PercentKey, _ => "{n}%"),
         (TouchMove, _ => "Move"),
         (TouchCast, _ => "Cast"),
         (TouchCastHere, _ => "Cast here"),

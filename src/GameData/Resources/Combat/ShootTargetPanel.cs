@@ -157,7 +157,7 @@ public static class ShootTargetPanel {
         }
 
         lines.Add(new HudPanelLine(AccuracyLabel, LabelX, statsTop));
-        lines.Add(new HudPanelLine(content.Accuracy + PercentSign, ValueX, statsTop));
+        lines.Add(new HudPanelLine(Text.UiTemplates.Percent(content.Accuracy), ValueX, statsTop));
         int damageTop = DamageTop(content.NameLines.Count);
         lines.Add(new HudPanelLine(DamageLabel, LabelX, damageTop));
         lines.Add(new HudPanelLine(content.Damage.ToString(), ValueX, damageTop));

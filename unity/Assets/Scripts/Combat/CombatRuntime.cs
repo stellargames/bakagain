@@ -863,7 +863,7 @@ namespace BakAgain.Combat {
                          rnd ?? (n => UnityEngine.Random.Range(0, n)))) {
                 lines.Add(new HudPanelLine(row.Label, x, y));
                 lines.Add(new HudPanelLine(
-                    value + (row.Percent ? ShootTargetPanel.PercentSign : string.Empty),
+                    row.Percent ? GameData.Resources.Text.UiTemplates.Percent(value) : value.ToString(),
                     x + CombatAssessment.ValueOffsetX, y));
             }
             return lines;

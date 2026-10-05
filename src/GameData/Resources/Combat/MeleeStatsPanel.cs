@@ -137,7 +137,7 @@ public static class MeleeStatsPanel {
             new HudPanelLine(thrustDamage.ToString(), ThrustX, damageY),
             new HudPanelLine(AccuracyLabel, RowLabelCentreX, accuracyY, HudPanelAlign.Centre),
             new HudPanelLine(
-                thrustAccuracy + ShootTargetPanel.PercentSign, ThrustX, accuracyY),
+                Text.UiTemplates.Percent(thrustAccuracy), ThrustX, accuracyY),
             new HudPanelLine(ThrustButton, ThrustX, buttonY),
         };
         if (!showSwing) {
@@ -147,7 +147,7 @@ public static class MeleeStatsPanel {
         lines.Add(new HudPanelLine(SwingHeading, SwingRightX, HeadingY, HudPanelAlign.Right));
         lines.Add(new HudPanelLine(
             swingDamage.ToString(), SwingDamageCentreX, damageY, HudPanelAlign.Centre));
-        lines.Add(new HudPanelLine(swingAccuracy + ShootTargetPanel.PercentSign,
+        lines.Add(new HudPanelLine(Text.UiTemplates.Percent(swingAccuracy),
             SwingAccuracyCentreX, accuracyY, HudPanelAlign.Centre));
         lines.Add(new HudPanelLine(SwingButton, SwingRightX, buttonY, HudPanelAlign.Right));
         return lines;
