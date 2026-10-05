@@ -2450,6 +2450,11 @@ using GameData.Resources.Scene;
                 case GameData.Resources.Combat.CombatCommands.Command.BackOrRetreat:
                     ResolveRetreat(acting);
                     return;   // ResolveRetreat refreshes or tears down the HUD itself
+                case GameData.Resources.Combat.CombatCommands.Command.AbortGame:
+                    if (BakAgain.UI.InputCore.InputDriver.CtrlHeld) {
+                        AbortGameAsync().Forget();
+                    }
+                    return;   // Q alone does nothing (COMBAT.C:2129)
                 case GameData.Resources.Combat.CombatCommands.Command.AutoResolve:
                     StartAutoResolve();
                     return;   // the loop hands the HUD on itself when it stops
@@ -5564,6 +5569,29 @@ using GameData.Resources.Scene;
         private void RedrawArena() {
             if (Combat?.Encounter != null) {
                 _redrawArena?.Invoke();
+            }
+        }
+
+        /// <summary>
+        /// Ctrl+Q in a fight: DDX 331, and on Yes (the first choice) the fight ends where it stands
+        /// and the game goes back to the main menu (COMBAT.C:2131-2136, combat status 2).
+        /// </summary>
+        private async UniTaskVoid AbortGameAsync() {
+            if (_dialogs == null) {
+                return;
+            }
+            int answer = await _dialogs.ShowChoiceIndexById(
+                GameData.Resources.Combat.CombatCommands.AbortGameDialogId);
+            if (answer != 0 || Combat?.Encounter == null) {
+                return;
+            }
+            ForgetFight();
+            Combat.Leave();
+            _setCombatMusic?.Invoke(false);
+            _combatMenuAccessor?.Invoke()?.Close();
+            Core.Services.IGameFlow flow = _flowAccessor?.Invoke();
+            if (flow != null) {
+                await flow.ShowMainMenu();
             }
         }
 

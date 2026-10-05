@@ -137,7 +137,8 @@ namespace BakAgain.UI.InputCore {
                 // picker on screens that have one (no-op — returns false — elsewhere).
                 _layer = new NavigableLayer(name,
                     capturesExclusively ? CaptureMode.Exclusive : CaptureMode.Passive, widgets,
-                    () => _actionHandler?.PrimaryAction(CancelActionId), _cursor, _loader.TryMovePickerSelection);
+                    () => _actionHandler?.PrimaryAction(CancelActionId), _cursor, _loader.TryMovePickerSelection,
+                    onUnmatchedScancode: sc => _actionHandler is IUnmatchedScancodeHandler h && h.OnUnmatchedScancode(sc));
             }
             _stack?.Push(_layer);
             // No initial focus on open: focusing a widget warps the software cursor onto it (and

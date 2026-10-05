@@ -39,8 +39,9 @@ namespace BakAgain.UI.InputCore {
 
         public NavigableLayer(string id, CaptureMode captureMode, IReadOnlyList<NavWidget> widgets,
             Action onCancel, ICursorManager cursor, Func<NavDirection, bool> trySelectionNav = null,
-            bool ambiguousLetterSelectsNothing = false) {
+            bool ambiguousLetterSelectsNothing = false, Func<int, bool> onUnmatchedScancode = null) {
             _ambiguousLetterSelectsNothing = ambiguousLetterSelectsNothing;
+            _onUnmatchedScancode = onUnmatchedScancode;
             Id = id;
             CaptureMode = captureMode;
             _widgets = widgets;
@@ -303,6 +304,10 @@ namespace BakAgain.UI.InputCore {
         // selects nothing and the menu keeps waiting. Every other menu matches scancodes (see Accelerate).
         private readonly bool _ambiguousLetterSelectsNothing;
 
+        // menupage_run hands its screen loop every scancode, matched or not (MENUPAGE.C:320-399), so
+        // a loop can act on a key no entry carries — combat's Ctrl+Q (TASK-801).
+        private readonly Func<int, bool> _onUnmatchedScancode;
+
         private bool Accelerate(char c) {
             // *** A REQ MENU MATCHES THE KEY'S SCANCODE AGAINST ACTION IDS, NOT LABEL LETTERS. ***
             // menupage_run (MENUPAGE.C:346-366) presses the entry whose wAction_id equals the scancode,
@@ -322,7 +327,7 @@ namespace BakAgain.UI.InputCore {
                     }
                     return true;
                 }
-                return false;
+                return _onUnmatchedScancode?.Invoke(scancode) ?? false;
             }
             char lower = char.ToLowerInvariant(c);
             int matches = 0;
