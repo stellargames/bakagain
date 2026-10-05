@@ -149,10 +149,41 @@ namespace BakAgain.UI {
 
         private void OnPanelBuilt(
             System.Collections.Generic.IReadOnlyList<BakAgain.UI.InputCore.NavWidget> _) {
+            BlockClicksOutsideThePanel();
             ApplyButtonState();
             BuildBackdropAsync().Forget();
             BuildDialStonesAsync().Forget();
             BuildPartyTableAsync().Forget();
+        }
+
+        private const string ClickBlockerName = "camp-click-blocker";
+
+        /// <summary>
+        /// While camp is up, nothing outside it answers a click: the original runs the camp loop on
+        /// its own menu page alone (ENCAMP.C, <c>encamp_run</c>), so the HUD or map strip beneath
+        /// stays drawn but dead.
+        /// </summary>
+        /// <remarks>
+        /// The Exclusive input layer already silences keys and pad for the layers beneath; this is
+        /// the pointer's half. A transparent full-screen element at the BACK of the camp document —
+        /// tier 3, in front of the HUD (-2) and the overhead map (0) — catches every press that
+        /// misses the camp's own widgets, including the touch controls, which live in the HUD's
+        /// document. Re-added on each build because the panel's tree is rebuilt on every show.
+        /// </remarks>
+        private void BlockClicksOutsideThePanel() {
+            VisualElement root = GetComponent<UIDocument>()?.rootVisualElement;
+            if (root == null || root.Q(ClickBlockerName) != null) {
+                return;
+            }
+            var blocker = new VisualElement {
+                name = ClickBlockerName,
+                pickingMode = PickingMode.Position,
+                style = {
+                    position = Position.Absolute,
+                    left = 0, top = 0, right = 0, bottom = 0,
+                },
+            };
+            root.Insert(0, blocker);
         }
 
         // ---- the backdrop ------------------------------------------------------------------------
