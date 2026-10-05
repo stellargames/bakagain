@@ -71,19 +71,33 @@ namespace BakAgain.World {
 
             _drawnChunk = (GameData.Resources.World.WorldPlacement.TileOf(_gameSession.PositionX),
                 GameData.Resources.World.WorldPlacement.TileOf(_gameSession.PositionY));
+            int generation = ++_encounterDrawGeneration;
             var placed = _hotspots.PlaceEncounterActors();
             if (placed.Count == 0) {
                 return;
             }
 
-            if (_encounterActorsRoot == null) {
-                _encounterActorsRoot = new GameObject("EncounterActors");
-                _encounterActorsRoot.transform.SetParent(_zoneRoot.transform, worldPositionStays: false);
-            }
+            // *** EACH DRAW BUILDS INTO ITS OWN ROOT, AND ONLY THE LATEST ONE IS KEPT. *** Redraws are
+            // fired and forgotten while the world build awaits its own draw, so two draws could find
+            // no root, and both then built into the one the first created: every actor stood there
+            // twice (SAVE17: one mordel, two objects).
+            var root = new GameObject("EncounterActors");
+            root.transform.SetParent(_zoneRoot.transform, worldPositionStays: false);
             _encounterSprites ??= new Encounters.EncounterActorSpriteBuilder(_resources, _logger);
             int drawn = await _encounterSprites.BuildAsync(
-                placed, _encounterActorsRoot.transform, _zoneSceneBuilder.RenderContext,
+                placed, root.transform, _zoneSceneBuilder.RenderContext,
                 _worldCamera, this);
+            if (generation != _encounterDrawGeneration || root == null) {
+                if (root != null) {
+                    UnityEngine.Object.Destroy(root);
+                }
+                return;
+            }
+            if (_encounterActorsRoot != null) {
+                UnityEngine.Object.Destroy(_encounterActorsRoot);
+            }
+            _encounterActorsRoot = root;
+            root.SetActive(_encounterActorsVisible);
             _logger?.LogInformation(
                 "Encounter actors: {Placed} placed, {Drawn} drawn.", placed.Count, drawn);
         }
@@ -97,6 +111,12 @@ namespace BakAgain.World {
         // They used to hang directly off the zone root, where there was no way to address them as a
         // group. Null until a chunk places any.
         private GameObject _encounterActorsRoot;
+
+        // The latest draw; an older one that finishes after it throws its own root away.
+        private int _encounterDrawGeneration;
+
+        // Whether the actors are shown: a draw that lands while a fight hides them stays hidden.
+        private bool _encounterActorsVisible = true;
 
         private async UniTask RedrawEncounterActorsAsync() {
             if (_encounterActorsRoot != null) {
@@ -122,6 +142,7 @@ namespace BakAgain.World {
         /// same picture without adopting a teardown we would only have to undo.</para>
         /// </remarks>
         private void ShowEncounterActors(bool visible) {
+            _encounterActorsVisible = visible;
             if (_encounterActorsRoot != null) {
                 _encounterActorsRoot.SetActive(visible);
             }
