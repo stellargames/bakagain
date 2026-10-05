@@ -66,11 +66,13 @@ public static class ActorStatsPanel {
     /// <b>Four, and these four.</b> They are attributes 0..3 — the pools and the two physical
     /// numbers — and none of the skills. The panel is a status readout, not a character sheet.
     /// </remarks>
-    public static readonly (ActorAttribute Attribute, string Label)[] Rows = {
-        (ActorAttribute.Health, "Health:"),
-        (ActorAttribute.Stamina, "Stamina:"),
-        (ActorAttribute.Speed, "Speed:"),
-        (ActorAttribute.Strength, "Strength:"),
+    /// <para>The labels are the EXE's own entries, read as the panel is drawn, so a language pack
+    /// translates them (TASK-787).</para>
+    public static (ActorAttribute Attribute, string Label)[] Rows => new[] {
+        (ActorAttribute.Health, Text.UiStrings.Get("base:uistring:combat.creature_health_label")),
+        (ActorAttribute.Stamina, Text.UiStrings.Get("base:uistring:combat.creature_stamina_label")),
+        (ActorAttribute.Speed, Text.UiStrings.Get("base:uistring:combat.creature_speed_label")),
+        (ActorAttribute.Strength, Text.UiStrings.Get("base:uistring:combat.creature_strength_label")),
     };
 
     /// <summary>Top of the row at <paramref name="index"/>, counting from zero.</summary>

@@ -109,19 +109,19 @@ public static class CombatAssessment {
     /// </remarks>
     public static IReadOnlyList<Row> RowsFor(bool targetCanShoot, bool targetCanCast) {
         var rows = new List<Row> {
-            new Row(ActorAttribute.Health, "Health:", false),
-            new Row(ActorAttribute.Stamina, "Stamina:", false),
-            new Row(ActorAttribute.Speed, "Speed:", false),
-            new Row(ActorAttribute.Strength, "Strength:", false),
+            new Row(ActorAttribute.Health, Text.UiStrings.Get("base:uistring:combat.assess_health_label"), false),
+            new Row(ActorAttribute.Stamina, Text.UiStrings.Get("base:uistring:combat.assess_stamina_label"), false),
+            new Row(ActorAttribute.Speed, Text.UiStrings.Get("base:uistring:combat.assess_speed_label"), false),
+            new Row(ActorAttribute.Strength, Text.UiStrings.Get("base:uistring:combat.assess_strength_label"), false),
         };
         if (targetCanShoot) {
-            rows.Add(new Row(ActorAttribute.AccuracyCrossbow, "Missle:", true));
+            rows.Add(new Row(ActorAttribute.AccuracyCrossbow, Text.UiStrings.Get("base:uistring:combat.assess_missile_label"), true));
         }
-        rows.Add(new Row(ActorAttribute.AccuracyMelee, "Melee:", true));
+        rows.Add(new Row(ActorAttribute.AccuracyMelee, Text.UiStrings.Get("base:uistring:combat.assess_melee_label"), true));
         if (targetCanCast) {
-            rows.Add(new Row(ActorAttribute.AccuracyCasting, "Cast:", true));
+            rows.Add(new Row(ActorAttribute.AccuracyCasting, Text.UiStrings.Get("base:uistring:combat.assess_cast_label"), true));
         }
-        rows.Add(new Row(ActorAttribute.Defense, "Defense:", true));
+        rows.Add(new Row(ActorAttribute.Defense, Text.UiStrings.Get("base:uistring:combat.assess_defense_label"), true));
         return rows;
     }
 
