@@ -296,27 +296,44 @@ namespace BakAgain.UI.InputCore {
             return true;
         }
 
-        // First-letter accelerator (menu_pollInput): a char matching a widget label's leading letter
+        // Letter accelerator. On the dialog choice row a char matching a widget label's leading letter
         // focuses + activates it. First match wins on ties. A hidden/unfocusable widget is skipped —
         // it must never be focused OR invoked, same as WidgetUnderCursor/ActivateFocused.
         // The dialog choice menu's own scan (ASKABOUT.C:499-511): a letter that starts more than one label
-        // selects nothing and the menu keeps waiting. Other menus poll through menu_pollInput and keep the
-        // first match.
+        // selects nothing and the menu keeps waiting. Every other menu matches scancodes (see Accelerate).
         private readonly bool _ambiguousLetterSelectsNothing;
 
         private bool Accelerate(char c) {
-            char lower = char.ToLowerInvariant(c);
-            if (_ambiguousLetterSelectsNothing) {
-                int matches = 0;
-                for (int j = 0; j < _widgets.Count; j++) {
-                    string l = _widgets[j].Label;
-                    if (CanFocus(_widgets[j]) && !string.IsNullOrEmpty(l) && char.ToLowerInvariant(l[0]) == lower) {
-                        matches++;
-                    }
+            // *** A REQ MENU MATCHES THE KEY'S SCANCODE AGAINST ACTION IDS, NOT LABEL LETTERS. ***
+            // menupage_run (MENUPAGE.C:346-366) presses the entry whose wAction_id equals the scancode,
+            // and a gated entry swallows its key. Only the dialog choice row scans first letters
+            // (ASKABOUT.C:499-511). Matching labels made the options menu's S start a new game where
+            // the original saves (0x1f), and left N, D and E dead (TASK-796).
+            if (!_ambiguousLetterSelectsNothing) {
+                int scancode = GameData.Resources.World.KeyScancode.Of(c);
+                if (scancode < 0) {
+                    return false;
                 }
-                if (matches > 1) {
+                for (int i = 0; i < _widgets.Count; i++) {
+                    if (_widgets[i].ActionId != scancode) continue;
+                    if (CanFocus(_widgets[i])) {
+                        FocusWidget(i, navWarp: true);
+                        _widgets[i].Primary?.Invoke();
+                    }
                     return true;
                 }
+                return false;
+            }
+            char lower = char.ToLowerInvariant(c);
+            int matches = 0;
+            for (int j = 0; j < _widgets.Count; j++) {
+                string l = _widgets[j].Label;
+                if (CanFocus(_widgets[j]) && !string.IsNullOrEmpty(l) && char.ToLowerInvariant(l[0]) == lower) {
+                    matches++;
+                }
+            }
+            if (matches > 1) {
+                return true;
             }
             for (int i = 0; i < _widgets.Count; i++) {
                 if (!CanFocus(_widgets[i])) continue;

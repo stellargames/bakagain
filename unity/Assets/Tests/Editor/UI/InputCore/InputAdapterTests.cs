@@ -75,6 +75,31 @@ namespace BakAgain.Tests.Editor.UI.InputCore {
             }
         }
 
+        // A REQ menu's '1'..'0' are scancodes 2..11 like any letter (TASK-796), so over a menu layer a
+        // digit is an Accelerator. Elsewhere it stays the Skip that pages a dialog on.
+        [Test]
+        public void Digit_OverAMenuLayer_IsAnAccelerator_ElsewhereASkip() {
+            Keyboard keyboard = InputSystem.AddDevice<Keyboard>();
+            var spy = new SpyCommands {
+                TopLayer = new NavigableLayer("menu", CaptureMode.Passive, new List<NavWidget>(), null, null),
+            };
+            InputAdapter adapter = StartedAdapter(spy);
+            try {
+                Press(keyboard.digit1Key);
+                adapter.Tick();
+                Assert.Contains("Accel:1", spy.Calls);
+
+                spy.Calls.Clear();
+                spy.TopLayer = null;
+                Release(keyboard.digit1Key);
+                Press(keyboard.digit1Key);
+                adapter.Tick();
+                Assert.Contains("Skip", spy.Calls);
+            } finally {
+                adapter.Dispose();
+            }
+        }
+
         [Test]
         public void SubmitAction_RaisesActivate() {
             Keyboard keyboard = InputSystem.AddDevice<Keyboard>();

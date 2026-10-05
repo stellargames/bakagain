@@ -264,6 +264,17 @@ namespace BakAgain.UI.InputCore {
                     return;
                 }
             }
+            // A digit on a REQ menu is a button press like a letter: '1'..'0' are scancodes 2..11,
+            // the portraits' and the Contents chapters' ids (TASK-796). Anywhere else it stays the
+            // Skip below, which is what pages a dialog on.
+            if (_commands.TopLayer is NavigableLayer) {
+                for (Key k = Key.Digit1; k <= Key.Digit0; k++) {
+                    if (kb[k].wasPressedThisFrame) {
+                        _commands.Accelerator(k == Key.Digit0 ? '0' : (char)('1' + (k - Key.Digit1)));
+                        return;
+                    }
+                }
+            }
             // *** EVERY OTHER KEY IS A SKIP. *** dialog_poll_arrow_or_button (DIALOG.C:161-171) hands
             // its caller EVERY scancode it reads and discards only the four arrows and
             // NumLock/ScrollLock, so in the original a space, a digit, F1 or keypad 5 all page a
