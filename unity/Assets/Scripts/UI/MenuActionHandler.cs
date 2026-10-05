@@ -115,6 +115,7 @@ namespace BakAgain.UI {
                 case 46: await _dialogManager.ShowById(119).AsTask(); break; // Contents help
                 case 31: await _dialogManager.ShowById(117).AsTask(); break; // Save help
                 case 32: await _dialogManager.ShowById(120).AsTask(); break; // Quit help
+                case 18: await _dialogManager.ShowById(0x79).AsTask(); break; // Cancel help (MAINMENU.C:275-278)
             }
         }
     }

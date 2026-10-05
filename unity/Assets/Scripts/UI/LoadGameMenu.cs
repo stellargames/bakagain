@@ -127,7 +127,8 @@ namespace BakAgain.UI {
 
         private async void DoRestore() {
             if (_selectedSlot < 0 || _selectedSlot >= _slots.Count) {
-                _logger.LogInformation("Restore pressed with no save selected — ignoring.");
+                // "no game selected" — MAINMENU.C:529-531 (TASK-804).
+                await _dialogManager.ShowById(0x8b).AsTask();
                 return;
             }
             SaveSlotInfo slot = _slots[_selectedSlot];

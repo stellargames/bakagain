@@ -13,7 +13,27 @@ namespace BakAgain.UI {
     /// Forwards to an InGame-mode <see cref="MenuActionHandler"/>; shares no code with
     /// <see cref="MainMenu"/> beyond that. Faithful to UI_showMainMenu's openedFromGame != 0 path.
     /// </summary>
-    public sealed class InGameMenu : ScreenBase, IActionHandler {
+    public sealed class InGameMenu : ScreenBase, IActionHandler, BakAgain.UI.InputCore.IUnmatchedScancodeHandler {
+        private BakAgain.UI.InputCore.InputLayerStack _inputStack;
+        private BakAgain.ResourceManagement.IResourceProviderService _bannerResources;
+
+        [Inject]
+        public void ConstructBanner(BakAgain.UI.InputCore.InputLayerStack inputStack,
+            BakAgain.ResourceManagement.IResourceProviderService resources) {
+            _inputStack = inputStack;
+            _bannerResources = resources;
+        }
+
+        /// <summary>V shows the version banner (MAINMENU.C:289-291) — TASK-804.</summary>
+        public bool OnUnmatchedScancode(int scancode) {
+            if (scancode != GameData.Resources.Menu.VersionBanner.Key) {
+                return false;
+            }
+            VersionBannerView.ShowAsync(GetComponent<UnityEngine.UIElements.UIDocument>()?.rootVisualElement,
+                _bannerResources, _inputStack, this).Forget();
+            return true;
+        }
+
         /// <summary>Cancel — the one exit that goes back where it came from. REQ_OPT1 action 18.</summary>
         private const int ActionCancel = 18;
 
