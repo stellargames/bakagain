@@ -3229,8 +3229,7 @@ using GameData.Resources.Scene;
         /// a fighter can open a pack, read it and use the ordinary items in it — which is strictly
         /// more than before, when the command fell to "not wired yet".</para>
         /// </remarks>
-        private static bool ShiftHeld() =>
-            BakAgain.UI.InputCore.InputDriver.Gameplay is { } keys && (keys.LeftShift || keys.RightShift);
+        private static bool ShiftHeld() => BakAgain.UI.InputCore.InputDriver.ShiftHeld;
 
         /// <summary>The acting fighter's character sheet — the Shift arm of combat command 22.</summary>
         /// <remarks>

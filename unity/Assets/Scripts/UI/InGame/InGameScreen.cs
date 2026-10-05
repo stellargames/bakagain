@@ -1536,7 +1536,7 @@ namespace BakAgain.UI.InGame {
                     // cmbinv_inventory_screen_run(NULL, slot+1, 0)); with Shift held, the character
                     // sheet (WORLDLP.C:359-364). A right-click arrives as SecondaryAction.
                     int slot = menuEntryActionId - ActionPartyMember1;
-                    if (OverheadMapScreen.ShiftHeld()) {
+                    if (BakAgain.UI.InputCore.InputDriver.ShiftHeld) {
                         if (slot < _gameSession.ActivePartyIndices.Length) {
                             _characterSheet?.RunAsync(slot).Forget();
                         }
