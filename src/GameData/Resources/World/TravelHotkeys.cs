@@ -37,6 +37,8 @@ public static class TravelHotkeys {
             case 'B': return 0x30;   // 48 — bookmark
             case 'O': return 0x18;   // 24 — options
             case 'M': return 0x32;   // 50 — the local map
+            case 'F': return 0x21;   // 33 — the full map: no button on the HUD, but WORLDLP.C:324
+                                     //      acts on the scancode anyway (TASK-797)
             default: return NoAction;
         }
     }

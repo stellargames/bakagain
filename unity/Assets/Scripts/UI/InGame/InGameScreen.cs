@@ -38,6 +38,7 @@ namespace BakAgain.UI.InGame {
         private const int ActionTurnRight = 77;     // 0x4D Right
         private const int ActionFollowRoad = 19;    // Toggle
         private const int ActionMap = 50;           // overhead/full map
+        private const int ActionFullMap = 0x21;     // F — no button; see PrimaryAction
         private const int ActionCastSpell = 46;
         private const int ActionBookmark = 48;      // quick-save bookmark
         private const int ActionEncamp = 18;
@@ -1482,6 +1483,13 @@ namespace BakAgain.UI.InGame {
                         _navigator.Push(_overheadMap).Forget();
                     }
 
+                    break;
+                case ActionFullMap:
+                    // F: no button on REQ_MAIN, but the world loop acts on the scancode anyway and
+                    // runs fmap_screen_run (WORLDLP.C:324) — TASK-797.
+                    OverheadMapScreen.OpenFullMapAsync(
+                        _resolver?.Resolve<BakAgain.UI.FullMap.IFullMapView>(), _gameSession, _resources,
+                        _navigator, this).Forget();
                     break;
                 case ActionCastSpell:
                     // The button is already greyed out when nobody can cast (see the enable pass

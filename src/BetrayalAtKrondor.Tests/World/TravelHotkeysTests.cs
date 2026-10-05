@@ -35,9 +35,17 @@ public class TravelHotkeysTests {
     [InlineData('1')]
     [InlineData(' ')]
     public void ALetterTheHudHasNoButtonForNamesNothing(char letter) {
-        // menupage_run fires only actions its page carries, so an unmatched scancode must do
-        // nothing rather than fall through to a neighbouring id.
+        // An unmatched scancode must do nothing rather than fall through to a neighbouring id.
         Assert.Equal(TravelHotkeys.NoAction, TravelHotkeys.ActionFor(letter));
+    }
+
+    // F is no button on either page, yet both loops act on it: menupage_run hands back every
+    // scancode, and WORLDLP.C:324 and MAP.C:383 both run fmap_screen_run on 0x21 (TASK-797).
+    [Fact]
+    public void FOpensTheFullMapFromTravelAndFromTheLocalMap() {
+        Assert.Equal(0x21, TravelHotkeys.ActionFor('f'));
+        Assert.Equal(GameData.Resources.World.LocalMapScreen.MapAction.ShowFullMap,
+            GameData.Resources.World.LocalMapScreen.ActionFor(TravelHotkeys.ActionFor('F')));
     }
 
     [Fact]

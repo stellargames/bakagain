@@ -543,20 +543,25 @@ namespace BakAgain.UI.InGame {
             }
         }
 
-        private void ShowFullMap() => ShowFullMapAsync().Forget();
+        private void ShowFullMap() => OpenFullMapAsync(_fullMap, _session, _resources, _navigator, this).Forget();
 
-        private async UniTaskVoid ShowFullMapAsync() {
-            if (_fullMap == null) {
+        /// <summary>
+        /// The player's full map — from the local map's button or F there, and F on the travel HUD
+        /// (fmap_screen_run from MAP.C:383 and WORLDLP.C:324).
+        /// </summary>
+        internal static async UniTaskVoid OpenFullMapAsync(IFullMapView fullMap, GameSession session,
+                IResourceProviderService resources, IScreenNavigator navigator, object owner) {
+            if (fullMap == null) {
                 return;
             }
-            await _session.PlaceMapMarkerAsync(_resources, this);
-            _fullMap.SetMarker(_session.MapMarkerVisible, _session.MapMarkerXPercent,
-                _session.MapMarkerYPercent, _session.MapMarkerIcon);
+            await session.PlaceMapMarkerAsync(resources, owner);
+            fullMap.SetMarker(session.MapMarkerVisible, session.MapMarkerXPercent,
+                session.MapMarkerYPercent, session.MapMarkerIcon);
             // The player opened this one, so it needs REQ_FMAP's Exit widget. The loading-screen
             // caller passes null instead and is dismissed by the flow behind it; without this the
             // map was a dead end, closable by nothing at all.
-            _fullMap.SetExitAffordance(() => _navigator.Pop().Forget());
-            _navigator.Push(_fullMap).Forget();
+            fullMap.SetExitAffordance(() => navigator.Pop().Forget());
+            navigator.Push(fullMap).Forget();
         }
 
         // --- IMenuStateProvider ---
