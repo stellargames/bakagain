@@ -36,6 +36,20 @@ public static class TextVariableResolver {
         if (string.IsNullOrEmpty(text)) {
             return text;
         }
+        // The article and possessive reshaping are English (TASK-777). Another language's text
+        // brings its own grammar as MessageFormat over what each slot holds: kind0..kind5 are
+        // creature / person / none — "{kind4, select, creature {die} other {}} @4".
+        bool english = Text.UiTemplates.IsEnglish(Text.UiStrings.Catalog);
+        if (!english && text.IndexOf('{') >= 0) {
+            var kindArgs = new (string, object)[DialogSlotTable.SlotCount];
+            for (int k = 0; k < kindArgs.Length; k++) {
+                string slotName = slots != null && k < slots.Count ? slots[k] ?? "" : "";
+                int kind = kinds != null && k < kinds.Count ? kinds[k] : DialogSlotTable.NoActor;
+                kindArgs[k] = ("kind" + k, kind == DialogSlotTable.CreatureActor ? "creature"
+                    : slotName.Length > 0 ? "person" : "none");
+            }
+            text = Text.UiTemplates.FormatPattern(text, kindArgs);
+        }
         var sb = new StringBuilder(text.Length + 16);
         for (int i = 0; i < text.Length; i++) {
             char c = text[i];
@@ -47,7 +61,7 @@ public static class TextVariableResolver {
                 int n = text[i + 1] - '0';
                 if (slots != null && n >= 0 && n < slots.Count) {
                     string name = slots[n] ?? "";
-                    bool creature = kinds != null && n < kinds.Count
+                    bool creature = english && kinds != null && n < kinds.Count
                         && kinds[n] == DialogSlotTable.CreatureActor;
                     bool possessive = i + 2 < text.Length && text[i + 2] == 's';
 

@@ -72,6 +72,11 @@ public static class MoneyFormatter {
 
     // currency_sovereigns_royals (0x42e1b-0x42e99).
     private static string FormatSovereignsAndRoyals(int sovereigns, int royals) {
+        if (!UiTemplates.IsEnglish(UiStrings.Catalog)) {
+            // Another language's plural rules are its own (TASK-777): one template, CLDR plurals.
+            string form = sovereigns == 0 ? "royals" : royals == 0 ? "sovereigns" : "both";
+            return UiTemplates.Format(UiTemplates.MoneyProse, ("case", form), ("s", sovereigns), ("r", royals));
+        }
         if (royals == 0) {
             // "%ld sovereign%c" with '\0' for <= 1: the NUL terminates the string, so one (or
             // zero, or a negative count of) sovereigns reads singular. "0 sovereign" is what an

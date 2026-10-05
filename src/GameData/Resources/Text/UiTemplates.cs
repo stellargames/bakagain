@@ -65,6 +65,32 @@ public static class UiTemplates {
     /// game next starts, and the shorter wording still fits the button.</summary>
     public const string LanguageChoicePendingKey = "port:template:language_choice_pending";
 
+    /// <summary>
+    /// An amount in prose (TASK-777): <c>{case}</c> is <c>sovereigns</c>, <c>royals</c> or <c>both</c>,
+    /// <c>{s}</c> and <c>{r}</c> the counts, each a CLDR plural in the pack's own language. English
+    /// is never formatted from it — the original's quirks ("0 sovereign") stay in MoneyFormatter —
+    /// it is the translator's reference.
+    /// </summary>
+    public const string MoneyProse = "port:template:money_prose";
+
+    /// <summary>Whether <paramref name="catalog"/> is English, whose grammar is the original's code.</summary>
+    public static bool IsEnglish(UiStringCatalog catalog) =>
+        string.IsNullOrEmpty(catalog.Locale) || catalog.Locale == "en" || catalog.Locale.StartsWith("en-", StringComparison.Ordinal);
+
+    /// <summary><paramref name="pattern"/> — a translator's own MessageFormat text — filled in, in the
+    /// ambient catalog's language; the text itself when it will not parse.</summary>
+    public static string FormatPattern(string pattern, params (string Name, object Value)[] args) {
+        var values = new Dictionary<string, object?>();
+        foreach ((string name, object value) in args) {
+            values[name] = value;
+        }
+        try {
+            return Formatter.FormatMessage(pattern, values, Culture(UiStrings.Catalog.Locale));
+        } catch (Exception) {
+            return pattern;
+        }
+    }
+
     /// <summary>CHEAT CENTRAL's subtitle.</summary>
     public const string CheatCentralSubtitle = "port:template:cheat_central_subtitle";
 
@@ -74,6 +100,9 @@ public static class UiTemplates {
         (CurrentOfMax, c => "{current}" + Literal(c.Get("base:uistring:encamp.current_of_max_separator")) + "{max}"),
         // Port text with no EXE source: the English lives here, and a pack translates it by key.
         (PartyPickerCancel, _ => "Cancel"),
+        (MoneyProse, _ => "{case, select, royals {{r, plural, one {# royal} other {# royals}}} "
+            + "sovereigns {{s, plural, one {# sovereign} other {# sovereigns}}} "
+            + "other {{s, plural, one {# sovereign} other {# sovereigns}} and {r, plural, one {# royal} other {# royals}}}}"),
         (LanguageChoiceKey, _ => "Language: {name}"),
         (LanguageChoicePendingKey, _ => "{name} (restart)"),
         (PercentKey, _ => "{n}%"),
