@@ -150,6 +150,14 @@ namespace BakAgain.UI.InGame {
             _partyHeads.RenderAsync().Forget();
 
             AttachMarker(root);
+
+            // The Android pads, in the side bars as on the travel screen: the arrows still walk the
+            // party here, and the driver above reads the same held pad (TASK-820).
+            if (BakAgain.UI.InputCore.TouchInputState.Instance != null) {
+                _touchControls = new TouchControlsView(BakAgain.UI.InputCore.TouchInputState.Instance,
+                    _pointer, new GameData.Resources.Layout.TouchControlsLayout());
+                _touchControls.Build(root, CanonicalStage.GetOrCreate(root, _loader.Frame));
+            }
             // Registered here rather than in OnAfterShow because the root only exists once the REQ
             // has built, and this method is the one place that is true. The guard above makes it
             // run once per show, so the callback is not stacked on a rebuild.
@@ -159,6 +167,7 @@ namespace BakAgain.UI.InGame {
         }
 
         private VisualElement _wheelRoot;
+        private TouchControlsView _touchControls;
 
         /// <summary>
         /// Mouse wheel zooms the map, one step a notch.
@@ -266,6 +275,8 @@ namespace BakAgain.UI.InGame {
             _marker = null;
             _markerIcon = -1;
             _movementDriver = null;
+            _touchControls?.Dispose();
+            _touchControls = null;
             // Put the sky, the horizon, the fog and the far plane back before the camera, so the
             // travel view is whole the moment it is shown again.
             _world?.Environment?.SetOverheadMapMode(
@@ -331,6 +342,7 @@ namespace BakAgain.UI.InGame {
             // Same gate the travel HUD uses: a dialog over the map is resolved above this screen's
             // layer, so the party stops while it is up.
             bool ownsInput = _layerHost != null && _layerHost.IsInputActive;
+            _touchControls?.Refresh(inFight: false);
             _movementDriver?.Tick(ownsInput);
             ToggleNorthUpIfAsked(ownsInput);
             OpenCheatChestOnALongHold(ownsInput);

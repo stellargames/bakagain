@@ -87,6 +87,12 @@ namespace BakAgain.UI.InputCore {
         /// <summary>C3: a spell or item is waiting for a target, so the buttons cast rather than fight.</summary>
         public bool AwaitingTarget { get; set; }
 
+        /// <summary>While <see cref="AwaitingTarget"/>: the cell under the cursor would take the cast (TASK-823).</summary>
+        public bool CastAccepted { get; set; }
+
+        /// <summary>The acting character can walk to the cell under the cursor this turn (TASK-819).</summary>
+        public bool MoveAccepted { get; set; }
+
         /// <summary>Combat: the screen point (Input System coords, bottom-left) the hover pick uses on touch.</summary>
         public Vector2? CombatHoverScreenPoint { get; set; }
 
@@ -96,6 +102,11 @@ namespace BakAgain.UI.InputCore {
         public void ForgetCombatPreview() {
             CombatHoverScreenPoint = null;
             _pendingTap = -1;   // a cursor tap is not a travel step after the fight, nor the reverse
+            // Nor is a held pad: the finger that walked into the fight stepped the cursor up the
+            // arena on every repeat (TASK-822). A new press is needed on the other side.
+            HeldTouchAction = -1;
+            HeldIsReqArrow = false;
+            SwallowNextArrowClick = false;
         }
 
         /// <summary>

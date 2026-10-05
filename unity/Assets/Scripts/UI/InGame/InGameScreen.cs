@@ -220,7 +220,10 @@ namespace BakAgain.UI.InGame {
         internal void SetCombatCellSeams(System.Func<Vector3, (int Column, int Row)?> cellAt,
             System.Action<(int Column, int Row)?, bool> setCursorCell,
             System.Func<int, int, Vector3?> cellWorld, System.Func<(int Column, int Row)?> actingCell,
-            System.Func<bool> awaitingTarget) {
+            System.Func<bool> awaitingTarget, System.Func<int, int, bool> castAcceptedAt = null,
+            System.Func<int, int, bool> moveAcceptedAt = null) {
+            _castAcceptedAt = castAcceptedAt;
+            _moveAcceptedAt = moveAcceptedAt;
             _cellAtPoint = cellAt;
             _setCursorCell = setCursorCell;
             _cellWorld = cellWorld;
@@ -1334,9 +1337,13 @@ namespace BakAgain.UI.InGame {
             }
             if (_combatCursor == null) {
                 _combatCursor = new CombatCursor(CellOnScreen);
-                if (_actingCell?.Invoke() is (int ac, int ar)) {
-                    _combatCursor.Cell = (ac, ar);
-                }
+                _combatCursorSeated = false;
+            }
+            // Seat it on the acting character the first time there is one: during the fight's
+            // opening text nobody is acting yet, and the cursor started in the arena's corner.
+            if (!_combatCursorSeated && _actingCell?.Invoke() is (int ac, int ar)) {
+                _combatCursor.Cell = (ac, ar);
+                _combatCursorSeated = true;
             }
             int held = touch.TakeTouchAction();   // a quick tap still steps the cursor once
             if (held != _cursorHeldAction) {
@@ -1363,7 +1370,13 @@ namespace BakAgain.UI.InGame {
                 : occupant.HasValue ? CursorContext.None
                 : CursorContext.Ground;
             touch.AwaitingTarget = waiting;
+            touch.CastAccepted = waiting && (_castAcceptedAt?.Invoke(c, r) ?? true);
+            touch.MoveAccepted = !waiting && (_moveAcceptedAt?.Invoke(c, r) ?? true);
         }
+
+        private System.Func<int, int, bool> _castAcceptedAt;
+        private bool _combatCursorSeated;
+        private System.Func<int, int, bool> _moveAcceptedAt;
 
         private void StepCursor(int padAction) {
             Vector2 dir = padAction switch {
@@ -1380,18 +1393,21 @@ namespace BakAgain.UI.InGame {
 
         /// <summary>
         /// Inspect on touch: the combatant under the combat cursor, at once — the same primary
-        /// "click" the mouse would give it. Off a touch fight, or with nobody under the cursor, the
-        /// press stays armed and waits for a tap as before.
+        /// "click" the mouse would give it. With nobody there the press does nothing, rather than
+        /// staying armed for the next Thrust to complete (TASK-824). Off a touch fight it stays
+        /// armed and waits for a click as before.
         /// </summary>
-        internal void InspectAtTouchCursor() {
+        /// <returns>True when touch handled the press (so nothing stays armed).</returns>
+        internal bool InspectAtTouchCursor() {
             if (!TouchFight() || _combatCursor == null) {
-                return;
+                return false;
             }
             (int c, int r) = _combatCursor.Cell;
             if (CellOnScreen(c, r) is Vector2 point
                 && _interaction?.CombatantAtScreenPoint(point) is (int slot, bool party)) {
                 _hotspotTarget?.Invoke(slot, party, true);
             }
+            return true;
         }
 
         // The Move / Cast-here button: the mouse's ground click, on the cursor's cell.

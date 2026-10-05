@@ -225,6 +225,40 @@ public static class CastRingLayout {
     }
 
     /// <summary>
+    /// Touch's version of <see cref="PositionAt"/>: the band position nearest the finger, when the
+    /// finger is within <paramref name="reach"/> canonical units of it.
+    /// </summary>
+    /// <remarks>
+    /// A ring position's hit box is smaller than a fingertip on a phone, and a finger covers the
+    /// position it is on, so the exact test made the power slider unusable by touch (TASK-821).
+    /// Nearest-in-band also means sliding just past either end of the band holds that end.
+    /// </remarks>
+    public static int NearestPositionInBand(IReadOnlyList<RingPosition>? positions, int x, int y,
+        int minIndex, int maxIndex, int reach) {
+        if (positions == null) {
+            return -1;
+        }
+        int best = -1;
+        long bestDistance = (long)reach * reach;
+        for (int i = System.Math.Max(0, minIndex); i <= maxIndex && i < positions.Count; i++) {
+            RingPosition p = positions[i];
+            if (p == null) {
+                continue;
+            }
+            long dx = p.X - x, dy = p.Y - y;
+            long d = dx * dx + dy * dy;
+            if (d <= bestDistance) {
+                bestDistance = d;
+                best = i;
+            }
+        }
+        return best;
+    }
+
+    /// <summary>How far from a ring position a finger still selects it, in canonical units.</summary>
+    public const int TouchReach = 160;
+
+    /// <summary>
     /// The spell symbol under the cursor.
     /// </summary>
     /// <param name="isCastable">

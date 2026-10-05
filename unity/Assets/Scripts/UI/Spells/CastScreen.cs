@@ -32,7 +32,7 @@ namespace BakAgain.UI.Spells {
             if (_sliderSpell >= 0) {
                 CancelPowerSelection();
             }
-            _navigator?.Pop().Forget();
+            _navigator?.PopUnfaded().Forget();
             return true;
         }
 
@@ -351,12 +351,17 @@ namespace BakAgain.UI.Spells {
             DestroySnapshot();
             // The screen's alpha is not coverage — the panel leaves it at zero — so the capture is
             // copied into an opaque texture, or the cover draws as a hole.
-            Texture2D shot = ScreenCapture.CaptureScreenshotAsTexture();
-            _openingSnapshot = new Texture2D(shot.width, shot.height, TextureFormat.RGB24, false);
-            _openingSnapshot.SetPixels32(shot.GetPixels32());
-            _openingSnapshot.Apply();
-            Destroy(shot);
-            await navigator.Push(this);
+            // Fixed in place rather than copied: a phone-sized screen is millions of pixels, and a
+            // managed copy of them was most of the time the opening took on Android (TASK-818).
+            _openingSnapshot = ScreenCapture.CaptureScreenshotAsTexture();
+            if (_openingSnapshot.format == TextureFormat.RGBA32) {
+                Unity.Collections.NativeArray<byte> raw = _openingSnapshot.GetRawTextureData<byte>();
+                for (int i = 3; i < raw.Length; i += 4) {
+                    raw[i] = 255;
+                }
+                _openingSnapshot.Apply(false);
+            }
+            await navigator.PushUnfaded(this);
         }
 
         /// <summary>The whole screen as it was, over everything, until the wipe takes over.</summary>
@@ -403,12 +408,15 @@ namespace BakAgain.UI.Spells {
             VisualElement left = Curtain(root, rootW, rootH);
             VisualElement right = Curtain(root, rootW, rootH);
 
-            float tick = 1f / (float)CastOpenWipe.TicksPerSecond;
-            for (int step = 1; step <= CastOpenWipe.StepCount && _openingSnapshot != null; step++) {
+            // Paced by elapsed time, not by one step per wait: a wait is at least a frame, and at a
+            // phone's frame rate 49 frame-long steps took over a second (TASK-818).
+            float start = Time.unscaledTime;
+            for (int step = 1; step < CastOpenWipe.StepCount && _openingSnapshot != null;) {
                 (int bx, int bw) = CastOpenWipe.RevealedBand(step);
                 PlaceCurtain(left, wb.x + rx * sx, top, (bx - rx) * sx, height);
                 PlaceCurtain(right, wb.x + (bx + bw) * sx, top, (rx + rw - bx - bw) * sx, height);
-                await UniTask.Delay(System.TimeSpan.FromSeconds(tick), ignoreTimeScale: true);
+                await UniTask.Yield();
+                step = 1 + (int)((Time.unscaledTime - start) * CastOpenWipe.TicksPerSecond);
             }
             EndOpenWipe();
         }
@@ -1209,11 +1217,19 @@ namespace BakAgain.UI.Spells {
                 return;
             }
 
-            int position = CastRingLayout.PositionAt(
-                _ring.Positions, cursorX, cursorY,
-                CastRingLayout.PositionForPower(_minimumPower),
-                CastRingLayout.PositionForPower(_maximumPower),
-                CastRingLayout.CanonicalHitBoxWidth, CastRingLayout.CanonicalHitBoxHeight);
+            // A mouse hits the original's 10x10 boxes; a finger takes the nearest affordable
+            // position, since a fingertip is bigger than the box and hides it (TASK-821).
+            int position = _pointer.IsPresent
+                ? CastRingLayout.PositionAt(
+                    _ring.Positions, cursorX, cursorY,
+                    CastRingLayout.PositionForPower(_minimumPower),
+                    CastRingLayout.PositionForPower(_maximumPower),
+                    CastRingLayout.CanonicalHitBoxWidth, CastRingLayout.CanonicalHitBoxHeight)
+                : CastRingLayout.NearestPositionInBand(
+                    _ring.Positions, cursorX, cursorY,
+                    CastRingLayout.PositionForPower(_minimumPower),
+                    CastRingLayout.PositionForPower(_maximumPower),
+                    CastRingLayout.TouchReach);
 
             if (position != _hoveredPosition) {
                 _hoveredPosition = position;
@@ -1451,11 +1467,13 @@ namespace BakAgain.UI.Spells {
             }
             int spell = _sliderSpell;
             int frames = CastRingLayout.FillFrameCount(_maximumPower);
-            for (int f = 0; f < frames && _sliderSpell == spell && isActiveAndEnabled; f++) {
+            float start = Time.unscaledTime;
+            for (int f = 0; f < frames && _sliderSpell == spell && isActiveAndEnabled;) {
                 _fillFrame = f;
                 await PaintRingIconsAsync(stage);
-                await UniTask.Delay(System.TimeSpan.FromSeconds(1.0 / RingFillFramesPerSecond),
-                    ignoreTimeScale: true);
+                await UniTask.Yield();
+                // Elapsed time picks the frame, so a slow device skips frames rather than slowing down.
+                f = Mathf.Max(f + 1, (int)((Time.unscaledTime - start) * RingFillFramesPerSecond));
             }
             _fillFrame = -1;
         }
@@ -1550,7 +1568,7 @@ namespace BakAgain.UI.Spells {
         /// </remarks>
         public void CommitPowerSelection() {
             RaiseCommitted(CommitPower());
-            _navigator?.Pop().Forget();
+            _navigator?.PopUnfaded().Forget();
         }
 
         /// <summary>The power a click would commit, or 0 when the cursor is off the ring.</summary>
@@ -1800,7 +1818,7 @@ namespace BakAgain.UI.Spells {
                 CancelPowerSelection();
             }
 
-            _navigator?.Pop().Forget();
+            _navigator?.PopUnfaded().Forget();
         }
 
         /// <summary>The party member currently casting, or -1 before one is chosen.</summary>

@@ -1308,7 +1308,8 @@ namespace BakAgain.World {
                 screen.SetCombatantAtPointSeam(_hotspots.CombatantAtPoint);
                 screen.SetCombatCellSeams(_hotspots.CellAtPoint,
                     (cell, always) => { _hotspots.CursorCell = cell; _hotspots.CursorCellAlwaysShown = always; },
-                    _hotspots.CellCentreWorld, _hotspots.ActingCell, () => _hotspots.AwaitingCombatTarget);
+                    _hotspots.CellCentreWorld, _hotspots.ActingCell, () => _hotspots.AwaitingCombatTarget,
+                    _hotspots.CastAcceptedAtCell, _hotspots.MoveAcceptedAtCell);
                 screen.SetCombatGroundSeam(_hotspots.ResolveCombatGroundClick);
                 screen.SetCombatFaceSeam(FaceActingCombatantAt);
                 screen.SetInCombatPredicate(() => _hotspots?.Combat?.InCombat ?? false);

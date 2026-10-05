@@ -217,6 +217,11 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
                 Assert.AreEqual(DisplayStyle.None, root.Q("touch-move").style.display.value);
 
                 state.CursorContext = CursorContext.Ground;
+                state.MoveAccepted = false;
+                view.Refresh(inFight: true);
+                Assert.AreEqual(DisplayStyle.None, root.Q("touch-move").style.display.value,
+                    "no Move onto a cell the actor cannot reach (TASK-819)");
+                state.MoveAccepted = true;
                 view.Refresh(inFight: true);
                 Assert.AreEqual(DisplayStyle.None, root.Q("touch-thrust").style.display.value);
                 Assert.AreEqual(DisplayStyle.Flex, root.Q("touch-move").style.display.value);
@@ -224,7 +229,13 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
                 Assert.AreEqual(1, moved);
 
                 state.AwaitingTarget = true;
+                state.CastAccepted = false;
                 view.Refresh(inFight: true);
+                Assert.AreEqual(DisplayStyle.None, root.Q("touch-move").style.display.value,
+                    "no Cast here where the spell would not land (TASK-823)");
+                state.CastAccepted = true;
+                view.Refresh(inFight: true);
+                Assert.AreEqual(DisplayStyle.Flex, root.Q("touch-move").style.display.value);
                 Assert.AreEqual("Cast here", root.Q("touch-move").Q<Label>().text, "a waiting spell names the button");
             });
 

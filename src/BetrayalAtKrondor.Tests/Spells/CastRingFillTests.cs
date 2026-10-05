@@ -46,3 +46,34 @@ public class CastRingFillTests {
         Assert.Equal(IconFor(SliderRingIcon, 5, markAnchors: true), FillIconAt(33, 5, 5, 15));
     }
 }
+
+/// <summary>Touch's ring pick (TASK-821): nearest band position within reach.</summary>
+public class CastRingTouchPickTests {
+    private static readonly RingPosition[] Ring = BuildRing();
+
+    private static RingPosition[] BuildRing() {
+        var ring = new RingPosition[CastRingLayout.PositionCount];
+        for (int i = 0; i < ring.Length; i++) {
+            double a = 2 * System.Math.PI * i / ring.Length;
+            ring[i] = new RingPosition { X = 300 + (int)(250 * System.Math.Sin(a)), Y = 360 - (int)(250 * System.Math.Cos(a)) };
+        }
+        return ring;
+    }
+
+    [Fact]
+    public void AFingerNearAPositionPicksIt() {
+        RingPosition p = Ring[7];
+        Assert.Equal(7, CastRingLayout.NearestPositionInBand(Ring, p.X + 30, p.Y - 20, 0, 19, CastRingLayout.TouchReach));
+    }
+
+    [Fact]
+    public void JustPastTheBandsEndTheEndHolds() {
+        RingPosition p = Ring[21];
+        Assert.Equal(19, CastRingLayout.NearestPositionInBand(Ring, p.X, p.Y, 0, 19, 400));
+    }
+
+    [Fact]
+    public void AFingerFarFromTheRingPicksNothing() {
+        Assert.Equal(-1, CastRingLayout.NearestPositionInBand(Ring, 1400, 1100, 0, 29, CastRingLayout.TouchReach));
+    }
+}

@@ -1820,6 +1820,38 @@ using GameData.Resources.Scene;
         public bool AwaitingCombatTarget =>
             _pendingCombatMode == GameData.Resources.Combat.CombatCommandOutcome.PendingMode.TargetSelection;
 
+        /// <summary>
+        /// Whether a click on this cell would commit the pending spell — the same tests the ground
+        /// and target clicks run (<see cref="SpellTargetIsValid"/>, <see cref="GroundCellRefused"/>,
+        /// <see cref="GameData.Resources.Combat.CombatTargetSelection.ResolveOnField"/>). Touch uses
+        /// it to offer "Cast" only where casting would happen (TASK-823). A shot or an armed item
+        /// keeps its own checks and answers true here.
+        /// </summary>
+        public bool MoveAcceptedAtCell(int column, int row) =>
+            Combat?.Encounter?.Current is Combatant acting && Combat.CellMovable(acting, column, row);
+
+        public bool CastAcceptedAtCell(int column, int row) {
+            if (!AwaitingCombatTarget) {
+                return false;
+            }
+            Combatant acting = Combat?.Encounter?.Current;
+            if (_pendingCombatItem != null || _pendingSpell == null || acting == null) {
+                return true;
+            }
+            (bool canShoot, bool _) = Combat.CapabilitiesFor(acting);
+            if (canShoot) {
+                return true;
+            }
+            if (GroundCellRefused(column, row)) {
+                return false;
+            }
+            Combatant target = Combat.CombatantAtCell(column, row);
+            int type = _pendingSpell.TargetingType;
+            return GameData.Resources.Combat.CombatTargetSelection.ResolveOnField(
+                    false, SpellTargetIsValid(type, target), type)
+                != GameData.Resources.Combat.CombatTargetSelection.Resolution.RevertToMove;
+        }
+
         public (int RosterSlot, bool PartyMember)? CombatantAtPoint(UnityEngine.Vector3 point) {
             GameData.Resources.Combat.CombatEncounter fight = Combat?.Encounter;
             if (fight == null || _session == null || _start == null) {
@@ -2421,7 +2453,10 @@ using GameData.Resources.Scene;
         /// doing nothing.
         /// </remarks>
         /// <summary>Raised when Inspect arms target selection — the touch HUD answers it at once.</summary>
-        internal System.Action InspectArmed { get; set; }
+        /// <summary>Touch's answer to an armed Inspect: true when it dealt with the press itself
+        /// (inspected what was under the combat cursor, or found nothing there), so nothing is left
+        /// armed for the next tap to complete.</summary>
+        internal System.Func<bool> InspectArmed { get; set; }
 
         private void OnCombatCommand(GameData.Resources.Combat.CombatCommands.Command command,
             int actionId) {
@@ -2489,7 +2524,11 @@ using GameData.Resources.Scene;
                     _pendingCombatMode = GameData.Resources.Combat.CombatCommandOutcome.ModeFor(command);
                     // On touch the combat cursor is already on something: inspect it now rather
                     // than wait for a second tap (owner, 2026-10-05).
-                    InspectArmed?.Invoke();
+                    // On touch a pending Inspect has no pointer to wait for: the next "click" a finger
+                    // makes is a Thrust or Cast button, which completed the inspect instead (TASK-824).
+                    if (InspectArmed?.Invoke() == true) {
+                        _pendingCombatMode = GameData.Resources.Combat.CombatCommandOutcome.PendingMode.None;
+                    }
                     return;
                 case GameData.Resources.Combat.CombatCommands.Command.CharacterScreen:
                     // *** SHIFT TURNS THE PACK INTO THE SHEET. *** combat_arena_suspend_char_screen
@@ -2745,6 +2784,18 @@ using GameData.Resources.Scene;
                     == GameData.Resources.Combat.CombatCommandOutcome.PendingMode.TargetSelection
                 && _pendingCombatItem == null) {
                 RecordAim(fight, acting, target, shooting: false);
+                // The spell's own panel: "Choose a target", its name, and for a damage spell over a
+                // living enemy the accuracy and damage (COMBAT.C:1092). It was blank here (TASK-821).
+                if (_pendingSpell != null) {
+                    bool liveEnemy = target != null && !target.IsDead && !target.IsPartyMember;
+                    bool rate = GameData.Resources.Combat.SpellTargetPanel.ShowsTargetStats(
+                        liveEnemy, _pendingSpell.TargetingType, _pendingSpellId);
+                    (int accuracy, int damage) = rate
+                        ? Combat.SpellTargetStats(acting, target, _pendingSpell, _pendingSpellId, _pendingSpellPower)
+                        : (0, 0);
+                    return (GameData.Resources.Combat.SpellTargetPanel.Lines(
+                        _pendingSpell.Name, rate, accuracy, damage), null);
+                }
             }
 
             // The melee preview, which the original raises in `stateA == 0` — the state the loop
@@ -3945,6 +3996,13 @@ using GameData.Resources.Scene;
             Combatant acting = Combat.Encounter.Current;
             if (acting == null || !acting.IsPartyMember || acting.IsDead
                 || !acting.CanAct(strict: true)) {
+                return;
+            }
+
+            // COMBAT.C:2323: the click moves only onto a cell the actor can reach this turn
+            // (combatgrid_cursor_tile_movable); anywhere else it does nothing. Without this a cell
+            // past the actor's reach walked them part of the way and stopped short (TASK-819).
+            if (!Combat.CellMovable(acting, column, row)) {
                 return;
             }
 

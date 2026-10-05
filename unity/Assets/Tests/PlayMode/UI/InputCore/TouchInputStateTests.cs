@@ -47,6 +47,23 @@ namespace BakAgain.Tests.PlayMode.UI.InputCore {
             Assert.AreEqual(SelectRoute.Primary, s.TakeSelectRoute(4));
         }
 
+        /// <summary>
+        /// TASK-822 (owner's phone): the finger that walked the party into a fight was still the
+        /// held pad when the fight began, and in a fight a held pad steps the cursor — it ran up the
+        /// arena. A fight's edge drops the hold; only a press made in the fight moves the cursor.
+        /// </summary>
+        [Test]
+        public void AFightEdgeDropsTheHeldPad() {
+            var s = new TouchInputState();
+            s.PressHold(72, reqArrow: false);
+            s.ForgetCombatPreview();
+            Assert.AreEqual(-1, s.HeldTouchAction);
+            Assert.AreEqual(-1, s.TakeTouchAction(), "no step from the travel press");
+            s.ReleaseHold(72);   // the finger lifting later changes nothing
+            s.PressHold(80, reqArrow: false);
+            Assert.AreEqual(80, s.TakeTouchAction(), "a press in the fight still steps");
+        }
+
         [Test]
         public void AFightEdgeForgetsAnOldPreview() {
             var s = new TouchInputState() { CombatHoverScreenPoint = new UnityEngine.Vector2(1, 2) };

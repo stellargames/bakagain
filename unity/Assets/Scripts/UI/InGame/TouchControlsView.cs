@@ -36,6 +36,8 @@ namespace BakAgain.UI.InGame {
         private VisualElement _root, _stage, _left, _right, _grid, _thrust, _swing, _move;
         private CursorContext _lastContext;
         private bool _lastAwaiting;
+        private bool _lastCastAccepted;
+        private bool _lastMoveAccepted;
         private VisualElement _panelRoot;
         private bool _inFight;
         private bool _wasTouch;
@@ -85,11 +87,14 @@ namespace BakAgain.UI.InGame {
         public void Refresh(bool inFight) {
             bool touch = IsTouch;
             if (inFight == _inFight && touch == _wasTouch
-                && _state.CursorContext == _lastContext && _state.AwaitingTarget == _lastAwaiting) {
+                && _state.CursorContext == _lastContext && _state.AwaitingTarget == _lastAwaiting
+                && _state.CastAccepted == _lastCastAccepted && _state.MoveAccepted == _lastMoveAccepted) {
                 return;
             }
             _lastContext = _state.CursorContext;
             _lastAwaiting = _state.AwaitingTarget;
+            _lastCastAccepted = _state.CastAccepted;
+            _lastMoveAccepted = _state.MoveAccepted;
             _inFight = inFight;
             _wasTouch = touch;
             Layout();
@@ -263,11 +268,15 @@ namespace BakAgain.UI.InGame {
             bool onTarget = _inFight && _state.CursorContext == CursorContext.Target;
             bool onGround = _inFight && _state.CursorContext == CursorContext.Ground;
             bool casting = _inFight && _state.AwaitingTarget;
+            // While a spell waits, a button appears only where the cast would land: a click
+            // anywhere else commits nothing (TASK-823).
+            bool castHere = casting && _state.CastAccepted;
             SetLabel(_thrust, casting ? "Cast" : "Thrust");
             SetLabel(_move, casting ? "Cast here" : "Move");
-            Place(_thrust, bx, h * _layout.ThrustY, bw, bh, onTarget);
+            Place(_thrust, bx, h * _layout.ThrustY, bw, bh, onTarget && (!casting || castHere));
             Place(_swing, bx, h * _layout.SwingY, bw, bh, onTarget && !casting);
-            Place(_move, bx, h * _layout.ThrustY, bw, bh, onGround);
+            // Move only onto a cell the actor can reach, where the original shows its move marker.
+            Place(_move, bx, h * _layout.ThrustY, bw, bh, onGround && (casting ? castHere : _state.MoveAccepted));
             // The grid button: a small square in the bar's top corner (owner, 2026-10-01: the grid
             // toggle should be much more unobtrusive).
             float gs = rightW * _layout.GridButtonSize;
