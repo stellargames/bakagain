@@ -2462,9 +2462,18 @@ using GameData.Resources.Scene;
                     StartAutoResolve();
                     return;   // the loop hands the HUD on itself when it stops
                 case GameData.Resources.Combat.CombatCommands.Command.Cast:
+                    // COMBAT.C:2037: an actor who cannot cast here gets nothing — the key still
+                    // reaches this case while the button shows its blank label (0x0e).
+                    if (!Combat.CapabilitiesFor(acting).CanCast) {
+                        return;
+                    }
                     OpenCastScreen(acting);
                     return;   // picking a spell is not yet the cast, so no turn is spent
                 case GameData.Resources.Combat.CombatCommands.Command.Shoot:
+                    // COMBAT.C:2024: same gate for an actor with nothing to shoot.
+                    if (!Combat.CapabilitiesFor(acting).CanShoot) {
+                        return;
+                    }
                     // *** PRESSING SHOOT ARMS TARGETING; PICKING A QUARREL DOES NOT. *** The
                     // original's case 31 sets stateA = 4 AND raises the shoot menu in the same
                     // breath (COMBAT.C ~2018), which is what CombatCommandOutcome.ModeFor has said
