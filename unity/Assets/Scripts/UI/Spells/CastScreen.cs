@@ -1040,7 +1040,7 @@ namespace BakAgain.UI.Spells {
         private void Update() {
             _compass?.Refresh();
 
-            if (_pointer == null || _ring?.Positions == null) {
+            if (_pointer == null || _ring?.Positions == null || !Tracks(_pointer)) {
                 return;
             }
 
@@ -1068,10 +1068,26 @@ namespace BakAgain.UI.Spells {
                 RefreshHoverAsync().Forget();
             }
 
-            if (_pointer.Primary.PressedThisFrame && _hoveredPosition >= 0) {
+            if (Picks(_pointer) && _hoveredPosition >= 0) {
                 CommitPowerSelection();
             }
         }
+
+        /// <summary>
+        /// Whether the pointer's position means anything this frame. A mouse always hovers; a finger
+        /// only while it is down, and on the frame it lifts.
+        /// </summary>
+        public static bool Tracks(UI.InputCore.IPointer pointer) =>
+            pointer.IsPresent || pointer.Primary.IsDown || pointer.Primary.ReleasedThisFrame;
+
+        /// <summary>
+        /// Whether this frame picks what is under the pointer — the original's click. A mouse picks on
+        /// the press, after hovering showed the preview. <b>A finger cannot hover</b>, so touching
+        /// is the preview and lifting is the pick (owner, 2026-10-05, TASK-816): sliding over the
+        /// ring shows each power's cost before anything is cast.
+        /// </summary>
+        public static bool Picks(UI.InputCore.IPointer pointer) =>
+            pointer.IsPresent ? pointer.Primary.PressedThisFrame : pointer.Primary.ReleasedThisFrame;
 
         /// <summary>
         /// Follows the pointer over the spell symbols, and picks one on a click.
@@ -1098,7 +1114,7 @@ namespace BakAgain.UI.Spells {
                 ShowHoveredSpellAsync().Forget();
             }
 
-            if (_pointer.Primary.PressedThisFrame && _hoveredSpell >= 0) {
+            if (Picks(_pointer) && _hoveredSpell >= 0) {
                 ChooseSpellAsync(_hoveredSpell).Forget();
             }
         }
