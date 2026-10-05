@@ -279,12 +279,18 @@ namespace BakAgain.Core.Services {
         /// 113 NPC routers push a farewell line before handing off to a topic menu, and every topic menu
         /// pushes itself when a topic is picked — so GoodBye (or Escape) plays the farewell and a
         /// finished answer brings the menu back (TASK-543).
-        /// <para><b>Ceiling:</b> the original's empty-topic fallback record (<c>0x801e849b</c>, taken
-        /// only while <c>bAllowFallback</c>) is not ported; topic menus clear that flag.</para>
+        /// <para><paramref name="fallbackId"/> is the empty-topic fallback: the popped record is
+        /// thrown away and that one plays instead (DIALOG.C:1472-1474) — see
+        /// <c>DialogManager.RunChainAsync</c> for when it applies (TASK-800).</para>
         /// </remarks>
-        public async UniTask<DialogPlay> ResumePushedAsync(DialogPlay play) {
+        public async UniTask<DialogPlay> ResumePushedAsync(DialogPlay play, int? fallbackId = null) {
+            bool fallback = fallbackId.HasValue;
             while (play?.Pushed != null && play.Pushed.Count > 0) {
                 string key = play.Pushed.Pop();
+                if (fallback) {
+                    key = "base:dialog:" + fallbackId.Value;
+                    fallback = false;
+                }
                 (Dialog dialog, DialogEntry entry) = await EntryForKeyAsync(key);
                 if (entry != null) {
                     return await WalkFromAsync(play, dialog, entry, 0);

@@ -944,8 +944,25 @@ namespace BakAgain.UI {
             int firstPick = NoDialogResult;
             var pickCaptured = false;
             int lastPick = NoDialogResult;
+            // bAllowFallback (DIALOG.C:839): cleared by the first topic menu that opens (:1334).
+            bool allowFallback = true;
             while (entry != null) {
                 bool isMenu = (entry.Flags & DialogEntryFlags.ChoiceMenu) != 0;
+
+                // *** A TOPIC MENU WITH NOTHING TO ASK IS BLANKED, NOT SHOWN. *** DIALOG.C:900-946:
+                // when no topic passes askabout_dispatch_topic the record is zeroed (nothing drawn,
+                // no menu) and bTopicEmpty is raised; at the stack pop, if no menu has opened yet in
+                // this conversation, the pushed farewell is replaced by 2000027 — "whatever it was
+                // has utterly slipped my mind" (:1472-1474). TASK-800.
+                if (isMenu && !AnyTopicAvailable(entry)) {
+                    play = await _executor.ResumePushedAsync(play,
+                        allowFallback ? EmptyTopicFallbackId : (int?)null);
+                    entry = play?.Entry;
+                    continue;
+                }
+                if (isMenu) {
+                    allowFallback = false;
+                }
                 // *** 0x200 IS A CHOICE TOO, AND IT IS NOT THE ASK-ABOUT GRID. *** DIALOG.C:1342
                 // gives `wFlags & 0x200` its own arm — print the body, then
                 // `askabout_menu_page_run_selection(record)` and take THAT branch's target. 0x400
@@ -1640,6 +1657,18 @@ namespace BakAgain.UI {
         /// Those topics keep the old behaviour, which is the safe direction (offered, not hidden)
         /// and is logged.</para>
         /// </remarks>
+        /// <summary>DDX 2000027 (key 0x801e849b): the line an empty first topic menu ends on.</summary>
+        private const int EmptyTopicFallbackId = 2000027;
+
+        private bool AnyTopicAvailable(DialogEntry entry) {
+            foreach (DialogBranchBase branch in entry.Branches ?? new System.Collections.Generic.List<DialogBranchBase>()) {
+                if (KeywordKeyOf(branch) is { } key && TopicIsAvailable(key)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         private bool TopicIsAvailable(int keywordKey) {
             int own = _gameSession?.GetGlobalValue(keywordKey) ?? 0;
             int suppressed = _gameSession?.GetGlobalValue(KeywordAvailability.SuppressedFlag(keywordKey)) ?? 0;
