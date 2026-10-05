@@ -90,6 +90,13 @@ namespace BakAgain.Tests.Editor.UI.InputCore {
                 Assert.Contains("Accel:1", spy.Calls);
 
                 spy.Calls.Clear();
+                spy.TopLayer = new TravelLayer("travel", new List<NavWidget>(), null);
+                Release(keyboard.digit1Key);
+                Press(keyboard.digit1Key);
+                adapter.Tick();
+                Assert.Contains("Accel:1", spy.Calls, "the travel HUD's 1 is the first portrait (TASK-798)");
+
+                spy.Calls.Clear();
                 spy.TopLayer = null;
                 Release(keyboard.digit1Key);
                 Press(keyboard.digit1Key);

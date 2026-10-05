@@ -264,10 +264,12 @@ namespace BakAgain.UI.InputCore {
                     return;
                 }
             }
-            // A digit on a REQ menu is a button press like a letter: '1'..'0' are scancodes 2..11,
-            // the portraits' and the Contents chapters' ids (TASK-796). Anywhere else it stays the
-            // Skip below, which is what pages a dialog on.
-            if (_commands.TopLayer is NavigableLayer) {
+            // A digit on a REQ page is a button press like a letter: '1'..'0' are scancodes 2..11,
+            // the portraits' and the Contents chapters' ids — on menus (TASK-796), the travel HUD and
+            // the map (TASK-798). Over a full-frame dialog it stays the Skip below, which pages it on.
+            // (wantsText returned above, so a typing screen never gets here.)
+            if (_commands.TopLayer is NavigableLayer || _commands.TopLayer is TravelLayer
+                || _commands.TopLayer is ScreenInputLayer) {
                 for (Key k = Key.Digit1; k <= Key.Digit0; k++) {
                     if (kb[k].wasPressedThisFrame) {
                         _commands.Accelerator(k == Key.Digit0 ? '0' : (char)('1' + (k - Key.Digit1)));

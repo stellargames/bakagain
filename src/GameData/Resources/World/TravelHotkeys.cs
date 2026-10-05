@@ -37,6 +37,9 @@ public static class TravelHotkeys {
             case 'B': return 0x30;   // 48 — bookmark
             case 'O': return 0x18;   // 24 — options
             case 'M': return 0x32;   // 50 — the local map
+            case '1': return 0x02;   // 2-4 — the portraits: inventory, or with Shift the
+            case '2': return 0x03;   //       character sheet (WORLDLP.C:355-371, MAP.C:405-419)
+            case '3': return 0x04;
             case 'F': return 0x21;   // 33 — the full map: no button on the HUD, but WORLDLP.C:324
                                      //      acts on the scancode anyway (TASK-797)
             default: return NoAction;

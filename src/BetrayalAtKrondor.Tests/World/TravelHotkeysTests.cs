@@ -32,7 +32,7 @@ public class TravelHotkeysTests {
     [Theory]
     [InlineData('A')]
     [InlineData('Z')]
-    [InlineData('1')]
+    [InlineData('4')]
     [InlineData(' ')]
     public void ALetterTheHudHasNoButtonForNamesNothing(char letter) {
         // An unmatched scancode must do nothing rather than fall through to a neighbouring id.
@@ -41,6 +41,16 @@ public class TravelHotkeysTests {
 
     // F is no button on either page, yet both loops act on it: menupage_run hands back every
     // scancode, and WORLDLP.C:324 and MAP.C:383 both run fmap_screen_run on 0x21 (TASK-797).
+    // '1'..'3' are scancodes 2..4, the portraits' ids: the member's inventory, or with Shift the
+    // character sheet (WORLDLP.C:355-371, MAP.C:405-419) — TASK-798.
+    [Theory]
+    [InlineData('1', 2)]
+    [InlineData('2', 3)]
+    [InlineData('3', 4)]
+    public void ADigitIsThatMembersPortrait(char key, int actionId) {
+        Assert.Equal(actionId, TravelHotkeys.ActionFor(key));
+    }
+
     [Fact]
     public void FOpensTheFullMapFromTravelAndFromTheLocalMap() {
         Assert.Equal(0x21, TravelHotkeys.ActionFor('f'));

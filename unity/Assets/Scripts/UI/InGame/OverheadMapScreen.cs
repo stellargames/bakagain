@@ -481,8 +481,13 @@ namespace BakAgain.UI.InGame {
 
         public void PrimaryAction(int menuEntryActionId) {
             if (IsPortrait(menuEntryActionId)) {
+                // With Shift held, the character sheet (MAP.C:409-411); else the inventory.
                 int slot = menuEntryActionId - ActionPartyMember1;
-                if (_inventoryMenu != null && _inventoryMenu.SetMember(slot)) {
+                if (ShiftHeld()) {
+                    if (slot < _session.ActivePartyIndices.Length) {
+                        _characterSheet?.RunAsync(slot).Forget();
+                    }
+                } else if (_inventoryMenu != null && _inventoryMenu.SetMember(slot)) {
                     _navigator.Push(_inventoryMenu).Forget();
                 }
                 return;
@@ -528,6 +533,10 @@ namespace BakAgain.UI.InGame {
             }
             await _dialogs.ShowById(helpId).AsTask();
         }
+
+        /// <summary>Shift is the original's other route to the character sheet (key_is_down 0x2a/0x36).</summary>
+        internal static bool ShiftHeld() =>
+            BakAgain.UI.InputCore.InputDriver.Gameplay is { } keys && (keys.LeftShift || keys.RightShift);
 
         private static bool IsPortrait(int actionId) =>
             actionId >= ActionPartyMember1 && actionId <= ActionPartyMember1 + 2;

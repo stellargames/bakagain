@@ -1532,11 +1532,15 @@ namespace BakAgain.UI.InGame {
                 case ActionPartyMember1:
                 case ActionPartyMember2:
                 case ActionPartyMember3: {
-                    // Plain portrait click → that member's inventory (WORLDLP.C:367,
-                    // cmbinv_inventory_screen_run(NULL, slot+1, 0)). The original's right-click /
-                    // Shift+click branch opens the character sheet instead — not built yet.
+                    // Portrait click or 1-3 → that member's inventory (WORLDLP.C:367,
+                    // cmbinv_inventory_screen_run(NULL, slot+1, 0)); with Shift held, the character
+                    // sheet (WORLDLP.C:359-364). A right-click arrives as SecondaryAction.
                     int slot = menuEntryActionId - ActionPartyMember1;
-                    if (_inventoryMenu != null && _inventoryMenu.SetMember(slot)) {
+                    if (OverheadMapScreen.ShiftHeld()) {
+                        if (slot < _gameSession.ActivePartyIndices.Length) {
+                            _characterSheet?.RunAsync(slot).Forget();
+                        }
+                    } else if (_inventoryMenu != null && _inventoryMenu.SetMember(slot)) {
                         _navigator.Push(_inventoryMenu).Forget();
                     }
                     break;
