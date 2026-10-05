@@ -32,6 +32,23 @@ namespace BakAgain.ResourceManagement {
         public static string BootText(string key) =>
             UiTemplates.Format(UiStringCatalog.Embedded.TranslatedBy(Current), key);
 
+        /// <summary>
+        /// The locales with a pack installed: every <c>Lang/&lt;locale&gt;/&lt;locale&gt;.po</c> under the
+        /// override folder (TASK-782).
+        /// </summary>
+        public static System.Collections.Generic.IEnumerable<string> Installed() {
+            string lang = Path.Combine(BakResourceSettings.OverridePath ?? string.Empty, "Lang");
+            if (string.IsNullOrEmpty(BakResourceSettings.OverridePath) || !Directory.Exists(lang)) {
+                yield break;
+            }
+            foreach (string dir in Directory.GetDirectories(lang)) {
+                string locale = Path.GetFileName(dir);
+                if (File.Exists(PathFor(BakResourceSettings.OverridePath, locale))) {
+                    yield return locale;
+                }
+            }
+        }
+
         /// <summary>The pack file a locale is read from, under the override folder.</summary>
         public static string PathFor(string overridePath, string locale) =>
             Path.Combine(overridePath ?? string.Empty, "Lang", locale, locale + ".po");

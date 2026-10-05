@@ -58,6 +58,13 @@ public static class UiTemplates {
     /// <summary><paramref name="n"/> as a percentage, through <see cref="PercentKey"/>.</summary>
     public static string Percent(object n) => Format(PercentKey, ("n", n));
 
+    /// <summary>The Preferences screen's language button (TASK-782): "Language: <c>{name}</c>".</summary>
+    public const string LanguageChoiceKey = "port:template:language_choice";
+
+    /// <summary>Once a different language is chosen: "<c>{name}</c> (restart)" — it applies when the
+    /// game next starts, and the shorter wording still fits the button.</summary>
+    public const string LanguageChoicePendingKey = "port:template:language_choice_pending";
+
     /// <summary>CHEAT CENTRAL's subtitle.</summary>
     public const string CheatCentralSubtitle = "port:template:cheat_central_subtitle";
 
@@ -67,6 +74,8 @@ public static class UiTemplates {
         (CurrentOfMax, c => "{current}" + Literal(c.Get("base:uistring:encamp.current_of_max_separator")) + "{max}"),
         // Port text with no EXE source: the English lives here, and a pack translates it by key.
         (PartyPickerCancel, _ => "Cancel"),
+        (LanguageChoiceKey, _ => "Language: {name}"),
+        (LanguageChoicePendingKey, _ => "{name} (restart)"),
         (PercentKey, _ => "{n}%"),
         (TouchMove, _ => "Move"),
         (TouchCast, _ => "Cast"),
