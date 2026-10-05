@@ -168,7 +168,7 @@ namespace BakAgain.UI.InGame {
         }
         private CompassView _compass;
         // The arena's own frame, shown only in a fight -- see BuildCombatFrame.
-        private const string CombatFrameAddress = "CFRAME.SCX";
+        public const string CombatFrameAddress = "CFRAME.SCX";
         private VisualElement _combatFrame;
         private VisualElement[] _compassArrows = System.Array.Empty<VisualElement>();
         private bool _combatChromeShown;

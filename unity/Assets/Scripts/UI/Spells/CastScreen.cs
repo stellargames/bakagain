@@ -778,10 +778,12 @@ namespace BakAgain.UI.Spells {
         /// </remarks>
         private async UniTask DrawChromeAsync(VisualElement stage) {
             Clear(stage, ChromeClass);
-            Sprite chrome = await _resources.GetOrLoadAsync<Sprite>(ChromeKey);
+            // In a fight what lies under the cast panel is the arena's frame, cframe.scx
+            // (COMBAT.C:879), which has no compass diamond; FRAME.SCR there brought it back.
+            string key = CombatCaster != null ? BakAgain.UI.InGame.InGameScreen.CombatFrameAddress : ChromeKey;
+            Sprite chrome = await _resources.GetOrLoadAsync<Sprite>(key);
             if (chrome == null) {
-                _logger.LogError("CastScreen: {Chrome} did not load; the party bar stays blank.",
-                    ChromeKey);
+                _logger.LogError("CastScreen: {Chrome} did not load; the party bar stays blank.", key);
 
                 return;
             }
