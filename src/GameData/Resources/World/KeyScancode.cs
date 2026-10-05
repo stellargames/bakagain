@@ -11,7 +11,7 @@ public static class KeyScancode {
     private const string ARow = "asdfghjkl";         // 0x1e..0x26
     private const string ZRow = "zxcvbnm";           // 0x2c..0x32
 
-    /// <summary>The key's scancode, or -1 for a key not on these rows.</summary>
+    /// <summary>The key's scancode, or -1 for a key not on these rows (Space, ',' and '.' too).</summary>
     public static int Of(char key) {
         char c = char.ToLowerInvariant(key);
         int i;
@@ -19,6 +19,6 @@ public static class KeyScancode {
         if ((i = QRow.IndexOf(c)) >= 0) return 0x10 + i;
         if ((i = ARow.IndexOf(c)) >= 0) return 0x1e + i;
         if ((i = ZRow.IndexOf(c)) >= 0) return 0x2c + i;
-        return -1;
+        return c switch { ' ' => 0x39, ',' => 0x33, '.' => 0x34, _ => -1 };
     }
 }

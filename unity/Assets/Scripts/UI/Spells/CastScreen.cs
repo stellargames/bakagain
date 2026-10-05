@@ -22,7 +22,20 @@ namespace BakAgain.UI.Spells {
     /// halves of this screen are drawn from different kinds of resource, which is worth remembering
     /// when the symbol half lands.</para>
     /// </summary>
-    public class CastScreen : BakAgain.UI.Navigation.ScreenBase, IActionHandler {
+    public class CastScreen : BakAgain.UI.Navigation.ScreenBase, IActionHandler,
+        BakAgain.UI.InputCore.IUnmatchedScancodeHandler {
+        /// <summary>M (0x32) ends the cast screen outright (CSPELL.C:2285) — TASK-809.</summary>
+        public bool OnUnmatchedScancode(int scancode) {
+            if (scancode != 0x32) {
+                return false;
+            }
+            if (_sliderSpell >= 0) {
+                CancelPowerSelection();
+            }
+            _navigator?.Pop().Forget();
+            return true;
+        }
+
         private const string RingClass = "cast-ring-icon";
         private const string InfoClass = "cast-info-line";
         private const string ChromeClass = "cast-chrome";

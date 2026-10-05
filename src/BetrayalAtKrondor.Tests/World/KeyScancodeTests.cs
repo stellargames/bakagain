@@ -23,6 +23,9 @@ public class KeyScancodeTests {
     [InlineData('0', 0x0b)]
     [InlineData('q', 0x10)]
     [InlineData('z', 0x2c)]
+    [InlineData(' ', 0x39)]
+    [InlineData(',', 0x33)]
+    [InlineData('.', 0x34)]
     public void AKeyIsItsSetOneScancode(char key, int scancode) {
         Assert.Equal(scancode, KeyScancode.Of(key));
     }

@@ -11,7 +11,7 @@ namespace BakAgain.Tests.Editor.UI.InputCore {
             public void Activate() => Calls.Add("Activate");
             public void Cancel() => Calls.Add("Cancel");
             public void Accelerator(char c) => Calls.Add("Accel:" + c);
-            public void Skip() => Calls.Add("Skip");
+            public void Skip(char key = '\0') => Calls.Add("Skip");
             public IInputLayer TopLayer { get; set; }
             public bool IsModal => false;
         }

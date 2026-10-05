@@ -225,6 +225,23 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             await pick;
         });
 
+        // INVINSP.C:111-169: Space (0x39) ends the loop with the value, ',' (0x33) steps down and
+        // '.' (0x34) steps up, as the arrows do (TASK-809). They reach a layer as Skip + the key.
+        [UnityTest]
+        [Timeout(15000)]
+        public IEnumerator SpaceAccepts_CommaAndPeriodStep() => UniTask.ToCoroutine(async () => {
+            VisualElement stage = BuildStage();
+            var stack = new InputLayerStack();
+            UniTask<int> pick = QuantityPickerView.ShowAsync(stage, stack, max: 6, allowShare: false);
+
+            stack.DispatchIntent(UiIntent.Move(NavDirection.PageDown)); // 6 -> 1
+            stack.DispatchIntent(UiIntent.Skip('.'));                    // 1 -> 2
+            stack.DispatchIntent(UiIntent.Skip('.'));                    // 2 -> 3
+            stack.DispatchIntent(UiIntent.Skip(','));                    // 3 -> 2
+            stack.DispatchIntent(UiIntent.Skip(' '));
+            Assert.AreEqual(2, await pick);
+        });
+
         [UnityTest]
         [Timeout(15000)]
         public IEnumerator GKey_Accepts() => UniTask.ToCoroutine(async () => {

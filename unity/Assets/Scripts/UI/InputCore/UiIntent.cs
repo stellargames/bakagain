@@ -16,6 +16,8 @@ namespace BakAgain.UI.InputCore {
         public static UiIntent Activate() => new UiIntent(UiIntentKind.Activate, default, '\0');
         public static UiIntent Cancel() => new UiIntent(UiIntentKind.Cancel, default, '\0');
         public static UiIntent Accelerator(char character) => new UiIntent(UiIntentKind.Accelerator, default, character);
-        public static UiIntent Skip() => new UiIntent(UiIntentKind.Skip, default, '\0');
+        /// <summary>A key or click no other intent claims. <paramref name="key"/> names the few keys a
+        /// screen loop reads by scancode (Space, ',' and '.'); '\0' for everything else.</summary>
+        public static UiIntent Skip(char key = '\0') => new UiIntent(UiIntentKind.Skip, default, key);
     }
 }

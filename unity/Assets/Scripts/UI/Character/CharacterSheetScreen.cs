@@ -25,7 +25,32 @@ namespace BakAgain.UI.Character {
     /// it leaves is the one already drawn at the end of that rating's bar — see
     /// <see cref="SkillEmphasis"/> — so the screen is not a read-out with a decoration on it.</para>
     /// </remarks>
-    public class CharacterSheetScreen : BakAgain.UI.Navigation.ScreenBase, IActionHandler {
+    public class CharacterSheetScreen : BakAgain.UI.Navigation.ScreenBase, IActionHandler,
+        BakAgain.UI.InputCore.IUnmatchedScancodeHandler {
+        /// <summary>
+        /// 1-3 (scancodes 2-4) show that member (CHARSCRN.C:338-343) — TASK-809. Space and N reach
+        /// the portrait entries by scancode already.
+        /// </summary>
+        public bool OnUnmatchedScancode(int scancode) {
+            if (scancode == 0x39) {
+                // Space is N's twin (CHARSCRN.C:326-334): the next member, or with Shift the help.
+                if (BakAgain.UI.InputCore.InputDriver.ShiftHeld) {
+                    SecondaryAction(PortraitActionId);
+                } else {
+                    PrimaryAction(PortraitActionId);
+                }
+                return true;
+            }
+            if (scancode < 2 || scancode > 4) {
+                return false;
+            }
+            if (!_bookOpen && scancode - 2 < ActiveCount) {
+                _slot = scancode - 2;
+                ShowMember();
+            }
+            return true;
+        }
+
         /// <summary>The palette the original loads for this screen (0x583f4).</summary>
         private const string Palette = CharacterSheetLayout.ScreenPalette;
 

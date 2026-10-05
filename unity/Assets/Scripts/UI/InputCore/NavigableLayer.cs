@@ -73,7 +73,10 @@ namespace BakAgain.UI.InputCore {
                     _onCancel();
                     return true;
                 case UiIntentKind.Accelerator: return Accelerate(intent.Character);
-                default: return false; // Skip is for full-frame layers, not menus
+                // Skip is for full-frame layers — except the keys a menu loop reads by scancode
+                // (Space, ',' and '.'), which arrive as Skip carrying the key (TASK-809).
+                case UiIntentKind.Skip when intent.Character != '\0': return Accelerate(intent.Character);
+                default: return false;
             }
         }
 

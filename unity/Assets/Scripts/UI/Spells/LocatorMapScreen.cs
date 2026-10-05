@@ -448,7 +448,12 @@ namespace BakAgain.UI.Spells {
 
         public bool OnTab(bool shift) => false;
 
-        public void OnText(char c) { }
+        /// <summary>E (0x12) closes the map like its Exit button (SPELLFX.C:345) — TASK-809.</summary>
+        public void OnText(char c) {
+            if (GameData.Resources.World.KeyScancode.Of(c) == CloseActionId) {
+                PrimaryAction(CloseActionId);
+            }
+        }
 
         public bool OnEdit(EditKey key) => false;
 

@@ -290,7 +290,9 @@ namespace BakAgain.UI.InputCore {
             }
             foreach (UnityEngine.InputSystem.Controls.KeyControl key in kb.allKeys) {
                 if (key.wasPressedThisFrame && !ClaimedBeforeSkip(key.keyCode)) {
-                    _commands.Skip();
+                    _commands.Skip(key.keyCode switch {
+                        Key.Space => ' ', Key.Comma => ',', Key.Period => '.', _ => '\0',
+                    });
                     return;
                 }
             }
