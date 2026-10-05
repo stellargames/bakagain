@@ -3191,7 +3191,9 @@ using GameData.Resources.Scene;
             // it explicitly. Both reach here, so it is cleared once, in the place that knows the
             // click actually did something.
             acting.Flags &= ~GameData.Resources.Combat.CombatantFlags.Ready;
-            _redrawArena?.Invoke();
+            // ONE redraw: RefreshCombatHud's is the one the approach walk slides on. A second
+            // redraw here started the slide and the HUD's then rebuilt the arena under it, so the
+            // attacker appeared at the target at once (TASK-792) — TASK-103's trap, on this path.
             RefreshCombatHud();
         }
 

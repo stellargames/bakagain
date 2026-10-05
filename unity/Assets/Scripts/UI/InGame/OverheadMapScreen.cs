@@ -469,6 +469,11 @@ namespace BakAgain.UI.InGame {
             _zoomDownLive = down;
             _loader.SetEntryState(ZoomUpActionId, visible: true, navigable: up);
             _loader.SetEntryState(ZoomDownActionId, visible: true, navigable: down);
+            // The original's gate is a picture too: a zoom that no longer fits is drawn as the bare
+            // stone (MAP.C:126-135 sets wEnable_gate). Without this the map opened at its top
+            // height still showed the zoom-out icon, under camp as well (TASK-791).
+            _loader.SetEntryGate(ZoomUpActionId, !up);
+            _loader.SetEntryGate(ZoomDownActionId, !down);
         }
 
         private const int ZoomUpActionId = 0x49;

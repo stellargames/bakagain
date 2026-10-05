@@ -66,8 +66,13 @@ namespace BakAgain.UI.InputCore {
         private readonly DeviceButton _secondary;
 
         public SystemInputSource() {
+            // Every device that can press, not "the mouse, else the pointer": Android can report a
+            // Mouse alongside the touchscreen, and then a finger was never read as a press — the
+            // cast screen saw hover but no click (TASK-789). DeviceButton ORs its controls.
             _primary = new DeviceButton(
-                () => Mouse?.leftButton ?? Pointer?.press,
+                () => Mouse?.leftButton,
+                () => Touchscreen.current?.press,
+                () => Pointer?.press,
                 () => Keyboard.current?.numpad5Key,
                 () => Keyboard.current?.numpad0Key);
             _secondary = new DeviceButton(
