@@ -39,7 +39,9 @@ namespace BakAgain.UI.InGame {
             System.Action<UnityEngine.Vector3> pickGround = null,
             System.Func<UnityEngine.Vector3, (int RosterSlot, bool PartyMember)?>
                 combatantAtPoint = null,
-            System.Func<UnityEngine.Vector2?> hoverPointOverride = null) {
+            System.Func<UnityEngine.Vector2?> hoverPointOverride = null,
+            System.Action<BakAgain.World.Encounters.EncounterGroupMember, bool> hintEncounter = null) {
+            _hintEncounter = hintEncounter;
             _camera = camera;
             _viewport = viewport;
             _pointer = pointer;
@@ -59,6 +61,9 @@ namespace BakAgain.UI.InGame {
         // What to do with a body the pointer found. Optional: a harness with no fight never picks
         // one, and the world click path is unchanged for everything else.
         private readonly System.Action<BakAgain.World.Encounters.ArenaCorpse, bool> _lootCorpse;
+
+        // A live encounter group in the world: the click asks about it (wcursor_encounter_hint).
+        private readonly System.Action<BakAgain.World.Encounters.EncounterGroupMember, bool> _hintEncounter;
 
         // What to do with a LIVE combatant the pointer found, by roster identity. Optional for the
         // same reason the corpse seam is: a harness with no fight never picks one.
@@ -178,6 +183,21 @@ namespace BakAgain.UI.InGame {
             }
 
             WorldEntity entity = WorldPicker.Pick(_camera, _viewport, pointer, stageScreenRect);
+            if (entity == null && _hintEncounter != null) {
+                BakAgain.World.Encounters.EncounterGroupMember member =
+                    WorldPicker.PickEncounterGroupMember(_camera, _viewport, pointer, stageScreenRect);
+                if (member != null) {
+                    // Out of DETECT range the original never entered it in the click table, so the
+                    // click finds nothing (WORLDHIT.C:306).
+                    Vector3 a = _camera.transform.position, b = member.transform.position;
+                    float fine = Mathf.Sqrt((a.x - b.x) * (a.x - b.x) + (a.z - b.z) * (a.z - b.z))
+                        * BakCoordinateConverter.WorldScale;
+                    if (member.ClickRange <= 0 || fine <= member.ClickRange) {
+                        _hintEncounter(member, isPrimary);
+                    }
+                    return;
+                }
+            }
             if (entity == null) {
                 // Nothing placed in the world is there — but a fight may have left a body, which is
                 // addressed through the encounter rather than as a world object.

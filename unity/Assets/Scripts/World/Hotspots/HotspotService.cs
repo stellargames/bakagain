@@ -5438,6 +5438,54 @@ using GameData.Resources.Scene;
             _placedActors = null;
         }
 
+        /// <summary>
+        /// A click on a live encounter group standing in the world — <c>wcursor_encounter_hint</c>
+        /// (WCURSOR.C:1332-1370). A primary click picks the group out, and that stamp is what
+        /// <see cref="RollEncounterOpening"/> reads: planning an attack is how the party gets the drop.
+        /// </summary>
+        internal void HintEncounter(long encounterNumber, int creatureNumber, bool isPrimary) {
+            if (encounterNumber < 0 || Combat?.Encounter != null || _session == null) {
+                return;
+            }
+            _playSfx?.Invoke(GameData.Resources.World.EncounterGroupHint.ClickSound);
+            // "The @1 hadn't noticed them": the clicked actor's creature (WCURSOR.C:1339-1340).
+            _session.SetDialogCreatureType(creatureNumber);
+
+            TileEventTrigger trigger = TriggerForEncounterHere(encounterNumber);
+            bool gatesPass = trigger != null && !HotspotRules.Forbidden(this, trigger)
+                && !HotspotRules.Unmet(this, trigger);
+            uint now = (uint)_session.GameTimeIn2Seconds;
+            var outcome = GameData.Resources.World.EncounterGroupHint.Resolve(isPrimary, encounterNumber,
+                gatesPass, _session.EncounterVisitedTimes.VisitedAt(encounterNumber), now);
+
+            long dialog = GameData.Resources.World.EncounterGroupHint.DialogFor(outcome);
+            if (outcome == GameData.Resources.World.EncounterGroupHint.Outcome.PickedOut) {
+                _session.EncounterVisitedTimes.Stamp(encounterNumber, now);
+            } else if (outcome == GameData.Resources.World.EncounterGroupHint.Outcome.RecordDialog) {
+                // hotspotevt_play_sound_zone_entry (HOTSPOT.C:257-298): the record's main dialog.
+                dialog = trigger == null ? 0
+                    : trigger.Type == TileEventType.Trap ? TrapRecord(trigger)?.DialogId1 ?? 0
+                    : CombRecord(trigger)?.DialogId1 ?? 0;
+            }
+            if (dialog != 0) {
+                _dialogs?.ShowById((int)dialog).Forget();
+            }
+        }
+
+        /// <summary>The combat or trap hotspot of the party's chunk that runs this encounter.</summary>
+        private TileEventTrigger TriggerForEncounterHere(long encounterNumber) {
+            var chunk = (Floor(_session.PositionX, ChunkSize), Floor(_session.PositionY, ChunkSize));
+            if (!_byChunk.TryGetValue(chunk, out List<TileEventTrigger> triggers)) {
+                return null;
+            }
+            var inOrder = new List<(TileEventType, long?)>(triggers.Count);
+            foreach (TileEventTrigger t in triggers) {
+                inOrder.Add((t.Type, EncounterNumberOf(t)));
+            }
+            int record = GameData.Resources.World.EncounterReset.RecordIds(inOrder).IndexOf(encounterNumber);
+            return record < 0 ? null : TriggerForRecord(triggers, record);
+        }
+
         internal void LootCorpse(int rosterSlot, long encounterNumber, long distance, bool isPrimary) {
             // The original's only route here is the world loop's viewport click (WORLDLP.C:374), so a
             // body is looted after its fight and never during one (TASK-534).
@@ -5671,22 +5719,18 @@ using GameData.Resources.Scene;
         /// itself, so during the first half hour every encounter passes the recency test. That is
         /// the original's behaviour and not a rounding artefact.</para>
         ///
-        /// <para><b>Our visit stamp is not the original's.</b> The original reads a per-encounter
-        /// timestamp out of TEMP.GAM at <c>encounterNumber * 4 + 0x4457</c>, written when the player
-        /// CLICKS the encounter in the world. We have no such click yet, so every encounter reads
-        /// zero — which lands on the "unvisited" case above, correct for the first half hour of a
-        /// new game and too generous afterwards. Stated rather than hidden: the roll is right and
-        /// its input is provisional.</para>
+        /// <para><b>The visit stamp is <see cref="GameSession.EncounterVisitedTimes"/></b> — TEMP.GAM's
+        /// <c>GAM_ENC_VISITED_TIME</c>, written when the player picks the group out by clicking it in
+        /// the world (<see cref="HintEncounter"/>, TASK-795).</para>
         /// </remarks>
         private bool RollEncounterOpening(long encounter) {
             if (_session == null) {
                 return false;
             }
 
-            // No per-encounter visit stamp yet — see the remarks.
-            const long NeverVisited = 0;
+            // Stamped when the player picks the group out in the world (HintEncounter, TASK-795).
             if (!GameData.Resources.World.CombatEncounterOpening.WasRecentlyVisited(
-                    _session.GameTimeIn2Seconds, NeverVisited)) {
+                    _session.GameTimeIn2Seconds, _session.EncounterVisitedTimes.VisitedAt(encounter))) {
                 return false;
             }
 

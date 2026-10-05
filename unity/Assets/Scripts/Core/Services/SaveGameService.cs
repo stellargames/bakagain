@@ -106,6 +106,7 @@ namespace BakAgain.Core.Services {
                     encounterActorStates: _session.EncounterActorStates,
                     // Stamped at the end of every fight; the next visit heals survivors from it (TASK-517).
                     encounterFoughtTimes: _session.EncounterFoughtTimes,
+                    encounterVisitedTimes: _session.EncounterVisitedTimes,
                     // The purse at each chapter start; chapters 6-8 restore from it (TASK-524).
                     chapterFinishingGold: _session.ChapterFinishingGold,
                     // Reading a stat can FREE an expired modifier slot, so the block has to be

@@ -35,7 +35,8 @@ public static class SaveGameWriter {
         IReadOnlyDictionary<int, int>? globalFlagEdits = null,
         IReadOnlyList<DirtyRosterActorEdit>? rosterActorEdits = null,
         EncounterFoughtTimes? encounterFoughtTimes = null,
-        GameData.Resources.GameState.ChapterFinishingGold? chapterFinishingGold = null) {
+        GameData.Resources.GameState.ChapterFinishingGold? chapterFinishingGold = null,
+        EncounterVisitedTimes? encounterVisitedTimes = null) {
         if (backingBody is null) {
             throw new ArgumentNullException(nameof(backingBody));
         }
@@ -161,6 +162,11 @@ public static class SaveGameWriter {
         // fixed table, not a field with an address of its own.
         if (encounterFoughtTimes != null && encounterFoughtTimes.Save(body)) {
             coverage.Add(EncounterFoughtTimes.BodyOffset, EncounterFoughtTimes.SaveSize);
+        }
+
+        // When each group was picked out in the world; the surprise roll reads it (TASK-795).
+        if (encounterVisitedTimes != null && encounterVisitedTimes.Save(body)) {
+            coverage.Add(EncounterVisitedTimes.BodyOffset, EncounterFoughtTimes.SaveSize);
         }
 
         // The purse at the start of each chapter, which chapters 6-8 restore on the way in (TASK-524).

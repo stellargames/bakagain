@@ -620,6 +620,9 @@ namespace BakAgain.UI.InGame {
                 pickGround: p => _hotspotGround?.Invoke(p),
                 combatantAtPoint: p => _combatantAtPoint?.Invoke(p),
                 hoverPointOverride: () => TouchInputState.Instance?.CombatHoverScreenPoint,
+                // Resolved on demand for the reason the trap springers above are (TASK-795).
+                hintEncounter: (member, isPrimary) => _resolver?.Resolve<BakAgain.World.WorldRuntime>()
+                    ?.HintEncounter(member.EncounterNumber, member.CreatureNumber, isPrimary),
                 lootCorpse: (corpse, isPrimary) => {
                     if (corpse == null || _pendingCamera == null) {
                         return;

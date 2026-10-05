@@ -1883,6 +1883,11 @@ namespace BakAgain.World {
         public Hotspots.HotspotService.TrapDispatch FireTrapEncounterAt(int subX, int subY) =>
             _hotspots?.FireTrapEncounterAt(subX, subY) ?? Hotspots.HotspotService.TrapDispatch.Proceed;
 
+        /// <summary>A click on a live encounter group in the world — see
+        /// <see cref="Hotspots.HotspotService.HintEncounter"/>.</summary>
+        public void HintEncounter(long encounterNumber, int creatureNumber, bool isPrimary) =>
+            _hotspots?.HintEncounter(encounterNumber, creatureNumber, isPrimary);
+
         /// <summary>Cross a zone from a clicked tunnel's own hotspot key — see
         /// <see cref="Hotspots.HotspotService.FireZoneCrossingAt"/>. Sub-tile coordinates.</summary>
         public bool FireZoneCrossingAt(int subX, int subY) =>

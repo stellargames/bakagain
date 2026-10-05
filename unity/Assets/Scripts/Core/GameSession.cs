@@ -93,6 +93,10 @@ namespace BakAgain.Core {
         public GameData.Resources.World.EncounterFoughtTimes EncounterFoughtTimes { get; } =
             new GameData.Resources.World.EncounterFoughtTimes();
 
+        /// <summary>When each encounter group was last picked out in the world — see <see cref="GameData.Resources.World.EncounterVisitedTimes"/>.</summary>
+        public GameData.Resources.World.EncounterVisitedTimes EncounterVisitedTimes { get; } =
+            new GameData.Resources.World.EncounterVisitedTimes();
+
         /// <summary>The purse at the start of each chapter — see <see cref="GameData.Resources.GameState.ChapterFinishingGold"/>.</summary>
         public GameData.Resources.GameState.ChapterFinishingGold ChapterFinishingGold { get; } =
             new GameData.Resources.GameState.ChapterFinishingGold();
@@ -1087,6 +1091,7 @@ namespace BakAgain.Core {
             // rubbish, and a new game genuinely has removed nothing (STARTUP.GAM's is all zero).
             EncounterActorStates.Load(_backingBody);
             EncounterFoughtTimes.Load(_backingBody);
+            EncounterVisitedTimes.Load(_backingBody);
             ChapterFinishingGold.Load(_backingBody);
             // Same treatment again. Load returns an all-empty block for a short or absent body, so
             // a new game starts with no modifiers rather than with rubbish read off the end.
