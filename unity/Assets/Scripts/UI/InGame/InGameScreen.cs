@@ -1378,6 +1378,22 @@ namespace BakAgain.UI.InGame {
             }
         }
 
+        /// <summary>
+        /// Inspect on touch: the combatant under the combat cursor, at once — the same primary
+        /// "click" the mouse would give it. Off a touch fight, or with nobody under the cursor, the
+        /// press stays armed and waits for a tap as before.
+        /// </summary>
+        internal void InspectAtTouchCursor() {
+            if (!TouchFight() || _combatCursor == null) {
+                return;
+            }
+            (int c, int r) = _combatCursor.Cell;
+            if (CellOnScreen(c, r) is Vector2 point
+                && _interaction?.CombatantAtScreenPoint(point) is (int slot, bool party)) {
+                _hotspotTarget?.Invoke(slot, party, true);
+            }
+        }
+
         // The Move / Cast-here button: the mouse's ground click, on the cursor's cell.
         private void GroundClickAtCursor() {
             if (_combatCursor != null && _cellWorld?.Invoke(_combatCursor.Cell.Column, _combatCursor.Cell.Row) is Vector3 floor) {

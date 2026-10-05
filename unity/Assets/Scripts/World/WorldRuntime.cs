@@ -1303,6 +1303,7 @@ namespace BakAgain.World {
             foreach (BakAgain.UI.InGame.InGameScreen screen in
                      Object.FindObjectsByType<BakAgain.UI.InGame.InGameScreen>(FindObjectsSortMode.None)) {
                 screen.SetCorpseLootSeam(_hotspots.LootCorpse);
+                _hotspots.InspectArmed = screen.InspectAtTouchCursor;
                 screen.SetCombatTargetSeam(_hotspots.ResolveCombatTargetClick);
                 screen.SetCombatantAtPointSeam(_hotspots.CombatantAtPoint);
                 screen.SetCombatCellSeams(_hotspots.CellAtPoint,

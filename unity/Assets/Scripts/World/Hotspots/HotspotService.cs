@@ -2420,6 +2420,9 @@ using GameData.Resources.Scene;
         /// Those commands are not modelled yet, and doing something approximate would be worse than
         /// doing nothing.
         /// </remarks>
+        /// <summary>Raised when Inspect arms target selection — the touch HUD answers it at once.</summary>
+        internal System.Action InspectArmed { get; set; }
+
         private void OnCombatCommand(GameData.Resources.Combat.CombatCommands.Command command,
             int actionId) {
             Combatant acting = Combat.Encounter?.Current;
@@ -2475,6 +2478,9 @@ using GameData.Resources.Scene;
                     // Arms only. The assessment happens on the follow-up click, and the turn is
                     // spent there -- pressing the button costs nothing.
                     _pendingCombatMode = GameData.Resources.Combat.CombatCommandOutcome.ModeFor(command);
+                    // On touch the combat cursor is already on something: inspect it now rather
+                    // than wait for a second tap (owner, 2026-10-05).
+                    InspectArmed?.Invoke();
                     return;
                 case GameData.Resources.Combat.CombatCommands.Command.CharacterScreen:
                     // *** SHIFT TURNS THE PACK INTO THE SHEET. *** combat_arena_suspend_char_screen
