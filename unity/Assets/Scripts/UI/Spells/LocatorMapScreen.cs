@@ -152,8 +152,11 @@ namespace BakAgain.UI.Spells {
             ApplyCamera();
             // The inset is SHORTER than the travel viewport, so it needs its own FOV even though it
             // shares the zone's focal length.
+            // Unity units, like the overhead map's: CameraHeight() is BaK units and pushed the far
+            // plane and the fog ~100x too far, so the inset had no fog at all (TASK-766).
             _world?.Environment?.SetOverheadMapMode(
-                _world.WorldCamera, on: true, cameraHeight: CameraHeight(),
+                _world.WorldCamera, on: true,
+                cameraHeight: _world.WorldCamera != null ? _world.WorldCamera.transform.position.y : 0f,
                 mapViewHeight: InsetRect().height,
                 focalLength: _world.ZoneDefinition?.FocalLength ?? _worldViewport.FocalLength);
         }
