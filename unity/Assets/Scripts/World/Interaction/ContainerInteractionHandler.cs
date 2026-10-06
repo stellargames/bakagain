@@ -214,9 +214,15 @@ namespace BakAgain.World.Interaction {
         /// <b>Nothing here opens the chest on the player's behalf.</b> Detected or not, disarmed or
         /// not, every path ends at a yes/no, so the trap can only go off on a choice.
         /// </remarks>
-        private async UniTask TryTrappedAsync(SaveGameContainerData snapshot,
+        internal async UniTask TryTrappedAsync(SaveGameContainerData snapshot,
             RuntimeContainer container, int zone, int bakX, int bakY,
             GameData.Resources.World.WorldEntityType entityType) {
+            // *** Var 0 = 0 FIRST. *** WCURSOR.C:574 sets nEvtArgCount = 0 before either prompt:
+            // dialog 79 picks its wording by Var 0 = 0..3 (chest/door/building/ladder). Left stale
+            // (78 on a shipped-path save) no branch matched, nothing showed, and the empty walk
+            // answered 0 = Yes — the chest went off without asking. TASK-117.
+            _session.SetGlobalValue(GameData.Resources.GameState.GameStateEventFields.FieldBase, 0);
+
             // A trap disarmed a moment ago is only known to the runtime layer, exactly like a lock
             // picked this session — without this the chest offers its trap again.
             int trapDamage = container?.TrapDisarmed == true ? 0 : snapshot?.LockData?.TrapDamage ?? 0;
