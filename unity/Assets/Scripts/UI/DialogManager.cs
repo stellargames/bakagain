@@ -2445,6 +2445,12 @@ namespace BakAgain.UI {
                         // for the whole record up front. A port that kept its text-speed deadline
                         // running would flick through the pages by itself.
                         bool more = body != null && body.LinesRemaining > 0;
+                        // A SkipWait record's LAST page is not waited for (below), so a translation
+                        // that needs a second page is never read: report it (TASK-779).
+                        if (more && (entry.Flags & DialogEntryFlags.SkipWait) != 0) {
+                            TextOverflowReport.Report(TextOverflowReport.UnreadPage, entry.Text,
+                                $"record {entry.Id} pages, and SkipWait does not wait for its last page");
+                        }
                         // *** SkipWait (0x4000) SKIPS ONLY THE LAST PAGE'S WAIT. *** The record's flags
                         // reach dialog_wait_for_acknowledge only once no wrapped lines remain, and
                         // there `if (flags & 0x4000) return 1;` moves on with the page still drawn.

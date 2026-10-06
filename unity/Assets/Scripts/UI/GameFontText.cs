@@ -143,6 +143,10 @@ namespace BakAgain.UI {
                 0f, VisualElement.MeasureMode.Undefined);
             float natural = measured.x * full / current;
             float want = natural <= room ? full : Mathf.Max(full * MinFitScale, full * room / natural);
+            if (natural * MinFitScale > room + 0.5f) {
+                TextOverflowReport.Report(TextOverflowReport.Caption, caption.text,
+                    $"{natural * MinFitScale:0} px at the smallest fit, {room:0} px of room");
+            }
             if (Mathf.Abs(want - current) > 0.5f) {
                 caption.style.fontSize = want;
             }
