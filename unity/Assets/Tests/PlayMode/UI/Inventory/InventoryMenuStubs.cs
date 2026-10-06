@@ -53,7 +53,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
 
         public virtual UniTask<bool> ShowAcceptOrCancelById(int id, System.Threading.CancellationToken ct = default) =>
             UniTask.FromResult(false);
-        public UniTask<bool> ShowConfirmById(int id, System.Threading.CancellationToken ct = default) =>
+        public virtual UniTask<bool> ShowConfirmById(int id, System.Threading.CancellationToken ct = default) =>
             UniTask.FromResult(false);
 
         // -1 = "nothing resolved", which every caller treats as walking away.
