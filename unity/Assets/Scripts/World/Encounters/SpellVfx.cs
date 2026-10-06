@@ -60,10 +60,23 @@ namespace BakAgain.World.Encounters {
         /// <summary>Visuals played so far — observable for a test, as <c>ProjectileFlight.Progress</c> is.</summary>
         public int Played { get; private set; }
 
+        /// <summary>
+        /// Whether a queued visual has to finish before the arena slides anyone: Winds of Eortis
+        /// flies its whirlwind to the victim's OLD cell and only then walks it back
+        /// (<c>world_rndr_ranged_attack_anim</c> before <c>cspell_actor_walk_steps</c>, CSPELL.C:653-668),
+        /// while the rules have already moved it.
+        /// </summary>
+        public bool HoldsMovers => _holding > 0;
+
+        private int _holding;
+
         /// <summary>Queue a visual raised by the rules.</summary>
         public void Enqueue(SpellVisual visual, Combatant from, Combatant to) {
             if (visual.Kind == SpellVisualKind.None || to == null) {
                 return;
+            }
+            if (visual.Kind == SpellVisualKind.WhirlwindFlight) {
+                _holding++;
             }
             _queue.Enqueue((visual, from, to));
             if (!_draining) {
@@ -84,6 +97,9 @@ namespace BakAgain.World.Encounters {
                     } catch (Exception e) {
                         // A missing sprite or a torn-down arena must never stall the queue.
                         Debug.LogWarning($"SpellVfx: {v.Kind} failed: {e.Message}");
+                    }
+                    if (v.Kind == SpellVisualKind.WhirlwindFlight) {
+                        _holding--;
                     }
                     Played++;
                 }
