@@ -56,6 +56,9 @@ public static class UiTemplates {
     /// the original printed its EXE's "Version 1.02 CD" (VersionBanner).</summary>
     public const string VersionBannerKey = "port:template:version_banner";
 
+    /// <summary>The Preferences screen's bug-report line: "BaK-Again <c>{version}</c>   Log: <c>{log}</c>".</summary>
+    public const string BuildInfoKey = "port:template:build_info";
+
     /// <summary>"<c>{n}</c>%" — every percentage the port builds; "94 %" in a language that spaces it.</summary>
     public const string PercentKey = "port:template:percent";
 
@@ -114,6 +117,7 @@ public static class UiTemplates {
         (TouchCast, _ => "Cast"),
         (TouchCastHere, _ => "Cast here"),
         (VersionBannerKey, _ => "Version {version}"),
+        (BuildInfoKey, _ => "BaK-Again {version}   Log: {log}"),
         (BootLoading, _ => Literal("Loading Betrayal at Krondor... please wait.")),
         (BootDataFiles, _ => Literal("This game requires the original data files of the \"Betrayal at Krondor\" game. "
             + "If you do not have a copy of that game you can buy one at "
