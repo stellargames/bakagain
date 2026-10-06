@@ -65,7 +65,13 @@ public static class TextSlots {
     private static IEnumerable<TextSlot> OfDialog(GameData.Resources.Dialog.Dialog dialog) {
         foreach (DialogEntry entry in dialog.Entries) {
             if (!string.IsNullOrEmpty(entry.Text)) {
-                yield return new TextSlot(entry.Key, () => entry.Text!, t => entry.Text = t);
+                // A cipher table translates as a unit and must stay solvable (TASK-785); one that would
+                // not keeps the English rather than trap the player at an unopenable chest.
+                yield return new TextSlot(entry.Key, () => entry.Text!, t => {
+                    if (!Scene.CipherPuzzle.LooksLikeTable(entry.Text) || Scene.CipherPuzzle.ProblemWith(t) == null) {
+                        entry.Text = t;
+                    }
+                });
             }
         }
     }

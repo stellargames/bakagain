@@ -141,6 +141,49 @@ public class BookDropCapTests {
     }
 }
 
+/// <summary>
+/// A cipher puzzle is one dialog text, answer + dial rows + riddle; a translation must keep it
+/// solvable (TASK-785), or the English stays.
+/// </summary>
+public class CipherTranslationTests {
+    private const string English = "DAY NIGHT\n#\nDRV SAGHO\nOAB FIRMT\nFLC HRUNI\nEPY NGHSK\n#\nThe light one breaks but never falls.";
+
+    private static Dialog Puzzle() {
+        var dialog = new Dialog("DIAL_Z17.DDX");
+        dialog.Entries.Add(new DialogEntry { Key = "base:ddx:dial_z17:1306", Text = English });
+        return dialog;
+    }
+
+    private static string Applied(string translation) {
+        Dialog dialog = Puzzle();
+        new LanguagePack("de", new Dictionary<string, string> { ["base:ddx:dial_z17:1306"] = translation }).Apply(dialog, "DIAL_Z17.DDX");
+        return dialog.Entries[0].Text!;
+    }
+
+    [Fact]
+    public void ASolvableTranslationIsUsed() {
+        // The German release's own: TAG NACHT, with dials that carry those letters.
+        const string german = "TAG NACHT\n#\nORV SAGHO\nTAB NIRMT\nFLG HRCNI\nEPY NGHSK\n#\nEr ist hell und kommt früh.";
+        Assert.Equal(german, Applied(german));
+    }
+
+    [Fact]
+    public void AnAnswerItsDialsCannotSpellIsRefused() {
+        // "NACHT" needs an N in column 4; these dials have none there.
+        Assert.Equal(English, Applied("TAG NACHT\n#\nORV SAGHO\nTAB XIRMT\nFLG HRCXI\nEPY XGHSK\n#\nEr ist hell."));
+    }
+
+    [Fact]
+    public void ARowOfTheWrongWidthIsRefused() {
+        Assert.Equal(English, Applied("TAG NACHT\n#\nORV SAGHO\nTAB NIRM\n#\nEr ist hell."));
+    }
+
+    [Fact]
+    public void ATranslationThatDropsTheTableIsRefused() {
+        Assert.Equal(English, Applied("Er ist hell und kommt früh."));
+    }
+}
+
 public class UiStringCatalogTranslationTests {
     [Fact]
     public void TheCatalogTakesAPacksTranslationAndKeepsTheRest() {

@@ -42,6 +42,21 @@ public class GlyphSynthesisTests {
     private static bool Row(FontGlyph g, int y) => Enumerable.Range(0, g.Width).Any(x => g.IsSet(x, y));
 
     [Fact]
+    public void AFontsBlankPlaceholderDoesNotCountAsTheLetter() {
+        // PUZZLE.FNT and ALIEN.FNT carry 251 glyphs from character 0, and their 228 is an empty
+        // 1-pixel placeholder: read as "the font has ä", a German riddle's "käme" drew as "kme".
+        FontResource font = Font();
+        var full = new FontResource("PUZZLE.FNT") { Height = 10, FirstCharacter = 0 };
+        for (int c = 0; c < 251; c++) {
+            full.Glyphs.Add(c >= 'A' && c <= 'z' ? font.Glyphs[c - 'A'] : Box(1, 0, -1, 0));
+        }
+
+        GlyphSynthesis.AddComposed(full, new[] { 0xE4 });
+
+        Assert.True(full.ExtraGlyphs.ContainsKey(0xE4));
+    }
+
+    [Fact]
     public void AnUmlautSitsAboveTheLetterWithARowBetween() {
         FontResource font = Font();
         Assert.Empty(GlyphSynthesis.AddComposed(font, new[] { (int)'ä' }));

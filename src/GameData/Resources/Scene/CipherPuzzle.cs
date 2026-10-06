@@ -18,6 +18,44 @@ public class CipherPuzzle {
     /// <summary>Dialog-record key for a puzzle, by its 1-based id.</summary>
     public static long DialogKeyFor(int puzzleId) => (puzzleId - 1) + 0x19f0a1L;
 
+    /// <summary>Whether a dialog text is a puzzle table: the answer, a <c>#</c> line, the dial rows, another <c>#</c>.</summary>
+    public static bool LooksLikeTable(string? text) {
+        if (string.IsNullOrEmpty(text)) {
+            return false;
+        }
+        string[] lines = text!.Split('\n');
+        return lines.Length >= 4 && lines[1] == "#" && Array.IndexOf(lines, "#", 3) > 2;
+    }
+
+    /// <summary>
+    /// What would stop a puzzle table from being solved, or null if nothing (TASK-785): a translation
+    /// changes the answer, the dials and the riddle together, and must leave every answer letter on
+    /// its column's dial.
+    /// </summary>
+    public static string? ProblemWith(string table) {
+        if (!LooksLikeTable(table)) {
+            return "not a puzzle table (answer, '#', dial rows, '#', riddle)";
+        }
+        string[] lines = table.Split('\n');
+        string target = lines[0];
+        int end = Array.IndexOf(lines, "#", 2);
+        for (int r = 2; r < end; r++) {
+            if (lines[r].Length != target.Length) {
+                return $"dial row {r - 1} is {lines[r].Length} wide, the answer {target.Length}";
+            }
+        }
+        for (int c = 0; c < target.Length; c++) {
+            bool onDial = false;
+            for (int r = 2; r < end && !onDial; r++) {
+                onDial = lines[r][c] == target[c];
+            }
+            if (target[c] != ' ' && !onDial) {
+                return $"no dial row has '{target[c]}' in column {c + 1}";
+            }
+        }
+        return null;
+    }
+
     /// <summary>Columns in the puzzle — the length of the target word.</summary>
     public int Width => Target.Length;
 
