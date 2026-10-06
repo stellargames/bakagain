@@ -27,6 +27,24 @@ public class UiTemplatesTests {
         UiStringCatalog.Embedded.TranslatedBy(new LanguagePack("de", new Dictionary<string, string> { [key] = text }));
 
     [Fact]
+    public void TheItemStatusJoinerIsATemplate() {
+        // INVINSP.C:377-383 strcat's ", " between "Using" and the item's state (TASK-775).
+        Assert.Equal("Using, Repairable",
+            UiTemplates.Format(UiTemplates.ItemUsingAndState, ("using", (object)"Using"), ("state", (object)"Repairable")));
+
+        UiStringCatalog previous = UiStrings.Catalog;
+        try {
+            UiStrings.Catalog = UiStringCatalog.From(new Dictionary<string, string> {
+                [UiTemplates.ItemUsingAndState] = "{using} \u2014 {state}",
+            });
+            Assert.Equal("In gebruik \u2014 Repareerbaar",
+                UiTemplates.Format(UiTemplates.ItemUsingAndState, ("using", (object)"In gebruik"), ("state", (object)"Repareerbaar")));
+        } finally {
+            UiStrings.Catalog = previous;
+        }
+    }
+
+    [Fact]
     public void EnglishIsTheOriginalConcatenation() {
         UiStringCatalog en = UiStringCatalog.Embedded;
 

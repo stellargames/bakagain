@@ -105,6 +105,10 @@ public static class UiTemplates {
         }
     }
 
+    /// <summary>"<c>{using}</c>, <c>{state}</c>" — an item's status line when it is both in use and
+    /// broken or repairable; INVINSP.C:377-383 strcat's the ", " (TASK-775).</summary>
+    public const string ItemUsingAndState = "port:template:item_using_and_state";
+
     /// <summary>CHEAT CENTRAL's subtitle.</summary>
     public const string CheatCentralSubtitle = "port:template:cheat_central_subtitle";
 
@@ -139,6 +143,7 @@ public static class UiTemplates {
         (QuantityGive, c => Literal(c.Get("base:uistring:quantity.give_prefix")) + "{n}{max, select, yes {"
             + Literal(c.Get("base:uistring:quantity.all_suffix")) + "} other {}}"),
         (CheatCentralSubtitle, _ => Literal("Enjoy with caution...")),
+        (ItemUsingAndState, _ => "{using}, {state}"),
     };
 
     /// <summary>Whether a catalog key is one of these templates (its text is MessageFormat, not plain).</summary>
