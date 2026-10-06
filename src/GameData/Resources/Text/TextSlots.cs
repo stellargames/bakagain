@@ -46,9 +46,11 @@ public sealed class TextSlot {
 /// </remarks>
 public static class TextSlots {
     /// <summary>The slots of <paramref name="resource"/>, loaded from <paramref name="resourceId"/>.</summary>
-    public static IEnumerable<TextSlot> Of(IResource resource, string resourceId) => resource switch {
+    /// <param name="packCapitals">A language pack's own illuminated capitals, for a letter BOOK.BMX
+    /// lacks (TASK-827); null when there are none.</param>
+    public static IEnumerable<TextSlot> Of(IResource resource, string resourceId, System.Func<char, int?>? packCapitals = null) => resource switch {
         GameData.Resources.Dialog.Dialog dialog => OfDialog(dialog),
-        BookResource book => OfBook(book, resourceId),
+        BookResource book => OfBook(book, resourceId, packCapitals),
         UserInterface ui => OfUserInterface(ui, resourceId),
         InputForm form => OfInputForm(form, resourceId),
         LabelSet labels => OfLabels(labels, resourceId),
@@ -76,14 +78,14 @@ public static class TextSlots {
         }
     }
 
-    private static IEnumerable<TextSlot> OfBook(BookResource book, string resourceId) {
+    private static IEnumerable<TextSlot> OfBook(BookResource book, string resourceId, System.Func<char, int?>? packCapitals) {
         for (int p = 0; p < book.Pages.Count; p++) {
             Page page = book.Pages[p];
             for (int q = 0; q < page.Paragraphs.Count; q++) {
                 Paragraph paragraph = page.Paragraphs[q];
                 BookImage? capital = q == 0 ? page.Images.FirstOrDefault(i => BookDropCaps.LetterOf(i.ImageNumber) != null) : null;
                 if (capital != null && paragraph.TextSegments.Any(s => !string.IsNullOrEmpty(s.Text))) {
-                    yield return DropCapSlot(TextKey.BookParagraph(resourceId, p, q), resourceId, page, paragraph, capital);
+                    yield return DropCapSlot(TextKey.BookParagraph(resourceId, p, q), resourceId, page, paragraph, capital, packCapitals);
                     continue;
                 }
                 if (paragraph.TextSegments.Any(s => !string.IsNullOrEmpty(s.Text))) {
@@ -100,12 +102,13 @@ public static class TextSlots {
     /// a translation's own first letter picks the capital, or, when the game has no picture for that
     /// letter, is written out with the picture removed.
     /// </summary>
-    private static TextSlot DropCapSlot(string key, string resourceId, Page page, Paragraph paragraph, BookImage capital) {
+    private static TextSlot DropCapSlot(string key, string resourceId, Page page, Paragraph paragraph, BookImage capital,
+        System.Func<char, int?>? packCapitals) {
         char letter = BookDropCaps.LetterOf(capital.ImageNumber)!.Value;
         return new TextSlot(key,
             () => BookDropCaps.Join(resourceId, letter, BookMarkup(paragraph.TextSegments)),
             t => {
-                int? picture = t.Length > 0 ? BookDropCaps.ImageFor(t[0]) : null;
+                int? picture = t.Length > 0 ? BookDropCaps.ImageFor(t[0]) ?? packCapitals?.Invoke(t[0]) : null;
                 if (picture != null) {
                     capital.ImageNumber = picture.Value;
                     t = t.Substring(1).TrimStart(' ');

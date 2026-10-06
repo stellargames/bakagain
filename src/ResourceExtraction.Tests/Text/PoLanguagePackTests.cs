@@ -70,4 +70,12 @@ public class PoLanguagePackTests {
         Assert.Equal("nl", PoLanguagePack.Read(new StringReader(po), "nl").Locale);
         Assert.Equal("nl", PoLanguagePack.Read(new StringReader(Po.Replace("\"Language: nl\\n\"\n", "")), "nl").Locale);
     }
+
+    [Fact]
+    public void TheHeaderNamesThePacksOwnCapitals() {
+        string po = Po.Replace("\"Language: nl\\n\"\n", "\"Language: nl\\n\"\n\"X-Drop-Caps: E=19, W=20\\n\"\n");
+        LanguagePack pack = PoLanguagePack.Read(new StringReader(po), "nl");
+        Assert.Equal(19, pack.Capitals['E']);
+        Assert.Equal(20, pack.Capitals['W']);
+    }
 }

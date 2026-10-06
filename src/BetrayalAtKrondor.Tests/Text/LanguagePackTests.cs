@@ -135,6 +135,21 @@ public class BookDropCapTests {
     }
 
     [Fact]
+    public void APackCanAddACapitalForALetterTheGameLacks() {
+        // The German release drew an E (its BOOK.BMX #19) for "Ein Flüstern" (TASK-827); a pack
+        // names it in its PO header, X-Drop-Caps: E=19, and ships the picture as BMX/BOOK/19.png.
+        BookResource book = C21();
+        var pack = new LanguagePack("de", new Dictionary<string, string> {
+            ["base:bok:C21:0.0"] = "Ein Flüstern führte Gorath durch den Wahnsinn.",
+        }, new Dictionary<char, int> { ['E'] = 19 });
+
+        pack.Apply(book, "C21.BOK");
+
+        Assert.Equal(19, book.Pages[0].Images[0].ImageNumber);
+        Assert.Equal("in Flüstern führte Gorath durch den Wahnsinn.", book.Pages[0].Paragraphs[0].TextSegments[0].Text);
+    }
+
+    [Fact]
     public void EveryCapitalHasOneLetterAndTheVinesHaveNone() {
         Assert.Equal("BPJLGATOIDS", string.Concat(new[] { 0, 1, 2, 3, 4, 5, 6, 15, 16, 17, 18 }.Select(i => BookDropCaps.LetterOf(i))));
         Assert.Null(BookDropCaps.LetterOf(7));

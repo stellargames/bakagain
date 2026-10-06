@@ -132,6 +132,13 @@ The originals, in exactly this layout and size, come from
 `dotnet run --project src/ResourceExtractor -- --images "<folder with KRONDOR.001>"`. They are game
 art: start from them, but do not publish them unchanged.
 
+**Book capitals.** A book's first paragraph starts with an illuminated capital, which the picture draws,
+so its text is stored without that letter. In the template the paragraph shows with its letter; your
+translation's own first letter picks the capital. The game has pictures for A B D G I J L O P S T. For
+any other letter, either the letter is simply written out, or you draw a capital: put it at
+`BMX/BOOK/<n>.png` (19 or higher) and name its letter in the PO header,
+`X-Drop-Caps: E=19` (several: `E=19, W=20`).
+
 A replaced picture that is wider or taller than the original may need moving. The chapter title
 cards are animation scripts: get them with `-- --ttm "<folder>"`, change the `X`/`Y` of the
 `DrawImage` that draws your picture, and put the file in the pack as `TTM/<NAME>.json`.

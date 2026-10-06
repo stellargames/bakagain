@@ -24,8 +24,20 @@ public sealed class LanguagePack {
     private readonly System.Func<string, string>? _transform;
 
     public LanguagePack(string locale, IReadOnlyDictionary<string, string> text)
-        : this(locale, text, null) {
+        : this(locale, text, (System.Func<string, string>?)null) {
     }
+
+    /// <summary>A pack with capitals of its own for book paragraphs (TASK-827).</summary>
+    public LanguagePack(string locale, IReadOnlyDictionary<string, string> text, IReadOnlyDictionary<char, int> capitals)
+        : this(locale, text, (System.Func<string, string>?)null) {
+        Capitals = capitals;
+    }
+
+    /// <summary>
+    /// The pack's own illuminated capitals: a letter BOOK.BMX lacks, and the picture number the pack
+    /// ships for it (its PO header's <c>X-Drop-Caps</c>, e.g. <c>E=19</c>).
+    /// </summary>
+    public IReadOnlyDictionary<char, int> Capitals { get; } = new Dictionary<char, int>();
 
     private LanguagePack(string locale, IReadOnlyDictionary<string, string> text, System.Func<string, string>? transform) {
         Locale = locale;
@@ -87,7 +99,7 @@ public sealed class LanguagePack {
             return 0;
         }
         var replaced = 0;
-        foreach (TextSlot slot in TextSlots.Of(resource, resourceId)) {
+        foreach (TextSlot slot in TextSlots.Of(resource, resourceId, c => Capitals.TryGetValue(c, out int picture) ? picture : null)) {
             if (TryTranslate(slot.Key, slot.Text, out string text)) {
                 slot.Text = text;
                 replaced++;
