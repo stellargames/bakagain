@@ -3,6 +3,8 @@ using GameData.Resources.Dialog;
 using System.Collections.Generic;
 using Xunit;
 
+// Reads whether the installed string catalog is English, which other tests change.
+[Collection(BetrayalAtKrondor.Tests.Text.UiStringsCollection.Name)]
 public class TextVariableResolverTests {
     private static readonly IReadOnlyList<string> Party = new[] { "Locklear", "Gorath", "Owyn", "", "", "" };
 

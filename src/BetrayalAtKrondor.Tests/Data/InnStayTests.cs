@@ -5,6 +5,8 @@ using GameData.Resources.Character;
 using Xunit;
 
 /// <summary>The paid overnight stay (<c>UI_RestUntilTime</c> @0x4ff5c).</summary>
+// Reads whether the installed string catalog is English, which other tests change.
+[Collection(BetrayalAtKrondor.Tests.Text.UiStringsCollection.Name)]
 public class InnStayTests {
     [Fact]
     public void TheStoredRateIsInSovereigns() =>

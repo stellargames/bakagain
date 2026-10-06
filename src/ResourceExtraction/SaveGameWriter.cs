@@ -387,9 +387,45 @@ public static class SaveGameWriter {
         return new SaveGameWriteResult(output, cov);
     }
 
+    /// <summary>
+    /// A name as the save stores it: CP437, so the original can load the save (TASK-786). A letter
+    /// CP437 lacks is spelled with its base letter ("Łódź" saves as "Lódz") rather than left to
+    /// the encoder: Unity's Mono resolves code page 437 through its own encoder, whose fallback is
+    /// not the .NET one, and a name must save the same everywhere.
+    /// </summary>
+    internal static byte[] EncodeCp437(string value) {
+        Encoding strict = Encoding.GetEncoding(DosCodePage, EncoderFallback.ExceptionFallback, DecoderFallback.ReplacementFallback);
+        bool Fits(string s) {
+            try {
+                strict.GetBytes(s);
+                return true;
+            } catch (EncoderFallbackException) {
+                return false;
+            }
+        }
+        var text = new StringBuilder();
+        foreach (char c in value ?? string.Empty) {
+            string one = c.ToString();
+            if (Fits(one)) {
+                text.Append(c);
+                continue;
+            }
+            // The letter without its marks: Ł has no decomposition, so a few are spelled by hand.
+            string bare = new string(System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Where(one.Normalize(NormalizationForm.FormD),
+                ch => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(ch) != System.Globalization.UnicodeCategory.NonSpacingMark)));
+            string spelled = c switch {
+                'Ł' => "L", 'ł' => "l", 'Đ' => "D", 'đ' => "d", 'Ø' => "O", 'ø' => "o", 'Œ' => "OE", 'œ' => "oe",
+                'Ħ' => "H", 'ħ' => "h", 'Ŧ' => "T", 'ŧ' => "t", 'ı' => "i", 'Þ' => "Th", 'þ' => "th",
+                _ => bare != one && bare.Length > 0 && Fits(bare) ? bare : "?",
+            };
+            text.Append(spelled);
+        }
+        return strict.GetBytes(text.ToString());
+    }
+
     // NUL-padded fixed-length CP437 field (mirror of the reader's ReadFixedLengthString).
     private static void WriteFixedLengthString(byte[] dest, int offset, int length, string value) {
-        byte[] encoded = Encoding.GetEncoding(DosCodePage).GetBytes(value ?? string.Empty);
+        byte[] encoded = EncodeCp437(value);
         int n = Math.Min(encoded.Length, length);
         Array.Copy(encoded, 0, dest, offset, n);
         // remaining bytes stay 0 (NUL) — dest is fresh.
