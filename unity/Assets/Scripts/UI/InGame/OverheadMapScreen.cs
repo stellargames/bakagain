@@ -150,6 +150,14 @@ namespace BakAgain.UI.InGame {
             _partyHeads.RenderAsync().Forget();
 
             AttachMarker(root);
+
+            // The Android pads, in the side bars as on the travel screen: the arrows still walk the
+            // party here, and the driver above reads the same held pad (TASK-820).
+            if (BakAgain.UI.InputCore.TouchInputState.Instance != null) {
+                _touchControls = new TouchControlsView(BakAgain.UI.InputCore.TouchInputState.Instance,
+                    _pointer, new GameData.Resources.Layout.TouchControlsLayout());
+                _touchControls.Build(root, CanonicalStage.GetOrCreate(root, _loader.Frame));
+            }
             // Registered here rather than in OnAfterShow because the root only exists once the REQ
             // has built, and this method is the one place that is true. The guard above makes it
             // run once per show, so the callback is not stacked on a rebuild.
@@ -159,6 +167,10 @@ namespace BakAgain.UI.InGame {
         }
 
         private VisualElement _wheelRoot;
+
+        /// <summary>A fight took the screen from the map; reopen it when the fight is done.</summary>
+        public bool ReopenAfterFight { get; set; }
+        private TouchControlsView _touchControls;
 
         /// <summary>
         /// Mouse wheel zooms the map, one step a notch.
@@ -266,6 +278,8 @@ namespace BakAgain.UI.InGame {
             _marker = null;
             _markerIcon = -1;
             _movementDriver = null;
+            _touchControls?.Dispose();
+            _touchControls = null;
             // Put the sky, the horizon, the fog and the far plane back before the camera, so the
             // travel view is whole the moment it is shown again.
             _world?.Environment?.SetOverheadMapMode(
@@ -324,6 +338,23 @@ namespace BakAgain.UI.InGame {
             _navigator?.Pop().Forget();
         }
 
+        /// <summary>
+        /// A fight that starts while the map is up — the party walked into an encounter on it —
+        /// takes the screen. The original runs the fight full-screen from inside the map loop
+        /// (hotspotevt_type1_encounter_run via hotspotevt_disp_pending_events, MAP.C:214); here the
+        /// map closed nothing and the fight played out unseen beneath it. The original's loop then
+        /// carries on with the map, so <see cref="ReopenAfterFight"/> asks the travel HUD to bring it
+        /// back once the fight is over.
+        /// </summary>
+        private void CloseWhenAFightStarts() {
+            if (_closingForWorldExit || _world == null || !_world.FightInProgress) {
+                return;
+            }
+            _closingForWorldExit = true;
+            ReopenAfterFight = true;
+            _navigator?.Pop().Forget();
+        }
+
         private void Update() {
             if (_worldView == null) {
                 return;
@@ -331,10 +362,12 @@ namespace BakAgain.UI.InGame {
             // Same gate the travel HUD uses: a dialog over the map is resolved above this screen's
             // layer, so the party stops while it is up.
             bool ownsInput = _layerHost != null && _layerHost.IsInputActive;
+            _touchControls?.Refresh(inFight: false);
             _movementDriver?.Tick(ownsInput);
             ToggleNorthUpIfAsked(ownsInput);
             OpenCheatChestOnALongHold(ownsInput);
             CloseOnAWorldExitRequest(ownsInput);
+            CloseWhenAFightStarts();
             // After the driver, because a step re-syncs the camera to the travel pose.
             ApplyMapCamera();
             RefreshMarker();
@@ -481,8 +514,13 @@ namespace BakAgain.UI.InGame {
 
         public void PrimaryAction(int menuEntryActionId) {
             if (IsPortrait(menuEntryActionId)) {
+                // With Shift held, the character sheet (MAP.C:409-411); else the inventory.
                 int slot = menuEntryActionId - ActionPartyMember1;
-                if (_inventoryMenu != null && _inventoryMenu.SetMember(slot)) {
+                if (BakAgain.UI.InputCore.InputDriver.ShiftHeld) {
+                    if (slot < _session.ActivePartyIndices.Length) {
+                        _characterSheet?.RunAsync(slot).Forget();
+                    }
+                } else if (_inventoryMenu != null && _inventoryMenu.SetMember(slot)) {
                     _navigator.Push(_inventoryMenu).Forget();
                 }
                 return;
@@ -543,17 +581,25 @@ namespace BakAgain.UI.InGame {
             }
         }
 
-        private void ShowFullMap() {
-            if (_fullMap == null) {
+        private void ShowFullMap() => OpenFullMapAsync(_fullMap, _session, _resources, _navigator, this).Forget();
+
+        /// <summary>
+        /// The player's full map — from the local map's button or F there, and F on the travel HUD
+        /// (fmap_screen_run from MAP.C:383 and WORLDLP.C:324).
+        /// </summary>
+        internal static async UniTaskVoid OpenFullMapAsync(IFullMapView fullMap, GameSession session,
+                IResourceProviderService resources, IScreenNavigator navigator, object owner) {
+            if (fullMap == null) {
                 return;
             }
-            _fullMap.SetMarker(_session.MapMarkerVisible, _session.MapMarkerXPercent,
-                _session.MapMarkerYPercent, _session.MapMarkerIcon);
+            await session.PlaceMapMarkerAsync(resources, owner);
+            fullMap.SetMarker(session.MapMarkerVisible, session.MapMarkerXPercent,
+                session.MapMarkerYPercent, session.MapMarkerIcon);
             // The player opened this one, so it needs REQ_FMAP's Exit widget. The loading-screen
             // caller passes null instead and is dismissed by the flow behind it; without this the
             // map was a dead end, closable by nothing at all.
-            _fullMap.SetExitAffordance(() => _navigator.Pop().Forget());
-            _navigator.Push(_fullMap).Forget();
+            fullMap.SetExitAffordance(() => navigator.Pop().Forget());
+            navigator.Push(fullMap).Forget();
         }
 
         // --- IMenuStateProvider ---

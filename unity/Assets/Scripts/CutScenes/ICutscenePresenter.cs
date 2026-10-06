@@ -29,5 +29,9 @@ namespace BakAgain.CutScenes {
             bool holdRenderingAfter = false, CancellationToken holdUntil = default,
             string backdrop = null, System.Action onHeld = null);
         void Cancel();
+
+        /// <summary>The files the playing script last loaded into image and palette slot
+        /// <paramref name="slot"/>; false when nothing is playing or the image slot is empty.</summary>
+        bool TryGetSlotResources(int slot, out string image, out string palette);
     }
 }

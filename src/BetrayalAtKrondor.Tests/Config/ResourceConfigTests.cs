@@ -23,4 +23,12 @@ public class ResourceConfigTests {
         Assert.False(ResourceConfig.Parse("bookmarkverify = 0").BookmarkVerify);
         Assert.True(ResourceConfig.Parse("bookmarkverify = 1").BookmarkVerify);
     }
+
+    [Fact]
+    public void NonRotatingMapIsReadWhenPresentAndUnsetWhenNot() {
+        Assert.True(ResourceConfig.Parse(" nonrotatingmap = 1\n").NonRotatingMap);
+        Assert.False(ResourceConfig.Parse("NonRotatingMap = 0").NonRotatingMap);
+        Assert.Null(ResourceConfig.Parse("bookmarkverify = 1").NonRotatingMap);
+        Assert.Null(ResourceConfig.Parse(null).NonRotatingMap);
+    }
 }

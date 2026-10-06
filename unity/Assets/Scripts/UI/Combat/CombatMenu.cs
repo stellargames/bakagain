@@ -25,7 +25,7 @@ namespace BakAgain.UI.Combat {
     /// handler would fire the travel action every time — silently, since both ids are live. The ids
     /// are per-screen and only <see cref="CombatCommands"/> knows what they mean in this one.</para>
     /// </remarks>
-    public class CombatMenu : MonoBehaviour, IActionHandler {
+    public class CombatMenu : MonoBehaviour, IActionHandler, BakAgain.UI.InputCore.IUnmatchedScancodeHandler {
         private ILogger _logger;
         private UserInterfaceLoader _ui;
         private bool _applyingSlot;
@@ -145,6 +145,15 @@ namespace BakAgain.UI.Combat {
         }
 
         /// <inheritdoc />
+        /// <summary>The party's menu loop takes keys with no button too — Ctrl+Q (COMBAT.C:2128).</summary>
+        public bool OnUnmatchedScancode(int scancode) {
+            if (CombatCommands.For(scancode) == CombatCommands.Command.None) {
+                return false;
+            }
+            PrimaryAction(scancode);
+            return true;
+        }
+
         public void PrimaryAction(int actionId) {
             CombatCommands.Command command = CombatCommands.For(actionId);
             if (command == CombatCommands.Command.None) {

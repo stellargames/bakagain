@@ -152,6 +152,11 @@ namespace BakAgain.UI.Inventory {
                 onAccelerator: c => {
                     switch (char.ToLowerInvariant(c)) {
                         case 'g': Resolve(model.Value); return true;
+                        // INVINSP.C:111-169: Space ends the loop with the value (0x39); ',' and '.'
+                        // step like the arrows (0x33 / 0x34), Shift for five.
+                        case ' ': Resolve(model.Value); return true;
+                        case ',': Step(up: false, five: Shift()); return true;
+                        case '.': Step(up: true, five: Shift()); return true;
                         case 's':
                             if (!allowShare) { return false; }
                             Resolve(-1);

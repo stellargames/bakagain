@@ -43,6 +43,10 @@ namespace BakAgain.UI.InputCore {
         public bool HandleIntent(UiIntent intent) {
             switch (intent.Kind) {
                 case UiIntentKind.Skip:
+                    // A screen that reads one of these keys by scancode gets it first (TASK-809).
+                    if (intent.Character != '\0' && _onAccelerator != null && _onAccelerator(intent.Character)) {
+                        return true;
+                    }
                     if (!_skipActivates) {
                         return true; // consumed: a positional click is the buttons' business
                     }

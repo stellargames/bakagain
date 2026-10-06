@@ -117,6 +117,18 @@ public class SaveGameExtractor : ExtractorBase<SaveGame> {
         );
     }
 
+    /// <summary>
+    /// The inverse of <see cref="BuildFullMapMarker"/>: the header's FULLMAP pixel position and
+    /// stored icon for a marker, or (-1, -1, 0) for none — what the original writes at save
+    /// (MAINMENU.C:963-970).
+    /// </summary>
+    public static (short X, short Y, short Icon) HeaderFieldsFor(FullMapIcon marker) =>
+        marker.Visible
+            ? ((short)System.Math.Round(marker.XPercent * FullMapWidth / 100f),
+               (short)System.Math.Round(marker.YPercent * FullMapHeight / 100f),
+               (short)(marker.IconIndex - LoadedMarkerIconBias))
+            : (NoMarkerSentinel, NoMarkerSentinel, (short)0);
+
     private static SaveGameData? ParseData(byte[] tempGameData) {
         if (tempGameData.Length < SaveGameOffsets.BodySize) {
             return null;

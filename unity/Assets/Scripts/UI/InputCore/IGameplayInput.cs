@@ -10,5 +10,6 @@ namespace BakAgain.UI.InputCore {
         float Zoom { get; }       // zoom/speed delta (scroll / trigger)
         bool LeftShift { get; }   // held: the original's commands read the two shifts apart
         bool RightShift { get; }  //   (shop paging back vs to-front, combat Shift arms)
+        bool Ctrl { get; }        // either Ctrl: key_is_down(0x1d) (combat's Ctrl+Q)
     }
 }

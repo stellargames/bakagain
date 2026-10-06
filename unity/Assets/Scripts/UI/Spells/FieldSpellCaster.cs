@@ -118,7 +118,8 @@ namespace BakAgain.UI.Spells {
         private async UniTask CastLocatorAsync(int casterId, int spellNumber, int power) {
             ApplyCost(casterId, power);
 
-            int roll = UnityEngine.Random.Range(1, 101);
+            // RND(100) is 0-99 (SPELLFX.C:165-191), so power p succeeds on 10p+1 rolls of 100.
+            int roll = UnityEngine.Random.Range(0, 100);
             if (!FieldSpells.LocatorSucceeds(spellNumber, roll, power)) {
                 await ShowDialogAsync(LocatorFailureDialog);
 

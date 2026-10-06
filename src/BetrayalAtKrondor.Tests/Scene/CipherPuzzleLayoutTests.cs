@@ -142,4 +142,16 @@ public class CipherPuzzleLayoutTests {
     public void TheIncomingLetterStartsABOVETheOutgoingOne() =>
         // Negative, because it falls in from the top of the clipped box.
         Assert.True(CipherPuzzleLayout.IncomingLetterOffset(10) < 0);
+
+    // CIPHER.C:157-176: a non-left click on a tumbler (0x80-0x93) plays 0xcd, the tumbler's help;
+    // on Exit (0x12) 0xce, the exit button's help (TASK-802).
+    [Theory]
+    [InlineData(0x80, 0xcd)]
+    [InlineData(0x93, 0xcd)]
+    [InlineData(0x12, 0xce)]
+    [InlineData(0x94, 0)]
+    [InlineData(0x7f, 0)]
+    public void ASecondaryClickShowsThatControlsHelp(int actionId, int dialog) {
+        Assert.Equal(dialog, CipherPuzzleLayout.HelpDialogFor(actionId));
+    }
 }

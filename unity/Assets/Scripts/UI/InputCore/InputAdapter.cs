@@ -264,6 +264,19 @@ namespace BakAgain.UI.InputCore {
                     return;
                 }
             }
+            // A digit on a REQ page is a button press like a letter: '1'..'0' are scancodes 2..11,
+            // the portraits' and the Contents chapters' ids — on menus (TASK-796), the travel HUD and
+            // the map (TASK-798). Over a full-frame dialog it stays the Skip below, which pages it on.
+            // (wantsText returned above, so a typing screen never gets here.)
+            if (_commands.TopLayer is NavigableLayer || _commands.TopLayer is TravelLayer
+                || _commands.TopLayer is ScreenInputLayer) {
+                for (Key k = Key.Digit1; k <= Key.Digit0; k++) {
+                    if (kb[k].wasPressedThisFrame) {
+                        _commands.Accelerator(k == Key.Digit0 ? '0' : (char)('1' + (k - Key.Digit1)));
+                        return;
+                    }
+                }
+            }
             // *** EVERY OTHER KEY IS A SKIP. *** dialog_poll_arrow_or_button (DIALOG.C:161-171) hands
             // its caller EVERY scancode it reads and discards only the four arrows and
             // NumLock/ScrollLock, so in the original a space, a digit, F1 or keypad 5 all page a
@@ -277,7 +290,9 @@ namespace BakAgain.UI.InputCore {
             }
             foreach (UnityEngine.InputSystem.Controls.KeyControl key in kb.allKeys) {
                 if (key.wasPressedThisFrame && !ClaimedBeforeSkip(key.keyCode)) {
-                    _commands.Skip();
+                    _commands.Skip(key.keyCode switch {
+                        Key.Space => ' ', Key.Comma => ',', Key.Period => '.', _ => '\0',
+                    });
                     return;
                 }
             }

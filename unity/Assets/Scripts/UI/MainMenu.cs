@@ -13,7 +13,27 @@ namespace BakAgain.UI {
     /// <see cref="MenuActionHandler"/> — the only logic it shares with the in-game
     /// <see cref="InGameMenu"/>.
     /// </summary>
-    public sealed class MainMenu : ScreenBase, IActionHandler {
+    public sealed class MainMenu : ScreenBase, IActionHandler, BakAgain.UI.InputCore.IUnmatchedScancodeHandler {
+        private BakAgain.UI.InputCore.InputLayerStack _inputStack;
+        private BakAgain.ResourceManagement.IResourceProviderService _bannerResources;
+
+        [Inject]
+        public void ConstructBanner(BakAgain.UI.InputCore.InputLayerStack inputStack,
+            BakAgain.ResourceManagement.IResourceProviderService resources) {
+            _inputStack = inputStack;
+            _bannerResources = resources;
+        }
+
+        /// <summary>V shows the version banner (MAINMENU.C:289-291) — TASK-804.</summary>
+        public bool OnUnmatchedScancode(int scancode) {
+            if (scancode != GameData.Resources.Menu.VersionBanner.Key) {
+                return false;
+            }
+            VersionBannerView.ShowAsync(GetComponent<UnityEngine.UIElements.UIDocument>()?.rootVisualElement,
+                _bannerResources, _inputStack, this).Forget();
+            return true;
+        }
+
         private MenuActionHandler _handler;
         private BakAgain.Audio.MidiPlaybackManager _midi;
         private BakAgain.ResourceManagement.IResourceProviderService _resources;

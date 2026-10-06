@@ -108,6 +108,12 @@ namespace BakAgain.UI {
         /// </summary>
         void SetActivePalette(Color[] palette);
 
+        /// <summary>
+        /// While a location is up: the scene script's slot-5 image and palette, read when a party
+        /// member speaks (<c>GameData.Resources.Dialog.PartySpeakerBackdrop</c>). Null outside one.
+        /// </summary>
+        System.Func<(string Image, string Palette)?> SceneSpeakerBackdrop { get; set; }
+
         /// <summary>The palette a dialog shown now would be drawn with: the active one, else the default.</summary>
         Cysharp.Threading.Tasks.UniTask<Color[]> ResolvePaletteAsync();
 

@@ -3216,7 +3216,18 @@ namespace BakAgain.UI.Inventory {
         /// the sprite the button wears. Nothing answered a right-click here before.
         /// </remarks>
         public Awaitable SecondaryAction(int actionId) {
-            if (actionId is >= 2 and <= 4 || actionId == 0x22 || actionId == 0x7f) {
+            // A right-click keeps the portraits and the purse (CMBINV.C:313-326 zeroes every other
+            // action on it), so they reach the same arms a left click does: the sheet for a portrait
+            // (:336-341) and the purse line for the gold (:352-355) — TASK-799.
+            if (actionId is >= 2 and <= 4) {
+                OpenCharacterSheet(actionId - 2);
+                return default;
+            }
+            if (actionId == 0x22) {
+                ShowPartyMoney();
+                return default;
+            }
+            if (actionId == 0x7f) {
                 return default;
             }
             if (actionId == 0x20) {
@@ -3233,6 +3244,24 @@ namespace BakAgain.UI.Inventory {
         }
 
         private const int ContainerSlotHelpDialogId = 1800017; // 0x1B7751
+
+        /// <summary>The cue for opening a member's sheet or switching to their pack.</summary>
+        private const int MemberSwitchSoundId = 0x53;
+
+        /// <summary>
+        /// A member's character sheet from the inventory — right-click or Shift on a portrait. The
+        /// picklock arm plays no cue (CMBINV.C:414-419); the party arm does (:338).
+        /// </summary>
+        private void OpenCharacterSheet(int portraitSlot) {
+            if (CharacterIndexOf(portraitSlot) < 0) {   // `target <= partySize`
+                return;
+            }
+            if (!IsLockMode) {
+                Audio.MenuSoundService.Instance?.Play(MemberSwitchSoundId);
+            }
+            (_resolver?.Resolve(typeof(BakAgain.UI.Character.CharacterSheetScreen))
+                as BakAgain.UI.Character.CharacterSheetScreen)?.RunAsync(portraitSlot).Forget();
+        }
         private const int ButtonHelpDialogId = 1800026;        // 0x1B775A
 
         /// <summary>Switch the displayed grid to the active-party member behind portrait 0/1/2. A
@@ -3251,6 +3280,11 @@ namespace BakAgain.UI.Inventory {
         /// that member. See <see cref="PickerLockPicking"/>.</para>
         /// </remarks>
         private void SelectMember(int portraitSlot) {
+            // Shift: the character sheet, in either arm and in a fight too (CMBINV.C:336-341, :414-419).
+            if (BakAgain.UI.InputCore.InputDriver.ShiftHeld) {
+                OpenCharacterSheet(portraitSlot);
+                return;
+            }
             // *** IN A FIGHT THE PACK STAYS ON WHOEVER IS ACTING. *** CMBINV.C:344 gates the
             // switch arm on `(target != memberIdx) && (g_wInCombatMode == 0)`, so the original
             // refuses it outright mid-combat -- the member whose turn it is is the member whose
@@ -3273,6 +3307,10 @@ namespace BakAgain.UI.Inventory {
 
             RuntimeContainer inventory = ResolveMemberContainer(portraitSlot);
             if (inventory != null) {
+                if (inventory != _displayed) {
+                    // audio_play(0x53) on a switch to another member (CMBINV.C:346).
+                    Audio.MenuSoundService.Instance?.Play(MemberSwitchSoundId);
+                }
                 _displayed = inventory;
                 NoteKeeperKind();
                 // *** A MEMBER'S PACK CLEARS THE KEEPER KIND. *** CMBINV.C:63-67 zeroes

@@ -7,7 +7,7 @@ namespace BakAgain.UI.InputCore {
         void Activate();
         void Cancel();
         void Accelerator(char character);
-        void Skip();
+        void Skip(char key = '\0');
         IInputLayer TopLayer { get; }
         bool IsModal { get; }
     }

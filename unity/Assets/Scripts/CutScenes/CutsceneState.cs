@@ -78,6 +78,10 @@ namespace BakAgain.CutScenes {
         public Dictionary<int, Color[]> PaletteSlots { get; } = new(6);
         public Dictionary<int, string> ImageSlots { get; set; } = new(6);
 
+        /// <summary>The file each palette slot was loaded from — what a dialog over a location reads
+        /// back for slot 5 (<c>PartySpeakerBackdrop</c>).</summary>
+        public Dictionary<int, string> PaletteSlotNames { get; } = new(6);
+
         public int CurrentPaletteSlot {
             get => _currentPaletteSlot;
             set {
@@ -305,6 +309,7 @@ namespace BakAgain.CutScenes {
             Resources = new ResourceSet();
             ImageSlots.Clear();
             PaletteSlots.Clear();
+            PaletteSlotNames.Clear();
             RequestedAudio.Clear();
             RequestedDialogs.Clear();
             CurrentPaletteSlot = 0;

@@ -11,7 +11,7 @@ namespace BakAgain.Tests.Editor.UI.InputCore {
             public void Activate() => Calls.Add("Activate");
             public void Cancel() => Calls.Add("Cancel");
             public void Accelerator(char c) => Calls.Add("Accel:" + c);
-            public void Skip() => Calls.Add("Skip");
+            public void Skip(char key = '\0') => Calls.Add("Skip");
             public IInputLayer TopLayer { get; set; }
             public bool IsModal => false;
         }
@@ -70,6 +70,38 @@ namespace BakAgain.Tests.Editor.UI.InputCore {
                 Press(keyboard.nKey);
                 adapter.Tick();
                 Assert.Contains("Accel:n", spy.Calls);
+            } finally {
+                adapter.Dispose();
+            }
+        }
+
+        // A REQ menu's '1'..'0' are scancodes 2..11 like any letter (TASK-796), so over a menu layer a
+        // digit is an Accelerator. Elsewhere it stays the Skip that pages a dialog on.
+        [Test]
+        public void Digit_OverAMenuLayer_IsAnAccelerator_ElsewhereASkip() {
+            Keyboard keyboard = InputSystem.AddDevice<Keyboard>();
+            var spy = new SpyCommands {
+                TopLayer = new NavigableLayer("menu", CaptureMode.Passive, new List<NavWidget>(), null, null),
+            };
+            InputAdapter adapter = StartedAdapter(spy);
+            try {
+                Press(keyboard.digit1Key);
+                adapter.Tick();
+                Assert.Contains("Accel:1", spy.Calls);
+
+                spy.Calls.Clear();
+                spy.TopLayer = new TravelLayer("travel", new List<NavWidget>(), null);
+                Release(keyboard.digit1Key);
+                Press(keyboard.digit1Key);
+                adapter.Tick();
+                Assert.Contains("Accel:1", spy.Calls, "the travel HUD's 1 is the first portrait (TASK-798)");
+
+                spy.Calls.Clear();
+                spy.TopLayer = null;
+                Release(keyboard.digit1Key);
+                Press(keyboard.digit1Key);
+                adapter.Tick();
+                Assert.Contains("Skip", spy.Calls);
             } finally {
                 adapter.Dispose();
             }

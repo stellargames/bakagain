@@ -41,6 +41,15 @@ namespace BakAgain.UI.Navigation {
         /// <summary>Hide the top screen and re-show the one beneath (iff it was hidden).</summary>
         UniTask Pop();
 
+        /// <summary>
+        /// <see cref="Push"/> without the screen fade, for a screen that brings its own transition
+        /// — the cast screen's split wipe is the original's only transition there (TASK-818).
+        /// </summary>
+        UniTask PushUnfaded(IScreen screen) => Push(screen);
+
+        /// <summary><see cref="Pop"/> without the screen fade; see <see cref="PushUnfaded"/>.</summary>
+        UniTask PopUnfaded() => Pop();
+
         /// <summary>Hide the top screen, drop it from the stack, and show
         /// <paramref name="screen"/> in its place.</summary>
         UniTask Replace(IScreen screen);

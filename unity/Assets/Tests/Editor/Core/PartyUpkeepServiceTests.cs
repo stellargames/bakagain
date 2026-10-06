@@ -351,6 +351,7 @@ namespace BakAgain.Tests.Editor.Core {
                 System.Threading.CancellationToken cancellationToken = default) => Cysharp.Threading.Tasks.UniTask.CompletedTask;
             public Cysharp.Threading.Tasks.UniTask<UnityEngine.Color[]> ResolvePaletteAsync() => Cysharp.Threading.Tasks.UniTask.FromResult<UnityEngine.Color[]>(null);
             public void SetActivePalette(UnityEngine.Color[] palette) { }
+            public System.Func<(string Image, string Palette)?> SceneSpeakerBackdrop { get; set; }
             public UniTask<bool> ShowAcceptOrCancelById(int id, System.Threading.CancellationToken ct = default) =>
                 UniTask.FromResult(false);
             public UniTask<bool> ShowConfirmById(int id, CancellationToken cancellationToken = default)

@@ -128,6 +128,7 @@ namespace BakAgain.Tests.PlayMode.World {
                 System.Threading.CancellationToken cancellationToken = default)
                 => UniTask.FromResult<GameData.Resources.Dialog.DialogPlay>(null);
             public void SetActivePalette(Color[] palette) { }
+            public System.Func<(string Image, string Palette)?> SceneSpeakerBackdrop { get; set; }
             public UniTask<int> ShowById(int id,
                 System.Threading.CancellationToken cancellationToken = default) => UniTask.FromResult(-1);
             public UniTask<bool> ShowAcceptOrCancelById(int id, System.Threading.CancellationToken ct = default) =>

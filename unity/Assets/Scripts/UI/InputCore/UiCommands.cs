@@ -10,7 +10,7 @@ namespace BakAgain.UI.InputCore {
         public void Activate() => _stack.DispatchIntent(UiIntent.Activate());
         public void Cancel() => _stack.DispatchIntent(UiIntent.Cancel());
         public void Accelerator(char character) => _stack.DispatchIntent(UiIntent.Accelerator(character));
-        public void Skip() => _stack.DispatchIntent(UiIntent.Skip());
+        public void Skip(char key = '\0') => _stack.DispatchIntent(UiIntent.Skip(key));
         public IInputLayer TopLayer => _stack.Top;
         public bool IsModal => _stack.IsModal;
     }

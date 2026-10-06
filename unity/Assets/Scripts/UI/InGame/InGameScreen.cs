@@ -38,6 +38,7 @@ namespace BakAgain.UI.InGame {
         private const int ActionTurnRight = 77;     // 0x4D Right
         private const int ActionFollowRoad = 19;    // Toggle
         private const int ActionMap = 50;           // overhead/full map
+        private const int ActionFullMap = 0x21;     // F — no button; see PrimaryAction
         private const int ActionCastSpell = 46;
         private const int ActionBookmark = 48;      // quick-save bookmark
         private const int ActionEncamp = 18;
@@ -167,7 +168,7 @@ namespace BakAgain.UI.InGame {
         }
         private CompassView _compass;
         // The arena's own frame, shown only in a fight -- see BuildCombatFrame.
-        private const string CombatFrameAddress = "CFRAME.SCX";
+        public const string CombatFrameAddress = "CFRAME.SCX";
         private VisualElement _combatFrame;
         private VisualElement[] _compassArrows = System.Array.Empty<VisualElement>();
         private bool _combatChromeShown;
@@ -219,7 +220,10 @@ namespace BakAgain.UI.InGame {
         internal void SetCombatCellSeams(System.Func<Vector3, (int Column, int Row)?> cellAt,
             System.Action<(int Column, int Row)?, bool> setCursorCell,
             System.Func<int, int, Vector3?> cellWorld, System.Func<(int Column, int Row)?> actingCell,
-            System.Func<bool> awaitingTarget) {
+            System.Func<bool> awaitingTarget, System.Func<int, int, bool> castAcceptedAt = null,
+            System.Func<int, int, bool> moveAcceptedAt = null) {
+            _castAcceptedAt = castAcceptedAt;
+            _moveAcceptedAt = moveAcceptedAt;
             _cellAtPoint = cellAt;
             _setCursorCell = setCursorCell;
             _cellWorld = cellWorld;
@@ -620,6 +624,9 @@ namespace BakAgain.UI.InGame {
                 pickGround: p => _hotspotGround?.Invoke(p),
                 combatantAtPoint: p => _combatantAtPoint?.Invoke(p),
                 hoverPointOverride: () => TouchInputState.Instance?.CombatHoverScreenPoint,
+                // Resolved on demand for the reason the trap springers above are (TASK-795).
+                hintEncounter: (member, isPrimary) => _resolver?.Resolve<BakAgain.World.WorldRuntime>()
+                    ?.HintEncounter(member.EncounterNumber, member.CreatureNumber, isPrimary),
                 lootCorpse: (corpse, isPrimary) => {
                     if (corpse == null || _pendingCamera == null) {
                         return;
@@ -878,6 +885,7 @@ namespace BakAgain.UI.InGame {
                 return;
             }
             _compass?.Refresh();
+            ReopenTheMapAfterAFight();
             _touchControls?.Refresh(AFightIsRunning());
             HandleTouchLongPress();
             ClearTouchTargetingAfterAFight();
@@ -1218,6 +1226,17 @@ namespace BakAgain.UI.InGame {
         /// combat layer's job and it already does it (<c>HotspotService.EndCombat</c>). This only
         /// has to let it finish.</para>
         /// </remarks>
+        // The map gave way to a fight that started on it; the original's map loop resumes after the
+        // fight (MAP.C:214), so the map comes back once the travel view owns input again.
+        private void ReopenTheMapAfterAFight() {
+            if (_overheadMap == null || !_overheadMap.ReopenAfterFight || AFightIsRunning()
+                || _travelHost == null || !_travelHost.IsInputActive) {
+                return;
+            }
+            _overheadMap.ReopenAfterFight = false;
+            _navigator.Push(_overheadMap).Forget();
+        }
+
         private bool AFightIsRunning() =>
             (_resolver?.Resolve(typeof(BakAgain.World.WorldRuntime))
                 as BakAgain.World.WorldRuntime)?.FightInProgress ?? false;
@@ -1330,9 +1349,13 @@ namespace BakAgain.UI.InGame {
             }
             if (_combatCursor == null) {
                 _combatCursor = new CombatCursor(CellOnScreen);
-                if (_actingCell?.Invoke() is (int ac, int ar)) {
-                    _combatCursor.Cell = (ac, ar);
-                }
+                _combatCursorSeated = false;
+            }
+            // Seat it on the acting character the first time there is one: during the fight's
+            // opening text nobody is acting yet, and the cursor started in the arena's corner.
+            if (!_combatCursorSeated && _actingCell?.Invoke() is (int ac, int ar)) {
+                _combatCursor.Cell = (ac, ar);
+                _combatCursorSeated = true;
             }
             int held = touch.TakeTouchAction();   // a quick tap still steps the cursor once
             if (held != _cursorHeldAction) {
@@ -1355,11 +1378,20 @@ namespace BakAgain.UI.InGame {
             bool target = occupant.HasValue && (!occupant.Value.PartyMember || waiting);
             touch.CombatHoverScreenPoint = occupant.HasValue ? point : null;
             _setCursorCell?.Invoke((c, r), true);
-            touch.CursorContext = target ? CursorContext.Target
+            // Nobody acting (the fight's opening text, the enemies' turns): no Thrust or Move to offer.
+            bool someoneActs = _actingCell?.Invoke() != null;
+            touch.CursorContext = !someoneActs ? CursorContext.None
+                : target ? CursorContext.Target
                 : occupant.HasValue ? CursorContext.None
                 : CursorContext.Ground;
             touch.AwaitingTarget = waiting;
+            touch.CastAccepted = waiting && (_castAcceptedAt?.Invoke(c, r) ?? true);
+            touch.MoveAccepted = !waiting && (_moveAcceptedAt?.Invoke(c, r) ?? true);
         }
+
+        private System.Func<int, int, bool> _castAcceptedAt;
+        private bool _combatCursorSeated;
+        private System.Func<int, int, bool> _moveAcceptedAt;
 
         private void StepCursor(int padAction) {
             Vector2 dir = padAction switch {
@@ -1372,6 +1404,25 @@ namespace BakAgain.UI.InGame {
             if (dir != Vector2.zero) {
                 _combatCursor.Step(dir);
             }
+        }
+
+        /// <summary>
+        /// Inspect on touch: the combatant under the combat cursor, at once — the same primary
+        /// "click" the mouse would give it. With nobody there the press does nothing, rather than
+        /// staying armed for the next Thrust to complete (TASK-824). Off a touch fight it stays
+        /// armed and waits for a click as before.
+        /// </summary>
+        /// <returns>True when touch handled the press (so nothing stays armed).</returns>
+        internal bool InspectAtTouchCursor() {
+            if (!TouchFight() || _combatCursor == null) {
+                return false;
+            }
+            (int c, int r) = _combatCursor.Cell;
+            if (CellOnScreen(c, r) is Vector2 point
+                && _interaction?.CombatantAtScreenPoint(point) is (int slot, bool party)) {
+                _hotspotTarget?.Invoke(slot, party, true);
+            }
+            return true;
         }
 
         // The Move / Cast-here button: the mouse's ground click, on the cursor's cell.
@@ -1480,11 +1531,18 @@ namespace BakAgain.UI.InGame {
                     }
 
                     break;
+                case ActionFullMap:
+                    // F: no button on REQ_MAIN, but the world loop acts on the scancode anyway and
+                    // runs fmap_screen_run (WORLDLP.C:324) — TASK-797.
+                    OverheadMapScreen.OpenFullMapAsync(
+                        _resolver?.Resolve<BakAgain.UI.FullMap.IFullMapView>(), _gameSession, _resources,
+                        _navigator, this).Forget();
+                    break;
                 case ActionCastSpell:
                     // The button is already greyed out when nobody can cast (see the enable pass
                     // above), so reaching here means the party has a caster.
                     if (_castScreen != null) {
-                        _navigator.Push(_castScreen).Forget();
+                        _castScreen.PushAsync(_navigator).Forget();
                     }
 
                     break;
@@ -1521,11 +1579,15 @@ namespace BakAgain.UI.InGame {
                 case ActionPartyMember1:
                 case ActionPartyMember2:
                 case ActionPartyMember3: {
-                    // Plain portrait click → that member's inventory (WORLDLP.C:367,
-                    // cmbinv_inventory_screen_run(NULL, slot+1, 0)). The original's right-click /
-                    // Shift+click branch opens the character sheet instead — not built yet.
+                    // Portrait click or 1-3 → that member's inventory (WORLDLP.C:367,
+                    // cmbinv_inventory_screen_run(NULL, slot+1, 0)); with Shift held, the character
+                    // sheet (WORLDLP.C:359-364). A right-click arrives as SecondaryAction.
                     int slot = menuEntryActionId - ActionPartyMember1;
-                    if (_inventoryMenu != null && _inventoryMenu.SetMember(slot)) {
+                    if (BakAgain.UI.InputCore.InputDriver.ShiftHeld) {
+                        if (slot < _gameSession.ActivePartyIndices.Length) {
+                            _characterSheet?.RunAsync(slot).Forget();
+                        }
+                    } else if (_inventoryMenu != null && _inventoryMenu.SetMember(slot)) {
                         _navigator.Push(_inventoryMenu).Forget();
                     }
                     break;

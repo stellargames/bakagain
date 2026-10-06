@@ -143,4 +143,12 @@ public class CombatCommandsTests {
         Assert.True(CombatCommands.SuspendScreenSpendsTheTurn(leftSomethingArmed: false));
         Assert.False(CombatCommands.SuspendScreenSpendsTheTurn(leftSomethingArmed: true));
     }
+
+    // COMBAT.C:2128-2137, case 16: Q's scancode is no button, but the party's menu loop gets it, and
+    // with Ctrl held it asks DDX 331 whether to abort to the main menu (TASK-801).
+    [Fact]
+    public void CtrlQIsTheAbortToMainMenu() {
+        Assert.Equal(CombatCommands.Command.AbortGame, CombatCommands.For(0x10));
+        Assert.Equal(331, CombatCommands.AbortGameDialogId);
+    }
 }

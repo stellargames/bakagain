@@ -172,6 +172,7 @@ namespace BakAgain.UI.InputCore {
         public float Zoom => _zoom.ReadValue<float>();
         public bool LeftShift => Keyboard.current?.leftShiftKey.isPressed ?? false;
         public bool RightShift => Keyboard.current?.rightShiftKey.isPressed ?? false;
+        public bool Ctrl => Keyboard.current?.ctrlKey.isPressed ?? false;
     }
 
     // Task 8: CreditsView's "hold N to reveal rare credits" Easter egg. Its own InputAction (created

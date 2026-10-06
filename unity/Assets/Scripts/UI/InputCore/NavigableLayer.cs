@@ -39,8 +39,9 @@ namespace BakAgain.UI.InputCore {
 
         public NavigableLayer(string id, CaptureMode captureMode, IReadOnlyList<NavWidget> widgets,
             Action onCancel, ICursorManager cursor, Func<NavDirection, bool> trySelectionNav = null,
-            bool ambiguousLetterSelectsNothing = false) {
+            bool ambiguousLetterSelectsNothing = false, Func<int, bool> onUnmatchedScancode = null) {
             _ambiguousLetterSelectsNothing = ambiguousLetterSelectsNothing;
+            _onUnmatchedScancode = onUnmatchedScancode;
             Id = id;
             CaptureMode = captureMode;
             _widgets = widgets;
@@ -72,7 +73,10 @@ namespace BakAgain.UI.InputCore {
                     _onCancel();
                     return true;
                 case UiIntentKind.Accelerator: return Accelerate(intent.Character);
-                default: return false; // Skip is for full-frame layers, not menus
+                // Skip is for full-frame layers — except the keys a menu loop reads by scancode
+                // (Space, ',' and '.'), which arrive as Skip carrying the key (TASK-809).
+                case UiIntentKind.Skip when intent.Character != '\0': return Accelerate(intent.Character);
+                default: return false;
             }
         }
 
@@ -296,27 +300,48 @@ namespace BakAgain.UI.InputCore {
             return true;
         }
 
-        // First-letter accelerator (menu_pollInput): a char matching a widget label's leading letter
+        // Letter accelerator. On the dialog choice row a char matching a widget label's leading letter
         // focuses + activates it. First match wins on ties. A hidden/unfocusable widget is skipped —
         // it must never be focused OR invoked, same as WidgetUnderCursor/ActivateFocused.
         // The dialog choice menu's own scan (ASKABOUT.C:499-511): a letter that starts more than one label
-        // selects nothing and the menu keeps waiting. Other menus poll through menu_pollInput and keep the
-        // first match.
+        // selects nothing and the menu keeps waiting. Every other menu matches scancodes (see Accelerate).
         private readonly bool _ambiguousLetterSelectsNothing;
 
+        // menupage_run hands its screen loop every scancode, matched or not (MENUPAGE.C:320-399), so
+        // a loop can act on a key no entry carries — combat's Ctrl+Q (TASK-801).
+        private readonly Func<int, bool> _onUnmatchedScancode;
+
         private bool Accelerate(char c) {
-            char lower = char.ToLowerInvariant(c);
-            if (_ambiguousLetterSelectsNothing) {
-                int matches = 0;
-                for (int j = 0; j < _widgets.Count; j++) {
-                    string l = _widgets[j].Label;
-                    if (CanFocus(_widgets[j]) && !string.IsNullOrEmpty(l) && char.ToLowerInvariant(l[0]) == lower) {
-                        matches++;
-                    }
+            // *** A REQ MENU MATCHES THE KEY'S SCANCODE AGAINST ACTION IDS, NOT LABEL LETTERS. ***
+            // menupage_run (MENUPAGE.C:346-366) presses the entry whose wAction_id equals the scancode,
+            // and a gated entry swallows its key. Only the dialog choice row scans first letters
+            // (ASKABOUT.C:499-511). Matching labels made the options menu's S start a new game where
+            // the original saves (0x1f), and left N, D and E dead (TASK-796).
+            if (!_ambiguousLetterSelectsNothing) {
+                int scancode = GameData.Resources.World.KeyScancode.Of(c);
+                if (scancode < 0) {
+                    return false;
                 }
-                if (matches > 1) {
+                for (int i = 0; i < _widgets.Count; i++) {
+                    if (_widgets[i].ActionId != scancode) continue;
+                    if (CanFocus(_widgets[i])) {
+                        FocusWidget(i, navWarp: true);
+                        _widgets[i].Primary?.Invoke();
+                    }
                     return true;
                 }
+                return _onUnmatchedScancode?.Invoke(scancode) ?? false;
+            }
+            char lower = char.ToLowerInvariant(c);
+            int matches = 0;
+            for (int j = 0; j < _widgets.Count; j++) {
+                string l = _widgets[j].Label;
+                if (CanFocus(_widgets[j]) && !string.IsNullOrEmpty(l) && char.ToLowerInvariant(l[0]) == lower) {
+                    matches++;
+                }
+            }
+            if (matches > 1) {
+                return true;
             }
             for (int i = 0; i < _widgets.Count; i++) {
                 if (!CanFocus(_widgets[i])) continue;

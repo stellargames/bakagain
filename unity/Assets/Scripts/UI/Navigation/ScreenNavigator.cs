@@ -51,11 +51,20 @@ namespace BakAgain.UI.Navigation {
             await Fade.FadeInAsync();
         });
 
-        public UniTask Push(IScreen screen) => Serialize(async () => {
-            await Fade.FadeOutAsync();
+        public UniTask Push(IScreen screen) => PushCore(screen, fade: true);
+
+        /// <inheritdoc />
+        public UniTask PushUnfaded(IScreen screen) => PushCore(screen, fade: false);
+
+        private UniTask PushCore(IScreen screen, bool fade) => Serialize(async () => {
+            if (fade) {
+                await Fade.FadeOutAsync();
+            }
             AddTop(screen);
             await EnsureTopShownAsync();
-            await Fade.FadeInAsync();
+            if (fade) {
+                await Fade.FadeInAsync();
+            }
         });
 
         /// <inheritdoc />
@@ -84,8 +93,15 @@ namespace BakAgain.UI.Navigation {
         /// <summary>No operation is running or queued, so the stack and what is shown agree.</summary>
         private bool IsIdle => !_pumping && _queue.Count == 0;
 
-        public UniTask Pop() => Serialize(async () => {
-            await Fade.FadeOutAsync();
+        public UniTask Pop() => PopCore(fade: true);
+
+        /// <inheritdoc />
+        public UniTask PopUnfaded() => PopCore(fade: false);
+
+        private UniTask PopCore(bool fade) => Serialize(async () => {
+            if (fade) {
+                await Fade.FadeOutAsync();
+            }
             Entry popped = null;
             if (_stack.Count > 0) {
                 popped = _stack[_stack.Count - 1];
@@ -115,7 +131,9 @@ namespace BakAgain.UI.Navigation {
                     + new System.Diagnostics.StackTrace(true));
             }
             await EnsureTopShownAsync();
-            await Fade.FadeInAsync();
+            if (fade) {
+                await Fade.FadeInAsync();
+            }
         });
 
         public UniTask Replace(IScreen screen) => Serialize(async () => {

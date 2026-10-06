@@ -8,5 +8,6 @@ namespace BakAgain.UI.InputCore {
         public float Zoom { get; set; }
         public bool LeftShift { get; set; }
         public bool RightShift { get; set; }
+        public bool Ctrl { get; set; }
     }
 }

@@ -552,6 +552,17 @@ namespace BakAgain.Tests.Editor.Combat {
                 Resolver(canShoot: true, crossbowPattern: 0).Resolve(enc, m).Action);
         }
 
+        // CBTAITRN.C:361-367: with no attempt run, the crossbow turn ends on the fatigue/morale roll —
+        // advance under 75 or at full stamina, otherwise rest. Pattern 0 runs no attempt (TASK-807).
+        [Test]
+        public void APatternZeroShooterTiredAndUnluckyRests() {
+            Combatant m = Monster();
+            CombatEncounter enc = Fight(m, Member(2, 0));
+
+            Assert.AreEqual(AiAction.Rest,
+                Resolver(canShoot: true, crossbowPattern: 0, staminaPercent: 50, roll: 99).Resolve(enc, m).Action);
+        }
+
         [Test]
         public void APATTERNEDSHOOTERStillShoots() {
             // The pair matters: without this, "pattern 0 melees" would also pass if the gate had

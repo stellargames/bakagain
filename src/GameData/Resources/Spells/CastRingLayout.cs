@@ -99,6 +99,37 @@ public static class CastRingLayout {
     /// </remarks>
     public const int SliderHoverIcon = 5;
 
+    // ---------------------------------------------------------------- the slider's opening sweep
+    // cspell_select_power, CSPELL.C:2041-2052: before the slider takes input, one frame per step.
+
+    /// <summary>Frames in the opening sweep: 29 for the ring turning over, then one per power up
+    /// to the top of the band.</summary>
+    public static int FillFrameCount(int maximumPower) => PositionCount - 1 + System.Math.Max(0, maximumPower);
+
+    /// <summary>
+    /// The icon a ring position shows on one frame of the slider's opening sweep.
+    /// </summary>
+    /// <remarks>
+    /// <b>Two phases.</b> First the ring icon (<see cref="SliderRingIcon"/>, fifths marked) sweeps
+    /// backwards from the last position over an unmarked <see cref="SliderFilledIcon"/> ring
+    /// (frame f covers positions 29-f..29). Then the whole ring is the ring icon and the band is
+    /// overdrawn from the spell's minimum, one position further each frame, until it reaches the
+    /// caster's maximum — the resting slider.
+    /// </remarks>
+    public static int FillIconAt(int frame, int position, int minimumPower, int maximumPower) {
+        int turnFrames = PositionCount - 1;
+        if (frame < turnFrames) {
+            int idx = frame + 1;
+            return position >= PositionCount - idx
+                ? IconFor(SliderRingIcon, position, markAnchors: true)
+                : SliderFilledIcon;
+        }
+        int reach = frame - turnFrames + 1;
+        return position >= minimumPower - 1 && position < reach
+            ? IconFor(SliderFilledIcon, position, BandMarksAnchors)
+            : IconFor(SliderRingIcon, position, markAnchors: true);
+    }
+
     /// <summary>
     /// <b>The info panel's cost updates as the cursor moves.</b>
     /// </summary>
@@ -192,6 +223,40 @@ public static class CastRingLayout {
         }
         return -1;
     }
+
+    /// <summary>
+    /// Touch's version of <see cref="PositionAt"/>: the band position nearest the finger, when the
+    /// finger is within <paramref name="reach"/> canonical units of it.
+    /// </summary>
+    /// <remarks>
+    /// A ring position's hit box is smaller than a fingertip on a phone, and a finger covers the
+    /// position it is on, so the exact test made the power slider unusable by touch (TASK-821).
+    /// Nearest-in-band also means sliding just past either end of the band holds that end.
+    /// </remarks>
+    public static int NearestPositionInBand(IReadOnlyList<RingPosition>? positions, int x, int y,
+        int minIndex, int maxIndex, int reach) {
+        if (positions == null) {
+            return -1;
+        }
+        int best = -1;
+        long bestDistance = (long)reach * reach;
+        for (int i = System.Math.Max(0, minIndex); i <= maxIndex && i < positions.Count; i++) {
+            RingPosition p = positions[i];
+            if (p == null) {
+                continue;
+            }
+            long dx = p.X - x, dy = p.Y - y;
+            long d = dx * dx + dy * dy;
+            if (d <= bestDistance) {
+                bestDistance = d;
+                best = i;
+            }
+        }
+        return best;
+    }
+
+    /// <summary>How far from a ring position a finger still selects it, in canonical units.</summary>
+    public const int TouchReach = 160;
 
     /// <summary>
     /// The spell symbol under the cursor.

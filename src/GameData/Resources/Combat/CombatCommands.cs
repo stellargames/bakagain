@@ -51,6 +51,12 @@ public static class CombatCommands {
         CapabilityLabel,
 
         /// <summary>
+        /// Ctrl+Q: ask DDX 331 whether to abort the game, and on Yes leave the fight for the main
+        /// menu (COMBAT.C:2128-2137). Q alone does nothing. No button carries it.
+        /// </summary>
+        AbortGame,
+
+        /// <summary>
         /// Suspend the fight and open a screen — the <b>inventory</b> unless a modifier is held.
         /// See <see cref="SuspendScreenFor"/>; the routine's canassa name is misleading.
         /// </summary>
@@ -109,6 +115,12 @@ public static class CombatCommands {
     /// <summary>Inspect one enemy — a targeting mode, not an immediate action.</summary>
     public const int InspectId = 47;
 
+    /// <summary>Q's scancode — <see cref="Command.AbortGame"/> with Ctrl held.</summary>
+    public const int AbortGameId = 0x10;
+
+    /// <summary>"Are you sure you want to abort this game and exit to the main menu?"</summary>
+    public const int AbortGameDialogId = 331;
+
     /// <summary>What a combat menu id does.</summary>
     public static Command For(int actionId) {
         switch (actionId) {
@@ -121,6 +133,7 @@ public static class CombatCommands {
             case CharacterScreenId: return Command.CharacterScreen;
             case DefendId: return Command.Defend;
             case InspectId: return Command.Inspect;
+            case AbortGameId: return Command.AbortGame;
             default: return Command.None;
         }
     }

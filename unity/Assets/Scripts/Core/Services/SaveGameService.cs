@@ -20,7 +20,8 @@ namespace BakAgain.Core.Services {
         [Inject]
         public SaveGameService(
             GameSession session, ISaveGameDirectoryService saves, ILogger<SaveGameService> logger,
-            IGameClock clock) {
+            IGameClock clock, BakAgain.ResourceManagement.IResourceProviderService resources) {
+            _resources = resources;
             _session = session;
             _saves = saves;
             _logger = logger;
@@ -29,6 +30,7 @@ namespace BakAgain.Core.Services {
 
         // Pending timers live in the clock, not in GameSession, so the writer is handed them here.
         private readonly IGameClock _clock;
+        private readonly BakAgain.ResourceManagement.IResourceProviderService _resources;
 
         public async UniTask<bool> SaveAsync(string directoryName, int slotIndex, string saveName) {
             if (!_session.IsActive || !_session.HasBackingBody) {
@@ -36,6 +38,13 @@ namespace BakAgain.Core.Services {
                 return false;
             }
             try {
+                // The original looks the marker up afresh at every save (MAINMENU.C:963-970), so
+                // the header carries where the party is now, not where the game was loaded (TASK-794).
+                await _session.PlaceMapMarkerAsync(_resources, this);
+                var header =
+                    ResourceExtraction.Extractors.SaveGameExtractor.HeaderFieldsFor(new FullMapIcon(
+                        _session.MapMarkerVisible, _session.MapMarkerXPercent, _session.MapMarkerYPercent,
+                        _session.MapMarkerIcon));
                 var fields = new SaveGameFields(
                     Chapter: (short)_session.Chapter,
                     PartyGold: _session.PartyGold,
@@ -89,7 +98,7 @@ namespace BakAgain.Core.Services {
                 // compile, one repo away from the change.
                 SaveGameWriteResult r = SaveGameWriter.Write(
                     _session.CloneBackingBody(), fields, saveName,
-                    _session.HeaderWorldX, _session.HeaderWorldY, _session.HeaderMapIcon,
+                    header.X, header.Y, header.Icon,
                     containerEdits: containerEdits,
                     actorEdits: actorEdits,
                     timers: _clock.PendingTimers,
@@ -97,6 +106,7 @@ namespace BakAgain.Core.Services {
                     encounterActorStates: _session.EncounterActorStates,
                     // Stamped at the end of every fight; the next visit heals survivors from it (TASK-517).
                     encounterFoughtTimes: _session.EncounterFoughtTimes,
+                    encounterVisitedTimes: _session.EncounterVisitedTimes,
                     // The purse at each chapter start; chapters 6-8 restore from it (TASK-524).
                     chapterFinishingGold: _session.ChapterFinishingGold,
                     // Reading a stat can FREE an expired modifier slot, so the block has to be

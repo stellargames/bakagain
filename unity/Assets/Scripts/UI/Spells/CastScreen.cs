@@ -22,7 +22,20 @@ namespace BakAgain.UI.Spells {
     /// halves of this screen are drawn from different kinds of resource, which is worth remembering
     /// when the symbol half lands.</para>
     /// </summary>
-    public class CastScreen : BakAgain.UI.Navigation.ScreenBase, IActionHandler {
+    public class CastScreen : BakAgain.UI.Navigation.ScreenBase, IActionHandler,
+        BakAgain.UI.InputCore.IUnmatchedScancodeHandler {
+        /// <summary>M (0x32) ends the cast screen outright (CSPELL.C:2285) — TASK-809.</summary>
+        public bool OnUnmatchedScancode(int scancode) {
+            if (scancode != 0x32) {
+                return false;
+            }
+            if (_sliderSpell >= 0) {
+                CancelPowerSelection();
+            }
+            _navigator?.PopUnfaded().Forget();
+            return true;
+        }
+
         private const string RingClass = "cast-ring-icon";
         private const string InfoClass = "cast-info-line";
         private const string ChromeClass = "cast-chrome";
@@ -132,6 +145,7 @@ namespace BakAgain.UI.Spells {
             }
 
             _ui.Built += OnBuilt;
+            CoverWithSnapshot();
 
             // Reconcile against IsBuilt, not just the event: the loader's build is cached and async,
             // so it can finish BEFORE a sibling component subscribes and the event never arrives.
@@ -164,6 +178,8 @@ namespace BakAgain.UI.Spells {
         /// </remarks>
         private void OnDisable() {
             RememberSelection();
+            EndOpenWipe();
+            _fillFrame = -1;
             // Both halves of "this open is over". CombatCaster going null puts the FIELD layout
             // back for whoever opens next, which is why no field caller has to remember to; and
             // CasterId has to go with it, because ApplyInitialSelectionAsync is what re-resolves
@@ -209,7 +225,9 @@ namespace BakAgain.UI.Spells {
         }
 
         private void OnBuilt(IReadOnlyList<BakAgain.UI.InputCore.NavWidget> widgets) {
-            OpenAsync().Forget();
+            // The loaders create the stage after OnEnable laid the cover, so lift it back on top.
+            _wipeCover?.BringToFront();
+            OpenThenWipeAsync().Forget();
             // *** IN A FIGHT THE STRIP BELONGS TO THE COMBAT HUD, NOT THE TRAVEL HUD. ***
             // The original overlays only the world-view rect (see ChromeSplitY) and leaves whatever
             // was beneath it showing: in the field that is the travel HUD's heads and compass, in a
@@ -304,6 +322,161 @@ namespace BakAgain.UI.Spells {
         private async UniTask OpenAsync() {
             await ApplyInitialSelectionAsync();
             await DrawRingAndNamesAsync();
+        }
+
+        private async UniTask OpenThenWipeAsync() {
+            await OpenAsync();
+            await PlayOpenWipeAsync();
+        }
+
+        // ------------------------------------------------------------ the opening wipe (TASK-815)
+
+        private Texture2D _openingSnapshot;
+        private VisualElement _wipeCover;
+        private readonly List<VisualElement> _wipeCurtains = new();
+
+        /// <summary>
+        /// Raises the screen the way the original opens it: a copy of what was showing, then the
+        /// panel revealed over the world view from the centre outward
+        /// (<see cref="CastOpenWipe"/>). Openers call this instead of pushing directly.
+        /// </summary>
+        /// <remarks>
+        /// <b>The copy has to be taken before the push.</b> Pushing deactivates the travel HUD,
+        /// whose RenderTexture is the world view, so afterwards there is nothing left to reveal the
+        /// panel over. The original does the same thing in its own terms: it copies the front page
+        /// into the back page before the cast panel is drawn (CSPELL.C:2114).
+        /// </remarks>
+        public async UniTask PushAsync(BakAgain.UI.Navigation.IScreenNavigator navigator) {
+            await Awaitable.EndOfFrameAsync();
+            DestroySnapshot();
+            // The screen's alpha is not coverage — the panel leaves it at zero — so the capture is
+            // copied into an opaque texture, or the cover draws as a hole.
+            // Fixed in place rather than copied: a phone-sized screen is millions of pixels, and a
+            // managed copy of them was most of the time the opening took on Android (TASK-818).
+            _openingSnapshot = ScreenCapture.CaptureScreenshotAsTexture();
+            if (_openingSnapshot.format == TextureFormat.RGBA32) {
+                Unity.Collections.NativeArray<byte> raw = _openingSnapshot.GetRawTextureData<byte>();
+                for (int i = 3; i < raw.Length; i += 4) {
+                    raw[i] = 255;
+                }
+                _openingSnapshot.Apply(false);
+            }
+            await navigator.PushUnfaded(this);
+        }
+
+        /// <summary>The whole screen as it was, over everything, until the wipe takes over.</summary>
+        private void CoverWithSnapshot() {
+            VisualElement root = GetComponent<UIDocument>()?.rootVisualElement;
+            if (_openingSnapshot == null || root == null) {
+                return;
+            }
+            _wipeCover = SnapshotImage(0, 0, root.layout.width, root.layout.height, fill: true);
+            root.Add(_wipeCover);
+        }
+
+        private async UniTask PlayOpenWipeAsync() {
+            VisualElement root = GetComponent<UIDocument>()?.rootVisualElement;
+            VisualElement stage = Stage();
+            if (_openingSnapshot == null || root == null || stage == null) {
+                EndOpenWipe();
+                return;
+            }
+            // A cached build can finish before the panel's first layout pass; the rect is NaN until then.
+            Rect wb = stage.worldBound;
+            for (int wait = 0; wait < 30 && (float.IsNaN(wb.width) || float.IsNaN(root.layout.width)); wait++) {
+                await UniTask.Yield();
+                wb = stage.worldBound;
+            }
+            if (float.IsNaN(wb.width) || wb.width <= 0 || _openingSnapshot == null) {
+                EndOpenWipe();
+                return;
+            }
+
+            // Canonical -> panel. The cover and curtains live on the root, in panel space, so the
+            // snapshot (a screen image) lines up with the screen whatever the stage's fit.
+            float sx = wb.width / Canonical.Width;
+            float sy = wb.height / Canonical.Height;
+            float rootW = root.layout.width;
+            float rootH = root.layout.height;
+            (int rx, int ry, int rw, int rh) = CastOpenWipe.CanonicalRect;
+            float top = wb.y + ry * sy;
+            float height = rh * sy;
+
+            // The party bar and the frame outside the rect arrive at once; only the rect wipes.
+            _wipeCover?.RemoveFromHierarchy();
+            _wipeCover = null;
+            VisualElement left = Curtain(root, rootW, rootH);
+            VisualElement right = Curtain(root, rootW, rootH);
+
+            // Paced by elapsed time, not by one step per wait: a wait is at least a frame, and at a
+            // phone's frame rate 49 frame-long steps took over a second (TASK-818).
+            float start = Time.unscaledTime;
+            for (int step = 1; step < CastOpenWipe.StepCount && _openingSnapshot != null;) {
+                (int bx, int bw) = CastOpenWipe.RevealedBand(step);
+                PlaceCurtain(left, wb.x + rx * sx, top, (bx - rx) * sx, height);
+                PlaceCurtain(right, wb.x + (bx + bw) * sx, top, (rx + rw - bx - bw) * sx, height);
+                await UniTask.Yield();
+                step = 1 + (int)((Time.unscaledTime - start) * CastOpenWipe.TicksPerSecond);
+            }
+            EndOpenWipe();
+        }
+
+        private VisualElement Curtain(VisualElement root, float rootW, float rootH) {
+            var curtain = new VisualElement {
+                name = "cast_wipe_curtain",
+                pickingMode = PickingMode.Ignore,
+                style = { position = Position.Absolute, overflow = Overflow.Hidden },
+            };
+            curtain.Add(SnapshotImage(0, 0, rootW, rootH, fill: false));
+            root.Add(curtain);
+            _wipeCurtains.Add(curtain);
+            return curtain;
+        }
+
+        private static void PlaceCurtain(VisualElement curtain, float x, float y, float w, float h) {
+            curtain.style.left = x;
+            curtain.style.top = y;
+            curtain.style.width = Mathf.Max(0f, w);
+            curtain.style.height = h;
+            // The snapshot inside stays pinned to the screen while its window moves.
+            VisualElement image = curtain[0];
+            image.style.left = -x;
+            image.style.top = -y;
+        }
+
+        private VisualElement SnapshotImage(float x, float y, float w, float h, bool fill) {
+            var image = new VisualElement {
+                name = "cast_wipe_snapshot",
+                pickingMode = PickingMode.Ignore,
+                style = {
+                    position = Position.Absolute,
+                    backgroundImage = Background.FromTexture2D(_openingSnapshot),
+                    backgroundSize = new BackgroundSize(Length.Percent(100), Length.Percent(100)),
+                },
+            };
+            if (fill) {
+                image.style.left = 0; image.style.top = 0; image.style.right = 0; image.style.bottom = 0;
+            } else {
+                image.style.left = x; image.style.top = y; image.style.width = w; image.style.height = h;
+            }
+            return image;
+        }
+
+        private void EndOpenWipe() {
+            _wipeCover?.RemoveFromHierarchy();
+            _wipeCover = null;
+            foreach (VisualElement curtain in _wipeCurtains) {
+                curtain.RemoveFromHierarchy();
+            }
+            _wipeCurtains.Clear();
+            DestroySnapshot();
+        }
+
+        private void DestroySnapshot() {
+            if (_openingSnapshot != null) {
+                Destroy(_openingSnapshot);
+                _openingSnapshot = null;
+            }
         }
 
         /// <summary>
@@ -765,10 +938,12 @@ namespace BakAgain.UI.Spells {
         /// </remarks>
         private async UniTask DrawChromeAsync(VisualElement stage) {
             Clear(stage, ChromeClass);
-            Sprite chrome = await _resources.GetOrLoadAsync<Sprite>(ChromeKey);
+            // In a fight what lies under the cast panel is the arena's frame, cframe.scx
+            // (COMBAT.C:879), which has no compass diamond; FRAME.SCR there brought it back.
+            string key = CombatCaster != null ? BakAgain.UI.InGame.InGameScreen.CombatFrameAddress : ChromeKey;
+            Sprite chrome = await _resources.GetOrLoadAsync<Sprite>(key);
             if (chrome == null) {
-                _logger.LogError("CastScreen: {Chrome} did not load; the party bar stays blank.",
-                    ChromeKey);
+                _logger.LogError("CastScreen: {Chrome} did not load; the party bar stays blank.", key);
 
                 return;
             }
@@ -1025,7 +1200,7 @@ namespace BakAgain.UI.Spells {
         private void Update() {
             _compass?.Refresh();
 
-            if (_pointer == null || _ring?.Positions == null) {
+            if (_pointer == null || _ring?.Positions == null || !Tracks(_pointer) || _fillFrame >= 0) {
                 return;
             }
 
@@ -1042,21 +1217,45 @@ namespace BakAgain.UI.Spells {
                 return;
             }
 
-            int position = CastRingLayout.PositionAt(
-                _ring.Positions, cursorX, cursorY,
-                CastRingLayout.PositionForPower(_minimumPower),
-                CastRingLayout.PositionForPower(_maximumPower),
-                CastRingLayout.CanonicalHitBoxWidth, CastRingLayout.CanonicalHitBoxHeight);
+            // A mouse hits the original's 10x10 boxes; a finger takes the nearest affordable
+            // position, since a fingertip is bigger than the box and hides it (TASK-821).
+            int position = _pointer.IsPresent
+                ? CastRingLayout.PositionAt(
+                    _ring.Positions, cursorX, cursorY,
+                    CastRingLayout.PositionForPower(_minimumPower),
+                    CastRingLayout.PositionForPower(_maximumPower),
+                    CastRingLayout.CanonicalHitBoxWidth, CastRingLayout.CanonicalHitBoxHeight)
+                : CastRingLayout.NearestPositionInBand(
+                    _ring.Positions, cursorX, cursorY,
+                    CastRingLayout.PositionForPower(_minimumPower),
+                    CastRingLayout.PositionForPower(_maximumPower),
+                    CastRingLayout.TouchReach);
 
             if (position != _hoveredPosition) {
                 _hoveredPosition = position;
                 RefreshHoverAsync().Forget();
             }
 
-            if (_pointer.Primary.PressedThisFrame && _hoveredPosition >= 0) {
+            if (Picks(_pointer) && _hoveredPosition >= 0) {
                 CommitPowerSelection();
             }
         }
+
+        /// <summary>
+        /// Whether the pointer's position means anything this frame. A mouse always hovers; a finger
+        /// only while it is down, and on the frame it lifts.
+        /// </summary>
+        public static bool Tracks(UI.InputCore.IPointer pointer) =>
+            pointer.IsPresent || pointer.Primary.IsDown || pointer.Primary.ReleasedThisFrame;
+
+        /// <summary>
+        /// Whether this frame picks what is under the pointer — the original's click. A mouse picks on
+        /// the press, after hovering showed the preview. <b>A finger cannot hover</b>, so touching
+        /// is the preview and lifting is the pick (owner, 2026-10-05, TASK-816): sliding over the
+        /// ring shows each power's cost before anything is cast.
+        /// </summary>
+        public static bool Picks(UI.InputCore.IPointer pointer) =>
+            pointer.IsPresent ? pointer.Primary.PressedThisFrame : pointer.Primary.ReleasedThisFrame;
 
         /// <summary>
         /// Follows the pointer over the spell symbols, and picks one on a click.
@@ -1083,7 +1282,7 @@ namespace BakAgain.UI.Spells {
                 ShowHoveredSpellAsync().Forget();
             }
 
-            if (_pointer.Primary.PressedThisFrame && _hoveredSpell >= 0) {
+            if (Picks(_pointer) && _hoveredSpell >= 0) {
                 ChooseSpellAsync(_hoveredSpell).Forget();
             }
         }
@@ -1141,6 +1340,7 @@ namespace BakAgain.UI.Spells {
                 return;
             }
 
+            await PlayRingFillAsync();
             await RefreshHoverAsync();
         }
 
@@ -1248,6 +1448,54 @@ namespace BakAgain.UI.Spells {
             Committed?.Invoke(_sliderSpell, power, duration);
         }
 
+        /// <summary>The frame of the slider's opening sweep being shown, or -1.</summary>
+        private int _fillFrame = -1;
+
+        /// <summary>
+        /// The ring turning over and the band growing to the caster's reach before the slider
+        /// takes input — <see cref="CastRingLayout.FillIconAt"/>.
+        /// </summary>
+        /// <remarks>
+        /// One frame per <c>screen_frame_present</c> in the original. ponytail: paced at the VGA
+        /// refresh (70 Hz) on the assumption that the present waits for the retrace the open
+        /// transition hooked; not yet measured against the running original.
+        /// </remarks>
+        private async UniTask PlayRingFillAsync() {
+            VisualElement stage = Stage();
+            if (stage == null || _ring?.Positions == null) {
+                return;
+            }
+            int spell = _sliderSpell;
+            int frames = CastRingLayout.FillFrameCount(_maximumPower);
+            float start = Time.unscaledTime;
+            for (int f = 0; f < frames && _sliderSpell == spell && isActiveAndEnabled;) {
+                _fillFrame = f;
+                await PaintRingIconsAsync(stage);
+                await UniTask.Yield();
+                // Elapsed time picks the frame, so a slow device skips frames rather than slowing down.
+                f = Mathf.Max(f + 1, (int)((Time.unscaledTime - start) * RingFillFramesPerSecond));
+            }
+            _fillFrame = -1;
+        }
+
+        private const double RingFillFramesPerSecond = 70.0;
+
+        /// <summary>Re-skins the ring's existing icons without rebuilding the screen.</summary>
+        private async UniTask PaintRingIconsAsync(VisualElement stage) {
+            for (var i = 0; i < _ring.Positions.Count; i++) {
+                VisualElement element = stage.Q<VisualElement>($"ring_{i}");
+                if (element == null) {
+                    continue;
+                }
+                var sprite = await _resources.GetOrLoadAsync<Sprite>($"{CastRingLayout.IconSet}#{IconAt(i)}");
+                if (sprite != null) {
+                    element.style.backgroundImage = new StyleBackground(sprite);
+                    element.style.width = sprite.rect.width;
+                    element.style.height = sprite.rect.height;
+                }
+            }
+        }
+
         private async UniTask RefreshHoverAsync() {
             await DrawRingAsync();
             int power = CastRingLayout.PreviewPower(_hoveredPosition);
@@ -1320,7 +1568,7 @@ namespace BakAgain.UI.Spells {
         /// </remarks>
         public void CommitPowerSelection() {
             RaiseCommitted(CommitPower());
-            _navigator?.Pop().Forget();
+            _navigator?.PopUnfaded().Forget();
         }
 
         /// <summary>The power a click would commit, or 0 when the cursor is off the ring.</summary>
@@ -1495,6 +1743,9 @@ namespace BakAgain.UI.Spells {
         /// mark their fifths (TASK-755).
         /// </remarks>
         private int IconAt(int position) {
+            if (_fillFrame >= 0) {
+                return CastRingLayout.FillIconAt(_fillFrame, position, _minimumPower, _maximumPower);
+            }
             if (_sliderSpell < 0) {
                 return CastRingLayout.IconFor(baseIcon, position, markAnchors: true);
             }
@@ -1567,7 +1818,7 @@ namespace BakAgain.UI.Spells {
                 CancelPowerSelection();
             }
 
-            _navigator?.Pop().Forget();
+            _navigator?.PopUnfaded().Forget();
         }
 
         /// <summary>The party member currently casting, or -1 before one is chosen.</summary>

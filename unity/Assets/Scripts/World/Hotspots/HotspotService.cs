@@ -1820,6 +1820,38 @@ using GameData.Resources.Scene;
         public bool AwaitingCombatTarget =>
             _pendingCombatMode == GameData.Resources.Combat.CombatCommandOutcome.PendingMode.TargetSelection;
 
+        /// <summary>
+        /// Whether a click on this cell would commit the pending spell — the same tests the ground
+        /// and target clicks run (<see cref="SpellTargetIsValid"/>, <see cref="GroundCellRefused"/>,
+        /// <see cref="GameData.Resources.Combat.CombatTargetSelection.ResolveOnField"/>). Touch uses
+        /// it to offer "Cast" only where casting would happen (TASK-823). A shot or an armed item
+        /// keeps its own checks and answers true here.
+        /// </summary>
+        public bool MoveAcceptedAtCell(int column, int row) =>
+            Combat?.Encounter?.Current is Combatant acting && Combat.CellMovable(acting, column, row);
+
+        public bool CastAcceptedAtCell(int column, int row) {
+            if (!AwaitingCombatTarget) {
+                return false;
+            }
+            Combatant acting = Combat?.Encounter?.Current;
+            if (_pendingCombatItem != null || _pendingSpell == null || acting == null) {
+                return true;
+            }
+            (bool canShoot, bool _) = Combat.CapabilitiesFor(acting);
+            if (canShoot) {
+                return true;
+            }
+            if (GroundCellRefused(column, row)) {
+                return false;
+            }
+            Combatant target = Combat.CombatantAtCell(column, row);
+            int type = _pendingSpell.TargetingType;
+            return GameData.Resources.Combat.CombatTargetSelection.ResolveOnField(
+                    false, SpellTargetIsValid(type, target), type)
+                != GameData.Resources.Combat.CombatTargetSelection.Resolution.RevertToMove;
+        }
+
         public (int RosterSlot, bool PartyMember)? CombatantAtPoint(UnityEngine.Vector3 point) {
             GameData.Resources.Combat.CombatEncounter fight = Combat?.Encounter;
             if (fight == null || _session == null || _start == null) {
@@ -2420,6 +2452,12 @@ using GameData.Resources.Scene;
         /// Those commands are not modelled yet, and doing something approximate would be worse than
         /// doing nothing.
         /// </remarks>
+        /// <summary>Raised when Inspect arms target selection — the touch HUD answers it at once.</summary>
+        /// <summary>Touch's answer to an armed Inspect: true when it dealt with the press itself
+        /// (inspected what was under the combat cursor, or found nothing there), so nothing is left
+        /// armed for the next tap to complete.</summary>
+        internal System.Func<bool> InspectArmed { get; set; }
+
         private void OnCombatCommand(GameData.Resources.Combat.CombatCommands.Command command,
             int actionId) {
             Combatant acting = Combat.Encounter?.Current;
@@ -2450,13 +2488,27 @@ using GameData.Resources.Scene;
                 case GameData.Resources.Combat.CombatCommands.Command.BackOrRetreat:
                     ResolveRetreat(acting);
                     return;   // ResolveRetreat refreshes or tears down the HUD itself
+                case GameData.Resources.Combat.CombatCommands.Command.AbortGame:
+                    if (BakAgain.UI.InputCore.InputDriver.CtrlHeld) {
+                        AbortGameAsync().Forget();
+                    }
+                    return;   // Q alone does nothing (COMBAT.C:2129)
                 case GameData.Resources.Combat.CombatCommands.Command.AutoResolve:
                     StartAutoResolve();
                     return;   // the loop hands the HUD on itself when it stops
                 case GameData.Resources.Combat.CombatCommands.Command.Cast:
+                    // COMBAT.C:2037: an actor who cannot cast here gets nothing — the key still
+                    // reaches this case while the button shows its blank label (0x0e).
+                    if (!Combat.CapabilitiesFor(acting).CanCast) {
+                        return;
+                    }
                     OpenCastScreen(acting);
                     return;   // picking a spell is not yet the cast, so no turn is spent
                 case GameData.Resources.Combat.CombatCommands.Command.Shoot:
+                    // COMBAT.C:2024: same gate for an actor with nothing to shoot.
+                    if (!Combat.CapabilitiesFor(acting).CanShoot) {
+                        return;
+                    }
                     // *** PRESSING SHOOT ARMS TARGETING; PICKING A QUARREL DOES NOT. *** The
                     // original's case 31 sets stateA = 4 AND raises the shoot menu in the same
                     // breath (COMBAT.C ~2018), which is what CombatCommandOutcome.ModeFor has said
@@ -2470,6 +2522,13 @@ using GameData.Resources.Scene;
                     // Arms only. The assessment happens on the follow-up click, and the turn is
                     // spent there -- pressing the button costs nothing.
                     _pendingCombatMode = GameData.Resources.Combat.CombatCommandOutcome.ModeFor(command);
+                    // On touch the combat cursor is already on something: inspect it now rather
+                    // than wait for a second tap (owner, 2026-10-05).
+                    // On touch a pending Inspect has no pointer to wait for: the next "click" a finger
+                    // makes is a Thrust or Cast button, which completed the inspect instead (TASK-824).
+                    if (InspectArmed?.Invoke() == true) {
+                        _pendingCombatMode = GameData.Resources.Combat.CombatCommandOutcome.PendingMode.None;
+                    }
                     return;
                 case GameData.Resources.Combat.CombatCommands.Command.CharacterScreen:
                     // *** SHIFT TURNS THE PACK INTO THE SHEET. *** combat_arena_suspend_char_screen
@@ -2725,6 +2784,18 @@ using GameData.Resources.Scene;
                     == GameData.Resources.Combat.CombatCommandOutcome.PendingMode.TargetSelection
                 && _pendingCombatItem == null) {
                 RecordAim(fight, acting, target, shooting: false);
+                // The spell's own panel: "Choose a target", its name, and for a damage spell over a
+                // living enemy the accuracy and damage (COMBAT.C:1092). It was blank here (TASK-821).
+                if (_pendingSpell != null) {
+                    bool liveEnemy = target != null && !target.IsDead && !target.IsPartyMember;
+                    bool rate = GameData.Resources.Combat.SpellTargetPanel.ShowsTargetStats(
+                        liveEnemy, _pendingSpell.TargetingType, _pendingSpellId);
+                    (int accuracy, int damage) = rate
+                        ? Combat.SpellTargetStats(acting, target, _pendingSpell, _pendingSpellId, _pendingSpellPower)
+                        : (0, 0);
+                    return (GameData.Resources.Combat.SpellTargetPanel.Lines(
+                        _pendingSpell.Name, rate, accuracy, damage), null);
+                }
             }
 
             // The melee preview, which the original raises in `stateA == 0` — the state the loop
@@ -3229,8 +3300,7 @@ using GameData.Resources.Scene;
         /// a fighter can open a pack, read it and use the ordinary items in it — which is strictly
         /// more than before, when the command fell to "not wired yet".</para>
         /// </remarks>
-        private static bool ShiftHeld() =>
-            BakAgain.UI.InputCore.InputDriver.Gameplay is { } keys && (keys.LeftShift || keys.RightShift);
+        private static bool ShiftHeld() => BakAgain.UI.InputCore.InputDriver.ShiftHeld;
 
         /// <summary>The acting fighter's character sheet — the Shift arm of combat command 22.</summary>
         /// <remarks>
@@ -3929,6 +3999,13 @@ using GameData.Resources.Scene;
                 return;
             }
 
+            // COMBAT.C:2323: the click moves only onto a cell the actor can reach this turn
+            // (combatgrid_cursor_tile_movable); anywhere else it does nothing. Without this a cell
+            // past the actor's reach walked them part of the way and stopped short (TASK-819).
+            if (!Combat.CellMovable(acting, column, row)) {
+                return;
+            }
+
             // COMBAT.C:2333 clears the target before a move, so the turn's end faces the NEAREST
             // opponent rather than whoever this actor last swung at (CombatEncounter.FaceTarget).
             acting.Target = null;
@@ -4045,7 +4122,7 @@ using GameData.Resources.Scene;
             // school buttons — the field layout offers a combatant the field's spells and hides
             // every combat one behind a disabled stone (TASK-367).
             screen.CombatCaster = acting;
-            await navigator.Push(screen);
+            await screen.PushAsync(navigator);
             await screen.SelectCaster(slot);
         }
 
@@ -5438,6 +5515,54 @@ using GameData.Resources.Scene;
             _placedActors = null;
         }
 
+        /// <summary>
+        /// A click on a live encounter group standing in the world — <c>wcursor_encounter_hint</c>
+        /// (WCURSOR.C:1332-1370). A primary click picks the group out, and that stamp is what
+        /// <see cref="RollEncounterOpening"/> reads: planning an attack is how the party gets the drop.
+        /// </summary>
+        internal void HintEncounter(long encounterNumber, int creatureNumber, bool isPrimary) {
+            if (encounterNumber < 0 || Combat?.Encounter != null || _session == null) {
+                return;
+            }
+            _playSfx?.Invoke(GameData.Resources.World.EncounterGroupHint.ClickSound);
+            // "The @1 hadn't noticed them": the clicked actor's creature (WCURSOR.C:1339-1340).
+            _session.SetDialogCreatureType(creatureNumber);
+
+            TileEventTrigger trigger = TriggerForEncounterHere(encounterNumber);
+            bool gatesPass = trigger != null && !HotspotRules.Forbidden(this, trigger)
+                && !HotspotRules.Unmet(this, trigger);
+            uint now = (uint)_session.GameTimeIn2Seconds;
+            var outcome = GameData.Resources.World.EncounterGroupHint.Resolve(isPrimary, encounterNumber,
+                gatesPass, _session.EncounterVisitedTimes.VisitedAt(encounterNumber), now);
+
+            long dialog = GameData.Resources.World.EncounterGroupHint.DialogFor(outcome);
+            if (outcome == GameData.Resources.World.EncounterGroupHint.Outcome.PickedOut) {
+                _session.EncounterVisitedTimes.Stamp(encounterNumber, now);
+            } else if (outcome == GameData.Resources.World.EncounterGroupHint.Outcome.RecordDialog) {
+                // hotspotevt_play_sound_zone_entry (HOTSPOT.C:257-298): the record's main dialog.
+                dialog = trigger == null ? 0
+                    : trigger.Type == TileEventType.Trap ? TrapRecord(trigger)?.DialogId1 ?? 0
+                    : CombRecord(trigger)?.DialogId1 ?? 0;
+            }
+            if (dialog != 0) {
+                _dialogs?.ShowById((int)dialog).Forget();
+            }
+        }
+
+        /// <summary>The combat or trap hotspot of the party's chunk that runs this encounter.</summary>
+        private TileEventTrigger TriggerForEncounterHere(long encounterNumber) {
+            var chunk = (Floor(_session.PositionX, ChunkSize), Floor(_session.PositionY, ChunkSize));
+            if (!_byChunk.TryGetValue(chunk, out List<TileEventTrigger> triggers)) {
+                return null;
+            }
+            var inOrder = new List<(TileEventType, long?)>(triggers.Count);
+            foreach (TileEventTrigger t in triggers) {
+                inOrder.Add((t.Type, EncounterNumberOf(t)));
+            }
+            int record = GameData.Resources.World.EncounterReset.RecordIds(inOrder).IndexOf(encounterNumber);
+            return record < 0 ? null : TriggerForRecord(triggers, record);
+        }
+
         internal void LootCorpse(int rosterSlot, long encounterNumber, long distance, bool isPrimary) {
             // The original's only route here is the world loop's viewport click (WORLDLP.C:374), so a
             // body is looted after its fight and never during one (TASK-534).
@@ -5517,6 +5642,29 @@ using GameData.Resources.Scene;
         private void RedrawArena() {
             if (Combat?.Encounter != null) {
                 _redrawArena?.Invoke();
+            }
+        }
+
+        /// <summary>
+        /// Ctrl+Q in a fight: DDX 331, and on Yes (the first choice) the fight ends where it stands
+        /// and the game goes back to the main menu (COMBAT.C:2131-2136, combat status 2).
+        /// </summary>
+        private async UniTaskVoid AbortGameAsync() {
+            if (_dialogs == null) {
+                return;
+            }
+            int answer = await _dialogs.ShowChoiceIndexById(
+                GameData.Resources.Combat.CombatCommands.AbortGameDialogId);
+            if (answer != 0 || Combat?.Encounter == null) {
+                return;
+            }
+            ForgetFight();
+            Combat.Leave();
+            _setCombatMusic?.Invoke(false);
+            _combatMenuAccessor?.Invoke()?.Close();
+            Core.Services.IGameFlow flow = _flowAccessor?.Invoke();
+            if (flow != null) {
+                await flow.ShowMainMenu();
             }
         }
 
@@ -5671,22 +5819,18 @@ using GameData.Resources.Scene;
         /// itself, so during the first half hour every encounter passes the recency test. That is
         /// the original's behaviour and not a rounding artefact.</para>
         ///
-        /// <para><b>Our visit stamp is not the original's.</b> The original reads a per-encounter
-        /// timestamp out of TEMP.GAM at <c>encounterNumber * 4 + 0x4457</c>, written when the player
-        /// CLICKS the encounter in the world. We have no such click yet, so every encounter reads
-        /// zero — which lands on the "unvisited" case above, correct for the first half hour of a
-        /// new game and too generous afterwards. Stated rather than hidden: the roll is right and
-        /// its input is provisional.</para>
+        /// <para><b>The visit stamp is <see cref="GameSession.EncounterVisitedTimes"/></b> — TEMP.GAM's
+        /// <c>GAM_ENC_VISITED_TIME</c>, written when the player picks the group out by clicking it in
+        /// the world (<see cref="HintEncounter"/>, TASK-795).</para>
         /// </remarks>
         private bool RollEncounterOpening(long encounter) {
             if (_session == null) {
                 return false;
             }
 
-            // No per-encounter visit stamp yet — see the remarks.
-            const long NeverVisited = 0;
+            // Stamped when the player picks the group out in the world (HintEncounter, TASK-795).
             if (!GameData.Resources.World.CombatEncounterOpening.WasRecentlyVisited(
-                    _session.GameTimeIn2Seconds, NeverVisited)) {
+                    _session.GameTimeIn2Seconds, _session.EncounterVisitedTimes.VisitedAt(encounter))) {
                 return false;
             }
 
@@ -6010,7 +6154,13 @@ using GameData.Resources.Scene;
         private async UniTask<T> LoadOrNull<T>(string address, object owner, bool optional = false)
             where T : class {
             try {
-                return await _resources.LoadAssetAsync<T>(address, owner);
+                T loaded = await _resources.LoadAssetAsync<T>(address, owner);
+                if (loaded == null && !optional && _logger != null) {
+                    LoggerExtensions.LogWarning(_logger,
+                        "Hotspots: REQUIRED resource {Address} did not load. The feature that reads it "
+                        + "will run degraded and silent.", address);
+                }
+                return loaded;
             } catch (System.Exception e) {
                 if (_logger == null) {
                     return null;

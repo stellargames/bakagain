@@ -360,10 +360,11 @@ namespace BakAgain.World {
                     var horizon = horizonGo.AddComponent<HorizonRenderer>();
                     horizon.Initialize(horizonPanels);
                     env.Horizon = horizon;
-                    // Bitmap-horizon mode (word_dseg_1E76 bit clear): the visible sky comes from the
-                    // panel's own sky band, NOT the DEF skyColor pen (that's the flat/underground
-                    // source). Clear the camera to it so the band is coherent with the mountains.
-                    env.SkyColor = horizon.PanelSkyColor;
+                    // Bitmap-horizon mode (ZoneFlags.NoHorizon clear): the band above the horizon is
+                    // Z##.DAT's sky pen, not the DEF skyColor (SKYREND.C:165-171). Every shipped
+                    // panorama's top row is that same pen (215 in zones 1-7, measured TASK-806), so
+                    // this reads the data instead of sampling the picture; the panel is the fallback.
+                    env.SkyColor = appearance != null ? unityPalette[appearance.SkyPen] : horizon.PanelSkyColor;
                     // Initialize stitches the four quadrants into one wrap texture and keeps only
                     // that; the source panels are ours and are dead from here.
                     foreach (var panel in horizonPanels) {

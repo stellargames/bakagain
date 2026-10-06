@@ -93,6 +93,10 @@ namespace BakAgain.Core {
         public GameData.Resources.World.EncounterFoughtTimes EncounterFoughtTimes { get; } =
             new GameData.Resources.World.EncounterFoughtTimes();
 
+        /// <summary>When each encounter group was last picked out in the world — see <see cref="GameData.Resources.World.EncounterVisitedTimes"/>.</summary>
+        public GameData.Resources.World.EncounterVisitedTimes EncounterVisitedTimes { get; } =
+            new GameData.Resources.World.EncounterVisitedTimes();
+
         /// <summary>The purse at the start of each chapter — see <see cref="GameData.Resources.GameState.ChapterFinishingGold"/>.</summary>
         public GameData.Resources.GameState.ChapterFinishingGold ChapterFinishingGold { get; } =
             new GameData.Resources.GameState.ChapterFinishingGold();
@@ -135,6 +139,26 @@ namespace BakAgain.Core {
         public float MapMarkerXPercent { get; private set; }
         public float MapMarkerYPercent { get; private set; }
         public int MapMarkerIcon { get; private set; }
+
+        /// <summary>
+        /// Puts the marker where the party stands now, as the original does every time the player
+        /// opens the full map and at every save (FMAP.C:89-94, MAINMENU.C:963-970) — TASK-794.
+        /// </summary>
+        public async Cysharp.Threading.Tasks.UniTask PlaceMapMarkerAsync(
+                BakAgain.ResourceManagement.IResourceProviderService resources, object owner) {
+            var positions = await resources.LoadAssetAsync<GameData.Resources.Location.FullMapPositions>(
+                "FMAP_XY.DAT", owner);
+            var zoneRef = await resources.LoadAssetAsync<GameData.Resources.World.ZoneRef>(
+                $"Z{CurrentZone:D2}REF.DAT", owner);
+            if (positions == null || zoneRef == null) {
+                return;
+            }
+            FullMapIcon m = positions.MarkerFor(CurrentZone, zoneRef, PositionX, PositionY, Rotation);
+            MapMarkerVisible = m.Visible;
+            MapMarkerXPercent = m.XPercent;
+            MapMarkerYPercent = m.YPercent;
+            MapMarkerIcon = m.IconIndex;
+        }
 
         // Live mutable state — gameplay updates these every step / tick.
         public int PartyGold { get; set; }
@@ -1067,6 +1091,7 @@ namespace BakAgain.Core {
             // rubbish, and a new game genuinely has removed nothing (STARTUP.GAM's is all zero).
             EncounterActorStates.Load(_backingBody);
             EncounterFoughtTimes.Load(_backingBody);
+            EncounterVisitedTimes.Load(_backingBody);
             ChapterFinishingGold.Load(_backingBody);
             // Same treatment again. Load returns an all-empty block for a short or absent body, so
             // a new game starts with no modifiers rather than with rubbish read off the end.

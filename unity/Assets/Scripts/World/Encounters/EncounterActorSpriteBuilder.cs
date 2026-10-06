@@ -334,6 +334,19 @@ namespace BakAgain.World.Encounters {
             else if (actor.Roams && GameData.Resources.World.RoamingMovement.Moves(actor.Pattern)) {
                 go.AddComponent<RoamingActor>().Bind(actor);
             }
+            // A live actor in the WORLD is clickable too: the click asks about its group (TASK-795).
+            if (!arena && !actor.Downed) {
+                EncounterGroupMember member = go.AddComponent<EncounterGroupMember>();
+                member.EncounterNumber = actor.EncounterNumber;
+                member.CreatureNumber = actor.CreatureNumber;
+                member.ClickRange = ctx.Detect?.GetRange(
+                    GameData.Resources.World.WorldEntityType.Corpse, ctx.Underground) ?? 0;
+                // The billboard quad has no depth, and a ray misses a zero-thickness box; give it
+                // as much depth as width so the click lands whichever way the quad has turned.
+                Vector3 size = mesh.bounds.size;
+                WorldEntityBuilder.AddInteractionCollider(go, mesh.bounds.center,
+                    new Vector3(size.x, size.y, Mathf.Max(size.z, size.x)));
+            }
             ctx.TrackMesh(mesh);
             return true;
         }

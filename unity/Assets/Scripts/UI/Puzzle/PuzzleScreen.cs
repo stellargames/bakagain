@@ -1019,6 +1019,13 @@ namespace BakAgain.UI.Puzzle {
         private const int ButtonExit = 18;
 
         /// <summary>Right click — the original describes nothing here.</summary>
-        public Awaitable SecondaryAction(int actionId) => null;
+        /// <summary>A right-click on a tumbler or on Exit shows that control's help (CIPHER.C:157-176).</summary>
+        public Awaitable SecondaryAction(int actionId) {
+            int help = CipherPuzzleLayout.HelpDialogFor(actionId);
+            if (help != 0 && !_solving) {
+                _dialogs?.ShowById(help).Forget();
+            }
+            return null;
+        }
     }
 }

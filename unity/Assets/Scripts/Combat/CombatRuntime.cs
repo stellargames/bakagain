@@ -734,6 +734,25 @@ namespace BakAgain.Combat {
         /// dereferences the crossbow record without checking it, which is only safe because the
         /// menu cannot be reached without one.</para>
         /// </remarks>
+        /// <summary>
+        /// The accuracy and damage the spell panel rates a target at — the cast's own two
+        /// calculations (<c>combatenc_compute_hit_chance</c> with the casting skill and
+        /// <c>cspell_compute_effect_magnitude</c>), so the panel cannot advertise a different roll.
+        /// </summary>
+        public (int Accuracy, int Damage) SpellTargetStats(
+            Combatant acting, Combatant target, Spell spell, int spellId, int power) {
+            if (acting == null || target == null || spell == null) {
+                return (0, 0);
+            }
+            int accuracy = CombatFormulas.RangedHitChance(
+                StatValue(StatsFor(acting), ActorAttribute.AccuracyCasting),
+                CombatGrid.ChebyshevDistance(acting.X, acting.Y, target.X, target.Y),
+                SpellHitResolution.AmmunitionBonus);
+            int damage = SpellEffectMagnitude.Calculate(spell, spellId, power,
+                targetHasMetalGear: HasMetalGear(target));
+            return (accuracy, damage);
+        }
+
         public ShootTargetPanelContent ShootPanel(
             Combatant acting, Combatant target, int previewedKind, int selectedKind) {
             if (acting == null) {
@@ -2187,8 +2206,8 @@ namespace BakAgain.Combat {
         /// is not the same rule.</b> <c>cspell_aoe_storm_damage_all</c> — reached from inside the
         /// resolver — reads the flag a second time and adds 50% to its own flat base damage, so an
         /// amplified AoE storm is boosted TWICE: once on the cost here, once on that flat number.
-        /// We clear at the read because that AoE arm is not ported; whoever ports it must move the
-        /// clear to the end of the resolution or the second boost silently goes missing.</para>
+        /// That storm arm is RunMadGodsRage, which reads and clears the flag itself, so the second
+        /// boost lives there.</para>
         /// </remarks>
         public bool SurchargeNextCast { get; set; }
 

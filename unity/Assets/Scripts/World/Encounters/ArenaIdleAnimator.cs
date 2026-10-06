@@ -41,7 +41,7 @@ namespace BakAgain.World.Encounters {
             }
 
             // Whole ARENA FRAMES only: the original steps the gait once per drawn arena frame
-            // (ArenaFrame, ~15.7/s), not per timer tick — stepping on the 59.17 Hz tick ran the idle
+            // (ArenaFrame, ~18.5/s), not per timer tick — stepping on the 59.17 Hz tick ran the idle
             // ~4x fast (TASK-768). A frame rate that outruns it must not step more than once.
             _carried += Time.deltaTime * ArenaFrame.PerSecond;
             var ticks = (int)_carried;

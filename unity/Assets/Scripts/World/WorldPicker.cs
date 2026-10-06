@@ -16,12 +16,31 @@ namespace BakAgain.World {
                 return null; // clicked outside the 3D view (chrome / other REQ area)
             }
             Vector2 vp = (pointerPx - r.min) / r.size; // 0..1 within the viewport
-            Ray ray = camera.ViewportPointToRay(new Vector3(vp.x, vp.y, 0f));
+            Ray ray = ViewportRay(camera, vp);
             int mask = 1 << LayerMask.NameToLayer(WorldInteractionLayers.WorldInteractableLayerName);
             if (Physics.Raycast(ray, out RaycastHit hit, camera.farClipPlane, mask)) {
                 return hit.collider.GetComponentInParent<WorldEntity>();
             }
             return null;
+        }
+
+        /// <summary>
+        /// The pointer ray, built in camera space and turned into the world by the camera's own
+        /// transform.
+        /// </summary>
+        /// <remarks>
+        /// <b>Not <c>Camera.ViewportPointToRay</c>.</b> That unprojects through the inverse view-
+        /// projection in single precision, and at the world's coordinates (thousands of units from
+        /// the origin) the ray it returns misses its own point by about 0.7 units at 100 units —
+        /// wider than a distant creature, so a click on one went through it (TASK-795).
+        /// </remarks>
+        internal static Ray ViewportRay(Camera camera, Vector2 vp) {
+            if (camera.orthographic) {
+                return camera.ViewportPointToRay(new Vector3(vp.x, vp.y, 0f));
+            }
+            float tanY = Mathf.Tan(camera.fieldOfView * 0.5f * Mathf.Deg2Rad);
+            var local = new Vector3((vp.x * 2f - 1f) * tanY * camera.aspect, (vp.y * 2f - 1f) * tanY, 1f);
+            return new Ray(camera.transform.position, camera.transform.TransformDirection(local).normalized);
         }
 
         /// <summary>
@@ -38,6 +57,11 @@ namespace BakAgain.World {
         public static Encounters.ArenaCorpse PickCorpse(Camera camera, IWorldViewport viewport,
             Vector2 pointerPx, Rect stageScreenRect) =>
             PickOnInteractionLayer<Encounters.ArenaCorpse>(camera, viewport, pointerPx, stageScreenRect);
+
+        /// <summary>The live encounter actor under the pointer in the world, or null (TASK-795).</summary>
+        public static Encounters.EncounterGroupMember PickEncounterGroupMember(Camera camera,
+            IWorldViewport viewport, Vector2 pointerPx, Rect stageScreenRect) =>
+            PickOnInteractionLayer<Encounters.EncounterGroupMember>(camera, viewport, pointerPx, stageScreenRect);
 
         // *** THERE IS NO COMBATANT PICK HERE, AND THAT IS DELIBERATE. *** Target selection does
         // NOT hit-test a figure: combat_actor_terr_under_cur (CACTOR.C:741) reads the grid's
@@ -71,7 +95,7 @@ namespace BakAgain.World {
                 return null;
             }
             Vector2 vp = (pointerPx - r.min) / r.size;
-            Ray ray = camera.ViewportPointToRay(new Vector3(vp.x, vp.y, 0f));
+            Ray ray = ViewportRay(camera, vp);
             var floor = new Plane(Vector3.up, Vector3.zero);
             return floor.Raycast(ray, out float distance) ? ray.GetPoint(distance) : (Vector3?)null;
         }
@@ -117,7 +141,7 @@ namespace BakAgain.World {
                 return null;
             }
             Vector2 vp = (pointerPx - r.min) / r.size;
-            Ray ray = camera.ViewportPointToRay(new Vector3(vp.x, vp.y, 0f));
+            Ray ray = ViewportRay(camera, vp);
             int mask = 1 << LayerMask.NameToLayer(WorldInteractionLayers.WorldInteractableLayerName);
             return Physics.Raycast(ray, out RaycastHit hit, camera.farClipPlane, mask)
                 ? hit.collider.GetComponentInParent<T>()

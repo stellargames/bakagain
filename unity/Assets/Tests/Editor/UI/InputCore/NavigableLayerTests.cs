@@ -63,11 +63,39 @@ namespace BakAgain.Tests.Editor.UI.InputCore {
             Assert.AreEqual(1, fired[1], "Right picks the immediate right neighbour, not the far one");
         }
 
+        // MENUPAGE.C:346-366: a REQ entry's action id is the scancode of the key that presses it, so the
+        // options menu's S is Save (0x1f) whatever its label starts with (TASK-796).
         [Test]
-        public void Accelerator_MatchesFirstLetter_FocusesAndActivates() {
-            var (layer, fired, _) = MakeRow(new[] { "Yes", "No", "Maybe" });
-            Assert.IsTrue(layer.HandleIntent(UiIntent.Accelerator('n')));
-            Assert.AreEqual(1, fired[1], "first-letter accelerator activates the matching widget");
+        public void Accelerator_PressesTheEntryWhoseActionIdIsTheKeysScancode() {
+            var fired = new[] { 0, 0, 0 };
+            var widgets = new List<NavWidget>();
+            string[] labels = { "Start New Game", "Save Game", "Quit" };
+            int[] ids = { 0x31, 0x1f, 0x20 };
+            for (int i = 0; i < 3; i++) {
+                int idx = i;
+                widgets.Add(new NavWidget(new VisualElement(), labels[i], new Rect(i * 100, 0, 50, 20),
+                    () => fired[idx]++, null, ids[i]));
+            }
+            var layer = new NavigableLayer("options", CaptureMode.Passive, widgets, null, null);
+
+            Assert.IsTrue(layer.HandleIntent(UiIntent.Accelerator('s')));
+            CollectionAssert.AreEqual(new[] { 0, 1, 0 }, fired, "S is 0x1f: Save, not Start New Game");
+            layer.HandleIntent(UiIntent.Accelerator('d'));
+            CollectionAssert.AreEqual(new[] { 0, 1, 1 }, fired, "D is 0x20: Quit");
+            Assert.IsFalse(layer.HandleIntent(UiIntent.Accelerator('q')), "Q (0x10) is no entry here");
+            CollectionAssert.AreEqual(new[] { 0, 1, 1 }, fired);
+        }
+
+        [Test]
+        public void Accelerator_ADigitPressesItsEntryToo() {
+            var fired = new[] { 0 };
+            var widgets = new List<NavWidget> {
+                new NavWidget(new VisualElement(), null, new Rect(0, 0, 50, 20), () => fired[0]++, null, 0x02),
+            };
+            var layer = new NavigableLayer("portraits", CaptureMode.Passive, widgets, null, null);
+
+            Assert.IsTrue(layer.HandleIntent(UiIntent.Accelerator('1')));
+            Assert.AreEqual(1, fired[0], "1 is scancode 2, the first portrait");
         }
 
         // ASKABOUT.C:499-511: the dialog choice menu counts the matches and a letter two labels share
@@ -90,7 +118,8 @@ namespace BakAgain.Tests.Editor.UI.InputCore {
 
             var (menu, menuFired, _) = MakeRow(labels);
             menu.HandleIntent(UiIntent.Accelerator('s'));
-            CollectionAssert.AreEqual(new[] { 1, 0, 0 }, menuFired, "other menus keep the first match");
+            CollectionAssert.AreEqual(new[] { 0, 0, 0 }, menuFired,
+                "a REQ menu matches action ids, never a label's first letter");
         }
 
         [Test]
