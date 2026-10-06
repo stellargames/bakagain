@@ -13,13 +13,19 @@ public static class SpellTargetPanel {
 
     /// <summary>Whether the accuracy and damage lines appear: a living encounter actor under the
     /// cursor, a kind-0 spell, and not spell 0x2c.</summary>
+    // The spell panel's own EXE entries (the first of the two blocks; keyed "_melee" by an old
+    // misreading, kept for key stability — see ExeStringManifest), so a pack translates them.
+    public static string Prompt => Text.UiStrings.Get("base:uistring:combat.choose_target_melee");
+    public static string AccuracyLabel => Text.UiStrings.Get("base:uistring:combat.accuracy_label_melee");
+    public static string DamageLabel => Text.UiStrings.Get("base:uistring:combat.damage_label_melee");
+
     public static bool ShowsTargetStats(bool liveEnemy, int spellKind, int spellId) =>
         liveEnemy && spellKind == 0 && spellId != UnratedSpellId;
 
     public static IReadOnlyList<HudPanelLine> Lines(string? spellName, bool showStats, int accuracy, int damage) {
         int y = ShootTargetPanel.PromptY;
         var lines = new List<HudPanelLine> {
-            new HudPanelLine(ShootTargetPanel.Prompt, ShootTargetPanel.CentreX, y, HudPanelAlign.Centre),
+            new HudPanelLine(Prompt, ShootTargetPanel.CentreX, y, HudPanelAlign.Centre),
         };
         if (!string.IsNullOrEmpty(spellName)) {
             y += ShootTargetPanel.LineStep;
@@ -30,10 +36,10 @@ public static class SpellTargetPanel {
             return lines;
         }
         // The spell panel prints the chance as computed: no 2% floor, unlike the shot's.
-        lines.Add(new HudPanelLine(ShootTargetPanel.AccuracyLabel, ShootTargetPanel.LabelX, y));
-        lines.Add(new HudPanelLine(accuracy + ShootTargetPanel.PercentSign, ShootTargetPanel.ValueX, y));
+        lines.Add(new HudPanelLine(AccuracyLabel, ShootTargetPanel.LabelX, y));
+        lines.Add(new HudPanelLine(Text.UiTemplates.Percent(accuracy), ShootTargetPanel.ValueX, y));
         y += ShootTargetPanel.LineStep;
-        lines.Add(new HudPanelLine(ShootTargetPanel.DamageLabel, ShootTargetPanel.LabelX, y));
+        lines.Add(new HudPanelLine(DamageLabel, ShootTargetPanel.LabelX, y));
         lines.Add(new HudPanelLine(damage.ToString(), ShootTargetPanel.ValueX, y));
         return lines;
     }

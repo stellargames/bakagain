@@ -52,6 +52,10 @@ public static class UiTemplates {
     public const string TouchCast = "port:template:touch_cast";
     public const string TouchCastHere = "port:template:touch_cast_here";
 
+    /// <summary>The main menu's V banner: "Version <c>{version}</c>" — the port's own version where
+    /// the original printed its EXE's "Version 1.02 CD" (VersionBanner).</summary>
+    public const string VersionBannerKey = "port:template:version_banner";
+
     /// <summary>"<c>{n}</c>%" — every percentage the port builds; "94 %" in a language that spaces it.</summary>
     public const string PercentKey = "port:template:percent";
 
@@ -109,6 +113,7 @@ public static class UiTemplates {
         (TouchMove, _ => "Move"),
         (TouchCast, _ => "Cast"),
         (TouchCastHere, _ => "Cast here"),
+        (VersionBannerKey, _ => "Version {version}"),
         (BootLoading, _ => Literal("Loading Betrayal at Krondor... please wait.")),
         (BootDataFiles, _ => Literal("This game requires the original data files of the \"Betrayal at Krondor\" game. "
             + "If you do not have a copy of that game you can buy one at "
