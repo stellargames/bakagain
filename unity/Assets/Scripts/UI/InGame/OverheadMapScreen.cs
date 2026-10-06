@@ -167,6 +167,9 @@ namespace BakAgain.UI.InGame {
         }
 
         private VisualElement _wheelRoot;
+
+        /// <summary>A fight took the screen from the map; reopen it when the fight is done.</summary>
+        public bool ReopenAfterFight { get; set; }
         private TouchControlsView _touchControls;
 
         /// <summary>
@@ -339,14 +342,16 @@ namespace BakAgain.UI.InGame {
         /// A fight that starts while the map is up — the party walked into an encounter on it —
         /// takes the screen. The original runs the fight full-screen from inside the map loop
         /// (hotspotevt_type1_encounter_run via hotspotevt_disp_pending_events, MAP.C:214); here the
-        /// map closed nothing and the fight played out unseen beneath it. ponytail: the map is not
-        /// reopened after the fight as the original's loop does; the player lands on the travel view.
+        /// map closed nothing and the fight played out unseen beneath it. The original's loop then
+        /// carries on with the map, so <see cref="ReopenAfterFight"/> asks the travel HUD to bring it
+        /// back once the fight is over.
         /// </summary>
         private void CloseWhenAFightStarts() {
             if (_closingForWorldExit || _world == null || !_world.FightInProgress) {
                 return;
             }
             _closingForWorldExit = true;
+            ReopenAfterFight = true;
             _navigator?.Pop().Forget();
         }
 

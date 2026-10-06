@@ -885,6 +885,7 @@ namespace BakAgain.UI.InGame {
                 return;
             }
             _compass?.Refresh();
+            ReopenTheMapAfterAFight();
             _touchControls?.Refresh(AFightIsRunning());
             HandleTouchLongPress();
             ClearTouchTargetingAfterAFight();
@@ -1225,6 +1226,17 @@ namespace BakAgain.UI.InGame {
         /// combat layer's job and it already does it (<c>HotspotService.EndCombat</c>). This only
         /// has to let it finish.</para>
         /// </remarks>
+        // The map gave way to a fight that started on it; the original's map loop resumes after the
+        // fight (MAP.C:214), so the map comes back once the travel view owns input again.
+        private void ReopenTheMapAfterAFight() {
+            if (_overheadMap == null || !_overheadMap.ReopenAfterFight || AFightIsRunning()
+                || _travelHost == null || !_travelHost.IsInputActive) {
+                return;
+            }
+            _overheadMap.ReopenAfterFight = false;
+            _navigator.Push(_overheadMap).Forget();
+        }
+
         private bool AFightIsRunning() =>
             (_resolver?.Resolve(typeof(BakAgain.World.WorldRuntime))
                 as BakAgain.World.WorldRuntime)?.FightInProgress ?? false;
@@ -1366,7 +1378,10 @@ namespace BakAgain.UI.InGame {
             bool target = occupant.HasValue && (!occupant.Value.PartyMember || waiting);
             touch.CombatHoverScreenPoint = occupant.HasValue ? point : null;
             _setCursorCell?.Invoke((c, r), true);
-            touch.CursorContext = target ? CursorContext.Target
+            // Nobody acting (the fight's opening text, the enemies' turns): no Thrust or Move to offer.
+            bool someoneActs = _actingCell?.Invoke() != null;
+            touch.CursorContext = !someoneActs ? CursorContext.None
+                : target ? CursorContext.Target
                 : occupant.HasValue ? CursorContext.None
                 : CursorContext.Ground;
             touch.AwaitingTarget = waiting;
