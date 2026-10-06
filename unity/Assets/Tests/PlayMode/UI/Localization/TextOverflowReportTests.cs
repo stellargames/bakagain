@@ -104,6 +104,34 @@ namespace BakAgain.Tests.PlayMode.UI.Localization {
         }
 
         [UnityTest]
+        public IEnumerator AShopNameRunningIntoTheNextCellIsReported() {
+            // A shelf cell's name is centred and allowed to overhang (DisplayText @0x5634d), so a
+            // long translation reaches into the neighbouring cell's name — each in its own cell.
+            UIDocument doc = Doc();
+            yield return null;
+            var grid = new VisualElement { style = { width = 600, height = 200, position = Position.Absolute } };
+            doc.rootVisualElement.Add(grid);
+            void Cell(float x, string name) {
+                var cell = new VisualElement { style = { position = Position.Absolute, left = x, top = 0, width = 200, height = 100 } };
+                var l = new Label(name) {
+                    style = { position = Position.Absolute, left = Length.Percent(50), bottom = 0,
+                        whiteSpace = WhiteSpace.NoWrap, translate = new Translate(Length.Percent(-50), 0) },
+                };
+                GameFontText.Apply(l);
+                cell.Add(l);
+                grid.Add(cell);
+            }
+            Cell(0, "[Bröàdšwörd ~~~~~~~~~~~~] (100%)");
+            Cell(200, "[Gréàtšwörd ~~~~~~~~~~~~] (100%)");
+            Cell(400, "Dagger");
+            TextOverflowReport.CheckRows(grid, descendants: true);
+            yield return new WaitForSecondsRealtime(0.5f);
+
+            Assert.IsTrue(TextOverflowReport.Entries.Any(e => e.Kind == TextOverflowReport.Collision
+                && e.Text.Contains("Bröàdšwörd")));
+        }
+
+        [UnityTest]
         public IEnumerator ACaptionTooWideEvenAtTheSmallestFitIsReported() {
             UIDocument doc = Doc();
             yield return null;

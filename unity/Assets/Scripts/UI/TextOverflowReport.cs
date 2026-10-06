@@ -31,10 +31,15 @@ namespace BakAgain.UI {
         /// same row whose boxes overlap. The panels place each label at a fixed x, so a longer
         /// translation runs into the next column instead of wrapping.
         /// </summary>
-        internal static void CheckRows(VisualElement container) {
+        /// <param name="descendants">Every label below <paramref name="container"/>, not only its
+        /// children: a shop shelf's names each sit in their own cell and overhang it.</param>
+        internal static void CheckRows(VisualElement container, bool descendants = false) {
             container?.schedule.Execute(() => {
                 var labels = new List<Label>();
-                foreach (VisualElement child in container.Children()) {
+                IEnumerable<VisualElement> candidates = descendants
+                    ? container.Query<Label>().ToList()
+                    : container.Children();
+                foreach (VisualElement child in candidates) {
                     if (child is Label l && !string.IsNullOrEmpty(l.text)
                         && l.resolvedStyle.display != DisplayStyle.None && !float.IsNaN(l.worldBound.width)) {
                         labels.Add(l);

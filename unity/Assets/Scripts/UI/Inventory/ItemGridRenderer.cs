@@ -482,6 +482,11 @@ namespace BakAgain.UI.Inventory {
             if (needsFillReposition && generalHost != null) {
                 ScheduleFillReposition(root, generalHost, area, clusterWidth, gen);
             }
+            // A shelf name overhangs its cell by design, so a long translation runs into the next
+            // cell's name: report it (TASK-779).
+            if (shopCellText != null && generalHost != null) {
+                BakAgain.UI.TextOverflowReport.CheckRows(generalHost, descendants: true);
+            }
         }
 
         /// <summary>Cell footprint (w,h) in <b>design-frame px</b> for an item's slot count — also
