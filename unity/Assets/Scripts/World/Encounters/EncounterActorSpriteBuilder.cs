@@ -132,7 +132,7 @@ namespace BakAgain.World.Encounters {
             }
 
             (Mesh mesh, Vector3 localScale) = TblSpriteConverter.BuildBillboard(
-                face, Mathf.Abs(entry.Dat.Extent), tex.width, tex.height);
+                face, Mathf.Abs(entry.Dat.Extent), tex.width, tex.height, entry.Dat.SpriteAnchorRise(face));
             ctx.TrackMesh(mesh);
 
             var go = new GameObject($"Effect {entry.Name}");
