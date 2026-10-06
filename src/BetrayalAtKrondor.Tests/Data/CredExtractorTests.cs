@@ -23,6 +23,7 @@ using Xunit;
 ///   Centered   — the final block (left index > count-5), centered not columnar
 /// </summary>
 public class CredExtractorTests {
+    static CredExtractorTests() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
     /// <summary>Builds a CRED.DAT blob from a string table, matching LoadCRED.DAT.</summary>
     private static byte[] BuildCredDat(string[] strings) {
@@ -158,5 +159,15 @@ public class CredExtractorTests {
         // 'Nels Bruckner' is credited twice and sparkles both times; no other name does.
         Assert.Equal(2, credits.Lines.Count(l => l.Sparkle));
         Assert.All(credits.Lines.Where(l => l.Sparkle), l => Assert.Equal("Nels Bruckner", l.Name));
+    }
+
+    [Fact]
+    public void Extract_DecodesTextAsCp437() {
+        // The German credits spell Ä and Ü as CP437 0x8E and 0x9A; Latin-1 gave control characters.
+        byte[] dat = BuildCredDat(new[] { "CREDITS", "ROLE:", "name" });
+        int title = System.Array.IndexOf(dat, (byte)'C');
+        dat[title] = 0x8E;
+        CreditsData credits = new CredExtractor().Extract("CRED.DAT", new MemoryStream(dat));
+        Assert.Equal("ÄREDITS", credits.Title);
     }
 }

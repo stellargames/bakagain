@@ -56,18 +56,12 @@ public class CredExtractor : ExtractorBase<CreditsData> {
         return credits;
     }
 
-    // Decode a NUL-terminated string with Latin1 semantics (each byte → char).
-    // The shipped credits are pure ASCII; this avoids depending on an encoding
-    // provider being registered, which netstandard2.1 consumers may not do.
+    // A NUL-terminated CP437 string: the English credits are ASCII, the German ones are not.
     private static string ReadString(byte[] blob, int offset) {
         int end = offset;
         while (end < blob.Length && blob[end] != 0) {
             end++;
         }
-        var chars = new char[end - offset];
-        for (var i = 0; i < chars.Length; i++) {
-            chars[i] = (char)blob[offset + i];
-        }
-        return new string(chars);
+        return Encoding.GetEncoding(DosCodePage).GetString(blob, offset, end - offset);
     }
 }

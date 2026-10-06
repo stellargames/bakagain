@@ -35,6 +35,20 @@ public class FullMapExtractorTests {
     }
 
     [Fact]
+    public void TownExtractor_DecodesNamesAsCp437() {
+        // The German map's "Falkenhöhle" carries CP437 0x94; ASCII read it as '?'.
+        var bytes = new List<byte>();
+        AddU16(bytes, 3); AddU16(bytes, 3); AddU16(bytes, 9); AddU16(bytes, 9);
+        AddU16(bytes, 1);
+        AddU16(bytes, 4); bytes.AddRange(new byte[] { (byte)'h', 0x94, (byte)'h', 0 }); AddU16(bytes, 1); AddU16(bytes, 1);
+        using var stream = new MemoryStream(bytes.ToArray());
+
+        FullMapTowns towns = new FullMapTownExtractor().Extract("FMAP_TWN.DAT", stream);
+
+        Assert.Equal("höh", towns.Towns[0].Name);
+    }
+
+    [Fact]
     public void PositionExtractor_ReadsExactlyTwelveZones() {
         // 12 zones: zone 0 has two markers, the rest are empty.
         var bytes = new List<byte>();
