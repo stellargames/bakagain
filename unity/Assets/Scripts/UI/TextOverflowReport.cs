@@ -60,6 +60,27 @@ namespace BakAgain.UI {
             }).StartingIn(100);
         }
 
+        /// <summary>A single line at a fixed x that runs past its panel's edge — the cast screen's
+        /// info lines, which never wrap.</summary>
+        internal const string Line = "line";
+
+        /// <summary>
+        /// Once <paramref name="container"/> has laid out, report every label child (carrying
+        /// <paramref name="className"/>, when given) whose right edge passes <paramref name="right"/>
+        /// (in the container's own coordinates).
+        /// </summary>
+        internal static void CheckRightEdge(VisualElement container, float right, string className = null) {
+            container?.schedule.Execute(() => {
+                foreach (VisualElement child in container.Children()) {
+                    if (child is Label l && (className == null || l.ClassListContains(className))
+                        && !string.IsNullOrEmpty(l.text) && !float.IsNaN(l.layout.width)
+                        && l.layout.xMax > right + 1f) {
+                        Report(Line, l.text, $"ends at {l.layout.xMax:0}, the panel at {right:0}");
+                    }
+                }
+            }).StartingIn(100);
+        }
+
         /// <summary>A fixed caption still wider than its button at the smallest fit.</summary>
         internal const string Caption = "caption";
 

@@ -1668,6 +1668,7 @@ namespace BakAgain.UI.Spells {
                         SpellInfoPanel.HealthStaminaY));
                 }
             }
+            TextOverflowReport.CheckRightEdge(stage, SpellInfoPanel.BodyRight, InfoLineClass);
         }
 
         private static IEnumerable<string> BodyLines(SpellDescription spell, int cost, int damage) {
@@ -1718,9 +1719,13 @@ namespace BakAgain.UI.Spells {
                 },
             };
             label.AddToClassList(InfoClass);
+            label.AddToClassList(InfoLineClass);
             GameFontText.Apply(label);
             return label;
         }
+
+        /// <summary>A body line of the info panel, for the overflow report's edge check.</summary>
+        private const string InfoLineClass = "cast-info-body";
 
         private VisualElement Stage() {
             var document = GetComponent<UIDocument>();

@@ -132,6 +132,30 @@ namespace BakAgain.Tests.PlayMode.UI.Localization {
         }
 
         [UnityTest]
+        public IEnumerator ALineRunningPastItsPanelsEdgeIsReported_AndOneInsideIsNot() {
+            // The cast screen's info lines sit at a fixed x and never wrap, so a longer translation
+            // runs off the parchment (TASK-779: seen in qps on Scent of Sarig's effect line).
+            UIDocument doc = Doc();
+            yield return null;
+            var panel = new VisualElement { style = { width = 1600, height = 600, position = Position.Absolute } };
+            doc.rootVisualElement.Add(panel);
+            Label At(string text, float y) {
+                var l = new Label(text) { style = { position = Position.Absolute, left = 100, top = y } };
+                GameFontText.Apply(l);
+                panel.Add(l);
+                return l;
+            }
+            At("Duration: 12 hours", 0);
+            At("[Çàštér çàñ šéñšé tràppéd çhéšt ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~]", 60);
+            TextOverflowReport.CheckRightEdge(panel, 900f);
+            yield return new WaitForSecondsRealtime(0.5f);
+
+            Assert.IsTrue(TextOverflowReport.Entries.Any(e => e.Kind == TextOverflowReport.Line
+                && e.Text.Contains("tràppéd")));
+            Assert.IsFalse(TextOverflowReport.Entries.Any(e => e.Text.Contains("Duration")));
+        }
+
+        [UnityTest]
         public IEnumerator ACaptionTooWideEvenAtTheSmallestFitIsReported() {
             UIDocument doc = Doc();
             yield return null;

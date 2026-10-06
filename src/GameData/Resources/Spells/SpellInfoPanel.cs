@@ -23,6 +23,14 @@ public static class SpellInfoPanel {
     public const int FirstBodyY = 234;
 
     /// <summary>
+    /// Where a body line must end: the parchment's inner border, VGA x 302 (measured on the port's
+    /// CAST screen; the longest English line, "Affects Black Slayers &amp; Nighthawks", ends 4 px
+    /// short of it). The original never measures this — its English fits — so it is the overflow
+    /// report's limit, not a layout rule (TASK-779).
+    /// </summary>
+    public const int BodyRight = 1510;
+
+    /// <summary>
     /// Distance between body lines — original 11.
     /// </summary>
     /// <remarks>
