@@ -13,6 +13,17 @@ namespace BakAgain.Tests.PlayMode.World {
     /// The rules move the victim at once, so the arena's slide has to wait for the flight (TASK-117).
     /// </summary>
     public class WhirlwindHoldsTheMoversTests {
+        // Every test lets its queue drain and clears the world flash: a visual left playing (the
+        // storm sets the flash global) washed out the rendering tests that ran after this class.
+        [TearDown]
+        public void ClearTheFlash() => SpellVfx.SetWorldFlash(Color.clear, 0f);
+
+        private static IEnumerator Drain(SpellVfx vfx, int played) {
+            for (var i = 0; i < 600 && vfx.Played < played; i++) {
+                yield return null;
+            }
+        }
+
         private static SpellVfx Vfx() => new SpellVfx(_ => null, () => null, () => null, () => null,
             (_, _) => UniTask.FromResult<GameObject>(null), () => Quaternion.identity, _ => null);
 
@@ -27,11 +38,22 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.IsFalse(vfx.HoldsMovers, "and let go once it has played");
         }
 
-        [Test]
-        public void OtherVisualsDoNotHoldTheMovers() {
+        [UnityTest]
+        public IEnumerator EvilSeeksHopsHoldTheBoardToo() {
+            // cspell_invoke_effect plays Evil Seek's whole chain before the board shows its damage;
+            // the redraw floated "50"/"40" from the first frame (TASK-117).
             SpellVfx vfx = Vfx();
-            vfx.Enqueue(new SpellVisual(SpellVisualKind.StormFlash), new Combatant(), new Combatant());
+            vfx.Enqueue(new SpellVisual(SpellVisualKind.HopBurst), new Combatant(), new Combatant());
+            Assert.IsTrue(vfx.HoldsMovers);
+            yield return Drain(vfx, 1);
+        }
+
+        [UnityTest]
+        public IEnumerator OtherVisualsDoNotHoldTheMovers() {
+            SpellVfx vfx = Vfx();
+            vfx.Enqueue(new SpellVisual(SpellVisualKind.Rebound), new Combatant(), new Combatant());
             Assert.IsFalse(vfx.HoldsMovers);
+            yield return Drain(vfx, 1);
         }
     }
 }
