@@ -19,15 +19,13 @@ namespace BakAgain.Core {
 
             Logger.LogInformation("Injecting custom resource providers...");
 
-            if (BakResourceSettings.OverrideEnabled) {
-                Logger.LogInformation("Override enabled. Checking directory: '{OverridePath}'", BakResourceSettings.OverridePath);
-                if (Directory.Exists(BakResourceSettings.OverridePath)) {
-                    Logger.LogInformation("Override directory exists. Adding OverrideResourceProvider and Locator.");
-                    Addressables.ResourceManager.ResourceProviders.AddOnce<OverrideResourceProvider>();
-                    AddressableExtensions.AddResourceLocatorOnce<OverrideResourceLocator>();
-                } else {
-                    Logger.LogWarning("Override directory '{OverridePath}' not found. Skipping override provider.", BakResourceSettings.OverridePath);
-                }
+            // A language pack's folder is an override root too, so it counts even with mod overrides off.
+            if (OverrideResourceLocator.HasAnyRoot()) {
+                Logger.LogInformation("Adding OverrideResourceProvider and Locator.");
+                Addressables.ResourceManager.ResourceProviders.AddOnce<OverrideResourceProvider>();
+                AddressableExtensions.AddResourceLocatorOnce<OverrideResourceLocator>();
+            } else if (BakResourceSettings.OverrideEnabled) {
+                Logger.LogWarning("Override directory '{OverridePath}' not found. Skipping override provider.", BakResourceSettings.OverridePath);
             }
 
             Logger.LogInformation("Adding BakResourceProvider and Locator.");

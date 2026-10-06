@@ -53,6 +53,15 @@ namespace BakAgain.ResourceManagement {
         public static string PathFor(string overridePath, string locale) =>
             Path.Combine(overridePath ?? string.Empty, "Lang", locale, locale + ".po");
 
+        /// <summary>
+        /// The active pack's folder, or null in English. It is searched for overrides before the mod
+        /// folder, in the same layout (<c>SCX/&lt;NAME&gt;.png</c>, <c>BMX/&lt;NAME&gt;/&lt;i&gt;.png</c>, ...), so a
+        /// pack can carry its own art (TASK-826).
+        /// </summary>
+        public static string ActiveFolder() =>
+            Current == LanguagePack.English ? null
+                : Path.Combine(BakResourceSettings.OverridePath ?? string.Empty, "Lang", BakResourceSettings.Language);
+
         /// <summary>The pack's pixel font for a game font: <c>fonts/&lt;GAME|BOOK&gt;.bdf</c> beside the PO file.</summary>
         public static string FontPathFor(string overridePath, string locale, string fontId) =>
             Path.Combine(overridePath ?? string.Empty, "Lang", locale, "fonts",
