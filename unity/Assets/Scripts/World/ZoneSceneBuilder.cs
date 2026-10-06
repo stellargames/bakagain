@@ -70,6 +70,10 @@ namespace BakAgain.World {
         /// </remarks>
         public WorldEntityRenderContext RenderContext { get; private set; }
 
+        /// <summary>The zone's model table, and whether the zone is underground (the original's game mode 2).</summary>
+        public ZoneTable Table { get; private set; }
+        public bool Underground { get; private set; }
+
         /// <summary>The zone's ordered RMP blocks, kept from the fog load for the render context.</summary>
         private List<Dictionary<byte, byte>> _fadeRamp;
 
@@ -136,6 +140,8 @@ namespace BakAgain.World {
                 renderCtx.ResourceProvider = _resourceProvider;
                 renderCtx.FadeRamp = _fadeRamp;
                 RenderContext = renderCtx;
+                Table = tbl;
+                Underground = underground;
 
                 // *** BEFORE ANY MESH IS BUILT. *** Z##.DAT's pen remap is baked per face into the
                 // meshes below, so it has to be in the context before the entities are made — this

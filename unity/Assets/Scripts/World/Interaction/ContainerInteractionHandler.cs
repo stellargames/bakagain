@@ -254,8 +254,13 @@ namespace BakAgain.World.Interaction {
             // *** SAYING YES TO A LIVE TRAP SPRINGS IT. *** This used to open the chest and nothing
             // else: trapDamage picked the PROMPT and was then dropped, so a trapped chest was an
             // untrapped one with an extra question (TASK-265).
+            //
+            // *** AND THE BOOM ENDS THE CLICK — the chest stays shut. *** Yes on 0x4f sets bDenied,
+            // not bHandled, so cmbinv_inventory_screen_run (WCURSOR.C:624) never runs; the next
+            // click asks 317 and that Yes opens it. Measured in the original (t117/SAVE03).
             if (trapDamage > 0) {
                 await SpringTrapAsync(container, trapDamage, bakX, bakY);
+                return;
             }
 
             TryOpenLoot(zone, bakX, bakY, entityType, chestMessage: true);

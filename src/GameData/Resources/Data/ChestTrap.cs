@@ -117,6 +117,13 @@ public static class ChestTrap {
     /// </remarks>
     public const int DetonationDialog = 192;
 
+    /// <summary>
+    /// The zone-table shape drawn over the chest as it explodes: <c>boom</c>, 0xb6 overworld and
+    /// 0x8e underground (canassa R3D/ACTOR/ACTOROVL.C). Its three sprite faces are the three
+    /// BOOM.BMX frames and size them — frame 0, the spark, is the small one.
+    /// </summary>
+    public static int ExplosionShape(bool underground) => underground ? 0x8e : 0xb6;
+
     /// <summary><c>sound_trapexpl</c> (57), played as the explosion starts.</summary>
     /// <remarks>
     /// <b>Its return is kept and tested before the unload</b>, so only a play that actually started
