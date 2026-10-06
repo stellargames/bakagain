@@ -106,6 +106,11 @@ namespace BakAgain.Core.DI {
                 ResourceManagementInitializer.InitializeResourceManagement();
 
                 GameFonts.Install(_gamePanelSettings);
+                // The menus before any game is loaded read the catalog too (the V banner, the
+                // language button, the restore screen's lines), and the installer otherwise runs
+                // only with a loaded game. A load re-installs it with any mod override on top.
+                GameData.Resources.Text.UiStrings.Catalog =
+                    GameData.Resources.Text.UiStringCatalog.Embedded.TranslatedBy(LanguagePacks.Current);
             } catch (System.Exception e) {
                 _logger.LogError(e, "Error during initialization");
 
