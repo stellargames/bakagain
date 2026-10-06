@@ -68,8 +68,8 @@ namespace BakAgain.ResourceManagement {
 
             string directory = Path.Join(extension[1..].ToUpperInvariant(), dirName);
             foreach (string root in _roots) {
-                string path = Path.Join(root, directory, filename);
-                if (File.Exists(path)) {
+                string path = FindIgnoringCase(root, directory, filename);
+                if (path != null) {
                     locations.Add(new ResourceLocationBase(key.ToString(), path, nameof(OverrideResourceProvider), type));
 
                     return true;
@@ -93,6 +93,32 @@ namespace BakAgain.ResourceManagement {
             if (BakResourceSettings.OverrideEnabled && Directory.Exists(BakResourceSettings.OverridePath)) {
                 yield return BakResourceSettings.OverridePath;
             }
+        }
+
+        /// <summary>
+        /// The file at <paramref name="directory"/>/<paramref name="filename"/> under
+        /// <paramref name="root"/>, matched without regard to case: the game names its resources in
+        /// either case (INTRO.TTM loads "credits.SCR"), and the archive's own lookup ignores it, so
+        /// an override must too on a case-sensitive file system.
+        /// </summary>
+        private static string FindIgnoringCase(string root, string directory, string filename) {
+            string exact = Path.Join(root, directory, filename);
+            if (File.Exists(exact)) {
+                return exact;
+            }
+            string dir = root;
+            foreach (string part in directory.Split('/', '\\')) {
+                if (part.Length == 0) {
+                    continue;
+                }
+                dir = Directory.Exists(dir)
+                    ? Directory.EnumerateDirectories(dir).FirstOrDefault(d => string.Equals(Path.GetFileName(d), part, StringComparison.OrdinalIgnoreCase))
+                    : null;
+                if (dir == null) {
+                    return null;
+                }
+            }
+            return Directory.EnumerateFiles(dir).FirstOrDefault(f => string.Equals(Path.GetFileName(f), filename, StringComparison.OrdinalIgnoreCase));
         }
 
         /// <summary>Whether there is any override folder to search.</summary>

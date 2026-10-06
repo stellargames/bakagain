@@ -62,6 +62,17 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
         }
 
         [Test]
+        public void ANameIsMatchedWhateverItsCase() {
+            // INTRO.TTM loads "credits.SCR" and "credits.PAL" in lower case; the archive's lookup
+            // ignores case, so an override has to as well, or it is never found on Linux/Android.
+            string pack = _overrides.Write(Path.Combine("Lang", "xx", "SCX"), "CREDITS.png", "png");
+            string frame = _overrides.Write(Path.Combine("Lang", "xx", "BMX", "INT_DYN"), "9.png", "png");
+
+            Assert.AreEqual(pack, Located("credits.SCR"));
+            Assert.AreEqual(frame, Located("int_dyn.bmp#9"));
+        }
+
+        [Test]
         public void EnglishIgnoresThePackFolder() {
             string mod = _overrides.Write("SCX", "OPTIONS1.png", "png");
             _overrides.Write(Path.Combine("Lang", "xx", "SCX"), "OPTIONS1.png", "png");
