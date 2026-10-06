@@ -63,7 +63,14 @@ public static class UiTemplates {
     public const string PercentKey = "port:template:percent";
 
     /// <summary><paramref name="n"/> as a percentage, through <see cref="PercentKey"/>.</summary>
-    public static string Percent(object n) => Format(PercentKey, ("n", n));
+    /// <remarks>The combat panels redraw every frame, so the untranslated "{n}%" with a whole number
+    /// skips MessageFormat: same text, no allocation of a value table per call.</remarks>
+    public static string Percent(object n) =>
+        n is int whole && (!UiStrings.Catalog.TryGet(PercentKey, out string template) || template == EnglishPercent)
+            ? whole.ToString(CultureInfo.InvariantCulture) + "%"
+            : Format(PercentKey, ("n", n));
+
+    private const string EnglishPercent = "{n}%";
 
     /// <summary>The Preferences screen's language button (TASK-782): "Language: <c>{name}</c>".</summary>
     public const string LanguageChoiceKey = "port:template:language_choice";
@@ -112,7 +119,7 @@ public static class UiTemplates {
             + "other {{s, plural, one {# sovereign} other {# sovereigns}} and {r, plural, one {# royal} other {# royals}}}}"),
         (LanguageChoiceKey, _ => "Language: {name}"),
         (LanguageChoicePendingKey, _ => "{name} (restart)"),
-        (PercentKey, _ => "{n}%"),
+        (PercentKey, _ => EnglishPercent),
         (TouchMove, _ => "Move"),
         (TouchCast, _ => "Cast"),
         (TouchCastHere, _ => "Cast here"),

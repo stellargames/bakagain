@@ -15,11 +15,13 @@ namespace BakAgain.Tests.PlayMode.UI.Localization {
         private string _dir;
         private string _savedLanguage;
         private string _savedOverridePath;
+        private UiStringCatalog _savedCatalog;
 
         [SetUp]
         public void SetUp() {
             _savedLanguage = BakResourceSettings.Language;
             _savedOverridePath = BakResourceSettings.OverridePath;
+            _savedCatalog = UiStrings.Catalog;   // whatever the game installed, which need not be Embedded
             _dir = Path.Combine(Path.GetTempPath(), "bak-lang-" + System.Guid.NewGuid().ToString("N"));
             string po = LanguagePacks.PathFor(_dir, "xx");
             Directory.CreateDirectory(Path.GetDirectoryName(po));
@@ -38,7 +40,7 @@ namespace BakAgain.Tests.PlayMode.UI.Localization {
             BakResourceSettings.Language = _savedLanguage;
             BakResourceSettings.OverridePath = _savedOverridePath;
             LanguagePacks.Reload();
-            UiStrings.Catalog = UiStringCatalog.Embedded;
+            UiStrings.Catalog = _savedCatalog;
             Directory.Delete(_dir, true);
         }
 

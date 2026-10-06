@@ -89,6 +89,10 @@ Game text carries a few codes. Keep each one, in the place the sense needs it:
 | `{name}`, `{n, plural, ...}`, `{case, select, ...}` | in `port:template:` entries only: ICU MessageFormat, with plural and select |
 | `\t` at the start of a paragraph | the paragraph indent |
 
+The same tags are what a dialog override (`DDX/<NAME>.json`, see [laying out screens](laying-out-screens.md))
+uses. Dialog JSON written before the tags existed carries the original's raw code characters instead
+(`≡`, `±`, `≤` ...); those are now drawn as the characters they are, so replace them with the tags.
+
 ### 4. Make it fit
 
 Boxes, buttons and pages keep the original's sizes. A translation that does not fit is shortened by

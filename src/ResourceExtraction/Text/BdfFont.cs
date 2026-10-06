@@ -31,7 +31,9 @@ public static class BdfFont {
         int baseline = font.CapitalBaseline();
         var clipped = new List<int>();
 
-        int encoding = -1, advance = 0, w = 0, h = 0, xOff = 0, yOff = 0;
+        // Merged only once the whole file has read: a file that breaks part-way changes nothing.
+        var added = new Dictionary<int, FontGlyph>();
+        int encoding = -1, advance = -1, w = 0, h = 0, xOff = 0, yOff = 0;
         string? line;
         while ((line = bdf.ReadLine()) != null) {
             string[] f = line.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -39,6 +41,10 @@ public static class BdfFont {
                 continue;
             }
             switch (f[0]) {
+                case "STARTCHAR":
+                    // Each glyph states its own metrics; none carry over from the one before.
+                    encoding = -1; advance = -1; w = h = xOff = yOff = 0;
+                    break;
                 case "ENCODING":
                     encoding = int.Parse(f[1], CultureInfo.InvariantCulture);
                     break;
@@ -57,8 +63,9 @@ public static class BdfFont {
                         rows[r] = bdf.ReadLine()?.Trim() ?? string.Empty;
                     }
                     if (encoding >= 0) {
-                        FontGlyph glyph = Place(rows, font.Height, baseline, advance, w, h, xOff, yOff, out bool lost);
-                        font.ExtraGlyphs[encoding] = glyph;
+                        // No DWIDTH: the pen advances past the glyph's own box.
+                        FontGlyph glyph = Place(rows, font.Height, baseline, advance >= 0 ? advance : xOff + w, w, h, xOff, yOff, out bool lost);
+                        added[encoding] = glyph;
                         if (lost) {
                             clipped.Add(encoding);
                         }
@@ -66,6 +73,9 @@ public static class BdfFont {
                     encoding = -1;
                     break;
             }
+        }
+        foreach (KeyValuePair<int, FontGlyph> glyph in added) {
+            font.ExtraGlyphs[glyph.Key] = glyph.Value;
         }
         return clipped;
     }
