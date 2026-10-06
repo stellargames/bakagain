@@ -175,6 +175,9 @@ namespace BakAgain.UI.Spells {
             _worldView.SetWorldCamera(_world?.WorldCamera);
             // REQ_CMAP carries no ClickArea for the inset, so the rect comes from the spell's own
             // data rather than from the layout — the one place this screen has coordinates at all.
+            if (!_spyglass) {
+                AttachCastPanel(root);
+            }
             _worldView.Attach(root, InsetRect());
             if (_spyglass) {
                 // No REQ_CMAP over the Spyglass, and any click on the view closes it. Its widgets
@@ -198,6 +201,45 @@ namespace BakAgain.UI.Spells {
             AttachPartyMarker(host);
             host.RegisterCallback<GeometryChangedEvent>(OnInsetLaidOut);
         }
+
+        /// <summary>
+        /// The cast screen's panel, its ring empty, beside the inset (TASK-811).
+        /// </summary>
+        /// <remarks>
+        /// The original's cast menu returns before the spell is dispatched, so its panel is still on
+        /// screen when the locator draws its inset at the right: the empty ring stays at the left. The
+        /// port's cast screen is gone by then and the world showed there instead. CAST.SCX is that
+        /// panel without its spell icons, drawn down to where the travel frame takes over, the same
+        /// line the cast screen splits its chrome at.
+        /// </remarks>
+        private void AttachCastPanel(VisualElement root) {
+            VisualElement stage = CanonicalStage.GetOrCreate(root, _loader.Frame);
+            var window = new VisualElement {
+                name = "locator_cast_panel",
+                pickingMode = PickingMode.Ignore,
+                style = {
+                    position = Position.Absolute,
+                    left = 0,
+                    top = 0,
+                    width = Canonical.Width,
+                    height = CastPanelBottom,
+                    overflow = Overflow.Hidden,
+                },
+            };
+            var panel = new ArchiveImage(CastPanelAddress) {
+                sizeToImage = false,
+                pickingMode = PickingMode.Ignore,
+                style = { position = Position.Absolute, left = 0, top = 0, width = Canonical.Width, height = Canonical.Height },
+            };
+            window.Add(panel);
+            stage.Insert(0, window);
+        }
+
+        /// <summary>The cast screen's background: its panel and ring, without the spell icons.</summary>
+        private const string CastPanelAddress = "CAST.SCX";
+
+        /// <summary>Where the cast screen's own art stops and the travel frame begins (its ChromeSplitY).</summary>
+        private const int CastPanelBottom = 676;
 
         /// <summary>The inset the world is shown in, in canonical space.</summary>
         private Rect InsetRect() {
