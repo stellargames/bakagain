@@ -8,6 +8,11 @@ namespace BakAgain.Tests.PlayMode.UI.Localization {
 
     /// <summary>A button caption too wide for its rect shrinks to fit; one that fits is untouched (TASK-779).</summary>
     public class CaptionFitTests {
+        // Measures text with the game font (and loads dialogs): skip without the game data, as a
+        // cloud CI runner has none.
+        [OneTimeSetUp]
+        public void NeedsTheGameData() => BakAgain.Tests.TestSupport.ShippedGameData.RequireOrIgnore();
+
         private GameObject _go;
         private PanelSettings _panel;
 

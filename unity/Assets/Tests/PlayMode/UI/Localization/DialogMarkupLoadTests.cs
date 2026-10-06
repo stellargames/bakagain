@@ -20,6 +20,11 @@ namespace BakAgain.Tests.PlayMode.UI.Localization {
     /// a second test on DIAL_Z00 would read the first one's copy.
     /// </remarks>
     public class DialogMarkupLoadTests {
+        // Measures text with the game font (and loads dialogs): skip without the game data, as a
+        // cloud CI runner has none.
+        [OneTimeSetUp]
+        public void NeedsTheGameData() => BakAgain.Tests.TestSupport.ShippedGameData.RequireOrIgnore();
+
         private const int ChapterOneTitle = 294;                       // "Chapter One:  ±Into ±a ±Dark ±Night"
         private const string ExpectedKey = "base:ddx:dial_z00:10274";  // "...hadn't been ±expected≡."
 
