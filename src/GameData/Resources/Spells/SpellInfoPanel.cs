@@ -118,7 +118,15 @@ public static class SpellInfoPanel {
     /// a footer rather than a seventh description line.
     /// </remarks>
     public static string HealthStaminaLine(int current, int max) =>
-        $"Health/Stamina:  {current} of {max}";
+        Text.CFormat.Apply(Text.UiStrings.Get("base:uistring:combat.health_stamina_format"), current, max);
+
+    /// <summary>The cost line once a power is chosen — the EXE's own template, so a pack translates it.</summary>
+    public static string CostLine(int cost) =>
+        Text.CFormat.Apply(Text.UiStrings.Get("base:uistring:combat.spell_cost_format"), cost);
+
+    /// <summary>The damage line once a power is chosen.</summary>
+    public static string DamageLine(int damage) =>
+        Text.CFormat.Apply(Text.UiStrings.Get("base:uistring:combat.spell_damage_format"), damage);
 
     // ------------------------------------------------- what the panel shows before anything is picked
     // UI_drawSpellNames @0x69448.

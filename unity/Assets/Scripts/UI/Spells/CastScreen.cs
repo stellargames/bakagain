@@ -1672,10 +1672,10 @@ namespace BakAgain.UI.Spells {
 
         private static IEnumerable<string> BodyLines(SpellDescription spell, int cost, int damage) {
             yield return SpellInfoPanel.CostLineIsReplaced(cost)
-                ? $"Cost: {cost} Health+Stamina"
+                ? SpellInfoPanel.CostLine(cost)
                 : spell.Cost;
             yield return SpellInfoPanel.DamageLineIsReplaced(damage)
-                ? $"Damage: {damage}"
+                ? SpellInfoPanel.DamageLine(damage)
                 : spell.Damage;
             yield return spell.Duration;
             yield return spell.LineOfSight;
