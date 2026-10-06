@@ -70,12 +70,21 @@ namespace BakAgain.World.Encounters {
 
         private int _holding;
 
+        /// <summary>
+        /// The sequences the original finishes before the board shows what they did: Winds' flight
+        /// before the walk, Evil Seek's hops before its damage floats. Not every kind — Flamecast's
+        /// sparks follow a projectile the redraw itself flies, so holding the redraw would put the
+        /// sparks first.
+        /// </summary>
+        private static bool HoldsTheBoard(SpellVisualKind kind) =>
+            kind == SpellVisualKind.WhirlwindFlight || kind == SpellVisualKind.HopBurst;
+
         /// <summary>Queue a visual raised by the rules.</summary>
         public void Enqueue(SpellVisual visual, Combatant from, Combatant to) {
             if (visual.Kind == SpellVisualKind.None || to == null) {
                 return;
             }
-            if (visual.Kind == SpellVisualKind.WhirlwindFlight) {
+            if (HoldsTheBoard(visual.Kind)) {
                 _holding++;
             }
             _queue.Enqueue((visual, from, to));
@@ -98,7 +107,7 @@ namespace BakAgain.World.Encounters {
                         // A missing sprite or a torn-down arena must never stall the queue.
                         Debug.LogWarning($"SpellVfx: {v.Kind} failed: {e.Message}");
                     }
-                    if (v.Kind == SpellVisualKind.WhirlwindFlight) {
+                    if (HoldsTheBoard(v.Kind)) {
                         _holding--;
                     }
                     Played++;

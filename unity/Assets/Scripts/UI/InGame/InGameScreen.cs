@@ -373,8 +373,9 @@ namespace BakAgain.UI.InGame {
                 }
                 Vector3 vp = cam.WorldToViewportPoint(world);
                 Rect r = viewport.contentRect;
-                float w = label.resolvedStyle.width;
-                float x = Mathf.Clamp(vp.x * r.width - w / 2f, 2f, Mathf.Max(2f, r.width - w - 2f));
+                float x = FloatLeft(vp.x, r.width, label.resolvedStyle.width,
+                    label.MeasureTextSize(label.text, 0f, VisualElement.MeasureMode.Undefined, 0f,
+                        VisualElement.MeasureMode.Undefined).x);
                 // The TEXT TOP sits 5 VGA rows above the sprite's top (`y = scrY - 5`), so the number
                 // overlaps the head; clamped 2 rows inside the view and 12 above its bottom.
                 float row = GameData.Resources.Layout.OriginalPixel.Height;
@@ -385,6 +386,16 @@ namespace BakAgain.UI.InGame {
                 await UniTask.Delay(System.TimeSpan.FromSeconds(frame));
             }
             label.RemoveFromHierarchy();
+        }
+
+        /// <summary>
+        /// Where a floating number's left edge goes: centred on the projected x, kept 2 px inside the
+        /// view. The label is placed in the frame it is created, before layout, when its width reads
+        /// NaN — then its measured text width stands in, or NaN would carry into left (TASK-117).
+        /// </summary>
+        internal static float FloatLeft(float viewportX, float viewWidth, float laidOutWidth, float measured) {
+            float w = float.IsNaN(laidOutWidth) ? measured : laidOutWidth;
+            return Mathf.Clamp(viewportX * viewWidth - w / 2f, 2f, Mathf.Max(2f, viewWidth - w - 2f));
         }
 
         public void SetWorldCamera(Camera worldCamera) {
