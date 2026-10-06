@@ -1,4 +1,5 @@
 namespace BakAgain.Tests.PlayMode.UI.Inventory {
+    using BakAgain.Tests.TestSupport;
     using BakAgain.Core;
     using BakAgain.UI.Inventory;
     using GameData.Resources.Data;
@@ -15,6 +16,10 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
     /// </summary>
     [TestFixture]
     public class InventoryTransferNamesTheItemTests {
+        // Measures text with the game font, which is built from the player's own files (TASK-662).
+        [NUnit.Framework.OneTimeSetUp]
+        public void RequireShippedGameData() => ShippedGameData.RequireOrIgnore();
+
         private GameObject _go;
         private PanelSettings _panelSettings;
         private GameSession _session;

@@ -1,4 +1,5 @@
 namespace BakAgain.Tests.PlayMode.UI {
+    using BakAgain.Tests.TestSupport;
     using BakAgain.Graphics;
     using BakAgain.UI;
     using NUnit.Framework;
@@ -14,6 +15,10 @@ namespace BakAgain.Tests.PlayMode.UI {
     /// not stretched. These pin that nothing reintroduces a scale.
     /// </remarks>
     public class TextButtonCaptionTests {
+        // Measures text with the game font, which is built from the player's own files (TASK-662).
+        [NUnit.Framework.OneTimeSetUp]
+        public void RequireShippedGameData() => ShippedGameData.RequireOrIgnore();
+
         [Test]
         public void TheCaptionCarriesNoStretch_theFontHasTheAspect() {
             var chrome = new Button();

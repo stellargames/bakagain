@@ -1,4 +1,5 @@
 namespace BakAgain.Tests.Editor.UI {
+    using BakAgain.Tests.TestSupport;
     using System.Collections.Generic;
     using BakAgain.UI;
     using NUnit.Framework;
@@ -13,6 +14,10 @@ namespace BakAgain.Tests.Editor.UI {
     /// The behaviour under test is where the break FALLS, which is the half the engine decides.</para>
     /// </summary>
     public class GameTextWrapperTests {
+        // Measures text with the game font, which is built from the player's own files (TASK-662).
+        [NUnit.Framework.OneTimeSetUp]
+        public void RequireShippedGameData() => ShippedGameData.RequireOrIgnore();
+
         // --- fitting and the plain space break ----------------------------------------------
 
         [Test]

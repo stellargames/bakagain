@@ -1,4 +1,5 @@
 namespace BakAgain.Tests.PlayMode.Inventory {
+    using BakAgain.Tests.TestSupport;
     using System.Collections.Generic;
     using BakAgain.UI.Inventory;
     using GameData.Resources.Data;
@@ -17,6 +18,10 @@ namespace BakAgain.Tests.PlayMode.Inventory {
     /// uses left by selecting it. Everything else is either always shown or never shown.</para>
     /// </summary>
     public class ItemQuantityLabelTests {
+        // Measures text with the game font, which is built from the player's own files (TASK-662).
+        [NUnit.Framework.OneTimeSetUp]
+        public void RequireShippedGameData() => ShippedGameData.RequireOrIgnore();
+
         private const int Charged = 10;    // LimitedUses (0x2000) — a torch, a whetstone
         private const int Degradable = 11; // 0x1000 alone — condition, but only while selected
         private const int WornArmour = 12; // 0x1000 + 0x8 — condition as a percentage, always

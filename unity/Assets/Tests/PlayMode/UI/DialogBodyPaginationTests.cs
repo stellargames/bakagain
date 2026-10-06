@@ -1,4 +1,5 @@
 namespace BakAgain.Tests.PlayMode.UI {
+    using BakAgain.Tests.TestSupport;
     using System.Collections;
     using System.Collections.Generic;
     using BakAgain.Graphics;
@@ -31,6 +32,10 @@ namespace BakAgain.Tests.PlayMode.UI {
     /// computed.</para>
     /// </summary>
     public class DialogBodyPaginationTests {
+        // Measures text with the game font, which is built from the player's own files (TASK-662).
+        [NUnit.Framework.OneTimeSetUp]
+        public void RequireShippedGameData() => ShippedGameData.RequireOrIgnore();
+
         // The shipped row-2 dialog box's width, as DialogBodyLineFlowTests uses it.
         private const float PanelWidth = 1470f;
         private const float TextPad = 50f;

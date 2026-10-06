@@ -1,4 +1,5 @@
 namespace BakAgain.Tests.PlayMode.Inventory {
+    using BakAgain.Tests.TestSupport;
     using System.Collections.Generic;
     using System.Reflection;
     using System.Text.RegularExpressions;
@@ -205,6 +206,7 @@ namespace BakAgain.Tests.PlayMode.Inventory {
 
         [Test]
         public void MemberMode_ReadsCellSizeOriginAndShiftFromTheLayout() {
+            ShippedGameData.RequireOrIgnore(); // the game font needs the player's files
             var root = new VisualElement();
             var renderer = new ItemGridRenderer();
 
@@ -383,6 +385,7 @@ namespace BakAgain.Tests.PlayMode.Inventory {
         /// shift is refused and the general grid stays at the grid area's own origin.</summary>
         [Test]
         public void MemberMode_PercentShiftOnAPxInset_RefusesAndLeavesTheGridUnshifted() {
+            ShippedGameData.RequireOrIgnore(); // the game font needs the player's files
             var root = new VisualElement();
             var renderer = new ItemGridRenderer();
             InventoryLayout layout = SyntheticLayout();
@@ -400,6 +403,7 @@ namespace BakAgain.Tests.PlayMode.Inventory {
         /// override that expresses the whole grid relatively still gets its member shift.</summary>
         [Test]
         public void MemberMode_PercentShiftOnAPercentInset_IsSummedAsAPercentage() {
+            ShippedGameData.RequireOrIgnore(); // the game font needs the player's files
             var root = new VisualElement();
             var renderer = new ItemGridRenderer();
             InventoryLayout layout = SyntheticLayout();
@@ -589,6 +593,7 @@ namespace BakAgain.Tests.PlayMode.Inventory {
         /// </summary>
         [Test]
         public void Faithful_MemberMode_MatchesThePreChangeCoordinates() {
+            ShippedGameData.RequireOrIgnore(); // the game font needs the player's files
             var root = new VisualElement();
             var renderer = new ItemGridRenderer();
 
@@ -898,6 +903,7 @@ namespace BakAgain.Tests.PlayMode.Inventory {
         /// </summary>
         [Test]
         public void ReRender_ServesIconsFromTheSessionCache_NotTheProvider() {
+            ShippedGameData.RequireOrIgnore(); // the game font needs the player's files
             var root = new VisualElement();
             var renderer = new ItemGridRenderer();
             CountingResources resources = BuildCountingResources();
@@ -927,6 +933,7 @@ namespace BakAgain.Tests.PlayMode.Inventory {
 
         [Test]
         public void ReRender_RemovesTheGridHosts_NotJustTheCells() {
+            ShippedGameData.RequireOrIgnore(); // the game font needs the player's files
             var root = new VisualElement();
             var renderer = new ItemGridRenderer();
 
@@ -953,6 +960,7 @@ namespace BakAgain.Tests.PlayMode.Inventory {
 
         [Test]
         public void Render_ClickingCellZero_InvokesOnSlotPickedWithIndexZero() {
+            ShippedGameData.RequireOrIgnore(); // the game font needs the player's files
             var root = new VisualElement();
             var renderer = new ItemGridRenderer();
             int picked = -1;
@@ -971,6 +979,7 @@ namespace BakAgain.Tests.PlayMode.Inventory {
 
         [Test]
         public void QuantityLabel_ShownForStackable_HiddenForNonStackable() {
+            ShippedGameData.RequireOrIgnore(); // the game font needs the player's files
             var root = new VisualElement();
             var renderer = new ItemGridRenderer();
 

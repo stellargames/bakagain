@@ -1,8 +1,16 @@
 namespace BakAgain.Tests.Editor.Book {
+    using BakAgain.Tests.TestSupport;
     using BakAgain.Book;
     using NUnit.Framework;
 
     public class BakTextWrapperTests {
+
+        // Measures text with the game font, which is built from the player's own files (TASK-662).
+
+        [NUnit.Framework.OneTimeSetUp]
+
+        public void RequireShippedGameData() => ShippedGameData.RequireOrIgnore();
+
         [Test]
         public void WrapText_ShortLine_NoBreak() {
             string result = BakTextWrapper.WrapText("Hello world", 534, 504);

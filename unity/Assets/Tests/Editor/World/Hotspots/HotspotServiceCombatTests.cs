@@ -1,4 +1,5 @@
 namespace BakAgain.Tests.Editor.World.Hotspots {
+    using BakAgain.Tests.TestSupport;
     using BakAgain.Core;
     using BakAgain.World.Hotspots;
     using GameData;
@@ -250,6 +251,7 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
 
         [Test]
         public void AssessmentRowsAndTheAcceptBoxSitWhereTheOriginalDrawsThem_InThePanelsSpace() {
+            ShippedGameData.RequireOrIgnore(); // the game font needs the player's files
             // A row at screen VGA (70,68) inside a panel whose area starts at canonical (65,66):
             // canonical (350-65, 408-66). 0x85's ResizeDialog box is relative the same way.
             var panel = GameData.Resources.Layout.LayoutHint.PxRect(65, 66, 1470, 726);

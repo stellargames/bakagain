@@ -1,4 +1,5 @@
 namespace BakAgain.Tests.PlayMode.UI.Inventory {
+    using BakAgain.Tests.TestSupport;
     using System.Collections;
     using BakAgain.UI.InputCore;
     using BakAgain.UI.Inventory;
@@ -20,6 +21,10 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
     /// consuming.</para>
     /// </summary>
     public class QuantityPickerViewTests {
+        // Measures text with the game font, which is built from the player's own files (TASK-662).
+        [NUnit.Framework.OneTimeSetUp]
+        public void RequireShippedGameData() => ShippedGameData.RequireOrIgnore();
+
         // Big enough to contain the picker's shipped rect (page 530,210 + 530x408) with room to
         // spare, so every button has a real on-panel position to be clicked at.
         private const int PanelWidth = 1600, PanelHeight = 1200;

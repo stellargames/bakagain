@@ -1,4 +1,5 @@
 namespace BakAgain.Tests.PlayMode.UI.Inventory {
+    using BakAgain.Tests.TestSupport;
     using System.Reflection;
     using BakAgain.Core;
     using BakAgain.ResourceManagement;
@@ -397,6 +398,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         /// </summary>
         [Test]
         public void DragEndingOnDeadSpace_SnapsBackWithoutSelecting() {
+            ShippedGameData.RequireOrIgnore(); // the game font needs the player's files
             InventoryMenu menu = BuildMenu(out VisualElement itemSlot0);
             int before = ItemCount(menu);
 

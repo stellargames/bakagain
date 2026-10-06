@@ -1,4 +1,5 @@
 namespace BakAgain.Tests.PlayMode.UI.Inventory {
+    using BakAgain.Tests.TestSupport;
     using BakAgain.Core;
     using BakAgain.UI.Inventory;
     using GameData;
@@ -22,6 +23,10 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
     /// </remarks>
     [TestFixture]
     public class LockPickerSelectionTests {
+        // Measures text with the game font, which is built from the player's own files (TASK-662).
+        [NUnit.Framework.OneTimeSetUp]
+        public void RequireShippedGameData() => ShippedGameData.RequireOrIgnore();
+
         private const int Picker = 1;        // portrait slot the player clicks
         private const int PortraitSlot2 = 3; // the REQ action id for that portrait
 

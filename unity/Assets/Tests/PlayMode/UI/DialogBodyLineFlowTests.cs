@@ -1,4 +1,5 @@
 namespace BakAgain.Tests.PlayMode.UI {
+    using BakAgain.Tests.TestSupport;
     using System.Collections;
     using System.Collections.Generic;
     using BakAgain.Graphics;
@@ -28,6 +29,10 @@ namespace BakAgain.Tests.PlayMode.UI {
     /// or without a font to render them.</para>
     /// </summary>
     public class DialogBodyLineFlowTests {
+        // Measures text with the game font, which is built from the player's own files (TASK-662).
+        [NUnit.Framework.OneTimeSetUp]
+        public void RequireShippedGameData() => ShippedGameData.RequireOrIgnore();
+
         // The shipped row-2 dialog box: VGA (13, 11, 294, 101) -> canonical, with field_9/field_A
         // text pads of 10 VGA px on each side. So the text box the original wraps inside is
         // 294 - 10 - 10 = 274 VGA px, and the panel below is that same box in canonical px.

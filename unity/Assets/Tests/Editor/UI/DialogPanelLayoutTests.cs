@@ -1,4 +1,5 @@
 namespace BakAgain.Tests.Editor.UI {
+    using BakAgain.Tests.TestSupport;
     using BakAgain.UI;
     using GameData.Resources.Dialog;
     using GameData.Resources.Layout;
@@ -33,6 +34,10 @@ namespace BakAgain.Tests.Editor.UI {
     /// which is the faithfulness gate for the conversion itself.</para>
     /// </summary>
     public class DialogPanelLayoutTests {
+        // Measures text with the game font, which is built from the player's own files (TASK-662).
+        [NUnit.Framework.OneTimeSetUp]
+        public void RequireShippedGameData() => ShippedGameData.RequireOrIgnore();
+
         // Not one of these is a faithful default (6 / 90 / 18 / 180 / 36 / 120 / 5).
         private const float RowTop = 37f;
         private const float PadLeft = 113f;

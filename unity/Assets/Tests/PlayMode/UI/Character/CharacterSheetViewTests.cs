@@ -1,4 +1,5 @@
 namespace BakAgain.Tests.PlayMode.UI.Character {
+    using BakAgain.Tests.TestSupport;
     using BakAgain.Core;
     using BakAgain.Tests.Editor.Core.Fixtures;
     using BakAgain.UI.Character;
@@ -16,6 +17,10 @@ namespace BakAgain.Tests.PlayMode.UI.Character {
     /// </summary>
     [TestFixture]
     public class CharacterSheetViewTests {
+        // Measures text with the game font, which is built from the player's own files (TASK-662).
+        [NUnit.Framework.OneTimeSetUp]
+        public void RequireShippedGameData() => ShippedGameData.RequireOrIgnore();
+
         private GameSession _session;
         private VisualElement _host;
         private CharacterSheetView _view;

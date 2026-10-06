@@ -1,4 +1,5 @@
 namespace BakAgain.Tests.PlayMode.UI.Inventory {
+    using BakAgain.Tests.TestSupport;
     using BakAgain.Core;
     using BakAgain.UI.Inventory;
     using GameData.Resources.Character;
@@ -23,6 +24,10 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
     /// </remarks>
     [TestFixture]
     public class CombatInventoryStaysOnTheActorTests {
+        // Measures text with the game font, which is built from the player's own files (TASK-662).
+        [NUnit.Framework.OneTimeSetUp]
+        public void RequireShippedGameData() => ShippedGameData.RequireOrIgnore();
+
         private const int PortraitSlot2Action = 3;   // REQ_INV's second portrait
 
         private GameObject _go;
