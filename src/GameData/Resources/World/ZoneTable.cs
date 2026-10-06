@@ -177,6 +177,29 @@ public class TableDatInfo
 
     /// <summary>Resolved LOD records (length = LodCount).</summary>
     public List<LodLevel> Lods { get; set; } = new();
+
+    /// <summary>
+    /// How far above the entity's origin <paramref name="face"/>'s anchor vertex sits, in BaK z units.
+    /// </summary>
+    /// <remarks>
+    /// renderSprite2 (0x23031) hangs the bitmap from a projected model vertex —
+    /// <c>yPos = proj(VertexIndex).y - AnchorY * si</c> — and 255 means no vertex (the origin).
+    /// Only COMBAT.TBL's whirlwind (Z 462) and the zones' unused <c>boom</c> (Z 60) carry one.
+    /// </remarks>
+    public int SpriteAnchorRise(SpriteBMeshFace face) {
+        if (face == null || face.VertexIndex == 255 || Lods.Count == 0) {
+            return 0;
+        }
+        LodLevel lod = Lods[0];
+        foreach (MeshRecord mesh in lod.Meshes) {
+            if (mesh.MeshFaces.Contains(face) && mesh.VertexPoolIndex >= 0
+                && mesh.VertexPoolIndex < lod.VertexPools.Count
+                && face.VertexIndex < lod.VertexPools[mesh.VertexPoolIndex].Count) {
+                return lod.VertexPools[mesh.VertexPoolIndex][face.VertexIndex].Z;
+            }
+        }
+        return 0;
+    }
 }
 
 /// <summary>

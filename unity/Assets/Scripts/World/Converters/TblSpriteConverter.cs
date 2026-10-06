@@ -33,9 +33,13 @@ namespace BakAgain.World.Converters {
         /// <c>dword_seg024_3803</c>). Converted to Unity units here via the shared world scale.</param>
         /// <param name="texW">Sprite texture width in pixels.</param>
         /// <param name="texH">Sprite texture height in pixels.</param>
+        /// <param name="anchorRiseBak">How far above the object's origin the anchor VERTEX sits, in BaK
+        /// z units (<see cref="TableDatInfo.SpriteAnchorRise"/>): renderSprite2 hangs the bitmap from a
+        /// projected vertex, so a raised one lifts the whole quad. Baked into the mesh rather than the
+        /// transform, because a flight sets the transform's position every frame.</param>
         /// <returns>Mesh (anchored unit quad) and the localScale to apply to the GameObject.</returns>
         public static (Mesh mesh, Vector3 localScale) BuildBillboard(
-            SpriteBMeshFace face, int entityExtentBak, int texW, int texH) {
+            SpriteBMeshFace face, int entityExtentBak, int texW, int texH, int anchorRiseBak = 0) {
             // Anchor and size are RE knowledge (the anchor is in the source bitmap's pixels, and the
             // extent fits the larger ORIGINAL-pixel side); the model answers both for the canonical
             // texture, already in the square world (TASK-764). Converting to Unity units is ours.
@@ -43,7 +47,8 @@ namespace BakAgain.World.Converters {
             (double width, double height) = SpriteBMeshFace.BillboardWorldSize(
                 SpriteBMeshFace.WorldExtentFor(face.SizeScale, entityExtentBak), texW, texH);
 
-            var mesh = CreateAnchoredQuad((float)pivotU, (float)pivotV);
+            var mesh = CreateAnchoredQuad((float)pivotU, (float)pivotV,
+                height > 0 ? (float)(anchorRiseBak / height) : 0f);
             var localScale = new Vector3(
                 (float)(width / BakCoordinateConverter.WorldScale),
                 (float)(height / BakCoordinateConverter.WorldScale), 1f);
@@ -56,11 +61,11 @@ namespace BakAgain.World.Converters {
         /// vertical pivot as a fraction from the <b>top</b> edge. (0.5, 1) reproduces the old
         /// bottom-center quad.
         /// </summary>
-        private static Mesh CreateAnchoredQuad(float pivotU, float pivotV) {
+        private static Mesh CreateAnchoredQuad(float pivotU, float pivotV, float rise = 0f) {
             float left = -pivotU;
             float right = 1f - pivotU;
-            float top = pivotV;          // world-up extent above the pivot
-            float bottom = -(1f - pivotV);
+            float top = pivotV + rise;   // world-up extent above the pivot
+            float bottom = -(1f - pivotV) + rise;
 
             var mesh = new Mesh { name = "BillboardQuad" };
             mesh.vertices = new[] {
