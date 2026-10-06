@@ -81,6 +81,38 @@ namespace BakAgain.UI {
             }).StartingIn(100);
         }
 
+        /// <summary>
+        /// Once <paramref name="container"/> has laid out, report every label carrying
+        /// <paramref name="labelClass"/> that overlaps another visible child — an LBL label, which
+        /// has a position and no width, running into the REQ widgets on its row.
+        /// </summary>
+        internal static void CheckLabelsAgainstSiblings(VisualElement container, string labelClass) {
+            container?.schedule.Execute(() => {
+                foreach (VisualElement a in container.Children()) {
+                    // A centred title spans the canvas by design, so it is not checked.
+                    if (a is not Label label || !label.ClassListContains(labelClass)
+                        || label.ClassListContains(labelClass + "--centered") || string.IsNullOrEmpty(label.text)
+                        || float.IsNaN(label.layout.width)) {
+                        continue;
+                    }
+                    foreach (VisualElement b in container.Children()) {
+                        // A faceless hit zone (req-hitbox) draws nothing, so text over it is fine.
+                        if (b == a || (b is Label other && other.ClassListContains(labelClass))
+                            || b.ClassListContains("req-hitbox")
+                            || b.resolvedStyle.display == DisplayStyle.None
+                            || b.resolvedStyle.visibility == Visibility.Hidden
+                            || float.IsNaN(b.layout.width) || b.layout.width <= 0f) {
+                            continue;
+                        }
+                        Rect r = label.layout, o = b.layout;
+                        if (r.xMax > o.xMin + 1f && r.xMin < o.xMax - 1f && r.yMax > o.yMin + 1f && r.yMin < o.yMax - 1f) {
+                            Report(Collision, label.text + " | " + b.name, $"overlaps by {r.xMax - o.xMin:0} px");
+                        }
+                    }
+                }
+            }).StartingIn(100);
+        }
+
         /// <summary>A fixed caption still wider than its button at the smallest fit.</summary>
         internal const string Caption = "caption";
 

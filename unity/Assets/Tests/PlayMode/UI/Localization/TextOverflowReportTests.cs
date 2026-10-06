@@ -156,6 +156,36 @@ namespace BakAgain.Tests.PlayMode.UI.Localization {
         }
 
         [UnityTest]
+        public IEnumerator ALabelRunningIntoAButtonIsReported_AndOneBesideItIsNot() {
+            // An LBL label has a position and no width (Preferences' "Step Size:"); a longer
+            // translation runs into the REQ buttons on its row.
+            UIDocument doc = Doc();
+            yield return null;
+            var stage = new VisualElement { style = { width = 1600, height = 600, position = Position.Absolute } };
+            doc.rootVisualElement.Add(stage);
+            void Button(float x, float y) => stage.Add(new VisualElement {
+                style = { position = Position.Absolute, left = x, top = y, width = 200, height = 60 },
+            });
+            Label Caption(string text, float x, float y) {
+                var l = new Label(text) { style = { position = Position.Absolute, left = x, top = y } };
+                l.AddToClassList("req-label");
+                GameFontText.Apply(l);
+                stage.Add(l);
+                return l;
+            }
+            Button(600, 0);
+            Button(600, 200);
+            Caption("Step:", 100, 0);
+            Caption("[Štépgröötté ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~]", 100, 200);
+            TextOverflowReport.CheckLabelsAgainstSiblings(stage, "req-label");
+            yield return new WaitForSecondsRealtime(0.5f);
+
+            Assert.IsTrue(TextOverflowReport.Entries.Any(e => e.Kind == TextOverflowReport.Collision
+                && e.Text.Contains("Štépgröötté")));
+            Assert.IsFalse(TextOverflowReport.Entries.Any(e => e.Text.Contains("Step:")));
+        }
+
+        [UnityTest]
         public IEnumerator ACaptionTooWideEvenAtTheSmallestFitIsReported() {
             UIDocument doc = Doc();
             yield return null;
