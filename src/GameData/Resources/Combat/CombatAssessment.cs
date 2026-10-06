@@ -67,7 +67,7 @@ public static class CombatAssessment {
     public const int ValueOffsetX = 50;
 
     /// <summary>Distance from a label to the "%" that follows a percentage row.</summary>
-    /// <remarks><b>Deliberately callerless.</b> Every port panel appends ShootTargetPanel.PercentSign to the value string at ValueOffsetX rather than placing the sign on its own.</remarks>
+    /// <remarks><b>Deliberately callerless.</b> Every port panel writes the sign into the value string through the percent template (UiTemplates.Percent) rather than placing it on its own.</remarks>
     public const int PercentOffsetX = 61;
 
     /// <summary>Rows advance by this much.</summary>

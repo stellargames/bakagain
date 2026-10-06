@@ -1361,10 +1361,6 @@ internal static class Program {
                           + $"{resist} with a resistance.");
     }
 
-    // KRONDOR.EXE's player-visible strings. Authoring-time only — the runtime reads the JSON this
-    // writes, never the executable. Two outputs, one source of truth: the copy under GameData is the
-    // embedded resource the game actually uses; the generated/ copy exists for verify-generated and
-    // for human diffing.
     /// <summary>
     /// Writes the translator's template (TASK-783): every keyed string of the player's data and
     /// KRONDOR.EXE, as a gettext POT.
@@ -1390,6 +1386,10 @@ internal static class Program {
         Console.WriteLine($"Wrote {entries.Count} strings to {Path.GetFullPath(outPath)}.");
     }
 
+    // KRONDOR.EXE's player-visible strings. Authoring-time only — the runtime reads the JSON this
+    // writes, never the executable. Two outputs, one source of truth: the copy under GameData is the
+    // embedded resource the game actually uses; the generated/ copy exists for verify-generated and
+    // for human diffing.
     private static void ExtractUiStrings(string gamePath) {
         string exePath = Path.Combine(gamePath, "KRONDOR.EXE");
         if (!File.Exists(exePath)) {
