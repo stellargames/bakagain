@@ -3,4 +3,9 @@
 <linker>
   <assembly fullname="ResourceExtraction" preserve="all"/>
   <assembly fullname="GameData" preserve="all"/>
+  <!-- The language-pack libraries: the PO reader and ICU MessageFormat. Kept whole as a safeguard,
+       since nothing has yet exercised them in an IL2CPP build. -->
+  <assembly fullname="Karambolo.PO" preserve="all"/>
+  <assembly fullname="Karambolo.Common" preserve="all"/>
+  <assembly fullname="Jeffijoe.MessageFormat" preserve="all"/>
 </linker>

@@ -104,7 +104,12 @@ namespace BakAgain.ResourceManagement {
                     json, createBaseline(resourceId), resourceType, JsonSettings);
             }
 
-            return JsonConvert.DeserializeObject(json, resourceType, JsonSettings);
+            object loaded = JsonConvert.DeserializeObject(json, resourceType, JsonSettings);
+            // A mod's DDX JSON carries the same tags as the extracted one (TASK-774).
+            if (loaded is GameData.Resources.Dialog.Dialog modDialog) {
+                GameData.Resources.Dialog.DialogTextRuns.ToRuntime(modDialog);
+            }
+            return loaded;
         }
 
         public OverrideResourceProvider() {

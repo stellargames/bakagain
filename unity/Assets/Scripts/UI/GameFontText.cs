@@ -114,7 +114,42 @@ namespace BakAgain.UI {
             // by the REQ's own rect and must not reflow inside it.
             caption.style.whiteSpace = WhiteSpace.NoWrap;
             chrome.Add(caption);
+            caption.RegisterCallback<GeometryChangedEvent>(_ => FitWidth(caption, chrome));
             return caption;
+        }
+
+        /// <summary>The smallest a caption shrinks to, as a share of the game font's size.</summary>
+        internal const float MinFitScale = 0.6f;
+
+        /// <summary>
+        /// A caption wider than its button is drawn smaller until it fits — the fit policy for fixed
+        /// captions (TASK-779). A translation runs a third past English and the REQ rects were drawn
+        /// around the English words.
+        /// </summary>
+        /// <remarks>
+        /// <b>A caption that fits keeps the game font's own size exactly</b>, so English, which was
+        /// laid out to fit, is untouched. Re-run on every geometry change, so a caption whose text
+        /// changes later (the touch buttons' Cast/Thrust) refits; it only writes when the size
+        /// actually moves, which is what stops the callback feeding itself.
+        /// </remarks>
+        internal static void FitWidth(Label caption, VisualElement box) {
+            float room = box.contentRect.width;
+            float current = caption.resolvedStyle.fontSize;
+            if (room <= 0f || current <= 0f || string.IsNullOrEmpty(caption.text)) {
+                return;
+            }
+            float full = FontSizePx;
+            Vector2 measured = caption.MeasureTextSize(caption.text, 0f, VisualElement.MeasureMode.Undefined,
+                0f, VisualElement.MeasureMode.Undefined);
+            float natural = measured.x * full / current;
+            float want = natural <= room ? full : Mathf.Max(full * MinFitScale, full * room / natural);
+            if (natural * MinFitScale > room + 0.5f) {
+                TextOverflowReport.Report(TextOverflowReport.Caption, caption.text,
+                    $"{natural * MinFitScale:0} px at the smallest fit, {room:0} px of room");
+            }
+            if (Mathf.Abs(want - current) > 0.5f) {
+                caption.style.fontSize = want;
+            }
         }
     }
 }

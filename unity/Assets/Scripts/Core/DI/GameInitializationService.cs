@@ -63,6 +63,14 @@ namespace BakAgain.Core.DI {
             try {
                 // Optionally wait for the loading screen to be fully loaded before proceeding
                 await loadingScreenHandle.Task.AsUniTask();
+                UnityEngine.UIElements.VisualElement loadingRoot = loadingScreenHandle.Result?
+                    .GetComponent<UnityEngine.UIElements.UIDocument>()?.rootVisualElement;
+                UnityEngine.UIElements.Label loadingLabel = loadingRoot == null ? null
+                    : UnityEngine.UIElements.UQueryExtensions.Q<UnityEngine.UIElements.Label>(loadingRoot, "Loading");
+                if (loadingLabel != null) {
+                    loadingLabel.text = "\n" + BakAgain.ResourceManagement.LanguagePacks.BootText(
+                        GameData.Resources.Text.UiTemplates.BootLoading);
+                }
 
                 // Check and prompt for game path if necessary
                 while (string.IsNullOrEmpty(BakResourceSettings.GamePath) || !Directory.Exists(BakResourceSettings.GamePath)) {
@@ -98,6 +106,11 @@ namespace BakAgain.Core.DI {
                 ResourceManagementInitializer.InitializeResourceManagement();
 
                 GameFonts.Install(_gamePanelSettings);
+                // The menus before any game is loaded read the catalog too (the V banner, the
+                // language button, the restore screen's lines), and the installer otherwise runs
+                // only with a loaded game. A load re-installs it with any mod override on top.
+                GameData.Resources.Text.UiStrings.Catalog =
+                    GameData.Resources.Text.UiStringCatalog.Embedded.TranslatedBy(LanguagePacks.Current);
             } catch (System.Exception e) {
                 _logger.LogError(e, "Error during initialization");
 

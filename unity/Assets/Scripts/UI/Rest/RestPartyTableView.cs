@@ -51,12 +51,15 @@ namespace BakAgain.UI.Rest {
             }
             _palette = palette;
 
-            Add(stage, Centred(UiStrings.Get(CampPartyStats.HealthStaminaLabelKey),
+            Label healthHeading = Centred(UiStrings.Get(CampPartyStats.HealthStaminaLabelKey),
                 CampPartyStats.HeadingCentreX(0), CampPartyStats.HeadingY,
-                CampPartyStats.HealthyTextColour));
-            Add(stage, Centred(UiStrings.Get(CampPartyStats.RationsLabelKey),
+                CampPartyStats.HealthyTextColour);
+            Label rationsHeading = Centred(UiStrings.Get(CampPartyStats.RationsLabelKey),
                 CampPartyStats.HeadingCentreX(1), CampPartyStats.HeadingY,
-                CampPartyStats.HealthyTextColour));
+                CampPartyStats.HealthyTextColour);
+            Add(stage, healthHeading);
+            Add(stage, rationsHeading);
+            healthHeading.RegisterCallback<GeometryChangedEvent>(_ => FitHeadings(healthHeading, rationsHeading));
 
             byte[] roster = session.ActivePartyIndices;
             for (var slot = 0; slot < roster.Length; slot++) {
@@ -136,6 +139,35 @@ namespace BakAgain.UI.Rest {
         /// only its leading run while still occupying the full width. That is what makes the wounded
         /// overprint land on exactly the characters the original recolours.
         /// </param>
+        /// <summary>The least space kept between the two headings, canonical px.</summary>
+        private const float HeadingGap = 20f;
+
+        /// <summary>
+        /// The two column headings shrink together when their text would run into each other (TASK-779).
+        /// </summary>
+        /// <remarks>
+        /// <b>Not a box each.</b> In English "Health/Stamina" is already wider than the distance
+        /// between the column centres and only clears "Rations" because that is short, so the
+        /// space belongs to the pair. English never overlaps and is left at the font's size; a
+        /// longer translation scales both by one factor, down to <see cref="GameFontText.MinFitScale"/>.
+        /// </remarks>
+        private static void FitHeadings(Label left, Label right) {
+            float full = GameFontText.FontSizePx;
+            float current = left.resolvedStyle.fontSize;
+            if (current <= 0f) {
+                return;
+            }
+            float Natural(Label l) => l.MeasureTextSize(l.text, 0f, VisualElement.MeasureMode.Undefined,
+                0f, VisualElement.MeasureMode.Undefined).x * full / current;
+            float halves = (Natural(left) + Natural(right)) / 2f;
+            float room = CampPartyStats.HeadingCentreX(1) - CampPartyStats.HeadingCentreX(0) - HeadingGap;
+            float want = halves <= room ? full : Mathf.Max(full * GameFontText.MinFitScale, full * room / halves);
+            if (Mathf.Abs(want - current) > 0.5f) {
+                left.style.fontSize = want;
+                right.style.fontSize = want;
+            }
+        }
+
         private Label Centred(string text, int centreX, int y, int pen, int onlyLeadingChars = -1) {
             var label = new Label(text) {
                 pickingMode = PickingMode.Ignore,

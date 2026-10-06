@@ -42,7 +42,8 @@ namespace BakAgain.UI {
                     borderBottomColor = Pen(VersionBanner.BottomPen), borderBottomWidth = OriginalPixel.Height,
                 },
             };
-            var label = new Label("Version " + Application.version) {
+            var label = new Label(GameData.Resources.Text.UiTemplates.Format(
+                GameData.Resources.Text.UiTemplates.VersionBannerKey, ("version", Application.version))) {
                 pickingMode = PickingMode.Ignore,
                 style = {
                     position = Position.Absolute, left = 0, right = 0, top = 0, bottom = 0,

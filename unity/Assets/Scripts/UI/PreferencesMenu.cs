@@ -1,6 +1,7 @@
 namespace BakAgain.UI {
     using BakAgain.Core;
     using BakAgain.Core.Services;
+    using BakAgain.ResourceManagement;
     using BakAgain.ResourceManagement.Loaders;
     using Cysharp.Threading.Tasks;
     using GameData.Resources.Config;
@@ -89,9 +90,66 @@ namespace BakAgain.UI {
                 label.AddToClassList("build-info");
                 root.Add(label);
             }
+            AddLanguageChoice(root);
         }
 
         private const string BuildInfoName = "build-info";
+
+        private const string LanguageChoiceName = "language-choice";
+
+        /// <summary>The language chosen on this visit; saved with OK, dropped by Cancel.</summary>
+        private string _pendingLanguage;
+
+        /// <summary>
+        /// The language button (TASK-782): not in the original, so it sits in the right column's
+        /// free space, centred between the last toggle (Introduction) and OK at OK's own size —
+        /// both read from the REQ, so nothing here is a coordinate.
+        /// A click moves to the next installed language; the choice takes effect at the next start
+        /// (plan decision 6), and the caption says so.
+        /// </summary>
+        private void AddLanguageChoice(VisualElement root) {
+            // The language actually running, not the raw setting: a setting naming a pack that is not
+            // installed runs English, and starting from it would show "(restart)" for good.
+            _pendingLanguage = LanguagePacks.Current.Locale;
+            if (root.Q<Button>(LanguageChoiceName) != null) {
+                RefreshLanguageCaption(root);
+                return;
+            }
+            if (_loader == null || !_loader.TryGetElementRect(ButtonOk, out Rect ok)
+                || !_loader.TryGetElementRect(ToggleIntroduction, out Rect above)) {
+                return;
+            }
+            var button = new Button { name = LanguageChoiceName };
+            button.AddToClassList("text-button");
+            button.AddToClassList(LanguageChoiceName);
+            button.style.position = Position.Absolute;
+            button.style.left = ok.x;
+            button.style.width = ok.width;
+            button.style.height = ok.height;
+            button.style.top = (above.yMax + ok.y - ok.height) / 2f;
+            GameFontText.Caption(button, string.Empty);
+            button.clicked += () => {
+                System.Collections.Generic.IReadOnlyList<string> all = GameData.Resources.Text.LanguageChoice.Available(
+                    LanguagePacks.Installed(), Debug.isDebugBuild);
+                _pendingLanguage = GameData.Resources.Text.LanguageChoice.Next(all, _pendingLanguage);
+                RefreshLanguageCaption(root);
+            };
+            CanonicalStage.GetOrCreate(root, _loader.Frame).Add(button);
+            RefreshLanguageCaption(root);
+        }
+
+        private void RefreshLanguageCaption(VisualElement root) {
+            Label caption = root.Q<Button>(LanguageChoiceName)?.Q<Label>("caption");
+            if (caption == null) {
+                return;
+            }
+            // What is drawn now is the pack loaded at start, whatever the setting says since.
+            bool pending = _pendingLanguage != LanguagePacks.Current.Locale;
+            caption.text = GameData.Resources.Text.UiTemplates.Format(
+                pending ? GameData.Resources.Text.UiTemplates.LanguageChoicePendingKey
+                    : GameData.Resources.Text.UiTemplates.LanguageChoiceKey,
+                ("name", GameData.Resources.Text.LanguageChoice.DisplayName(_pendingLanguage)));
+        }
 
         private void Close() => _navigator.Pop().Forget();
 
@@ -129,6 +187,9 @@ namespace BakAgain.UI {
                     break;
                 case ButtonOk:
                     _preferences.Apply(_working);
+                    if (!string.IsNullOrEmpty(_pendingLanguage) && _pendingLanguage != BakResourceSettings.Language) {
+                        BakResourceSettings.Language = _pendingLanguage;
+                    }
                     Close();
                     break;
                 case ButtonCancel:

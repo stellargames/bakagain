@@ -1,6 +1,7 @@
 namespace BakAgain.Tests.Editor.UI {
     using BakAgain.Tests.TestSupport;
     using BakAgain.UI;
+    using GameData.Resources.Dialog;
     using NUnit.Framework;
     using UnityEngine;
 
@@ -34,7 +35,7 @@ namespace BakAgain.Tests.Editor.UI {
         public void AHighlightedWordIsWrappedOnceWithColourOutsideItalic() {
             // Tag ORDER is pinned: <color> outside <i>, closed in the mirror order. One pair for the
             // whole word rather than per glyph.
-            const string raw = "±one two";
+            string raw = DialogTextRuns.FromMarkup("<hi/>one two");
             Assert.AreEqual("<color=#FF0000><i>one</i></color> two",
                 DialogTextFormatter.Format(raw, 0, raw.Length, Palette(), 0));
         }
@@ -42,7 +43,7 @@ namespace BakAgain.Tests.Editor.UI {
         [Test]
         public void ItalicWithoutAPenChangeEmitsNoColourTag() {
             // Pen still equals the body pen, so there is nothing to colour — only <i>.
-            const string raw = "≤word";
+            string raw = DialogTextRuns.FromMarkup("<i/>word");
             Assert.AreEqual("<i>word</i>",
                 DialogTextFormatter.Format(raw, 0, raw.Length, Palette(), 0));
         }
@@ -50,16 +51,18 @@ namespace BakAgain.Tests.Editor.UI {
         [Test]
         public void APenRemapColoursWithoutItalic() {
             // 0xF5 from body pen 1 remaps to 0x0B, and never sets italic.
-            const string raw = "⌡word";
+            string raw = DialogTextRuns.FromMarkup("<shift/>word");
             Assert.AreEqual("<color=#00FF00>word</color>",
                 DialogTextFormatter.Format(raw, 0, raw.Length, Palette(), 1));
         }
 
         [Test]
         public void ControlCodesNeverReachTheOutput() {
-            // They are ordinary CP437 characters in the source; leaking one prints a stray glyph.
-            string formatted = DialogTextFormatter.Format("a≡b≤c±d⌠e⌡f", 0, 11, Palette(), 0);
-            foreach (char c in "≡≤±⌠⌡") {
+            // They are characters in the source; leaking one prints a stray glyph.
+            string raw = DialogTextRuns.FromMarkup("a<reset/>b<i/>c<hi/>d<shift2/>e<shift/>f");
+            string formatted = DialogTextFormatter.Format(raw, 0, raw.Length, Palette(), 0);
+            foreach (char c in new[] { DialogTextRuns.Reset, DialogTextRuns.Italic,
+                         DialogTextRuns.ItalicHighlight, DialogTextRuns.RemapTwice, DialogTextRuns.RemapOnce }) {
                 Assert.IsFalse(formatted.Contains(c.ToString()), $"'{c}' leaked into the output");
             }
         }

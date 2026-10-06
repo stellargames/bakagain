@@ -318,9 +318,12 @@ public static class ExeStringManifest {
         new ExeStringSingle { Key = "base:uistring:combat.assess_cast_label", Text = "Cast:", Occurrence = 0 },
         new ExeStringSingle { Key = "base:uistring:combat.assess_defense_label", Text = "Defense:", Occurrence = 0 },
 
-        // Two back-to-back "Choose a target" / "Accuracy:" / "Damage:" blocks — a melee weapon
-        // panel followed by a ranged (crossbow) one, the latter immediately followed by
-        // "quarrels remaining" (ammo count only makes sense for the ranged weapon).
+        // Two back-to-back "Choose a target" / "Accuracy:" / "Damage:" blocks — the SPELL target
+        // panel (combat_arena_draw_tgt_info_hud, COMBAT.C:1117-1140) followed by the ranged
+        // (crossbow) one (combat_arena_draw_tgt_info_panel, :1187-1230), the latter immediately
+        // followed by "quarrels remaining". The melee panel prints "Damage"/"Accuracy" without
+        // colons (:1276, :1298), so the first block was never melee's. The "_melee" keys are a
+        // misnomer kept for key stability: they ARE the spell panel's strings (SpellTargetPanel).
         new ExeStringSingle { Key = "base:uistring:combat.choose_target_melee", Text = "Choose a target", Occurrence = 0 },
         new ExeStringSingle { Key = "base:uistring:combat.accuracy_label_melee", Text = "Accuracy:", Occurrence = 2 },
         new ExeStringSingle { Key = "base:uistring:combat.damage_label_melee", Text = "Damage:", Occurrence = 0 },

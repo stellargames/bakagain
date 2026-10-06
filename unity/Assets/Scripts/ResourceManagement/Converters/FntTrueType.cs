@@ -34,16 +34,18 @@ namespace BakAgain.ResourceManagement.Converters {
                 throw new ArgumentException($"{font.Id} is not a monochrome font.", nameof(font));
             }
             int emPx = font.Height + 1;
-            int ascentPx = AscentPx(font);
+            int ascentPx = font.CapitalBaseline();
             int descentPx = font.Height - ascentPx;
             int unitsPerEm = emPx * UnitsPerPixel;
             double rowUnits = UnitsPerPixel * (font.PixelWidth > 0 && font.PixelHeight > 0
                 ? font.PixelHeight / font.PixelWidth : 1.0);
             short Y(int rowsAboveBaseline) => (short)Math.Round(rowsAboveBaseline * rowUnits);
 
-            // Glyph 0 is .notdef (empty); glyph i+1 is character FirstCharacter + i.
+            // Glyph 0 is .notdef (empty); glyph i+1 is the i-th character in code order, so a
+            // language pack's letters (TASK-778) sit beside the file's ASCII run.
+            List<(int Character, FontGlyph Glyph)> characters = font.AllGlyphs().ToList();
             var glyphs = new List<Glyph> { new Glyph(0, new List<Rect>(), ascentPx, Y) };
-            foreach (FontGlyph g in font.Glyphs) {
+            foreach (var (_, g) in characters) {
                 glyphs.Add(new Glyph(g.Width * UnitsPerPixel, Rectangles(g, font.Height), ascentPx, Y));
             }
 
@@ -64,8 +66,8 @@ namespace BakAgain.ResourceManagement.Converters {
             short ascender = Y(ascentPx);
             short descender = Y(-descentPx);
             int maxAdvance = glyphs.Max(g => g.Advance);
-            int firstChar = font.FirstCharacter;
-            int lastChar = font.FirstCharacter + font.Glyphs.Count - 1;
+            int firstChar = characters.Count > 0 ? characters[0].Character : 0;
+            int lastChar = characters.Count > 0 ? characters[^1].Character : 0;
 
             tables["head"] = Write(w => {
                 w.U32(0x00010000);
@@ -127,7 +129,7 @@ namespace BakAgain.ResourceManagement.Converters {
                 w.I16(ascender); w.I16(ascender); // x-height, cap height
                 w.U16(0); w.U16(32); w.U16(1);
             });
-            tables["cmap"] = Cmap(firstChar, lastChar);
+            tables["cmap"] = Cmap(characters.Select(c => c.Character).ToList());
             tables["name"] = Name(familyName);
             tables["post"] = Write(w => {
                 w.U32(0x00030000);
@@ -137,31 +139,6 @@ namespace BakAgain.ResourceManagement.Converters {
             });
 
             return Assemble(tables);
-        }
-
-        /// <summary>
-        /// One row below where most capitals end — where the old TTFs put the baseline. The most
-        /// common lowest-ink row, not the lowest, because Q and J have tails. The header's own
-        /// baseline byte disagrees between the fonts (GAME's matches this, BOOK's is one row
-        /// higher), so it is not used.
-        /// </summary>
-        private static int AscentPx(FontResource font) {
-            var votes = new Dictionary<int, int>();
-            for (int c = 'A'; c <= 'Z'; c++) {
-                FontGlyph g = font.GlyphFor(c);
-                int lowest = -1;
-                for (int y = 0; g != null && y < font.Height; y++) {
-                    for (int x = 0; x < g.Width; x++) {
-                        if (g.PixelAt(x, y) != 0) {
-                            lowest = y;
-                        }
-                    }
-                }
-                if (lowest >= 0) {
-                    votes[lowest] = votes.TryGetValue(lowest, out int n) ? n + 1 : 1;
-                }
-            }
-            return votes.Count == 0 ? font.Height : votes.OrderByDescending(v => v.Value).First().Key + 1;
         }
 
         private readonly struct Rect {
@@ -268,18 +245,47 @@ namespace BakAgain.ResourceManagement.Converters {
             return stream.ToArray();
         }
 
-        private static byte[] Cmap(int firstChar, int lastChar) => Write(w => {
+        /// <summary>
+        /// Format 4: one segment per run of consecutive characters, then the required 0xFFFF end.
+        /// Glyph ids are the characters' positions in code order, plus one for .notdef — so each
+        /// segment's delta maps its first character onto its first glyph. Characters past the BMP
+        /// are not mapped; no language a pack would carry needs them.
+        /// </summary>
+        private static byte[] Cmap(List<int> characters) => Write(w => {
+            var starts = new List<int>();
+            var ends = new List<int>();
+            var deltas = new List<int>();
+            for (int i = 0; i < characters.Count && characters[i] < 0xFFFF; i++) {
+                if (starts.Count > 0 && characters[i] == ends[^1] + 1) {
+                    ends[^1] = characters[i];
+                    continue;
+                }
+                starts.Add(characters[i]);
+                ends.Add(characters[i]);
+                deltas.Add((i + 1 - characters[i]) & 0xFFFF);
+            }
+            starts.Add(0xFFFF); ends.Add(0xFFFF); deltas.Add(1);
+
+            int segments = starts.Count;
+            int entrySelector = (int)Math.Floor(Math.Log(segments, 2));
+            int searchRange = 2 << entrySelector;
             w.U16(0); w.U16(1);
             w.U16(3); w.U16(1); w.U32(12);
-            // Format 4, two segments: the font's run of characters, and the required 0xFFFF end.
-            const int segments = 2;
             w.U16(4); w.U16(16 + segments * 8); w.U16(0);
-            w.U16(segments * 2); w.U16(4); w.U16(1); w.U16(0);
-            w.U16(lastChar); w.U16(0xFFFF);
+            w.U16(segments * 2); w.U16(searchRange); w.U16(entrySelector); w.U16(segments * 2 - searchRange);
+            foreach (int end in ends) {
+                w.U16(end);
+            }
             w.U16(0);
-            w.U16(firstChar); w.U16(0xFFFF);
-            w.U16((1 - firstChar) & 0xFFFF); w.U16(1);
-            w.U16(0); w.U16(0);
+            foreach (int start in starts) {
+                w.U16(start);
+            }
+            foreach (int delta in deltas) {
+                w.U16(delta);
+            }
+            foreach (int _ in starts) {
+                w.U16(0);
+            }
         });
 
         private static byte[] Name(string family) {

@@ -169,9 +169,9 @@ public static class CharacterSheetRow {
     public static string ValueText(int maximum, int percentage) =>
         maximum == 0
             ? Text.UiStrings.Get(NotApplicableKey)
-            : ClampPercentage(percentage)
+            : Text.UiTemplates.Percent(ClampPercentage(percentage)
                 .ToString(System.Globalization.CultureInfo.InvariantCulture)
-                .PadLeft(3) + "%";
+                .PadLeft(3));
 
     /// <summary>The bar's fill, clamped to a sane range before it is drawn.</summary>
     /// <remarks>

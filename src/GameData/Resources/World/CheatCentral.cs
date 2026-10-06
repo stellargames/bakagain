@@ -29,7 +29,7 @@ public static class CheatCentral {
     }
 
     public const string Title = "-> CHEAT CENTRAL <-";
-    public const string Subtitle = "Enjoy with caution...";
+    public static string Subtitle => Text.UiTemplates.Format(Text.UiTemplates.CheatCentralSubtitle); // TASK-775
 
     /// <summary>
     /// Both captions, in canonical (square, 1600x1200) units: the original centres them at VGA

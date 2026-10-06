@@ -290,15 +290,15 @@ namespace BakAgain.UI.Teleport {
                     TeleportMenu.PanelCentreX - (title.rect.width / 2f), TeleportMenu.TitleY));
             }
 
-            stage.Add(Caption("From:", TeleportMenu.FromCaptionY));
+            stage.Add(Caption(GameData.Resources.Text.UiStrings.Get("base:uistring:money.teleport_from_label"), TeleportMenu.FromCaptionY));
             await DrawTempleAsync(stage, _currentTemple,
                 TeleportMenu.SourceNameY, TeleportMenu.SourcePortraitY);
 
-            stage.Add(Caption("To:", TeleportMenu.ToCaptionY));
+            stage.Add(Caption(GameData.Resources.Text.UiStrings.Get("base:uistring:money.teleport_to_label"), TeleportMenu.ToCaptionY));
             await DrawTempleAsync(stage, _hoveredTemple,
                 TeleportMenu.DestinationNameY, TeleportMenu.DestinationPortraitY);
 
-            stage.Add(Caption("Cost:", TeleportMenu.CostY, TeleportMenu.CostCaptionCentreX));
+            stage.Add(Caption(GameData.Resources.Text.UiStrings.Get("base:uistring:money.teleport_cost_label"), TeleportMenu.CostY, TeleportMenu.CostCaptionCentreX));
             if (_hoveredTemple > 0) {
                 // "12 sovereigns" — always plural, royals dropped. The bill is the full fare.
                 stage.Add(Ink(LeftAligned(

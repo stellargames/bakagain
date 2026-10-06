@@ -37,4 +37,14 @@ public class CFormatTests {
         // The shift, made visible: the unconsumed 50 is picked up by the NEXT conversion.
         Assert.Equal("%3d 50", CFormat.Apply("%3d %d", 50, 7));
     }
+
+    // A translation reorders with POSIX positional arguments — gettext's own c-format rule, which
+    // Poedit and Weblate validate (TASK-776). The English never uses them.
+    [Fact]
+    public void APositionalConversionPicksItsArgument() =>
+        Assert.Equal("7 royals and 3 sovereigns", CFormat.Apply("%2$d royals and %1$d sovereigns", 3, 7));
+
+    [Fact]
+    public void PositionalAndLengthModifiersCombine() =>
+        Assert.Equal("b a", CFormat.Apply("%2$Fs %1$ld", "a", "b"));
 }

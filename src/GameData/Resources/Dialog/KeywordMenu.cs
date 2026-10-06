@@ -31,7 +31,7 @@ public static class KeywordMenu {
     public const int FirstKeywordActionId = 128;
 
     /// <summary>The farewell's label is a literal, not a keyword-table entry.</summary>
-    public const string FarewellLabel = "GoodBye";
+    public static string FarewellLabel => Text.UiTemplates.Format(Text.UiTemplates.Farewell); // TASK-775
 
     /// <summary>The farewell sits apart from the grid, at its own column.</summary>
     public const int FarewellX = 237;

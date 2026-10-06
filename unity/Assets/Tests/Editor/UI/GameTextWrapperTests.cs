@@ -2,6 +2,7 @@ namespace BakAgain.Tests.Editor.UI {
     using BakAgain.Tests.TestSupport;
     using System.Collections.Generic;
     using BakAgain.UI;
+    using GameData.Resources.Dialog;
     using NUnit.Framework;
 
     /// <summary>
@@ -109,7 +110,7 @@ namespace BakAgain.Tests.Editor.UI {
             // identically. If they were measured at some fallback width instead, the marked-up
             // string would break earlier.
             const string Plain = "Into a Dark Night";
-            const string Marked = "±Into ±a ±Dark ±Night";
+            string Marked = DialogTextRuns.FromMarkup("<hi/>Into <hi/>a <hi/>Dark <hi/>Night");
             int width = Width("Into a Dark ");
 
             List<string> plain = Lines(Plain, width);
@@ -124,7 +125,7 @@ namespace BakAgain.Tests.Editor.UI {
         public void AFormattingCode_IsNotABreakPoint() {
             // Not a space and not a letter, so sub_ovr145_0 rejects it. With no other break point
             // in the line the wrap must fall back to cutting where it overflowed.
-            const string Text = "aaaa±aaaa";
+            string Text = DialogTextRuns.FromMarkup("aaaa<hi/>aaaa");
             Assert.That(Strip(Lines(Text, Width("aaaa"))), Is.EqualTo(new[] { "aaaa", "aaaa" }));
         }
 
@@ -185,7 +186,7 @@ namespace BakAgain.Tests.Editor.UI {
         private static List<string> Strip(List<string> lines) {
             var result = new List<string>();
             foreach (string line in lines) {
-                result.Add(line.Replace("±", string.Empty));
+                result.Add(line.Replace(DialogTextRuns.ItalicHighlight.ToString(), string.Empty));
             }
             return result;
         }

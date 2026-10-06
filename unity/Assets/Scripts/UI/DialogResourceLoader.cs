@@ -66,6 +66,7 @@ namespace BakAgain.UI {
             Dialog dialog = await handle;
 
             if (handle.Status == AsyncOperationStatus.Succeeded) {
+                // Already in run-time codes: the resource providers convert as the Dialog loads.
                 return dialog;
             }
             _logger.LogError("Failed to load Dialog with filename {Filename}", key);

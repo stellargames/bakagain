@@ -68,9 +68,9 @@ namespace BakAgain.UI.InGame {
                 RegisterHold(_pads[id], id, reqArrow: false);
             }
             _grid = Button("touch-grid", "#", _state.RequestGridToggle);
-            _thrust = Button("touch-thrust", "Thrust", () => MeleeRequested?.Invoke(true));
-            _swing = Button("touch-swing", "Swing", () => MeleeRequested?.Invoke(false));
-            _move = Button("touch-move", "Move", () => MoveRequested?.Invoke());
+            _thrust = Button("touch-thrust", GameData.Resources.Text.UiStrings.Get("base:uistring:combat.weapon_table_thrust"), () => MeleeRequested?.Invoke(true));
+            _swing = Button("touch-swing", GameData.Resources.Text.UiStrings.Get("base:uistring:combat.weapon_table_swing"), () => MeleeRequested?.Invoke(false));
+            _move = Button("touch-move", GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.TouchMove), () => MoveRequested?.Invoke());
             _right.Add(_grid);
             _right.Add(_thrust);
             _right.Add(_swing);
@@ -271,8 +271,9 @@ namespace BakAgain.UI.InGame {
             // While a spell waits, a button appears only where the cast would land: a click
             // anywhere else commits nothing (TASK-823).
             bool castHere = casting && _state.CastAccepted;
-            SetLabel(_thrust, casting ? "Cast" : "Thrust");
-            SetLabel(_move, casting ? "Cast here" : "Move");
+            SetLabel(_thrust, casting ? GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.TouchCast)
+                : GameData.Resources.Text.UiStrings.Get("base:uistring:combat.weapon_table_thrust"));
+            SetLabel(_move, GameData.Resources.Text.UiTemplates.Format(casting ? GameData.Resources.Text.UiTemplates.TouchCastHere : GameData.Resources.Text.UiTemplates.TouchMove));
             Place(_thrust, bx, h * _layout.ThrustY, bw, bh, onTarget && (!casting || castHere));
             Place(_swing, bx, h * _layout.SwingY, bw, bh, onTarget && !casting);
             // Move only onto a cell the actor can reach, where the original shows its move marker.

@@ -80,7 +80,9 @@ public class DdxExtractor : ExtractorBase<Dialog> {
             }
             char[] readChars = resourceReader.ReadChars(stringLength);
             if (stringLength > 1) {
-                dialogEntry.Text = new string(readChars)[..(stringLength - 1)];
+                // Inline formatting bytes become explicit tags here, the one place that knows they
+                // were CP437 (TASK-774).
+                dialogEntry.Text = DialogTextRuns.FromCp437(new string(readChars)[..(stringLength - 1)]);
                 Log($"[{resourceReader.BaseStream.Position:X8}] Text: '{dialogEntry.Text}'");
             }
 

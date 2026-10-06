@@ -18,3 +18,15 @@ public class BokTextNewlineTests {
         Assert.Equal("one two", BokExtractor.BookText("one\ntwo"));
     }
 }
+
+public class BokTextRunTests {
+    [Fact]
+    public void ACp437UmlautIsTextNotAControlCode() {
+        // BOOKTEXT.C:119 ends a run only on a byte whose high nibble is F; the German books carry
+        // CP437 'ä' (0x84) and 'ß' (0xE1), which decode above the old 0xB1 char limit.
+        var bytes = new byte[] { (byte)'S', 0x84, (byte)'t', 0xE1, 0xF0 };
+        using var reader = new System.IO.BinaryReader(new System.IO.MemoryStream(bytes));
+        Assert.Equal("Sätß", BokExtractor.ReadTextRun(reader));
+        Assert.Equal(0xF0, reader.ReadByte());
+    }
+}

@@ -43,6 +43,18 @@ internal static class Program {
     public static void Main(string[] args) {
         // CodePagesEncodingProvider.Instance.GetEncoding(DosCodePage);
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+
+        // Before the switch into generated/: the template holds the game's English, so it goes
+        // where the player asked, never into the repository.
+        if (args.Length >= 1 && args[0] == "--pot") {
+            if (args.Length < 3) {
+                Console.Error.WriteLine("usage: --pot <game dir> <out.pot>");
+                return;
+            }
+            WriteTranslationTemplate(args[1], args[2]);
+            return;
+        }
+
         string generatedDir = ResolveGeneratedDir();
         Directory.CreateDirectory(generatedDir);
         Directory.SetCurrentDirectory(generatedDir);
@@ -1353,6 +1365,31 @@ internal static class Program {
     // writes, never the executable. Two outputs, one source of truth: the copy under GameData is the
     // embedded resource the game actually uses; the generated/ copy exists for verify-generated and
     // for human diffing.
+    /// <summary>
+    /// Writes the translator's template (TASK-783): every keyed string of the player's data and
+    /// KRONDOR.EXE, as a gettext POT.
+    /// </summary>
+    private static void WriteTranslationTemplate(string gamePath, string outPath) {
+        IResourceProvider provider = ResourceProviderFactory.CreateResourceProvider(gamePath);
+        var entries = ResourceExtraction.Text.TextInventory.Enumerate(provider).ToList();
+        string exePath = Path.Combine(gamePath, "KRONDOR.EXE");
+        if (File.Exists(exePath)) {
+            IDictionary<string, string> exe = ExeStringManifest.Extract(File.ReadAllBytes(exePath));
+            entries.AddRange(exe
+                .OrderBy(kv => kv.Key, StringComparer.Ordinal)
+                .Select(kv => new ResourceExtraction.Text.TextEntry(kv.Key, kv.Value, "KRONDOR.EXE")));
+            // The port's sentences, composed from those pieces (TASK-776).
+            entries.AddRange(GameData.Resources.Text.UiTemplates.EnglishFor(GameData.Resources.Text.UiStringCatalog.From(exe))
+                .Select(kv => new ResourceExtraction.Text.TextEntry(kv.Key, kv.Value, "BaK-Again")));
+        } else {
+            Console.Error.WriteLine($"KRONDOR.EXE not found at {exePath}; its strings are not in the template.");
+        }
+        using (var writer = new StreamWriter(outPath, append: false, new UTF8Encoding(false))) {
+            ResourceExtraction.Text.PotTemplate.Write(entries, writer);
+        }
+        Console.WriteLine($"Wrote {entries.Count} strings to {Path.GetFullPath(outPath)}.");
+    }
+
     private static void ExtractUiStrings(string gamePath) {
         string exePath = Path.Combine(gamePath, "KRONDOR.EXE");
         if (!File.Exists(exePath)) {

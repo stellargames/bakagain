@@ -146,6 +146,7 @@ namespace BakAgain.UI.Combat {
             foreach (HudPanelLine line in lines) {
                 AddLine(line);
             }
+            TextOverflowReport.CheckRows(_root);
         }
 
         /// <summary>

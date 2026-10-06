@@ -290,7 +290,29 @@ namespace BakAgain.UI {
             }
             _linesDrawn = end - start;
             _linesRemaining = lines.Count - end;
+
+            // A block that cannot page shows every line and lets the box cut the rest; say which
+            // text lost lines (TASK-779). A paging block never loses any. Checked a moment LATER:
+            // the dialog manager sets the text first and turns paging on a frame after, so the
+            // first pass of every long narrative would otherwise read as cut.
+            if (!_paginate) {
+                float room = AvailableHeight();
+                float gap = _lineGapVgaRows * (float)font.PixelHeight;
+                if (!float.IsNaN(room) && room > 0f && lines.Count * pitch - gap > room + 0.5f) {
+                    int holds = Mathf.Max(0, Mathf.FloorToInt((room + gap) / pitch));
+                    string text = _text;
+                    string detail = $"{lines.Count} lines, the box holds {holds}";
+                    schedule.Execute(() => {
+                        if (!_paginate && _text == text && panel != null) {
+                            TextOverflowReport.Report(TextOverflowReport.Box, text, detail);
+                        }
+                    }).StartingIn(OverflowSettleMs);
+                }
+            }
         }
+
+        /// <summary>How long a block must stay unpaged before its overflow is reported.</summary>
+        private const long OverflowSettleMs = 500;
 
         /// <summary>
         /// The vertical room the block has, which is NOT its own resolved height.

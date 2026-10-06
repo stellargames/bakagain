@@ -59,16 +59,16 @@ namespace BakAgain.UI.Inventory {
             int amount = item.Variable;
 
             if ((flags & FlagAmount) != 0 || obj.ObjectType == ObjectType.Key) {
-                return $"Amount: {amount}";
+                return GameData.Resources.Text.CFormat.Apply(GameData.Resources.Text.UiStrings.Get("base:uistring:item.amount"), amount);
             }
             if ((flags & (int)ObjectFlags.LimitedUses) != 0 && obj.ObjectType != ObjectType.Book) {
-                return $"Uses left: {amount}";
+                return GameData.Resources.Text.CFormat.Apply(GameData.Resources.Text.UiStrings.Get("base:uistring:item.uses_left"), amount);
             }
             if ((flags & FlagDegradable) != 0 && (obj.ShopType & ShopCategoryJewelry) != 0) {
-                return $"Value Rating: {amount}%";
+                return GameData.Resources.Text.CFormat.Apply(GameData.Resources.Text.UiStrings.Get("base:uistring:item.value_rating"), amount);
             }
             if ((flags & FlagDegradable) != 0) {
-                return $"Condition: {amount}%";
+                return GameData.Resources.Text.CFormat.Apply(GameData.Resources.Text.UiStrings.Get("base:uistring:item.condition"), amount);
             }
             return null; // e.g. rations, keys-that-aren't-Key-type, plain misc
         }
@@ -89,15 +89,15 @@ namespace BakAgain.UI.Inventory {
             // (Measured on James's 74% Lamprey: the original shows "Repairable".)
             if (affecting
                 && ((item.ItemFlags & ItemEquipped) != 0 || (obj?.EquipAttributeMask ?? 0) != 0)) {
-                s.Append("Using");
+                s.Append(GameData.Resources.Text.UiStrings.Get("base:uistring:item.using"));
                 if ((item.ItemFlags & (ItemBroken | ItemRepairable)) != 0) {
                     s.Append(", ");
                 }
             }
             if ((item.ItemFlags & ItemBroken) != 0) {
-                s.Append("Broken");
+                s.Append(GameData.Resources.Text.UiStrings.Get("base:uistring:item.broken"));
             } else if ((item.ItemFlags & ItemRepairable) != 0) {
-                s.Append("Repairable");
+                s.Append(GameData.Resources.Text.UiStrings.Get("base:uistring:item.repairable"));
             }
             return s.ToString();
         }

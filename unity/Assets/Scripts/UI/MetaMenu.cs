@@ -3,6 +3,7 @@ namespace BakAgain.UI {
 #endif
     using BakAgain.Core;
     using BakAgain.ResourceManagement;
+    using GameData.Resources.Text;
     using Microsoft.Win32;
     using SimpleFileBrowser;
     using System;
@@ -59,6 +60,12 @@ namespace BakAgain.UI {
             _overrideTextField = root.Q<TextField>("TextFieldOverridePath");
             _gameFileTextField = root.Q<TextField>("TextFieldGameFilePath");
             _continueButton = root.Q<Button>("ButtonContinue");
+            // The screen's words come from the pack system like every other screen's (TASK-775).
+            root.Q<Label>("LabelDataFiles").text = LanguagePacks.BootText(UiTemplates.BootDataFiles);
+            _toggle.label = LanguagePacks.BootText(UiTemplates.BootEnableOverrides);
+            _overrideTextField.label = LanguagePacks.BootText(UiTemplates.BootOverrideDirectory);
+            _gameFileTextField.label = LanguagePacks.BootText(UiTemplates.BootGameDirectory);
+            _continueButton.text = LanguagePacks.BootText(UiTemplates.BootContinue);
             _gameFileBrowseButton = _gameFileTextField.parent.Q<Button>("ButtonBrowseGameFilePath");
             _overrideBrowseButton = _overrideTextField.parent.Q<Button>("ButtonBrowseOverridePath");
 

@@ -58,19 +58,17 @@ public static class ShootTargetPanel {
     public const int NoTargetX = LabelX + 5;
 
     /// <summary>The heading, centred on <see cref="CentreX"/>.</summary>
-    public const string Prompt = "Choose a target";
+    public static string Prompt => Text.UiStrings.Get("base:uistring:combat.choose_target_ranged"); // TASK-775: the EXE's own entry, so a pack translates it
 
     /// <summary>Label of the hit-chance row.</summary>
-    public const string AccuracyLabel = "Accuracy:";
+    public static string AccuracyLabel => Text.UiStrings.Get("base:uistring:combat.accuracy_label_ranged"); // TASK-775: the EXE's own entry, so a pack translates it
 
     /// <summary>Label of the damage row.</summary>
-    public const string DamageLabel = "Damage:";
+    public static string DamageLabel => Text.UiStrings.Get("base:uistring:combat.damage_label_ranged"); // TASK-775: the EXE's own entry, so a pack translates it
 
     /// <summary>Drawn one pixel past the accuracy value. The damage value has none.</summary>
     public const string PercentSign = "%";
 
-    /// <summary>Follows the count on the no-target line: "<c>7 quarrels remaining</c>".</summary>
-    public const string QuarrelsRemainingLabel = "quarrels remaining";
 
     /// <summary>Top of the name line at <paramref name="index"/>, counting from zero.</summary>
     public static int NameLineTop(int index) => PromptY + LineStep * (index + 1);
@@ -152,12 +150,14 @@ public static class ShootTargetPanel {
         int statsTop = StatsTop(content.NameLines.Count);
         if (!content.HasTarget) {
             lines.Add(new HudPanelLine(
-                content.QuarrelsRemaining + " " + QuarrelsRemainingLabel, NoTargetX, statsTop));
+                // "7 quarrels remaining", through a template a translation can reorder (TASK-776).
+                Text.UiTemplates.Format(Text.UiTemplates.QuarrelsRemaining, ("count", content.QuarrelsRemaining)),
+                NoTargetX, statsTop));
             return lines;
         }
 
         lines.Add(new HudPanelLine(AccuracyLabel, LabelX, statsTop));
-        lines.Add(new HudPanelLine(content.Accuracy + PercentSign, ValueX, statsTop));
+        lines.Add(new HudPanelLine(Text.UiTemplates.Percent(content.Accuracy), ValueX, statsTop));
         int damageTop = DamageTop(content.NameLines.Count);
         lines.Add(new HudPanelLine(DamageLabel, LabelX, damageTop));
         lines.Add(new HudPanelLine(content.Damage.ToString(), ValueX, damageTop));

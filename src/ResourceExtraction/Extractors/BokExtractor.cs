@@ -12,7 +12,6 @@ public class BokExtractor : ExtractorBase<BookResource> {
     private const byte EndOfPage = 0xF0;
     private const byte StartOfParagraph = 0xF1;
     private const byte StartOfTextSegment = 0xF4;
-    private const int UpperCharacterLimit = 0xB1;
 
     public override BookResource Extract(string id, Stream resourceStream) {
         using var resourceReader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
@@ -91,13 +90,24 @@ public class BokExtractor : ExtractorBase<BookResource> {
         };
         _ = resourceReader.ReadUInt16(); // Always 0. Game uses a byte from this field, but it's not clear what for. Messing with it doesn't seem to change anything.
         textSegment.FontStyle = (FontStyle)resourceReader.ReadUInt16();
-        var sb = new StringBuilder();
-        while (resourceReader.PeekChar() < UpperCharacterLimit) {
-            sb.Append(resourceReader.ReadChar());
-        }
-        textSegment.Text = BookText(sb.ToString());
+        textSegment.Text = BookText(ReadTextRun(resourceReader));
 
         return textSegment;
+    }
+
+    /// <summary>
+    /// The CP437 text up to the next control code, which BOOKTEXT.C:119 knows by a high nibble of F.
+    /// </summary>
+    public static string ReadTextRun(BinaryReader resourceReader) {
+        Stream stream = resourceReader.BaseStream;
+        long start = stream.Position;
+        long end = start;
+        while (stream.ReadByte() is >= 0 and < 0xF0) {
+            end++;
+        }
+        stream.Position = start;
+        byte[] raw = resourceReader.ReadBytes((int)(end - start));
+        return Encoding.GetEncoding(DosCodePage).GetString(raw);
     }
 
     /// <summary>

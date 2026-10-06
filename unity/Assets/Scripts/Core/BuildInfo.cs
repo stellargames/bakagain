@@ -10,7 +10,8 @@ namespace BakAgain.Core {
         /// everything the game logs. Empty on Android, where the log goes to logcat.</param>
         public static string Describe(string version, string logPath) {
             string log = string.IsNullOrEmpty(logPath) ? "adb logcat -s Unity" : logPath;
-            return $"BaK-Again {version}   Log: {log}";
+            return GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.BuildInfoKey,
+                ("version", version), ("log", log));
         }
     }
 }

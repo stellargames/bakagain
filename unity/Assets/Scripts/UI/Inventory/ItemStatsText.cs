@@ -173,7 +173,7 @@ namespace BakAgain.UI.Inventory {
                     x, y, false, true));
                 // No catalog entry covers the trailing "%" — the manifest declares no armor-mod
                 // value-format string (see ExeStringManifest.cs), so it stays a literal.
-                lines.Add(new Line($"{obj.SwingAccuracy_ArmorMod_BowAccuracy}%",
+                lines.Add(new Line(GameData.Resources.Text.UiTemplates.Percent(obj.SwingAccuracy_ArmorMod_BowAccuracy),
                     x + layout.StatsValueColumn, y, false, false));
                 y += layout.StatsLineAdvance;
             }

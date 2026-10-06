@@ -3,20 +3,24 @@ namespace BakAgain.ResourceManagement {
     using System;
     using System.Collections.Generic;
     using System.IO;
+    using System.Linq;
     using UnityEngine.AddressableAssets.ResourceLocators;
     using UnityEngine.ResourceManagement.ResourceLocations;
     using ILogger = Microsoft.Extensions.Logging.ILogger;
 
     public class OverrideResourceLocator : IResourceLocator {
         private readonly ILogger _logger;
+        private readonly List<string> _roots = Roots().ToList();
 
         public OverrideResourceLocator() {
             _logger = LogManager.LoggerFactory.CreateLogger<OverrideResourceLocator>();
             var keys = new List<object>();
-            if (Directory.Exists(BakResourceSettings.OverridePath)) {
-                string[] dirs = Directory.GetDirectories(BakResourceSettings.OverridePath);
-                foreach (string dir in dirs) {
+            foreach (string root in _roots) {
+                foreach (string dir in Directory.GetDirectories(root)) {
                     string extension = Path.GetFileName(dir);
+                    if (extension == "Lang") {
+                        continue;
+                    }
                     string[] files = extension == "BMX" ? Directory.GetDirectories(dir) : Directory.GetFiles(dir);
                     foreach (string file in files) {
                         string key = Path.GetFileNameWithoutExtension(file) + '.' + extension;
@@ -63,19 +67,62 @@ namespace BakAgain.ResourceManagement {
             filename = Path.GetFileNameWithoutExtension(filename) + newExtension;
 
             string directory = Path.Join(extension[1..].ToUpperInvariant(), dirName);
-            string path = Path.Join(BakResourceSettings.OverridePath, directory, filename);
+            foreach (string root in _roots) {
+                string path = FindIgnoringCase(root, directory, filename);
+                if (path != null) {
+                    locations.Add(new ResourceLocationBase(key.ToString(), path, nameof(OverrideResourceProvider), type));
 
-            if (File.Exists(path)) {
-                var resourceLocation = new ResourceLocationBase(key.ToString(), path, nameof(OverrideResourceProvider), type);
-                locations.Add(resourceLocation);
-
-                return true;
+                    return true;
+                }
             }
 
-            _logger.LogDebug("Override for {Type} '{Key}' not found at '{Path}'", type, key, path);
+            _logger.LogDebug("Override for {Type} '{Key}' not found under {Directory}", type, key, directory);
 
             return false;
         }
+
+        /// <summary>
+        /// The folders searched, most specific first: the active language pack's, then the mod
+        /// folder when overrides are on. A pack is used whether or not mod overrides are.
+        /// </summary>
+        private static IEnumerable<string> Roots() {
+            string pack = LanguagePacks.ActiveFolder();
+            if (pack != null && Directory.Exists(pack)) {
+                yield return pack;
+            }
+            if (BakResourceSettings.OverrideEnabled && Directory.Exists(BakResourceSettings.OverridePath)) {
+                yield return BakResourceSettings.OverridePath;
+            }
+        }
+
+        /// <summary>
+        /// The file at <paramref name="directory"/>/<paramref name="filename"/> under
+        /// <paramref name="root"/>, matched without regard to case: the game names its resources in
+        /// either case (INTRO.TTM loads "credits.SCR"), and the archive's own lookup ignores it, so
+        /// an override must too on a case-sensitive file system.
+        /// </summary>
+        private static string FindIgnoringCase(string root, string directory, string filename) {
+            string exact = Path.Join(root, directory, filename);
+            if (File.Exists(exact)) {
+                return exact;
+            }
+            string dir = root;
+            foreach (string part in directory.Split('/', '\\')) {
+                if (part.Length == 0) {
+                    continue;
+                }
+                dir = Directory.Exists(dir)
+                    ? Directory.EnumerateDirectories(dir).FirstOrDefault(d => string.Equals(Path.GetFileName(d), part, StringComparison.OrdinalIgnoreCase))
+                    : null;
+                if (dir == null) {
+                    return null;
+                }
+            }
+            return Directory.EnumerateFiles(dir).FirstOrDefault(f => string.Equals(Path.GetFileName(f), filename, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>Whether there is any override folder to search.</summary>
+        internal static bool HasAnyRoot() => Roots().Any();
 
         public string LocatorId => nameof(OverrideResourceLocator);
 

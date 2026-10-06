@@ -1,5 +1,7 @@
 namespace GameData.Resources.Shop;
 
+using System.Collections.Generic;
+
 using GameData.Resources.Object;
 
 /// <summary>
@@ -58,12 +60,10 @@ public static class ShopCellLabel {
         string? name, int wordWrap, ObjectFlags flags, int condition) {
         name ??= string.Empty;
 
-        string? head = null;
-        string tail = name;
-        if (wordWrap > 0 && wordWrap < name.Length) {
-            head = name.Substring(0, wordWrap);
-            tail = name.Substring(wordWrap + 1);
-        }
+        // The same break the inspect panel uses, so a translated name splits the same way (TASK-779).
+        IReadOnlyList<string> lines = ObjectNameLines.Split(name, wordWrap);
+        string? head = lines.Count > 1 ? lines[0] : null;
+        string tail = lines[lines.Count - 1];
 
         return (head, Suffixed(tail, flags, condition));
     }

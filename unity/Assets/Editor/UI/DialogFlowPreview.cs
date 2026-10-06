@@ -47,9 +47,9 @@ namespace BakAgain.EditorTools.UI {
             // A titled panel with a centred speaker line above centred body text.
             Add(root, 65f, 690f, 1470f, 480f, BoxedStyle(),
                 new DialogEntry {
-                    Text = "#Gorath#±Into ±a ±Dark ±Night\n\nThe moredhel warrior says nothing for a "
+                    Text = DialogTextRuns.FromMarkup("#Gorath#<hi/>Into <hi/>a <hi/>Dark <hi/>Night\n\nThe moredhel warrior says nothing for a "
                         + "long moment... Then he turns away, and the silence between you grows "
-                        + "colder than the northern wind.",
+                        + "colder than the northern wind."),
                     DialogType = DialogType.Normal,
                     Flags = DialogEntryFlags.CenterText,
                 }, palette);

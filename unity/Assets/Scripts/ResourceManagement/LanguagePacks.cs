@@ -1,0 +1,130 @@
+namespace BakAgain.ResourceManagement {
+    using GameData.Resources.Font;
+    using GameData.Resources.Text;
+    using System;
+    using System.IO;
+    using UnityEngine;
+
+    /// <summary>
+    /// The active language pack (TASK-773): a gettext PO file at
+    /// <c>&lt;OverridePath&gt;/Lang/&lt;locale&gt;/&lt;locale&gt;.po</c>, read once at start.
+    /// </summary>
+    /// <remarks>
+    /// <b>Applied where resources load</b> (<see cref="BakResourceProvider"/>, the UI string loader),
+    /// so every screen sees translated text without knowing a pack exists. No pack, an unreadable one
+    /// or the <c>en</c> setting all mean the original English — a broken pack must never stop the
+    /// game starting.
+    /// </remarks>
+    public static class LanguagePacks {
+        private static LanguagePack _current;
+
+        /// <summary>The pack in effect for this session.</summary>
+        public static LanguagePack Current => _current ??= Load(BakResourceSettings.Language, BakResourceSettings.OverridePath);
+
+        /// <summary>Forget the loaded pack, so the next read of <see cref="Current"/> re-reads the
+        /// setting and the file.</summary>
+        public static void Reload() => _current = null;
+
+        /// <summary>
+        /// A boot screen's text: shown before the game data — and so before the UI string catalog
+        /// — is installed, it reads the embedded catalog through the active pack itself.
+        /// </summary>
+        public static string BootText(string key) =>
+            UiTemplates.Format(UiStringCatalog.Embedded.TranslatedBy(Current), key);
+
+        /// <summary>
+        /// The locales with a pack installed: every <c>Lang/&lt;locale&gt;/&lt;locale&gt;.po</c> under the
+        /// override folder (TASK-782).
+        /// </summary>
+        public static System.Collections.Generic.IEnumerable<string> Installed() {
+            string lang = Path.Combine(BakResourceSettings.OverridePath ?? string.Empty, "Lang");
+            if (string.IsNullOrEmpty(BakResourceSettings.OverridePath) || !Directory.Exists(lang)) {
+                yield break;
+            }
+            foreach (string dir in Directory.GetDirectories(lang)) {
+                string locale = Path.GetFileName(dir);
+                if (File.Exists(PathFor(BakResourceSettings.OverridePath, locale))) {
+                    yield return locale;
+                }
+            }
+        }
+
+        /// <summary>The pack file a locale is read from, under the override folder.</summary>
+        public static string PathFor(string overridePath, string locale) =>
+            Path.Combine(overridePath ?? string.Empty, "Lang", locale, locale + ".po");
+
+        /// <summary>
+        /// The active pack's folder, or null in English. It is searched for overrides before the mod
+        /// folder, in the same layout (<c>SCX/&lt;NAME&gt;.png</c>, <c>BMX/&lt;NAME&gt;/&lt;i&gt;.png</c>, ...), so a
+        /// pack can carry its own art (TASK-826).
+        /// </summary>
+        public static string ActiveFolder() =>
+            Current == LanguagePack.English ? null
+                : Path.Combine(BakResourceSettings.OverridePath ?? string.Empty, "Lang", BakResourceSettings.Language);
+
+        /// <summary>The pack's pixel font for a game font: <c>fonts/&lt;GAME|BOOK&gt;.bdf</c> beside the PO file.</summary>
+        public static string FontPathFor(string overridePath, string locale, string fontId) =>
+            Path.Combine(overridePath ?? string.Empty, "Lang", locale, "fonts",
+                Path.GetFileNameWithoutExtension(fontId) + ".bdf");
+
+        /// <summary>
+        /// Give <paramref name="font"/> every letter the active pack's text uses (TASK-778): first the
+        /// pack's own BDF, if it has one, then whatever is still missing composed from the font's
+        /// own letters (<see cref="GlyphSynthesis"/>). Like the text, a broken font file is a
+        /// warning, never a failed start.
+        /// </summary>
+        public static void MergeFont(FontResource font) {
+            if (Current == LanguagePack.English || font.PixelFormat != FontPixelFormat.Monochrome) {
+                return;
+            }
+            string path = FontPathFor(BakResourceSettings.OverridePath, BakResourceSettings.Language, font.Id);
+            if (File.Exists(path)) {
+                try {
+                    using var reader = new StreamReader(path);
+                    var clipped = ResourceExtraction.Text.BdfFont.MergeInto(font, reader);
+                    Debug.Log($"Language pack font {path}: {font.ExtraGlyphs.Count} glyphs merged into {font.Id}.");
+                    if (clipped.Count > 0) {
+                        Debug.LogWarning($"{path}: ink outside {font.Id}'s {font.Height}-row cell was clipped for "
+                            + string.Join(", ", System.Linq.Enumerable.Select(clipped, c => $"U+{c:X4}")) + ".");
+                    }
+                } catch (Exception e) {
+                    Debug.LogWarning($"Language pack font {path} could not be read ({e.Message}).");
+                }
+            }
+            int before = font.ExtraGlyphs.Count;
+            var missing = GlyphSynthesis.AddComposed(font, Current.Characters());
+            Debug.Log($"{font.Id}: composed {font.ExtraGlyphs.Count - before} letters for '{Current.Locale}'.");
+            if (missing.Count > 0) {
+                Debug.LogWarning($"{font.Id} cannot draw "
+                    + string.Join(" ", System.Linq.Enumerable.Select(missing, c => $"'{char.ConvertFromUtf32(c)}' U+{c:X4}"))
+                    + $"; add them to the pack's fonts/{System.IO.Path.GetFileNameWithoutExtension(font.Id)}.bdf.");
+            }
+        }
+
+        private static LanguagePack Load(string locale, string overridePath) {
+            if (string.IsNullOrEmpty(locale) || locale == LanguagePack.English.Locale) {
+                return LanguagePack.English;
+            }
+            if (locale == PseudoLocalization.Locale) {
+                return LanguagePack.Pseudo; // built in: no file (TASK-780)
+            }
+            if (string.IsNullOrEmpty(overridePath)) {
+                return LanguagePack.English;
+            }
+            string path = PathFor(overridePath, locale);
+            if (!File.Exists(path)) {
+                Debug.LogWarning($"Language '{locale}' selected but no pack at {path}; using English.");
+                return LanguagePack.English;
+            }
+            try {
+                using var reader = new StreamReader(path);
+                LanguagePack pack = ResourceExtraction.Text.PoLanguagePack.Read(reader, locale);
+                Debug.Log($"Language pack '{locale}': {pack.TranslatedCount} translated strings from {path}.");
+                return pack;
+            } catch (Exception e) {
+                Debug.LogWarning($"Language pack at {path} could not be read ({e.Message}); using English.");
+                return LanguagePack.English;
+            }
+        }
+    }
+}

@@ -17,7 +17,7 @@ public class KeywordPromptTests {
     public void TheNameGoesInVerbatim() {
         // Straight concatenation — no placeholder substitution, no punctuation beyond the suffix.
         Assert.StartsWith("Owyn", KeywordPrompt.PromptFor("Owyn"));
-        Assert.EndsWith(KeywordPrompt.PromptSuffix, KeywordPrompt.PromptFor("Owyn"));
+        Assert.EndsWith(" asked about:", KeywordPrompt.PromptFor("Owyn"));
     }
 
     [Fact]

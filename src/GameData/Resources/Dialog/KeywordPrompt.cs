@@ -5,9 +5,6 @@ namespace GameData.Resources.Dialog;
 /// (ovr144 @0x4b0fd). The last step of the keyword flow.
 /// </summary>
 public static class KeywordPrompt {
-    /// <summary>Appended to the speaker's name to make the prompt. The leading space is part of it.</summary>
-    public const string PromptSuffix = " asked about:";
-
     /// <summary>What the prompt reports when nothing was chosen.</summary>
     public const int NothingChosen = -1;
 
@@ -15,10 +12,12 @@ public static class KeywordPrompt {
     /// The line above the grid.
     /// </summary>
     /// <remarks>
-    /// Built by concatenation, so the speaker's name goes in verbatim — there is no placeholder
-    /// substitution and no punctuation beyond the suffix.
+    /// The original concatenates the name and the EXE's " asked about:", so the name goes in
+    /// verbatim. The port says the same through a template (<see cref="Text.UiTemplates.AskedAbout"/>,
+    /// TASK-776), whose English is exactly that concatenation and which a translation can reorder.
     /// </remarks>
-    public static string PromptFor(string speakerName) => speakerName + PromptSuffix;
+    public static string PromptFor(string speakerName) =>
+        Text.UiTemplates.Format(Text.UiTemplates.AskedAbout, ("name", speakerName));
 
     /// <summary>
     /// Whether the prompt appears at all.

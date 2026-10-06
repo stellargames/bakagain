@@ -426,7 +426,7 @@ namespace BakAgain.UI.Inventory {
                 if (shopText == null && obj != null) {
                     int fl = (int)obj.Flags;
                     if ((fl & 0x1000) != 0 && (fl & 0x8) != 0) {
-                        qtyText = $"{item.Variable}%";
+                        qtyText = GameData.Resources.Text.UiTemplates.Percent(item.Variable);
                     } else if ((fl & 0x8000) != 0
                         || container.ContainerType == SaveGameContainerType.SharedKeys) {
                         qtyText = item.Variable.ToString();
