@@ -61,4 +61,13 @@ public class PoLanguagePackTests {
         Assert.False(Read().TryGet("base:ddx:DIAL_Z01:40", out _));
         Assert.Equal(2, Read().TranslatedCount);
     }
+
+    [Fact]
+    public void TheLocaleIsTheFoldersNotTheHeaders() {
+        // PO editors write "nl_NL", or no Language line at all; the game knows the pack by its
+        // folder, and the setting, the restart notice and the grammar all compare against that.
+        string po = Po.Replace("\"Language: nl\\n\"\n", "\"Language: nl_NL\\n\"\n");
+        Assert.Equal("nl", PoLanguagePack.Read(new StringReader(po), "nl").Locale);
+        Assert.Equal("nl", PoLanguagePack.Read(new StringReader(Po.Replace("\"Language: nl\\n\"\n", "")), "nl").Locale);
+    }
 }

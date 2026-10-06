@@ -17,7 +17,7 @@ using System.Linq;
 /// guess and is not used. The locale is the header's <c>Language</c>.
 /// </remarks>
 public static class PoLanguagePack {
-    public static LanguagePack Read(TextReader reader) {
+    public static LanguagePack Read(TextReader reader, string? locale = null) {
         POParseResult result = new POParser(new POParserSettings()).Parse(reader);
         if (!result.Success) {
             throw new InvalidDataException("Not a readable PO file: " + string.Join("; ",
@@ -35,7 +35,9 @@ public static class PoLanguagePack {
                 text[entry.Key.ContextId] = translation;
             }
         }
-        return new LanguagePack(catalog.Language ?? string.Empty, text);
+        // The pack's own folder names it (Lang/<locale>/); the header's Language is a PO editor's
+        // guess ("nl_NL", or absent), so it only stands in when the caller has no locale.
+        return new LanguagePack(locale ?? catalog.Language ?? string.Empty, text);
     }
 
     private static bool IsFuzzy(IPOEntry entry) =>

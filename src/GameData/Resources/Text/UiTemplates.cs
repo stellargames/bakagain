@@ -174,7 +174,8 @@ public static class UiTemplates {
 
     private static CultureInfo Culture(string locale) {
         try {
-            return CultureInfo.GetCultureInfo(string.IsNullOrEmpty(locale) ? "en" : locale);
+            // gettext writes pt_BR, .NET knows pt-BR.
+            return CultureInfo.GetCultureInfo(string.IsNullOrEmpty(locale) ? "en" : locale.Replace('_', '-'));
         } catch (CultureNotFoundException) {
             return CultureInfo.InvariantCulture;
         }

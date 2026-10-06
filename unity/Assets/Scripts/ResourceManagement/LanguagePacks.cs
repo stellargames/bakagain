@@ -118,7 +118,7 @@ namespace BakAgain.ResourceManagement {
             }
             try {
                 using var reader = new StreamReader(path);
-                LanguagePack pack = ResourceExtraction.Text.PoLanguagePack.Read(reader);
+                LanguagePack pack = ResourceExtraction.Text.PoLanguagePack.Read(reader, locale);
                 Debug.Log($"Language pack '{locale}': {pack.TranslatedCount} translated strings from {path}.");
                 return pack;
             } catch (Exception e) {

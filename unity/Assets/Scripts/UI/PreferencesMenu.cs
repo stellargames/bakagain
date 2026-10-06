@@ -108,7 +108,9 @@ namespace BakAgain.UI {
         /// (plan decision 6), and the caption says so.
         /// </summary>
         private void AddLanguageChoice(VisualElement root) {
-            _pendingLanguage = BakResourceSettings.Language;
+            // The language actually running, not the raw setting: a setting naming a pack that is not
+            // installed runs English, and starting from it would show "(restart)" for good.
+            _pendingLanguage = LanguagePacks.Current.Locale;
             if (root.Q<Button>(LanguageChoiceName) != null) {
                 RefreshLanguageCaption(root);
                 return;
