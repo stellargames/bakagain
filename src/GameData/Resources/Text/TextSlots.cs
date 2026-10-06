@@ -20,11 +20,18 @@ public sealed class TextSlot {
     private readonly Func<string> _get;
     private readonly Action<string> _set;
 
-    public TextSlot(string key, Func<string> get, Action<string> set) {
+    public TextSlot(string key, Func<string> get, Action<string> set, int? room = null) {
         Key = key;
         _get = get;
         _set = set;
+        Room = room;
     }
+
+    /// <summary>
+    /// The width, in game-screen pixels, of the one line the text is drawn on — a fixed button
+    /// caption — or null when the text flows (TASK-779).
+    /// </summary>
+    public int? Room { get; }
 
     /// <summary>The <see cref="TextKey"/>.</summary>
     public string Key { get; }
@@ -172,7 +179,13 @@ public static class TextSlots {
         for (int i = 0; i < ui.MenuEntries.Length; i++) {
             UiElement element = ui.MenuEntries[i];
             if (!string.IsNullOrEmpty(element.Label)) {
-                yield return new TextSlot(TextKey.UiLabel(resourceId, i), () => element.Label!, t => element.Label = t);
+                // A TextButton draws its label on one line inside its own rect; the rect is in the
+                // REQ's frame (1600 across), the game screen is 320. A hidden one is a faceless hit
+                // zone whose name its screen draws elsewhere (REQ_TELE's destinations).
+                int? room = element.ElementType == ElementType.TextButton && element.Visible
+                    ? (ui.Frame.Width > 0 ? element.Width * 320 / ui.Frame.Width : element.Width)
+                    : null;
+                yield return new TextSlot(TextKey.UiLabel(resourceId, i), () => element.Label!, t => element.Label = t, room);
             }
             if (!string.IsNullOrEmpty(element.LabelAlt)) {
                 yield return new TextSlot(TextKey.UiLabelAlt(resourceId, i), () => element.LabelAlt!, t => element.LabelAlt = t);

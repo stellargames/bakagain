@@ -1381,7 +1381,10 @@ internal static class Program {
             Console.Error.WriteLine($"KRONDOR.EXE not found at {exePath}; its strings are not in the template.");
         }
         using (var writer = new StreamWriter(outPath, append: false, new UTF8Encoding(false))) {
-            ResourceExtraction.Text.PotTemplate.Write(entries, writer);
+            // A fixed caption's room is told in characters, measured in the font that draws it.
+            var font = provider.GetResource<GameData.Resources.Font.FontResource>("GAME.FNT");
+            ResourceExtraction.Text.PotTemplate.Write(entries, writer,
+                text => text.Sum(c => font.GlyphFor(c)?.Width ?? 0));
         }
         Console.WriteLine($"Wrote {entries.Count} strings to {Path.GetFullPath(outPath)}.");
     }

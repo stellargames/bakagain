@@ -96,7 +96,12 @@ uses. Dialog JSON written before the tags existed carries the original's raw cod
 ### 4. Make it fit
 
 Boxes, buttons and pages keep the original's sizes. A translation that does not fit is shortened by
-the translator; the game does not shrink text. Two things help:
+the translator. The only text the game shrinks is a button caption, and only down to 60% of the
+font's size. Three things help:
+
+- **The room in the template.** A button caption's entry says how wide its button is and about how
+  many characters fit, measured against the English:
+  `#. One line, 78 px wide. The English takes 72 px: about 15 characters fit.`
 
 - **The overflow report.** Every string that is cut off, runs past its page, or collides with its
   neighbour is logged once as a `[TextOverflow]` warning in the game's log (its path is shown at the
