@@ -835,7 +835,9 @@ namespace BakAgain.UI {
 
         private void Deactivate(BakAgain.UI.InputCore.IInputLayer mine = null) {
             RemovePanel(mine); // also pops the dialog's input layer
-            if (gameObject.activeSelf) {
+            // A play still open when the manager is destroyed (leaving Play Mode, quitting) ends
+            // here too, and gameObject would throw.
+            if (this != null && gameObject.activeSelf) {
                 gameObject.SetActive(false);
             }
         }
