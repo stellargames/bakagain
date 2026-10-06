@@ -3161,6 +3161,7 @@ using GameData.Resources.Scene;
                         (float left, float top) = AssessmentRowInPanel(line, area);
                         panel.Add(BakAgain.UI.Combat.HudParchmentPanelView.LineLabel(line, left, top));
                     }
+                    BakAgain.UI.TextOverflowReport.CheckRows(panel);
                     UnityEngine.UIElements.VisualElement row =
                         UnityEngine.UIElements.UQueryExtensions.Q(panel, "BakDialogConfirmRow");
                     UnityEngine.UIElements.Button button = row == null ? null

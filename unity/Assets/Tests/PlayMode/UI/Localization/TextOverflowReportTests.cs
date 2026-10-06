@@ -73,6 +73,31 @@ namespace BakAgain.Tests.PlayMode.UI.Localization {
             Assert.IsFalse(TextOverflowReport.Entries.Any(e => e.Text == longText));
         }
 
+        /// <summary>A label in a fixed column that runs into the value beside it (the combat panels).</summary>
+        [UnityTest]
+        public IEnumerator LabelsOnOneRowThatOverlapAreReported_AndApartAreNot() {
+            UIDocument doc = Doc();
+            yield return null;
+            var panel = new VisualElement { style = { width = 800, height = 300, position = Position.Absolute } };
+            doc.rootVisualElement.Add(panel);
+            Label At(string text, float x, float y) {
+                var l = new Label(text) { style = { position = Position.Absolute, left = x, top = y } };
+                GameFontText.Apply(l);
+                panel.Add(l);
+                return l;
+            }
+            At("Health:", 0, 0);
+            At("40", 400, 0);
+            At("[Stàmïñà: ~~~~~~~]", 0, 60);
+            At("40", 120, 60);
+            TextOverflowReport.CheckRows(panel);
+            yield return new WaitForSecondsRealtime(0.5f);
+
+            Assert.IsTrue(TextOverflowReport.Entries.Any(e => e.Kind == TextOverflowReport.Collision
+                && e.Text.Contains("Stàmïñà")));
+            Assert.IsFalse(TextOverflowReport.Entries.Any(e => e.Text.Contains("Health:")));
+        }
+
         [UnityTest]
         public IEnumerator ACaptionTooWideEvenAtTheSmallestFitIsReported() {
             UIDocument doc = Doc();
