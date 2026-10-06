@@ -155,6 +155,28 @@ namespace BakAgain.Tests.PlayMode.World {
         });
 
         /// <summary>
+        /// Underground the corpse reach is 2500, not 7000: wcursor_zone_open_container
+        /// (canassa WCURSOR.C:225-229) picks 0x9c4 when g_game_mode == 2. 26 shipped corpses lie in
+        /// zones 10-12, and the port's zone kind was hard-wired to overground.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator HandleClick_Underground_UsesTheShorterReach() => UniTask.ToCoroutine(async () => {
+            (Camera cam, GameObject target) = BuildPickableScene(distanceUnity: 50); // 25 < 50 < 70
+            var container = new FakeHandler("container");
+            var screen = new Vector2(Screen.width, Screen.height);
+            var pointer = new FakePointer { IsPresent = true, ScreenPosition = screen * 0.5f };
+            var c = new WorldInteractionController(cam, new FullViewport(), pointer, null,
+                new List<IWorldInteractionHandler> { container }, underground: () => true);
+            try {
+                await c.HandleClick(isPrimary: true);
+                Assert.AreEqual(0, container.Calls);
+            } finally {
+                Object.DestroyImmediate(target);
+                Object.DestroyImmediate(cam.gameObject);
+            }
+        });
+
+        /// <summary>
         /// An entity with no behavior does nothing, which is correct for a type the profile table
         /// has no row for — and indistinguishable, on screen, from an entity that was built WITH a
         /// profile and lost it. <c>Behavior</c>/<c>Interaction</c> are <c>[NonSerialized]</c>, so a

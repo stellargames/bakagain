@@ -638,6 +638,8 @@ namespace BakAgain.UI.InGame {
                 // Resolved on demand for the reason the trap springers above are (TASK-795).
                 hintEncounter: (member, isPrimary) => _resolver?.Resolve<BakAgain.World.WorldRuntime>()
                     ?.HintEncounter(member.EncounterNumber, member.CreatureNumber, isPrimary),
+                // The corpse reach shrinks underground (WCURSOR.C:225-229).
+                underground: () => _resolver?.Resolve<BakAgain.World.WorldRuntime>()?.Underground ?? false,
                 lootCorpse: (corpse, isPrimary) => {
                     if (corpse == null || _pendingCamera == null) {
                         return;

@@ -40,7 +40,9 @@ namespace BakAgain.UI.InGame {
             System.Func<UnityEngine.Vector3, (int RosterSlot, bool PartyMember)?>
                 combatantAtPoint = null,
             System.Func<UnityEngine.Vector2?> hoverPointOverride = null,
-            System.Action<BakAgain.World.Encounters.EncounterGroupMember, bool> hintEncounter = null) {
+            System.Action<BakAgain.World.Encounters.EncounterGroupMember, bool> hintEncounter = null,
+            System.Func<bool> underground = null) {
+            _underground = underground;
             _hintEncounter = hintEncounter;
             _camera = camera;
             _viewport = viewport;
@@ -306,7 +308,9 @@ namespace BakAgain.UI.InGame {
             return Mathf.Sqrt(dx * dx + dz * dz) <= threshold;
         }
 
-        private bool IsUnderground() => false; // TODO(zone-kind): wire zone type when available; overground for zone 1.
+        // The original's game mode 2 (WCURSOR.C:225-229), asked of the live zone on every click.
+        private readonly System.Func<bool> _underground;
+        private bool IsUnderground() => _underground?.Invoke() ?? false;
 
         // Planar (XZ) camera→entity distance, Unity units. -1 if no camera (test seam).
         private float PlanarDistanceTo(WorldEntity entity) {

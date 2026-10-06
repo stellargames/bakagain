@@ -525,6 +525,9 @@ namespace BakAgain.World {
         /// the state moved on again; sliding to a position that is already stale would show a step
         /// that never happened, so the second caller goes straight to the rebuild.</para>
         /// </remarks>
+        /// <summary>Whether the built zone is underground — the original's game mode 2.</summary>
+        public bool Underground => _zoneSceneBuilder?.Underground ?? false;
+
         /// <summary>
         /// A trapped chest going off in the party's face — <c>WCURSOR.C:630-680</c>: BOOM.BMX frames
         /// 0, 1, 2, 1, 0 over the container, the world flashing toward pen 0x2C (w 48, 32, 48, 63),
