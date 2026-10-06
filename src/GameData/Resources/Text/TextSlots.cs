@@ -72,8 +72,14 @@ public static class TextSlots {
 
     private static IEnumerable<TextSlot> OfBook(BookResource book, string resourceId) {
         for (int p = 0; p < book.Pages.Count; p++) {
-            for (int q = 0; q < book.Pages[p].Paragraphs.Count; q++) {
-                Paragraph paragraph = book.Pages[p].Paragraphs[q];
+            Page page = book.Pages[p];
+            for (int q = 0; q < page.Paragraphs.Count; q++) {
+                Paragraph paragraph = page.Paragraphs[q];
+                BookImage? capital = q == 0 ? page.Images.FirstOrDefault(i => BookDropCaps.LetterOf(i.ImageNumber) != null) : null;
+                if (capital != null && paragraph.TextSegments.Any(s => !string.IsNullOrEmpty(s.Text))) {
+                    yield return DropCapSlot(TextKey.BookParagraph(resourceId, p, q), resourceId, page, paragraph, capital);
+                    continue;
+                }
                 if (paragraph.TextSegments.Any(s => !string.IsNullOrEmpty(s.Text))) {
                     yield return new TextSlot(TextKey.BookParagraph(resourceId, p, q),
                         () => BookMarkup(paragraph.TextSegments),
@@ -81,6 +87,29 @@ public static class TextSlots {
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// The paragraph an illuminated capital begins (TASK-781): it reads with the capital's letter, and
+    /// a translation's own first letter picks the capital, or, when the game has no picture for that
+    /// letter, is written out with the picture removed.
+    /// </summary>
+    private static TextSlot DropCapSlot(string key, string resourceId, Page page, Paragraph paragraph, BookImage capital) {
+        char letter = BookDropCaps.LetterOf(capital.ImageNumber)!.Value;
+        return new TextSlot(key,
+            () => BookDropCaps.Join(resourceId, letter, BookMarkup(paragraph.TextSegments)),
+            t => {
+                int? picture = t.Length > 0 ? BookDropCaps.ImageFor(t[0]) : null;
+                if (picture != null) {
+                    capital.ImageNumber = picture.Value;
+                    t = t.Substring(1).TrimStart(' ');
+                } else {
+                    page.Images.Remove(capital);
+                    // The box the text wrapped around goes with it.
+                    page.ReservedAreas.RemoveAll(r => r.X <= capital.X && capital.X <= r.X2 && r.Y <= capital.Y && capital.Y <= r.Y2);
+                }
+                paragraph.TextSegments = FromBookMarkup(t, paragraph.TextSegments[0]);
+            });
     }
 
     private const string ItalicOpen = "<i>";
