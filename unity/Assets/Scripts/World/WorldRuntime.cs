@@ -1059,6 +1059,11 @@ namespace BakAgain.World {
                 await DrawCombatantsAsync();
                 return;
             }
+            // A whirlwind reaches the victim where it stood before the rules pushed it; the walk
+            // back comes after (CSPELL.C:653-668). The flight anchors on these very sprites.
+            while (_spellVfx != null && _spellVfx.HoldsMovers) {
+                await UniTask.Yield();
+            }
 
             var targets = new List<Transform>();
             var gaits = new List<Encounters.DirectionalSprite>();
