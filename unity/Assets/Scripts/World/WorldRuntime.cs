@@ -1,5 +1,6 @@
 namespace BakAgain.World {
     using System.Collections.Generic;
+    using System.Linq;
     using BakAgain.Audio;
     using BakAgain.Core;
     using BakAgain.Core.Services;
@@ -9,6 +10,8 @@ namespace BakAgain.World {
     using GameData.Resources.Audio;
     using GameData.Resources.Combat;
     using GameData.Resources.Config;
+    using GameData.Resources.Data;
+    using GameData.Resources.World;
     using Microsoft.Extensions.Logging;
     using UnityEngine;
 
@@ -537,6 +540,18 @@ namespace BakAgain.World {
             if (ctx == null || _zoneRoot == null) {
                 return;
             }
+            // *** THE BOOM IS A MODEL, AND ITS FACES SIZE IT. *** actoroverlay_render_actor
+            // (ACTOROVL.C) draws shape 0xb6 (0x8e underground) over the chest with the sprite table
+            // swapped to BOOM, frame = state - 1; each of its three sprite faces carries its own
+            // SizeScale and anchor, so the spark (frame 0) is little more than half the burst. A
+            // fixed width drew all three three-to-four times the original's size.
+            ZoneTableEntry shape = _zoneSceneBuilder.Table?.Entries is { } entries
+                && ChestTrap.ExplosionShape(_zoneSceneBuilder.Underground) is int id && id < entries.Count
+                ? entries[id] : null;
+            SpriteBMeshFace[] faces = shape?.Dat.Lods[0].Meshes[0].MeshFaces.OfType<SpriteBMeshFace>().ToArray();
+            if (faces == null || faces.Length < 3) {
+                return;
+            }
             var frames = new Texture2D[3];
             for (var i = 0; i < frames.Length; i++) {
                 frames[i] = await ctx.LoadSpriteTextureAsync($"BOOM.BMX#{i}", _zoneRoot);
@@ -544,25 +559,26 @@ namespace BakAgain.World {
             if (frames[0] == null) {
                 return;
             }
-            GameObject boom = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            boom.name = "ChestExplosion";
-            Object.Destroy(boom.GetComponent<Collider>());
+            var boom = new GameObject("ChestExplosion");
             boom.transform.SetParent(_zoneRoot.transform, true);
-            var renderer = boom.GetComponent<MeshRenderer>();
-            const float width = 2 * 400f / BakCoordinateConverter.WorldScale;
+            var filter = boom.AddComponent<MeshFilter>();
+            var renderer = boom.AddComponent<MeshRenderer>();
+            boom.AddComponent<BillboardSprite>();
             Vector3 ground = _zoneRoot.transform.TransformPoint(BakCoordinateConverter.ConvertPosition(bakX, bakY, 0));
             ground.y = Physics.Raycast(ground + Vector3.up * 1000f, Vector3.down, out RaycastHit hit, 2000f)
                 ? hit.point.y : ground.y;
+            boom.transform.position = ground;
             Color flash = ctx.Palette != null && ctx.Palette.Length > 0x2c ? ctx.Palette[0x2c] : Color.white;
             float frameSeconds = (float)GameData.Resources.Combat.SpellVisuals.FrameSeconds;
-            // (BOOM frame, palette weight after it) — the up-and-back sequence of states 1,2,3,2,1.
             (int Frame, int Weight)[] steps = { (0, 63), (1, 48), (2, 32), (1, 48), (0, 63) };
             foreach ((int f, int w) in steps) {
                 Texture2D tex = frames[f] ?? frames[0];
+                (Mesh mesh, Vector3 scale) = TblSpriteConverter.BuildBillboard(
+                    faces[f], Mathf.Abs(shape.Dat.Extent), tex.width, tex.height, shape.Dat.SpriteAnchorRise(faces[f]));
+                ctx.TrackMesh(mesh);
+                filter.sharedMesh = mesh;
                 renderer.sharedMaterial = ctx.GetSpriteMaterial(tex);
-                float height = width * tex.height / Mathf.Max(1, tex.width);
-                boom.transform.localScale = new Vector3(width, height, 1f);
-                boom.transform.position = ground + Vector3.up * (height / 2f);
+                boom.transform.localScale = scale;
                 await UniTask.Delay(System.TimeSpan.FromSeconds(frameSeconds));
                 Encounters.SpellVfx.SetWorldFlash(flash, 1f - w / 63f);
             }

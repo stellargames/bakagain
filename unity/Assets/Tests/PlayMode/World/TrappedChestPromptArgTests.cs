@@ -32,6 +32,83 @@ namespace BakAgain.Tests.PlayMode.World {
             }
         }
 
+        private sealed class YesDialogs : NoOpDialogs {
+            public override UniTask<bool> ShowConfirmById(int id, System.Threading.CancellationToken ct = default) =>
+                UniTask.FromResult(true);
+        }
+
+        private sealed class CountingNavigator : BakAgain.UI.Navigation.IScreenNavigator {
+            public int Pushes;
+            public BakAgain.UI.Navigation.IScreen Current => null;
+            public UniTask ResetTo(BakAgain.UI.Navigation.IScreen root) => UniTask.CompletedTask;
+            public UniTask Push(BakAgain.UI.Navigation.IScreen screen) { Pushes++; return UniTask.CompletedTask; }
+            public UniTask PushAndWaitAsync(BakAgain.UI.Navigation.IScreen screen) { Pushes++; return UniTask.CompletedTask; }
+            public UniTask Pop() => UniTask.CompletedTask;
+            public UniTask Replace(BakAgain.UI.Navigation.IScreen screen) => UniTask.CompletedTask;
+            public UniTask Clear() => UniTask.CompletedTask;
+        }
+
+        private UnityEngine.GameObject _menuGo;
+        private UnityEngine.UIElements.PanelSettings _panelSettings;
+
+        [TearDown]
+        public void TearDown() {
+            if (_menuGo != null) { UnityEngine.Object.DestroyImmediate(_menuGo); }
+            if (_panelSettings != null) { UnityEngine.Object.DestroyImmediate(_panelSettings); }
+        }
+
+        private CountingNavigator LootScreensAfterYes(byte trapDamage) {
+            var session = new GameSession();
+            var chest = new SaveGameContainerData(
+                new SaveGameContainerLocationData(2, 0, 10, 162, 1096693, 1039832, 0),
+                SaveGameContainerType.Chest, 0, 4, 0, Array.Empty<SaveGameInventoryItemData>(),
+                new SaveGameContainerLockData(0, 0, 0, trapDamage), null, null, null, null, null);
+            session.SetZoneContainersForTest(new SaveGameZoneContainerStateData(new[] {
+                new SaveGameZoneContainerEntryData(2, 0, new[] { chest }),
+            }), chapter: 1);
+            session.CurrentZone = 2;
+
+            _menuGo = new UnityEngine.GameObject("InventoryMenuUnderTest");
+            _panelSettings = UnityEngine.ScriptableObject.CreateInstance<UnityEngine.UIElements.PanelSettings>();
+            _menuGo.AddComponent<UnityEngine.UIElements.UIDocument>().panelSettings = _panelSettings;
+            var menu = _menuGo.AddComponent<BakAgain.UI.Inventory.InventoryMenu>();
+            menu.Construct(session, new NoOpResources(), new NoOpNavigator(),
+                new BakAgain.Core.Services.DialogExecutor(
+                    new Microsoft.Extensions.Logging.Abstractions.NullLogger<BakAgain.Core.Services.DialogExecutor>(),
+                    session, new BakAgain.Core.Services.GameClock(session)),
+                new NoOpDialogs());
+
+            var navigator = new CountingNavigator();
+            var handler = new ContainerInteractionHandler(session, new YesDialogs(), menu, navigator,
+                null, null, (_, _) => UniTask.CompletedTask);
+            handler.TryTrappedAsync(chest, null, 2, 1096693, 1039832,
+                GameData.Resources.World.WorldEntityType.Container).Forget();
+            return navigator;
+        }
+
+        /// <summary>
+        /// A sprung trap does NOT open the chest. WCURSOR.C: Yes on 0x4f sets bDenied, the
+        /// explosion arm plays 0xc0 and spends the trap, and bHandled stays 0, so
+        /// cmbinv_inventory_screen_run (:624) is skipped. Measured in the original on t117/SAVE03:
+        /// after "Something clicked..." it is back on the travel view.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ASprungTrapDoesNotOpenTheLootScreen() {
+            var nav = LootScreensAfterYes(trapDamage: 40);
+            yield return null;
+            yield return null;
+            Assert.AreEqual(0, nav.Pushes, "the explosion ends the click; the chest stays shut");
+        }
+
+        /// <summary>Control: an ex-trapped chest's Yes (0x13d -> apply_bonus) does open it.</summary>
+        [UnityTest]
+        public IEnumerator AnExTrappedChestStillOpensOnYes() {
+            var nav = LootScreensAfterYes(trapDamage: 0);
+            yield return null;
+            yield return null;
+            Assert.AreEqual(1, nav.Pushes);
+        }
+
         [UnityTest]
         public IEnumerator TheOpenPromptIsAskedWithVarZeroCleared() {
             var session = new GameSession();
