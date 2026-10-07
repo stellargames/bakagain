@@ -356,8 +356,6 @@ namespace BakAgain.Tests.Editor.Core {
                 UniTask.FromResult(false);
             public UniTask<bool> ShowConfirmById(int id, CancellationToken cancellationToken = default)
                 => UniTask.FromResult(false);
-            public UniTask<int> ShowChoiceById(int id, CancellationToken cancellationToken = default)
-                => UniTask.FromResult(-1);
             public UniTask<int> ShowChoiceIndexById(int id, CancellationToken cancellationToken = default)
                 => UniTask.FromResult(-1);
         }

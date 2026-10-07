@@ -150,18 +150,6 @@ namespace BakAgain.UI {
         UniTask<bool> ShowAcceptOrCancelById(int id, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// The same choice path, but answering <b>which</b> branch was taken rather than only
-        /// whether it was the first — the flag its <c>FlagCondition</c> carries, or -1 when nothing
-        /// could be resolved.
-        /// </summary>
-        /// <remarks>
-        /// Needed wherever a dialog offers more than yes/no. The shop's buy offer is the case in
-        /// hand: 260 accept, 262 haggle, 261 decline, and collapsing it to a bool makes haggling
-        /// indistinguishable from walking away.
-        /// </remarks>
-        UniTask<int> ShowChoiceById(int id, CancellationToken cancellationToken = default);
-
-        /// <summary>
         /// The same choice path, answering with the chosen branch's <b>position</b> — which is what
         /// the original's <c>dialog_Show</c> returns.
         /// </summary>
@@ -171,8 +159,8 @@ namespace BakAgain.UI {
         /// <c>ShowDialogChoiceMenu</c> @0x4b54c returns the index of the option clicked, and
         /// <c>ExecuteDialog</c> hands that straight back when no <c>SetReturnValue</c> action fires —
         /// which is the common case. Rules ported against the original's return value therefore
-        /// speak in positions, and converting to the branch's flag first (see
-        /// <see cref="ShowChoiceById"/>) makes them unrecognisable: the temple's service menu treats
+        /// speak in positions, and converting to the branch's flag first
+        /// makes them unrecognisable: the temple's service menu treats
         /// 1 as "heal" where the flag for that option is 272.
         /// </remarks>
         UniTask<int> ShowChoiceIndexById(int id, CancellationToken cancellationToken = default);

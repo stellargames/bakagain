@@ -135,8 +135,6 @@ namespace BakAgain.Tests.PlayMode.World {
                 UniTask.FromResult(false);
             public UniTask<bool> ShowConfirmById(int id,
                 System.Threading.CancellationToken cancellationToken = default) => UniTask.FromResult(false);
-            public UniTask<int> ShowChoiceById(int id,
-                System.Threading.CancellationToken cancellationToken = default) => UniTask.FromResult(-1);
             public UniTask<int> ShowChoiceIndexById(int id,
                 System.Threading.CancellationToken cancellationToken = default) => UniTask.FromResult(-1);
         }

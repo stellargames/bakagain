@@ -29,9 +29,8 @@ namespace BakAgain.UI.InputCore {
         // exist yet.
         private Keyboard _textInputKeyboard;
 
-        // The DefaultInputActions is injected (the SAME instance InputContext toggles), not new'd, so
-        // switching to a Gameplay context via InputContext disables this adapter's UI map too — one map
-        // owns the devices. The scene InputSystemUIInputModule keeps its own asset for pointer events.
+        // The DefaultInputActions is injected (DI-owned via SharedInputActions), not new'd. The scene
+        // InputSystemUIInputModule keeps its own asset for pointer events.
         public InputAdapter(IUiCommands commands, SharedInputActions shared) {
             _commands = commands;
             _actions = shared?.Actions;
@@ -342,7 +341,7 @@ namespace BakAgain.UI.InputCore {
             _actions.UI.Navigate.performed -= OnNavigate;
             _actions.UI.Click.performed -= OnClick;
             _actions.UI.Click.canceled -= OnClick;
-            // The DefaultInputActions is shared (DI-owned, also used by InputContext): unsubscribe our
+            // The DefaultInputActions is shared (DI-owned): unsubscribe our
             // handlers but don't dispose the instance here.
             _actions = null;
         }

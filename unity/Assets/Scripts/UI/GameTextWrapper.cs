@@ -120,18 +120,6 @@ namespace BakAgain.UI {
         }
 
         /// <summary>
-        /// The width of a character range in raw FNT pixels — <c>getStringWidthInPixels</c>
-        /// (<c>0x15be5</c>), a plain sum of the advance table with no inter-character spacing.
-        /// </summary>
-        internal static int Measure(string text, int start, int end) {
-            int width = 0;
-            for (int i = start; i < end; i++) {
-                width += BakFontData.GetRawCharWidth(text[i], BakFontData.GameFontIndex);
-            }
-            return width;
-        }
-
-        /// <summary>
         /// May the line end just before <paramref name="at"/>? — <c>sub_ovr145_0</c>
         /// (<c>0x4b6d0</c>). True for a space, and for a letter preceded by <c>"..."</c> once the
         /// line is more than three characters long. Everything else — punctuation, digits, the

@@ -30,8 +30,7 @@ namespace BakAgain.UI.Cursor {
         private readonly Dictionary<string, (Sprite sprite, Vector2 hotspot)> _cache = new();
 
         // Built-in mirror of the code-named rows in generated/POINTER/cursor-map.json. Lets
-        // Set(GameCursor) work without shipping cursor-map.json as an addressable; when that JSON
-        // is wired as a TextAsset a CursorMap can replace this (see CursorMap, unit-tested).
+        // Set(GameCursor) work without shipping cursor-map.json as an addressable.
         private static readonly Dictionary<GameCursor, (string file, int index)> SemanticMap = new() {
             { GameCursor.Arrow,   ("POINTER.BMX", 0) },
             { GameCursor.Wait,    ("POINTERG.BMX", 2) },

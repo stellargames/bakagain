@@ -1,6 +1,7 @@
 namespace BakAgain.Tests.Editor.UI {
     using BakAgain.Tests.TestSupport;
     using System.Collections.Generic;
+    using BakAgain.Book;
     using BakAgain.UI;
     using GameData.Resources.Dialog;
     using NUnit.Framework;
@@ -161,19 +162,16 @@ namespace BakAgain.Tests.Editor.UI {
             Assert.That(GameTextWrapper.Wrap("abc", 0).Count, Is.EqualTo(GameTextWrapper.MaxLines));
         }
 
-        // --- measuring ------------------------------------------------------------------------
-
-        [Test]
-        public void Measure_IsThePlainSumOfTheAdvanceTable() {
-            // getStringWidthInPixels (0x15be5) adds nothing between characters, so a string's
-            // width is exactly its parts'.
-            Assert.That(GameTextWrapper.Measure("abcdef", 0, 6),
-                Is.EqualTo(GameTextWrapper.Measure("abc", 0, 3) + GameTextWrapper.Measure("def", 0, 3)));
-        }
-
         // --- helpers --------------------------------------------------------------------------
 
-        private static int Width(string prefix) => GameTextWrapper.Measure(prefix, 0, prefix.Length);
+        // getStringWidthInPixels (0x15be5): a plain sum of the advance table, no inter-character spacing.
+        private static int Width(string prefix) {
+            int width = 0;
+            foreach (char c in prefix) {
+                width += BakFontData.GetRawCharWidth(c, BakFontData.GameFontIndex);
+            }
+            return width;
+        }
 
         private static List<string> Lines(string text, int maxWidth) {
             var result = new List<string>();

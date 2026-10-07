@@ -1511,25 +1511,6 @@ namespace BakAgain.UI.InGame {
             return null;
         }
 
-        // The REQ element under the pointer, by the same pick and naming ClassicMovementDriver uses.
-        private int? ReqActionUnderPointer() {
-            IPanel panel = _document?.rootVisualElement?.panel;
-            if (panel == null) {
-                return null;
-            }
-            Vector2 s = _pointer.ScreenPosition;
-            Vector2 p = RuntimePanelUtils.ScreenToPanel(panel, new Vector2(s.x, Screen.height - s.y));
-            for (VisualElement el = panel.Pick(p); el != null; el = el.parent) {
-                string n = el.name ?? string.Empty;
-                foreach (string prefix in new[] { "hotspot_", "imagebutton_" }) {
-                    if (n.StartsWith(prefix) && int.TryParse(n.Substring(prefix.Length), out int id)) {
-                        return id;
-                    }
-                }
-            }
-            return null;
-        }
-
         // Left-click / key dispatch. STUBBED: each branch logs its intent. The real
         // movement, encamp, cast, map, options and party-screen transitions plug in here.
         public void PrimaryAction(int menuEntryActionId) {

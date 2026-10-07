@@ -1165,27 +1165,6 @@ namespace BakAgain.UI {
         }
 
         /// <inheritdoc/>
-        public UniTask<int> ShowChoiceById(int id, CancellationToken cancellationToken = default) => Playing(() => ShowChoiceByIdCore(id, cancellationToken), "ShowChoiceById " + id);
-
-        private async UniTask<int> ShowChoiceByIdCore(int id, CancellationToken cancellationToken = default) {
-            DialogPlay play = await LoadPlayById(id);
-            DialogEntry entry = play?.Entry;
-            if (entry == null) {
-                return -1;
-            }
-
-            int chosen = await ShowEntryCore(entry, play, waitForInput: true, renderChoices: true, cancellationToken);
-            // The branch's own flag, not its position: the original branches on GetGlobalValue(260)
-            // and GetGlobalValue(262) by number, and the order they appear in the entry is not
-            // something a caller should have to know.
-            return chosen >= 0 && entry.Branches != null && chosen < entry.Branches.Count
-                && entry.Branches[chosen] is ConditionalBranch cb
-                && cb.Condition is FlagCondition fc
-                ? fc.Flag
-                : -1;
-        }
-
-        /// <inheritdoc/>
         public UniTask<int> ShowChoiceIndexById(int id, CancellationToken cancellationToken = default) => Playing(() => ShowChoiceIndexByIdCore(id, cancellationToken), "ShowChoiceIndexById " + id);
 
         private async UniTask<int> ShowChoiceIndexByIdCore(int id, CancellationToken cancellationToken = default) {

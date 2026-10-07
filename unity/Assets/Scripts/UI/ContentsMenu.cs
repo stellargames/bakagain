@@ -19,7 +19,6 @@ namespace BakAgain.UI {
     [RequireComponent(typeof(ContentsChapterOverlay))]
     public class ContentsMenu : BakAgain.UI.Navigation.ScreenBase, IActionHandler {
         private const int ButtonExit = 1;
-        private const int HelpChapterArea = 329;   // right-click help DDX
         private const int HelpExit = 330;
 
         private ILogger _logger;

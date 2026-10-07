@@ -89,7 +89,7 @@ public static class InventoryDragGesture {
     ///
     /// <para><b>One VGA pixel is 5 canonical across and 6 down</b>, so even this has no single
     /// correct width: the border is thicker top-and-bottom than left-and-right, which is what the
-    /// anisotropy means. Our <c>OutlineWidth = 8f</c> is neither.</para>
+    /// anisotropy means.</para>
     ///
     /// <para><b>CORRECTION to an earlier reading of mine.</b> I first recorded this outline as a pen
     /// that CYCLES, from <c>(m &gt; 3) ? ('q' - m) : (m + 'k')</c>. Those lines are real but belong

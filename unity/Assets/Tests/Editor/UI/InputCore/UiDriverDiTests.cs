@@ -19,15 +19,5 @@ namespace BakAgain.Tests.Editor.UI.InputCore {
                 Assert.AreEqual(UiIntentKind.Activate, layer.Received[0].Kind);
             }
         }
-
-        [Test]
-        public void Installer_RegistersInputContext() {
-            var builder = new ContainerBuilder();
-            InputCoreInstaller.RegisterInputCore(builder);
-            using (var container = builder.Build()) {
-                var ctx = container.Resolve<InputContext>();
-                Assert.IsNotNull(ctx, "InputContext resolvable from the installer");
-            }
-        }
     }
 }

@@ -23,11 +23,9 @@ namespace BakAgain.UI.InputCore {
             builder.Register<InputLayerStack>(Lifetime.Singleton);
             builder.Register<IUiCommands, UiCommands>(Lifetime.Singleton);
 
-            // One shared DefaultInputActions instance backs BOTH the InputContext (action-map switching)
-            // and the InputAdapter (UI nav/submit/cancel) — injected into the adapter, not new'd there —
-            // so switching to a Gameplay context via InputContext actually disables the adapter's UI map
-            // (one map owns the devices). The scene InputSystemUIInputModule keeps its own asset for
-            // pointer events.
+            // One shared DefaultInputActions instance backs the InputAdapter (UI nav/submit/cancel) —
+            // injected into the adapter, not new'd there. The scene InputSystemUIInputModule keeps its
+            // own asset for pointer events.
             //
             // *** THE CONTAINER MUST OWN IT, AND DISABLING MUST BEAT DESTROYING. *** Two separate
             // faults, one after the other, both of which end as monitors on <Mouse>/position that
@@ -45,11 +43,6 @@ namespace BakAgain.UI.InputCore {
             // disposable the container holds for this, which is what keeps the order out of
             // VContainer's teardown sequence — see the type for the measurements.
             builder.Register<SharedInputActions>(Lifetime.Singleton);
-            // Resolved THROUGH the owner rather than registered in their own right: a second
-            // registration of DefaultInputActions would hand the container an IDisposable that
-            // destroys the asset, with nothing ordering it after the disable.
-            builder.Register(c => c.Resolve<SharedInputActions>().Asset, Lifetime.Singleton);
-            builder.Register<InputContext>(Lifetime.Singleton);
 
             builder.Register<SystemInputSource>(Lifetime.Singleton);
             // The Android touch aids' state (spec 2026-09-29-android-touch-aids-design.md).

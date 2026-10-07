@@ -64,8 +64,6 @@ namespace BakAgain.UI.Inventory {
         private const int WindowContainerImage = 32; // detail window showing the container-type image
         private const int BackgroundCatchAll = 128;  // REQ_INV full-screen (1600×1200) catch-all ClickArea
 
-        private const float OutlineWidth = 8f;
-
         // Categories that refuse to be "used" from the inventory and play a flavour DDX instead —
         // objectType Repair (8), Poison (9), BowString (12) at 0x54B6F..0x54B82. Typed ObjectType:
         // the old int[] + Array.IndexOf(Array, object) compared boxed int against boxed enum and

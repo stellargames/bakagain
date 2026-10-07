@@ -1523,37 +1523,6 @@ namespace BakAgain.UI.Spells {
         }
 
         /// <summary>
-        /// Moves the slider to the ring position under a canonical-space point.
-        /// </summary>
-        /// <returns>The power now under the cursor, or 0 when the point is off the ring.</returns>
-        /// <remarks>
-        /// <b>Three things change together</b>, which is why they live in one call: the band grows
-        /// or shrinks, the hovered position gets its own icon, and the info panel's cost line
-        /// follows - the original recomputes all three every pass of its loop. The hit test is
-        /// clamped to the affordable band, so positions above the caster's budget are not merely
-        /// unclickable but unhoverable.
-        /// </remarks>
-        public async UniTask<int> HoverAtAsync(int canonicalX, int canonicalY) {
-            if (_ring?.Positions == null || _sliderSpell < 0) {
-                return 0;
-            }
-
-            _hoveredPosition = CastRingLayout.PositionAt(
-                _ring.Positions, canonicalX, canonicalY,
-                CastRingLayout.PositionForPower(_minimumPower),
-                CastRingLayout.PositionForPower(_maximumPower),
-                CastRingLayout.CanonicalHitBoxWidth, CastRingLayout.CanonicalHitBoxHeight);
-
-            await DrawRingAsync();
-
-            int power = CastRingLayout.PreviewPower(_hoveredPosition);
-            // Cost 0 puts the shipped "Cost: 5-15" template back, which is what the original shows
-            // when nothing is hovered.
-            await ShowSpellInfoAsync(_sliderSpell, power, await DamageForAsync(_sliderSpell, power));
-            return power;
-        }
-
-        /// <summary>
         /// Casts at the power under the cursor, and closes the screen behind it.
         /// </summary>
         /// <remarks>
