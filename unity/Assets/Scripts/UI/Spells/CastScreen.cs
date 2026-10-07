@@ -857,10 +857,11 @@ namespace BakAgain.UI.Spells {
             trail.AddToClassList(SigilClass);
             resting.visible = false;
             stage.Add(trail);
-            // *** THE SYMBOLS ARE GONE WHILE THE FIGURE MOVES. *** The original fades the old
-            // school's glyphs out, morphs with none on the ring, then fades the new ones in
-            // (cspell_menu_animate_hilite either side of hexanim_move_tiles, CSPELL.C:2341-2348) —
-            // seen live on 2026-09-26. Hidden here each frame because the ring may redraw them.
+            // *** THE SYMBOLS ARE GONE WHILE THE FIGURE MOVES. *** The original holds the old
+            // school's glyphs for one symbol pass (LoadSchoolAsync), morphs with none on the ring,
+            // then runs a pass over the new ones (cspell_menu_animate_hilite either side of
+            // hexanim_move_tiles, CSPELL.C:2341-2348) — seen live on 2026-09-26. Hidden here each frame because the
+            // ring may redraw them.
             void SymbolOpacity(float o) =>
                 stage.Query(className: SymbolClass).ForEach(e => e.style.opacity = o);
             // Indexed by elapsed time, not by frames drawn: at 70 Hz the morph is ~0.53 s however
@@ -880,11 +881,11 @@ namespace BakAgain.UI.Spells {
             }
             trail.RemoveFromHierarchy();
             resting.visible = true;
-            // The fade in: seven pen steps, seven IRQ ticks apart (CSPELL.C:1833-1851).
-            double step = GameData.Resources.Combat.SpellVisuals.IrqSeconds * 7;
-            for (var i = 1; i <= 7; i++) {
-                SymbolOpacity(i / 7f);
-                await UniTask.Delay(System.TimeSpan.FromSeconds(step));
+            // The fade in: one symbol pass over the new school (CSPELL.C:1833-1851).
+            const int passes = GameData.Resources.Spells.SpellSymbolDisplay.FadePasses;
+            for (var i = 1; i <= passes; i++) {
+                SymbolOpacity(i / (float)passes);
+                await UniTask.Delay(System.TimeSpan.FromSeconds(SymbolPassSeconds / passes));
             }
             SymbolOpacity(1f);
         }
@@ -1907,6 +1908,16 @@ namespace BakAgain.UI.Spells {
             LoadSchoolAsync(school).Forget();
         }
 
+        /// <summary>
+        /// One symbol pass: <see cref="GameData.Resources.Spells.SpellSymbolDisplay.FadePasses"/> waits of
+        /// <see cref="GameData.Resources.Spells.SpellSymbolDisplay.FadePassTicks"/> IRQ0 interrupts each
+        /// (the countdown the routine sets is decremented per interrupt, TIMER.ASM).
+        /// </summary>
+        private static double SymbolPassSeconds =>
+            GameData.Resources.Spells.SpellSymbolDisplay.FadePasses *
+            GameData.Resources.Spells.SpellSymbolDisplay.FadePassTicks *
+            GameData.Resources.Combat.SpellVisuals.IrqSeconds;
+
         /// <summary>The school whose symbols are currently loaded, or -1 before any are.</summary>
         public int School => _school;
 
@@ -1914,6 +1925,14 @@ namespace BakAgain.UI.Spells {
         public SpellSymbolLayout Symbols { get; private set; }
 
         private async UniTask LoadSchoolAsync(int school) {
+            // The old school's symbols stay on the ring for one symbol pass before anything changes:
+            // cspell_menu_animate_hilite(0x85, 1) runs over them BEFORE the free/load and the morph
+            // (CSPELL.C:2341-2348). Its pen never reaches SPELL.FNT's glyphs, so it reads as a hold.
+            await UniTask.Delay(System.TimeSpan.FromSeconds(SymbolPassSeconds));
+            if (this == null || !isActiveAndEnabled || _school != school) {
+                return;
+            }
+
             // SYMBOL files are 1-based on disk while the school index is 0-based.
             Symbols = await _resources.GetOrLoadAsync<SpellSymbolLayout>($"SYMBOL{school + 1}.DAT");
             if (Symbols == null) {
