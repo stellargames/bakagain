@@ -855,6 +855,8 @@ namespace BakAgain.UI.InGame {
                         _gameSession.CurrentSaveDirectory, BookmarkSave.Slot, BookmarkSave.HeaderName);
                     if (!ok) {
                         _logger.LogError("Bookmark write failed for {Dir}.", _gameSession.CurrentSaveDirectory);
+                    } else {
+                        SaveLoadMenuBase.ForgetLastGame();
                     }
                     return ok;
                 });

@@ -185,7 +185,7 @@ namespace BakAgain.UI {
             _selEnd[1] = _text[1].Length;
             PushField(0);
             PushField(1);
-            _ = LoadDirectoriesAsync();
+            _ = LoadDirectoriesAsync(restoreLast: true);
         }
 
         protected override void OnDisable() {
@@ -202,9 +202,9 @@ namespace BakAgain.UI {
         // The original's MkSaveGameDir always seeds GAMES\SAVES.G01 when the
         // save dialog opens, so a fresh install (no save-set dirs yet) still
         // has a directory to select.
-        protected override async UniTask LoadDirectoriesAsync() {
+        protected override async UniTask LoadDirectoriesAsync(bool restoreLast = false) {
             await _saves.EnsureDefaultDirectoryAsync();
-            await base.LoadDirectoriesAsync();
+            await base.LoadDirectoriesAsync(restoreLast);
         }
 
         // A picker selection fills the matching box, select-all'd so it reads as
@@ -334,8 +334,10 @@ namespace BakAgain.UI {
 
             _logger.LogInformation("Saved '{Name}' (dir '{Dir}', slot {Slot}).",
                 gameName, dirNameOnDisk, slotIndex);
-            // The original's Save exits the dialog on success (RE §Q3).
-            Close();
+            RememberLast(existingDir?.DisplayName ?? dirName, gameName);
+            // The original's Save exits the dialog on success (RE §Q3). Not Close(): that would
+            // record the picker rows, which do not follow the typed names.
+            _navigator.Pop().Forget();
         }
 
         private async void DoRemoveGame() {

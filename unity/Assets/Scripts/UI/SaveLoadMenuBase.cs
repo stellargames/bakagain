@@ -67,19 +67,52 @@ namespace BakAgain.UI {
         /// <summary>Enter, or a double-click on a game row: restore or save.</summary>
         protected abstract void Activate();
 
-        protected void Close() => _navigator.Pop().Forget();
+        // *** THE LAST-USED DIRECTORY AND GAME ARE ONE PAIR SHARED BY BOTH DIALOGS. *** The original's
+        // g_szSaveSlotDirName + g_abSaveFileHeader (MAINMENU.C:49-59), each with a valid flag: memory
+        // only, never written to a file. Every exit of either dialog records the current pair
+        // (load: :551-561; save cancel: :1015-1033), a save records the directory and name it wrote
+        // (:959, :998-1007), and a bookmark forgets the game (:1480-1492). On open each dialog looks
+        // the pair up by its labels — directory case-insensitively (stricmp, :376), game exactly
+        // (strcmp, :390) — and a name no longer listed leaves row 0 (TASK-849).
+        private static string s_lastDirectory;
+        private static string s_lastGame;
 
-        protected virtual async UniTask LoadDirectoriesAsync() {
+        protected static void RememberLast(string directory, string game) {
+            s_lastDirectory = directory;
+            s_lastGame = game;
+        }
+
+        /// <summary>A bookmark overwrote the header the save dialogs would look for (MAINMENU.C:1492).</summary>
+        internal static void ForgetLastGame() => s_lastGame = null;
+
+        protected void RememberSelection() => RememberLast(
+            _selectedDirectory >= 0 && _selectedDirectory < _directories.Count ? _directories[_selectedDirectory].DisplayName : null,
+            _selectedSlot >= 0 && _selectedSlot < _slots.Count ? _slots[_selectedSlot].DisplayName : null);
+
+        protected void Close() {
+            RememberSelection();
+            _navigator.Pop().Forget();
+        }
+
+        // restoreLast: the open, which reselects the remembered pair (the original's need_slot_sel /
+        // need_file_sel, cleared after the first listing); a re-list after Remove Directory does not.
+        protected virtual async UniTask LoadDirectoriesAsync(bool restoreLast = false) {
             _directories = await _saves.ListDirectoriesAsync();
             _slots = Array.Empty<SaveSlotInfo>();
             _selectedSlot = -1;
-            // Open with the first directory selected (which in turn selects its
-            // first save), matching the engine's initial highlight.
             _selectedDirectory = _directories.Count > 0 ? 0 : -1;
+            if (restoreLast && s_lastDirectory != null) {
+                for (int i = 0; i < _directories.Count; i++) {
+                    if (string.Equals(_directories[i].DisplayName, s_lastDirectory, StringComparison.OrdinalIgnoreCase)) {
+                        _selectedDirectory = i;
+                        break;
+                    }
+                }
+            }
             _loader.RefreshFilePicker(DirectoryPickerAction);
             if (_selectedDirectory >= 0) {
-                OnDirectorySelected(_directories[0]);
-                await RefreshSlotsAsync(_directories[0].Name);
+                OnDirectorySelected(_directories[_selectedDirectory]);
+                await RefreshSlotsAsync(_directories[_selectedDirectory].Name, restoreLast ? s_lastGame : null);
             } else {
                 _loader.RefreshFilePicker(FilePickerAction);
             }
@@ -87,10 +120,16 @@ namespace BakAgain.UI {
 
         // Re-lists the slots of one directory and refreshes the right-pane
         // picker; Save/Remove Game call it again after their write/delete completes.
-        protected async UniTask RefreshSlotsAsync(string directoryName) {
+        protected async UniTask RefreshSlotsAsync(string directoryName, string selectGame = null) {
             _slots = await _saves.ListSlotsAsync(directoryName);
-            // Auto-select the first save of the (newly) selected directory.
+            // Auto-select the first save of the (newly) selected directory, or the named one.
             _selectedSlot = _slots.Count > 0 ? 0 : -1;
+            for (int i = 0; selectGame != null && i < _slots.Count; i++) {
+                if (string.Equals(_slots[i].DisplayName, selectGame, StringComparison.Ordinal)) {
+                    _selectedSlot = i;
+                    break;
+                }
+            }
             _loader.RefreshFilePicker(FilePickerAction);
             if (_selectedSlot >= 0) {
                 OnSlotSelected(_slots[_selectedSlot]);

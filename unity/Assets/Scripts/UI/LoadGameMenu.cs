@@ -41,7 +41,7 @@ namespace BakAgain.UI {
         }
 
         // Populate the pickers once the loader is awake (activation kicked its async REQ build).
-        protected override void OnAfterShow() => _ = LoadDirectoriesAsync();
+        protected override void OnAfterShow() => _ = LoadDirectoriesAsync(restoreLast: true);
 
         // --- IActionHandler ---
 
@@ -85,6 +85,7 @@ namespace BakAgain.UI {
             // The flow hydrates, then (on success) leaves the current configuration — clearing this
             // screen off the stack — and presents the fullmap + chapter dialog before entering the
             // world (faithful to StartGameOrLoadSave @ 0x20835, mode 3). On failure we simply stay.
+            RememberSelection(); // the dialog's exit records the pair whatever the load does (MAINMENU.C:551)
             bool ok = await _flow.LoadSave(slot.FullPath);
             if (!ok) {
                 _logger.LogError("Restore failed for '{Name}' ({Path}). Staying on screen.",
