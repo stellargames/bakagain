@@ -180,6 +180,13 @@ namespace BakAgain.UI.Spells {
             RememberSelection();
             EndOpenWipe();
             _fillFrame = -1;
+            // A commit pops the screen without clearing the slider (only a cancel did), so the next
+            // open came up still choosing power for the last spell: no symbol could be hovered or
+            // picked, and Exit reported a cancel for a spell never chosen. Seen on Android, Owyn's
+            // second cast of a fight.
+            _sliderSpell = -1;
+            _hoveredSpell = -1;
+            _hoveredPosition = -1;
             // Both halves of "this open is over". CombatCaster going null puts the FIELD layout
             // back for whoever opens next, which is why no field caller has to remember to; and
             // CasterId has to go with it, because ApplyInitialSelectionAsync is what re-resolves
