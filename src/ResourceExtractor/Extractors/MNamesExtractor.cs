@@ -7,7 +7,7 @@ using System.Text;
 internal class MNamesExtractor : ExtractorBase {
     public static IEnumerable<string> Extract(string filePath) {
         using FileStream resourceFile = File.OpenRead(filePath);
-        using var resourceReader = new BinaryReader(resourceFile, Encoding.GetEncoding(DosCodePage));
+        using var resourceReader = new BinaryReader(resourceFile, ResourceExtraction.Cp437Encoding.Instance);
 
         int amount = resourceReader.ReadInt16();
 

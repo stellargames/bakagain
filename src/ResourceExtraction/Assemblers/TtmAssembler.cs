@@ -9,11 +9,9 @@ using System.IO;
 using System.Text;
 
 public class TtmAssembler {
-    private const string DosCodePage = "ibm437";
-
     public static void Assemble(AnimationResource animationResource, string filePath) {
         using var fileStream = new FileStream(filePath, FileMode.Create);
-        using var writer = new BinaryWriter(fileStream, Encoding.GetEncoding(DosCodePage));
+        using var writer = new BinaryWriter(fileStream, Cp437Encoding.Instance);
 
         // Write VER tag
         WriteTag(writer, "VER");

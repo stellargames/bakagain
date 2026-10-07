@@ -11,7 +11,7 @@ using System.Text;
 
 public class KeywordExtractor : ExtractorBase<KeywordList> {
     public override KeywordList Extract(string id, Stream resourceStream) {
-        using var resourceReader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var resourceReader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
 
         int size = resourceReader.ReadInt16();
         int amount = resourceReader.ReadInt16();

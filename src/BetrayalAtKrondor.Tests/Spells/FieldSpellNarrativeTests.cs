@@ -29,9 +29,6 @@ using Xunit;
 /// giving them a slot would shift the six.</para>
 /// </remarks>
 public class FieldSpellNarrativeTests {
-    static FieldSpellNarrativeTests() =>
-        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
     private const string NarrativeFile = "DIAL_Z00.DDX";
 
     private static Dialog? LoadShippedDialogs() {

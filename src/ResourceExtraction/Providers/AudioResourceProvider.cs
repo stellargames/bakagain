@@ -12,7 +12,6 @@ using ResourceType = ResourceExtraction.ResourceType;
 
 public class AudioResourceProvider : IResourceProvider {
     private const string ResourceFileName = "FRP.SX";
-    private const int DosCodePage = 437;
 
     private readonly string _audioFilePath;
     private Dictionary<string, (long, uint)> _audioDictionary = [];
@@ -44,7 +43,7 @@ public class AudioResourceProvider : IResourceProvider {
         var namesDict = new Dictionary<string, string>();
         using var stream = File.OpenRead(_audioFilePath);
         stream.Seek(position.Value, SeekOrigin.Begin);
-        var reader = new BinaryReader(stream, Encoding.GetEncoding(DosCodePage));
+        var reader = new BinaryReader(stream, Cp437Encoding.Instance);
         string tag = reader.ReadTag();
         if (tag != "TAG") {
             throw new InvalidDataException($"Expected TAG tag, got {tag} at position {stream.Position:X8}");
@@ -113,7 +112,7 @@ public class AudioResourceProvider : IResourceProvider {
         }
 
         using var stream = File.OpenRead(_audioFilePath);
-        using var reader = new BinaryReader(stream, Encoding.GetEncoding(DosCodePage));
+        using var reader = new BinaryReader(stream, Cp437Encoding.Instance);
 
         // Read SND header (4-byte tag + 4-byte size)
         string tag = reader.ReadTag();

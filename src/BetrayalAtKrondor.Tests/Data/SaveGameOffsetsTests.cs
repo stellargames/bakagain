@@ -12,8 +12,6 @@ using ResourceExtraction.Extractors;
 using Xunit;
 
 public class SaveGameOffsetsTests {
-    static SaveGameOffsetsTests() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
     // A bare body (no 100-byte header) so SaveGameExtractor parses it as TEMP.GAM.
     private static byte[] MakeBody() => new byte[SaveGameOffsets.BodySize];
 

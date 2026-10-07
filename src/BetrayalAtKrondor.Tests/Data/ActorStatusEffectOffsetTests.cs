@@ -19,9 +19,6 @@ using Xunit;
 /// defect survived: it could only be seen from outside our own pair of functions.
 /// </remarks>
 public class ActorStatusEffectOffsetTests {
-    static ActorStatusEffectOffsetTests() =>
-        System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
-
     [Fact]
     public void TheRanksBlockStartsWhereTheStructSaysAndFillsExactlySixRows() {
         // 0x2cc, immediately after aSkillTrainRate's twelve bytes at 0x2c0 — and it ends exactly on

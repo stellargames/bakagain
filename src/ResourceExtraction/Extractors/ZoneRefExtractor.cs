@@ -8,7 +8,7 @@ public class ZoneRefExtractor : ExtractorBase<ZoneRef>
 {
     public override ZoneRef Extract(string id, Stream resourceStream)
     {
-        using var reader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var reader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         byte numTiles = reader.ReadByte();
         var zoneRef = new ZoneRef(id);
         for (int i = 0; i < numTiles; i++)

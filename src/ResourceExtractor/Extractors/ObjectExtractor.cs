@@ -8,7 +8,7 @@ using System.Text;
 internal class ObjectExtractor : ExtractorBase {
     public List<ObjectInfo> Extract(string filePath) {
         using FileStream resourceFile = File.OpenRead(filePath);
-        using var resourceReader = new BinaryReader(resourceFile, Encoding.GetEncoding(DosCodePage));
+        using var resourceReader = new BinaryReader(resourceFile, ResourceExtraction.Cp437Encoding.Instance);
 
         var objectInfoList = new List<ObjectInfo>();
         for (int i = 0; i < 138; i++) {

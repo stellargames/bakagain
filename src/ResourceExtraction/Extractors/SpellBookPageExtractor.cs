@@ -23,7 +23,7 @@ public class SpellBookPageExtractor : ExtractorBase<SpellBookPage> {
     private const int NameLength = 0x18;
 
     public override SpellBookPage Extract(string id, Stream resourceStream) {
-        using var reader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var reader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         var page = new SpellBookPage(id);
 
         for (var group = 0; group < GroupCount; group++) {
@@ -50,6 +50,6 @@ public class SpellBookPageExtractor : ExtractorBase<SpellBookPage> {
         while (length < raw.Length && raw[length] != 0) {
             length++;
         }
-        return Encoding.GetEncoding(DosCodePage).GetString(raw, 0, length);
+        return Cp437Encoding.Instance.GetString(raw, 0, length);
     }
 }

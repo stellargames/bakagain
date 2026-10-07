@@ -13,7 +13,7 @@ using System.Text;
 public class BNamesExtractor : ExtractorBase<CreatureBitmaps> {
     public override CreatureBitmaps Extract(string id, Stream resourceStream) {
         var result = new CreatureBitmaps(id);
-        using var reader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var reader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
 
         ushort count = reader.ReadUInt16();
         var offsets = new ushort[count];

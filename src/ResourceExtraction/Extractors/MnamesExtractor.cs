@@ -12,7 +12,7 @@ using System.Text;
 /// de-indexed target catalog for encounter <c>EnemySlot.CreatureNumber</c> (reference #15).</summary>
 public class MnamesExtractor : ExtractorBase<CreatureNames> {
     public override CreatureNames Extract(string id, Stream resourceStream) {
-        using var reader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var reader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         var data = new CreatureNames(id);
 
         int count = reader.ReadUInt16();

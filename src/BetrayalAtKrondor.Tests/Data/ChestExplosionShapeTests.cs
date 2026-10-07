@@ -15,8 +15,6 @@ using Xunit;
 /// table swapped to BOOM. Its sprite faces size the frames — the first one is the small spark.
 /// </summary>
 public class ChestExplosionShapeTests {
-    static ChestExplosionShapeTests() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
     [Theory]
     [InlineData("Z02.TBL", false)]
     [InlineData("Z10.TBL", true)]

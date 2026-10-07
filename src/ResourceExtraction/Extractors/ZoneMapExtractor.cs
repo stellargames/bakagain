@@ -8,7 +8,7 @@ public class ZoneMapExtractor : ExtractorBase<ZoneMap>
 {
     public override ZoneMap Extract(string id, Stream resourceStream)
     {
-        using var reader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var reader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         var zoneMap = new ZoneMap(id);
         var rawBytes = reader.ReadBytes(ZoneMap.Height * 8);
         for (int y = 0; y < ZoneMap.Height; y++)

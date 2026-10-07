@@ -8,7 +8,7 @@ using System.Text;
 
 public class PaletteExtractor : ExtractorBase<PaletteResource> {
     public override PaletteResource Extract(string id, Stream resourceStream) {
-        using var resourceReader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var resourceReader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         string mainTag = resourceReader.ReadTag();
         uint fileSize = resourceReader.ReadUInt16();
         ushort unknown = resourceReader.ReadUInt16();

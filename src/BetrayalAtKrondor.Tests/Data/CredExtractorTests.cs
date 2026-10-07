@@ -23,8 +23,6 @@ using Xunit;
 ///   Centered   — the final block (left index > count-5), centered not columnar
 /// </summary>
 public class CredExtractorTests {
-    static CredExtractorTests() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
     /// <summary>Builds a CRED.DAT blob from a string table, matching LoadCRED.DAT.</summary>
     private static byte[] BuildCredDat(string[] strings) {
         var blob = new MemoryStream();

@@ -13,7 +13,7 @@ public class DdxExtractor : ExtractorBase<Dialog> {
     public override Dialog Extract(string id, Stream resourceStream) {
         Log($"Extracting {id}");
         Indent = string.Empty;
-        using var resourceReader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var resourceReader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
 
         var dialog = new Dialog(id);
 

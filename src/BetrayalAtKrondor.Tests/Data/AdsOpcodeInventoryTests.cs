@@ -35,9 +35,6 @@ using Xunit;
 /// its number, and the concern becomes real and actionable at that point.</para>
 /// </remarks>
 public class AdsOpcodeInventoryTests {
-    static AdsOpcodeInventoryTests() =>
-        System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
-
     /// <summary>The opcodes present across all 44 shipped ADS files, measured 2026-09-04. Every one
     /// is named by <c>CutsceneCommand.ToString()</c>, which is what keeps the emitted script free of
     /// <c>UNKNOWN_COMMAND</c>.</summary>

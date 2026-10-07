@@ -9,9 +9,6 @@ using Xunit;
 /// per <c>charscreen_draw_spell_book_actor</c>.
 /// </summary>
 public class SpellBookPageExtractorTests {
-    static SpellBookPageExtractorTests() =>
-        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
     private static void WriteName(BinaryWriter w, string name) {
         var field = new byte[0x18];
         byte[] raw = Encoding.ASCII.GetBytes(name);

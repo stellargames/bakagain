@@ -16,8 +16,6 @@ using Xunit;
 /// TASK-422.
 /// </remarks>
 public class FollowRoadRoundTripTests {
-    static FollowRoadRoundTripTests() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
     private const int Offset = SaveGameOffsets.IsAutoTravelling;
 
     [Theory]

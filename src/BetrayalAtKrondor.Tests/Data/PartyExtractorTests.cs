@@ -17,8 +17,6 @@ using Xunit;
 /// </summary>
 public class PartyExtractorTests {
 
-    static PartyExtractorTests() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
     /// <summary>Writes one 95-byte actor record: name_pointer, 3 spell words, 16
     /// attributes (maximum only, rest 0), actor_number, inventory_pointer, combat_pointer.</summary>
     private static void WriteActor(BinaryWriter w, ushort namePointer, byte[] attributeMaxima) {

@@ -147,7 +147,7 @@ public class ZoneTableExtractor : ExtractorBase<ZoneTable>
 
     public override ZoneTable Extract(string id, Stream resourceStream)
     {
-        using var reader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var reader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         var table = new ZoneTable(id);
 
         var sections = ParseSectionHeaders(reader);

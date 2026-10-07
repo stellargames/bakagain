@@ -14,7 +14,7 @@ public class BokExtractor : ExtractorBase<BookResource> {
     private const byte StartOfTextSegment = 0xF4;
 
     public override BookResource Extract(string id, Stream resourceStream) {
-        using var resourceReader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var resourceReader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
 
         var book = new BookResource(id);
 
@@ -107,7 +107,7 @@ public class BokExtractor : ExtractorBase<BookResource> {
         }
         stream.Position = start;
         byte[] raw = resourceReader.ReadBytes((int)(end - start));
-        return Encoding.GetEncoding(DosCodePage).GetString(raw);
+        return Cp437Encoding.Instance.GetString(raw);
     }
 
     /// <summary>

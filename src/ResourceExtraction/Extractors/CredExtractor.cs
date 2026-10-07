@@ -62,6 +62,6 @@ public class CredExtractor : ExtractorBase<CreditsData> {
         while (end < blob.Length && blob[end] != 0) {
             end++;
         }
-        return Encoding.GetEncoding(DosCodePage).GetString(blob, offset, end - offset);
+        return Cp437Encoding.Instance.GetString(blob, offset, end - offset);
     }
 }

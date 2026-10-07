@@ -42,7 +42,7 @@ public class FullMapTownExtractor : ExtractorBase<FullMapTowns> {
     private static string DecodeName(byte[] raw) {
         int end = System.Array.IndexOf(raw, (byte)0);
         int length = end >= 0 ? end : raw.Length;
-        return Encoding.GetEncoding(DosCodePage).GetString(raw, 0, length);
+        return Cp437Encoding.Instance.GetString(raw, 0, length);
     }
 }
 

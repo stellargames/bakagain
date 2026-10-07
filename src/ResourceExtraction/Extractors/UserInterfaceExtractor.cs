@@ -12,7 +12,7 @@ using System.Text;
 
 public class UserInterfaceExtractor : ExtractorBase<UserInterface> {
     public override UserInterface Extract(string id, Stream resourceStream) {
-        using var resourceReader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var resourceReader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         var userInterface = new UserInterface(id);
         userInterface.UserInterfaceType = (UserInterfaceType)resourceReader.ReadUInt16();
         userInterface.IsModal = resourceReader.ReadUInt16() > 0;

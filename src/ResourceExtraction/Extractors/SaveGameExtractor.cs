@@ -67,7 +67,7 @@ public class SaveGameExtractor : ExtractorBase<SaveGame> {
             version = SaveGame.SupportedVersion;
         }
 
-        using var resourceReader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var resourceReader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         long remaining = resourceStream.Length - resourceStream.Position;
         byte[] tempGameData = resourceReader.ReadBytes((int)remaining);
         SaveGameData? data = ParseData(tempGameData);
@@ -85,7 +85,7 @@ public class SaveGameExtractor : ExtractorBase<SaveGame> {
     /// validate the version; consult <see cref="SaveGameHeader.IsSupportedVersion"/>.
     /// </summary>
     public static SaveGameHeader ReadHeader(Stream resourceStream) {
-        using var reader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage), leaveOpen: true);
+        using var reader = new BinaryReader(resourceStream, Cp437Encoding.Instance, leaveOpen: true);
         // DOS save names are null-terminated C-strings in a fixed 90-byte field. Truncate at the
         // first NUL (via the shared reader) rather than only trimming trailing NULs — otherwise a
         // leading/embedded NUL (e.g. a corrupt save with a zeroed char) leaks into the display name.
@@ -162,7 +162,7 @@ public class SaveGameExtractor : ExtractorBase<SaveGame> {
 
     private static SaveGameWorldData ParseWorldData(byte[] worldDataBytes) {
         using var worldStream = new MemoryStream(worldDataBytes);
-        using var worldReader = new BinaryReader(worldStream, Encoding.GetEncoding(DosCodePage));
+        using var worldReader = new BinaryReader(worldStream, Cp437Encoding.Instance);
 
         byte[] zoneNumbers = worldReader.ReadBytes(ExplorationStateEntryCount);
         byte[] xCoordinates = worldReader.ReadBytes(ExplorationStateEntryCount);
@@ -251,7 +251,7 @@ public class SaveGameExtractor : ExtractorBase<SaveGame> {
 
     private static SaveGameStateData ParseStateData(byte[] stateDataBytes) {
         using var sectionStream = new MemoryStream(stateDataBytes);
-        using var sectionReader = new BinaryReader(sectionStream, Encoding.GetEncoding(DosCodePage));
+        using var sectionReader = new BinaryReader(sectionStream, Cp437Encoding.Instance);
 
         short chapterNumber = sectionReader.ReadInt16();
         int partyGold = sectionReader.ReadInt32();
@@ -497,7 +497,7 @@ public class SaveGameExtractor : ExtractorBase<SaveGame> {
     private static SaveGameActorData[] ParseActorData(byte[] actorDataBytes) {
         var actors = new SaveGameActorData[ActorSlotCount];
         using var actorStream = new MemoryStream(actorDataBytes);
-        using var actorReader = new BinaryReader(actorStream, Encoding.GetEncoding(DosCodePage));
+        using var actorReader = new BinaryReader(actorStream, Cp437Encoding.Instance);
 
         for (var i = 0; i < actors.Length; i++) {
             actors[i] = ActorRecordReader.ParseActor(actorReader);
@@ -509,7 +509,7 @@ public class SaveGameExtractor : ExtractorBase<SaveGame> {
     private static SaveGameActorData[] ParsePartyActors(byte[] partyActorData) {
         var actors = new SaveGameActorData[PartyActorCount];
         using var actorStream = new MemoryStream(partyActorData);
-        using var actorReader = new BinaryReader(actorStream, Encoding.GetEncoding(DosCodePage));
+        using var actorReader = new BinaryReader(actorStream, Cp437Encoding.Instance);
 
         for (var i = 0; i < actors.Length; i++) {
             actors[i] = ActorRecordReader.ParseActor(actorReader);
@@ -533,7 +533,7 @@ public class SaveGameExtractor : ExtractorBase<SaveGame> {
     private static SaveGameCombatData[] ParseCombatData(byte[] combatDataBytes) {
         var combatData = new SaveGameCombatData[CombatSlotCount];
         using var combatStream = new MemoryStream(combatDataBytes);
-        using var combatReader = new BinaryReader(combatStream, Encoding.GetEncoding(DosCodePage));
+        using var combatReader = new BinaryReader(combatStream, Cp437Encoding.Instance);
 
         for (var i = 0; i < combatData.Length; i++) {
             combatData[i] = ParseCombat(combatReader);
@@ -547,7 +547,7 @@ public class SaveGameExtractor : ExtractorBase<SaveGame> {
 
     private static SaveGameZoneContainerStateData ParseZoneContainerStateData(byte[] zoneContainerDataBytes, SaveGameWorldData worldStateData) {
         using var zoneContainerStream = new MemoryStream(zoneContainerDataBytes);
-        using var zoneContainerReader = new BinaryReader(zoneContainerStream, Encoding.GetEncoding(DosCodePage));
+        using var zoneContainerReader = new BinaryReader(zoneContainerStream, Cp437Encoding.Instance);
 
         var zones = new List<SaveGameZoneContainerEntryData>(worldStateData.ZoneDataEntries.Length);
         foreach (SaveGameZoneDataData zoneData in worldStateData.ZoneDataEntries) {
@@ -705,7 +705,7 @@ public class SaveGameExtractor : ExtractorBase<SaveGame> {
     }
 
     private static string ReadFixedLengthString(byte[] data) {
-        string value = Encoding.GetEncoding(DosCodePage).GetString(data);
+        string value = Cp437Encoding.Instance.GetString(data);
         int zeroIndex = value.IndexOf('\0');
         if (zeroIndex >= 0) {
             value = value[..zeroIndex];

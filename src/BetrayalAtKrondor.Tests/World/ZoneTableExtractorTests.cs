@@ -13,8 +13,6 @@ using Xunit;
 /// so a field read from the wrong stream position is directly observable.
 /// </summary>
 public class ZoneTableExtractorTests {
-    static ZoneTableExtractorTests() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
     // Distinctive sentinel for the mesh-face record's +0x06 field. Chosen so a read from any
     // other stream position cannot coincidentally produce it.
     private const ushort Unknown06Sentinel = 0xBEEF;

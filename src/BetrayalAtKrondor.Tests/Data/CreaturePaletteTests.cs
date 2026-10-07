@@ -16,8 +16,6 @@ using Xunit;
 /// (Z01-Z05, Z07) are byte-identical, recomputes the creature-used palette + magenta fill from the shipped
 /// data, and asserts the committed array still matches (so it can't silently drift).</summary>
 public class CreaturePaletteTests {
-    static CreaturePaletteTests() { Encoding.RegisterProvider(CodePagesEncodingProvider.Instance); }
-
     private static string? Dir() {
         string? d = System.AppContext.BaseDirectory;
         while (!string.IsNullOrEmpty(d)) {

@@ -20,9 +20,6 @@ using Xunit;
 /// the wrong meaning.
 /// </remarks>
 public class CombatRecordRoundTripTests {
-    static CombatRecordRoundTripTests() =>
-        System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
-
     /// <summary>Where the combat block starts in a save BODY.</summary>
     private static int BlockOffset =>
         SaveGameOffsets.StateDataSize + SaveGameOffsets.WorldDataSize + SaveGameOffsets.ActorDataSize;

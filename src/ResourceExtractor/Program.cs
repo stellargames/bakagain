@@ -38,11 +38,8 @@ using PaletteExtractor = ResourceExtraction.Extractors.PaletteExtractor;
 using ResourceType = GameData.Resources.ResourceType;
 
 internal static class Program {
-    private const int DosCodePage = 437;
 
     public static void Main(string[] args) {
-        // CodePagesEncodingProvider.Instance.GetEncoding(DosCodePage);
-        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
         // Before the switch into generated/: the template holds the game's English, so it goes
         // where the player asked, never into the repository.
@@ -1616,7 +1613,6 @@ internal static class Program {
         string gamePath = args.Length >= 2 ? args[1] : Directory.GetCurrentDirectory();
         string outputDir = args.Length >= 3 ? args[2] : "ObjectInfo";
         if (!Directory.Exists(outputDir)) Directory.CreateDirectory(outputDir);
-        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         string objInfoPath = Directory.GetFileSystemEntries(gamePath, "objinfo.dat",
             new EnumerationOptions { MatchCasing = MatchCasing.CaseInsensitive }).First();
         var extractor = new ObjectExtractor();

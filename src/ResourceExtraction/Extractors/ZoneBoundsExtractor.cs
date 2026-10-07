@@ -6,7 +6,7 @@ using System.Text;
 
 public class ZoneBoundsExtractor : ExtractorBase<ZoneBounds> {
     public override ZoneBounds Extract(string id, Stream resourceStream) {
-        using var reader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var reader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         return new ZoneBounds(id) {
             XOffset = reader.ReadUInt16(),
             YOffset = reader.ReadUInt16(),

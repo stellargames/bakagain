@@ -57,7 +57,7 @@ public abstract class DefFamilyExtractorBase<TEntry> : ExtractorBase<DefFamilyFi
     }
 
     public override DefFamilyFile<TEntry> Extract(string id, Stream resourceStream) {
-        using var reader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var reader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         uint count = reader.ReadUInt32();
         long expectedBodyLength = (long)count * (PayloadSize + 1);
         long actualBodyLength = resourceStream.Length - 4;

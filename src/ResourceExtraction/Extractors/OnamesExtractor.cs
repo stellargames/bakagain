@@ -15,7 +15,7 @@ using System.Text;
 /// </summary>
 public class OnamesExtractor : ExtractorBase<ObjectNames> {
     public override ObjectNames Extract(string id, Stream resourceStream) {
-        using var reader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var reader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         var data = new ObjectNames(id);
 
         int count = reader.ReadUInt16();

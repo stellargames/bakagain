@@ -20,7 +20,7 @@ public class TileEventExtractor : ExtractorBase<TileEventTile>
 
     public override TileEventTile Extract(string id, Stream resourceStream)
     {
-        using var reader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var reader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         var tile = new TileEventTile(id);
 
         string name = Path.GetFileNameWithoutExtension(id);

@@ -10,9 +10,6 @@ namespace BakAgain.Core {
 
         public static void InitializeResourceManagement() {
             Logger.LogInformation("Initializing Resource Management...");
-            // Register the CodePagesEncodingProvider to enable access to legacy encodings
-            // This is crucial for supporting DosCodePage (e.g., 437) in builds.
-            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
             Logger.LogInformation("BakResourceSettings.OverrideEnabled: {OverrideEnabled}", BakResourceSettings.OverrideEnabled);
             Logger.LogInformation("BakResourceSettings.OverridePath: '{OverridePath}'", BakResourceSettings.OverridePath);
             Logger.LogInformation("BakResourceSettings.GamePath: '{GamePath}'", BakResourceSettings.GamePath);

@@ -35,9 +35,6 @@ using Xunit;
 /// is all POSITIVE, so it preserves orientation and cannot flip this sign.</para>
 /// </remarks>
 public class FaceWindingInvariantTests {
-    static FaceWindingInvariantTests() =>
-        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
     /// <summary>Faces below this and the walk clearly did not reach the shipped data.</summary>
     private const int MinimumFacesExpected = 10000;
 

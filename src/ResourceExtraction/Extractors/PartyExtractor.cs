@@ -18,7 +18,7 @@ using System.Text;
 /// </summary>
 public class PartyExtractor : ExtractorBase<PartyData> {
     public override PartyData Extract(string id, Stream resourceStream) {
-        using var reader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var reader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         var data = new PartyData(id);
 
         var actors = new SaveGameActorData[PartyData.MemberCount];

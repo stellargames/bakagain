@@ -23,9 +23,6 @@ using Xunit;
 /// <c>StateDataSize + WorldDataSize</c>.
 /// </remarks>
 public class SaveGameRosterActorWriteTests {
-    static SaveGameRosterActorWriteTests() =>
-        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
     private static byte[] EmptyBody() => new byte[SaveGameOffsets.BodySize];
 
     private static SaveGameFields Fields() => new SaveGameFields(

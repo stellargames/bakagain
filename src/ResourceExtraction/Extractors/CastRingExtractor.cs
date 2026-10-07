@@ -18,7 +18,7 @@ public class CastRingExtractor : ExtractorBase<CastRing> {
     private const int ScaleY = 1200 / 200; // 6
 
     public override CastRing Extract(string id, Stream resourceStream) {
-        using var reader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var reader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         var ring = new CastRing(id);
 
         var xs = new ushort[PositionCount];

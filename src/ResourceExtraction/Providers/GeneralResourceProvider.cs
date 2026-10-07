@@ -13,7 +13,6 @@ using ResourceType = ResourceExtraction.ResourceType;
 
 public class GeneralResourceProvider : IResourceProvider {
     private const string ResourceFileName = "KRONDOR.001";
-    private const int DosCodePage = 437;
     private const int FileNameLength = 13;
 
     private readonly IDictionary<string, (long, uint)> _dictionary;
@@ -29,7 +28,7 @@ public class GeneralResourceProvider : IResourceProvider {
             throw new ArgumentException($"Invalid resource type: {type.Value}. Expected: {ResourceType.General}");
         }
         using FileStream resourceFile = File.OpenRead(_resourceFilePath);
-        using var resourceReader = new BinaryReader(resourceFile, Encoding.GetEncoding(DosCodePage));
+        using var resourceReader = new BinaryReader(resourceFile, Cp437Encoding.Instance);
         long resourceFileLength = resourceFile.Length;
 
         var offsets = new Dictionary<string, (long, uint)>();

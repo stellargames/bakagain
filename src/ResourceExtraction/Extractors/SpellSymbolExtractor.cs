@@ -20,7 +20,7 @@ public class SpellSymbolExtractor : ExtractorBase<SpellSymbolLayout> {
     private const int ScaleY = 1200 / 200; // 6
 
     public override SpellSymbolLayout Extract(string id, Stream resourceStream) {
-        using var reader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var reader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         var layout = new SpellSymbolLayout(id);
 
         // SYMBOL<n>.DAT -> zero-based category n-1.

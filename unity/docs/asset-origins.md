@@ -12,7 +12,6 @@ Where every committed binary asset comes from, so the public release carries not
 | `Assets/Plugins/MeltySynth/MeltySynth.dll` | NuGet MeltySynth 2.4.1 | MIT |
 | `Assets/Plugins/SimpleFileBrowser/**` (sprites, prefab) | yasirkula/UnitySimpleFileBrowser 1.7.7 | MIT |
 | `Assets/Resources/SimpleFileBrowserCanvas.prefab` | copy of the Simple File Browser prefab | MIT |
-| `Assets/Plugins/I18N/*.dll` (Android + standalone players; not the Editor, which has its own) | Mono class libraries | MIT |
 | `Assets/Plugins/netstandard2.1/*` | built from `src/` (GameData, ResourceExtraction) + DryWetMidi native libs | MIT |
 | `Assets/Custom/Fonts/Victor_Mono/**`, `VictorMono-Regular.ttf` | Victor Mono | SIL OFL 1.1 (`OFL.txt` alongside) |
 | `Assets/TextMesh Pro/**` (LiberationSans, EmojiOne, shaders) | TextMesh Pro essential resources (Unity) | Unity Companion License; Liberation Sans OFL 1.1 |

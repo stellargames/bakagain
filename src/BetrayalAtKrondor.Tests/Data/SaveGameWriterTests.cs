@@ -9,8 +9,6 @@ using ResourceExtraction.Extractors;
 using Xunit;
 
 public class SaveGameWriterTests {
-    static SaveGameWriterTests() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
     // A synthetic backing body with a recognisable pattern so passthrough is easy to verify.
     private static byte[] PatternBody() {
         var body = new byte[SaveGameOffsets.BodySize];
@@ -218,7 +216,6 @@ public class SaveGameWriterTests {
             body, FieldsFrom(body), "Slot A", 40, 41, 3,
             lastSeenStepSpeed: 1600, lastSeenGridStride: 900);
 
-        System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
         SaveGame parsed = new ResourceExtraction.Extractors.SaveGameExtractor()
             .Extract("Slot A", new System.IO.MemoryStream(r.Bytes[SaveGameOffsets.HeaderSize..]));
 
@@ -235,7 +232,6 @@ public class SaveGameWriterTests {
         SaveGameWriteResult after = SaveGameWriter.Write(
             before.Bytes[SaveGameOffsets.HeaderSize..], FieldsFrom(body), "Slot A", 40, 41, 3);
 
-        System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
         SaveGame parsed = new ResourceExtraction.Extractors.SaveGameExtractor()
             .Extract("Slot A", new System.IO.MemoryStream(after.Bytes[SaveGameOffsets.HeaderSize..]));
 

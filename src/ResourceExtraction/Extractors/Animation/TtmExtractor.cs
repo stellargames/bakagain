@@ -14,7 +14,7 @@ using System.Text;
 
 public class TtmExtractor : ExtractorBase<AnimationResource> {
     public override AnimationResource Extract(string id, Stream resourceStream) {
-        using var resourceReader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var resourceReader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
 
         Log($"Extracting {id}");
 
@@ -106,7 +106,7 @@ public class TtmExtractor : ExtractorBase<AnimationResource> {
     private static List<Frame> ExtractFrames(byte[] commandBytes, string id) {
         var frames = new List<Frame>();
         using var commandStream = new MemoryStream(commandBytes);
-        using var commandReader = new BinaryReader(commandStream, Encoding.GetEncoding(DosCodePage));
+        using var commandReader = new BinaryReader(commandStream, Cp437Encoding.Instance);
         var frame = new Frame();
         while (commandStream.Position < commandStream.Length) {
             ushort commandType = commandReader.ReadUInt16();

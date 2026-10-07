@@ -14,7 +14,7 @@ using System.Text;
 /// </remarks>
 public class ZoneAppearanceExtractor : ExtractorBase<ZoneAppearance> {
     public override ZoneAppearance Extract(string id, Stream resourceStream) {
-        using var reader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var reader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         var appearance = new ZoneAppearance(id) {
             SkyPen = reader.ReadUInt16(),
             GroundPen = reader.ReadUInt16(),

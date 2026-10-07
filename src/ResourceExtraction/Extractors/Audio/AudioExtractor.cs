@@ -14,7 +14,7 @@ public class AudioExtractor : ExtractorBase<AudioResource> {
     /// <param name="resourceStream">The stream containing the sound archive</param>
     /// <returns>An AudioResource containing the extracted sound</returns>
     public override AudioResource Extract(string resourceId, Stream resourceStream) {
-        using var resourceReader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage), leaveOpen: true);
+        using var resourceReader = new BinaryReader(resourceStream, Cp437Encoding.Instance, leaveOpen: true);
         string tag;
         var audioResource = new AudioResource(resourceId);
         tag = resourceReader.ReadTag();

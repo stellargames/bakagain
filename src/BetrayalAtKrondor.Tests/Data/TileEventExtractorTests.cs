@@ -12,11 +12,6 @@ using System.Text;
 using Xunit;
 
 public class TileEventExtractorTests {
-    static TileEventExtractorTests() {
-        // TileEventExtractor opens BinaryReader with Encoding.GetEncoding(437) (DOS CP437).
-        // On non-Windows .NET the codepage requires the CodePages provider.
-        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-    }
     // 19-byte trigger record matching TileEventExtractor's read order.
     private static byte[] Trigger(ushort type, uint entry, ushort requiredKey, ushort forbiddenKey, ushort setOnFireKey) {
         var ms = new MemoryStream();

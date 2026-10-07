@@ -27,7 +27,7 @@ public class ObjectInfoSetExtractor : ExtractorBase<ObjectInfoSet> {
     private const int RecordSize = 80;
 
     public override ObjectInfoSet Extract(string id, Stream resourceStream) {
-        using var reader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var reader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
 
         var items = new List<ObjectInfo>(RecordCount);
         for (int i = 0; i < RecordCount; i++) {

@@ -16,10 +16,6 @@ using Xunit;
 /// TurnSize, which named the quantities right and their ROLE wrong.
 /// </summary>
 public class SaveGameChangeDetectorTests {
-    // The extractor reads CP437 names out of the header; without the provider it throws.
-    static SaveGameChangeDetectorTests() =>
-        System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
-
     [Fact]
     public void TheyHoldResolvedMovementScalars_NotPreferenceIndices() {
         byte[]? save = ReadGameFile(Path.Combine("GAMES", "dir.G01", "SAVE02.GAM"));

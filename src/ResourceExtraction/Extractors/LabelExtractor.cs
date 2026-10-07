@@ -10,7 +10,7 @@ using System.Text;
 
 public class LabelExtractor : ExtractorBase<LabelSet> {
     public override LabelSet Extract(string id, Stream resourceStream) {
-        using var resourceReader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var resourceReader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         var labelSet = new LabelSet(id);
         ushort numberOfEntries = resourceReader.ReadUInt16();
         for (int i = 0; i < numberOfEntries; i++) {

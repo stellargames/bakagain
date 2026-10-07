@@ -439,16 +439,6 @@
       "dependencies": {},
       "url": "https://package.openupm.com"
     },
-    "org.nuget.system.text.encoding.codepages": {
-      "version": "9.0.0",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {
-        "org.nuget.system.memory": "4.5.5",
-        "org.nuget.system.runtime.compilerservices.unsafe": "6.0.0"
-      },
-      "url": "https://package.openupm.com"
-    },
     "org.nuget.system.text.encodings.web": {
       "version": "8.0.0",
       "depth": 0,

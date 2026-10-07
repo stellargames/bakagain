@@ -10,7 +10,7 @@ public class MonsterStatsExtractor : ExtractorBase<MonsterStats>
 {
     public override MonsterStats Extract(string id, Stream resourceStream)
     {
-        using var reader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var reader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         var stats = new MonsterStats(id);
 
         var match = Regex.Match(id, @"(\d+)", RegexOptions.IgnoreCase);

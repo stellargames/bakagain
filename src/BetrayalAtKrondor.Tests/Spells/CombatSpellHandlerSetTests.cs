@@ -27,9 +27,6 @@ using Xunit;
 /// wrong spell. Pairing each id with the shipped name makes that executable.</para>
 /// </remarks>
 public class CombatSpellHandlerSetTests {
-    static CombatSpellHandlerSetTests() =>
-        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
     /// <summary>The original's non-empty arms, in id order.</summary>
     private static readonly int[] OriginalArms =
         { 3, 6, 9, 12, 13, 14, 15, 20, 21, 23, 25, 27, 30, 37, 42, 44 };

@@ -9,7 +9,6 @@ using System.Collections.Generic;
 using System.IO;
 
 public abstract class ExtractorBase<T> where T : IResource {
-    internal const int DosCodePage = 437;
     internal const bool Debug = true;
     protected static string Indent = string.Empty;
 

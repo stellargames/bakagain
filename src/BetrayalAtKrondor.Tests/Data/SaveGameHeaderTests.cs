@@ -16,12 +16,10 @@ using Xunit;
 /// header in the SAVE%02d.GAM layout, so the test needs no original game data.
 /// </summary>
 public class SaveGameHeaderTests {
-    static SaveGameHeaderTests() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
     private static MemoryStream BuildHeader(
         string name, short chapter, short worldX, short worldY, short mapIcon, short version) {
         var buffer = new byte[SaveGameHeader.Size];
-        byte[] nameBytes = Encoding.GetEncoding(437).GetBytes(name);
+        byte[] nameBytes = ResourceExtraction.Cp437Encoding.Instance.GetBytes(name);
         Array.Copy(nameBytes, buffer, nameBytes.Length); // remainder stays null-padded
         int p = SaveGameHeader.NameLength;
         void WriteShort(short v) {

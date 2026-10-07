@@ -7,7 +7,7 @@ using System.Text;
 
 public class RemapExtractor : ExtractorBase<RemapResource> {
     public override RemapResource Extract(string id, Stream resourceStream) {
-        using var resourceReader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var resourceReader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         var remap = new RemapResource(id);
         var mappingId = 0;
         while (resourceReader.BaseStream.Position < resourceReader.BaseStream.Length) {

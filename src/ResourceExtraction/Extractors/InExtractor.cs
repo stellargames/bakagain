@@ -17,7 +17,7 @@ using System.Text;
 public class InExtractor : ExtractorBase<InputForm> {
 
     public override InputForm Extract(string id, Stream resourceStream) {
-        using var reader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var reader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         var form = new InputForm(id);
 
         int poolLen = reader.ReadUInt16();
@@ -56,6 +56,6 @@ public class InExtractor : ExtractorBase<InputForm> {
         }
         int end = System.Array.IndexOf(pool, (byte)0, offset);
         int length = (end >= 0 ? end : pool.Length) - offset;
-        return Encoding.GetEncoding(DosCodePage).GetString(pool, offset, length);
+        return Cp437Encoding.Instance.GetString(pool, offset, length);
     }
 }

@@ -21,10 +21,6 @@ public class ObjectInfoSpellPriceTests {
     // The extractor reads names in codepage 437, which .NET Core does not carry by default. The
     // app registers the provider at startup; a test that calls Extract cold has to do the same or
     // it throws NotSupportedException before reaching anything worth asserting.
-    static ObjectInfoSpellPriceTests() {
-        System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
-    }
-
     /// <summary>The table is read from 0x2b20 and indexed by spell number, not by position.</summary>
     [Fact]
     public void PricesAreReadFromTheEndOfTheRecordsAndIndexedBySpellNumber() {

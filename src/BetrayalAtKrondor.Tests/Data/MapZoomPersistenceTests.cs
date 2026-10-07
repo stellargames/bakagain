@@ -18,9 +18,6 @@ using Xunit;
 /// looks modelled, and only the writer's offset list says whether it comes back.</para>
 /// </remarks>
 public class MapZoomPersistenceTests {
-    // The writer stamps the save's name in codepage 437; without this every Write throws.
-    static MapZoomPersistenceTests() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
     private static byte[] Body() => new byte[SaveGameOffsets.BodySize];
 
     [Fact]

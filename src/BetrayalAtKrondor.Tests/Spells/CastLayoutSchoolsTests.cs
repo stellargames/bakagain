@@ -28,9 +28,6 @@ using Xunit;
 /// agree with each other and prove nothing.</para>
 /// </remarks>
 public class CastLayoutSchoolsTests {
-    static CastLayoutSchoolsTests() =>
-        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
     private static UserInterface? Load(string fileName) {
         string? dir = AppContext.BaseDirectory;
         while (!string.IsNullOrEmpty(dir)) {

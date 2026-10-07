@@ -32,9 +32,6 @@ using Xunit;
 /// See docs/re-notes/2026-09-05-spelldef-field-mapping.md.</para>
 /// </remarks>
 public class SpellRecordLayoutTests {
-    static SpellRecordLayoutTests() =>
-        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
     private static SpellList? LoadShippedSpells() {
         string? dir = AppContext.BaseDirectory;
         while (!string.IsNullOrEmpty(dir)) {

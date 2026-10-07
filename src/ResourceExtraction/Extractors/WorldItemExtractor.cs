@@ -24,7 +24,7 @@ public class WorldItemExtractor : ExtractorBase<WorldTile>
 
     public override WorldTile Extract(string id, Stream resourceStream)
     {
-        using var reader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var reader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         var tile = new WorldTile(id);
 
         string name = Path.GetFileNameWithoutExtension(id);

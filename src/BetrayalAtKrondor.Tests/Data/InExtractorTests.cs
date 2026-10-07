@@ -17,8 +17,6 @@ using Xunit;
 /// </summary>
 public class InExtractorTests {
 
-    static InExtractorTests() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
     private static byte[] BuildField(
         ushort itemCount, ushort x, ushort y, ushort width,
         byte[] style, ushort labelOffset, ushort labelX, ushort labelY, ushort allocFlag) {

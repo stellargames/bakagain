@@ -14,7 +14,7 @@ public class SpellExtractor : ExtractorBase<SpellList> {
     public override SpellList Extract(string id, Stream resourceStream) {
         // Read spell data
         var spellList = new SpellList(id);
-        using var resourceReader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var resourceReader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         ushort numberOfEntries = resourceReader.ReadUInt16();
         spellList.Spells = new Dictionary<int, Spell>(numberOfEntries);
         var spellNameOffsets = new short[numberOfEntries];

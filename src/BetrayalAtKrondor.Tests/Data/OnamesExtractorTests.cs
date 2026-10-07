@@ -16,8 +16,6 @@ using Xunit;
 /// </summary>
 public class OnamesExtractorTests {
 
-    static OnamesExtractorTests() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
     private static byte[] BuildOnamesDat(params string[] names) {
         var ms = new MemoryStream();
         var w = new BinaryWriter(ms, Encoding.ASCII);

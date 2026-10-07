@@ -17,8 +17,6 @@ using Xunit;
 /// order ever moves, these fail instead of the writer quietly corrupting somebody's save.
 /// </summary>
 public class SaveGameActorWriteTests {
-    static SaveGameActorWriteTests() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
     private static byte[] EmptyBody() => new byte[SaveGameOffsets.BodySize];
 
     private static SaveGameFields Fields() => new SaveGameFields(

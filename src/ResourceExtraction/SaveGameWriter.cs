@@ -18,7 +18,6 @@ public readonly record struct SaveGameWriteResult(byte[] Bytes, SaveCoverage Cov
 /// byte-identical to what a real engine wrote. Symmetric to <see cref="Extractors.SaveGameExtractor"/>.
 /// </summary>
 public static class SaveGameWriter {
-    private const int DosCodePage = 437;
 
     public static SaveGameWriteResult Write(
         byte[] backingBody, in SaveGameFields fields,
@@ -389,7 +388,7 @@ public static class SaveGameWriter {
 
     // NUL-padded fixed-length CP437 field (mirror of the reader's ReadFixedLengthString).
     private static void WriteFixedLengthString(byte[] dest, int offset, int length, string value) {
-        byte[] encoded = Encoding.GetEncoding(DosCodePage).GetBytes(value ?? string.Empty);
+        byte[] encoded = Cp437Encoding.Instance.GetBytes(value ?? string.Empty);
         int n = Math.Min(encoded.Length, length);
         Array.Copy(encoded, 0, dest, offset, n);
         // remaining bytes stay 0 (NUL) — dest is fresh.

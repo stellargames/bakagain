@@ -9,7 +9,6 @@ using ResourceExtractor.Compression;
 public abstract class ExtractorBase {
     internal const int FileNameLength = 13;
     private const int TagLength = 4;
-    internal const int DosCodePage = 437;
     internal const bool Debug = false;
     protected static string Indent = string.Empty;
 

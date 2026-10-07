@@ -24,7 +24,7 @@ public class FontExtractor : ExtractorBase<FontResource> {
     private const string Tag = "FNT";
 
     public override FontResource Extract(string id, Stream resourceStream) {
-        using var resourceReader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var resourceReader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         string tag = resourceReader.ReadTag();
         if (!tag.Equals(Tag)) {
             throw new InvalidDataException($"Invalid tag '{tag}' — expected '{Tag}'.");

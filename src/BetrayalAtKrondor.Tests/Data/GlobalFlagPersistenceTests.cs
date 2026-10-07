@@ -11,9 +11,6 @@ using Xunit;
 /// every flag a dialog set lasted only until you saved.
 /// </summary>
 public class GlobalFlagPersistenceTests {
-    // CP437 for the slot name, like every other writer fixture here.
-    static GlobalFlagPersistenceTests() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
     private static byte[] Body() => new byte[SaveGameOffsets.BodySize];
 
     private static SaveGameFieldsHolder Fields(byte[] body) => new SaveGameFieldsHolder(body);

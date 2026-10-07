@@ -9,7 +9,7 @@ public class ZoneDefExtractor : ExtractorBase<ZoneDefinition>
 {
     public override ZoneDefinition Extract(string id, Stream resourceStream)
     {
-        using var reader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var reader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         var def = new ZoneDefinition(id)
         {
             ZoneLocation = reader.ReadInt16(),

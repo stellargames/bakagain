@@ -9,7 +9,7 @@ using System.Text;
 
 public class ScreenExtractor : ExtractorBase<BackgroundImage> {
     public override BackgroundImage Extract(string screenId, Stream resourceStream) {
-        using var resourceReader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var resourceReader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         ushort signature = resourceReader.ReadUInt16();
         bool hiRes = signature != 0x27B6;
         if (hiRes) {

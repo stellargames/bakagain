@@ -18,8 +18,6 @@ using Xunit;
 /// </summary>
 public class SpellDocExtractorTests {
 
-    static SpellDocExtractorTests() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
     // Builds a SPELLDOC.DAT from per-entry strings (one offset per entry; identical strings
     // share an offset, mirroring the shipped file's shared empty separator).
     private static byte[] Build(params string[] entries) {

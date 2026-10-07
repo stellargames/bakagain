@@ -9,7 +9,7 @@ public class ZoneShapeExtractor : ExtractorBase<ZoneShape>
     private const int ChapterCount = 9;
     public override ZoneShape Extract(string id, Stream resourceStream)
     {
-        using var reader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var reader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         var shape = new ZoneShape(id);
         for (int i = 0; i < ChapterCount; i++)
         {

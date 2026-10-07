@@ -14,7 +14,7 @@ using System.Text;
 /// </summary>
 public class SpellDocExtractor : ExtractorBase<SpellDescriptions> {
     public override SpellDescriptions Extract(string id, Stream resourceStream) {
-        using var reader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var reader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         var data = new SpellDescriptions(id);
 
         int count = reader.ReadUInt16();

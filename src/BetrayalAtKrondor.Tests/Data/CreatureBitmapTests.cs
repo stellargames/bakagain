@@ -23,12 +23,6 @@ using Xunit;
 /// The colorSet is consumed into the opaque variant key (&lt;stem&gt;_CS&lt;n&gt;) and never stored in GameData.
 /// </summary>
 public class CreatureBitmapTests {
-    static CreatureBitmapTests() {
-        // BNamesExtractor/BitmapExtractor open BinaryReader with Encoding.GetEncoding(437) (DOS CP437);
-        // on non-Windows .NET the codepage requires the CodePages provider.
-        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-    }
-
     // ───────────────── variant-key parsing ─────────────────
 
     [Theory]

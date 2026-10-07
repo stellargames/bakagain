@@ -11,7 +11,7 @@ using System.Text;
 
 public class AdsExtractor : ExtractorBase<AnimatorResource> {
     public override AnimatorResource Extract(string id, Stream resourceStream) {
-        using var resourceReader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var resourceReader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         var animation = new AnimatorResource(id);
         string tag = resourceReader.ReadTag();
         if (tag != "VER") {

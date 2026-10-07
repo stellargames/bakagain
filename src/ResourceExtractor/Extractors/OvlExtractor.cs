@@ -6,7 +6,7 @@ using System.Text;
 public class OvlExtractor : ExtractorBase {
     public static void Extract(string filePath, string filename) {
         using var resourceFile = File.OpenRead(Path.Join(filePath, filename));
-        using var resourceReader = new BinaryReader(resourceFile, Encoding.GetEncoding(DosCodePage));
+        using var resourceReader = new BinaryReader(resourceFile, ResourceExtraction.Cp437Encoding.Instance);
         string mainTag = resourceReader.ReadTag();
         uint fileSize = resourceReader.ReadUInt16();
         ushort unknown = resourceReader.ReadUInt16();

@@ -20,9 +20,6 @@ using Xunit;
 /// record to the text each value reaches does.
 /// </remarks>
 public class LockContextWordingTests {
-    static LockContextWordingTests() =>
-        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
     private const string DialogFile = "DIAL_Z00.DDX";
     private const int LockPrompt = PicklockWorkingSet.AskToOpenDialog;
 

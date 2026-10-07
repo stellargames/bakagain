@@ -18,7 +18,7 @@ public class BitmapExtractor : ExtractorBase<ImageSet> {
 
     public override ImageSet Extract(string id, Stream resourceStream) {
         var imageSet = new ImageSet(id);
-        using var resourceReader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var resourceReader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         ushort signature = resourceReader.ReadUInt16();
         switch (signature) {
             case 0x1066:
@@ -202,7 +202,7 @@ public class BitmapExtractor : ExtractorBase<ImageSet> {
     public BmImage ExtractSingle(string id, Stream resourceStream) {
         (string name, int index) = GetNameAndIndex(id);
 
-        using var resourceReader = new BinaryReader(resourceStream, Encoding.GetEncoding(DosCodePage));
+        using var resourceReader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
         ushort signature = resourceReader.ReadUInt16();
         switch (signature) {
             case 0x1066:
