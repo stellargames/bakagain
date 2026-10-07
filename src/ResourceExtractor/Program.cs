@@ -1195,6 +1195,11 @@ internal static class Program {
         } else {
             Console.Error.WriteLine($"KRONDOR.EXE not found at {exePath}; its strings are not in the template.");
         }
+        // The letter keys a pack can move (TASK-784): the travel HUD's and every REQ letter action.
+        var pages = ResourceExtraction.Text.TextInventory.TextResources(provider)
+            .Select(r => r.Resource).OfType<GameData.Resources.Menu.UserInterface>();
+        entries.AddRange(GameData.Resources.Text.LetterHotkeys.Used(pages)
+            .Select(c => new ResourceExtraction.Text.TextEntry(GameData.Resources.Text.LetterHotkeys.Key(c), c.ToString(), "BaK-Again")));
         using (var writer = new StreamWriter(outPath, append: false, new UTF8Encoding(false))) {
             // A fixed caption's room is told in characters, measured in the font that draws it.
             var font = provider.GetResource<GameData.Resources.Font.FontResource>("GAME.FNT");

@@ -34,6 +34,11 @@ public static class PotTemplate {
                     Text = $"One line, {room} px wide. The English takes {english} px: about {fit} characters fit.",
                 });
             }
+            if (entry.Key.StartsWith(GameData.Resources.Text.LetterHotkeys.Prefix, System.StringComparison.Ordinal)) {
+                comments.Add(new POExtractedComment {
+                    Text = "The key that presses this letter's buttons: one character. Keys left empty stay English; a letter moved away stops working.",
+                });
+            }
             if (GameData.Resources.Text.UiTemplates.IsTemplate(entry.Key)) {
                 // Weblate's flag for ICU MessageFormat: it then checks placeholders and plurals.
                 comments.Add(new POFlagsComment { Flags = new HashSet<string> { "icu-message-format" } });

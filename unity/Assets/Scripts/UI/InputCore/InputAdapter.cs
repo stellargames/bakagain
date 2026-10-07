@@ -257,9 +257,18 @@ namespace BakAgain.UI.InputCore {
             if (wantsText) {
                 return;
             }
+            // The letter is the one the keyboard's LAYOUT prints on the key (a QWERTZ 'Z' is 'z'), then
+            // the language pack's letter map (TASK-784: "Kaart" opens on K, and M goes dead). A key
+            // whose layout name is not a letter (or unknown) keeps its US position.
             for (Key k = Key.A; k <= Key.Z; k++) {
                 if (kb[k].wasPressedThisFrame) {
-                    _commands.Accelerator((char)('a' + (k - Key.A)));
+                    string name = kb[k].displayName;
+                    char typed = name is { Length: 1 } && char.IsLetter(name[0]) ? name[0] : (char)('a' + (k - Key.A));
+                    char letter = GameData.Resources.Text.LetterHotkeys.Resolve(
+                        BakAgain.ResourceManagement.LanguagePacks.Current, typed);
+                    if (letter is >= 'a' and <= 'z') {
+                        _commands.Accelerator(letter);
+                    }
                     return;
                 }
             }

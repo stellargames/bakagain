@@ -148,6 +148,13 @@ A replaced picture that is wider or taller than the original may need moving. Th
 cards are animation scripts: get them with `-- --ttm "<folder>"`, change the `X`/`Y` of the
 `DrawImage` that draws your picture, and put the file in the pack as `TTM/<NAME>.json`.
 
+### 7. Letter keys
+
+The template's `port:hotkey:<letter>` entries move a letter key so it can match your word: in Dutch the
+map is "Kaart", so `port:hotkey:M` translated `K` opens it on K. The letter is the one your keyboard
+prints on the key. A letter you move away stops working (M no longer opens the map), so no key ever does
+two things; leave an entry empty to keep the English key.
+
 ## Sharing a pack
 
 A pack you share should hold only your own work: your translations, your fonts, your pictures.
