@@ -36,6 +36,20 @@ namespace BakAgain.UI.Navigation {
         private bool _warned;
         private float _opacity;
 
+        /// <summary>
+        /// The play session this fade belongs to, captured when the singleton is built.
+        /// </summary>
+        /// <remarks>
+        /// *** CAPTURED, NOT READ LIVE. *** <c>Application.exitCancellationToken</c> is cancelled
+        /// on leaving Play Mode and then REPLACED with a fresh one, so a continuation reading it
+        /// after the stop sees an uncancelled token. Every world transition awaits this fade, so
+        /// refusing here is what stops a pending swap from building the arena and this overlay in
+        /// the EDIT scene after Play Mode ends (TASK-858: <c>CombatScreen(Clone)</c> and
+        /// <c>BakScreenFade</c> were left behind, and the next boot failed its combat icons).
+        /// In a build the token fires only on quit.
+        /// </remarks>
+        private readonly System.Threading.CancellationToken _session = Application.exitCancellationToken;
+
         /// <summary>How long one direction of the fade takes.</summary>
         public static float DurationSeconds =>
             CutScenes.CutsceneTiming.FadeDurationSeconds(FadeRamp.WorldFadePaletteWrites);
@@ -55,6 +69,7 @@ namespace BakAgain.UI.Navigation {
         /// fade exists to prevent. Already at the target is a no-op, so nesting costs nothing.
         /// </remarks>
         private async UniTask RampAsync(float to) {
+            _session.ThrowIfCancellationRequested();   // play has ended: abort the awaiting transition
             float from = _opacity;
             if (Mathf.Approximately(from, to)) {
                 VisualElement settled = Cover();
@@ -77,7 +92,8 @@ namespace BakAgain.UI.Navigation {
             for (var step = 1; step <= steps; step++) {
                 _opacity = Mathf.Lerp(from, to, step / (float)steps);
                 cover.style.opacity = _opacity;
-                await UniTask.Delay(System.TimeSpan.FromSeconds(perStep), ignoreTimeScale: true);
+                await UniTask.Delay(System.TimeSpan.FromSeconds(perStep), ignoreTimeScale: true,
+                    cancellationToken: _session);
             }
 
             _opacity = to;
