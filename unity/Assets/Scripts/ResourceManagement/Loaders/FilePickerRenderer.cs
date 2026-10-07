@@ -93,9 +93,13 @@ namespace BakAgain.ResourceManagement.Loaders {
 
         /// <summary>Re-render a file picker after its underlying data changed (e.g.
         /// the left-pane directory selection produced a new file list in the right
-        /// pane). Selection highlight is recomputed from the source.</summary>
+        /// pane). Selection highlight is recomputed from the source, and the window
+        /// scrolls so the selected row stays visible — the screen's own Up/Down keys
+        /// land here, like the original's widget_list_scroll -> listwidget_ensure_visible
+        /// (canassa UI/WIDGET.C:215, LISTWDG.C:333).</summary>
         public void Refresh(int actionId) {
             if (_pickers.ContainsKey(actionId)) {
+                EnsureRowVisible(actionId, _source.GetSelectedIndex(actionId));
                 Populate(actionId);
             }
         }
