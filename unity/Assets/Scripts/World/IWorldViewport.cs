@@ -5,9 +5,8 @@ namespace BakAgain.World {
     /// <summary>
     /// Describes the in-game 3D viewport: the fixed rectangle (in canonical 1600×1200
     /// space) that the world camera renders into — i.e. the hole in the
-    /// <c>frame.scr</c> chrome. Complements <see cref="UI.IGameViewport"/>: that one
-    /// holds a screen-space rect for overlay (dialog) anchoring; this one is the
-    /// authoritative source of the viewport geometry and owns the camera→RenderTexture
+    /// <c>frame.scr</c> chrome. The authoritative source of the viewport geometry; owns the
+    /// camera→RenderTexture
     /// sizing so the camera setup is testable without a live screen.
     ///
     /// <para>
@@ -47,12 +46,11 @@ namespace BakAgain.World {
         /// <summary>
         /// Maps <see cref="CanonicalRect"/> proportionally into <paramref name="stageScreenRect"/>
         /// — the <c>CanonicalStage</c>'s already-resolved on-screen rect (Unity screen-space
-        /// pixels, origin bottom-left, matching <see cref="UI.IGameViewport"/>). The stage has
+        /// pixels, origin bottom-left). The stage has
         /// already decided the fit (pillarboxed under <c>Contain</c>, full-window under
         /// <c>Fill</c>), so this method itself is fit-agnostic: it never re-derives Contain math,
         /// it only rescales the RE-verified viewport rect into whatever box the stage occupies.
-        /// Consumers registered through <see cref="UI.GameViewportRegistry"/> anchor to the world
-        /// view, not the whole screen. Mirrors the canonical top-left origin to Unity's
+        /// Mirrors the canonical top-left origin to Unity's
         /// bottom-left.
         /// </summary>
         Rect ToScreenRect(Rect stageScreenRect);

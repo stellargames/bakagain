@@ -63,7 +63,6 @@ namespace BakAgain.UI.Spells {
         private WorldRuntime _world;
         private IDialogManager _dialogs;
         private IWorldViewport _worldViewport;
-        private GameViewportRegistry _viewportRegistry;
 
         private UIDocument _document;
         private UserInterfaceLoader _loader;
@@ -86,12 +85,11 @@ namespace BakAgain.UI.Spells {
 
         [Inject]
         public void Construct(GameSession session, WorldRuntime world, IDialogManager dialogs,
-            IWorldViewport worldViewport, GameViewportRegistry viewportRegistry) {
+            IWorldViewport worldViewport) {
             _session = session;
             _world = world;
             _dialogs = dialogs;
             _worldViewport = worldViewport;
-            _viewportRegistry = viewportRegistry;
         }
 
         /// <inheritdoc />
@@ -171,7 +169,7 @@ namespace BakAgain.UI.Spells {
             if (root == null || _worldView != null) {
                 return;
             }
-            _worldView = new WorldViewportView(_worldViewport, _viewportRegistry, _logger);
+            _worldView = new WorldViewportView(_worldViewport, _logger);
             _worldView.SetWorldCamera(_world?.WorldCamera);
             // REQ_CMAP carries no ClickArea for the inset, so the rect comes from the spell's own
             // data rather than from the layout — the one place this screen has coordinates at all.

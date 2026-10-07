@@ -182,13 +182,6 @@ namespace BakAgain.Core.DI {
             // a runtime container lookup. Mirrors the UiDriver seam below.
             builder.RegisterBuildCallback(container =>
                 BakAgain.Audio.MenuSoundService.Instance = container.Resolve<BakAgain.Audio.MenuSoundService>());
-            // Game-viewport registry: the cutscene view registers a rect
-            // provider with it on Construct; DialogManager reads the rect.
-            // Keeping the read/write sides on separate objects avoids the
-            // VContainer cycle that comes from CutSceneView transitively
-            // depending on DialogManager (Presenter → PlayerFactory →
-            // IDialogManager).
-            builder.Register<GameViewportRegistry>(Lifetime.Singleton).As<IGameViewport>().AsSelf();
             builder.RegisterComponentInNewPrefab(cutSceneViewPrefab, Lifetime.Singleton).As<ICutsceneView>();
             builder.RegisterComponentInNewPrefab(mainMenuPrefab, Lifetime.Singleton);
             builder.RegisterComponentInNewPrefab(inGameMenuPrefab, Lifetime.Singleton);

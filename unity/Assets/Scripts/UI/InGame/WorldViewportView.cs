@@ -8,13 +8,11 @@ namespace BakAgain.UI.InGame {
     /// <summary>
     /// Renders the 3D world into the REQ_MAIN viewport region: a RenderTexture fed by the world
     /// camera, shown by a VisualElement that is an inset-0 child of the REQ hotspot_192 element
-    /// (so its position/size come from REQ data, not hardcoded coords). Also publishes the
-    /// viewport's screen rect to GameViewportRegistry for dialog anchoring. Plain C#, owned by
+    /// (so its position/size come from REQ data, not hardcoded coords). Plain C#, owned by
     /// InGameScreen. Extracted from the former InGameHud.
     /// </summary>
     public sealed class WorldViewportView {
         private readonly IWorldViewport _viewport;
-        private readonly GameViewportRegistry _registry;
         private readonly ILogger _logger;
 
         // *** WHO IS CURRENTLY SHOWING THE WORLD. *** There is one world camera and it renders to
@@ -34,9 +32,8 @@ namespace BakAgain.UI.InGame {
         private Vector2Int _rtSize;
         private Camera _camera;
 
-        public WorldViewportView(IWorldViewport viewport, GameViewportRegistry registry, ILogger logger) {
+        public WorldViewportView(IWorldViewport viewport, ILogger logger) {
             _viewport = viewport;
-            _registry = registry;
             _logger = logger;
         }
 
@@ -81,7 +78,6 @@ namespace BakAgain.UI.InGame {
             };
             host.Add(_element);
             AllocateRenderTexture();
-            _registry?.SetProvider(() => _viewport.ToScreenRect(CurrentStageScreenRect()));
         }
 
         /// <summary>
@@ -227,7 +223,6 @@ namespace BakAgain.UI.InGame {
         }
 
         public void Dispose() {
-            _registry?.SetProvider(null);
             DetachRenderTexture();
             _element?.RemoveFromHierarchy();
             _element = null;

@@ -50,13 +50,11 @@ namespace BakAgain.UI.FullMap {
         private AspectRatioFitter _backgroundFitter;
         private Image _letterboxBacking;
         private bool _layoutConfigured;
-        private GameViewportRegistry _viewportRegistry;
 
         [Inject]
-        public void Construct(IResourceProviderService resources, GameViewportRegistry viewportRegistry,
+        public void Construct(IResourceProviderService resources,
             BakAgain.UI.InputCore.InputLayerStack inputStack, IDialogManager dialogs) {
             _resources = resources;
-            _viewportRegistry = viewportRegistry;
             _inputStack = inputStack;
             _dialogs = dialogs;
         }
@@ -224,23 +222,6 @@ namespace BakAgain.UI.FullMap {
             }
         }
 
-        // Screen-space rect of the displayed (aspect-fitted, possibly letter-boxed) map.
-        // Registered with the GameViewportRegistry while the map is up so UI Toolkit overlays
-        // — the chapter-description dialog shown on top — lay out against the map area rather
-        // than the whole window, the same way CutSceneView anchors dialogs to its letterbox.
-        private Rect GetMapScreenRect() {
-            if (backgroundImage == null) {
-                return new Rect(0f, 0f, Screen.width, Screen.height);
-            }
-            var corners = new Vector3[4];
-            backgroundImage.rectTransform.GetWorldCorners(corners);
-            float xMin = Mathf.Min(corners[0].x, corners[2].x);
-            float yMin = Mathf.Min(corners[0].y, corners[2].y);
-            float xMax = Mathf.Max(corners[0].x, corners[2].x);
-            float yMax = Mathf.Max(corners[0].y, corners[2].y);
-            return new Rect(xMin, yMin, xMax - xMin, yMax - yMin);
-        }
-
         private void Awake() {
             _canvasGroup = GetComponent<CanvasGroup>();
             _logger = LogManager.LoggerFactory.CreateLogger<FullMapView>();
@@ -400,10 +381,6 @@ namespace BakAgain.UI.FullMap {
 
             EnsureLayout();
 
-            // Overlays (the chapter-description dialog) anchor to the displayed map, not the
-            // whole window. Provider is lazy, so it reads the fitted rect once layout settles.
-            _viewportRegistry?.SetProvider(GetMapScreenRect);
-
             if (_backgroundSprite == null) {
                 _backgroundSprite = await _resources.LoadAssetAsync<Sprite>("FULLMAP.SCX", owner: this);
             }
@@ -457,9 +434,6 @@ namespace BakAgain.UI.FullMap {
         }
 
         private async UniTask Hide() {
-            // Stop providing the map viewport before fading — once we're hiding, overlays
-            // should fall back to the default (full-window) rect rather than a vanishing map.
-            _viewportRegistry?.SetProvider(null);
             _hoverEnabled = false;
             PopInputLayer();
             if (!gameObject.activeSelf) {
@@ -487,7 +461,6 @@ namespace BakAgain.UI.FullMap {
 
         private void OnDestroy() {
             _resources?.ReleaseAssets(this);
-            _viewportRegistry?.SetProvider(null);
         }
     }
 }

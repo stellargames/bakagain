@@ -164,10 +164,8 @@ namespace BakAgain.UI {
         // whoever owns the current rendering environment (the cutscene path
         // pushes it via SetActivePalette). Null falls back to _defaultPalette.
         private Color[] _activePalette;
-        // NOTE: dialog placement no longer reads IGameViewport — areas are
-        // absolute canonical px and the panel scaler handles screen mapping.
-        // GameViewportRegistry + its providers stay in place for potential
-        // enhanced-mode re-anchoring (Phase 4); see the canonical-spine plan.
+        // Dialog placement: areas are absolute canonical px and the panel scaler handles
+        // screen mapping.
 
         // The DialogOverlay prefab is instantiated *inactive* and stays that
         // way except while a dialog is being shown. That's why we don't rely

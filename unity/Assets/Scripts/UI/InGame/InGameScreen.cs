@@ -65,7 +65,6 @@ namespace BakAgain.UI.InGame {
         private UserInterfaceLoader _loader;
         private PartyHeadsView _partyHeads;
         private IWorldViewport _worldViewport;
-        private GameViewportRegistry _viewportRegistry;
         private WorldViewportView _worldView;
 
         /// <summary>The painted backdrop element, while a fight that has one is running.</summary>
@@ -292,7 +291,7 @@ namespace BakAgain.UI.InGame {
         [Inject]
         public void Construct(IDialogManager dialogManager, GameSession gameSession,
             IResourceProviderService resources, IWorldViewport worldViewport,
-            GameViewportRegistry viewportRegistry, InGameMenu inGameMenu,
+            InGameMenu inGameMenu,
             BakAgain.UI.Inventory.InventoryMenu inventoryMenu, CampMenu campMenu,
             BakAgain.UI.Character.CharacterSheetScreen characterSheet,
             BakAgain.UI.Spells.CastScreen castScreen,
@@ -313,7 +312,6 @@ namespace BakAgain.UI.InGame {
             _clock = clock;
             _resources = resources;
             _worldViewport = worldViewport;
-            _viewportRegistry = viewportRegistry;
             _inGameMenu = inGameMenu;
             _inventoryMenu = inventoryMenu;
             _characterSheet = characterSheet;
@@ -575,7 +573,7 @@ namespace BakAgain.UI.InGame {
                 return;
             }
             // World viewport RT as a child of hotspot_192.
-            _worldView = new WorldViewportView(_worldViewport, _viewportRegistry, _logger);
+            _worldView = new WorldViewportView(_worldViewport, _logger);
             _worldView.SetWorldCamera(_pendingCamera);
             _worldView.Attach(root);
             var interactionHandlers = new System.Collections.Generic.List<BakAgain.World.Interaction.IWorldInteractionHandler> {

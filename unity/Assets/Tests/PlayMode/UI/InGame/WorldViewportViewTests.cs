@@ -28,7 +28,12 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             public float ViewportAspect => 1470f / 606f;
             public int FocalLength => 2560;
             public Rect ToScreenRect(Rect stageScreenRect) => stageScreenRect;
-            public Vector2Int RenderTextureSize(Rect stageScreenRect) => new Vector2Int(256, 128);
+            // The stage rect the view last mapped through: Tick sizes the RT from it.
+            public Rect LastStageScreenRect { get; private set; }
+            public Vector2Int RenderTextureSize(Rect stageScreenRect) {
+                LastStageScreenRect = stageScreenRect;
+                return new Vector2Int(256, 128);
+            }
         }
 
         private static VisualElement PanelWithHost() {
@@ -38,7 +43,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
         }
 
         private static WorldViewportView NewView() =>
-            new WorldViewportView(new StubViewport(), null, NullLogger.Instance);
+            new WorldViewportView(new StubViewport(), NullLogger.Instance);
 
         [Test]
         public void Attach_EnablesCameraAndRoutesItIntoTheViewportRenderTexture() {
@@ -117,7 +122,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             settings.match = 1f;
             settings.referenceResolution = new Vector2Int(Canonical.Width, Canonical.Height);
             var host = new GameObject("WorldViewportViewLateStageHost");
-            var registry = new GameViewportRegistry();
+            var viewport = new StubViewport();
             WorldViewportView view = null;
             try {
                 UIDocument document = host.AddComponent<UIDocument>();
@@ -126,7 +131,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
                 root.Add(new VisualElement { name = "hotspot_192" });
 
                 // Attach BEFORE any stage exists — the ordering that used to pin the fallback.
-                view = new WorldViewportView(new StubViewport(), registry, NullLogger.Instance);
+                view = new WorldViewportView(viewport, NullLogger.Instance);
                 view.Attach(root);
 
                 // The stage arrives afterwards, as it does when the REQ loader wins the race.
@@ -135,9 +140,10 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
                 yield return null;
                 yield return null;
 
-                // StubViewport.ToScreenRect is the identity, so this IS the stage rect the view
-                // resolved. See the three candidate answers in the doc above.
-                Rect resolved = registry.ScreenRect;
+                // Tick maps through the stage rect the view resolves NOW. See the three candidate
+                // answers in the doc above.
+                view.Tick();
+                Rect resolved = viewport.LastStageScreenRect;
                 Assert.AreEqual(-43f, resolved.x, 1f,
                     "0 here means the view never re-resolved the stage and is still on a fallback box "
                     + "(the Contain fallback is (0, 32, 1280, 960); the old raw-window one (0, 0, 1280, 1024))");
@@ -175,7 +181,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             settings.match = 1f;
             settings.referenceResolution = new Vector2Int(Canonical.Width, Canonical.Height);
             var host = new GameObject("WorldViewportViewStageArgHost");
-            var registry = new GameViewportRegistry();
+            var viewport = new StubViewport();
             WorldViewportView view = null;
             try {
                 UIDocument document = host.AddComponent<UIDocument>();
@@ -187,12 +193,13 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
                 // is why handing the stage in place of the panel root finds the host either way.
                 stage.Add(new VisualElement { name = "hotspot_192" });
 
-                view = new WorldViewportView(new StubViewport(), registry, NullLogger.Instance);
+                view = new WorldViewportView(viewport, NullLogger.Instance);
                 view.Attach(stage);   // the stage, where the panel root is expected
                 yield return null;
                 yield return null;
 
-                Rect resolved = registry.ScreenRect; // StubViewport.ToScreenRect is the identity
+                view.Tick();
+                Rect resolved = viewport.LastStageScreenRect;
                 Assert.AreEqual(-43f, resolved.x, 1f,
                     "0 here means the view fell back to the canonical Contain box instead of resolving "
                     + "the stage it was handed");

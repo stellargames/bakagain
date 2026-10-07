@@ -1,6 +1,5 @@
 namespace BakAgain.CutScenes {
     using BakAgain.Graphics;
-    using BakAgain.UI;
     using UnityEngine;
     using UnityEngine.UI;
     using VContainer;
@@ -16,28 +15,8 @@ namespace BakAgain.CutScenes {
         private int _lastScreenWidth;
         private RawImage _rawImage;
         private ICutscenePresenter _presenter;
-        private GameViewportRegistry _viewportRegistry;
 
         public UiImage Canvas => new(_rawImage);
-
-        // Compute the cutscene's screen-space rect from the RawImage corners.
-        // Used by the GameViewportRegistry provider registered in Construct
-        // so DialogManager (and other UI Toolkit overlays) anchor against
-        // the cutscene's 4:3 letterbox instead of stretching across the
-        // full window. The RawImage's rectTransform already maintains
-        // aspect-correct sizing via UpdateAspectRatio.
-        private Rect GetScreenRect() {
-            if (_rawImage == null) {
-                return new Rect(0f, 0f, Screen.width, Screen.height);
-            }
-            var corners = new Vector3[4];
-            _rawImage.rectTransform.GetWorldCorners(corners);
-            float xMin = Mathf.Min(corners[0].x, corners[2].x);
-            float yMin = Mathf.Min(corners[0].y, corners[2].y);
-            float xMax = Mathf.Max(corners[0].x, corners[2].x);
-            float yMax = Mathf.Max(corners[0].y, corners[2].y);
-            return new Rect(xMin, yMin, xMax - xMin, yMax - yMin);
-        }
 
         private void Awake() {
             _rawImage = cutSceneCanvas.GetComponent<RawImage>();
@@ -64,20 +43,8 @@ namespace BakAgain.CutScenes {
         }
 
         [Inject]
-        public void Construct(ICutscenePresenter presenter, GameViewportRegistry viewportRegistry) {
+        public void Construct(ICutscenePresenter presenter) {
             _presenter = presenter;
-            _viewportRegistry = viewportRegistry;
-            // Provider is a captured lambda — it reads _rawImage at call
-            // time, so it's safe even though Awake (which assigns _rawImage)
-            // may run before or after this Construct call.
-            _viewportRegistry.SetProvider(GetScreenRect);
-        }
-
-        private void OnDestroy() {
-            // Clear the provider so a later reader doesn't deref a
-            // destroyed MonoBehaviour. Future GameViewport producers can
-            // re-register themselves.
-            _viewportRegistry?.SetProvider(null);
         }
 
         public void Show() {

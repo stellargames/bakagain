@@ -42,7 +42,6 @@ namespace BakAgain.UI.InGame {
         private IScreenNavigator _navigator;
         private IResourceProviderService _resources;
         private IWorldViewport _worldViewport;
-        private GameViewportRegistry _viewportRegistry;
         private CampMenu _campMenu;
         private IFullMapView _fullMap;
         private BakAgain.UI.Inventory.InventoryMenu _inventoryMenu;
@@ -82,7 +81,7 @@ namespace BakAgain.UI.InGame {
         [Inject]
         public void Construct(GameSession session, WorldRuntime world, IDialogManager dialogs,
             IScreenNavigator navigator, IResourceProviderService resources,
-            IWorldViewport worldViewport, GameViewportRegistry viewportRegistry,
+            IWorldViewport worldViewport,
             CampMenu campMenu, IFullMapView fullMap,
             BakAgain.UI.Inventory.InventoryMenu inventoryMenu,
             BakAgain.UI.Character.CharacterSheetScreen characterSheet,
@@ -96,7 +95,6 @@ namespace BakAgain.UI.InGame {
             _navigator = navigator;
             _resources = resources;
             _worldViewport = worldViewport;
-            _viewportRegistry = viewportRegistry;
             _campMenu = campMenu;
             _fullMap = fullMap;
             _inventoryMenu = inventoryMenu;
@@ -133,7 +131,7 @@ namespace BakAgain.UI.InGame {
             if (root == null || _worldView != null) {
                 return;
             }
-            _worldView = new WorldViewportView(_worldViewport, _viewportRegistry, _logger);
+            _worldView = new WorldViewportView(_worldViewport, _logger);
             _worldView.SetWorldCamera(_world?.WorldCamera);
             // REQ_MAP has no viewport element of its own; the view falls back to the RE-verified
             // canonical rect, which is the same hole the travel screen's hotspot_192 sits in.
