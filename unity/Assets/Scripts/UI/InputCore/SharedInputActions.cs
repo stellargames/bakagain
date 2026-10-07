@@ -40,9 +40,6 @@ namespace BakAgain.UI.InputCore {
         /// <summary>The shared actions. Null once disposed.</summary>
         public DefaultInputActions Actions => _actions;
 
-        /// <summary>The asset the maps live in, for consumers that switch maps by name.</summary>
-        public InputActionAsset Asset => _actions?.asset;
-
         public void Dispose() {
             if (_actions == null) {
                 return;
