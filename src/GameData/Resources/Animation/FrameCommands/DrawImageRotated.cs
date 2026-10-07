@@ -13,8 +13,7 @@ using GameData.Resources.Animation;
 /// original packed its angles backwards in order to draw a picture.
 ///
 /// <para>The bottom four bits are unused: every rotation in the shipped tree is a multiple of 16,
-/// so the conversion is lossless in both directions and <c>TtmAssembler</c> can rebuild the exact
-/// original bytes from the degrees.</para>
+/// so decoding to degrees loses no information the original used.</para>
 /// </remarks>
 public class DrawImageRotated : DrawImageBase, IArea {
     /// <summary>Angle units in a full turn, before the shift — the original's resolution.</summary>

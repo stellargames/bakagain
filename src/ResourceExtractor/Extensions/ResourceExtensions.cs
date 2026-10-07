@@ -175,32 +175,10 @@ public static string ToJson(this SaveGame resource) {
         return JsonSerializer.Serialize(resource, JsonOptions);
     }
 
-    public static string ToCsv(this List<ObjectInfo> resource) {
-        const string objectInfoFlags =
-            $"{nameof(ObjectFlags.CannotBeDiscarded)},{nameof(ObjectFlags.Protected)},{nameof(ObjectFlags.B0004)},{nameof(ObjectFlags.B0008)},{nameof(ObjectFlags.DiscardWhenEmpty)},{nameof(ObjectFlags.ConsumedOnUse)},{nameof(ObjectFlags.OnlyUsableInCombat)},{nameof(ObjectFlags.SpellcastersOnly)},{nameof(ObjectFlags.NotUsableInCombat)},{nameof(ObjectFlags.NonSpellcastersOnly)},{nameof(ObjectFlags.B0400)},{nameof(ObjectFlags.Stackable)},{nameof(ObjectFlags.Degradable)},{nameof(ObjectFlags.LimitedUses)},{nameof(ObjectFlags.B4000)},{nameof(ObjectFlags.B8000)}";
-        var sb = new StringBuilder(
-            $"{nameof(ObjectInfo.Number)},{nameof(ObjectInfo.Name)},{nameof(ObjectInfo.Field1E)},{objectInfoFlags},{nameof(ObjectInfo.WordWrap)},{nameof(ObjectInfo.ChapterNumber)},{nameof(ObjectInfo.Price)},{nameof(ObjectInfo.SwingBaseDamage)},{nameof(ObjectInfo.ThrustBaseDamage)},{nameof(ObjectInfo.SwingAccuracy_ArmorMod_BowAccuracy)},{nameof(ObjectInfo.ThrustAccuracy)},{nameof(ObjectInfo.Icon)},{nameof(ObjectInfo.InventorySlots)},{nameof(ObjectInfo.SoundId)},{nameof(ObjectInfo.MaxAmount)},{nameof(ObjectInfo.MaxCharges)},{nameof(ObjectInfo.Race)},{nameof(ObjectInfo.ShopType)},{nameof(ObjectInfo.Type)},{nameof(ObjectInfo.EffectArgA)},{nameof(ObjectInfo.EffectArgB)},{nameof(ObjectInfo.UseEffectAmount)},{nameof(ObjectInfo.EffectDurationHours)},{nameof(ObjectInfo.EquipAttributeMask)},{nameof(ObjectInfo.EquipModifierAmount)},{nameof(ObjectInfo.DegradeChancePercent)},{nameof(ObjectInfo.MaxWearPerDegrade)},{nameof(ObjectInfo.MinimumQuality)}\r\n");
-        foreach (ObjectInfo info in resource) {
-            sb.AppendLine(info.ToCsv());
-        }
-
-        return sb.ToString();
-    }
-
     public static string ToCsv(this SpellList resource) {
         var sb = new StringBuilder($"{nameof(Spell.Id)},{nameof(Spell.Name)},{nameof(Spell.MinimumCost)},{nameof(Spell.MaximumCost)},{nameof(Spell.IsMartial)},{nameof(Spell.TargetingType)},{nameof(Spell.EffectSubject)},{nameof(Spell.AnimationEffectType)},{nameof(Spell.ObjectId)},{nameof(Spell.Calculation)},{nameof(Spell.Damage)},{nameof(Spell.Duration)}\r\n");
         foreach (Spell spell in resource.Spells.Values) {
             sb.AppendLine(spell.ToCsv());
-        }
-
-        return sb.ToString();
-    }
-
-    public static string ToCsv(this Color[] resource) {
-        var sb = new StringBuilder($"index,hex,color\r\n");
-        for (var index = 0; index < resource.Length; index++) {
-            Color color = resource[index];
-            sb.AppendLine($"{index},{index:X2},{color.R:X2}{color.G:X2}{color.B:X2}");
         }
 
         return sb.ToString();

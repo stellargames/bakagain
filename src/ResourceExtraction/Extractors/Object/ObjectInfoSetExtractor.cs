@@ -8,9 +8,7 @@ using System.Text;
 
 /// <summary>
 /// Parses OBJINFO.DAT — 138 fixed 80-byte item-definition records — into an
-/// <see cref="ObjectInfoSet"/> indexable by object id. Field order/widths mirror
-/// <c>ResourceExtractor.Extractors.ObjectExtractor</c> verbatim (the console-tool
-/// extractor that predates this Unity-facing one); see <see cref="ObjectInfo"/> for
+/// <see cref="ObjectInfoSet"/> indexable by object id; see <see cref="ObjectInfo"/> for
 /// the per-field IDA references.
 /// </summary>
 public class ObjectInfoSetExtractor : ExtractorBase<ObjectInfoSet> {

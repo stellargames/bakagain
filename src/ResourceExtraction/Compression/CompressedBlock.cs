@@ -10,16 +10,6 @@ using System.IO;
 /// Reads one of the archive's compressed blocks: a type byte, a decompressed size, then the
 /// payload.
 /// </summary>
-/// <remarks>
-/// <b>Lives here rather than on an extractor base because there are two of those.</b>
-/// <c>ResourceExtraction</c> and <c>ResourceExtractor</c> each carry an <c>ExtractorBase</c>, and
-/// both held a byte-for-byte copy of this read — the library's used by the screen and ADS
-/// extractors, the CLI's by the OVL one. Two copies of a format header is exactly the thing that
-/// drifts silently: a fix to one leaves the other reading the old shape.
-///
-/// <para>The two bases keep their own thin <c>DecompressToByteArray</c> wrappers, so nothing that
-/// derives from either had to change.</para>
-/// </remarks>
 public static class CompressedBlock {
     /// <summary>
     /// Reads the block at the reader's current position.

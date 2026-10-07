@@ -19,14 +19,12 @@ using GameData.Resources.Monster;
 using GameData.Resources.World;
 using GameData.Resources.Creature;
 using ResourceExtraction;
-using ResourceExtraction.Assemblers;
 using ResourceExtraction.Extractors;
 using ResourceExtraction.Imaging;
 using ResourceExtraction.Extractors.Animation;
 using ResourceExtraction.Extractors.Def;
 using ResourceExtraction.Providers;
 using ResourceExtractor.Extensions;
-using ResourceExtractor.Extractors;
 using ResourceExtraction.Extractors.Dialog;
 using ResourceExtraction.Extractors.Exe;
 using ResourceExtractor.Imaging;
@@ -82,8 +80,7 @@ internal static class Program {
         }
 
         // *** OBJFIXED HAS ITS OWN MODE BECAUSE ITS OUTPUT WENT MISSING. ***
-        // It is written by the full extraction too, but `generated/DAT/OBJFIXED.json` had never
-        // been committed — and it is the ONLY place the fixed objects' interact-message dialog ids
+        // `generated/DAT/OBJFIXED.json` had never been committed — and it is the ONLY place the fixed objects' interact-message dialog ids
         // appear, so every `grep generated` sweep was blind to them. TASK-411 spent six correct
         // eliminations reaching "referenced by nothing" because of it. A single-file mode makes the
         // gap cheap to close without a full run over the whole corpus.
@@ -394,125 +391,12 @@ internal static class Program {
             return;
         }
 
-        string filePath = args.Length == 1 ? args[0] : @"D:\BaK\OriginalGame"; //Directory.GetCurrentDirectory();
-
-        ExtractBooks(filePath);
-
-
-        const string saveGamePath = @"D:\BaK\OriginalGame\GAMES\dir.G01\SAVE02.GAM";
-        var saveGameExtractor = new SaveGameExtractor();
-        using (FileStream saveGameStream = File.OpenRead(saveGamePath)) {
-            SaveGame saveGame = saveGameExtractor.Extract(Path.GetFileName(saveGamePath), saveGameStream);
-            Console.WriteLine($"Extracted: {saveGame.Id}");
-            Console.WriteLine($"Name: {saveGame.SaveGameName}");
-            Console.WriteLine($"Header Chapter: {saveGame.ChapterNumber}");
-            Console.WriteLine($"Version: {saveGame.Version} (supported: {saveGame.IsSupportedVersion})");
-            Console.WriteLine($"Temp.GAM bytes: {saveGame.TempGameData.Length}");
-            string saveGameJsonPath = Path.GetFileNameWithoutExtension(saveGamePath) + ".savegame.json";
-            File.WriteAllText(saveGameJsonPath, saveGame.ToJson());
-            Console.WriteLine($"Dumped JSON: {Path.GetFullPath(saveGameJsonPath)}");
-            if (saveGame.Data != null) {
-                Console.WriteLine($"State Chapter: {saveGame.Data.StateData.ChapterNumber}");
-                Console.WriteLine($"Party Gold: {saveGame.Data.StateData.PartyGold}");
-                Console.WriteLine($"Zone: {saveGame.Data.StateData.CurrentZoneNumber} @ ({saveGame.Data.StateData.WorldXCoordinate},{saveGame.Data.StateData.WorldYCoordinate})");
-            }
-        }
-
-        const string saveGameAfterActionPath = @"D:\BaK\OriginalGame\GAMES\dir.G01\SAVE03.GAM";
-        RunSaveGameFlagDiff(saveGamePath, saveGameAfterActionPath);
-
-        return;
-
-        GeneralResourceProvider generalResourceProvider = new(filePath);
-
-        // Extracts all resource from krondor.001 to separate files in the game directory
-        // var archiveExtractor = new ResourceExtraction.Extractors.ArchiveExtractor(filePath);
-        // archiveExtractor.ExtractAllResources();
-
-        Directory.SetCurrentDirectory(@"C:\Users\JvE\AppData\LocalLow\StellarGameStudio\BaK-Again\overrides");
-
-        // ExtractAllSounds(filePath, archiveExtractor);
-
-        var resourceProvider = ResourceProviderFactory.CreateResourceProvider(filePath);
-        var resource = resourceProvider.GetResource<AudioResource>("1023");
-        Console.WriteLine(resource.Type);
-        Console.WriteLine(resource.Name);
-
-        // OvlExtractor.Extract(filePath, "VMCODE.OVL");
-        OvlExtractor.Extract(filePath, "SX.OVL");
-
-        return;
-        ExtractAnimations(filePath, generalResourceProvider);
-        ExtractAnimatorScripts(filePath, generalResourceProvider);
-
-        // TestAssembly(filePath, "INTRO");
-
-        // ResourceExtractor.Extractors.ArchiveExtractor.ExtractResourceArchive(filePath);
-        // ExtractScreen(Path.Combine(filePath, "Z01L.SCX"));
-
-        ExtractAllScx(filePath, generalResourceProvider);
-        ExtractAllBmx(filePath, generalResourceProvider);
-
-        ExtractAllPalettes(filePath, generalResourceProvider);
-        ExtractAllRemappings(filePath, generalResourceProvider);
-
-        // var screen = ExtractScreen(Path.Combine(filePath, "PUZZLE.SCX"));
-        // var image = new BmImage{BitMapData = screen.BitMapData, Width = 320, Height = 200};
-        // SaveAsBitmap(image, "PUZZLE.png", colors);
-
-        ExtractUserInterfaces(filePath);
-
-        ExtractGdsScenes(filePath);
-
-        var ddxExtractor = new DdxExtractor();
-        foreach (string ddxFile in GetFiles(filePath, "*.ddx")) {
-            using FileStream resourceFile = File.OpenRead(Path.Combine(filePath, ddxFile));
-            Dialog ddx = ddxExtractor.Extract(ddxFile, resourceFile);
-            WriteToJsonFile(ddxFile, ddx.Type, ddx.ToJson());
-        }
-
-        ExtractLabels(filePath, generalResourceProvider);
-        ExtractSpells(generalResourceProvider);
-
-        var objectExtractor = new ObjectExtractor();
-        List<ObjectInfo> objectInfo = objectExtractor.Extract(Path.Combine(filePath, "objinfo.dat"));
-        WriteToCsvFile("objinfo.dat", ResourceType.DAT, objectInfo.ToCsv());
-
-        ExtractKeywords(filePath);
-
-        IEnumerable<string> mNames = MNamesExtractor.Extract(Path.Combine(filePath, "mnames.dat"));
-        WriteToCsvFile("mnames.dat", ResourceType.DAT, string.Join("\r\n", mNames));
-
-        ExtractBooks(filePath);
-
-        foreach (string mapFile in GetFiles(filePath, "Z??MAP.DAT")) {
-            string s = FileToBitStream(Path.Combine(filePath, mapFile));
-            File.AppendAllText("tempdebug.txt", s);
-        }
-
-        // TASK-162: the CLI's own OBJFIXED reader and its nine-file Container model are gone. This
-        // is the shared one, which parses the records through SaveGameExtractor.ParseContainer —
-        // the same code the save uses, because OBJFIXED holds byte-for-byte the same records.
-        //
-        // The two readers were compared field by field over the shipped file before collapsing them,
-        // and they differed in signedness in four places. That mattered: on the one field where they
-        // disagreed on real data the CLI was RIGHT, so folding blindly would have propagated a bug.
-        // It was fixed in the shared parser first (0613d92) — see the task note.
-        const string objFixedDat = "OBJFIXED.DAT";
-        using (FileStream objFixedStream = File.OpenRead(Path.Combine(filePath, objFixedDat))) {
-            FixedObjectSet fixedObjects =
-                new ResourceExtraction.Extractors.ObjFixedExtractor().Extract(objFixedDat, objFixedStream);
-            WriteToJsonFile(objFixedDat, ResourceType.DAT, fixedObjects.Containers.ToJson());
-        }
-
-        const string teleportDat = "teleport.dat";
-        // The extractor now lives in ResourceExtraction so the table is loadable at runtime too
-        // (dialog Teleport actions name a destination by id). The JSON stays the bare array.
-        using (FileStream teleportStream = File.OpenRead(Path.Combine(filePath, teleportDat))) {
-            TeleportDestinationSet teleport =
-                new ResourceExtraction.Extractors.TeleportExtractor().Extract(teleportDat, teleportStream);
-            WriteToJsonFile(teleportDat, ResourceType.DAT, teleport.Destinations.ToJson());
-        }
+        Console.Error.WriteLine("usage: ResourceExtractor --<mode> [game dir] [...]");
+        Console.Error.WriteLine("       ResourceExtractor --savegame <SAVE.GAM> [out.json]");
+        Console.Error.WriteLine("       ResourceExtractor <SAVE.GAM> | <before.GAM> <after.GAM>");
+        Console.Error.WriteLine("       ResourceExtractor --pot <game dir> <out.pot>");
+        Console.Error.WriteLine("modes: see the args[0] checks in Program.Main; scripts/verify-generated.sh lists the data ones.");
+        Environment.ExitCode = 1;
     }
 
     // Dumps every sound from FRP.SX to generated/SND/{id}_{name}/{id}_{format}.{mid|wav}.
@@ -559,16 +443,6 @@ internal static class Program {
         return sb.ToString();
     }
 
-    private static void ExtractAllPalettes(string filePath, GeneralResourceProvider generalResourceProvider) {
-        var paletteExtractor = new PaletteExtractor();
-        foreach (string paletteFile in GetFiles(filePath, "*.PAL")) {
-            using var resourceStream = generalResourceProvider.GetResourceStream(paletteFile);
-            var paletteResource = paletteExtractor.Extract(paletteFile, resourceStream);
-            WriteToJsonFile(paletteFile, ResourceType.PAL, paletteResource.ToJson());
-            // WriteToCsvFile(paletteFile, ResourceType.PAL, paletteResource.Colors.ToCsv());
-        }
-    }
-
     private static void ExtractAllRemappings(string filePath, GeneralResourceProvider generalResourceProvider) {
         var remapExtractor = new RemapExtractor();
         foreach (string paletteFile in GetFiles(filePath, "*.RMP")) {
@@ -576,12 +450,6 @@ internal static class Program {
             var remapResource = remapExtractor.Extract(Path.GetFileName(paletteFile), resourceStream);
             WriteToJsonFile(paletteFile, ResourceType.RMP, remapResource.ToJson());
         }
-    }
-
-    private static void TestAssembly(string filePath, string name) {
-        string destination = Path.Combine(filePath, $"{name}.TTM");
-        var mod = JsonSerializer.Deserialize<AnimationResource>(File.ReadAllText($"TTM/{name}.json"));
-        TtmAssembler.Assemble(mod ?? throw new InvalidOperationException(), destination);
     }
 
     private static void ExtractAnimatorScripts(string filePath, GeneralResourceProvider generalResourceProvider) {
@@ -869,44 +737,6 @@ internal static class Program {
         }
     }
 
-    public static string DictionaryToCsv(Dictionary<int, string> dictionary) {
-        var writer = new StringBuilder();
-        writer.AppendLine("id,value");
-        foreach (KeyValuePair<int, string> pair in dictionary) {
-            writer.AppendLine($"{pair.Key},{pair.Value}");
-        }
-
-        return writer.ToString();
-    }
-
-    public static string FileToBitStream(string filePath) {
-        // Read all bytes from the file
-        byte[] fileBytes = File.ReadAllBytes(filePath);
-        Array.Reverse(fileBytes);
-        // Use a StringBuilder to build the bitstream
-        var stringBuilder = new StringBuilder();
-
-        int pos = 0;
-
-        // Iterate over each byte
-        foreach (byte b in fileBytes) {
-            // Convert the byte to binary and pad it with zeros to ensure it's always 8 bits
-            stringBuilder.Append(Convert.ToString(b, 2).PadLeft(8, '0'));
-            if (++pos % 8 == 0) {
-                stringBuilder.AppendLine();
-            }
-        }
-
-        stringBuilder.AppendLine();
-
-        var binary = stringBuilder.ToString();
-
-        string s = binary.Replace("0", "  ").Replace("1", "##");
-
-        // Return the bitstream as a string
-        return s;
-    }
-
     private static string ResolveGeneratedDir() {
         string? env = Environment.GetEnvironmentVariable("BAK_GENERATED_DIR");
         if (!string.IsNullOrEmpty(env)) return env;
@@ -939,18 +769,6 @@ internal static class Program {
             Directory.CreateDirectory(resourceDirectory);
         }
         File.WriteAllText(Path.Combine(resourceDirectory, Path.GetFileNameWithoutExtension(fileName) + ".json"), json);
-    }
-
-    private static T ReadFromJsonFile<T>(string fileName) {
-        string resourceDirectory = Path.GetExtension(fileName)[1..].ToUpper();
-        string json = File.ReadAllText(Path.Combine(resourceDirectory, Path.GetFileNameWithoutExtension(fileName) + ".json"));
-        var obj = JsonSerializer.Deserialize<T>(json);
-
-        if (obj == null) {
-            throw new InvalidOperationException($"Failed to deserialize {fileName}");
-        }
-
-        return obj;
     }
 
     private static void WriteToCsvFile(string fileName, ResourceType resourceType, string csv) {
@@ -1618,8 +1436,9 @@ internal static class Program {
         if (!Directory.Exists(outputDir)) Directory.CreateDirectory(outputDir);
         string objInfoPath = Directory.GetFileSystemEntries(gamePath, "objinfo.dat",
             new EnumerationOptions { MatchCasing = MatchCasing.CaseInsensitive }).First();
-        var extractor = new ObjectExtractor();
-        List<ObjectInfo> objects = extractor.Extract(objInfoPath);
+        using FileStream objInfoStream = File.OpenRead(objInfoPath);
+        List<ObjectInfo> objects = new ResourceExtraction.Extractors.Object.ObjectInfoSetExtractor()
+            .Extract(Path.GetFileName(objInfoPath), objInfoStream).Items.ToList();
         string json = objects.ToJson();
         File.WriteAllText(Path.Combine(outputDir, "objinfo.json"), json);
         Console.WriteLine($"Exported: {objects.Count} objects to objinfo.json");
