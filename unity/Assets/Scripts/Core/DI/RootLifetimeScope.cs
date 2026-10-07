@@ -217,36 +217,20 @@ namespace BakAgain.Core.DI {
             builder.Register<WorldViewport>(Lifetime.Singleton).As<IWorldViewport>();
 
             // Unified in-game/travel screen (supersedes the InGameHud + InGameMenu pair).
-            // InGameState depends on IInGameScreen; a no-op NullInGameScreen keeps it
-            // resolvable while the prefab is pending.
-            if (inGameScreenPrefab != null) {
-                builder.RegisterComponentInNewPrefab(inGameScreenPrefab, Lifetime.Singleton).As<IInGameScreen>();
-            } else {
-                builder.Register<NullInGameScreen>(Lifetime.Singleton).As<IInGameScreen>();
-            }
+            builder.RegisterComponentInNewPrefab(inGameScreenPrefab, Lifetime.Singleton).As<IInGameScreen>();
 
-            // Loot/inventory screen. Registered when the prefab is assigned; null-guarded so a
-            // pending assignment doesn't break container build (nothing resolves it until the
-            // Task-5 WorldInteractionController wiring lands).
-            if (inventoryScreenPrefab != null) {
-                builder.RegisterComponentInNewPrefab(inventoryScreenPrefab, Lifetime.Singleton);
-            }
+            // Loot/inventory screen.
+            builder.RegisterComponentInNewPrefab(inventoryScreenPrefab, Lifetime.Singleton);
 
-            // Software cursor overlay. Prefab-backed CursorManager when assigned, else a
-            // no-op NullCursorManager so ICursorManager stays resolvable (the OS cursor
-            // shows until the overlay prefab is wired).
-            if (cursorManagerPrefab != null) {
-                builder.RegisterComponentInNewPrefab(cursorManagerPrefab, Lifetime.Singleton).As<ICursorManager>();
-                // Eagerly instantiate at container build. ICursorManager is otherwise only
-                // resolved by UserInterfaceLoader, which lives on a couple of sub-screens
-                // (ContentsScreen / LoadGameScreen) — so on the main menu, intro and in-game the
-                // lazy singleton was never created, leaving the OS arrow visible. Forcing
-                // resolution here makes the software cursor (and OS-cursor hiding) active app-wide
-                // from startup; states can still call ICursorManager.Hide() for cutscenes.
-                builder.RegisterBuildCallback(container => container.Resolve<ICursorManager>());
-            } else {
-                builder.Register<NullCursorManager>(Lifetime.Singleton).As<ICursorManager>();
-            }
+            // Software cursor overlay.
+            builder.RegisterComponentInNewPrefab(cursorManagerPrefab, Lifetime.Singleton).As<ICursorManager>();
+            // Eagerly instantiate at container build. ICursorManager is otherwise only
+            // resolved by UserInterfaceLoader, which lives on a couple of sub-screens
+            // (ContentsScreen / LoadGameScreen) — so on the main menu, intro and in-game the
+            // lazy singleton was never created, leaving the OS arrow visible. Forcing
+            // resolution here makes the software cursor (and OS-cursor hiding) active app-wide
+            // from startup; states can still call ICursorManager.Hide() for cutscenes.
+            builder.RegisterBuildCallback(container => container.Resolve<ICursorManager>());
 
             builder.Register<BookPresenter>(Lifetime.Transient).As<IBookPresenter>();
 
@@ -284,20 +268,9 @@ namespace BakAgain.Core.DI {
             builder.RegisterComponentInNewPrefab(templeHealScreenPrefab, Lifetime.Singleton);
             // The character screen. Instantiated inactive; a right-click on a portrait runs it.
             builder.RegisterComponentInNewPrefab(characterSheetScreenPrefab, Lifetime.Singleton);
-            if (overheadMapScreenPrefab != null) {
-                builder.RegisterComponentInNewPrefab(overheadMapScreenPrefab, Lifetime.Singleton);
-            }
-            if (locatorMapScreenPrefab != null) {
-                builder.RegisterComponentInNewPrefab(locatorMapScreenPrefab, Lifetime.Singleton)
-                    .As<BakAgain.UI.Spells.ILocatorMapView>();
-            } else {
-                // Bound to null rather than left unregistered: FieldSpellCaster takes the view as a
-                // constructor dependency, and an unregistered interface would fail the whole
-                // container instead of the one spell. It already has a warning for "cast succeeded
-                // but there is nothing to show it on".
-                builder.Register<BakAgain.UI.Spells.ILocatorMapView>(
-                    _ => null, Lifetime.Singleton);
-            }
+            builder.RegisterComponentInNewPrefab(overheadMapScreenPrefab, Lifetime.Singleton);
+            builder.RegisterComponentInNewPrefab(locatorMapScreenPrefab, Lifetime.Singleton)
+                .As<BakAgain.UI.Spells.ILocatorMapView>();
             builder.Register<WorldRuntime>(Lifetime.Singleton);
             builder.Register<GameFlow>(Lifetime.Singleton).As<IGameFlow>();
             builder.Register<ICutscenePlayerFactory, CutscenePlayerFactory>(Lifetime.Singleton);

@@ -7,7 +7,7 @@ namespace BakAgain.UI.InGame {
     /// REQ_MAIN viewport (hotspot_192) + compass + party heads + REQ_MAIN buttons, on a
     /// single UIDocument. An <see cref="IScreen"/> — InGameState makes it the navigator
     /// stack's root (ResetTo) after building the zone; the in-game menu and loot screen
-    /// are pushed over it. A NullInGameScreen keeps it resolvable while the prefab is pending.
+    /// are pushed over it.
     /// </summary>
     public interface IInGameScreen : IScreen {
         bool IsVisible { get; }

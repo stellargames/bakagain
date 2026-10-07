@@ -55,8 +55,7 @@ namespace BakAgain.ResourceManagement.Loaders {
         private ILogger _logger;
 
         // Software cursor (data-driven, mirrors sub_seg030_97F: hovering a widget shows
-        // SetPointerImage(uiElement.cursor), leaving restores the arrow). Null-safe: a
-        // NullCursorManager is injected until the CursorOverlay prefab is assigned.
+        // SetPointerImage(uiElement.cursor), leaving restores the arrow). Null in tests.
         private ICursorManager _cursorManager;
         private BakAgain.Audio.MenuSoundService _menuSound;
 
@@ -1033,8 +1032,8 @@ namespace BakAgain.ResourceManagement.Loaders {
         }
 
         // Data-driven hover cursor (mirrors sub_seg030_97F): show the element's cursor
-        // image on pointer-enter, restore the default arrow on leave. No-op until the
-        // CursorOverlay prefab is wired (a NullCursorManager is injected meanwhile).
+        // image on pointer-enter, restore the default arrow on leave. No-op without a
+        // cursor manager (tests).
         private void RegisterCursorHover(VisualElement element, UiElement menuEntry) {
             if (_cursorManager == null) {
                 return;

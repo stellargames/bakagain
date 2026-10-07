@@ -110,10 +110,7 @@ namespace BakAgain.UI.Spells {
         /// at their own maximum.
         ///
         /// <para><b>The map exists now</b> — <c>LocatorMapScreen</c> is registered as
-        /// <c>ILocatorMapView</c> and a success opens it, verified in a live cast. This paragraph
-        /// used to say it was unbuilt and that a success was only logged; that stopped being true
-        /// and the comment did not follow. The <c>_locatorMap == null</c> branch below is now the
-        /// case where the prefab field was left unassigned, not the normal one.</para>
+        /// <c>ILocatorMapView</c> and a success opens it, verified in a live cast.</para>
         /// </remarks>
         private async UniTask CastLocatorAsync(int casterId, int spellNumber, int power) {
             ApplyCost(casterId, power);
@@ -127,14 +124,6 @@ namespace BakAgain.UI.Spells {
             }
 
             FieldSpells.LocatorTarget target = FieldSpells.TargetOf(spellNumber);
-            if (_locatorMap == null) {
-                _logger?.LogWarning(
-                    "FieldSpellCaster: {Spell} succeeded ({Target}) but no locator view is bound.",
-                    spellNumber, target);
-
-                return;
-            }
-
             // The cast is already paid for and the roll already made, so the screen is the last
             // thing that happens — it returns when the player closes it and the spell is over.
             await _locatorMap.RunAsync(target);

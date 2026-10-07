@@ -818,7 +818,7 @@ namespace BakAgain.Core.Services {
             // has to be PAIRED here rather than relying on the navigator.
             await _world.BuildAsync();
             // Wire the built camera + movement into the travel screen before it shows, so the first
-            // frame/keypress finds them ready (no-op under NullInGameScreen).
+            // frame/keypress finds them ready.
             TravelScreen.SetWorldCamera(_world.WorldCamera);
             TravelScreen.SetMovement(_world.Movement);
             TravelScreen.SetWorldLoopSeam(PumpWorldLoop);

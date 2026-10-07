@@ -78,7 +78,7 @@ namespace BakAgain.UI {
         private int _choiceFocusIndex = -1;
 
         // Software cursor, injected so the choice keyboard nav can warp it onto the focused button
-        // (consistent with REQ screens). NullCursorManager until the CursorOverlay prefab is wired.
+        // (consistent with REQ screens).
         private ICursorManager _cursorManager;
 
         // The input-ownership stack: dialogs push an Exclusive layer so the menu beneath is blocked

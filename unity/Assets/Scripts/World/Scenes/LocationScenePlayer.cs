@@ -383,8 +383,8 @@ namespace BakAgain.World.Scenes {
         /// </summary>
         /// <remarks>
         /// Resolved lazily through the container for the same reason IGameFlow is: taking it as a
-        /// constructor dependency would close a DI cycle. Null when there is no HUD to hide (tests,
-        /// or the NullInGameScreen before the prefab exists), which is why every use is guarded.
+        /// constructor dependency would close a DI cycle. Null when there is no HUD to hide (tests),
+        /// which is why every use is guarded.
         /// </remarks>
         private UI.InGame.IInGameScreen TravelScreen() {
             if (_resolver == null) {

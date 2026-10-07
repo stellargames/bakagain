@@ -47,8 +47,7 @@ namespace BakAgain.World.Scenes {
         /// parameter on 2026-09-12 and VContainer refused the whole container with
         /// "Circular dependency detected!", so the game did not boot at all.
         ///
-        /// <para>Null when there is no HUD (tests, or the NullInGameScreen before the prefab
-        /// exists), which is why the use is guarded.</para>
+        /// <para>Null when there is no HUD (tests), which is why the use is guarded.</para>
         /// </remarks>
         /// <summary>A service from the container, or null without one (tests) or when it fails.</summary>
         private T ResolveOptional<T>() where T : class {
