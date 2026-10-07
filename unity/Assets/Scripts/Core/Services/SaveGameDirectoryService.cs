@@ -91,7 +91,7 @@ namespace BakAgain.Core.Services {
         }
 
         // Highest game/slot number the original's dialog_SaveGame allocation
-        // scan considers ("##" is a 2-digit DOS suffix, 0..20 inclusive: 21 slots).
+        // scan considers ("##" is a 2-digit DOS suffix, numbers 1..20; slot 0 is the Bookmark).
         private const int MaxAllocationNumber = 20;
 
         // Reserved DOS device names checkDirectoryName @0x6f949 rejects, regardless
@@ -142,12 +142,16 @@ namespace BakAgain.Core.Services {
             } catch (Exception e) {
                 _logger.LogWarning(e, "Failed to enumerate save directories under {Path} for lowest-free-number.", SaveRoot);
             }
-            for (int n = 0; n <= MaxAllocationNumber; n++) {
+            // Game numbers run 1..20: the original's mainmenu_savelist_nextfree_key
+            // starts at 1, and its directory scan (mainmenu_save_parse_filename)
+            // skips anything outside 1..20, so a .G00 would be invisible there.
+            // Existing .G00 dirs are still listed here (ListDirectoriesAsync).
+            for (int n = 1; n <= MaxAllocationNumber; n++) {
                 if (!used.Contains(n)) {
                     return n;
                 }
             }
-            return -1; // all 21 game numbers taken
+            return -1; // all 20 game numbers taken
         }
 
         public async UniTask<string> CreateDirectoryAsync(string baseName) {
@@ -155,7 +159,7 @@ namespace BakAgain.Core.Services {
             int n = LowestFreeDirectoryNumber();
             if (n < 0) {
                 _logger.LogWarning("No free save-set directory number under {Path} (all {Max} taken).",
-                    SaveRoot, MaxAllocationNumber + 1);
+                    SaveRoot, MaxAllocationNumber);
                 return null;
             }
             string folder = $"{baseName}.G{n:D2}";

@@ -37,7 +37,7 @@ namespace BakAgain.Core.Services {
 
         /// <summary>Lowest <c>&lt;name&gt;.G##</c> game number not already used by an
         /// existing save-set directory under <see cref="SaveRoot"/>, in
-        /// <c>[0,20]</c>, or <c>-1</c> if all 21 are taken. Mirrors the original's
+        /// <c>[1,20]</c>, or <c>-1</c> if all 20 are taken. Mirrors the original's
         /// directory-allocation scan in <c>dialog_SaveGame</c>.</summary>
         int LowestFreeDirectoryNumber();
 
