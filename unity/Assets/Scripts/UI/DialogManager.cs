@@ -2170,6 +2170,7 @@ namespace BakAgain.UI {
 
                 _activeArea = area;
                 _activePanel = DialogPanelBuilder.BuildPanel(entry, style, styleTable.Layout, palette, resolved, area);
+                VisualElement built = _activePanel;
 
                 // Confirm / choice mode: one button per branch, labelled from
                 // KEYWORD.DAT via the branch's keyword index. These are the
@@ -2323,6 +2324,18 @@ namespace BakAgain.UI {
                     return -1;
                 }
 
+                // *** A PANEL TAKEN DOWN BEFORE ITS WAIT ENDS ITS SHOW HERE. *** The awaits above
+                // (keywords, speaker pill, open wipe) let a ClearDialog or a concurrent show remove
+                // this panel first. Reading `_activePanel` back then captured null — which the
+                // choice wait below reads as "no panel to watch", so it polled a fresh answer box
+                // nobody writes, forever, and the play's DialogsPlaying count never came down
+                // (TASK-641, the stuck count behind TASK-637). Or it captured the OTHER show's panel
+                // and layer, and this show's teardown then took that one down. Nothing of this show
+                // is left on screen, so there is nothing to wait for and nothing to tear down.
+                if (!ReferenceEquals(built, _activePanel)) {
+                    return -1;
+                }
+
                 // The dialog now owns input structurally: AddConfirmButtons (choice) pushed an
                 // Exclusive NavigableLayer; the narrative branch pushes an Exclusive ActionLayer
                 // below. The menu beneath is blocked by the stack — no ModalActive flag.
@@ -2354,7 +2367,7 @@ namespace BakAgain.UI {
                 // overlap, so a shared counter would let an inner show's teardown end the outer
                 // show's wait. A detached VisualElement reports a null `panel`, which is the one
                 // signal that survives the teardown without any new shared state.
-                VisualElement shown = _activePanel;
+                VisualElement shown = built;
                 bool keepPanel = false;
                 try {
                     if (choiceMode) {
@@ -2377,7 +2390,7 @@ namespace BakAgain.UI {
                         // and CrossZoneAsync read that 0 as "cross" (TASK-556).
                         ChoiceAnswer answered = _choiceResult;
                         while (answered.Value == null && !cancellationToken.IsCancellationRequested
-                            && (shown == null || shown.panel != null)) {
+                            && shown.panel != null) {
                             await UniTask.Yield();
                         }
                         return answered.Value ?? -1;
