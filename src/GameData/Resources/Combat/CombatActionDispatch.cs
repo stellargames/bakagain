@@ -118,31 +118,6 @@ public static class CombatActionDispatch {
             : CombatFormulas.WeaponWearOnSwing;
 
     /// <summary>
-    /// <b>A thrust closes the distance; a swing does not.</b>
-    /// </summary>
-    /// <remarks>
-    /// The thrust arm calls the melee-approach routine first and only attacks if it succeeds, so a
-    /// left click on a distant enemy walks the attacker into contact and then strikes. The swing arm
-    /// runs a reach test instead and never moves anybody.
-    ///
-    /// <para>So the same click on the same enemy either moves you or refuses, depending on which
-    /// button you pressed. Implementing both as "attack if adjacent" removes the game's only
-    /// click-to-engage.</para>
-    /// </remarks>
-    /// <remarks>
-    /// <b>Deliberately callerless.</b> The rule is expressed structurally rather
-    /// than through this predicate: <c>CombatRuntime.ResolveMeleeClick</c> refuses a non-adjacent
-    /// SWING outright and, on the thrust arm, calls <c>StepIntoContact</c> before striking. So the
-    /// behaviour is honoured and this states it in one line for a reader.
-    ///
-    /// <para>Recorded because an implemented-but-unconsumed sweep flags it, and this project has a
-    /// standing rule that such a predicate usually means a missing caller. Here it does not — check
-    /// <c>ResolveMeleeClick</c> before "wiring" it, or you will add a second copy of a rule that is
-    /// already obeyed.</para>
-    /// </remarks>
-    public static bool ApproachesTarget(MeleeAttack attack) => attack == MeleeAttack.Thrust;
-
-    /// <summary>
     /// The combined pool a <b>swing</b> requires, above which it may be made.
     /// </summary>
     /// <remarks>
@@ -195,9 +170,6 @@ public static class CombatActionDispatch {
     public static readonly int[] MenuActionIds =
         { 2, 3, 4, 5, 6, 8, 9, 7, 50, 19, 31, 46, 32, 47, 30, 33 };
 
-    /// <summary>How many of <see cref="MenuActionIds"/> are actor commands rather than menu controls.</summary>
-    public const int ActorCommandCount = 8;
-
     /// <summary>First help record, for menu position 0.</summary>
     public const int HelpRecordBase = 0xFE;
 
@@ -220,16 +192,6 @@ public static class CombatActionDispatch {
     }
 
     /// <summary>
-    /// The value stored on the actor as its chosen command, or -1 when the id is a menu control
-    /// (like the page flip) rather than something the actor does.
-    /// </summary>
-    /// <remarks><b>Deliberately callerless.</b> The port dispatches the HUD through CombatCommands.Command rather than storing a menu position on the actor.</remarks>
-    public static int ActorCommandFor(int actionId) {
-        int position = MenuPositionOf(actionId);
-        return position >= 0 && position < ActorCommandCount ? position : -1;
-    }
-
-    /// <summary>
     /// <b>A right-click previews and changes nothing; a left-click only STORES the choice.</b>
     /// </summary>
     /// <remarks>
@@ -240,32 +202,6 @@ public static class CombatActionDispatch {
     /// <para><b>Deliberately callerless.</b> The port resolves a HUD command in HotspotService's command handler; no step between storing the choice and acting on it is modelled.</para>
     /// </remarks>
     public static bool LeftClickOnlyRecordsTheChoice => true;
-
-    /// <summary>What the defend menu action actually does.</summary>
-    public enum GuardAction {
-        /// <summary>Raise a guard for the round.</summary>
-        Defend,
-
-        /// <summary>Recover instead.</summary>
-        Rest,
-    }
-
-    /// <summary>The pool percentage at or above which the action guards rather than rests.</summary>
-    public const int DefendThresholdPercent = 0x50;
-
-    /// <summary>
-    /// <b>One menu action, two behaviours, chosen by how hurt you are.</b>
-    /// </summary>
-    /// <param name="statPercent">The combatant's pool as a percentage.</param>
-    /// <remarks>
-    /// At or above four fifths it defends; below that it rests instead. The player presses the same
-    /// button either way and is not told which they got — so a port with separate Defend and Rest
-    /// commands is offering a choice the original never gave, and one with only Defend silently
-    /// removes the recovery a hurt character depends on.
-    /// <para><b>Deliberately callerless.</b> HotspotService.ResolveUnarmedClick applies it through DefendAction.LeftClickDefends: a primary self-click below the threshold rests, otherwise defends (COMBAT.C:2391; set_flag8 is CAF_PARRY, enter_defense heals).</para>
-    /// </remarks>
-    public static GuardAction GuardFor(int statPercent) =>
-        statPercent >= DefendThresholdPercent ? GuardAction.Defend : GuardAction.Rest;
 
     /// <summary>
     /// <b>Corrected 2026-09-14: this is the Inspect arm, and it does NOT hand the turn to anyone.</b>
@@ -281,19 +217,6 @@ public static class CombatActionDispatch {
     /// the CombatAssessment reveal (TASK-241), which is this rule.</para>
     /// </remarks>
     public static bool SwitchingActorSpendsTheCurrentTurn => true;
-
-    /// <summary>
-    /// A click is only accepted inside the field, below the menu bar.
-    /// </summary>
-    /// <remarks>
-    /// The same screen-Y test the cast action uses, so the rule is shared across every action rather
-    /// than being a property of casting.
-    /// <para><b>Deliberately callerless.</b> The port's HUD and arena are separate UI regions, so a menu-bar click never reaches the field pick.</para>
-    /// </remarks>
-    public static bool ClickIsOnTheField(int mouseY) => mouseY < FieldBottomY;
-
-    /// <summary>Screen Y at which the combat field gives way to the menu bar.</summary>
-    public const int FieldBottomY = 0x8C;
 
     // ---------------------------------------------------------------- round and turn transitions
     // combatenc_begin_round_reset_flags @0x640ff, combat_arena_advance_turn @0x6141c.
@@ -312,18 +235,6 @@ public static class CombatActionDispatch {
     /// </remarks>
     public static CombatantFlags BeginRound(CombatantFlags flags) =>
         (flags | CombatantFlags.Ready) & ~CombatantFlags.DefendCommand;
-
-    /// <summary>
-    /// <b>A stale target is dropped at the round boundary, not when it falls.</b>
-    /// </summary>
-    /// <param name="targetCanStillAct">The current target is not out of the fight.</param>
-    /// <remarks>
-    /// The reset clears any target whose cannot-act bit is set. Within a round an actor can still be
-    /// pointed at somebody who has just gone down — the engine only tidies up between rounds, which
-    /// is visible if anything reads the target during the round it happens.
-    /// <para><b>Deliberately callerless.</b> CombatEncounter.BeginRound drops a dead target, as combatenc_refresh_actor_flags does (CBENC.C:745 tests CAF_DEAD).</para>
-    /// </remarks>
-    public static bool KeepsTargetIntoNextRound(bool targetCanStillAct) => targetCanStillAct;
 
     /// <summary>
     /// <b>Ending a turn faces the actor before spending it.</b>

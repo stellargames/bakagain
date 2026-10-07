@@ -104,89 +104,12 @@ public static class TrapPuzzleGoal {
     }
 
     /// <summary>
-    /// The facing each cannon terrain is drawn at, in degrees.
-    /// </summary>
-    /// <remarks>
-    /// All four render the <b>same model</b> and differ only by this yaw — so a cannon is one asset
-    /// turned four ways, not four pieces of art. The degrees are what the renderer is passed
-    /// directly; the compass words on <see cref="CombatTerrain"/> are an interpretation of them and
-    /// depend on which way the grid's yaw runs.
-    /// <para><b>Deliberately callerless.</b> Duplicate: HotspotService.CannonFacing maps terrain 10/11/12/13 to 0x4000/0xC000/0/0x8000 engine units, the same four facings.</para>
-    /// </remarks>
-    public static int CannonFacingDegrees(CombatTerrain terrain) => terrain switch {
-        CombatTerrain.CannonWest => 90,
-        CombatTerrain.CannonEast => 270,
-        CombatTerrain.CannonNorth => 0,
-        CombatTerrain.CannonSouth => 180,
-        _ => 0,
-    };
-
-    /// <summary>Whether a terrain value is one of the four cannon facings.</summary>
-    /// <remarks><b>Deliberately callerless.</b> HotspotService recognises a cannon by TrapPuzzleBuilder.CannonElementId rather than by the terrain range.</remarks>
-    public static bool IsCannon(CombatTerrain terrain) =>
-        terrain >= CombatTerrain.CannonWest && terrain <= CombatTerrain.CannonSouth;
-
-    // ---- What happens when it ends -------------------------------------------------------------
-
-    /// <summary>
-    /// Terrain kind a burning tile carries. The same effect the risen leave behind — see
-    /// <see cref="SlayerRevival.RisenTileEffect"/> — so this is one hazard used by two systems, not
-    /// two that happen to share a number.
-    /// </summary>
-    /// <remarks><b>Deliberately callerless.</b> Superseded reading — combat_arena_burn_terr_cutsc has ONE caller, at arena ENTRY (COMBAT.C:882, gated on terrain 6), not at the puzzle's end; TrapPropEmergence models that routine and HotspotService runs it.</remarks>
-    public const int BurningTerrain = 9;
-
-    /// <summary>Shortest burn a tile is set alight for, inclusive.</summary>
-    /// <remarks><b>Deliberately callerless.</b> Duplicate of TrapPropEmergence.MinimumDuration — combat_arena_burn_terr_cutsc has ONE caller, at arena ENTRY (COMBAT.C:882, gated on terrain 6), not at the puzzle's end; TrapPropEmergence models that routine and HotspotService runs it.</remarks>
-    public const int MinimumBurnDuration = 0x190;
-
-    /// <summary>Longest burn a tile is set alight for, inclusive.</summary>
-    /// <remarks><b>Deliberately callerless.</b> Duplicate of TrapPropEmergence.MaximumDuration — combat_arena_burn_terr_cutsc has ONE caller, at arena ENTRY (COMBAT.C:882, gated on terrain 6), not at the puzzle's end; TrapPropEmergence models that routine and HotspotService runs it.</remarks>
-    public const int MaximumBurnDuration = 0x2bb;
-
-    /// <summary>
     /// Whether this grid is a trap puzzle at all.
     /// </summary>
     /// <remarks>
-    /// <b>The presence of an exit tile is what marks a grid as a puzzle</b> — the round transition
-    /// asks exactly this to decide whether to play the burn. So the same predicate answers two
-    /// questions, "is this a puzzle" and "does the goal test mean anything", which is the reason it
-    /// exists apart from <see cref="ExitRow"/>.
+    /// <b>The presence of an exit tile is what marks a grid as a puzzle.</b> So the same predicate
+    /// answers two questions, "is this a puzzle" and "does the goal test mean anything", which is the
+    /// reason it exists apart from <see cref="ExitRow"/>.
     /// </remarks>
     public static bool IsTrapPuzzle(CombatGrid grid) => HasExit(grid);
-
-    /// <summary>
-    /// Whether a tile takes light when the puzzle ends.
-    /// </summary>
-    /// <remarks>
-    /// <b>Only tiles holding a combatant burn</b>, so the fire marks out what was standing on the
-    /// grid rather than sweeping it. Empty ground, crystals and cannons are left alone.
-    /// <para><b>Deliberately callerless.</b> Superseded reading — combat_arena_burn_terr_cutsc has ONE caller, at arena ENTRY (COMBAT.C:882, gated on terrain 6), not at the puzzle's end; TrapPropEmergence models that routine and HotspotService runs it.</para>
-    /// </remarks>
-    public static bool BurnsAtCompletion(bool tileHoldsCombatant) => tileHoldsCombatant;
-
-    /// <summary>
-    /// Whether the completion sequence is finished.
-    /// </summary>
-    /// <remarks>
-    /// It runs until <b>no tile is still burning</b> — the durations are rolled per tile, so the
-    /// sequence lasts as long as its longest fire rather than a fixed time.
-    /// <para><b>Deliberately callerless.</b> Superseded reading — combat_arena_burn_terr_cutsc has ONE caller, at arena ENTRY (COMBAT.C:882, gated on terrain 6), not at the puzzle's end; TrapPropEmergence models that routine and HotspotService runs it.</para>
-    /// </remarks>
-    public static bool BurnComplete(int burningTiles) => burningTiles == 0;
-
-    /// <summary>
-    /// <b>STALE — CORRECTED 2026-09-14: cannons DO fire; see <see cref="CannonLine"/>.</b> The paragraph below is the superseded reading, kept for the record.
-    /// </summary>
-    /// <remarks>
-    /// Recorded as a rule because its absence is easy to mistake for a gap. A cannon's facing is
-    /// read in exactly three places — the loader that places it, the writer that saves it back, and
-    /// the renderer that picks a yaw — and nowhere does anything consult one to act. They are
-    /// scenery that blocks a tile and points somewhere; the puzzle's only damage comes from walking
-    /// onto crystal ground. Do not build a firing mechanic for them.
-    ///
-    /// <para><b>Deliberately callerless.</b> Superseded: CannonLine found the read by direction code in
-    /// combatgrid_step_search, and CombatRuntime.FireCannonAt fires on a walker in a cannon's line.</para>
-    /// </remarks>
-    public static bool CannonsFire => false;
 }

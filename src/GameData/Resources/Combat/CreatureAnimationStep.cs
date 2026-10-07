@@ -41,10 +41,6 @@ public static class CreatureAnimationStep {
     /// </remarks>
     public const int GaitDelayMinimum = 8;
 
-    /// <summary>The inclusive top of the re-rolled delay — <c>(rand &amp; 7) + 8</c>.</summary>
-    /// <remarks><b>Deliberately callerless.</b> Implied by NextGaitDelay's (roll & 7) + 8, which ArenaIdleAnimator uses.</remarks>
-    public const int GaitDelayMaximum = 15;
-
     /// <summary>The delay slot 0 takes for its next frame.</summary>
     public static int NextGaitDelay(int roll) => (roll & 7) + GaitDelayMinimum;
 
@@ -61,51 +57,4 @@ public static class CreatureAnimationStep {
 
     /// <summary>The counter value after a step that advanced.</summary>
     public const int TickCounterAfterAdvance = 1;
-
-    /// <summary>
-    /// <b>Slot 0 PING-PONGS; every other slot runs once and reports complete.</b>
-    /// </summary>
-    /// <remarks>
-    /// Reaching past <c>endFrame</c> going forward does one of two things, and which one is decided
-    /// by the slot rather than by any flag on the animation:
-    /// <list type="bullet">
-    /// <item><b>slot 0</b> — <c>currentFrame = endFrame - 1</c>, <c>endFrame--</c>,
-    /// <c>isReversing = 1</c>: it turns round and walks back down.</item>
-    /// <item><b>any other slot</b> — <c>currentFrame = endFrame</c>, <c>isComplete = 1</c>: it stops
-    /// on the last frame and stays there.</item>
-    /// </list>
-    ///
-    /// <para>The <c>endFrame--</c> is not a leak. Walking back down, dropping below the decremented
-    /// <c>endFrame</c> calls <c>combat_actor_anim0_if_not_dead(actor, -1)</c>, which restarts the
-    /// animation from slot 0 — so the cycle is forward, bounce, back, restart, and the shrink lasts
-    /// exactly one pass. The <c>-1</c> is the direction argument and means "keep the current
-    /// facing", which is why a creature does not spin when its idle loops.</para>
-    /// <para><b>Deliberately callerless.</b> EncounterActorPose.Advance ping-pongs the idle gait, while AttackSwing and DeathCollapse play once.</para>
-    /// </remarks>
-    public static bool PingPongs(int animSlotIndex) => animSlotIndex == 0;
-
-    /// <summary>
-    /// <b>Facings above 4 are drawn as MIRRORED versions of the others.</b>
-    /// </summary>
-    /// <remarks>
-    /// The step ends by setting the global bitmap flag to a horizontal flip when
-    /// <c>facingDirection &gt; 4</c> and clearing it otherwise. So the sheet holds five columns and
-    /// the other three are the same art reversed — which is why a creature's left and right poses
-    /// are exact mirrors and cannot carry asymmetric detail.
-    /// <para><b>Deliberately callerless.</b> The port takes the column and mirror flag from EncounterActorPose.SpriteColumn and mirrors with a negative X scale.</para>
-    /// </remarks>
-    public static bool DrawnMirrored(int facingDirection) => facingDirection > 4;
-
-    /// <summary>
-    /// Where the stepped frame is published: <c>callerBuffer + animSlotIndex</c>.
-    /// </summary>
-    /// <remarks>
-    /// <b>The caller supplies the buffer, and this is how the walk frame reaches the sliding
-    /// sprite.</b> <c>animateCombatActorMove</c> passes a small stack buffer here and then hands
-    /// its first byte to <c>Combat_AnimateProjectileToTarget</c> as the sprite parameter, so the
-    /// creature is drawn mid-stride while it slides between cells. A port that stepped the
-    /// animation and the slide independently would show a static pose gliding across the grid.
-    /// <para><b>Deliberately callerless.</b> The port has no per-slot buffer; ArenaIdleAnimator publishes the stepped frame on Combatant.GaitFrame.</para>
-    /// </remarks>
-    public static int PublishOffset(int animSlotIndex) => animSlotIndex;
 }

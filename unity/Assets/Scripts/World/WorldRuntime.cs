@@ -1157,8 +1157,9 @@ namespace BakAgain.World {
                         }
                         // *** THE LEGS SWING WITH THE SLIDE, WHICH IS THE ORIGINAL'S COUPLING. ***
                         // animateCombatActorMove steps the creature's animation and its position in
-                        // the same loop — see CreatureAnimationStep.PublishOffset. An actor that is
-                        // not moving is not animating, exactly as RoamingActor does in the world.
+                        // the same loop, handing the stepped frame to the slide as its sprite. An
+                        // actor that is not moving is not animating, exactly as RoamingActor does in
+                        // the world.
                         while (stepped[i] < (int)(crossed * GaitStepsPerCell)) {
                             gaits[i]?.AdvanceGait();
                             stepped[i]++;

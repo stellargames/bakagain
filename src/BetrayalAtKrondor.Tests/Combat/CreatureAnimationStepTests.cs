@@ -19,7 +19,7 @@ public class CreatureAnimationStepTests {
         for (var roll = 0; roll < 64; roll++) {
             int delay = CreatureAnimationStep.NextGaitDelay(roll);
             Assert.InRange(delay, CreatureAnimationStep.GaitDelayMinimum,
-                CreatureAnimationStep.GaitDelayMaximum);
+                CreatureAnimationStep.GaitDelayMinimum + 7);
         }
     }
 
@@ -39,23 +39,5 @@ public class CreatureAnimationStepTests {
     [Fact]
     public void AZeroDelayDoesNotAdvance() {
         Assert.False(CreatureAnimationStep.Advances(tickCounter: 0, frameDelay: 0));
-    }
-
-    [Fact]
-    public void OnlySlotZeroPingPongs() {
-        Assert.True(CreatureAnimationStep.PingPongs(0));
-        Assert.False(CreatureAnimationStep.PingPongs(1));
-        Assert.False(CreatureAnimationStep.PingPongs(4));
-    }
-
-    /// <summary>Five authored columns; 5, 6 and 7 are the mirror of the others.</summary>
-    [Fact]
-    public void FacingsAboveFourAreMirrored() {
-        for (var facing = 0; facing <= 4; facing++) {
-            Assert.False(CreatureAnimationStep.DrawnMirrored(facing), $"facing {facing}");
-        }
-        for (var facing = 5; facing <= 7; facing++) {
-            Assert.True(CreatureAnimationStep.DrawnMirrored(facing), $"facing {facing}");
-        }
     }
 }

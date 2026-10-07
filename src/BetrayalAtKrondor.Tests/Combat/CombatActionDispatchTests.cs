@@ -4,8 +4,8 @@ using GameData.Resources.Combat;
 using Xunit;
 
 /// <summary>
-/// What a click on the combat field selects: two melee attacks on two mouse buttons, and a guard
-/// action that quietly becomes a rest.
+/// What a click on the combat field selects: two melee attacks on two mouse buttons, the round
+/// reset, and the menu's help records.
 /// </summary>
 public class CombatActionDispatchTests {
     [Fact]
@@ -15,13 +15,6 @@ public class CombatActionDispatchTests {
         Assert.Equal(CombatActionDispatch.MeleeAttack.Swing,
             CombatActionDispatch.AttackFor(CombatActionDispatch.RightButton));
         Assert.Equal(CombatActionDispatch.MeleeAttack.None, CombatActionDispatch.AttackFor(0));
-    }
-
-    [Fact]
-    public void OnlyTheThrustClosesTheDistance() {
-        // So the same click on the same enemy either moves you or refuses, by button.
-        Assert.True(CombatActionDispatch.ApproachesTarget(CombatActionDispatch.MeleeAttack.Thrust));
-        Assert.False(CombatActionDispatch.ApproachesTarget(CombatActionDispatch.MeleeAttack.Swing));
     }
 
     [Fact]
@@ -50,26 +43,6 @@ public class CombatActionDispatchTests {
     }
 
     [Fact]
-    public void AHealthyCharacterGuardsAndAHurtOneRests() {
-        // One menu action, two behaviours, and the player is not told which they got.
-        Assert.Equal(CombatActionDispatch.GuardAction.Defend, CombatActionDispatch.GuardFor(80));
-        Assert.Equal(CombatActionDispatch.GuardAction.Defend, CombatActionDispatch.GuardFor(100));
-        Assert.Equal(CombatActionDispatch.GuardAction.Rest, CombatActionDispatch.GuardFor(79));
-    }
-
-    [Fact]
-    public void TheThresholdIsFourFifths() {
-        Assert.Equal(80, CombatActionDispatch.DefendThresholdPercent);
-    }
-
-    [Fact]
-    public void ClicksInTheMenuBarAreNotFieldActions() {
-        Assert.True(CombatActionDispatch.ClickIsOnTheField(
-            CombatActionDispatch.FieldBottomY - 1));
-        Assert.False(CombatActionDispatch.ClickIsOnTheField(CombatActionDispatch.FieldBottomY));
-    }
-
-    [Fact]
     public void HandingControlOverSpendsThePreviousTurn() {
         Assert.True(CombatActionDispatch.SwitchingActorSpendsTheCurrentTurn);
     }
@@ -95,12 +68,6 @@ public class CombatActionDispatchTests {
         Assert.Equal(0x02, (int)CombatantFlags.Dead);
         Assert.Equal(0x04, (int)CombatantFlags.DefendCommand);
         Assert.Equal(0x08, (int)CombatantFlags.Parry);
-    }
-
-    [Fact]
-    public void ATargetThatHasFallenIsDroppedBetweenRounds() {
-        Assert.False(CombatActionDispatch.KeepsTargetIntoNextRound(targetCanStillAct: false));
-        Assert.True(CombatActionDispatch.KeepsTargetIntoNextRound(targetCanStillAct: true));
     }
 
     [Fact]
@@ -141,22 +108,9 @@ public class CombatActionDispatchTests {
     }
 
     [Fact]
-    public void TheFirstEightMenuEntriesAreActorCommandsAndTheRestAreNot() {
-        Assert.Equal(0, CombatActionDispatch.ActorCommandFor(2));
-        Assert.Equal(6, CombatActionDispatch.ActorCommandFor(9));
-        Assert.Equal(7, CombatActionDispatch.ActorCommandFor(7));
-        // 50 flips the menu page; it is a control, not something the actor does.
-        Assert.Equal(-1, CombatActionDispatch.ActorCommandFor(50));
-        Assert.Equal(-1, CombatActionDispatch.ActorCommandFor(33));
-        Assert.Equal(CombatActionDispatch.ActorCommandCount,
-            CombatActionDispatch.MenuActionIds.Length - 8);
-    }
-
-    [Fact]
     public void AnIdThatIsNotOnTheMenuHasNoPositionAndNoHelp() {
         Assert.Equal(-1, CombatActionDispatch.MenuPositionOf(1));
         Assert.Equal(-1, CombatActionDispatch.HelpRecordFor(1));
-        Assert.Equal(-1, CombatActionDispatch.ActorCommandFor(1));
     }
 
     [Fact]
