@@ -51,8 +51,19 @@ namespace BakAgain.Tests.PlayMode.World {
         private UnityEngine.GameObject _menuGo;
         private UnityEngine.UIElements.PanelSettings _panelSettings;
 
+        private BakAgain.Audio.MenuSoundService _sounds;
+
+        // The explosion plays sound 57; a service left behind by an earlier test would try to load it,
+        // and without the game data (CI) that load logs an error the test is not about.
+        [SetUp]
+        public void SetUp() {
+            _sounds = BakAgain.Audio.MenuSoundService.Instance;
+            BakAgain.Audio.MenuSoundService.Instance = null;
+        }
+
         [TearDown]
         public void TearDown() {
+            BakAgain.Audio.MenuSoundService.Instance = _sounds;
             if (_menuGo != null) { UnityEngine.Object.DestroyImmediate(_menuGo); }
             if (_panelSettings != null) { UnityEngine.Object.DestroyImmediate(_panelSettings); }
         }
