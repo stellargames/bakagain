@@ -132,14 +132,6 @@ public class MonsterSpellcastingTests {
     }
 
     [Fact]
-    public void SkillMakesTheTargetSearchStricterNotWider() {
-        // 4 down to 0 as casting skill runs 0 to 100 — the opposite of the obvious reading.
-        Assert.Equal(4, MonsterSpellcasting.CastingFactor(0));
-        Assert.Equal(2, MonsterSpellcasting.CastingFactor(50));
-        Assert.Equal(0, MonsterSpellcasting.CastingFactor(100));
-    }
-
-    [Fact]
     public void TheFirstPassPrefersTheOnlyTypeThatCanMiss() {
         Assert.Equal(SpellHitResolution.MissableTargetingType,
             MonsterSpellcasting.FirstPassTargetingTypes[0]);
@@ -150,13 +142,6 @@ public class MonsterSpellcastingTests {
     public void AndTheSecondPassAcceptsOnlyTypeOne() {
         Assert.Single(MonsterSpellcasting.SecondPassTargetingTypes);
         Assert.Equal(1, MonsterSpellcasting.SecondPassTargetingTypes[0]);
-    }
-
-    [Fact]
-    public void OnlyTheFirstPassNeedsAClearLineOfFire() {
-        // So a monster that finds nothing it likes still casts, at something, through a wall.
-        Assert.True(MonsterSpellcasting.RequiresLineOfFire(1));
-        Assert.False(MonsterSpellcasting.RequiresLineOfFire(2));
     }
 
     [Fact]
@@ -195,66 +180,10 @@ public class MonsterSpellcastingTests {
     }
 
     [Fact]
-    public void AMonsterAlwaysCastsAtTheSpellsMaximum() {
-        // No slider, no holding back — a monster Evil Seek is always the 30-point version.
-        Assert.Equal(30, MonsterSpellcasting.InvestedPower(spellMaximumCost: 30,
-            healthStaminaPool: 90));
-    }
-
-    [Fact]
-    public void ButNeverEnoughToKillItself() {
-        // Casting is paid in health and the cap is pool - 1, so a monster spends down to one point
-        // and stops.
-        Assert.Equal(19, MonsterSpellcasting.InvestedPower(spellMaximumCost: 30,
-            healthStaminaPool: 20));
-        Assert.Equal(0, MonsterSpellcasting.InvestedPower(spellMaximumCost: 30,
-            healthStaminaPool: 1));
-    }
-
-    [Fact]
-    public void TheCapBitesExactlyAtTheBoundary() {
-        // maximumCost >= pool takes the capped branch, so a pool of exactly the cost still caps.
-        Assert.Equal(29, MonsterSpellcasting.InvestedPower(spellMaximumCost: 30,
-            healthStaminaPool: 30));
-        Assert.Equal(30, MonsterSpellcasting.InvestedPower(spellMaximumCost: 30,
-            healthStaminaPool: 31));
-    }
-
-    [Fact]
-    public void TheTwoPassesVerifyTheShotInDifferentCurrencies() {
-        // Geometry on the first, probability on the second — neither is a superset of the other.
-        Assert.True(MonsterSpellcasting.RequiresLineOfFire(1));
+    public void OnlyTheSecondPassRollsToHit() {
+        // The first pass verifies the shot by its line-of-fire trace instead.
         Assert.False(MonsterSpellcasting.RollsToHit(1));
-        Assert.False(MonsterSpellcasting.RequiresLineOfFire(2));
         Assert.True(MonsterSpellcasting.RollsToHit(2));
-    }
-
-    [Fact]
-    public void EveryPatternWastesAnAttemptOnTheDeadSlot() {
-        // Slot 8's guard is always false, and every row contains it.
-        Assert.True(MonsterSpellcasting.SlotEightIsDeadCode);
-        for (int pattern = 1; pattern <= MonsterSpellcasting.MaxPattern; pattern++) {
-            Assert.InRange(MonsterSpellcasting.DeadSlotAttemptFor(pattern), 0,
-                MonsterSpellcasting.SlotCount - 1);
-        }
-    }
-
-    [Fact]
-    public void APatternEightMonstersPreferredActionNeverFires() {
-        // Its row leads with the dead slot, so it always falls through to its second choice.
-        Assert.Equal(0, MonsterSpellcasting.DeadSlotAttemptFor(8));
-        Assert.Equal(2, MonsterSpellcasting.SlotFor(8, 1));
-    }
-
-    [Fact]
-    public void AndPatternsOneAndSixLoseTheirSecondAttempt() {
-        Assert.Equal(1, MonsterSpellcasting.DeadSlotAttemptFor(1));
-        Assert.Equal(1, MonsterSpellcasting.DeadSlotAttemptFor(6));
-    }
-
-    [Fact]
-    public void APatternThatNeverCastsHasNoDeadAttemptEither() {
-        Assert.Equal(-1, MonsterSpellcasting.DeadSlotAttemptFor(0));
     }
 
     [Fact]

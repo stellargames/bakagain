@@ -660,9 +660,7 @@ namespace BakAgain.Combat {
                         : AiAction.Shoot;
 
                 case CombatAi.SpeciesRoutine.RangedKnockbackElseCloseIn:
-                    // MonsterMeleeTurn rather than MonsterTurnRoutines.VolleysRatherThanClosing:
-                    // both model this routine (pre-existing overlap in GameData, noted on TASK-241),
-                    // and only this one carries the NoTarget case the V102CD build guards with.
+                    // MonsterMeleeTurn carries the NoTarget case the V102CD build guards with.
                     return MonsterMeleeTurn.Choose(hasTarget: true, lineOfFire, distance)
                             == MonsterMeleeTurn.Outcome.RangedAttack
                         ? AiAction.Shoot

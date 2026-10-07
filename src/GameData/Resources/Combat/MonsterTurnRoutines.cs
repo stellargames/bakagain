@@ -89,44 +89,8 @@ public static class MonsterTurnRoutines {
             : new MonsterTurn(MonsterMove.Shoot);
     }
 
-    /// <summary>
-    /// The chance in ten that <see cref="CloseOrRanged"/> casts rather than shoots, at a given
-    /// distance.
-    /// </summary>
-    /// <remarks>
-    /// <b>Derived from the same comparison, and worth stating because the numbers are the
-    /// argument.</b> A target two tiles away is cast at EIGHT times in ten; one nine tiles away
-    /// once in ten; and at ten tiles or more the monster can never cast at all, because a d10 roll
-    /// cannot reach 10. Spells are this creature's CLOSE-range option, which is the opposite of the
-    /// intuition — invert the comparison and it snipes spells across the arena and melees nothing.
-    ///
-    /// <para>Zero inside melee reach, where the routine has already decided to swing.</para>
-    /// <para><b>Deliberately callerless.</b> A derived restatement of CloseOrRanged, which MonsterTurnResolver calls.</para>
-    /// </remarks>
-    public static int CastChanceInTen(int distanceToNearest) {
-        if (distanceToNearest <= MeleeReach) {
-            return 0;
-        }
-        int chance = CloseRangeCastRollBound - distanceToNearest;
-        return chance < 0 ? 0 : chance;
-    }
-
     /// <summary>The quarrel type <see cref="CloseOrRanged"/> shoots with.</summary>
     public const int CloseOrRangedQuarrelType = 8;
-
-    /// <summary>
-    /// <b>Corrected 2026-09-14: this is the swing's DAMAGE, not a delay</b> — <c>RNDR(0x19, 0x31)</c>, 25..49.
-    /// </summary>
-    /// <remarks>
-    /// <c>combat_arena_melee_attack(actor, target, RNDR(0x19, 0x31))</c> (CBTAIACT.C:29, and :62 for the
-    /// wandering routine) — the third parameter is <c>damage</c>, and COMBAT.C only rolls the weapon's
-    /// damage <c>if (damage == 0)</c>. So these creatures' swings always land for 25..49 whatever they
-    /// carry. The same band as <see cref="MeleeMinDamage"/>/<see cref="MeleeMaxDamage"/>; see TASK-525.
-    ///
-    /// <para><b>Deliberately callerless.</b> A duplicate restatement of that band, which
-    /// CombatRuntime.SwingSpeciesBlow consumes.</para>
-    /// </remarks>
-    public static readonly (int Min, int Max) CloseOrRangedMeleeDelay = (0x19, 0x31);
 
     /// <summary>
     /// The routine that wanders first: the creature walks to a <b>randomly chosen reachable
@@ -197,9 +161,6 @@ public static class MonsterTurnRoutines {
     /// <summary>The creature that always takes the heavy shot, whatever the roll says.</summary>
     public const int AlwaysHeavyCreature = 0x39;
 
-    /// <summary>Tiles beyond which the volley routine shoots rather than closing.</summary>
-    public const int VolleyMinimumDistance = 2;
-
     /// <summary>The heavy shot's launch cue — <c>audio_play(0x12)</c>, before the projectile flies.</summary>
     public const int HeavyShotLaunchCue = 0x12;
 
@@ -227,13 +188,12 @@ public static class MonsterTurnRoutines {
     /// <summary>A ranged routine's decision, with the numbers that go with it.</summary>
     public readonly struct RangedTurn {
         public RangedTurn(RangedChoice choice, int actionId = 0, int knockbackFrames = 0,
-            int minDamage = 0, int maxDamage = 0, bool scalesWithStat = false) {
+            int minDamage = 0, int maxDamage = 0) {
             Choice = choice;
             ActionId = actionId;
             KnockbackFrames = knockbackFrames;
             MinDamage = minDamage;
             MaxDamage = maxDamage;
-            ScalesWithStat = scalesWithStat;
         }
 
         public RangedChoice Choice { get; }
@@ -249,13 +209,6 @@ public static class MonsterTurnRoutines {
 
         /// <summary>Damage band, inclusive at both ends.</summary>
         public int MaxDamage { get; }
-
-        /// <summary>
-        /// Whether the rolled damage is then scaled by the attacker's base stat percentage. Most
-        /// routines apply their roll raw; the ones that set this hit for less as the creature is
-        /// worn down.
-        /// </summary>
-        public bool ScalesWithStat { get; }
     }
 
     /// <summary>
@@ -305,34 +258,7 @@ public static class MonsterTurnRoutines {
     }
 
     /// <summary>
-    /// The routine that opens with a volley: it shoots when the target is <b>not</b> adjacent and
-    /// the way is clear, and otherwise falls back to moving or swinging.
-    /// </summary>
-    /// <remarks>
-    /// <b>Despite living among the melee handlers, its preferred action is a ranged one.</b> A port
-    /// that reads the name and closes to melee first would invert the creature's whole behaviour.
-    ///
-    /// <para>The fallback is two-stage in the original: try the move-or-attack picker, and only if
-    /// that declines does the generic action picker run.</para>
-    /// <para><b>Deliberately callerless.</b> Duplicate model: MonsterTurnResolver decides this routine through MonsterMeleeTurn.Choose, and CombatRuntime takes its damage from MonsterMeleeTurn (TASK-241 overlap).</para>
-    /// </remarks>
-    public static bool VolleysRatherThanClosing(bool lineOfFireClear, int distanceToNearest) =>
-        lineOfFireClear && distanceToNearest >= VolleyMinimumDistance;
-
-    /// <summary>Damage band of that volley, inclusive at both ends.</summary>
-    /// <remarks><b>Deliberately callerless.</b> Duplicate model: CombatRuntime takes this volley's damage from MonsterMeleeTurn.Damage.</remarks>
-    public const int VolleyMinDamage = 0xf;
-
-    /// <summary>Damage band of that volley, inclusive at both ends.</summary>
-    /// <remarks><b>Deliberately callerless.</b> Duplicate model: CombatRuntime takes this volley's damage from MonsterMeleeTurn.Damage.</remarks>
-    public const int VolleyMaxDamage = 0x22;
-
-    /// <summary>Knockback frames the volley steps through, one render apart.</summary>
-    /// <remarks><b>Deliberately callerless.</b> Duplicate model of MonsterMeleeTurn's volley; the recoil is HitReaction's, ticked per redraw.</remarks>
-    public const int VolleyKnockbackFrames = 4;
-
-    /// <summary>
-    /// Whether the volley routine can act at all.
+    /// Whether the volley routine (<see cref="MonsterMeleeTurn"/>) can act at all.
     /// </summary>
     /// <remarks>
     /// <b>Another build difference in our favour:</b> the 1.02 CD release returns early when there
@@ -341,44 +267,11 @@ public static class MonsterTurnRoutines {
     public static bool CanAct(bool hasTarget) => hasTarget;
 
     // ---- The three routines that shoot when they can and defer when they cannot ----------------
-
-    /// <summary>Minimum range at which the target-clearing routine will shoot.</summary>
-    public const int ChargeRoutineMinimumRange = 3;
-
-    /// <summary>Below this roll the target-clearing routine passes up its shot.</summary>
-    public const int ChargeRoutineSkipRoll = 5;
-
-    /// <summary>Minimum range at which the three-attack routine will shoot.</summary>
-    public const int MixedRoutineMinimumRange = 3;
-
-    /// <summary>Exclusive bound of the roll choosing among the three attacks.</summary>
-    /// <remarks><b>Deliberately callerless.</b> Duplicate model: CombatRuntime rolls roll(MonsterVariantAttackTurn.Variants.Length).</remarks>
-    public const int MixedAttackRollBound = 3;
-
-    /// <summary>Minimum range at which the heavy-bolt routine will shoot.</summary>
-    public const int BoltRoutineMinimumRange = 2;
+    // Decided by MonsterChargeTurn, MonsterVariantAttackTurn and MonsterHeavyRangedTurn.
 
     /// <summary>
-    /// Whether the routine that forgets its target takes its shot.
-    /// </summary>
-    /// <param name="roll">A roll in <c>[0, 100)</c>.</param>
-    /// <remarks>
-    /// <b>It passes up the shot on a roll under five</b> — a 5% flinch, small enough to look like a
-    /// rounding artefact and easy to drop. It also needs a longer range than the other routines
-    /// before it will shoot at all.
-    ///
-    /// <para>The line-of-fire test here is asked in a different mode from the other routines' — the
-    /// trace is called with a different flag. What the two modes differ in is not established, so it
-    /// is passed through rather than assumed equivalent.</para>
-    /// <para><b>Deliberately callerless.</b> Duplicate model: MonsterTurnResolver decides this routine through MonsterChargeTurn.Choose.</para>
-    /// </remarks>
-    public static bool TakesTheDistantShot(int distanceToNearest, bool lineOfFireClear, int roll) =>
-        distanceToNearest >= ChargeRoutineMinimumRange
-        && lineOfFireClear
-        && roll >= ChargeRoutineSkipRoll;
-
-    /// <summary>
-    /// <b>That routine drops its target at the end of every turn, whatever it did.</b>
+    /// <b>The target-clearing routine (<see cref="MonsterChargeTurn"/>) drops its target at the end
+    /// of every turn, whatever it did.</b>
     /// </summary>
     /// <remarks>
     /// Not a detail: a creature that never carries a target between turns always reads as
@@ -390,41 +283,6 @@ public static class MonsterTurnRoutines {
     /// .ClearsTargetAfterTurn and applied in the finally of CombatRuntime.ResolveEnemyTurn.</para>
     /// </remarks>
     public static bool ClearsTargetAfterActing => true;
-
-    /// <summary>
-    /// One of three attacks, chosen with a flat roll — the creature has no preference among them.
-    /// </summary>
-    /// <param name="roll">A roll in <c>[0, 3)</c>.</param>
-    /// <remarks>
-    /// <b>The knockback runs opposite to the damage</b>: the hardest of the three shoves least and
-    /// the weakest shoves most, so they are not simply three strengths of one attack.
-    ///
-    /// <para>All three scale the rolled damage by the attacker's base stat percentage, which the
-    /// other routines do not do at all — this creature hits for less as it is worn down.</para>
-    /// <para><b>Deliberately callerless.</b> Duplicate model: CombatRuntime rolls this routine's attack through MonsterVariantAttackTurn.VariantFor and ScaleByHealth.</para>
-    /// </remarks>
-    public static RangedTurn MixedAttack(int roll) => roll switch {
-        0 => new RangedTurn(RangedChoice.HeavyShot, 2, 1, 0xf, 0x22, scalesWithStat: true),
-        1 => new RangedTurn(RangedChoice.HeavyShot, 3, 2, 5, 34, scalesWithStat: true),
-        _ => new RangedTurn(RangedChoice.HeavyShot, 4, 3, 5, 14, scalesWithStat: true),
-    };
-
-    /// <summary>
-    /// Whether the three-attack routine shoots. <b>It wants more room than the others</b> — strictly
-    /// beyond two tiles, where the rest settle for beyond one.
-    /// </summary>
-    /// <remarks><b>Deliberately callerless.</b> Duplicate model: MonsterTurnResolver decides this routine through MonsterVariantAttackTurn.Attacks.</remarks>
-    public static bool TakesTheMixedAttack(int distanceToNearest, bool lineOfFireClear) =>
-        lineOfFireClear && distanceToNearest > MixedRoutineMinimumRange - 1;
-
-    /// <summary>The heaviest single attack in the bespoke set.</summary>
-    /// <remarks><b>Deliberately callerless.</b> Duplicate model: CombatRuntime takes this routine's damage from MonsterHeavyRangedTurn.Damage.</remarks>
-    public static RangedTurn HeavyBolt() => new RangedTurn(RangedChoice.HeavyShot, 4, 4, 0x2d, 0x4a);
-
-    /// <summary>Whether the heavy-bolt routine shoots rather than deferring.</summary>
-    /// <remarks><b>Deliberately callerless.</b> Duplicate model: MonsterTurnResolver decides this routine through MonsterHeavyRangedTurn.Attacks.</remarks>
-    public static bool TakesTheHeavyBolt(int distanceToNearest, bool lineOfFireClear) =>
-        lineOfFireClear && distanceToNearest > BoltRoutineMinimumRange - 1;
 
     /// <summary>
     /// <b>The heavy-bolt creature refills one of its stats to full at the start of every turn</b>,

@@ -84,26 +84,6 @@ public class MonsterRangedRoutinesTests {
     }
 
     [Fact]
-    public void TheVolleyRoutinePrefersShootingDespiteBeingFiledWithTheMeleeHandlers() {
-        // A port that reads the name and closes to melee first inverts the whole behaviour.
-        Assert.True(MonsterTurnRoutines.VolleysRatherThanClosing(true, 2));
-        Assert.True(MonsterTurnRoutines.VolleysRatherThanClosing(true, 9));
-    }
-
-    [Fact]
-    public void ItClosesOnlyWhenAdjacentOrBlocked() {
-        Assert.False(MonsterTurnRoutines.VolleysRatherThanClosing(true, 1));
-        Assert.False(MonsterTurnRoutines.VolleysRatherThanClosing(false, 9));
-    }
-
-    [Fact]
-    public void TheVolleyStepsFourKnockbackFramesAndHitsHard() {
-        Assert.Equal(4, MonsterTurnRoutines.VolleyKnockbackFrames);
-        Assert.Equal(0xf, MonsterTurnRoutines.VolleyMinDamage);
-        Assert.Equal(0x22, MonsterTurnRoutines.VolleyMaxDamage);
-    }
-
-    [Fact]
     public void OnOurBuildNoTargetMeansNoTurnRatherThanACrash() {
         // The 1.02 CD release returns early; the floppy build dereferences the null.
         Assert.False(MonsterTurnRoutines.CanAct(false));

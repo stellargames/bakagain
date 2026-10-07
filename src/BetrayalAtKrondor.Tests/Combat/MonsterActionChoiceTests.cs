@@ -40,28 +40,11 @@ public class MonsterActionChoiceTests {
             Assert.Equal(MonsterMove.Shoot,
                 MonsterTurnRoutines.CloseOrRanged(distanceToNearest: 10, castRoll: roll).Move);
         }
-        Assert.Equal(0, MonsterTurnRoutines.CastChanceInTen(10));
-    }
-
-    [Fact]
-    public void TheChanceInTenMatchesTheComparisonItIsDerivedFrom() {
-        // Eight in ten at two tiles, one in ten at nine — the numbers are the argument for which
-        // way round the comparison goes.
-        Assert.Equal(8, MonsterTurnRoutines.CastChanceInTen(2));
-        Assert.Equal(1, MonsterTurnRoutines.CastChanceInTen(9));
-        Assert.Equal(0, MonsterTurnRoutines.CastChanceInTen(1));   // inside melee reach
     }
 
     [Fact]
     public void TheSpellItCastsIsTheDefaultKind() {
         Assert.Equal(MonsterTurnRoutines.DefaultSpellKind,
             MonsterTurnRoutines.CloseOrRanged(distanceToNearest: 2, castRoll: 9).SpellKind);
-    }
-
-    [Fact]
-    public void TheMeleeDelayIsARANGE_SoTwoSwingsDoNotLandTogether() {
-        Assert.Equal((0x19, 0x31), MonsterTurnRoutines.CloseOrRangedMeleeDelay);
-        Assert.True(MonsterTurnRoutines.CloseOrRangedMeleeDelay.Min
-            < MonsterTurnRoutines.CloseOrRangedMeleeDelay.Max);
     }
 }

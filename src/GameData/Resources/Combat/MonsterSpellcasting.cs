@@ -283,26 +283,6 @@ public static class MonsterSpellcasting {
     // monster_castSpellAtSelectedTarget @0x65a0f, and the six wrappers that differ only in mode.
 
     /// <summary>
-    /// The selection parameter every one of the six wrappers passes: <b>6, always</b>.
-    /// </summary>
-    /// <remarks>
-    /// Each wrapper packs its arguments into one dword as <c>(mode &lt;&lt; 16) | 6</c>, so the six
-    /// differ in the selection mode and in nothing else. Verified for all six rather than inferred
-    /// from the first.
-    /// </remarks>
-    public const int TargetSelectionParameter = 6;
-
-    /// <summary>
-    /// How much slack the target picker is given: <b>four, less a quarter of the casting skill</b>.
-    /// </summary>
-    /// <remarks>
-    /// <b>A better caster gets a smaller number.</b> It runs from 4 at no skill down to 0 at 100, so
-    /// whatever the picker does with it, skill makes the search stricter rather than wider — the
-    /// opposite of the obvious reading, and easy to invert.
-    /// </remarks>
-    public static int CastingFactor(int accuracyCasting) => 4 - (accuracyCasting / 25);
-
-    /// <summary>
     /// <b>Monsters only ever cast martial spells.</b>
     /// </summary>
     /// <remarks>
@@ -338,35 +318,13 @@ public static class MonsterSpellcasting {
     ///
     /// <para><b>This is not the whole repertoire.</b> It covers the six targeted-cast slots, which
     /// are the only ones that go through the selector. The heal slot bypasses it entirely and names
-    /// two more spells by number — see <see cref="HealSpells"/> — neither of which could ever come
+    /// two more spells by number — see <see cref="MonsterHealTurn"/> — neither of which could ever come
     /// back from here.</para>
     /// </remarks>
     public static bool InMonsterRepertoire(int spellId, bool isMartial, int targetingType) =>
         isMartial
         && (targetingType == 0 || targetingType == 1)
         && !NeverSelected(spellId);
-
-    /// <summary>Everything a monster can cast: the selector's fifteen plus the heal slot's two.</summary>
-    public static bool CastableByAMonster(int spellId, bool isMartial, int targetingType) =>
-        InMonsterRepertoire(spellId, isMartial, targetingType) || IsHealSpell(spellId);
-
-    /// <summary>
-    /// <b>The action makes two attempts at finding a target, and they are not the same attempt.</b>
-    /// </summary>
-    /// <remarks>
-    /// The first asks the picker with the casting factor; if it yields a target, the spell must pass
-    /// a health check <i>and a clear line of fire</i> before the cast goes through the normal
-    /// routine. If it yields no target at all, the second asks again with a factor of zero — and
-    /// that path accepts only targeting type 1, checks health with a different argument, <b>skips
-    /// the line-of-fire test entirely</b>, and casts through a different routine.
-    ///
-    /// <para>So a monster that cannot see anything it likes will still cast, at something, through
-    /// a wall. Modelling this as one retry of the same logic loses the distinction.</para>
-    /// </remarks>
-    public static bool RequiresLineOfFire(int pass) => pass == 1;
-
-    /// <summary>The casting factor the second pass uses instead of the skill-derived one.</summary>
-    public const int SecondPassCastingFactor = 0;
 
     /// <summary>
     /// Whether the turn is already spent before any of this runs.
@@ -378,29 +336,6 @@ public static class MonsterSpellcasting {
     /// monster act twice.
     /// </remarks>
     public static bool PreCheckReportsTheTurnSpent => true;
-
-    // ---------------------------------------------------------------- the power invested
-    // sub_ovr173_4D4 @0x66bd4, reached from both cast routines.
-
-    /// <summary>
-    /// The power a monster invests in a cast: <b>the spell's maximum, capped at one below its own
-    /// combined health and stamina</b>.
-    /// </summary>
-    /// <param name="spellMaximumCost">The record's maximum cost.</param>
-    /// <param name="healthStaminaPool">The caster's current combined pool.</param>
-    /// <remarks>
-    /// <b>Monsters never hold back.</b> Where the player picks a power on a slider, a monster always
-    /// asks for the record's maximum — so a monster Evil Seek is always the 30-point version, and
-    /// every cost-scaled effect in <see cref="SpellCostModifiers"/> lands at full strength.
-    ///
-    /// <para>The cap is the interesting half. Casting is paid for in health (see
-    /// <c>SpellCastRoutines</c>), and the cap is <i>pool − 1</i> rather than the pool itself — so a
-    /// monster will spend itself down to a single point but <b>never kill itself casting</b>. A port
-    /// that caps at the pool instead would let casters suicide, and one that ignores the cap would
-    /// let them spend health they do not have.</para>
-    /// </remarks>
-    public static int InvestedPower(int spellMaximumCost, int healthStaminaPool) =>
-        spellMaximumCost >= healthStaminaPool ? healthStaminaPool - 1 : spellMaximumCost;
 
     /// <summary>
     /// <b>Only the second pass rolls to hit.</b>
@@ -429,59 +364,6 @@ public static class MonsterSpellcasting {
     // ---------------------------------------------------------------- action slot 1: heal an ally
     // sub_ovr171_4BD @0x65bcd and its spell chooser sub_ovr171_40C @0x65b1c.
 
-    /// <summary>Gift of Sung — the heal proper, and a targeting-type-2 spell.</summary>
-    public const int GiftOfSung = 7;
-
-    /// <summary>Hocho's Haven — the fallback, a lingering effect rather than a heal.</summary>
-    public const int HochosHaven = 6;
-
-    /// <summary>The two spells the heal slot names directly.</summary>
-    public static readonly int[] HealSpells = { GiftOfSung, HochosHaven };
-
-    /// <summary>
-    /// <b>The heal action does not use the selector at all.</b>
-    /// </summary>
-    /// <remarks>
-    /// It names Gift of Sung and Hocho's Haven by number. Neither is martial-with-type-0-or-1, so
-    /// neither could ever come back from <see cref="Selects"/> — which is why the repertoire is
-    /// seventeen spells and not the fifteen the targeted slots imply. Gift of Sung is targeting type
-    /// 2, so it lands in the heal delivery with its six-affliction gate and its 80% ceiling.
-    /// </remarks>
-    public static bool IsHealSpell(int spellId) =>
-        spellId == GiftOfSung || spellId == HochosHaven;
-
-    /// <summary>The value the minimum-health search starts from, above any real health.</summary>
-    public const int HealSearchSentinel = 110;
-
-    /// <summary>The bound of the roll the heal decision is taken against.</summary>
-    public const int HealUrgencyRollBound = 80;
-
-    /// <summary>
-    /// Which heal spell to cast, or -1.
-    /// </summary>
-    /// <param name="allyHealthConsulted">The ally health the decision actually reads — see the remarks.</param>
-    /// <param name="urgencyRoll">A roll in 0..79.</param>
-    /// <param name="giftOfSungAvailable">Gift of Sung is affordable and known.</param>
-    /// <param name="hochosHavenAvailable">Hocho's Haven is affordable and known.</param>
-    /// <param name="targetAlreadyHasHochosHaven">The candidate already carries that effect.</param>
-    /// <remarks>
-    /// Gift of Sung when the consulted health is below the roll and the spell is available;
-    /// otherwise Hocho's Haven, provided it is available and the candidate does not already have it.
-    /// Neither, and the action does nothing.
-    ///
-    /// <para>The roll makes urgency probabilistic rather than a threshold: a badly hurt ally is
-    /// <i>likely</i> to draw the real heal, never certain, and a lightly hurt one can draw it on a
-    /// low roll.</para>
-    /// </remarks>
-    public static int ChooseHealSpell(int allyHealthConsulted, int urgencyRoll,
-        bool giftOfSungAvailable, bool hochosHavenAvailable, bool targetAlreadyHasHochosHaven) {
-        if (allyHealthConsulted < urgencyRoll && giftOfSungAvailable) {
-            return GiftOfSung;
-        }
-
-        return hochosHavenAvailable && !targetAlreadyHasHochosHaven ? HochosHaven : -1;
-    }
-
     /// <summary>
     /// <b>The chooser computes the worst-off ally's health and then ignores it.</b>
     /// </summary>
@@ -507,11 +389,6 @@ public static class MonsterSpellcasting {
     /// its pattern row.
     /// </remarks>
     public static bool HealsSelf => false;
-
-    /// <summary>
-    /// Whether an ally is a valid heal target: <b>alive and below full</b>.
-    /// </summary>
-    public static bool IsHealTarget(int statPercent) => statPercent > 0 && statPercent < 100;
 
     /// <summary>
     /// <b>The heal spell is chosen against the first actor and then cast at whoever is found.</b>
@@ -547,70 +424,8 @@ public static class MonsterSpellcasting {
     /// </remarks>
     public static bool SlotEightIsDeadCode => true;
 
-    /// <summary>
-    /// Which attempt each pattern wastes on the dead slot.
-    /// </summary>
-    /// <remarks>
-    /// <b>Every one of the eight patterns contains slot 8</b>, so every caster burns one of its
-    /// eight attempts on an action that cannot succeed. It is worst for a pattern-8 monster, whose
-    /// row leads with it — <b>its preferred action never fires</b> and it always falls through to
-    /// its second choice. Pattern 1 and pattern 6 lose their second attempt to it.
-    /// </remarks>
-    public static int DeadSlotAttemptFor(int spellcastPattern) {
-        for (int attempt = 0; attempt < SlotCount; attempt++) {
-            if (SlotFor(spellcastPattern, attempt) == 8) {
-                return attempt;
-            }
-        }
-
-        return -1;
-    }
-
-    /// <summary>
-    /// The health thresholds slot 8 <i>would</i> have used, had its guard worked.
-    /// </summary>
-    /// <remarks>
-    /// Recorded for completeness and explicitly not wired to anything: below 70% normally, and below
-    /// 80% for one particular actor held in a global — a more generous threshold for whoever that
-    /// is. The spell would have been Gift of Sung, the same one the working heal slot prefers.
-    ///
-    /// <para>Which side of the fight the scan reads is <b>not established</b> — it walks one actor
-    /// table and follows each entry's current target. Because the body is unreachable that ambiguity
-    /// changes no behaviour, so it is left open rather than guessed at.</para>
-    /// </remarks>
-    public const int DeadSlotOrdinaryThreshold = 70;
-
-    /// <summary>The more generous threshold the dead slot reserved for one specific actor.</summary>
-    public const int DeadSlotFavouredThreshold = 80;
-
     // ---------------------------------------------------------------- the health gate
     // enoughHealthCheck @0x63995 and its threshold table at 0x3b246.
-
-    /// <summary>
-    /// The health an actor must exceed before an action will run — <b>the same 10 for every
-    /// bracket that is used</b>.
-    /// </summary>
-    /// <remarks>
-    /// The check is <c>health &gt; table[bracket]</c>, and the caller picks the bracket: the two
-    /// target passes use 0 and 1, and both heal slots use 2. That reads like three tunable
-    /// thresholds — and the shipped table holds 10, 10, 10, so all three are the same number and the
-    /// distinction is notional. The remaining entries are zero, so an unused bracket would mean
-    /// "merely alive".
-    ///
-    /// <para>Recorded rather than collapsed, because the indirection is real: a mod that edits the
-    /// table gets three independent knobs, and a port that hard-codes one constant silently removes
-    /// them.</para>
-    /// </remarks>
-    public static readonly int[] HealthGateThresholds = { 10, 10, 10, 0, 0, 0, 0, 0 };
-
-    /// <summary>Whether an actor clears the health gate for the given bracket.</summary>
-    public static bool ClearsHealthGate(int health, int bracket) {
-        if (bracket < 0 || bracket >= HealthGateThresholds.Length) {
-            return false;
-        }
-
-        return health > HealthGateThresholds[bracket];
-    }
 
     /// <summary>
     /// <b>The two gates on a caster's turn measure different things.</b>
@@ -618,7 +433,8 @@ public static class MonsterSpellcasting {
     /// <remarks>
     /// The turn-level gate compares the <i>combined</i> health-and-stamina pool against
     /// <see cref="MinimumPoolToAct"/>; every action-level gate compares <i>health alone</i> against
-    /// the table. So a monster with plenty of stamina and almost no health passes the first and
+    /// <see cref="CombatCapability.ShippedHealthThresholds"/> (see
+    /// <see cref="MonsterCasterTurn.HealthAllowsCasting"/>). So a monster with plenty of stamina and almost no health passes the first and
     /// fails the second, which is how it ends up entering the action loop and then declining every
     /// action in its row.
     /// </remarks>
@@ -626,45 +442,6 @@ public static class MonsterSpellcasting {
 
     // ---------------------------------------------------------------- picking the target
     // combat_selectTargetByMode @0x63ce6 and its clustering filter @0x6442f.
-
-    /// <summary>What each selection mode looks for in a candidate.</summary>
-    public enum TargetCriterion {
-        /// <summary>Mode 0 — anyone in range.</summary>
-        Anyone,
-
-        /// <summary>Mode 1 — a spellcaster.</summary>
-        Spellcaster,
-
-        /// <summary>Mode 2 — stamina at or below half.</summary>
-        Winded,
-
-        /// <summary>Mode 3 — someone who can shoot a crossbow.</summary>
-        Archer,
-
-        /// <summary>Mode 4 — someone engaging a target that can still act.</summary>
-        EngagingSomeoneStillFighting,
-
-        /// <summary>Mode 5 — someone engaging one particular actor.</summary>
-        EngagingTheFavouredActor,
-
-        /// <summary>Mode 6 — someone engaging a target that has been put out of the fight.</summary>
-        EngagingSomeoneIncapacitated,
-    }
-
-    /// <summary>
-    /// The criterion a selection mode applies.
-    /// </summary>
-    /// <remarks>
-    /// <b>Modes 4 and 6 are a matched pair</b>, and reading either alone is misleading: both require
-    /// the candidate to have a target, and they differ only in whether that target still has the
-    /// combat-status bit that lets it act. One finds an enemy busy with a live opponent, the other
-    /// finds one still hitting somebody who is already down.
-    ///
-    /// <para>Only seven modes exist, and the six caster action slots use modes 0-5 — so mode 6 is
-    /// never reached from the caster AI at all.</para>
-    /// </remarks>
-    public static TargetCriterion CriterionOf(int mode) =>
-        mode >= 0 && mode <= 6 ? (TargetCriterion)mode : TargetCriterion.Anyone;
 
     /// <summary>The stamina percentage at or below which mode 2 accepts a candidate.</summary>
     public const int WindedStaminaPercent = 50;
@@ -680,33 +457,6 @@ public static class MonsterSpellcasting {
     /// order, last one winning — the opposite of the usual first-match convention.
     /// </remarks>
     public static bool NearestWinsAndTiesGoToTheLater => true;
-
-    /// <summary>
-    /// <b>The casting factor is an exclusion radius, which is why skill makes it smaller.</b>
-    /// </summary>
-    /// <param name="castingFactor">From <see cref="CastingFactor"/> — 4 at no skill, 0 at 100.</param>
-    /// <param name="othersWithinRadius">How many roster actors sit within that radius of the candidate.</param>
-    /// <remarks>
-    /// A candidate is <b>rejected</b> when anyone else is clustered within the factor of it. So the
-    /// factor is a keep-clear distance, and shrinking it as skill rises <i>widens</i> the set of legal
-    /// targets rather than narrowing it — which resolves the formula that looked inverted when it was
-    /// first read.
-    ///
-    /// <para>At full skill the factor is zero, and the counter short-circuits on a zero radius before
-    /// looking at anybody. <b>A maximally skilled caster rejects no one.</b></para>
-    /// </remarks>
-    public static bool CandidateIsTooCrowded(int castingFactor, int othersWithinRadius) =>
-        castingFactor != 0 && othersWithinRadius > 0;
-
-    /// <summary>
-    /// A candidate that is already out of the fight is skipped, whatever the mode.
-    /// </summary>
-    /// <remarks>
-    /// Tested before the mode switch, so it applies to all seven — including mode 0, which otherwise
-    /// accepts anyone. Note the asymmetry with modes 4 and 6, which test the same bit on the
-    /// candidate's <i>target</i> rather than on the candidate.
-    /// </remarks>
-    public static bool CandidateIsEligible(bool candidateIncapacitated) => !candidateIncapacitated;
 
     // ---------------------------------------------------------------- the pre-check: disengage
     // combataiturn_pick_tile_or_attack (CBTAITRN.C:32) = monster_disengageBeforeCasting @0x65f70.
