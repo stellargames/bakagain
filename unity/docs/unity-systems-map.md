@@ -88,7 +88,7 @@
 - **Debug entries** (`Core/States/Debug/`, `#if UNITY_EDITOR`): BookTest/WorldTest/ModelDebug/TestCutscene — now plain scripts (`RunAsync`), not states.
 - **DI: RootLifetimeScope** (`Core/DI/`) — the *only* `LifetimeScope`; all registrations. `InputCoreInstaller.RegisterInputCore(builder)` (static) + `new CutsceneInstaller().Install(builder)` (instance) — two installer patterns. Null-guarded prefab registration for HUD/Menu/Cursor.
 - **GameSession** — live state (party/time/zone/pos); `Initialize`/`ApplyChapterStart`/**`Clear` (defined, not yet called)**. Plain singleton, no change events.
-- **GameStateLoader / Services** — SaveGame load (chapter 1 only), `PreferencesService` (**`Changed` has no subscribers yet**), `SaveGameDirectoryService`, `GlobalDiagnosticService`, `LogManager` (static Serilog).
+- **GameStateLoader / Services** — SaveGame load (chapter 1 only), `PreferencesService` (**`Changed` has no subscribers yet**), `SaveGameDirectoryService`, `GlobalDiagnosticService`, `LogManager` (static; its own ILoggerFactory over Debug.Log since TASK-840).
 - **World** (`World/`): `ZoneSceneBuilder` (TBL/WLD/PAL/RMP→scene), `WorldEntityClassifier`, converters (`BakCoordinateConverter`, `TblMeshConverter`, `FogRampBuilder`, …), `WorldRenderModeService` (Classic/Enhanced, `SetMode` never called), `WorldViewport/IWorldViewport` (RE rect), `HorizonRenderer` (**dead — passed null**), `WorldExplorerController` (debug WASD poller), `BillboardSprite`, `FogController`.
 - **Arena creature animation** (`World/Encounters/`) — added 2026-09-02, and the **single owner** for
   what a combatant sprite does. `DirectionalSprite` picks the octant per frame and holds the walk
