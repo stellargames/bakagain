@@ -12,6 +12,8 @@
 <meta property="og:url" content="https://bakagain.org/">
 <meta property="og:image" content="https://bakagain.org/img/og.jpg">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -88,15 +90,28 @@
 
 <section id="download">
   <h2>Download</h2>
-  <p>Builds for <strong>Windows</strong> (64-bit), <strong>Linux</strong> (64-bit) and
-  <strong>Android</strong> are published on the
-  <a href="https://github.com/stellargames/bakagain/releases">releases page</a>, with
-  SHA-256 checksums.</p>
+  <!-- The release workflow (website/set-release.sh) rewrites the tag and sizes in this section. -->
+  <p>The current build is <strong data-release="v0.1.2-alpha">v0.1.2-alpha</strong>.</p>
+  <p class="downloads">
+    <a class="button primary" href="https://github.com/stellargames/bakagain/releases/download/v0.1.2-alpha/BaK-Again-v0.1.2-alpha-windows-x64.zip">Windows <small>(64-bit, <span data-size="windows-x64">75 MB</span>)</small></a>
+    <a class="button primary" href="https://github.com/stellargames/bakagain/releases/download/v0.1.2-alpha/BaK-Again-v0.1.2-alpha-linux-x64.zip">Linux <small>(64-bit, <span data-size="linux-x64">76 MB</span>)</small></a>
+    <a class="button primary" href="https://github.com/stellargames/bakagain/releases/download/v0.1.2-alpha/BaK-Again-v0.1.2-alpha.apk">Android <small>(<span data-size="apk">69 MB</span>)</small></a>
+  </p>
   <ul>
     <li><strong>Windows:</strong> unzip anywhere and run <code>BaK-Again.exe</code>.</li>
     <li><strong>Linux:</strong> unzip and run <code>BaK-Again.x86_64</code>.</li>
     <li><strong>Android:</strong> install the <code>.apk</code> (allow installs from your browser
       or file manager when asked).</li>
+  </ul>
+  <p>Checksums, release notes and earlier builds are on the
+  <a href="https://github.com/stellargames/bakagain/releases">releases page</a>.</p>
+
+  <h3>System requirements</h3>
+  <ul>
+    <li><strong>Windows:</strong> Windows 10 or 11, 64-bit, with a DirectX 11 graphics card.</li>
+    <li><strong>Linux:</strong> a 64-bit distribution (tested on Ubuntu) with Vulkan or OpenGL 3.2 graphics.</li>
+    <li><strong>Android:</strong> Android 8.0 or newer on a 64-bit (ARM64) device.</li>
+    <li>About 200 MB of free space, plus your copy of the original game.</li>
   </ul>
 </section>
 
@@ -104,9 +119,10 @@
   <h2>Getting started</h2>
   <ol>
     <li>Get <cite>Betrayal at Krondor</cite>. It is sold on
-      <a href="https://www.gog.com/">GOG</a>; an old CD copy works too. The 1.02 CD version is the one BaK-Again is tested against.</li>
+      <a href="https://www.gog.com/en/game/betrayal_at_krondor">GOG</a>; an old CD copy works too. The 1.02 CD version is the one BaK-Again is tested against.</li>
     <li>Install it, or copy its folder somewhere. BaK-Again needs the folder that holds
-      <code>KRONDOR.001</code>.</li>
+      <code>KRONDOR.001</code>. If you are not sure where that is, search your installation for
+      that file name.</li>
     <li>Start BaK-Again. The first time, it asks for that folder. Point it there and play.</li>
   </ol>
 </section>
@@ -127,6 +143,16 @@
       the music all come from your copy.</dd>
     <dt>Can I load my old saves?</dt>
     <dd>BaK-Again reads and writes the original's save format, so saves move both ways.</dd>
+    <dt>Windows says "Windows protected your PC". Is it safe?</dt>
+    <dd>BaK-Again is not code-signed, so Windows SmartScreen warns about any new download from
+      an unknown publisher. Click <em>More info</em>, then <em>Run anyway</em>. If you would rather
+      check first, compare the file with <code>SHA256SUMS</code> on the
+      <a href="https://github.com/stellargames/bakagain/releases">releases page</a>, or build it
+      yourself from the source.</dd>
+    <dt>Android blocks the install, or Play Protect warns about it.</dt>
+    <dd>Android warns about every app that does not come from the Play Store. Allow your browser
+      or file manager to install unknown apps when asked; if Play Protect shows a warning, choose
+      <em>More details</em>, then <em>Install anyway</em>.</dd>
     <dt>Is it finished?</dt>
     <dd>Not yet. It is an alpha: the whole game can be played through, but expect bugs.</dd>
     <dt>I found a bug. Where do I report it?</dt>
@@ -140,6 +166,10 @@
 </main>
 
 <footer>
+  <p>BaK-Again stands on the work of others: the <a href="https://github.com/OpenRakis/Spice86">Spice86</a>
+  emulator, which made checking against the original possible, and the fan projects that kept
+  the game alive before us, among them <a href="https://github.com/guidoj/xbak">xBaK</a> and
+  <a href="https://github.com/xavieran/BaKGL">BaKGL</a>. Thank you.</p>
   <p>BaK-Again is free software under the MIT license. <cite>Betrayal at Krondor</cite> is © its
   respective rights holders; BaK-Again is an unofficial fan project and is not affiliated with or
   endorsed by them.</p>
