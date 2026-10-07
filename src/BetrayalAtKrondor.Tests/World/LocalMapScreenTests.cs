@@ -24,7 +24,6 @@ public class LocalMapScreenTests {
         // into camera.rotation3d.x — a pitch, not a heading. Believing the name would leave the map
         // pointing south instead of down, and would explain away the north-up option below.
         Assert.Equal(unchecked((short)0xC000), LocalMapScreen.TopDownPitch);
-        Assert.Equal(-LocalMapScreen.AngleUnitsPerTurn / 4, LocalMapScreen.TopDownPitch);
         Assert.True(LocalMapScreen.YawIsUntouchedOnEntry);
     }
 
@@ -161,26 +160,11 @@ public class LocalMapScreenTests {
         // model said it "never runs the 3D pass", which sent the port the wrong way.
         Assert.True(LocalMapScreen.DrawsDungeonAutomap(isUnderground: true));
         Assert.False(LocalMapScreen.DrawsDungeonAutomap(isUnderground: false));
-        Assert.True(LocalMapScreen.AutomapDrawsOnlyVisitedEntities);
-        Assert.True(LocalMapScreen.AutomapFillsAFlatBackground);
     }
 
     [Fact]
-    public void DoorsAreNotSpecialOnTheAutomap() {
-        // worlddoor_rndr_enc_mark_actor is the door path in ALL THREE render passes, not an automap
-        // rule — and it draws the door, not a mark. Claiming otherwise would have had the port
-        // inventing a marker sprite that does not exist.
-        Assert.True(LocalMapScreen.AutomapTreatsDoorsLikeEveryOtherPassDoes);
-    }
-
-    [Fact]
-    public void TheAutomapCarriesThePartyMarkerLikeTheWorldMapDoes() {
-        // The #ifndef V102CD blit INSIDE renderDungeonAutomap reads as "no icon on the CD build",
-        // but the CD build hoisted the blit into the caller, where it sits after the game-mode
-        // switch and therefore runs for the automap too. Asserted the right way round after the
-        // rendered screen showed a marker and prompted the re-read.
-        Assert.True(LocalMapScreen.AutomapHasACentredPartyIcon);
-        // And it draws from Z##M.TBL, not the world table — the two differ, so this is not cosmetic.
+    public void TheAutomapDrawsFromTheMapModelTable() {
+        // Z##M.TBL, not the world table — the two differ, so this is not cosmetic.
         Assert.Equal(2, LocalMapScreen.AutomapModelTableSlot);
     }
 

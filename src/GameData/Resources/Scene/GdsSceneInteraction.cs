@@ -8,40 +8,6 @@ namespace GameData.Resources.Scene;
 /// the layer above it, and it is where a port gets the mouse wrong rather than the outcome.</para>
 /// </summary>
 public static class GdsSceneInteraction {
-    /// <summary>Which arm a click on a location takes.</summary>
-    public enum Click {
-        /// <summary>Not a hotspot — the poll returned a plain menu action.</summary>
-        NotAHotspot,
-
-        /// <summary>Left button: run the hotspot's action.</summary>
-        Act,
-
-        /// <summary>Right button: describe the hotspot.</summary>
-        Examine,
-    }
-
-    /// <summary>
-    /// Routes a polled action id and mouse button.
-    /// </summary>
-    /// <param name="actionId">What the input poll returned.</param>
-    /// <param name="rightButton">The click was the secondary button.</param>
-    /// <remarks>
-    /// <b>Right-click is examine and it is the only way to look at anything.</b> The scene shares one
-    /// input poll with every REQ menu and separates the two arms purely on which button came back,
-    /// so a port that wires locations to left-click alone silently deletes every description in the
-    /// game — no error, just a right button that does nothing.
-    ///
-    /// <para>Ids below <see cref="GdsSceneRules.HotspotActionIdBase"/> are not hotspots at all;
-    /// they leave this loop.</para>
-    /// <para><b>Deliberately callerless.</b> LocationScreen splits the buttons upstream: PrimaryAction acts, SecondaryAction examines.</para>
-    /// </remarks>
-    public static Click ClickFor(int actionId, bool rightButton) {
-        if (actionId < GdsSceneRules.HotspotActionIdBase) {
-            return Click.NotAHotspot;
-        }
-        return rightButton ? Click.Examine : Click.Act;
-    }
-
     /// <summary>The hotspot a polled action id refers to, or -1.</summary>
     public static int HotspotIndexFor(int actionId) =>
         actionId < GdsSceneRules.HotspotActionIdBase ? -1 : actionId - GdsSceneRules.HotspotActionIdBase;
@@ -84,31 +50,8 @@ public static class GdsSceneInteraction {
             ? ExamineStyle.DialogWindow
             : ExamineStyle.InScene;
 
-    /// <summary>
-    /// <b>The in-scene presentation invalidates the palette; the windowed one does not.</b>
-    /// </summary>
-    /// <remarks>
-    /// Only the in-scene arm clears the current-palette pointer, so whatever draws next must reload
-    /// it. Distinct from <see cref="GdsSceneRules.InvalidatesPalette"/>, which is the same effect
-    /// reached through a dialog <i>result</i> — two independent routes to the same reload.
-    /// <para><b>Deliberately callerless.</b> The port converts palettes to RGBA at load (decision 0002), so there is no current-palette pointer to clear.</para>
-    /// </remarks>
-    public static bool ExamineInvalidatesPalette(ExamineStyle style) => style == ExamineStyle.InScene;
-
     // ---------------------------------------------------------------- the in-scene description
     // sub_ovr149_3FB @0x4dbcb (render) and sub_ovr149_49E @0x4dc6e (dismiss).
-
-    /// <summary>
-    /// <b>The in-scene description redraws the picture before writing on it.</b>
-    /// </summary>
-    /// <remarks>
-    /// The renderer's first act is to replay the scene's animation, so the location is drawn afresh
-    /// and the text goes on top of it. A port that only draws text — or that hands the description to
-    /// a full-screen dialog — loses the picture for as long as the description is up, which is not
-    /// what the original shows.
-    /// <para><b>Deliberately callerless.</b> LocationScreen.Examine renders the in-scene description without blocking, so the held picture stays up underneath.</para>
-    /// </remarks>
-    public static bool InSceneExamineRedrawsTheScene => true;
 
     /// <summary>Marks the establishment's name at the front of a description.</summary>
     public const char NameMarker = '#';
@@ -227,18 +170,4 @@ public static class GdsSceneInteraction {
         hotspot != null
         && hotspot.ActionDialogId != 0
         && hotspot.ActionCode != ActionCodeThatSkipsItsDialog;
-
-    /// <summary>
-    /// <b>The action code is a signed byte.</b>
-    /// </summary>
-    /// <remarks>
-    /// Sign-extended on load (<c>cbw</c>), so a code above 127 would arrive negative and match none
-    /// of the dispatch arms. No shipped scene relies on it — the codes in use are 2..16 — but it
-    /// fixes the width, which is what a port needs to agree on.
-    /// <para><b>Deliberately callerless.</b> GdsSceneExtractor reads the byte unsigned; the shipped codes are 2..16, so no value reaches the sign bit.</para>
-    /// </remarks>
-    public static int NormalizeActionCode(int rawByte) {
-        int b = rawByte & 0xFF;
-        return b > 127 ? b - 256 : b;
-    }
 }

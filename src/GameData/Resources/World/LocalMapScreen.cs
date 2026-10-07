@@ -245,10 +245,6 @@ public static class LocalMapScreen {
         }
     }
 
-    /// <summary>A full turn in the engine's angle unit — 0x10000, not 360.</summary>
-    /// <remarks><b>Deliberately callerless.</b> A unit fact; BakCoordinateConverter owns the engine-angle conversion.</remarks>
-    public const int AngleUnitsPerTurn = 0x10000;
-
     /// <summary>
     /// The pitch entry forces: <b>−90°, straight down</b> (0xC000 as written by IDA 0x6dbf7).
     /// </summary>
@@ -317,20 +313,14 @@ public static class LocalMapScreen {
     /// <para><b>It IS the 3D renderer, restricted — not a 2D map.</b> An earlier version of this
     /// note said it "never runs the 3D pass"; that is wrong. The function sets up the same camera
     /// (<c>r3d_camera_setup_view</c>) and draws each surviving entity with the same
-    /// <c>actorrender_entity</c> the world uses. What changes is WHICH entities are drawn and what
-    /// they are drawn against — see <see cref="AutomapDrawsOnlyVisitedEntities"/> and the members
-    /// below it.</para>
+    /// <c>actorrender_entity</c> the world uses, doors included. What changes is WHICH entities are
+    /// drawn — only those whose <see cref="EncounterVisitTable"/> bit is set for their tile — and
+    /// what they are drawn against: a flat fill in the zone's sky pens instead of sky, ground and
+    /// horizon. The party marker is drawn over it exactly as on the world map
+    /// (<see cref="OverheadMapMarker"/>), and the models come from <see cref="AutomapModelTableSlot"/>.</para>
     /// <para><b>Deliberately callerless.</b> OverheadMapScreen shows WorldRuntime.Automap, which exists only for an underground zone.</para>
     /// </remarks>
     public static bool DrawsDungeonAutomap(bool isUnderground) => isUnderground;
-
-    /// <summary>
-    /// The automap's one filter: an entity is drawn only if its bit is set in
-    /// <see cref="EncounterVisitTable"/> for its tile. Everything else in the zone is simply absent,
-    /// which is what makes an unexplored dungeon empty.
-    /// </summary>
-    /// <remarks><b>Deliberately callerless.</b> DungeonAutomapView.Show activates only placements whose EncounterVisitTable bit is set.</remarks>
-    public const bool AutomapDrawsOnlyVisitedEntities = true;
 
     /// <summary>
     /// The automap draws entities from the zone's <b>map</b> model table (<c>Z##M.TBL</c>), not the
@@ -353,53 +343,4 @@ public static class LocalMapScreen {
     /// <para><b>Deliberately callerless.</b> DungeonAutomapView's placements are built from the map model table.</para>
     /// </summary>
     public const int AutomapModelTableSlot = 2;
-
-    /// <summary>
-    /// <b>Doors are NOT special on the automap.</b> They go through the door render path
-    /// (<c>worlddoor_rndr_enc_mark_actor</c>) here exactly as they do in the world and chapter
-    /// passes — all three dispatch on the same two shape ids. An earlier version of this model
-    /// claimed doors "draw as a mark" only on the automap; that is wrong twice over, because the
-    /// function is shared AND because it does not draw a mark: it renders the entity with
-    /// <c>actorrender_entity</c> like everything else, having re-derived the shape from
-    /// <see cref="DoorMechanics.OpenBit"/>, taken a colour index from the low three bits of the
-    /// door's state word, and forced <c>orientation.pitch</c> to 0 for the draw.
-    ///
-    /// <para>The pitch is zeroed because for a door that field does not hold an angle at all — the
-    /// zone loader parks the interact-message flags there (the lock id the pick-lock screen reads).
-    /// Drawing without zeroing it would tilt the door by its lock. Harmless on the shipped data,
-    /// where every door placement in Z10/Z11/Z12 has zero pitch, but a mod that authored one would
-    /// expose it.</para>
-    /// <para><b>Deliberately callerless.</b> DungeonAutomapView has no door-specific path; doors are placements like any other.</para>
-    /// </summary>
-    public const bool AutomapTreatsDoorsLikeEveryOtherPassDoes = true;
-
-    /// <summary>
-    /// The automap has no sky, ground or horizon: the viewport is filled flat before anything is
-    /// drawn, in the zone's <b>green</b> sky pen with the blue one as the dither colour. Textured
-    /// polygons stay enabled but texture mode is forced to 0 for the pass and restored after.
-    /// </summary>
-    /// <remarks><b>Deliberately callerless.</b> ZoneEnvironment.SetOverheadMapMode owns the map's backdrop, and the world roots are hidden while the automap shows.</remarks>
-    public const bool AutomapFillsAFlatBackground = true;
-
-    /// <summary>
-    /// <b>The automap DOES carry the party marker on the build we target</b>, drawn by the same
-    /// shared path as the world map — so <see cref="OverheadMapMarker"/>'s rules (including the
-    /// north-up directional icon) apply underground unchanged.
-    /// </summary>
-    /// <remarks>
-    /// Easy to get backwards, and I did. <c>renderDungeonAutomap</c> ends with a centred blit
-    /// guarded by <c>#ifndef V102CD</c>, which reads as "no icon on the CD build". But the CD build
-    /// did not drop the icon — it HOISTED it: in the caller (canassa R3D/SCENE/WORLDHIT.C) the blit
-    /// sits AFTER the <c>g_game_mode</c> switch, so it runs for the automap (mode 2) exactly as it
-    /// runs for the world (modes 0 and 1). The floppy build's copy inside the automap function is
-    /// the same icon, drawn a layer deeper.
-    ///
-    /// <para>The caller also picks between the two forms the marker takes: with the non-rotating
-    /// (north-up) map option it blits <c>mapIcons[(yaw + 0x800) &gt;&gt; 12]</c> — the directional
-    /// arrow — and otherwise the single centred icon. That is the same branch
-    /// <see cref="OverheadMapMarker.IconIndexFor"/> already models, which is why nothing special is
-    /// needed underground.</para>
-    /// <para><b>Deliberately callerless.</b> OverheadMapScreen draws the same OverheadMapMarker over the automap.</para>
-    /// </remarks>
-    public const bool AutomapHasACentredPartyIcon = true;
 }

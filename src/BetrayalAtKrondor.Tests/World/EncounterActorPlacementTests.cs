@@ -65,8 +65,8 @@ public class EncounterActorPlacementTests {
 
     [Fact]
     public void GoneAndUnseededPutNothingOnTheField() {
-        Assert.False(Place(EncounterActorSpawn.Gone, out _, out _));
-        Assert.False(Place(EncounterActorSpawn.Unseeded, out _, out _));
+        Assert.False(Place(EncounterActorPersistence.Removed, out _, out _));
+        Assert.False(Place(EncounterActorPersistence.Untouched, out _, out _));
     }
 
     [Fact]

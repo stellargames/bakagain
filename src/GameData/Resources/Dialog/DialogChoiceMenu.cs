@@ -7,7 +7,7 @@ namespace GameData.Resources.Dialog;
 /// <para><b>This handles the choice menus, NOT the keyword grid.</b> A choice selection is not a
 /// jump: the menu writes a flag and lets the ordinary branch dispatch find its way there. The
 /// keyword grid resolves somewhere else entirely and by a different mechanism — see
-/// <see cref="KeywordPrompt.BranchTargetOffsetFor"/>. The two menus share their builders, their
+/// <see cref="KeywordPrompt"/>. The two menus share their builders, their
 /// layout and their action ids, which makes it very easy to assume they share this too.</para>
 /// </summary>
 public static class DialogChoiceMenu {

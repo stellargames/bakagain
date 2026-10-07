@@ -1421,7 +1421,7 @@ namespace BakAgain.UI {
         /// <para>The party picker writes nothing: its buttons are party members, not branches, and
         /// there is no key to latch. Neither does the keyword grid, which records an asked-about
         /// flag and jumps straight to its target instead — see
-        /// <c>KeywordPrompt.BranchTargetOffsetFor</c>. Three menus, three different mechanisms,
+        /// <c>KeywordPrompt</c>. Three menus, three different mechanisms,
         /// sharing one builder.</para>
         /// </remarks>
         private void LatchChoice(System.Collections.Generic.List<DialogBranchBase> branches,

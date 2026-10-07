@@ -8,20 +8,12 @@ namespace GameData.Resources.World;
 /// <b>The actor's KIND and its saved STATE are the same field.</b> Everything reads the high byte of
 /// one 16-bit word: the renderer and the movement updater call it a kind, the save code calls it a
 /// state, and they are the same number. <see cref="EncounterActorPersistence"/> names 0x400 "Placed"
-/// and 0x100 "Removed"; read as kinds those are <see cref="Standing"/> and <see cref="Gone"/>. Once
+/// and 0x100 "Removed"; read as kinds those are <see cref="Standing"/> and kind 1, gone. Once
 /// that clicks, the low bits stop looking like a separate encoding — they are the walk frame and the
 /// walk direction riding along in the same word.
 /// </remarks>
 public static class EncounterActorSpawn {
-    // ---- the four kinds, as the high byte of the state word --------------------------------------
-
-    /// <summary>Never touched — the block has not been seeded yet.</summary>
-    /// <remarks><b>Deliberately callerless.</b> NeedsSeeding tests KindOf(stateWord) == 0 directly.</remarks>
-    public const int Unseeded = 0x000;
-
-    /// <summary>Dealt with: killed, or consumed. Not placed.</summary>
-    /// <remarks><b>Deliberately callerless.</b> Duplicate of EncounterActorPersistence.Removed, which the port reads and writes.</remarks>
-    public const int Gone = 0x100;
+    // ---- the kinds, as the high byte of the state word -----------------------------------------
 
     /// <summary>Alive and owed a placement, but not yet placed.</summary>
     public const int Pending = 0x200;
@@ -50,7 +42,7 @@ public static class EncounterActorSpawn {
     /// </summary>
     /// <remarks>
     /// Read from the FIRST slot only. The pass runs once per zone-ref block, ever: it stamps that
-    /// slot <see cref="Gone"/> as its own "seeded" marker before doing anything else, so a second
+    /// slot <see cref="EncounterActorPersistence.Removed"/> as its own "seeded" marker before doing anything else, so a second
     /// visit falls straight through. That doubles up the meaning of slot 0 — which is why
     /// <see cref="EncounterActorPersistence.InitialState"/> deliberately writes 0 there and 0x100
     /// everywhere else rather than filling uniformly.
@@ -88,7 +80,8 @@ public static class EncounterActorSpawn {
     /// corrected the earlier "members stand still" reading).</para>
     /// </param>
     /// <remarks>
-    /// <see cref="Gone"/> and <see cref="Unseeded"/> are never placed: they fall to the switch's
+    /// Kinds 0 (unseeded, <see cref="EncounterActorPersistence.Untouched"/>) and 1 (gone,
+    /// <see cref="EncounterActorPersistence.Removed"/>) are never placed: they fall to the switch's
     /// default. So the flag narrows an already-narrow set rather than being the only gate.
     /// </remarks>
     public static bool IsPlaced(int stateWord, bool standingOnly) {
@@ -131,72 +124,4 @@ public static class EncounterActorSpawn {
         }
         return state;
     }
-
-    /// <summary>
-    /// <b>Persisting an actor forces it to <see cref="Standing"/>, whatever it was.</b>
-    /// </summary>
-    /// <remarks>
-    /// <c>rgnenc_persist_actor_placed</c> writes 0x400 unconditionally. Nothing ever promotes a
-    /// standing actor back to <see cref="Roaming"/> — the spawn only randomises a
-    /// <see cref="Pending"/> one — and the movement updater ignores every kind but roaming. So a
-    /// wandering monster that gets saved comes back STOPPED, and stays stopped for the rest of the
-    /// game.
-    ///
-    /// <para>Recorded because it looks like a bug and a port is likely to "fix" it by preserving the
-    /// kind. That would put monsters back on patrol in a game that leaves them standing, which is a
-    /// visible behaviour change, so it is a decision to take deliberately rather than by accident.</para>
-    /// <para><b>Deliberately callerless.</b> Duplicate of EncounterActorPersistence.Placed (0x400), which the port persists.</para>
-    /// </remarks>
-    public static int StateAfterPersisting => Standing;
-
-    // ---- the caps --------------------------------------------------------------------------------
-
-    /// <summary>Encounter records a zone can have live at once.</summary>
-    /// <remarks><b>Deliberately callerless.</b> Duplicate of EncounterActorPersistence.RecordsPerRefPair.</remarks>
-    public const int MaxRecords = 5;
-
-    /// <summary>Actors per record.</summary>
-    public const int SlotsPerRecord = EncounterActorPersistence.SlotsPerRecord;
-
-    /// <summary>Placed objects across the whole zone — <see cref="MaxRecords"/> x seven.</summary>
-    /// <remarks><b>Deliberately callerless.</b> An alias of EncounterActorPersistence.SlotsPerRefPair, which the port uses.</remarks>
-    public const int MaxPlacedObjects = EncounterActorPersistence.SlotsPerRefPair;
-
-    /// <summary>
-    /// Where an actor's state lives within the zone's block.
-    /// </summary>
-    /// <remarks><b>Deliberately callerless.</b> Duplicate of EncounterActorPersistence's index (refPair * SlotsPerRefPair + record * SlotsPerRecord + slot).</remarks>
-    public static int StateSlot(int recordIndex, int slotIndex) =>
-        recordIndex * SlotsPerRecord + slotIndex;
-
-    /// <summary>
-    /// How many actors a record actually carries.
-    /// </summary>
-    /// <remarks>
-    /// <b>Read off the FIRST slot's kind field, which doubles as the count.</b> The loop bound is
-    /// <c>pActors[0].kind</c>, not a separate length — the extractor calls the same byte
-    /// <c>SlotCount</c>. Capped at seven regardless of what the byte says, so a corrupt record cannot
-    /// walk off the end of the roster.
-    /// <para><b>Deliberately callerless.</b> The port bounds a record by its roster: EncounterObjectStates.Seed marks only slots whose roster entry names an actor, and placement skips every other slot.</para>
-    /// </remarks>
-    public static int ActorCount(int firstSlotCountByte) =>
-        firstSlotCountByte < 0 ? 0
-        : firstSlotCountByte > SlotsPerRecord ? SlotsPerRecord
-        : firstSlotCountByte;
-
-    /// <summary>Tile size in world units — what a tile-relative offset is measured against.</summary>
-    public const long TileWorldSize = 64000;
-
-    /// <summary>
-    /// Makes a tile-relative offset absolute.
-    /// </summary>
-    /// <remarks>
-    /// Spawn points AND all four waypoints are stored relative to the tile and made absolute at spawn
-    /// time by adding the party's current tile origin. A port that treats them as world coordinates
-    /// drops the whole group near the origin, and one that converts the spawn but forgets the
-    /// waypoints gets actors that walk off toward the corner of the map.
-    /// <para><b>Deliberately callerless.</b> EncounterActorPlacement adds the party tile's origin to the spawn point and all four waypoints (RGNENC.C:280-283).</para>
-    /// </remarks>
-    public static long ToWorld(int tileIndex, long tileRelative) =>
-        tileIndex * TileWorldSize + tileRelative;
 }

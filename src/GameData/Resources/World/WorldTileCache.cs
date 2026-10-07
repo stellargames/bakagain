@@ -12,36 +12,16 @@ namespace GameData.Resources.World;
 /// despite its name is the routine that calls <c>LoadTzzxxyy.WLD</c> and keeps the ring around the
 /// current tile populated.
 ///
-/// <para><b>Slot 0 is the tile the party is standing in.</b> Everything else keys off that: the
-/// crossing test compares against slot 0 only, and the search deliberately skips it.</para>
+/// <para><b>Slot 0 is the tile the party is standing in.</b> The crossing test compares against
+/// slot 0 only, and the lookup searches slots 1..8. The port keeps none of the slots — only which
+/// tiles are resident (<see cref="IsResident"/>).</para>
 /// </remarks>
 public static class WorldTileCache {
     /// <summary>Slots in the cache — one current tile and its eight neighbours.</summary>
     public const int Slots = 9;
 
-    /// <summary>The slot holding the tile the party is in.</summary>
-    public const int CurrentSlot = 0;
-
     /// <summary>World units per tile, the divisor that turns a position into a tile coordinate.</summary>
     public const int TileWorldSize = 64000;
-
-    /// <summary>Bytes of world-item storage each slot owns.</summary>
-    /// <remarks>
-    /// Nine of these are carved out of one allocation at startup, which is why the cache is a fixed
-    /// nine and not a dictionary: the storage is pre-partitioned per slot.
-    /// <para><b>Deliberately callerless.</b> A DOS allocation fact; TileResidency keeps no pre-partitioned slots.</para>
-    /// </remarks>
-    public const int ItemBytesPerSlot = 6600;
-
-    /// <summary>
-    /// A slot with this zone number is empty.
-    /// </summary>
-    /// <remarks>
-    /// <b>All nine start empty</b> — the initialiser zeroes every slot and then loads only the tile
-    /// the party is in. So an unpopulated slot is the normal early state, not a fault.
-    /// <para><b>Deliberately callerless.</b> A DOS slot-cache fact; TileResidency tracks resident tiles in a dictionary, with no empty slot marker.</para>
-    /// </remarks>
-    public const int EmptyZone = 0;
 
     /// <summary>The tile coordinate a world position falls in.</summary>
     /// <remarks>
@@ -86,38 +66,8 @@ public static class WorldTileCache {
         return (dx > dy ? dx : dy) <= ResidentRadius;
     }
 
-    /// <summary>Whether the party has left the tile in slot 0.</summary>
-    /// <remarks><b>Deliberately callerless.</b> DOS slot-cache bookkeeping; TileResidency uses IsResident and keeps no slot 0.</remarks>
-    public static bool HasCrossed(int currentTileX, int currentTileY, int slotZeroX, int slotZeroY) =>
-        currentTileX != slotZeroX || currentTileY != slotZeroY;
-
     /// <summary>
-    /// Whether a slot may be returned by a lookup.
-    /// </summary>
-    /// <remarks>
-    /// <b>Slot 0 is excluded from the search</b>, not merely unlikely to match. The search runs
-    /// 1..8, so a lookup for the tile already current answers "not found" — which is safe only
-    /// because the caller has already compared against slot 0 and returned. A port that searches
-    /// from 0 finds the current tile and swaps it with itself.
-    /// <para><b>Deliberately callerless.</b> DOS slot-cache bookkeeping; the port has no nine-slot tile cache to search.</para>
-    /// </remarks>
-    public static bool IsSearchable(int slot) => slot > CurrentSlot && slot < Slots;
-
-    /// <summary>
-    /// <b>A crossing into an unloaded tile does nothing.</b>
-    /// </summary>
-    /// <remarks>
-    /// The crossing handler returns when the lookup fails — no load, no swap, and the world items
-    /// are not refreshed. It works only because the ring around the current tile is kept populated
-    /// in advance, so by the time the party can reach a tile it is already resident. A port that
-    /// streams lazily on the crossing instead will behave the same in the common case and diverge
-    /// exactly where the original would have shown stale terrain.
-    /// <para><b>Deliberately callerless.</b> A DOS streaming fact; TileResidency keeps the ring around the party resident (IsResident) rather than loading on the crossing.</para>
-    /// </remarks>
-    public static bool LoadsOnCrossing => false;
-
-    /// <summary>
-    /// Global keys cleared when the party crosses into another tile.
+    /// The first of the twenty global keys cleared when the party crosses into another tile.
     /// </summary>
     /// <remarks>
     /// <b>Twenty keys, which is BOTH transient hotspot blocks</b> — the scout-tried flags at 5200
@@ -125,9 +75,6 @@ public static class WorldTileCache {
     /// buying a sneak-past on the next; see <c>HotspotService</c>, which clears both for this reason.
     /// </remarks>
     public const int FirstClearedGlobal = 5200;
-
-    /// <inheritdoc cref="FirstClearedGlobal"/>
-    public const int LastClearedGlobal = 5219;
 
     /// <summary>Slots in each of the two transient blocks.</summary>
     /// <remarks>
@@ -147,9 +94,4 @@ public static class WorldTileCache {
     /// </remarks>
     public static int ScoutedFlagKey(int hotspotIndex) =>
         FirstClearedGlobal + SlotsPerTransientBlock + hotspotIndex;
-
-    /// <summary>Whether a global is wiped by a tile crossing.</summary>
-    /// <remarks><b>Deliberately callerless.</b> HotspotService.ClearTransientHotspotFlags wipes both ten-slot blocks on a crossing.</remarks>
-    public static bool ClearedOnCrossing(int key) =>
-        key >= FirstClearedGlobal && key <= LastClearedGlobal;
 }

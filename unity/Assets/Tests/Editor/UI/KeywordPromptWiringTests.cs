@@ -48,8 +48,8 @@ namespace BakAgain.Tests.Editor.UI {
             // The original builds the grid first and gives up if there is nothing to ask about, so
             // an NPC with no available topics shows no "asked about:" line rather than an empty box
             // under a heading.
-            Assert.IsFalse(KeywordPrompt.Appears(0));
-            Assert.IsTrue(KeywordPrompt.Appears(1));
+            Assert.IsFalse(KeywordMenu.Opens(0));
+            Assert.IsTrue(KeywordMenu.Opens(1));
         }
     }
 }

@@ -135,21 +135,4 @@ public class ObjectInfo : IResource {
     public int Number { get; set; }
     public ResourceType Type { get => ResourceType.DAT; }
     public string Id { get; }
-
-    public string ToCsv() {
-        return
-            $"{Number},{Name},{Field1E},{ToBooleans(Flags)},{WordWrap},{ChapterNumber},{Price},{SwingBaseDamage},{ThrustBaseDamage},{SwingAccuracy_ArmorMod_BowAccuracy},{ThrustAccuracy},{Icon},{InventorySlots},{SoundId},{MaxAmount},{MaxCharges},{Race},{ShopType:X4},{ObjectType},{EffectArgA:X4},{EffectArgB:X4},{UseEffectAmount},{EffectDurationHours},\"{EquipAttributeMask}\",{EquipModifierAmount},{DegradeChancePercent},{MaxWearPerDegrade},{MinimumQuality}";
-    }
-
-    private static string ToBooleans(ObjectFlags flags) {
-        char[] bits = new char[16];
-        for (int i = 15; i >= 0; i--) {
-            if (((int)flags & 1 << i) != 0) {
-                bits[i] = '#';
-            } else {
-                bits[i] = '.';
-            }
-        }
-        return string.Join(',', bits);
-    }
 }

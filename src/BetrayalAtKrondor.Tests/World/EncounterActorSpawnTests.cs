@@ -11,9 +11,8 @@ public class EncounterActorSpawnTests {
     public void TheKindAndThePersistedStateAreTheSameNumber() {
         // *** The thing to understand before anything else here. *** The renderer's "kind" and the
         // save code's "state" read the same high byte, so the two vocabularies line up exactly.
-        Assert.Equal(EncounterActorSpawn.Gone, EncounterActorPersistence.Removed);
         Assert.Equal(EncounterActorSpawn.Standing, EncounterActorPersistence.Placed);
-        Assert.Equal(EncounterActorSpawn.Unseeded, EncounterActorPersistence.Untouched);
+        Assert.Equal(1, EncounterActorSpawn.KindOf(EncounterActorPersistence.Removed));
 
         Assert.Equal(3, EncounterActorSpawn.KindOf(EncounterActorSpawn.Roaming));
         Assert.Equal(4, EncounterActorSpawn.KindOf(EncounterActorSpawn.Standing));
@@ -31,8 +30,8 @@ public class EncounterActorSpawnTests {
 
     [Fact]
     public void SeedingHappensOnceAndIsReadOffTheFirstSlot() {
-        Assert.True(EncounterActorSpawn.NeedsSeeding(EncounterActorSpawn.Unseeded));
-        Assert.False(EncounterActorSpawn.NeedsSeeding(EncounterActorSpawn.Gone));
+        Assert.True(EncounterActorSpawn.NeedsSeeding(EncounterActorPersistence.Untouched));
+        Assert.False(EncounterActorSpawn.NeedsSeeding(EncounterActorPersistence.Removed));
         Assert.False(EncounterActorSpawn.NeedsSeeding(EncounterActorSpawn.Standing));
     }
 
@@ -56,8 +55,8 @@ public class EncounterActorSpawnTests {
 
     [Fact]
     public void GoneAndUnseededActorsAreNeverPlaced() {
-        Assert.False(EncounterActorSpawn.IsPlaced(EncounterActorSpawn.Gone, standingOnly: false));
-        Assert.False(EncounterActorSpawn.IsPlaced(EncounterActorSpawn.Unseeded, standingOnly: false));
+        Assert.False(EncounterActorSpawn.IsPlaced(EncounterActorPersistence.Removed, standingOnly: false));
+        Assert.False(EncounterActorSpawn.IsPlaced(EncounterActorPersistence.Untouched, standingOnly: false));
     }
 
     [Fact]
@@ -96,39 +95,11 @@ public class EncounterActorSpawnTests {
         // *** Looks like a bug, and is what the game does. *** persist_actor_placed writes 0x400
         // whatever the actor was; nothing promotes standing back to roaming, and the movement updater
         // ignores every kind but roaming. So a saved wanderer comes back stopped and stays stopped.
-        Assert.Equal(EncounterActorSpawn.Standing, EncounterActorSpawn.StateAfterPersisting);
-        Assert.NotEqual(EncounterActorSpawn.Roaming, EncounterActorSpawn.StateAfterPersisting);
+        Assert.Equal(EncounterActorSpawn.Standing, EncounterActorPersistence.Placed);
+        Assert.NotEqual(EncounterActorSpawn.Roaming, EncounterActorPersistence.Placed);
 
         // And a standing actor still places — it is stopped, not absent.
-        Assert.True(EncounterActorSpawn.IsPlaced(
-            EncounterActorSpawn.StateAfterPersisting, standingOnly: false));
-        Assert.False(EncounterActorSpawn.PlacesFromTemplate(EncounterActorSpawn.StateAfterPersisting));
-    }
-
-    [Fact]
-    public void TheActorCountComesFromTheFirstSlotAndIsCappedAtSeven() {
-        Assert.Equal(3, EncounterActorSpawn.ActorCount(3));
-        Assert.Equal(7, EncounterActorSpawn.ActorCount(7));
-        // A corrupt byte must not walk off the end of a seven-entry roster.
-        Assert.Equal(7, EncounterActorSpawn.ActorCount(200));
-        Assert.Equal(0, EncounterActorSpawn.ActorCount(-1));
-    }
-
-    [Fact]
-    public void TheBlockLayoutAgreesWithThePersistenceIndexing() {
-        // Same 5 x 7 block the save file uses; disagreeing would put a spawned actor's state on top
-        // of another slot's.
-        Assert.Equal(EncounterActorSpawn.MaxPlacedObjects,
-            EncounterActorSpawn.MaxRecords * EncounterActorSpawn.SlotsPerRecord);
-        Assert.Equal(EncounterActorPersistence.StateIndex(0, 2, 3),
-            EncounterActorSpawn.StateSlot(2, 3));
-    }
-
-    [Fact]
-    public void WaypointsAreTileRelativeJustLikeTheSpawnPoint() {
-        // Converting the spawn but forgetting the waypoints gives actors that walk off toward the
-        // corner of the map.
-        Assert.Equal(64000L * 3 + 250, EncounterActorSpawn.ToWorld(3, 250));
-        Assert.Equal(250L, EncounterActorSpawn.ToWorld(0, 250));
+        Assert.True(EncounterActorSpawn.IsPlaced(EncounterActorPersistence.Placed, standingOnly: false));
+        Assert.False(EncounterActorSpawn.PlacesFromTemplate(EncounterActorPersistence.Placed));
     }
 }
