@@ -29,7 +29,7 @@ namespace BakAgain.Tests.PlayMode.UI.InputCore {
         private const float PastTheHold = 0.25f;
 
         /// <summary>An <see cref="IPointerEvent"/> with a settable pointer type, for GetPooled.</summary>
-        private sealed class StubPointerEvent : IPointerEvent {
+        internal sealed class StubPointerEvent : IPointerEvent {
             public int pointerId { get; set; }
             public string pointerType { get; set; } = UnityEngine.UIElements.PointerType.touch;
             public bool isPrimary => true;

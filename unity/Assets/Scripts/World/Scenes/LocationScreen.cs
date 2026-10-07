@@ -107,6 +107,10 @@ namespace BakAgain.World.Scenes {
             Action<int> onTransition = null) {
             _scene = scene;
             _sceneNumber = sceneNumber;
+            // Examine is right-click-only (see SecondaryAction): on touch it is a long-press.
+            if (GetComponent<ResourceManagement.Loaders.UserInterfaceLoader>() is { } ui) {
+                ui.TouchLongPressIsSecondary = true;
+            }
             _sceneLetter = sceneLetter;
             _onTransition = onTransition;
             // Visit counts are per run of a scene: gds_loadSceneFile zeroes the counter on load, so

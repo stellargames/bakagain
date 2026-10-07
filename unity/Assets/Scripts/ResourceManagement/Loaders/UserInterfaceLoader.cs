@@ -1147,8 +1147,58 @@ namespace BakAgain.ResourceManagement.Loaders {
                 activators = {new ManipulatorActivationFilter {button = MouseButton.RightMouse}}
             });
             RegisterCursorHover(hotspot, menuEntry);
+            RegisterTouchLongPress(hotspot, () => TouchLongPressIsSecondary, () => {
+                // The Clickable's release must not also run the primary.
+                if (BakAgain.UI.InputCore.TouchInputState.Instance != null) {
+                    BakAgain.UI.InputCore.TouchInputState.Instance.SuppressSelectFor = menuEntry.ActionId;
+                }
+                _ = _actionHandler?.SecondaryAction(menuEntry.ActionId);
+            });
             root.Add(hotspot);
             RegisterNav(hotspot, menuEntry);
+        }
+
+        /// <summary>
+        /// A screen whose hotspots take a still finger as their right-click. Set by a screen the travel
+        /// screen's own detector (InGameScreen.HandleTouchLongPress) does not cover: a location's
+        /// examine is right-click-only, so without this no description in a location was reachable by
+        /// touch (TASK-67).
+        /// </summary>
+        public bool TouchLongPressIsSecondary { get; set; }
+
+        // Android's long-press timeout and slop, the same as TouchHoldDetector's.
+        private const long TouchLongPressMs = 500;
+        private const float TouchLongPressSlop = 20f;
+
+        /// <summary>A finger resting on <paramref name="element"/> runs <paramref name="secondary"/> once, while <paramref name="armed"/>.</summary>
+        internal static void RegisterTouchLongPress(VisualElement element, Func<bool> armed, Action secondary,
+            long holdMs = TouchLongPressMs) {
+            IVisualElementScheduledItem pending = null;
+            Vector2 origin = default;
+            void Cancel() {
+                pending?.Pause();
+                pending = null;
+            }
+            element.RegisterCallback<PointerDownEvent>(e => {
+                Cancel();
+                if (e.pointerType != UnityEngine.UIElements.PointerType.touch || !armed()) {
+                    return;
+                }
+                origin = e.position;
+                pending = element.schedule.Execute(() => {
+                    pending = null;
+                    secondary();
+                }).StartingIn(holdMs);
+            }, TrickleDown.TrickleDown);
+            element.RegisterCallback<PointerMoveEvent>(e => {
+                if (pending != null && ((Vector2)e.position - origin).sqrMagnitude > TouchLongPressSlop * TouchLongPressSlop) {
+                    Cancel();
+                }
+            }, TrickleDown.TrickleDown);
+            element.RegisterCallback<PointerUpEvent>(_ => Cancel(), TrickleDown.TrickleDown);
+            element.RegisterCallback<PointerCancelEvent>(_ => Cancel(), TrickleDown.TrickleDown);
+            element.RegisterCallback<PointerCaptureOutEvent>(_ => Cancel());
+            element.RegisterCallback<DetachFromPanelEvent>(_ => Cancel());
         }
 
         private void AddToggle(UiElement menuEntry, VisualElement root) {
