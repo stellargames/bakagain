@@ -96,6 +96,26 @@ namespace BakAgain.Tests.PlayMode.UI.Navigation {
         });
 
         [UnityTest]
+        public IEnumerator PopCount_SkipsTheScreensBetween() => UniTask.ToCoroutine(async () => {
+            // TASK-850: a save from the in-game menu drops the save dialog AND the menu, and the menu
+            // must not flash back up between them.
+            var log = new List<string>();
+            var nav = new ScreenNavigator();
+            var travel = new RecordingScreen("travel", log);
+            var menu = new RecordingScreen("menu", log);
+            var save = new RecordingScreen("save", log);
+            await nav.ResetTo(travel);
+            await nav.Push(menu);
+            await nav.Push(save);
+            log.Clear();
+
+            await nav.Pop(2);
+
+            Assert.AreEqual("hide:save,show:travel", string.Join(",", log));
+            Assert.AreSame(travel, nav.Current);
+        });
+
+        [UnityTest]
         public IEnumerator ResetTo_HidesEverythingAndShowsRoot() => UniTask.ToCoroutine(async () => {
             var log = new List<string>();
             var nav = new ScreenNavigator();

@@ -95,16 +95,18 @@ namespace BakAgain.UI.Navigation {
 
         public UniTask Pop() => PopCore(fade: true);
 
+        public UniTask Pop(int count) => PopCore(fade: true, count);
+
         /// <inheritdoc />
         public UniTask PopUnfaded() => PopCore(fade: false);
 
-        private UniTask PopCore(bool fade) => Serialize(async () => {
+        private UniTask PopCore(bool fade, int count = 1) => Serialize(async () => {
             if (fade) {
                 await Fade.FadeOutAsync();
             }
-            Entry popped = null;
-            if (_stack.Count > 0) {
-                popped = _stack[_stack.Count - 1];
+            bool tookBase = false;
+            for (int i = 0; i < count && _stack.Count > 0; i++) {
+                tookBase |= _stack[_stack.Count - 1].IsBase;
                 _stack.RemoveAt(_stack.Count - 1);
             }
             // *** POPPING THE LAST SCREEN IS NEVER LEGITIMATE, AND IT IS SILENT. *** There is always
@@ -125,7 +127,7 @@ namespace BakAgain.UI.Navigation {
             // finishing: ChapterScenesPlayer pushes its cutscene after GoToChapter has cleared the
             // travel HUD, and warned on every chapter change for it (TASK-635). The defect is
             // removing a screen installed by ResetTo -- the travel HUD, the main menu.
-            if (_stack.Count == 0 && popped != null && popped.IsBase) {
+            if (_stack.Count == 0 && tookBase) {
                 Debug.LogWarning("ScreenNavigator: Pop emptied the stack -- nothing will be shown. "
                     + "Whoever called this popped a screen it did not push (TASK-569).\n"
                     + new System.Diagnostics.StackTrace(true));

@@ -42,6 +42,21 @@ namespace BakAgain.UI.Navigation {
         UniTask Pop();
 
         /// <summary>
+        /// Drop the top <paramref name="count"/> screens and show the one beneath them, without
+        /// showing any in between — a sub-screen whose result also closes its opener (a save from
+        /// the in-game menu returns to the world, TASK-850).
+        /// </summary>
+        /// <remarks>The default pops one at a time, showing each screen beneath; only a real
+        /// navigator skips them.</remarks>
+        UniTask Pop(int count) {
+            var pops = new UniTask[count];
+            for (int i = 0; i < count; i++) {
+                pops[i] = Pop();
+            }
+            return UniTask.WhenAll(pops);
+        }
+
+        /// <summary>
         /// <see cref="Push"/> without the screen fade, for a screen that brings its own transition
         /// — the cast screen's split wipe is the original's only transition there (TASK-818).
         /// </summary>

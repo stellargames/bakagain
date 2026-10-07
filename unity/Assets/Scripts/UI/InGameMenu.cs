@@ -53,6 +53,20 @@ namespace BakAgain.UI {
                 navigator, LogManager.LoggerFactory.CreateLogger<InGameMenu>());
             _midi = midi;
             _resources = resources;
+            _navigator = navigator;
+            saveGameMenu.Saved += ResumeAfterSave;
+        }
+
+        private IScreenNavigator _navigator;
+
+        /// <summary>
+        /// A save from this menu goes straight back to the world: <c>mainmenu_save_save_game_dialog</c>
+        /// returning non-zero ends the menu with result 0 (MAINMENU.C:227-230), the same exit as Cancel,
+        /// so the world's track comes back too. Both screens go in one pop, so this menu is not shown again.
+        /// </summary>
+        private void ResumeAfterSave() {
+            RestoreWorldTrack();
+            _navigator.Pop(2).Forget();
         }
 
         /// <summary>
@@ -72,8 +86,13 @@ namespace BakAgain.UI {
         }
 
         private async UniTaskVoid SaveAndPlayAsync() {
-            _trackBeforeMenu = await _midi.PlayTrackAsync(
+            int previous = await _midi.PlayTrackAsync(
                 GameData.Resources.Audio.MusicSelection.MainMenuTrack, _resources, owner: this);
+            // Re-shown after a sub-screen (a cancelled Save, Restore, Preferences) the menu's own track
+            // is already playing; the original asks once, on entry (MAINMENU.C:108), so keep that answer.
+            if (previous != GameData.Resources.Audio.MusicSelection.MainMenuTrack) {
+                _trackBeforeMenu = previous;
+            }
         }
 
         /// <inheritdoc/>
@@ -85,13 +104,19 @@ namespace BakAgain.UI {
         /// on them would put the world track back for the moment the destination takes to load.
         /// </remarks>
         public void PrimaryAction(int menuEntryActionId) {
-            if (menuEntryActionId == ActionCancel && _midi != null && _resources != null
+            if (menuEntryActionId == ActionCancel) {
+                RestoreWorldTrack();
+            }
+
+            _handler.Primary(menuEntryActionId);
+        }
+
+        private void RestoreWorldTrack() {
+            if (_midi != null && _resources != null
                 && GameData.Resources.Audio.MusicSelection.RestoresPreviousTrack(
                     GameData.Resources.Audio.MusicSelection.MenuExit.Resume)) {
                 _midi.PlayTrackAsync(_trackBeforeMenu, _resources, owner: this).Forget();
             }
-
-            _handler.Primary(menuEntryActionId);
         }
 
         public Awaitable SecondaryAction(int menuEntryActionId) => _handler.Secondary(menuEntryActionId);

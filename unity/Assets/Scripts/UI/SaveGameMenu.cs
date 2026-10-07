@@ -335,10 +335,14 @@ namespace BakAgain.UI {
             _logger.LogInformation("Saved '{Name}' (dir '{Dir}', slot {Slot}).",
                 gameName, dirNameOnDisk, slotIndex);
             RememberLast(existingDir?.DisplayName ?? dirName, gameName);
-            // The original's Save exits the dialog on success (RE §Q3). Not Close(): that would
-            // record the picker rows, which do not follow the typed names.
-            _navigator.Pop().Forget();
+            // A save leaves the dialog AND the Options menu: MAINMENU.C:227-230 ends the menu with
+            // result 0, as its Cancel does, so play resumes (TASK-850). The menu that opened this
+            // owns that exit (and the world's music); not Close(), which would record the picker rows.
+            Saved?.Invoke();
         }
+
+        /// <summary>A game was written. The opener resumes play; the dialog does not close itself.</summary>
+        public event Action Saved;
 
         private async void DoRemoveGame() {
             if (_selectedSlot < 0 || _selectedSlot >= _slots.Count) {
