@@ -42,7 +42,7 @@ namespace BakAgain.UI.Character {
         private BakAgain.UI.Navigation.IScreenNavigator _navigator;
         private IDialogManager _dialogs;
         private Core.GameSession _session;
-        private Core.Services.IGameClock _clock;
+        private Core.Services.GameClock _clock;
         private UserInterfaceLoader _ui;
         private readonly CharacterSheetView _sheet = new();
         private GameData.Resources.Palette.PaletteResource _palette;
@@ -57,7 +57,7 @@ namespace BakAgain.UI.Character {
         [VContainer.Inject]
         public void Construct(IResourceCache resources,
             BakAgain.UI.Navigation.IScreenNavigator navigator, IDialogManager dialogs,
-            Core.GameSession session, Core.Services.IGameClock clock) {
+            Core.GameSession session, Core.Services.GameClock clock) {
             _resources = resources;
             _navigator = navigator;
             _dialogs = dialogs;

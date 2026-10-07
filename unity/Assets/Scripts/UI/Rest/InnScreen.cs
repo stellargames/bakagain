@@ -38,7 +38,7 @@ namespace BakAgain.UI.Rest {
 
         private IResourceCache _resources;
         private GameSession _session;
-        private IGameClock _clock;
+        private GameClock _clock;
         private ILogger _logger;
         private EncampData _encamp;
         private GameData.Resources.Palette.PaletteResource _palette;
@@ -46,7 +46,7 @@ namespace BakAgain.UI.Rest {
         private readonly RestPartyTableView _partyTable = new();
 
         [Inject]
-        public void Construct(IResourceCache resources, GameSession session, IGameClock clock) {
+        public void Construct(IResourceCache resources, GameSession session, GameClock clock) {
             _resources = resources;
             _session = session;
             _clock = clock;

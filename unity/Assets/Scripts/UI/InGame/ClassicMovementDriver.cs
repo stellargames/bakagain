@@ -12,7 +12,7 @@ namespace BakAgain.UI.InGame {
     // held finger on an on-screen nav-arrow repeats movement on Android exactly like held-mouse on
     // desktop, and a gamepad left-stick drives the same axis as WASD/arrows. Gated by `active`:
     // movement can only run when the travel surface owns input.
-    public sealed class ClassicMovementDriver : IMovementDriver {
+    public sealed class ClassicMovementDriver {
         /// <summary>
         /// Seconds a held direction does NOTHING before the repeat starts — the original's
         /// <c>g_nFrameTickCountdown = 0x5a</c>, which is 90 ticks of its own 236.7 Hz timer.
@@ -86,6 +86,9 @@ namespace BakAgain.UI.InGame {
             _deltaSeconds = deltaSeconds ?? (() => Time.deltaTime);
         }
 
+        // Called once per frame. `active` == the travel surface is the stack's resolved input target
+        // (no menu/modal above). When false the driver must produce NO movement and release any
+        // device capture it holds.
         public void Tick(bool active) {
             if (!active) {
                 _heldAction = -1;

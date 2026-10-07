@@ -268,7 +268,7 @@ namespace BakAgain.UI.Inventory {
             BakAgain.World.IGroundBagSpawner groundBags = null,
             RiftMapScreen riftMap = null,
             BakAgain.Audio.MidiPlaybackManager midi = null,
-            BakAgain.Core.Services.IGameClock clock = null,
+            BakAgain.Core.Services.GameClock clock = null,
             BakAgain.Core.Services.PartyUpkeepService upkeep = null,
             VContainer.IObjectResolver resolver = null) {
             _gameSession = gameSession ?? throw new ArgumentNullException(nameof(gameSession));
@@ -294,10 +294,10 @@ namespace BakAgain.UI.Inventory {
         private BakAgain.Audio.MidiPlaybackManager _midi;
         private VContainer.IObjectResolver _resolver;
 
-        private BakAgain.UI.Spells.ILocatorMapView LocatorMap =>
-            _resolver?.Resolve(typeof(BakAgain.UI.Spells.ILocatorMapView)) as BakAgain.UI.Spells.ILocatorMapView;
+        private BakAgain.UI.Spells.LocatorMapScreen LocatorMap =>
+            _resolver?.Resolve(typeof(BakAgain.UI.Spells.LocatorMapScreen)) as BakAgain.UI.Spells.LocatorMapScreen;
 
-        private BakAgain.Core.Services.IGameClock _clock;
+        private BakAgain.Core.Services.GameClock _clock;
         private BakAgain.Core.Services.PartyUpkeepService _upkeep;
 
         /// <summary>Set the container to loot, along with the clicked world item's type (which selects

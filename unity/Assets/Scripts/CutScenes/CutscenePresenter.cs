@@ -8,7 +8,7 @@ namespace BakAgain.CutScenes {
     using System.Collections.Generic;
     using System.Linq;
 
-    public class CutscenePresenter : ICutscenePresenter {
+    public class CutscenePresenter {
         private readonly ILogger<CutscenePresenter> _logger;
         private readonly IResourceCache _resourceCache;
         private readonly ICutscenePlayerFactory _playerFactory;
@@ -16,6 +16,8 @@ namespace BakAgain.CutScenes {
         private CutscenePlayer _currentPlayer;
         private CutsceneState _currentState;
 
+        /// <summary>The files the playing script last loaded into image and palette slot
+        /// <paramref name="slot"/>; false when nothing is playing or the image slot is empty.</summary>
         public bool TryGetSlotResources(int slot, out string image, out string palette) {
             image = null;
             palette = null;
@@ -279,6 +281,26 @@ namespace BakAgain.CutScenes {
         // single indexed animation) and, when holdRenderingAfter is set, keeps the
         // final frame on screen with palette cycling running until the player
         // cancels. Used to verify the temple symbol shimmer (INIT then SYM1).
+        /// <param name="holdUntil">
+        /// When cancellable, the final frame is held <b>without taking input</b> until this token is
+        /// cancelled — for a caller that owns its own input layer.
+        ///
+        /// <para>The default hold pushes an Exclusive layer, which is right for a cutscene (whose
+        /// only interaction is "skip") and wrong for an interactive location, whose whole point is
+        /// that the held picture is clickable: the cutscene layer would swallow every hotspot click.
+        /// See <see cref="CutscenePlayer.HoldRenderingWithoutInputAsync"/>.</para>
+        /// </param>
+        /// <param name="backdrop">
+        /// Optional full-screen image laid under everything the scene draws. A location needs one:
+        /// the original blits a whole buffer over the working one before every replay, and for a
+        /// location that buffer holds <c>DIALOG.SCX</c>, so the picture covers the top and the
+        /// dialogue panel shows below it.
+        /// </param>
+        /// <param name="onHeld">
+        /// Raised once the scripts have finished and the last frame is about to be held. Anything
+        /// drawn ON that held picture has to wait for it: each script clears the dialog panel as it
+        /// ends, so a caller that draws earlier watches its own text vanish.
+        /// </param>
         public async UniTask<bool> PlayCutsceneTagsAsync(string cutsceneName, ICutsceneView view, IReadOnlyList<string> tags,
             bool holdRenderingAfter = false, System.Threading.CancellationToken holdUntil = default,
             string backdrop = null, System.Action onHeld = null) {

@@ -27,14 +27,14 @@ namespace BakAgain.Core.Services {
             IResourceProviderService resources,
             GameSession session,
             ILogger<GameStateLoader> logger,
-            IGameClock clock) {
+            GameClock clock) {
             _resources = resources ?? throw new ArgumentNullException(nameof(resources));
             _session = session ?? throw new ArgumentNullException(nameof(session));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _clock = clock;
         }
 
-        private readonly IGameClock _clock;
+        private readonly GameClock _clock;
 
         /// <summary>
         /// Hand a loaded save's pending timers back to the clock. The pool is the clock's state,

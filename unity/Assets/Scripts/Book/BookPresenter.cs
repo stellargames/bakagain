@@ -9,13 +9,13 @@ namespace BakAgain.Book {
     using Microsoft.Extensions.Logging;
     using UnityEngine;
 
-    public class BookPresenter : IBookPresenter {
+    public class BookPresenter {
         // Parchment background variants synthesized by the extractor (see BookParchment):
         // even pages render BOOK.SCX as-is, odd pages render it vertically mirrored.
         private const string BookEvenBackground = "BOOK_EVEN.SCX";
         private const string BookOddBackground = "BOOK_ODD.SCX";
 
-        private readonly IBookView _view;
+        private readonly BookView _view;
         private readonly BakAgain.UI.InputCore.InputLayerStack _stack;
         private readonly IResourceCache _resourceCache;
         private readonly BakAgain.ResourceManagement.IResourceProviderService _resources;
@@ -26,7 +26,7 @@ namespace BakAgain.Book {
         private PageNavigation? _navResult;
 
         public BookPresenter(
-            IBookView view,
+            BookView view,
             BakAgain.UI.InputCore.InputLayerStack stack,
             IResourceCache resourceCache,
             BakAgain.ResourceManagement.IResourceProviderService resources,

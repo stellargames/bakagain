@@ -206,9 +206,9 @@ namespace BakAgain.Core.DI {
             builder.Register<BakAgain.UI.Puzzle.PuzzleService>(Lifetime.Singleton);
             builder.Register<BakAgain.UI.Spells.FieldSpellCaster>(Lifetime.Singleton);
             builder.Register<BakAgain.World.WorldLightingService>(Lifetime.Singleton);
-            builder.RegisterComponentInNewPrefab(bookViewPrefab, Lifetime.Singleton).As<IBookView>();
+            builder.RegisterComponentInNewPrefab(bookViewPrefab, Lifetime.Singleton);
             builder.RegisterComponentInNewPrefab(dialogManagerPrefab, Lifetime.Singleton).As<IDialogManager>();
-            builder.RegisterComponentInNewPrefab(fullMapViewPrefab, Lifetime.Singleton).As<IFullMapView>();
+            builder.RegisterComponentInNewPrefab(fullMapViewPrefab, Lifetime.Singleton);
             builder.RegisterComponentInNewPrefab(creditsViewPrefab, Lifetime.Singleton);
 
             // World viewport geometry, read from START.DAT on first use (not at construction:
@@ -217,7 +217,7 @@ namespace BakAgain.Core.DI {
             builder.Register<WorldViewport>(Lifetime.Singleton).As<IWorldViewport>();
 
             // Unified in-game/travel screen (supersedes the InGameHud + InGameMenu pair).
-            builder.RegisterComponentInNewPrefab(inGameScreenPrefab, Lifetime.Singleton).As<IInGameScreen>();
+            builder.RegisterComponentInNewPrefab(inGameScreenPrefab, Lifetime.Singleton);
 
             // Loot/inventory screen.
             builder.RegisterComponentInNewPrefab(inventoryScreenPrefab, Lifetime.Singleton);
@@ -232,10 +232,10 @@ namespace BakAgain.Core.DI {
             // from startup; states can still call ICursorManager.Hide() for cutscenes.
             builder.RegisterBuildCallback(container => container.Resolve<ICursorManager>());
 
-            builder.Register<BookPresenter>(Lifetime.Transient).As<IBookPresenter>();
+            builder.Register<BookPresenter>(Lifetime.Transient);
 
             builder.Register<GameSession>(Lifetime.Singleton);
-            builder.Register<IGameClock, GameClock>(Lifetime.Singleton);
+            builder.Register<GameClock>(Lifetime.Singleton);
             // Resolved eagerly: it works purely by subscribing to the clock, so nothing would ever
             // ask for it and a lazy singleton would never be built.
             builder.Register<PartyUpkeepService>(Lifetime.Singleton);
@@ -244,7 +244,7 @@ namespace BakAgain.Core.DI {
             builder.Register<IGameStateLoader, GameStateLoader>(Lifetime.Singleton);
             builder.Register<IPreferencesService, PreferencesService>(Lifetime.Singleton);
             builder.Register<ISaveGameDirectoryService, SaveGameDirectoryService>(Lifetime.Singleton);
-            builder.Register<ISaveGameService, SaveGameService>(Lifetime.Singleton);
+            builder.Register<SaveGameService>(Lifetime.Singleton);
 
             // Game-logic services + the transition flows (there is no state machine — see the
             // 2026-07-12 screen-navigation architecture doc §3.1: state is GameSession data,
@@ -269,8 +269,7 @@ namespace BakAgain.Core.DI {
             // The character screen. Instantiated inactive; a right-click on a portrait runs it.
             builder.RegisterComponentInNewPrefab(characterSheetScreenPrefab, Lifetime.Singleton);
             builder.RegisterComponentInNewPrefab(overheadMapScreenPrefab, Lifetime.Singleton);
-            builder.RegisterComponentInNewPrefab(locatorMapScreenPrefab, Lifetime.Singleton)
-                .As<BakAgain.UI.Spells.ILocatorMapView>();
+            builder.RegisterComponentInNewPrefab(locatorMapScreenPrefab, Lifetime.Singleton);
             builder.Register<WorldRuntime>(Lifetime.Singleton);
             builder.Register<GameFlow>(Lifetime.Singleton).As<IGameFlow>();
             builder.Register<ICutscenePlayerFactory, CutscenePlayerFactory>(Lifetime.Singleton);

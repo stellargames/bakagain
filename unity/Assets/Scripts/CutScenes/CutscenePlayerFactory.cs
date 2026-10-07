@@ -30,10 +30,10 @@ namespace BakAgain.CutScenes {
         // layer in the container, and ChapterScenesPlayer shows its part books the same way.
         private async Cysharp.Threading.Tasks.UniTask ShowBookAsync(string book) {
             var navigator = _resolver.Resolve<BakAgain.UI.Navigation.IScreenNavigator>();
-            var view = _resolver.Resolve<BakAgain.Book.IBookView>();
+            var view = _resolver.Resolve<BakAgain.Book.BookView>();
             await navigator.Push((BakAgain.UI.Navigation.IScreen)view);
             try {
-                await _resolver.Resolve<BakAgain.Book.IBookPresenter>().ShowBookAsync(book);
+                await _resolver.Resolve<BakAgain.Book.BookPresenter>().ShowBookAsync(book);
             } finally {
                 await navigator.Pop();
             }

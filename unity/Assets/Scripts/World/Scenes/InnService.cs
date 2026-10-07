@@ -19,19 +19,19 @@ namespace BakAgain.World.Scenes {
     /// flow around them: offer, sleep, pay, and offer again while anyone is still hurt.
     ///
     /// <para>The rest itself goes through the same seam camping uses —
-    /// <see cref="PartyUpkeepService.RestQuality"/> plus <see cref="IGameClock.AdvanceHours"/>, with
+    /// <see cref="PartyUpkeepService.RestQuality"/> plus <see cref="GameClock.AdvanceHours"/>, with
     /// the hourly tick doing the healing — so there is one implementation of "an hour of rest" and
     /// the inn differs from a camp only in the figure it sets.</para>
     /// </remarks>
     public sealed class InnService {
         private readonly GameSession _session;
-        private readonly IGameClock _clock;
+        private readonly GameClock _clock;
         private readonly PartyUpkeepService _upkeep;
         private readonly IDialogManager _dialogs;
         private readonly BakAgain.UI.Rest.InnScreen _screen;
         private readonly ILogger _logger;
 
-        public InnService(GameSession session, IGameClock clock, PartyUpkeepService upkeep,
+        public InnService(GameSession session, GameClock clock, PartyUpkeepService upkeep,
             IDialogManager dialogs, BakAgain.UI.Rest.InnScreen screen) {
             _session = session;
             _clock = clock;

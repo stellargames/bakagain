@@ -29,7 +29,7 @@ namespace BakAgain.UI.InGame {
     /// (@0x71902 / @0x71a88) and the option/encamp/cast transitions land in a later pass.</para>
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class InGameScreen : MonoBehaviour, IInGameScreen, IActionHandler, IMenuStateProvider {
+    public sealed class InGameScreen : MonoBehaviour, BakAgain.UI.Navigation.IScreen, IActionHandler, IMenuStateProvider {
         // req_main.dat ActionIds (verified against generated/REQ/REQ_MAIN.json and the
         // MainGameLoop jumptable). Movement ids double as DOS arrow-key scancodes.
         private const int ActionMoveForward = 72;   // 0x48 Up
@@ -57,8 +57,8 @@ namespace BakAgain.UI.InGame {
         private BakAgain.World.WorldLightingService _lighting;
         private BakAgain.World.Scenes.LocationScenePlayer _locations;
         private GameSession _gameSession;
-        private BakAgain.Core.Services.ISaveGameService _saveGameService;
-        private BakAgain.Core.Services.IGameClock _clock;
+        private BakAgain.Core.Services.SaveGameService _saveGameService;
+        private BakAgain.Core.Services.GameClock _clock;
         private BakAgain.World.PartyMovement _movement;
         private UIDocument _document;
         private IResourceProviderService _resources;
@@ -182,7 +182,7 @@ namespace BakAgain.UI.InGame {
         private OverheadMapScreen _overheadMap;
         private IPointer _pointer;
         private IGameplayInput _gameplay;
-        private IMovementDriver _movementDriver;
+        private ClassicMovementDriver _movementDriver;
         private TravelLayerHost _travelHost;
 
         // (rosterSlot, distanceInFine) -> loot that body. Null outside a fight, which is why the
@@ -240,6 +240,22 @@ namespace BakAgain.UI.InGame {
         // MainGameLoop pass belongs in the same place rather than in a listener somewhere else.
         private System.Action _worldLoopPump;
 
+        /// <summary>
+        /// Work the world loop owes once per iteration, run by the screen's own frame update.
+        /// </summary>
+        /// <remarks>
+        /// <b>This screen's update IS the world loop</b> — it is already where the ambient-sound
+        /// driver and the pit drop are ticked, "where the original ticks it". Flow hands in the jobs
+        /// it needs noticed there rather than the screen learning about them: the first is the
+        /// chapter transition, which a dialog requests by writing a flag and the original's
+        /// <c>MainGameLoop</c> acts on at the top of its next pass.
+        ///
+        /// <para><b>A flag, not an event, and deliberately.</b> Raising the transition the moment the
+        /// dialog writes the flag runs it INSIDE that dialog — and <c>GameFlow.RunExclusive</c> drops
+        /// a call while it is busy, so the transition would either vanish or tear the world down
+        /// under a live dialog. Noticing it a frame later is both simpler and what the original
+        /// does.</para>
+        /// </remarks>
         public void SetWorldLoopSeam(System.Action pump) => _worldLoopPump = pump;
 
         // A click on the arena FLOOR — a tile rather than a thing. Set beside the target seam and
@@ -301,8 +317,8 @@ namespace BakAgain.UI.InGame {
             BakAgain.UI.Navigation.IScreenNavigator navigator, IPointer pointer,
             IGameplayInput gameplay, BakAgain.UI.Puzzle.PuzzleService puzzles,
             BakAgain.World.DoorVisualService doorVisuals,
-            BakAgain.Core.Services.ISaveGameService saveGameService,
-            BakAgain.Core.Services.IGameClock clock,
+            BakAgain.Core.Services.SaveGameService saveGameService,
+            BakAgain.Core.Services.GameClock clock,
             OverheadMapScreen overheadMap = null,
             VContainer.IObjectResolver resolver = null) {
             _dialogManager = dialogManager;
@@ -335,6 +351,7 @@ namespace BakAgain.UI.InGame {
             _overheadMap = overheadMap;
         }
 
+        /// <summary>Provide the movement controller; nav buttons/keys drive it. Call before showing.</summary>
         public void SetMovement(BakAgain.World.PartyMovement movement) {
             _movement = movement;
             _movementDriver = new ClassicMovementDriver(_document, movement, _gameplay, _pointer);
@@ -396,6 +413,7 @@ namespace BakAgain.UI.InGame {
             return Mathf.Clamp(viewportX * viewWidth - w / 2f, 2f, Mathf.Max(2f, viewWidth - w - 2f));
         }
 
+        /// <summary>Provide the camera that renders the 3D world into the viewport. Call before showing.</summary>
         public void SetWorldCamera(Camera worldCamera) {
             _pendingCamera = worldCamera;
             _worldView?.SetWorldCamera(worldCamera);
@@ -825,7 +843,7 @@ namespace BakAgain.UI.InGame {
         // travel surface owns input. The gate (TravelLayerHost.IsInputActive) is false whenever a
         // menu/modal is resolved above travel, so a dialog/help/confirm over the HUD structurally
         // stops movement (the old poller ran unconditionally). Movement itself lives in the
-        // swappable IMovementDriver.
+        // ClassicMovementDriver.
         /// <summary>
         /// The bookmark quick-save — <c>mainmenu_save_bookmark</c>, reached from the world loop's
         /// action 0x30. The rules (slot, header name, dialogs) are <see cref="BookmarkSave"/>.
@@ -1546,7 +1564,7 @@ namespace BakAgain.UI.InGame {
                     // F: no button on REQ_MAIN, but the world loop acts on the scancode anyway and
                     // runs fmap_screen_run (WORLDLP.C:324) — TASK-797.
                     OverheadMapScreen.OpenFullMapAsync(
-                        _resolver?.Resolve<BakAgain.UI.FullMap.IFullMapView>(), _gameSession, _resources,
+                        _resolver?.Resolve<BakAgain.UI.FullMap.FullMapView>(), _gameSession, _resources,
                         _navigator, this).Forget();
                     break;
                 case ActionCastSpell:

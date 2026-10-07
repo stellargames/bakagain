@@ -47,7 +47,7 @@ namespace BakAgain.World {
         private readonly Func<int, int, bool> _hotspotPass;
         private readonly Action<int> _playSfx;
         private readonly bool _underground;
-        private readonly IGameClock _clock;
+        private readonly GameClock _clock;
         private readonly Action<int> _showDialog;
 
         /// <summary>
@@ -72,7 +72,7 @@ namespace BakAgain.World {
         public PartyMovement(GameSession session, MovementData movement, IPreferencesService preferences,
             Camera camera, int cameraHeightZ, ushort cameraPitch,
             ProximityWorld collision = null, Func<int, int, bool> hotspotPass = null,
-            Action<int> playSfx = null, bool underground = false, IGameClock clock = null,
+            Action<int> playSfx = null, bool underground = false, GameClock clock = null,
             Action<int> showDialog = null) {
             _session = session;
             _movement = movement;

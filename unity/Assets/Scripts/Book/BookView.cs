@@ -8,7 +8,12 @@ namespace BakAgain.Book {
     using UnityEngine;
     using UnityEngine.UI;
 
-    public class BookView : MonoBehaviour, IBookView {
+    /// <summary>
+    /// The BOK book surface. An <see cref="BakAgain.UI.Navigation.IScreen"/> — the ChapterScenesPlayer
+    /// pushes it over the cutscene screen for a book part; the presenter's own Show/Hide within that
+    /// lifetime remain direct canvas toggles.
+    /// </summary>
+    public class BookView : MonoBehaviour, BakAgain.UI.Navigation.IScreen {
         [SerializeField]
         private Canvas bookCanvas;
 
@@ -90,6 +95,13 @@ namespace BakAgain.Book {
             rt.anchoredPosition = Vector2.zero;
         }
 
+        /// <summary>
+        /// Renders a page using layout from <paramref name="page"/> (images, reserved areas, page number)
+        /// and text from <paramref name="allParagraphs"/> starting at <paramref name="startParagraph"/>.
+        /// When <paramref name="startLineOffset"/> is &gt; 0, the first paragraph is a continuation
+        /// and rendering starts from that line (no indent, no inter-paragraph spacing).
+        /// Returns (paragraphIndex, lineOffset) for the next page's continuation point.
+        /// </summary>
         public (int paragraphIndex, int lineOffset) ShowPage(Page page, Sprite[] bookSprites, Color[] palette,
                             IReadOnlyList<Paragraph> allParagraphs, int startParagraph, int startLineOffset = 0) {
             ClearPage();

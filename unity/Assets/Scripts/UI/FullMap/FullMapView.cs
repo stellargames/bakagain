@@ -19,9 +19,13 @@ namespace BakAgain.UI.FullMap {
     /// parsing was slow enough that the player naturally saw the map for ~1-2s.
     /// Modern hydration is near-instant, so <see cref="Show"/> enforces
     /// <see cref="minHoldSeconds"/> before returning to keep the pacing.
+    ///
+    /// <para>An <see cref="BakAgain.UI.Navigation.IScreen"/>: the new-game/load flow calls <see cref="SetMarker"/> then
+    /// pushes it (the chapter-description dialog renders over it as a tooltip) and pops it
+    /// afterwards; the overhead map's Map button pushes the same screen.</para>
     /// </summary>
     [RequireComponent(typeof(CanvasGroup))]
-    public sealed class FullMapView : MonoBehaviour, IFullMapView {
+    public sealed class FullMapView : MonoBehaviour, BakAgain.UI.Navigation.IScreen {
         [SerializeField]
         private Image backgroundImage;
 
@@ -304,6 +308,12 @@ namespace BakAgain.UI.FullMap {
         private float _markerYPercent;
         private int _markerIconIndex;
 
+        /// <summary>
+        /// Set the party marker before the screen is pushed. When <paramref name="showMarker"/> is
+        /// true the party icon (<paramref name="iconIndex"/> into <c>fmap_icn.bmx</c>) is placed at
+        /// <paramref name="xPercent"/>/<paramref name="yPercent"/> of the map (0..100, from the
+        /// top-left) — resolution-independent. When false the map shows without a marker (chapter 8).
+        /// </summary>
         public void SetMarker(bool showMarker, float xPercent, float yPercent, int iconIndex) {
             _markerVisible = showMarker;
             _markerXPercent = xPercent;
@@ -314,7 +324,19 @@ namespace BakAgain.UI.FullMap {
         private System.Action _onExit;
         private Image _exitButton;
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// How the player leaves this map, or <c>null</c> when they cannot.
+        /// </summary>
+        /// <remarks>
+        /// <b>The same view serves two opposite contracts.</b> As a loading screen it dismisses
+        /// itself and must offer no way out; opened from the map screen it is an ordinary screen
+        /// the player leaves through REQ_FMAP's one widget. Passing null in the first case and a
+        /// pop in the second is what keeps them apart — and having neither is what made the
+        /// player-opened map a dead end, with no button, no key and no click able to close it.
+        ///
+        /// <para>Set before pushing, like <see cref="SetMarker"/> — the typed pre-push setter
+        /// pattern. Both callers set it explicitly, because it persists between shows.</para>
+        /// </remarks>
         public void SetExitAffordance(System.Action onExit) => _onExit = onExit;
 
         /// <summary>REQ_FMAP, which describes the one widget this screen has.</summary>

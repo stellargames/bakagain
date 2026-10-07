@@ -26,7 +26,7 @@ namespace BakAgain.World.Scenes {
     /// </summary>
     public sealed class LocationScenePlayer {
         private readonly ILogger<LocationScenePlayer> _logger;
-        private readonly ICutscenePresenter _presenter;
+        private readonly CutscenePresenter _presenter;
         private readonly ICutsceneView _view;
         private readonly GdsSceneLoader _loader;
         private readonly IResourceCache _resources;
@@ -62,7 +62,7 @@ namespace BakAgain.World.Scenes {
         /// </remarks>
         public const string Backdrop = "DIALOG.SCX";
 
-        public LocationScenePlayer(ILogger<LocationScenePlayer> logger, ICutscenePresenter presenter,
+        public LocationScenePlayer(ILogger<LocationScenePlayer> logger, CutscenePresenter presenter,
             ICutsceneView view, GdsSceneLoader loader, IResourceCache resources,
             LocationScreen screen, GameData.Resources.Location.PendingTeleport teleport = null,
             // IGameFlow is resolved lazily: it depends on WorldRuntime, which depends on this, so a
@@ -386,12 +386,12 @@ namespace BakAgain.World.Scenes {
         /// constructor dependency would close a DI cycle. Null when there is no HUD to hide (tests),
         /// which is why every use is guarded.
         /// </remarks>
-        private UI.InGame.IInGameScreen TravelScreen() {
+        private UI.InGame.InGameScreen TravelScreen() {
             if (_resolver == null) {
                 return null;
             }
             try {
-                return (UI.InGame.IInGameScreen)_resolver.Resolve(typeof(UI.InGame.IInGameScreen));
+                return (UI.InGame.InGameScreen)_resolver.Resolve(typeof(UI.InGame.InGameScreen));
             } catch (System.Exception) {
                 return null;
             }
@@ -413,7 +413,7 @@ namespace BakAgain.World.Scenes {
         /// down, so <see cref="RestoreTravelScreenAsync"/> does not raise one it never hid.</para>
         /// </remarks>
         private async UniTask HideTravelScreenAsync() {
-            UI.InGame.IInGameScreen travel = TravelScreen();
+            UI.InGame.InGameScreen travel = TravelScreen();
             if (travel == null) {
                 return;
             }
@@ -440,7 +440,7 @@ namespace BakAgain.World.Scenes {
                 return;
             }
             _hidTravelScreen = false;
-            UI.InGame.IInGameScreen travel = TravelScreen();
+            UI.InGame.InGameScreen travel = TravelScreen();
             if (travel != null) {
                 await travel.ShowAsync();
             }
@@ -496,7 +496,7 @@ namespace BakAgain.World.Scenes {
             }
 
             // The same load the presenter does internally; going through the cache rather than
-            // widening ICutscenePresenter for one caller.
+            // widening CutscenePresenter for one caller.
             var ads = await _resources.GetOrLoadAsync<AnimatorResource>($"{scene.AnimationResource}.ADS");
             if (ads == null) {
                 return tags;

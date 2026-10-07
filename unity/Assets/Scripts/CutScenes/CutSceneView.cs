@@ -14,7 +14,7 @@ namespace BakAgain.CutScenes {
         private int _lastScreenHeight;
         private int _lastScreenWidth;
         private RawImage _rawImage;
-        private ICutscenePresenter _presenter;
+        private CutscenePresenter _presenter;
 
         public UiImage Canvas => new(_rawImage);
 
@@ -43,7 +43,7 @@ namespace BakAgain.CutScenes {
         }
 
         [Inject]
-        public void Construct(ICutscenePresenter presenter) {
+        public void Construct(CutscenePresenter presenter) {
             _presenter = presenter;
         }
 

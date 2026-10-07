@@ -80,9 +80,9 @@ namespace BakAgain.Core.Services {
         private readonly DialogExecutor _dialogExecutor;
         private readonly ChapterScenesPlayer _scenes;
         private readonly WorldRuntime _world;
-        private readonly IFullMapView _fullMap;
+        private readonly FullMapView _fullMap;
         private readonly IDialogManager _dialogManager;
-        private readonly ICutscenePresenter _cutscenePresenter;
+        private readonly CutscenePresenter _cutscenePresenter;
         private readonly ICutsceneView _cutsceneView;
         private readonly CreditsView _credits;
         private readonly BakAgain.UI.InputCore.InputLayerStack _inputStack;
@@ -91,7 +91,7 @@ namespace BakAgain.Core.Services {
         // so constructor dependencies here would be DI cycles.
         private readonly IObjectResolver _resolver;
         private MainMenu _mainMenu;
-        private IInGameScreen _travelScreen;
+        private InGameScreen _travelScreen;
 
         private bool _busy;
 
@@ -103,9 +103,9 @@ namespace BakAgain.Core.Services {
             DialogExecutor dialogExecutor,
             ChapterScenesPlayer scenes,
             WorldRuntime world,
-            IFullMapView fullMap,
+            FullMapView fullMap,
             IDialogManager dialogManager,
-            ICutscenePresenter cutscenePresenter,
+            CutscenePresenter cutscenePresenter,
             ICutsceneView cutsceneView,
             CreditsView credits,
             BakAgain.UI.InputCore.InputLayerStack inputStack,
@@ -140,7 +140,7 @@ namespace BakAgain.Core.Services {
         }
 
         private MainMenu MainMenu => _mainMenu ??= _resolver.Resolve<MainMenu>();
-        private IInGameScreen TravelScreen => _travelScreen ??= _resolver.Resolve<IInGameScreen>();
+        private InGameScreen TravelScreen => _travelScreen ??= _resolver.Resolve<InGameScreen>();
 
         public UniTask Boot() => RunExclusive(nameof(Boot), async () => {
             // The intro attract loop, faithful to PlayIntro (KRONDOR.EXE 0x20bbc): INTRO.ADS plays,
@@ -206,7 +206,7 @@ namespace BakAgain.Core.Services {
                     }
                 }
             } else {
-                _logger.LogError("ICutscenePresenter or ICutsceneView was not injected; skipping intro.");
+                _logger.LogError("CutscenePresenter or ICutsceneView was not injected; skipping intro.");
             }
             await ShowMainMenuCore();
         });
@@ -346,11 +346,11 @@ namespace BakAgain.Core.Services {
         /// <remarks>
         /// <b>Eighty ticks of 30000 without moving the clock.</b> The game time is rounded to the next
         /// day separately (ApplyChapterStart), so this only expires the pool and fires the set/clear
-        /// flag writes of whatever runs out — <see cref="IGameClock.TickTimersOnly"/>, not Advance.
+        /// flag writes of whatever runs out — <see cref="GameClock.TickTimersOnly"/>, not Advance.
         /// </remarks>
         private void BeginChapterStart(int chapter) {
             _session.ChapterFinishingGold.RecordStartOf(chapter, _session.PartyGold);
-            IGameClock clock = _resolver.Resolve<IGameClock>();
+            GameClock clock = _resolver.Resolve<GameClock>();
             for (int i = 0; i < ChapterStartTimerTicks; i++) {
                 clock.TickTimersOnly(ChapterStartTimerTickSize);
             }

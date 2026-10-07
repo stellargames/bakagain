@@ -59,7 +59,7 @@ namespace BakAgain.UI {
         /// <summary>
         /// Game minutes per rest step. The original advances 900 two-second units per frame and
         /// only does the hourly work when the hour index changes; stepping a whole hour at a time
-        /// reaches the same state through the same <see cref="IGameClock.AdvanceHours"/> path.
+        /// reaches the same state through the same <see cref="GameClock.AdvanceHours"/> path.
         /// </summary>
         private const int RestStepHours = 1;
 
@@ -94,7 +94,7 @@ namespace BakAgain.UI {
         private ILogger _logger;
         private IDialogManager _dialogManager;
         private GameSession _session;
-        private IGameClock _clock;
+        private GameClock _clock;
         private PartyUpkeepService _upkeep;
 
         private CancellationTokenSource _restCancel;
@@ -531,7 +531,7 @@ namespace BakAgain.UI {
         private readonly Rest.RestPartyTableView _partyTable = new();
 
         [Inject]
-        public void Construct(IDialogManager dialogManager, GameSession session, IGameClock clock,
+        public void Construct(IDialogManager dialogManager, GameSession session, GameClock clock,
             PartyUpkeepService upkeep, IResourceCache resources) {
             _dialogManager = dialogManager ?? throw new ArgumentNullException(nameof(dialogManager));
             _session = session ?? throw new ArgumentNullException(nameof(session));

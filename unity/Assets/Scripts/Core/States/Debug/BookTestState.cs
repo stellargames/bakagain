@@ -14,9 +14,9 @@ namespace BakAgain.Core.States.Debug {
     /// </summary>
     public class BookTestState {
         private readonly ILogger<BookTestState> _logger;
-        private readonly IBookPresenter _bookPresenter;
+        private readonly BookPresenter _bookPresenter;
 
-        public BookTestState(ILogger<BookTestState> logger, IBookPresenter bookPresenter) {
+        public BookTestState(ILogger<BookTestState> logger, BookPresenter bookPresenter) {
             _logger = logger;
             _bookPresenter = bookPresenter;
         }

@@ -42,7 +42,7 @@ namespace BakAgain.World.Scenes {
         /// <remarks>
         /// <b>Resolved lazily, and it has to be</b> — exactly as
         /// <see cref="LocationScenePlayer"/> resolves it, and for the same reason its note gives:
-        /// taking `IInGameScreen` as a constructor dependency closes a DI cycle, because the HUD
+        /// taking `InGameScreen` as a constructor dependency closes a DI cycle, because the HUD
         /// depends on the location player which depends on this screen. Tried it as a constructor
         /// parameter on 2026-09-12 and VContainer refused the whole container with
         /// "Circular dependency detected!", so the game did not boot at all.
@@ -61,12 +61,12 @@ namespace BakAgain.World.Scenes {
             }
         }
 
-        private UI.InGame.IInGameScreen TravelScreen() {
+        private UI.InGame.InGameScreen TravelScreen() {
             if (_resolver == null) {
                 return null;
             }
             try {
-                return (UI.InGame.IInGameScreen)_resolver.Resolve(typeof(UI.InGame.IInGameScreen));
+                return (UI.InGame.InGameScreen)_resolver.Resolve(typeof(UI.InGame.InGameScreen));
             } catch (System.Exception) {
                 return null;
             }
@@ -924,7 +924,7 @@ namespace BakAgain.World.Scenes {
             // Taking it down here rather than teaching the navigator about locations is the smaller
             // of the two fixes; putting the location on the navigator's stack is the structural one
             // and is still worth doing.
-            UI.InGame.IInGameScreen travel = TravelScreen();
+            UI.InGame.InGameScreen travel = TravelScreen();
             if (travel != null && travel.IsVisible) {
                 await travel.HideAsync();
             }

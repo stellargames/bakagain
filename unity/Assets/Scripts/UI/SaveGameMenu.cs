@@ -65,7 +65,7 @@ namespace BakAgain.UI {
 
         private ILogger _logger;
         private ISaveGameDirectoryService _saves;
-        private ISaveGameService _saveGameService;
+        private SaveGameService _saveGameService;
         private IDialogManager _dialogManager;
         private BakAgain.UI.Navigation.IScreenNavigator _navigator;
         private UserInterfaceLoader _loader;
@@ -196,7 +196,7 @@ namespace BakAgain.UI {
         }
 
         [Inject]
-        public void Construct(ISaveGameDirectoryService saves, ISaveGameService saveGameService,
+        public void Construct(ISaveGameDirectoryService saves, SaveGameService saveGameService,
             IDialogManager dialogManager, BakAgain.UI.Navigation.IScreenNavigator navigator) {
             _saves = saves ?? throw new ArgumentNullException(nameof(saves));
             _saveGameService = saveGameService ?? throw new ArgumentNullException(nameof(saveGameService));

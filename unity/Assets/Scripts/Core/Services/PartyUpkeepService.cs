@@ -17,10 +17,10 @@ namespace BakAgain.Core.Services {
     /// </summary>
     public sealed class PartyUpkeepService : IDisposable {
         private readonly GameSession _session;
-        private readonly IGameClock _clock;
+        private readonly GameClock _clock;
         private readonly ILogger<PartyUpkeepService> _logger;
 
-        public PartyUpkeepService(GameSession session, IGameClock clock,
+        public PartyUpkeepService(GameSession session, GameClock clock,
             ILogger<PartyUpkeepService> logger) {
             _session = session;
             _clock = clock;

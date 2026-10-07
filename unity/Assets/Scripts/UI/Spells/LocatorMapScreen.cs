@@ -46,7 +46,7 @@ namespace BakAgain.UI.Spells {
     /// <para><see cref="LocatorMap"/> carries the rules; this class is the wiring.</para>
     /// </remarks>
     [DisallowMultipleComponent]
-    public sealed class LocatorMapScreen : MonoBehaviour, ILocatorMapView, IActionHandler, IScreenInput {
+    public sealed class LocatorMapScreen : MonoBehaviour, IActionHandler, IScreenInput {
         /// <summary>The REQ entry that closes the screen — the one the original's loop tests for.</summary>
         /// <remarks>
         /// Left-click returns to the world; right-click describes the button
@@ -92,7 +92,11 @@ namespace BakAgain.UI.Spells {
             _worldViewport = worldViewport;
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// The Brass Spyglass's look-down view — <c>itemuse_view_look_south_modal</c> (ITEMUSE.C:33-78):
+        /// the valuables' markers over the world seen from above, in the main viewport, until a key
+        /// or button. Returns when it closes.
+        /// </summary>
         /// <remarks>
         /// The same machinery as a locator spell, with the differences ITEMUSE.C:33-78 makes: the
         /// whole world viewport (20 rows taller) instead of the inset, the camera at 98% of the
@@ -123,7 +127,7 @@ namespace BakAgain.UI.Spells {
 
         private const float SpyglassSortingOrder = 1f;
 
-        /// <inheritdoc />
+        /// <summary>Shows the inset for one search and returns when the player closes it.</summary>
         public async UniTask RunAsync(FieldSpells.LocatorTarget target) {
             if (target == FieldSpells.LocatorTarget.None) {
                 return;

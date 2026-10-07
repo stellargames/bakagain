@@ -6,67 +6,10 @@ namespace BakAgain.Core.Services {
     /// <summary>
     /// The game clock: the single owner of "how much game time has passed" and of the
     /// timer pool that time-scheduled effects hang off.
-    /// </summary>
-    public interface IGameClock {
-        /// <summary>Game time in 2-second ticks — the engine's own unit (<c>GameSession.GameTimeIn2Seconds</c>).</summary>
-        long Ticks { get; }
-
-        /// <summary>Whole days elapsed since time zero.</summary>
-        int Day { get; }
-
-        /// <summary>Hour of the current day, 0..23.</summary>
-        int HourOfDay { get; }
-
-        /// <summary>Advance the clock by <paramref name="ticks"/> 2-second ticks.</summary>
-        void Advance(long ticks);
-
-        /// <summary>Advance by whole hours (resting, waiting, scripted skips).</summary>
-        void AdvanceHours(int hours);
-        void TickTimersOnly(long ticks);
-
-        /// <summary>
-        /// Add a timer, or fold into the matching one. <paramref name="accumulate"/> adds to an
-        /// existing timer's remaining time; <paramref name="replaceExisting"/> overwrites it.
-        /// With neither, a new entry is always appended. Returns false when the pool is full.
-        /// </summary>
-        bool ScheduleTimer(TimerType type, int key, long ticks, bool accumulate = false, bool replaceExisting = false);
-
-        /// <summary>Is a timer of this type pending for this key?</summary>
-        bool HasTimer(TimerType type, int key);
-
-        /// <summary>How long that timer has left, or zero when none is running.</summary>
-        long RemainingTicks(TimerType type, int key);
-
-        /// <summary>
-        /// Runs every matching timer out NOW — the effect ends as though its time were up.
-        /// </summary>
-        /// <returns>How many entries were expired.</returns>
-        int ExpireTimers(TimerType type, int key);
-
-        /// <summary>
-        /// The live pool, for the save writer. Pending timers must persist: a temporary flag whose
-        /// clear is still queued would otherwise stay set for the rest of the game.
-        /// </summary>
-        IReadOnlyList<GameData.Resources.Data.SaveGameTimerData> PendingTimers { get; }
-
-        /// <summary>Restore a loaded save's pool, replacing whatever is queued.</summary>
-        void LoadTimers(IEnumerable<GameData.Resources.Data.SaveGameTimerData> timers, int count);
-
-        /// <summary>Raised once per <see cref="Advance"/> that crosses an hour boundary.</summary>
-        event Action HourElapsed;
-
-        /// <summary>
-        /// Raised once per <see cref="Advance"/> that crosses a day boundary, before
-        /// <see cref="HourElapsed"/>. The argument is the day just <b>completed</b>, not the one
-        /// being entered — the engine's periodic checks are keyed on the day being left.
-        /// </summary>
-        event Action<int> DayElapsed;
-    }
-
-    /// <summary>
-    /// Faithful port of the original's clock — <c>gstate_advance_time</c> (ovr131 @0x42b37,
+    ///
+    /// <para>Faithful port of the original's clock — <c>gstate_advance_time</c> (ovr131 @0x42b37,
     /// canassa <c>SRC/GAME/STATE/GSTATE.C</c>) plus the timer pool <c>timerpool_tick</c>
-    /// (ovr133 @0x4396f, <c>SRC/GAME/STATE/TIMERPL.C</c>).
+    /// (ovr133 @0x4396f, <c>SRC/GAME/STATE/TIMERPL.C</c>).</para>
     ///
     /// <para>Time lives in <see cref="GameSession.GameTimeIn2Seconds"/> — state stays data, this
     /// class is only the mutator. Everything that happens *because* time passed (party regen,
@@ -83,7 +26,7 @@ namespace BakAgain.Core.Services {
     /// (<c>dwLastActionTimeSnapshot</c>), which only feeds the rest branch inside the hourly
     /// tick, and rehydrating pending timers from a loaded save's timer block.</para>
     /// </summary>
-    public sealed class GameClock : IGameClock {
+    public sealed class GameClock {
         // The unit arithmetic itself lives in GameData so the extractors, the save reader and this
         // service cannot drift apart on it; these stay as the names Unity code already uses.
 
@@ -103,14 +46,24 @@ namespace BakAgain.Core.Services {
             _session = session ?? throw new ArgumentNullException(nameof(session));
         }
 
+        /// <summary>Game time in 2-second ticks — the engine's own unit (<c>GameSession.GameTimeIn2Seconds</c>).</summary>
         public long Ticks => _session.GameTimeIn2Seconds;
+        /// <summary>Whole days elapsed since time zero.</summary>
         public int Day => GameData.Resources.GameState.GameTime.DayOf(_session.GameTimeIn2Seconds);
+        /// <summary>Hour of the current day, 0..23.</summary>
         public int HourOfDay =>
             GameData.Resources.GameState.GameTime.HourOfDay(_session.GameTimeIn2Seconds);
 
+        /// <summary>Raised once per <see cref="Advance"/> that crosses an hour boundary.</summary>
         public event Action HourElapsed;
+        /// <summary>
+        /// Raised once per <see cref="Advance"/> that crosses a day boundary, before
+        /// <see cref="HourElapsed"/>. The argument is the day just <b>completed</b>, not the one
+        /// being entered — the engine's periodic checks are keyed on the day being left.
+        /// </summary>
         public event Action<int> DayElapsed;
 
+        /// <summary>Advance the clock by <paramref name="ticks"/> 2-second ticks.</summary>
         public void Advance(long ticks) {
             if (ticks <= 0) {
                 return;
@@ -132,6 +85,7 @@ namespace BakAgain.Core.Services {
             TickTimers(ticks);
         }
 
+        /// <summary>Advance by whole hours (resting, waiting, scripted skips).</summary>
         public void AdvanceHours(int hours) {
             for (int i = 0; i < hours; i++) {
                 Advance(TicksPerHour);
@@ -153,7 +107,9 @@ namespace BakAgain.Core.Services {
         }
 
         /// <summary>
-        /// Adds a timer, or extends one already running for the same key.
+        /// Add a timer, or fold into the matching one. <paramref name="accumulate"/> adds to an
+        /// existing timer's remaining time; <paramref name="replaceExisting"/> overwrites it.
+        /// With neither, a new entry is always appended. Returns false when the pool is full.
         /// </summary>
         /// <remarks>
         /// <b>A spell timer raises its effect bit AT ONCE, not on the next tick.</b> Every caller
@@ -213,6 +169,10 @@ namespace BakAgain.Core.Services {
                 _session.PaletteEventMask, key, remaining);
         }
 
+        /// <summary>
+        /// The live pool, for the save writer. Pending timers must persist: a temporary flag whose
+        /// clear is still queued would otherwise stay set for the rest of the game.
+        /// </summary>
         public IReadOnlyList<GameData.Resources.Data.SaveGameTimerData> PendingTimers {
             get {
                 var live = new List<GameData.Resources.Data.SaveGameTimerData>(_timers.Count);
@@ -226,6 +186,7 @@ namespace BakAgain.Core.Services {
             }
         }
 
+        /// <summary>Restore a loaded save's pool, replacing whatever is queued.</summary>
         public void LoadTimers(IEnumerable<GameData.Resources.Data.SaveGameTimerData> timers, int count) {
             _timers.Clear();
             if (timers == null) {
@@ -245,6 +206,7 @@ namespace BakAgain.Core.Services {
             }
         }
 
+        /// <summary>How long that timer has left, or zero when none is running.</summary>
         public long RemainingTicks(TimerType type, int key) {
             for (int i = 0; i < _timers.Count; i++) {
                 if (_timers[i].Type == type && _timers[i].Key == key) {
@@ -256,8 +218,10 @@ namespace BakAgain.Core.Services {
         }
 
         /// <summary>
-        /// Runs every matching timer out now, then ticks the pool so it settles.
+        /// Runs every matching timer out now, then ticks the pool so it settles — the effect ends
+        /// as though its time were up.
         /// </summary>
+        /// <returns>How many entries were expired.</returns>
         /// <remarks>
         /// <b>Zero the entries and tick by ZERO — the two halves are the original's, in that
         /// order.</b> EVTCOND.C case 13 writes <c>nValue = 0</c> over the matching pool entries and
@@ -289,6 +253,7 @@ namespace BakAgain.Core.Services {
             return matched;
         }
 
+        /// <summary>Is a timer of this type pending for this key?</summary>
         public bool HasTimer(TimerType type, int key) {
             for (int i = 0; i < _timers.Count; i++) {
                 if (_timers[i].Type == type && _timers[i].Key == key) {

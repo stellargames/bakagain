@@ -29,12 +29,12 @@ namespace BakAgain.World.Interaction {
         private readonly InventoryMenu _inventoryMenu;
         private readonly BakAgain.UI.Puzzle.PuzzleService _puzzles;
         private readonly BakAgain.UI.Navigation.IScreenNavigator _navigator;
-        private readonly BakAgain.Core.Services.IGameClock _clock;
+        private readonly BakAgain.Core.Services.GameClock _clock;
         private readonly System.Func<int, int, UniTask> _explode;
 
         public ContainerInteractionHandler(GameSession session, IDialogManager dialog,
             InventoryMenu inventoryMenu, BakAgain.UI.Navigation.IScreenNavigator navigator,
-            BakAgain.UI.Puzzle.PuzzleService puzzles, BakAgain.Core.Services.IGameClock clock,
+            BakAgain.UI.Puzzle.PuzzleService puzzles, BakAgain.Core.Services.GameClock clock,
             System.Func<int, int, UniTask> explode) {
             _explode = explode;
             _clock = clock;

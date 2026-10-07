@@ -43,9 +43,9 @@ namespace BakAgain.World {
         private static readonly int DarkenId = Shader.PropertyToID("_BakLightDarken");
 
         private readonly GameSession _session;
-        private readonly IGameClock _clock;
+        private readonly GameClock _clock;
 
-        public WorldLightingService(GameSession session, IGameClock clock) {
+        public WorldLightingService(GameSession session, GameClock clock) {
             _session = session;
             _clock = clock;
         }

@@ -23,14 +23,14 @@ namespace BakAgain.UI.Spells {
     /// </remarks>
     public sealed class FieldSpellCaster {
         private readonly GameSession _session;
-        private readonly IGameClock _clock;
+        private readonly GameClock _clock;
         private readonly IDialogManager _dialogs;
         private readonly IResourceCache _resources;
-        private readonly ILocatorMapView _locatorMap;
+        private readonly LocatorMapScreen _locatorMap;
         private readonly ILogger _logger;
 
-        public FieldSpellCaster(GameSession session, IGameClock clock, IDialogManager dialogs,
-            IResourceCache resources, ILocatorMapView locatorMap) {
+        public FieldSpellCaster(GameSession session, GameClock clock, IDialogManager dialogs,
+            IResourceCache resources, LocatorMapScreen locatorMap) {
             _session = session;
             _clock = clock;
             _dialogs = dialogs;
@@ -110,7 +110,7 @@ namespace BakAgain.UI.Spells {
         /// at their own maximum.
         ///
         /// <para><b>The map exists now</b> — <c>LocatorMapScreen</c> is registered as
-        /// <c>ILocatorMapView</c> and a success opens it, verified in a live cast.</para>
+        /// <c>LocatorMapScreen</c> and a success opens it, verified in a live cast.</para>
         /// </remarks>
         private async UniTask CastLocatorAsync(int casterId, int spellNumber, int power) {
             ApplyCost(casterId, power);

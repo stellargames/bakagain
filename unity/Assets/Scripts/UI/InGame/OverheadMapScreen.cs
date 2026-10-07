@@ -43,7 +43,7 @@ namespace BakAgain.UI.InGame {
         private IResourceProviderService _resources;
         private IWorldViewport _worldViewport;
         private CampMenu _campMenu;
-        private IFullMapView _fullMap;
+        private FullMapView _fullMap;
         private BakAgain.UI.Inventory.InventoryMenu _inventoryMenu;
         private BakAgain.UI.Character.CharacterSheetScreen _characterSheet;
         private IPointer _pointer;
@@ -56,7 +56,7 @@ namespace BakAgain.UI.InGame {
         private WorldViewportView _worldView;
         private CompassView _compass;
         private PartyHeadsView _partyHeads;
-        private IMovementDriver _movementDriver;
+        private ClassicMovementDriver _movementDriver;
         private ArchiveImage _marker;
         private int _markerIcon = -1;
         private bool _zoomUpLive = true;
@@ -82,7 +82,7 @@ namespace BakAgain.UI.InGame {
         public void Construct(GameSession session, WorldRuntime world, IDialogManager dialogs,
             IScreenNavigator navigator, IResourceProviderService resources,
             IWorldViewport worldViewport,
-            CampMenu campMenu, IFullMapView fullMap,
+            CampMenu campMenu, FullMapView fullMap,
             BakAgain.UI.Inventory.InventoryMenu inventoryMenu,
             BakAgain.UI.Character.CharacterSheetScreen characterSheet,
             IPointer pointer, IGameplayInput gameplay, IMapOptionInput mapOptions,
@@ -585,7 +585,7 @@ namespace BakAgain.UI.InGame {
         /// The player's full map — from the local map's button or F there, and F on the travel HUD
         /// (fmap_screen_run from MAP.C:383 and WORLDLP.C:324).
         /// </summary>
-        internal static async UniTaskVoid OpenFullMapAsync(IFullMapView fullMap, GameSession session,
+        internal static async UniTaskVoid OpenFullMapAsync(FullMapView fullMap, GameSession session,
                 IResourceProviderService resources, IScreenNavigator navigator, object owner) {
             if (fullMap == null) {
                 return;

@@ -30,10 +30,10 @@ namespace BakAgain.Core.States.Debug {
         public static IReadOnlyList<string> Tags;
 
         private readonly ILogger<PlayCutsceneState> _logger;
-        private readonly ICutscenePresenter _presenter;
+        private readonly CutscenePresenter _presenter;
         private readonly ICutsceneView _view;
 
-        public PlayCutsceneState(ILogger<PlayCutsceneState> logger, ICutscenePresenter presenter, ICutsceneView view) {
+        public PlayCutsceneState(ILogger<PlayCutsceneState> logger, CutscenePresenter presenter, ICutsceneView view) {
             _logger = logger;
             _presenter = presenter;
             _view = view;
@@ -41,7 +41,7 @@ namespace BakAgain.Core.States.Debug {
 
         public async UniTask RunAsync() {
             if (_presenter == null || _view == null) {
-                _logger.LogError("ICutscenePresenter or ICutsceneView was not injected. Cannot play a cutscene.");
+                _logger.LogError("CutscenePresenter or ICutsceneView was not injected. Cannot play a cutscene.");
                 return;
             }
 

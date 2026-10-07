@@ -7,7 +7,7 @@ namespace BakAgain.UI.InputCore {
     // NavigableLayer, deliberately NOT a NavigableLayer — on this surface arrows mean MOVE, not
     // focus-navigate, so it never does focus nav. It sits on the stack so (a) a modal above makes
     // its buttons inert (OnActiveChanged) and (b) movement can be gated on "travel is the resolved
-    // input target" (TravelLayerHost.IsInputActive). Movement itself is a separate IMovementDriver,
+    // input target" (TravelLayerHost.IsInputActive). Movement itself is a separate ClassicMovementDriver,
     // not handled here. Design: docs/superpowers/specs/2026-07-02-ingame-inputcore-cutover-design.md.
     public sealed class TravelLayer : IInputLayer {
         private readonly IReadOnlyList<NavWidget> _widgets;
@@ -43,7 +43,7 @@ namespace BakAgain.UI.InputCore {
                 case UiIntentKind.Accelerator:
                     _onAccelerator?.Invoke(intent.Character);
                     return true;
-                // Arrows are MOVEMENT here (handled by the gated IMovementDriver, not as focus-nav);
+                // Arrows are MOVEMENT here (handled by the gated ClassicMovementDriver, not as focus-nav);
                 // Enter has no travel meaning. Consume so nothing reinterprets these.
                 case UiIntentKind.MoveFocus:
                 case UiIntentKind.Activate:

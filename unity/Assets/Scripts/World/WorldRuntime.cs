@@ -30,7 +30,7 @@ namespace BakAgain.World {
         private readonly IResourceProviderService _resources;
         private readonly IPreferencesService _preferences;
         private readonly MidiPlaybackManager _midi;
-        private readonly IGameClock _clock;
+        private readonly GameClock _clock;
         private readonly BakAgain.UI.IDialogManager _dialogs;
         private readonly BakAgain.World.Scenes.LocationScenePlayer _locations;
         // Only ever used to hand HotspotService a LAZY IGameFlow: that interface depends on
@@ -1969,7 +1969,7 @@ namespace BakAgain.World {
             IResourceProviderService resources,
             IPreferencesService preferences,
             MidiPlaybackManager midi,
-            IGameClock clock,
+            GameClock clock,
             BakAgain.UI.IDialogManager dialogs = null,
             BakAgain.World.Scenes.LocationScenePlayer locations = null,
             VContainer.IObjectResolver resolver = null,

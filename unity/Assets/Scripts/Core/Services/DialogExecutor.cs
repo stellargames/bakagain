@@ -32,7 +32,7 @@ namespace BakAgain.Core.Services {
 
         private readonly ILogger<DialogExecutor> _logger;
         private readonly GameSession _session;
-        private readonly IGameClock _clock;
+        private readonly GameClock _clock;
         private BakAgain.UI.IDialogResourceLoader _resources;
         private GameData.Resources.Location.TeleportDestinationSet _teleportDestinations;
         private readonly GameData.Resources.Location.PendingTeleport _teleport;
@@ -43,7 +43,7 @@ namespace BakAgain.Core.Services {
         /// <see cref="BakAgain.Audio.MenuSoundService"/>'s singleton, as everything else in the port
         /// that plays one does.
         /// </param>
-        public DialogExecutor(ILogger<DialogExecutor> logger, GameSession session, IGameClock clock,
+        public DialogExecutor(ILogger<DialogExecutor> logger, GameSession session, GameClock clock,
             BakAgain.ResourceManagement.IResourceProviderService provider = null,
             GameData.Resources.Location.PendingTeleport teleport = null) {
             _logger = logger;

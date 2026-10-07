@@ -25,16 +25,16 @@ namespace BakAgain.Core.Services {
     /// </summary>
     public sealed class ChapterScenesPlayer {
         private readonly ILogger<ChapterScenesPlayer> _logger;
-        private readonly IFullMapView _fullMap;
+        private readonly FullMapView _fullMap;
         private readonly IDialogManager _dialogs;
 
         /// <summary><c>gmain_cutsc_play_fullmap_scene</c> (GMAIN.C:409) plays record
         /// <c>chapter + 0x186ab5</c>: the chapter's summary over the full map.</summary>
         private const int ChapterSummaryDialogBase = 0x186ab5;
-        private readonly ICutscenePresenter _presenter;
+        private readonly CutscenePresenter _presenter;
         private readonly ICutsceneView _view;
-        private readonly IBookPresenter _bookPresenter;
-        private readonly IBookView _bookView;
+        private readonly BookPresenter _bookPresenter;
+        private readonly BookView _bookView;
         private readonly IResourceProviderService _resources;
         private readonly IScreenNavigator _navigator;
 
@@ -65,10 +65,10 @@ namespace BakAgain.Core.Services {
             return _songs;
         }
 
-        public ChapterScenesPlayer(ILogger<ChapterScenesPlayer> logger, ICutscenePresenter presenter,
-            ICutsceneView view, IBookPresenter bookPresenter, IBookView bookView,
+        public ChapterScenesPlayer(ILogger<ChapterScenesPlayer> logger, CutscenePresenter presenter,
+            ICutsceneView view, BookPresenter bookPresenter, BookView bookView,
             IResourceProviderService resources, IScreenNavigator navigator,
-            IFullMapView fullMap, IDialogManager dialogs,
+            FullMapView fullMap, IDialogManager dialogs,
             BakAgain.Audio.MidiPlaybackManager music = null) {
             _fullMap = fullMap;
             _dialogs = dialogs;

@@ -12,7 +12,8 @@ namespace BakAgain.Core.Services {
     /// header worldX/worldY/mapIcon are the source header values the session loaded from (display
     /// metadata — not required byte-exact for interchangeability). Logs save coverage.
     /// </summary>
-    public sealed class SaveGameService : ISaveGameService {
+    /// <summary>Writes the current game state to a SAVE##.GAM slot, interchangeable with the DOS game.</summary>
+    public sealed class SaveGameService {
         private readonly GameSession _session;
         private readonly ISaveGameDirectoryService _saves;
         private readonly ILogger<SaveGameService> _logger;
@@ -20,7 +21,7 @@ namespace BakAgain.Core.Services {
         [Inject]
         public SaveGameService(
             GameSession session, ISaveGameDirectoryService saves, ILogger<SaveGameService> logger,
-            IGameClock clock, BakAgain.ResourceManagement.IResourceProviderService resources) {
+            GameClock clock, BakAgain.ResourceManagement.IResourceProviderService resources) {
             _resources = resources;
             _session = session;
             _saves = saves;
@@ -29,7 +30,7 @@ namespace BakAgain.Core.Services {
         }
 
         // Pending timers live in the clock, not in GameSession, so the writer is handed them here.
-        private readonly IGameClock _clock;
+        private readonly GameClock _clock;
         private readonly BakAgain.ResourceManagement.IResourceProviderService _resources;
 
         public async UniTask<bool> SaveAsync(string directoryName, int slotIndex, string saveName) {

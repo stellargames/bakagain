@@ -56,7 +56,7 @@
 - **GameViewportRegistry / IGameViewport** (`UI/`) — mutable screen-rect provider (cutscene/HUD/map are producers; DialogManager consumer — currently dead injection).
 
 ### C. Cutscene engine, books, animation  (`Assets/Scripts/CutScenes/`, `Book/`, `Shaders/`)
-- **CutscenePresenter / ICutscenePresenter** + **CutscenePlayer** + **CutscenePlayerFactory** + **CutsceneInstaller** — orchestrate ADS/TTM: load→preprocess→`ScriptProcessor`→frame loop. `PlayCutsceneAsync(name, view, anim, attractMode)`.
+- **CutscenePresenter** + **CutscenePlayer** + **CutscenePlayerFactory** + **CutsceneInstaller** — orchestrate ADS/TTM: load→preprocess→`ScriptProcessor`→frame loop. `PlayCutsceneAsync(name, view, anim, attractMode)`.
 - **CutsceneState (+Extensions)** — 4×(indexed+direct) RenderTexture buffers (A/B/C/X) + OutputBuffer, palette slots/cycling, materials. `ScreenBuffer.cs` is **vestigial**.
 - **CutsceneFrameProcessor / ICutsceneFrameProcessor** + **AnimationCommandMap** — per-frame command dispatch (~40 handlers in `AnimationCommands/`) + timing/palette-cycle hold.
 - **AnimationCommands/** — the ~40 frame-command handlers (buffer ops, DrawImage variants, palette, fade, dialog, audio). `LoadFontResource`/`SelectFontSlot` **throw NotImplementedException**.
