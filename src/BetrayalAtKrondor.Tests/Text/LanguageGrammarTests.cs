@@ -44,6 +44,77 @@ public class LanguageGrammarTests : IDisposable {
         Assert.Equal("Er sah  Owyn.", TextVariableResolver.Substitute(text, new[] { "Owyn" }, null, new[] { 1 }));
     }
 
+    // TASK-826: the German release's article and case codes, over the pack's per-creature grammar.
+    private static readonly int[] Creature1 = { DialogSlotTable.NoActor, DialogSlotTable.CreatureActor };
+
+    private static string German(string text, string name, int id) =>
+        TextVariableResolver.Substitute(text, new[] { "Owyn", name }, null, Creature1,
+            new[] { "", GermanCaseCodes.CreatureNoun(id) });
+
+    private static void UseGerman() => Use("de", new Dictionary<string, string> {
+        [GermanCaseCodes.Key("mnames:24", "gender")] = "m",            // Schurke, a weak masculine
+        [GermanCaseCodes.Key("mnames:24", "acc")] = "Schurken",
+        [GermanCaseCodes.Key("mnames:24", "dat")] = "Schurken",
+        [GermanCaseCodes.Key("mnames:24", "pl")] = "Schurken",
+        [GermanCaseCodes.Key("mnames:44", "gender")] = "f",            // Spinne
+        [GermanCaseCodes.Key("mnames:44", "pl")] = "Spinnen",
+        [GermanCaseCodes.Key("mnames:61", "gender")] = "n",            // a neuter with an adjective
+        [GermanCaseCodes.Key("mnames:61", "def")] = "Schwarze Ding",
+        [GermanCaseCodes.Key("mnames:61", "dat")] = "Schwarzen Ding",
+    });
+
+    [Theory]
+    [InlineData("@D @1ns lacht.", "Schurke", 24, "Der Schurke lacht.")]
+    [InlineData("Wir sehen @d @1as.", "Schurke", 24, "Wir sehen den Schurken.")]
+    [InlineData("Wir reden mit @d @1ds.", "Schurke", 24, "Wir reden mit dem Schurken.")]
+    [InlineData("Nur @i @1ns stand dort.", "Schurke", 24, "Nur ein Schurke stand dort.")]
+    [InlineData("@I @1ns kommt.", "Schurke", 24, "Ein Schurke kommt.")]
+    [InlineData("mit @i @1ds", "Schurke", 24, "mit einem Schurken")]
+    [InlineData("Die @1np laufen.", "Schurke", 24, "Die Schurken laufen.")]
+    [InlineData("@D @1ns lacht.", "Spinne", 44, "Die Spinne lacht.")]
+    [InlineData("Wir sehen @d @1as.", "Spinne", 44, "Wir sehen die Spinne.")]
+    [InlineData("Wir reden mit @d @1ds.", "Spinne", 44, "Wir reden mit der Spinne.")]
+    [InlineData("mit @i @1ds", "Spinne", 44, "mit einer Spinne")]
+    [InlineData("@I @1ns kommt.", "Spinne", 44, "Eine Spinne kommt.")]
+    [InlineData("@D @1ns lacht.", "Schwarzes Ding", 61, "Das Schwarze Ding lacht.")]
+    [InlineData("Wir sehen @d @1as.", "Schwarzes Ding", 61, "Wir sehen das Schwarze Ding.")]
+    [InlineData("Wir sehen @i @1as.", "Schwarzes Ding", 61, "Wir sehen ein Schwarzes Ding.")]
+    [InlineData("Wir reden mit @d @1ds.", "Schwarzes Ding", 61, "Wir reden mit dem Schwarzen Ding.")]
+    public void GermanArticlesAndCasesFollowTheCreaturesGender(string text, string name, int id, string expected) {
+        UseGerman();
+        Assert.Equal(expected, German(text, name, id));
+    }
+
+    [Fact]
+    public void AGermanCreatureWithNoGrammarIsMasculineInItsOwnName() {
+        UseGerman();
+        Assert.Equal("Wir sehen den Kobold.", German("Wir sehen @d @1as.", "Kobold", 53));
+        Assert.Equal("Ein Kobold kommt.", German("@I @1ns kommt.", "Kobold", 53));
+    }
+
+    [Fact]
+    public void GermanCodesLeaveThePlainTokensToTheResolver() {
+        UseGerman();
+        Assert.Equal("Owyn sah den Schurken, Owyn.", TextVariableResolver.Substitute("@0 sah @d @1as, @.",
+            new[] { "Owyn", "Schurke" }, "Owyn", Creature1, new[] { "", GermanCaseCodes.CreatureNoun(24) }));
+    }
+
+    [Fact]
+    public void OnlyGermanReadsTheGermanCodes() {
+        Use("nl");
+        Assert.Equal("@d Schurkens", German("@d @1ns", "Schurke", 24)); // unchanged behaviour
+    }
+
+    [Fact]
+    public void ACreatureSlotNamesItsNoun() {
+        var context = new DialogSlotContext { CreatureType = 24, CreatureNameOf = _ => "Schurke" };
+        var table = new DialogSlotTable();
+        DialogSlotPopulator.Assign(table, 1, 17, 0, context);
+        Assert.Equal("mnames:24", table.Nouns[1]);
+        DialogSlotPopulator.Assign(table, 1, 1, 0, context);
+        Assert.Equal("", table.Nouns[1]);
+    }
+
     [Fact]
     public void EnglishMoneyIsTheOriginalsWording() {
         Use("en");

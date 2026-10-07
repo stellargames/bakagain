@@ -23,7 +23,7 @@ public static class TextVariableResolver {
     /// <summary>Substitute against a full slot table, so the creature-name rules (which need each
     /// slot's KIND, not just its text) can apply.</summary>
     public static string Substitute(string text, DialogSlotTable table, string? currentActorName = null) =>
-        Substitute(text, table?.Names, currentActorName, table?.Kinds);
+        Substitute(text, table?.Names, currentActorName, table?.Kinds, table?.Nouns);
 
     /// <param name="currentActorName">The name a bare <c>@</c> resolves to (the engine's
     /// <c>nEvtArgActor0</c>). Empty leaves a bare <c>@</c> verbatim rather than silently deleting
@@ -32,7 +32,7 @@ public static class TextVariableResolver {
     /// <see cref="DialogSlotTable.CreatureActor"/> take the article/possessive reshaping; without
     /// kinds every slot is treated as an ordinary name.</param>
     public static string Substitute(string text, IReadOnlyList<string>? slots,
-        string? currentActorName = null, IReadOnlyList<int>? kinds = null) {
+        string? currentActorName = null, IReadOnlyList<int>? kinds = null, IReadOnlyList<string>? nouns = null) {
         if (string.IsNullOrEmpty(text)) {
             return text;
         }
@@ -49,6 +49,9 @@ public static class TextVariableResolver {
                     : slotName.Length > 0 ? "person" : "none");
             }
             text = Text.UiTemplates.FormatPattern(text, kindArgs);
+        }
+        if (Text.UiStrings.Catalog.Locale == "de") {
+            text = GermanCaseCodes.Apply(text, slots, nouns); // @d @1as, @D @1ns, @i @1ns (TASK-826)
         }
         var sb = new StringBuilder(text.Length + 16);
         for (int i = 0; i < text.Length; i++) {

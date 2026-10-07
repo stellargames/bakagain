@@ -133,6 +133,7 @@ public static class DialogSlotPopulator {
             return;
         }
         table.Kinds[slot] = DialogSlotTable.NoActor;
+        table.Nouns[slot] = "";
 
         if (kind >= 1 && kind <= 6) {
             // A specific party member, one-based.
@@ -168,6 +169,7 @@ public static class DialogSlotPopulator {
             case KindCreatureName:
                 table.Kinds[slot] = DialogSlotTable.CreatureActor;
                 table.Names[slot] = context.CreatureNameOf?.Invoke(context.CreatureType) ?? "";
+                table.Nouns[slot] = GermanCaseCodes.CreatureNoun(context.CreatureType);
                 return;
             case KindObjectName:
                 table.Names[slot] = context.ObjectNameOf?.Invoke(context.KeyObjectId) ?? "";

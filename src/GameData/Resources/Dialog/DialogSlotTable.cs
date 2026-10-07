@@ -30,6 +30,10 @@ public sealed class DialogSlotTable {
     /// <see cref="NoActor"/> / <see cref="CreatureActor"/>.</summary>
     public int[] Kinds { get; } = { NoActor, NoActor, NoActor, NoActor, NoActor, NoActor };
 
+    /// <summary>The noun each slot holds, for a language that inflects it (<see cref="GermanCaseCodes"/>):
+    /// <c>mnames:&lt;id&gt;</c> for a creature, empty otherwise.</summary>
+    public string[] Nouns { get; } = { "", "", "", "", "", "" };
+
     /// <summary>Clear every slot — <c>dialog_combatant_name_table_init</c>'s first loop
     /// (DIALOG.C:783-787). The seeding that follows it lives in
     /// <see cref="DialogSlotPopulator.CreateForPlay"/>.</summary>
@@ -37,6 +41,7 @@ public sealed class DialogSlotTable {
         for (int i = 0; i < SlotCount; i++) {
             Names[i] = "";
             Kinds[i] = NoActor;
+            Nouns[i] = "";
         }
     }
 

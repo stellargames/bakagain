@@ -79,6 +79,10 @@ public sealed class LanguagePack {
         return false;
     }
 
+    /// <summary>The pack's translated entries whose key starts with <paramref name="prefix"/>.</summary>
+    public IEnumerable<KeyValuePair<string, string>> WithPrefix(string prefix) =>
+        _text.Where(e => e.Key.StartsWith(prefix, System.StringComparison.Ordinal) && !string.IsNullOrEmpty(e.Value));
+
     /// <summary>The translation of a string whose key is <paramref name="key"/> and whose English is
     /// <paramref name="english"/> — by key, or for the pseudo language from the English itself.</summary>
     public bool TryTranslate(string key, string english, out string text) {

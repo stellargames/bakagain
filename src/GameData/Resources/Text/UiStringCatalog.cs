@@ -75,6 +75,10 @@ public sealed class UiStringCatalog {
                 translated[key] = text;
             }
         }
+        // A noun's gender and case forms exist only in the language that has them (TASK-826).
+        foreach (KeyValuePair<string, string> kv in pack.WithPrefix(Dialog.GermanCaseCodes.Prefix)) {
+            translated[kv.Key] = kv.Value;
+        }
         return new UiStringCatalog(translated, string.IsNullOrEmpty(pack.Locale) ? Locale : pack.Locale);
     }
 

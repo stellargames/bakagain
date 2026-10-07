@@ -1200,6 +1200,11 @@ internal static class Program {
             .Select(r => r.Resource).OfType<GameData.Resources.Menu.UserInterface>();
         entries.AddRange(GameData.Resources.Text.LetterHotkeys.Used(pages)
             .Select(c => new ResourceExtraction.Text.TextEntry(GameData.Resources.Text.LetterHotkeys.Key(c), c.ToString(), "BaK-Again")));
+        // Each creature's gender and case forms, for a language that inflects (TASK-826).
+        const string creature = "base:mnames:";
+        entries.AddRange(entries.Where(e => e.Key.StartsWith(creature, StringComparison.Ordinal)).ToList()
+            .SelectMany(e => GameData.Resources.Dialog.GermanCaseCodes.Fields.Select(f => new ResourceExtraction.Text.TextEntry(
+                GameData.Resources.Dialog.GermanCaseCodes.Key("mnames:" + e.Key.Substring(creature.Length), f), e.Text, "BaK-Again"))));
         using (var writer = new StreamWriter(outPath, append: false, new UTF8Encoding(false))) {
             // A fixed caption's room is told in characters, measured in the font that draws it.
             var font = provider.GetResource<GameData.Resources.Font.FontResource>("GAME.FNT");

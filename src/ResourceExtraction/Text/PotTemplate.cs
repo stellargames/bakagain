@@ -39,6 +39,13 @@ public static class PotTemplate {
                     Text = "The key that presses this letter's buttons: one character. Keys left empty stay English; a letter moved away stops working.",
                 });
             }
+            if (entry.Key.StartsWith(GameData.Resources.Dialog.GermanCaseCodes.Prefix, System.StringComparison.Ordinal)) {
+                comments.Add(new POExtractedComment {
+                    Text = "Grammar of this creature's name, for dialog codes like @d @1as (see language-packs.md). "
+                        + "gender: m, f or n. def: the form after der/die/das. acc, dat: the accusative and dative. pl: the plural. "
+                        + "Leave empty where the name itself is right, or in a language without these codes.",
+                });
+            }
             if (GameData.Resources.Text.UiTemplates.IsTemplate(entry.Key)) {
                 // Weblate's flag for ICU MessageFormat: it then checks placeholders and plurals.
                 comments.Add(new POFlagsComment { Flags = new HashSet<string> { "icu-message-format" } });
