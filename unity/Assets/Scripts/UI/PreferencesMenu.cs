@@ -159,6 +159,12 @@ namespace BakAgain.UI {
 
         private void Close() => _navigator.Pop().Forget();
 
+        /// <summary>
+        /// OK applied the settings. An opener that closes this screen itself answers true — the
+        /// in-game menu resumes play (MAINMENU.C:240, TASK-854); otherwise OK pops back to the opener.
+        /// </summary>
+        public Func<bool> Applied { get; set; }
+
         public void PrimaryAction(int menuEntryActionId) {
             if (_working == null) {
                 return;
@@ -196,7 +202,9 @@ namespace BakAgain.UI {
                     if (!string.IsNullOrEmpty(_pendingLanguage) && _pendingLanguage != LanguagePacks.Current.Locale) {
                         BakResourceSettings.Language = _pendingLanguage;
                     }
-                    Close();
+                    if (Applied?.Invoke() != true) {
+                        Close();
+                    }
                     break;
                 case ButtonCancel:
                 case ButtonCancelAlt:

@@ -55,6 +55,28 @@ namespace BakAgain.UI {
             _resources = resources;
             _navigator = navigator;
             saveGameMenu.Saved += ResumeAfterSave;
+            preferencesMenu.Applied = ResumeAfterPreferences;
+        }
+
+        /// <summary>REQ_OPT1 action 25: Preferences.</summary>
+        private const int ActionPreferences = 25;
+
+        /// <summary>The last action taken here opened Preferences (the title menu shares that screen).</summary>
+        private bool _openedPreferences;
+
+        /// <summary>
+        /// Preferences confirmed from this menu goes straight back to the world, like a save:
+        /// <c>mainmenu_save_prefs_menu_run</c> returning 1 (OK) ends the in-game menu with result 0
+        /// (MAINMENU.C:240-243). Its Cancel returns 0 and the menu is shown again.
+        /// </summary>
+        private bool ResumeAfterPreferences() {
+            if (!_openedPreferences) {
+                return false;
+            }
+            _openedPreferences = false;
+            RestoreWorldTrack();
+            _navigator.Pop(2).Forget();
+            return true;
         }
 
         private IScreenNavigator _navigator;
@@ -104,6 +126,7 @@ namespace BakAgain.UI {
         /// on them would put the world track back for the moment the destination takes to load.
         /// </remarks>
         public void PrimaryAction(int menuEntryActionId) {
+            _openedPreferences = menuEntryActionId == ActionPreferences;
             if (menuEntryActionId == ActionCancel) {
                 RestoreWorldTrack();
             }
