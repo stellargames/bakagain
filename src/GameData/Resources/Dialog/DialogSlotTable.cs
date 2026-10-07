@@ -31,7 +31,7 @@ public sealed class DialogSlotTable {
     public int[] Kinds { get; } = { NoActor, NoActor, NoActor, NoActor, NoActor, NoActor };
 
     /// <summary>The noun each slot holds, for a language that inflects it (<see cref="GermanCaseCodes"/>):
-    /// <c>mnames:&lt;id&gt;</c> for a creature, empty otherwise.</summary>
+    /// <c>mnames:&lt;id&gt;</c> for a creature, <c>objinfo:&lt;id&gt;</c> for an item, empty otherwise.</summary>
     public string[] Nouns { get; } = { "", "", "", "", "", "" };
 
     /// <summary>Clear every slot — <c>dialog_combatant_name_table_init</c>'s first loop

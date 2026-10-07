@@ -161,16 +161,18 @@ A German pack can write a creature slot with an article and a case, as the Germa
 `@d`/`@D` is der/die/das (upper case starts a sentence), `@i`/`@I` is ein/eine, and the slot carries a
 case and number — `@1ns` nominative, `@1as` accusative, `@1ds` dative, `@1np` plural. "Wir sehen @d @1as" reads
 "Wir sehen den Schurken". The articles are the standard German table; the
-words come from the template's `port:grammar:mnames:<id>:<field>` entries, one set per creature:
+words come from the template's `port:grammar:mnames:<id>:<field>` entries, one set per creature, and
+`port:grammar:objinfo:<id>:<field>`, one set per item (a slot can hold either):
 
 | field | what to write |
 |---|---|
-| `gender` | `m`, `f` or `n` |
+| `gender` | `m`, `f` or `n`; `pl` for a noun that is plural itself; `name` for one that never takes an article (a person, "Annas Buch") |
 | `def` | the name after der/die/das, where an adjective changes ("Schwarze Würger") |
 | `acc`, `dat` | the accusative and dative ("Schurken") |
 | `pl` | the plural, as after "die" |
 
-Leave a field empty where the name itself is right. A creature with no gender is treated as masculine.
+Leave a field empty where the name itself is right. A noun with no gender is treated as masculine; a
+slot holding a party member is a name.
 These codes are read only when the pack's language is `de`.
 
 ## Sharing a pack

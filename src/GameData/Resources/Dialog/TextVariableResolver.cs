@@ -51,7 +51,7 @@ public static class TextVariableResolver {
             text = Text.UiTemplates.FormatPattern(text, kindArgs);
         }
         if (Text.UiStrings.Catalog.Locale == "de") {
-            text = GermanCaseCodes.Apply(text, slots, nouns); // @d @1as, @D @1ns, @i @1ns (TASK-826)
+            text = GermanCaseCodes.Apply(text, slots, nouns, kinds); // @d @1as, @D @1ns, @i @1ns (TASK-826)
         }
         var sb = new StringBuilder(text.Length + 16);
         for (int i = 0; i < text.Length; i++) {

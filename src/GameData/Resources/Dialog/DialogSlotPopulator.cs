@@ -173,6 +173,7 @@ public static class DialogSlotPopulator {
                 return;
             case KindObjectName:
                 table.Names[slot] = context.ObjectNameOf?.Invoke(context.KeyObjectId) ?? "";
+                table.Nouns[slot] = GermanCaseCodes.ObjectNoun(context.KeyObjectId);
                 return;
             case KindShopOrTavernKeeper:
                 table.Names[slot] = UiStrings.Get(context.IsRestEncounter

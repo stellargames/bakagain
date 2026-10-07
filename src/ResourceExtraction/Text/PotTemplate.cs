@@ -41,8 +41,8 @@ public static class PotTemplate {
             }
             if (entry.Key.StartsWith(GameData.Resources.Dialog.GermanCaseCodes.Prefix, System.StringComparison.Ordinal)) {
                 comments.Add(new POExtractedComment {
-                    Text = "Grammar of this creature's name, for dialog codes like @d @1as (see language-packs.md). "
-                        + "gender: m, f or n. def: the form after der/die/das. acc, dat: the accusative and dative. pl: the plural. "
+                    Text = "Grammar of this creature's or item's name, for dialog codes like @d @1as (see language-packs.md). "
+                        + "gender: m, f, n, pl (a plural noun) or name (no article: a person, \"Annas Buch\"). def: the form after der/die/das. acc, dat: the accusative and dative. pl: the plural. "
                         + "Leave empty where the name itself is right, or in a language without these codes.",
                 });
             }

@@ -61,7 +61,40 @@ public class LanguageGrammarTests : IDisposable {
         [GermanCaseCodes.Key("mnames:61", "gender")] = "n",            // a neuter with an adjective
         [GermanCaseCodes.Key("mnames:61", "def")] = "Schwarze Ding",
         [GermanCaseCodes.Key("mnames:61", "dat")] = "Schwarzen Ding",
+        [GermanCaseCodes.Key("mnames:15", "gender")] = "name",         // a person
+        [GermanCaseCodes.Key("objinfo:7", "gender")] = "f",            // an item with an adjective
+        [GermanCaseCodes.Key("objinfo:7", "def")] = "rote Tasse",
+        [GermanCaseCodes.Key("objinfo:7", "dat")] = "roten Tasse",
+        [GermanCaseCodes.Key("objinfo:8", "gender")] = "pl",           // a plural noun
+        [GermanCaseCodes.Key("objinfo:8", "dat")] = "Stiefeln",
+        [GermanCaseCodes.Key("objinfo:9", "gender")] = "name",         // a possessive name
     });
+
+    private static string GermanItem(string text, string name, int id) =>
+        TextVariableResolver.Substitute(text, new[] { "Owyn", name }, null, null,
+            new[] { "", GermanCaseCodes.ObjectNoun(id) });
+
+    [Theory]
+    [InlineData("Er legte @d @1as hin.", "Rote Tasse", 7, "Er legte die rote Tasse hin.")]
+    [InlineData("mit @d @1ds", "Rote Tasse", 7, "mit der roten Tasse")]
+    [InlineData("@D @1ns ist leer.", "Rote Tasse", 7, "Die rote Tasse ist leer.")]
+    [InlineData("Er legte @d @1as hin.", "Stiefel", 8, "Er legte die Stiefel hin.")]
+    [InlineData("mit @d @1ds", "Stiefel", 8, "mit den Stiefeln")]
+    [InlineData("mit @i @1ds", "Stiefel", 8, "mit Stiefeln")]
+    [InlineData("Er legte @d @1as hin.", "Annas Buch", 9, "Er legte Annas Buch hin.")]
+    [InlineData("@D @1ns ist alt.", "Annas Buch", 9, "Annas Buch ist alt.")]
+    public void GermanItemsFollowTheirOwnGrammar(string text, string name, int id, string expected) {
+        UseGerman();
+        Assert.Equal(expected, GermanItem(text, name, id));
+    }
+
+    [Fact]
+    public void APersonTakesNoArticle() {
+        UseGerman();
+        Assert.Equal("Wir sehen Gorath.", German("Wir sehen @d @1as.", "Gorath", 15));
+        // A party member in the slot is a person whatever the pack says.
+        Assert.Equal("Owyn lacht.", TextVariableResolver.Substitute("@D @0ns lacht.", new[] { "Owyn" }, null, new[] { 1 }, new[] { "" }));
+    }
 
     [Theory]
     [InlineData("@D @1ns lacht.", "Schurke", 24, "Der Schurke lacht.")]
@@ -113,6 +146,14 @@ public class LanguageGrammarTests : IDisposable {
         Assert.Equal("mnames:24", table.Nouns[1]);
         DialogSlotPopulator.Assign(table, 1, 1, 0, context);
         Assert.Equal("", table.Nouns[1]);
+    }
+
+    [Fact]
+    public void AnObjectSlotNamesItsNoun() {
+        var context = new DialogSlotContext { KeyObjectId = 12, ObjectNameOf = _ => "Tasse" };
+        var table = new DialogSlotTable();
+        DialogSlotPopulator.Assign(table, 1, 18, 0, context);
+        Assert.Equal("objinfo:12", table.Nouns[1]);
     }
 
     [Fact]

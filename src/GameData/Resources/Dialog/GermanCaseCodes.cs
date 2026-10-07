@@ -15,11 +15,13 @@ using System.Text.RegularExpressions;
 /// the standard German articles and the forms are pack data a translator can correct. Per noun the
 /// pack carries, as ordinary PO entries (<see cref="Key"/>):</para>
 /// <list type="bullet">
-/// <item><c>gender</c> — <c>m</c>, <c>f</c> or <c>n</c>.</item>
+/// <item><c>gender</c> — <c>m</c>, <c>f</c> or <c>n</c>; <c>pl</c> for a noun that is plural itself
+/// ("Stiefel": die/die/den); <c>name</c> for a person or a possessive name ("Gorath",
+/// "Annas Buch"), which never takes an article. A slot holding a party member is a name too.</item>
 /// <item><c>def</c> — the nominative after der/die/das, where an adjective changes: the name itself
 /// ("Schwarzer Würger") is the form after "ein" and without an article; "der Schwarze Würger".</item>
-/// <item><c>acc</c>, <c>dat</c> — accusative and dative ("den Schurken", "dem Schurken"). A neuter's
-/// accusative is its nominative, so it follows the nominative's rule instead.</item>
+/// <item><c>acc</c>, <c>dat</c> — accusative and dative ("den Schurken", "dem Schurken"). Only a
+/// masculine's accusative differs from its nominative, so any other follows the nominative's rule.</item>
 /// <item><c>pl</c> — the plural, as after "die".</item>
 /// </list>
 /// <para><b>Fallbacks.</b> A form the pack leaves empty is the name, which is right for most nouns
@@ -35,6 +37,9 @@ public static class GermanCaseCodes {
 
     /// <summary>The noun a creature slot holds, e.g. <c>mnames:53</c>.</summary>
     public static string CreatureNoun(int creatureId) => "mnames:" + creatureId;
+
+    /// <summary>The noun an item slot holds, e.g. <c>objinfo:24</c>.</summary>
+    public static string ObjectNoun(int objectId) => "objinfo:" + objectId;
 
     /// <summary>The PO key of one field, e.g. <c>port:grammar:mnames:53:gender</c>.</summary>
     public static string Key(string noun, string field) => Prefix + noun + ":" + field;
@@ -52,7 +57,8 @@ public static class GermanCaseCodes {
 
     /// <summary>Replace every coded slot in <paramref name="text"/> by its article and form; a plain
     /// <c>@N</c> is left for the resolver.</summary>
-    public static string Apply(string text, IReadOnlyList<string>? slots, IReadOnlyList<string>? nouns) =>
+    public static string Apply(string text, IReadOnlyList<string>? slots, IReadOnlyList<string>? nouns,
+        IReadOnlyList<int>? kinds = null) =>
         Code.Replace(text, m => {
             int n = m.Groups[2].Value[0] - '0';
             string name = slots != null && n < slots.Count ? slots[n] ?? "" : "";
@@ -62,12 +68,15 @@ public static class GermanCaseCodes {
             char article = m.Groups[1].Success ? m.Groups[1].Value[0] : '\0';
             bool definite = article is 'd' or 'D';
 
-            int gender = plural ? 3 : Get(noun, "gender") switch { "f" => 1, "n" => 2, _ => 0 };
+            int kind = kinds != null && n < kinds.Count ? kinds[n] : DialogSlotTable.NoActor;
+            bool partyMember = kind != DialogSlotTable.NoActor && kind != DialogSlotTable.CreatureActor;
+            string g = partyMember ? "name" : Get(noun, "gender");
+            int gender = plural ? 3 : g switch { "f" => 1, "n" => 2, "pl" => 3, _ => 0 };
             string form = plural ? Or(Get(noun, "pl"), name)
-                : (@case == 0 || (@case == 1 && gender == 2)) ? (definite ? Or(Get(noun, "def"), name) : name)
+                : (@case == 0 || (@case == 1 && gender != 0)) ? (definite ? Or(Get(noun, "def"), name) : name)
                 : Or(Get(noun, @case == 1 ? "acc" : "dat"), name);
 
-            string word = article == '\0' ? "" : (definite ? Definite : Indefinite)[@case, gender];
+            string word = article == '\0' || g == "name" ? "" : (definite ? Definite : Indefinite)[@case, gender];
             if (word.Length == 0) {
                 return form;
             }
