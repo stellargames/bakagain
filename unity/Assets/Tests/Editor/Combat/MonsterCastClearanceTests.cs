@@ -33,7 +33,11 @@ namespace BakAgain.Tests.Editor.Combat {
                 _ => new MonsterTurnResolver.Profile(0, 40, canCastSpells: true, canShoot: false,
                     spellcastPattern: CasterPattern, crossbowAccuracy: 0, healthPercent: 100,
                     castingSkill: castingSkill),
-                n => 50, null, isUnderground: false, canCast: (_, __) => false);
+                // A book with one kind-1 spell: a target with no spell to cast at it is a failed
+                // attempt, not a turn (TASK-844), so the target readings need something castable.
+                // n == 2 is the picker's coin flip, kept heads.
+                n => n == 2 ? 0 : 50, null, isUnderground: false, canCast: (_, id) => id == 22,
+                spells: Book((22, 1)));
 
         /// <summary>A party member with the acting monster's OWN PACK crowded round it.</summary>
         /// <remarks>
@@ -152,6 +156,65 @@ namespace BakAgain.Tests.Editor.Combat {
             caster.Health = 11;
 
             Assert.IsNotNull(Caster(100).Resolve(fight, caster).Target);
+        }
+
+        // ------------------------------------------------ TASK-844: the spell kind per pass
+
+        /// <summary>
+        /// A catalogue dense up to the highest id — the picker scans 0..Count-1, as the shipped
+        /// table is — with only the listed spells martial.
+        /// </summary>
+        internal static System.Collections.Generic.Dictionary<int, GameData.Resources.Spells.Spell>
+            Book(params (int Id, int Kind)[] spells) {
+            var book = new System.Collections.Generic.Dictionary<int, GameData.Resources.Spells.Spell>();
+            for (int i = 0; i <= 44; i++) {
+                book[i] = new GameData.Resources.Spells.Spell("filler");
+            }
+            foreach ((int id, int kind) in spells) {
+                book[id] = new GameData.Resources.Spells.Spell("S") { IsMartial = true, TargetingType = kind };
+            }
+            return book;
+        }
+
+        /// <summary>Every roll 0: every attempt commits and every coin flip keeps its candidate.</summary>
+        private static MonsterTurnResolver CasterWithBook(int castingSkill,
+            System.Collections.Generic.Dictionary<int, GameData.Resources.Spells.Spell> book) =>
+            new MonsterTurnResolver(
+                _ => new MonsterTurnResolver.Profile(0, 40, canCastSpells: true, canShoot: false,
+                    spellcastPattern: CasterPattern, crossbowAccuracy: 0, healthPercent: 100,
+                    castingSkill: castingSkill),
+                n => 0, null, isUnderground: false, canCast: (_, id) => book[id].IsMartial,
+                spells: book);
+
+        [Test]
+        public void TheFirstPassTakesKindZeroBeforeAHigherKindOne() {
+            // CBTAI.C:160-163: kind 0 over the whole book first, kind 1 only on -1. One high-to-low
+            // scan accepting either kind picked 22 here.
+            CombatEncounter fight = CrowdedTarget();
+            MonsterTurnResolver.Decision d =
+                CasterWithBook(100, Book((4, 0), (22, 1))).Resolve(fight, fight.Enemies[0]);
+            Assert.AreEqual(4, d.SpellId);
+            Assert.IsFalse(d.RollsToHit, "the first pass's check is the line of fire");
+        }
+
+        [Test]
+        public void TheRetryTakesKindOneOnlyAndRollsToHit() {
+            // A novice's first pass refuses the crowded target; the retry (CBTAI.C:174) asks for
+            // kind 1 alone and casts through the to-hit roll (:33-42).
+            CombatEncounter fight = CrowdedTarget();
+            MonsterTurnResolver.Decision d =
+                CasterWithBook(0, Book((4, 0), (22, 1))).Resolve(fight, fight.Enemies[0]);
+            Assert.AreEqual(22, d.SpellId);
+            Assert.IsTrue(d.RollsToHit);
+        }
+
+        [Test]
+        public void ARetryWithOnlyKindZeroCastsNothing() {
+            CombatEncounter fight = CrowdedTarget();
+            MonsterTurnResolver.Decision d =
+                CasterWithBook(0, Book((4, 0))).Resolve(fight, fight.Enemies[0]);
+            Assert.AreEqual(OpportunisticCasts.NoSpell, d.SpellId);
+            Assert.IsNotNull(d.Fallback, "no spell on any slot ends in the caster's tail");
         }
     }
 }

@@ -2229,7 +2229,11 @@ using GameData.Resources.Scene;
                 poolPercent: PoolPercentOf(live),
                 // The clearance the cast path demands comes off the caster's own casting skill,
                 // the same way the shot's comes off its crossbow — MonsterCasterTurn.ClearanceFor.
-                castingSkill: stats.AccuracyCasting.Min);
+                // *** THE LIVE STAT, NOT THE TEMPLATE'S MINIMUM. *** combat_ai_execute_turn reads
+                // stat_actor_get(actor, 7, 0) (CBTAI.C:153). SAVE05's Rogue Mage rolled 78 against a
+                // MONST30 minimum of 65 — clearance 1 in the original, 2 here — so the port's first
+                // pass refused targets the original's took and fell to the kind-1-only retry (TASK-844).
+                castingSkill: StatBase(live, GameData.ActorAttribute.AccuracyCasting));
         }
 
         /// <summary>
@@ -4598,12 +4602,21 @@ using GameData.Resources.Scene;
                 string Who(Combatant c) => c == null ? "-"
                     : c.IsPartyMember ? "P" + fight.Party.IndexOf(c) : "E" + fight.Enemies.IndexOf(c);
                 _logger?.LogDebug($"AI turn: {Who(monster)} ({fromX},{fromY})->({monster.X},{monster.Y}) "
-                    + $"{decision.Action} on {Who(decision.Target)} flags={monster.Flags}");
+                    + $"{decision.Action} on {Who(decision.Target)} spell={decision.SpellId}"
+                    + $"{(decision.RollsToHit ? " retry" : "")} flags={monster.Flags}");
             }
             if (decision.SpellId == GameData.Resources.Combat.OpportunisticCasts.NoSpell
                 || decision.Target == null || _spells?.Spells == null
                 || !_spells.Spells.TryGetValue(decision.SpellId,
                     out GameData.Resources.Spells.Spell spell)) {
+                return;
+            }
+
+            // *** THE RETRY PASS ROLLS BEFORE IT CASTS. *** A miss only turns the caster to face the
+            // target — no cast, no cost — and the turn is still spent (CBTAI.C:33-42, TASK-844).
+            if (decision.RollsToHit && !Combat.CastHits(monster, decision.Target, _random)) {
+                GameData.Resources.Combat.CombatEncounter.FaceToward(monster, decision.Target);
+                _logger?.LogDebug($"AI turn: retry cast {decision.SpellId} missed, faced target");
                 return;
             }
 

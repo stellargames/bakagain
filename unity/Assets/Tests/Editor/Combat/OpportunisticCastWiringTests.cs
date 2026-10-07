@@ -75,17 +75,17 @@ namespace BakAgain.Tests.Editor.Combat {
         }
 
         [Test]
-        public void AnOrdinaryCastCarriesNoSpellId() {
-            // *** The distinction a consumer must not flatten. *** Only the opportunistic passes
-            // name a spell; the ordinary cast path picks one later and elsewhere. Reading -1 as
-            // "no cast" would drop every ordinary monster cast in the game.
+        public void AnOrdinaryCastWithNothingToCastFallsToTheCastersTail() {
+            // No catalogue, so the ordinary path picks no spell on any slot: every attempt fails
+            // and the turn ends in combat_ai_take_turn's tail (CBTAI.C:363-381, TASK-844) — it
+            // used to stop on the first target found and cast nothing.
             CombatEncounter fight = Facing(enemyClass: 2);
             MonsterTurnResolver.Decision d =
                 Caster((_, __) => true).Resolve(fight, fight.Party[0]);
 
             Assert.AreEqual(AiAction.Cast, d.Action);
             Assert.AreEqual(OpportunisticCasts.NoSpell, d.SpellId);
-            Assert.IsNotNull(d.Target, "the ordinary path still picks somebody");
+            Assert.IsNotNull(d.Fallback, "the caster's tail takes the turn");
         }
 
         [Test]

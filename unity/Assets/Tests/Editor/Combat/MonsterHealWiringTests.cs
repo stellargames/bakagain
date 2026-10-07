@@ -35,7 +35,8 @@ namespace BakAgain.Tests.Editor.Combat {
             return c;
         }
 
-        private MonsterTurnResolver Resolver(System.Func<Combatant, int, bool> canCast) =>
+        private MonsterTurnResolver Resolver(System.Func<Combatant, int, bool> canCast,
+            System.Collections.Generic.IReadOnlyDictionary<int, GameData.Resources.Spells.Spell> spells = null) =>
             new MonsterTurnResolver(
                 c => new MonsterTurnResolver.Profile(0, 100, canCastSpells: true, canShoot: false,
                     spellcastPattern: PatternWhoseFirstSlotIsTheHeal, crossbowAccuracy: 0,
@@ -43,7 +44,8 @@ namespace BakAgain.Tests.Editor.Combat {
                 // 50 clears the morale check, commits the attempt (< 91) and is the RND(80) the
                 // spell choice is tested against. See OpportunisticCastWiringTests for why 0 and
                 // 100 each fail one of those.
-                n => 50, null, isUnderground: false, canCast: canCast);
+                // n == 2 is the spell picker's coin flip, kept heads.
+                n => n == 2 ? 0 : 50, null, isUnderground: false, canCast: canCast, spells: spells);
 
         [Test]
         public void AWoundedAllyDrawsTheRestore() {
@@ -118,10 +120,13 @@ namespace BakAgain.Tests.Editor.Combat {
             fight.Party.Add(Actor(2, health: 20, percent: 100));
             fight.Enemies.Add(Actor(0, health: 20, percent: 100));
 
-            MonsterTurnResolver.Decision d = Resolver((_, __) => true).Resolve(fight, caster);
+            // One kind-1 spell to attack with: with nothing to cast, the attempt fails and the row
+            // walks on (TASK-844).
+            MonsterTurnResolver.Decision d =
+                Resolver((_, __) => true, MonsterCastClearanceTests.Book((22, 1))).Resolve(fight, caster);
 
-            Assert.AreEqual(MonsterHealTurn.NoSpell, d.SpellId);
-            Assert.IsNotNull(d.Target, "and it picks an enemy instead");
+            Assert.AreEqual(22, d.SpellId, "the attack, not a heal");
+            Assert.AreSame(fight.Enemies[0], d.Target, "and it picks an enemy instead");
         }
 
         [Test]

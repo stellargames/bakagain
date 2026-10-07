@@ -2211,6 +2211,17 @@ namespace BakAgain.Combat {
         /// </remarks>
         public bool SurchargeNextCast { get; set; }
 
+        /// <summary>
+        /// A cast's to-hit roll — <c>combatenc_skill_check_random(caster, target, casting, -1)</c>
+        /// (CBENC.C:495). Rolled inside the cast for kind 0 (CSPELL.C:1297) and BEFORE it by the AI's
+        /// retry pass (<c>combat_ai_resolve_attack_attempt</c>, CBTAI.C:36).
+        /// </summary>
+        public bool CastHits(Combatant caster, Combatant target, System.Func<int, int> roll) =>
+            CombatFormulas.RangedHits(roll(100), CombatFormulas.RangedHitChance(
+                StatValue(StatsFor(caster), ActorAttribute.AccuracyCasting),
+                CombatGrid.ChebyshevDistance(caster.X, caster.Y, target.X, target.Y),
+                SpellHitResolution.AmmunitionBonus));
+
         /// <param name="groundCell">
         /// The cell the cast was aimed at, for a spell whose target is a CELL rather than an actor
         /// (<c>SpellTargetingRules.CastsWithoutATarget</c>). Null for an actor-aimed cast. The
@@ -2311,10 +2322,7 @@ namespace BakAgain.Combat {
             bool hit = SpellHitResolution.AutomaticResult;
             if (SpellHitResolution.CanMiss(spell.TargetingType, costWasNegated,
                     hasTarget: target != null)) {
-                hit = CombatFormulas.RangedHits(roll(100), CombatFormulas.RangedHitChance(
-                    StatValue(casterStats, ActorAttribute.AccuracyCasting),
-                    CombatGrid.ChebyshevDistance(caster.X, caster.Y, target.X, target.Y),
-                    SpellHitResolution.AmmunitionBonus));
+                hit = CastHits(caster, target, roll);
             }
             if (caster != null) {
                 caster.FlightMissEnd = null;

@@ -107,16 +107,10 @@ namespace BakAgain.Combat {
             public readonly Combatant Target;
 
             /// <summary>
-            /// The specific spell an opportunistic pass reached for, or
-            /// <see cref="OpportunisticCasts.NoSpell"/>.
+            /// The spell this turn casts — opportunistic, heal or the ordinary pick
+            /// (<c>cspell_ai_pick_castable_spell</c>, TASK-379) — or
+            /// <see cref="OpportunisticCasts.NoSpell"/> when the caster's slots cast nothing.
             /// </summary>
-            /// <remarks>
-            /// <b>Only the opportunistic passes name a spell.</b> An ordinary
-            /// <see cref="AiAction.Cast"/> leaves this unset, because the original picks that
-            /// spell later and elsewhere (<c>cspell_ai_pick_castable_spell</c>, keyed on the
-            /// target it just chose) — so a caller that treated -1 here as "no cast" would drop
-            /// every ordinary cast in the game.
-            /// </remarks>
             public readonly int SpellId;
 
             /// <summary>
@@ -154,10 +148,18 @@ namespace BakAgain.Combat {
             /// <summary>A cap on how far the move walks, or null for the actor's speed.</summary>
             public readonly int? MaxSteps;
 
+            /// <summary>
+            /// The retry pass's cast: roll to hit first, and on a miss only turn to face the target —
+            /// <c>combat_ai_resolve_attack_attempt</c> (CBTAI.C:33-42). The turn is spent either way.
+            /// </summary>
+            public readonly bool RollsToHit;
+
             public Decision(AiAction action, Combatant target,
                 int spellId = OpportunisticCasts.NoSpell,
                 MonsterTurnRoutines.RangedTurn ranged = default, int? castPower = null,
-                bool clearsTargetAfterTurn = false, AiAction? fallback = null, int? maxSteps = null) {
+                bool clearsTargetAfterTurn = false, AiAction? fallback = null, int? maxSteps = null,
+                bool rollsToHit = false) {
+                RollsToHit = rollsToHit;
                 ClearsTargetAfterTurn = clearsTargetAfterTurn;
                 Fallback = fallback;
                 MaxSteps = maxSteps;
@@ -304,7 +306,7 @@ namespace BakAgain.Combat {
                     return new Decision(AiAction.Retreat, monster.Target);
                 }
 
-                (Combatant castTarget, int spellId, bool recordAsTarget) =
+                (Combatant castTarget, int spellId, bool recordAsTarget, bool rollsToHit) =
                     PickCastTarget(encounter, monster, profile);
                 // *** THE SUPPORT TURN'S RECIPIENT IS NOT A TARGET. *** It is an ALLY, and this
                 // field feeds the target-selection heuristics — see TryHeal.
@@ -313,7 +315,8 @@ namespace BakAgain.Combat {
                 }
                 // combat_ai_take_turn ends `actor->inner->target = 0` whatever happened (CBTAI.C:383).
                 return spellId != OpportunisticCasts.NoSpell
-                    ? new Decision(action, castTarget, spellId, clearsTargetAfterTurn: true)
+                    ? new Decision(action, castTarget, spellId, clearsTargetAfterTurn: true,
+                        rollsToHit: rollsToHit)
                     : CasterFallback(encounter, monster, profile, castTarget);
             }
 
@@ -738,12 +741,15 @@ namespace BakAgain.Combat {
         /// before casting, and it looks at the TARGET.</b> Without it a caster stacks the same
         /// effect on the same victim every turn.</para>
         ///
-        /// <para><b>Not modelled here:</b> the action's two-pass structure
-        /// (<see cref="MonsterSpellcasting.FirstPassTargetingTypes"/> and its line-of-fire
-        /// difference). That is a property of the action that calls the selector, not of the
-        /// selector, and restructuring target selection around it is separate work.</para>
+        /// <para><b>One whole-book scan PER KIND, in the order given</b> (TASK-844). The first pass
+        /// calls the selector for kind 0 and only on -1 again for kind 1 (CBTAI.C:160-163), the retry
+        /// for kind 1 alone (:174) — see <see cref="MonsterSpellcasting.FirstPassTargetingTypes"/>.
+        /// One scan accepting either kind had a caster holding Mind Melt (kind 1) and Flamecast
+        /// (kind 0) reach for Mind Melt, which the original only does once every kind-0 candidate
+        /// lost its coin flip.</para>
         /// </remarks>
-        private int PickCastSpell(CombatEncounter encounter, Combatant caster, Combatant target) {
+        private int PickCastSpell(CombatEncounter encounter, Combatant caster, Combatant target,
+            int[] kinds) {
             if (_spells == null || caster == null || target == null || encounter == null) {
                 return OpportunisticCasts.NoSpell;
             }
@@ -755,31 +761,34 @@ namespace BakAgain.Combat {
                 return OpportunisticCasts.NoSpell;
             }
 
-            for (int id = MonsterSpellcasting.FirstCandidate(_spells.Count); id >= 0; id--) {
-                if (!_spells.TryGetValue(id, out GameData.Resources.Spells.Spell spell)) {
-                    continue;
-                }
-                bool selected = MonsterSpellcasting.Selects(
-                    id,
-                    MonsterSpellcasting.InMonsterRepertoire(id, spell.IsMartial, spell.TargetingType),
-                    _canCast != null && _canCast(caster, id),
-                    // The 50% roll the original takes per surviving candidate.
-                    _rnd(2) == 0,
-                    encounter.Effects.Find(target, id)
-                        != GameData.Resources.Spells.ActiveSpellEffectPool.None);
-                if (selected) {
-                    return id;
+            foreach (int kind in kinds) {
+                for (int id = MonsterSpellcasting.FirstCandidate(_spells.Count); id >= 0; id--) {
+                    if (!_spells.TryGetValue(id, out GameData.Resources.Spells.Spell spell)
+                        || spell.TargetingType != kind) {
+                        continue;
+                    }
+                    bool selected = MonsterSpellcasting.Selects(
+                        id,
+                        MonsterSpellcasting.InMonsterRepertoire(id, spell.IsMartial, spell.TargetingType),
+                        _canCast != null && _canCast(caster, id),
+                        // The 50% roll the original takes per surviving candidate.
+                        _rnd(2) == 0,
+                        encounter.Effects.Find(target, id)
+                            != GameData.Resources.Spells.ActiveSpellEffectPool.None);
+                    if (selected) {
+                        return id;
+                    }
                 }
             }
 
             return OpportunisticCasts.NoSpell;
         }
 
-        private (Combatant Target, int SpellId, bool RecordAsTarget) PickCastTarget(
+        private (Combatant Target, int SpellId, bool RecordAsTarget, bool RollsToHit) PickCastTarget(
             CombatEncounter encounter, Combatant monster, Profile profile) {
             // Too worn down to act at all: the original short-circuits the attempt loop entirely.
             if (!MonsterSpellcasting.WellEnoughToAct(monster.Health + monster.Stamina)) {
-                return (null, OpportunisticCasts.NoSpell, false);
+                return (null, OpportunisticCasts.NoSpell, false, false);
             }
 
             Combatant lastFound = null;
@@ -793,13 +802,13 @@ namespace BakAgain.Combat {
                     // Pattern 0 has no row at all — the original never enters the loop for it. Not
                     // reachable through the cascade (a caster has a pattern), but SlotFor also
                     // returns 0 out of range, and ActionOf(0) falls through to TargetedCast.
-                    return (null, OpportunisticCasts.NoSpell, false);
+                    return (null, OpportunisticCasts.NoSpell, false, false);
                 }
                 MonsterSpellcasting.SlotAction kind = MonsterSpellcasting.ActionOf(slot);
                 if (kind == MonsterSpellcasting.SlotAction.SpecialFirst) {
                     (Combatant ally, int healSpell) = TryHeal(encounter, monster, profile);
                     if (healSpell != OpportunisticCasts.NoSpell) {
-                        return (ally, healSpell, false);
+                        return (ally, healSpell, false, false);
                     }
                     continue;
                 }
@@ -824,7 +833,7 @@ namespace BakAgain.Combat {
                     spellId => _canCast != null && _canCast(monster, spellId));
                 if (opportunistic.Fires) {
                     IReadOnlyList<Combatant> opponents = SidesFor(encounter, monster).Opponents;
-                    return (opponents[opportunistic.TargetIndex], opportunistic.SpellId, true);
+                    return (opponents[opportunistic.TargetIndex], opportunistic.SpellId, true, false);
                 }
 
                 // AiTurnPackets.RoleFor, not a cast to TargetRole. The mode IS the packet index and
@@ -833,7 +842,7 @@ namespace BakAgain.Combat {
                 // dependency and bounds-guards it, and it is the only production use of the packet
                 // table, which was modelled and tested with nothing calling it.
                 int mode = MonsterSpellcasting.TargetModeOf(slot);
-                (Combatant found, bool commits) = PickCastVictim(encounter, monster, profile,
+                (Combatant found, bool commits, bool retry) = PickCastVictim(encounter, monster, profile,
                     AiTurnPackets.RoleFor(mode));
 
                 // *** EVERY ATTEMPT OVERWRITES THE TARGET, INCLUDING WITH NOTHING. ***
@@ -844,12 +853,20 @@ namespace BakAgain.Combat {
                 // NON-NULL instead would have a caster remembering a target the final slot's role
                 // filter rejected.
                 lastFound = found;
+                // *** NO SPELL IS A FAILED ATTEMPT, NOT A SPENT TURN. *** combat_ai_execute_turn
+                // returns 0 unless it cast, and combat_ai_take_turn walks on to the next slot
+                // (CBTAI.C:363-370) — the heal slot included (TASK-844).
                 if (found != null && commits) {
-                    return (found, PickCastSpell(encounter, monster, found), true);
+                    int spellId = PickCastSpell(encounter, monster, found, retry
+                        ? MonsterSpellcasting.SecondPassTargetingTypes
+                        : MonsterSpellcasting.FirstPassTargetingTypes);
+                    if (spellId != OpportunisticCasts.NoSpell) {
+                        return (found, spellId, true, MonsterSpellcasting.RollsToHit(retry ? 2 : 1));
+                    }
                 }
             }
 
-            return (lastFound, OpportunisticCasts.NoSpell, lastFound != null);
+            return (lastFound, OpportunisticCasts.NoSpell, lastFound != null, false);
         }
 
         /// <summary>
@@ -882,7 +899,7 @@ namespace BakAgain.Combat {
         /// <returns>
         /// The actor chosen, and whether the gates let this attempt actually cast at them.
         /// </returns>
-        private (Combatant Victim, bool Commits) PickCastVictim(CombatEncounter encounter,
+        private (Combatant Victim, bool Commits, bool Retry) PickCastVictim(CombatEncounter encounter,
             Combatant monster, Profile profile, TargetRole role) {
             Combatant first = PickTarget(encounter, monster, role, AiAction.Cast,
                 MonsterCasterTurn.ClearanceFor(profile.CastingSkill));
@@ -891,14 +908,14 @@ namespace BakAgain.Combat {
                     CombatCapability.ShippedHealthThresholds,
                     MonsterCasterTurn.FirstPassThresholdIndex);
                 return (first, healthy && (!MonsterCasterTurn.FirstPassNeedsLineOfSight
-                    || HasLineOfFire(encounter, monster, first)));
+                    || HasLineOfFire(encounter, monster, first)), false);
             }
 
             Combatant retry = PickTarget(encounter, monster, role, AiAction.Cast,
                 MonsterCasterTurn.RetryClearance);
             return (retry, retry != null && MonsterCasterTurn.HealthAllowsCasting(monster.Health,
                 CombatCapability.ShippedHealthThresholds,
-                MonsterCasterTurn.RetryThresholdIndex));
+                MonsterCasterTurn.RetryThresholdIndex), true);
         }
 
         /// <summary>Whether a projectile path traces from one actor to another.</summary>

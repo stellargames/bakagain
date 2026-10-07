@@ -85,7 +85,15 @@ namespace BakAgain.Tests.Editor.Combat {
                         fleeThreshold, staminaPercent, canCast, canShoot, spellcastPattern,
                         crossbowAccuracy, healthPercent: 100, castingSkill: ExpertCaster,
                         crossbowPattern: crossbowPattern, meleeMovePattern: meleeMovePattern),
-                _ => roll, Thresholds, underground);
+                _ => roll, Thresholds, underground, canCast: (_, id) => id == 22, spells: KindOneBook);
+
+        /// <summary>
+        /// One castable kind-1 spell (Mind Melt's slot). Without a spell an attempt that finds a
+        /// target is a failed attempt and the row walks on (TASK-844, CBTAI.C:363-370), so the
+        /// targeting tests need something to cast.
+        /// </summary>
+        private static readonly System.Collections.Generic.Dictionary<int, GameData.Resources.Spells.Spell>
+            KindOneBook = MonsterCastClearanceTests.Book((22, 1));
 
         [Test]
         public void ACascadeMonsterWithNoCapabilitiesClosesToMelee() {
@@ -461,7 +469,8 @@ namespace BakAgain.Tests.Editor.Combat {
                     ? new MonsterTurnResolver.Profile(0, 100, canCastSpells: c == mage, canShoot: false)
                     : new MonsterTurnResolver.Profile(0, 100, true, false, spellcastPattern: 3,
                         crossbowAccuracy: 0, healthPercent: 100, castingSkill: ExpertCaster),
-                _ => 0, Thresholds, isUnderground: false);
+                _ => 0, Thresholds, isUnderground: false, canCast: (_, id) => id == 22,
+                spells: KindOneBook);
 
             Assert.AreSame(mage, picksByRole.Resolve(enc1, m1).Target,
                 "mode 1 reaches past the nearer fighter for the caster");
@@ -477,7 +486,8 @@ namespace BakAgain.Tests.Editor.Combat {
                     ? new MonsterTurnResolver.Profile(0, 100, canCastSpells: c == mage, canShoot: false)
                     : new MonsterTurnResolver.Profile(0, 100, true, false, spellcastPattern: 2,
                         crossbowAccuracy: 0, healthPercent: 100, castingSkill: ExpertCaster),
-                _ => 0, Thresholds, isUnderground: false);
+                _ => 0, Thresholds, isUnderground: false, canCast: (_, id) => id == 22,
+                spells: KindOneBook);
 
             Assert.AreSame(fighter, picksNearest.Resolve(enc2, m2).Target,
                 "mode 0 just takes the nearest");
