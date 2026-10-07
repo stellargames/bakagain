@@ -66,5 +66,34 @@ namespace BakAgain.Tests.PlayMode.UI.InputCore {
             layer.HandleIntent(UiIntent.Activate());
             Assert.AreEqual(1, fired, "SetWidgets must forward the list to the layer it holds");
         }
+
+        [Test]
+        public void Rebuild_UnderAScreenInputLayer_LeavesTheButtonsUnfocusable() {
+            // TASK-847: UI Toolkit's own runtime input walks focus over focusable buttons with the
+            // arrows and clicks the focused one on Enter. A type-2 screen owns those keys through
+            // its ScreenInputLayer, so its buttons must never take focus -- including after a
+            // rebuild (SetEntryState re-marks them focusable and raises Built).
+            _go = new GameObject("host");
+            _go.SetActive(false);
+            var host = _go.AddComponent<MenuLayerHost>();
+            typeof(MenuLayerHost).GetField("_layer", BindingFlags.NonPublic | BindingFlags.Instance)
+                .SetValue(host, new ScreenInputLayer("t", new NullScreen()));
+
+            var button = new VisualElement { focusable = true };
+            typeof(MenuLayerHost).GetMethod("OnBuilt", BindingFlags.NonPublic | BindingFlags.Instance)
+                .Invoke(host, new object[] { new List<NavWidget> { new NavWidget(button, null, new Rect(0, 0, 10, 10), null, null) } });
+
+            Assert.IsFalse(button.focusable);
+        }
+
+        private sealed class NullScreen : IScreenInput {
+            public bool WantsText => false;
+            public bool OnDirection(NavDirection dir, bool ctrl) => false;
+            public bool OnTab(bool shift) => false;
+            public void OnText(char c) { }
+            public bool OnEdit(EditKey key) => false;
+            public void OnSubmit() { }
+            public void OnCancel() { }
+        }
     }
 }

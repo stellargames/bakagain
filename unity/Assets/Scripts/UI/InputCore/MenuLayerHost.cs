@@ -114,8 +114,11 @@ namespace BakAgain.UI.InputCore {
         private void OnBuilt(IReadOnlyList<NavWidget> widgets) {
             if (_layer != null) {
                 // No-op for a ScreenInputLayer, which owns the keys rather than a widget list —
-                // and it equally must not jump the stack.
-                SetWidgets(widgets);
+                // and it equally must not jump the stack. A rebuild (SetEntryState) re-marks the
+                // widgets focusable, so take that away again.
+                if (!SetWidgets(widgets)) {
+                    MakeUnfocusable(widgets);
+                }
 
                 return;
             }
@@ -132,6 +135,7 @@ namespace BakAgain.UI.InputCore {
             if (_loader.UserInterfaceType == GameData.Resources.Menu.UserInterfaceType.InteractiveScreen
                 && _screenInput != null) {
                 _layer = new ScreenInputLayer(name, _screenInput);
+                MakeUnfocusable(widgets);
             } else {
                 // Pass the loader's picker-selection hook so cursor keys drive the file
                 // picker on screens that have one (no-op — returns false — elsewhere).
@@ -163,6 +167,24 @@ namespace BakAgain.UI.InputCore {
                 return true;
             }
             return false;
+        }
+
+        // *** A TYPE-2 SCREEN HAS NO BUTTON FOCUS. *** UI Toolkit's own runtime input (there is no
+        // EventSystem in the scene) turns the real arrow keys into NavigationMove and Enter into
+        // NavigationSubmit on its own focus ring. NavigableLayer suppresses that on its widgets; a
+        // ScreenInputLayer has none, so on SAVE the arrows walked focus onto Remove Directory and
+        // Enter then saved AND clicked it (TASK-847). The original has no focus here at all: Enter
+        // is the dialog's default action (MAINMENU.C mainmenu_save_save_game_dialog). Clicks don't
+        // need focus, so the buttons simply stop being focusable.
+        private static void MakeUnfocusable(IReadOnlyList<NavWidget> widgets) {
+            if (widgets == null) {
+                return;
+            }
+            foreach (NavWidget w in widgets) {
+                if (w.Element != null) {
+                    w.Element.focusable = false;
+                }
+            }
         }
 
         private void OnCleared() => PopLayer();
