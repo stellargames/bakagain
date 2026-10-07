@@ -143,7 +143,7 @@ namespace BakAgain.Combat {
         /// Puts a pack on screen for the player to take from — Nightfingers' theft, which the original runs
         /// through <c>combat_arena_suspend_char_screen</c> on the TARGET. Null leaves the theft unshown.
         /// </summary>
-        public System.Action<RuntimeContainer> OpenStolenPack { get; set; }
+        public System.Func<RuntimeContainer, UniTask> OpenStolenPack { get; set; }
 
         /// <summary>Whether the zone this fight is in is underground — <c>g_game_mode == 2</c>.</summary>
         /// <remarks>
@@ -3140,8 +3140,9 @@ namespace BakAgain.Combat {
         /// consumed and the target's pack is handed to <see cref="OpenStolenPack"/>.
         /// </summary>
         /// <remarks>
-        /// ponytail: the stolen item's flight back to the caster, which the original plays only if the
-        /// target's count changed, is presentation and is not played.
+        /// When the screen closes, a target whose item count changed flies the item (shape 5) back
+        /// to the caster (CSPELL.C:1102-1105). Counting slots, like the original's <c>itemCount</c>:
+        /// part of a stack taken changes nothing, so it flies nothing.
         /// </remarks>
         private void Steal(Combatant caster, Combatant target) {
             RuntimeContainer casterPack = PackOf(caster);
@@ -3150,8 +3151,16 @@ namespace BakAgain.Combat {
                     casterPack, SpellCastRoutines.GloryHandObjectId, _objects.GetById);
             }
             RuntimeContainer loot = PackOf(target);
-            if (loot != null) {
-                OpenStolenPack?.Invoke(loot);
+            if (loot != null && OpenStolenPack != null) {
+                StealAsync(caster, target, loot).Forget();
+            }
+        }
+
+        private async UniTaskVoid StealAsync(Combatant caster, Combatant target, RuntimeContainer loot) {
+            int before = loot.Items.Count;
+            await OpenStolenPack(loot);
+            if (SpellCastRoutines.NightfingersStoleSomething(before, loot.Items.Count)) {
+                PlaySpellVisual?.Invoke(new SpellVisual(SpellVisualKind.StolenItemFlight), target, caster);
             }
         }
 
@@ -3537,6 +3546,8 @@ namespace BakAgain.Combat {
                 return;
             }
 
+            int healthBefore = target.Health;
+            int staminaBefore = target.Stamina;
             var health = new ActorStat { Base = (byte)Clamp(target.Health), Max = healthStat.Max };
             var stamina = new ActorStat { Base = (byte)Clamp(target.Stamina), Max = staminaStat.Max };
             ActorConditions victimConditions =
@@ -3547,6 +3558,11 @@ namespace BakAgain.Combat {
 
             target.Health = health.Base;
             target.Stamina = stamina.Base;
+            // The gain floats negated for 8 frames (CSPELL.C:1217-1219); a zero gain draws nothing
+            // (CACTOR.C:982), so it sets no float — 0 is the port's "miss".
+            int gainFloat = SpellCastRoutines.HealFloatingNumber(healthBefore, target.Health,
+                staminaBefore, target.Stamina);
+            target.DamageFloat = gainFloat != 0 ? gainFloat : (int?)null;
             if (target.IsPartyMember) {
                 WriteBack(target);
             }

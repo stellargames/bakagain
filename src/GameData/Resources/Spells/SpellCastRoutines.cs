@@ -174,7 +174,7 @@ public static class SpellCastRoutines {
     /// The routine compares the counts and returns without animating if they match. The Glory Hand
     /// is destroyed either way, so backing out of the screen costs the caster the item and the cast
     /// for nothing.
-    /// <para><b>Deliberately callerless.</b> Presentation: the count only gates the stolen item's flight, which CombatRuntime.Steal does not play.</para>
+    /// <para>Called by CombatRuntime.Steal once the pack screen closes, to gate the stolen item's flight.</para>
     /// </remarks>
     public static bool NightfingersStoleSomething(int itemsBefore, int itemsAfter) =>
         itemsAfter != itemsBefore;
@@ -185,7 +185,8 @@ public static class SpellCastRoutines {
     /// <remarks>
     /// Every other cast animates from the caster to the target; this one passes the target as the
     /// origin and the caster as the destination, because what is travelling is the stolen item.
-    /// <para><b>Deliberately callerless.</b> Presentation not ported: CombatRuntime.Steal plays no flight (recorded there as a ponytail).</para>
+    /// <para>Pinned: CombatRuntime.Steal raises the flight target-to-caster
+    /// (<see cref="Resources.Combat.SpellVisualKind.StolenItemFlight"/>).</para>
     /// </remarks>
     public static bool NightfingersProjectileTravelsToTheCaster => true;
 
@@ -500,17 +501,15 @@ public static class SpellCastRoutines {
     /// positive number puts the sign the wrong way round against every other floating number in
     /// combat.
     ///
-    /// <para>It is also computed on the blocked path, where the delta is zero, so a heal that an
-    /// affliction refused still flashes a 0 over the target rather than nothing.</para>
-    /// <para><b>Deliberately callerless.</b> Presentation not ported: the port draws no floating combat numbers.</para>
+    /// <para>It is also computed on the affliction-blocked path, where the delta is zero — and
+    /// <c>combat_actor_draw_float_damage</c> (CACTOR.C:982) draws nothing for a zero value, so a
+    /// refused heal, or one at the 80% ceiling, shows no number at all. The port stores it in
+    /// <c>Combatant.DamageFloat</c> (CombatRuntime.ApplyPoolHeal); a negative value floats as its
+    /// magnitude in pens <c>0xEF - frames</c>, for the same 8 frames as damage.</para>
     /// </remarks>
     public static int HealFloatingNumber(int healthBefore, int healthAfter,
         int staminaBefore, int staminaAfter) =>
         -((healthAfter - healthBefore) + (staminaAfter - staminaBefore));
-
-    /// <summary>How many frames that number stays on screen.</summary>
-    /// <remarks><b>Deliberately callerless.</b> Presentation not ported: the port draws no floating combat numbers.</remarks>
-    public const int HealFloatingNumberFrames = 8;
 
     // ---------------------------------------------------------------- casting with no caster
     // castCombatSpell @0x681e2.

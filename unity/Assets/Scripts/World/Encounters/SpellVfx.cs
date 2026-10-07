@@ -137,6 +137,8 @@ namespace BakAgain.World.Encounters {
             SpellVisualKind.WhirlwindFlight => FlyAsync(4, from, to, 100, grow: true),
             SpellVisualKind.HopBurst => HopBurstAsync(from, to),
             SpellVisualKind.Rebound => ReboundAsync(from, to),
+            // Nightfingers' stolen item: shape 5, target to caster, speed 0x78 (CSPELL.C:1104).
+            SpellVisualKind.StolenItemFlight => FlyAsync(5, from, to, 0x78),
             SpellVisualKind.CrystalZap => CrystalZapAsync(to),
             _ => UniTask.CompletedTask,
         };

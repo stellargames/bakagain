@@ -304,7 +304,9 @@ namespace BakAgain.Tests.Editor.Combat {
             var runtime = new CombatRuntime(session, null, Entries(), objects);
             Combatant member = runtime.EnterRoster(new short[] { 400 }).Party[0];
             GameData.Resources.Inventory.RuntimeContainer opened = null;
-            runtime.OpenStolenPack = pack => opened = pack;
+            var flights = new List<(SpellVisualKind, Combatant, Combatant)>();
+            runtime.PlaySpellVisual = (v, from, to) => flights.Add((v.Kind, from, to));
+            runtime.OpenStolenPack = pack => { opened = pack; return Cysharp.Threading.Tasks.UniTask.CompletedTask; };
 
             runtime.ResolveCast(member, member, new Spell("12") {
                 TargetingType = 4, AnimationEffectType = 6, MinimumCost = 14, MaximumCost = 14,
@@ -314,6 +316,8 @@ namespace BakAgain.Tests.Editor.Combat {
             GameData.Resources.Inventory.RuntimeContainer pack = session.GetActorInventory(member.ClassId);
             Assert.AreSame(pack, opened);
             Assert.AreEqual(0, GameData.Resources.Inventory.InventoryQuery.CountByKind(pack, GloryHandId));
+            Assert.IsFalse(flights.Any(f => f.Item1 == SpellVisualKind.StolenItemFlight),
+                "nothing taken, nothing flies (CSPELL.C:1103)");
         }
 
         [Test]
@@ -743,6 +747,8 @@ namespace BakAgain.Tests.Editor.Combat {
                 spellId: OrdinarySpell, power: 4, AlwaysLow));
 
             Assert.Greater(Pool(monster), before, "type 2 restores rather than damages");
+            Assert.AreEqual(-(Pool(monster) - before), monster.DamageFloat,
+                "and floats the gain, negated (CSPELL.C:1217-1219)");
         }
 
         [Test]

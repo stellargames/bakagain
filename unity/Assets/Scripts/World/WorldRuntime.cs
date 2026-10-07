@@ -678,8 +678,8 @@ namespace BakAgain.World {
         }
 
         /// <summary>
-        /// The numbers struck combatants float — the damage, or "miss" for a blow that did nothing
-        /// (COMBAT.C:382-390, CACTOR.C:973). Played once, on the redraw after the blow, like the swing.
+        /// The numbers struck combatants float — the damage, "miss" for a blow that did nothing, or a
+        /// heal's gain (COMBAT.C:382-390, CSPELL.C:1217, CACTOR.C:973). Played once, on the redraw after the blow, like the swing.
         /// </summary>
         private void FloatDamageNumbers() {
             Color[] palette = _zoneSceneBuilder?.RenderContext?.Palette;
@@ -696,16 +696,17 @@ namespace BakAgain.World {
                 c.DamageFloat = null;
                 // Pens: the countdown steps BEFORE the pen is read (CACTOR.C:986-995), so a number
                 // walks 0x81..0x88; "miss" carries value 1 and a NEGATIVE countdown, so the same
-                // `0x88 - frames` walks it 0x8F..0x88.
+                // `0x88 - frames` walks it 0x8F..0x88. A heal's gain is negative and drawn as its
+                // magnitude in `0xEF - frames` (CACTOR.C:992-995), walking 0xE8..0xEF.
                 var pens = new List<Color>();
                 for (int left = GameData.Resources.Combat.Combatant.DamageFloatFrames - 1; left >= 0; left--) {
-                    int pen = dealt > 0 ? 0x88 - left : 0x88 + left;
+                    int pen = dealt > 0 ? 0x88 - left : dealt < 0 ? 0xEF - left : 0x88 + left;
                     pens.Add(pen < palette.Length ? palette[pen] : Color.white);
                 }
                 Renderer r = marker.GetComponent<Renderer>();
                 Vector3 top = r != null ? new Vector3(r.bounds.center.x, r.bounds.max.y, r.bounds.center.z)
                                         : marker.transform.position;
-                screen.FloatText(top, dealt > 0 ? dealt.ToString() : "miss", pens);
+                screen.FloatText(top, dealt == 0 ? "miss" : System.Math.Abs(dealt).ToString(), pens);
             }
         }
 
@@ -1555,20 +1556,21 @@ namespace BakAgain.World {
         /// container — the difference between a chest and a body is which container was found, not
         /// how it is shown.
         /// </remarks>
-        private void OpenCorpseLoot(GameData.Resources.Inventory.RuntimeContainer body) {
+        /// <summary>Opens a pack for looting; completes when the screen closes.</summary>
+        private UniTask OpenCorpseLoot(GameData.Resources.Inventory.RuntimeContainer body) {
             if (body == null || _resolver == null) {
-                return;
+                return UniTask.CompletedTask;
             }
             var menu = (BakAgain.UI.Inventory.InventoryMenu)_resolver.Resolve(
                 typeof(BakAgain.UI.Inventory.InventoryMenu));
             var nav = (BakAgain.UI.Navigation.IScreenNavigator)_resolver.Resolve(
                 typeof(BakAgain.UI.Navigation.IScreenNavigator));
             if (menu == null || nav == null) {
-                return;
+                return UniTask.CompletedTask;
             }
             ExposeStash(body);
             menu.SetContainer(body, GameData.Resources.World.WorldEntityType.Corpse);
-            nav.Push(menu).Forget();
+            return nav.PushAndWaitAsync(menu);
         }
 
         /// <summary>Turns the view to a speaker's bearing for a backdrop dialog.</summary>

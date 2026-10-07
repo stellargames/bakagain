@@ -97,7 +97,7 @@ using GameData.Resources.Scene;
 
         // Shows a corpse's contents. The inventory screen is the travel HUD's, so the world side
         // hands it over rather than this service reaching into UI.
-        private readonly Action<GameData.Resources.Inventory.RuntimeContainer> _openCorpseLoot;
+        private readonly Func<GameData.Resources.Inventory.RuntimeContainer, UniTask> _openCorpseLoot;
 
         // Rebuild the arena's sprites from the fight's CURRENT state. Separate from _showArena
         // because "put the arena on screen" and "the board has changed" are different events, and a
@@ -224,7 +224,7 @@ using GameData.Resources.Scene;
             Func<bool, UniTask> showArena = null,
             BakAgain.UI.Navigation.IScreenFade fade = null,
             Action redrawArena = null,
-            Action<GameData.Resources.Inventory.RuntimeContainer> openCorpseLoot = null,
+            Func<GameData.Resources.Inventory.RuntimeContainer, UniTask> openCorpseLoot = null,
             Func<bool> zoneIsUnderground = null,
             Func<BakAgain.UI.Inventory.InventoryMenu> inventoryMenuAccessor = null,
             Func<BakAgain.UI.Character.CharacterSheetScreen> characterSheetAccessor = null,
@@ -2283,8 +2283,9 @@ using GameData.Resources.Scene;
                 // Nightfingers puts the target's pack up the way corpse loot does, mid-fight.
                 // It is still the fight's pack: the give-distance and held-item refusals apply
                 // (INVENTOR.C:735-740), so the combat flags go on as the HUD's pack sets them.
+                // Completes when the screen closes, so Steal can play the item's flight after it.
                 OpenStolenPack = pack => {
-                    _openCorpseLoot?.Invoke(pack);
+                    UniTask closed = _openCorpseLoot?.Invoke(pack) ?? UniTask.CompletedTask;
                     BakAgain.UI.Inventory.InventoryMenu menu = _inventoryMenuAccessor?.Invoke();
                     if (menu != null) {
                         menu.InCombat = true;
@@ -2296,6 +2297,7 @@ using GameData.Resources.Scene;
                         menu.CombatUnderground = _underground;
                         menu.CombatDistance = CombatDistanceBetween;
                     }
+                    return closed;
                 },
                 // *** A LAMBDA, NOT _underground. *** This factory runs once and the runtime is
                 // cached for the life of the service, which outlives the zone; capturing the value
@@ -5607,7 +5609,7 @@ using GameData.Resources.Scene;
                 await _dialogs.ShowById(
                     GameData.Resources.Combat.EncounterCorpseLoot.LootDialogFor((int)(body.DialogId ?? 0)));
             }
-            _openCorpseLoot?.Invoke(body);
+            _openCorpseLoot?.Invoke(body).Forget();
         }
 
         /// <summary>The container "zone" corpse records live in — <c>actorspawn_objfixed(100, ...)</c>.</summary>

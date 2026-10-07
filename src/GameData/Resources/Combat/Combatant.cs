@@ -149,7 +149,9 @@ public sealed class Combatant {
     public bool SwingPending { get; set; }
 
     /// <summary>The number to float over this combatant at the next redraw — the damage dealt, 0 for
-    /// a blow that landed and did nothing ("miss"), null for none.</summary>
+    /// a blow that landed and did nothing ("miss"), a NEGATIVE value for a type-2 heal's gain
+    /// (CSPELL.C:1217, drawn as its magnitude in pens <c>0xEF - frames</c>, CACTOR.C:992-995),
+    /// null for none.</summary>
     /// <remarks>
     /// <c>combat_arena_apply_damage</c> (COMBAT.C:376-390) sets <c>dmgFloatValue</c>/<c>dmgFloatFrames</c>
     /// on any blow with knockback: the damage for 8 frames when it is 1..999, "miss" when it is 0.

@@ -37,6 +37,9 @@ public enum SpellVisualKind {
     /// <summary>Strength Drain: shape 0x26 rolls to the target, which turns white, and rolls back
     /// (CSPELL.C:441-454).</summary>
     Rebound,
+    /// <summary>Nightfingers took something: shape 5 flies from the target back to the caster at
+    /// speed 0x78, after the pack screen closes (CSPELL.C:1102-1105).</summary>
+    StolenItemFlight,
 }
 
 /// <summary>What a combat actor shows every frame while a lingering spell sits on it — the per-frame

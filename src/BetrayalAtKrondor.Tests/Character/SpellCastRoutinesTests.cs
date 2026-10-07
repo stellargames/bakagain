@@ -274,7 +274,7 @@ public class SpellCastRoutinesTests {
     }
 
     [Fact]
-    public void AndABlockedHealStillFlashesAZero() {
+    public void AndABlockedHealFloatsZero_WhichDrawsNothing() {
         Assert.Equal(0, SpellCastRoutines.HealFloatingNumber(
             healthBefore: 10, healthAfter: 10, staminaBefore: 4, staminaAfter: 4));
     }
