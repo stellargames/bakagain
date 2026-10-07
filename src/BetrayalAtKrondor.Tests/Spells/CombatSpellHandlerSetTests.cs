@@ -2,20 +2,19 @@ namespace BetrayalAtKrondor.Tests.Spells;
 
 using System;
 using System.IO;
-using System.Linq;
 using System.Text;
 using global::GameData.Resources.Spells;
 using global::ResourceExtraction.Extractors;
 using Xunit;
 
 /// <summary>
-/// Which spells have a per-spell arm, checked against the original's jump table.
+/// The spells that have a per-spell arm, their names checked against SPELLS.DAT.
 /// </summary>
 /// <remarks>
 /// <c>Cast_Spell</c>'s <c>switch (spellNumber - 3)</c> is forty-two arms wide and mostly empty;
 /// sixteen do something. Read straight off the reconstruction (CSPELL.C:1372-1455) the arms are
-/// 3, 6, 9, 12, 13, 14, 15, 20, 21, 23, 25, 27, 30, 37, 42 and 44, and
-/// <see cref="SpellPerSpellHandlers.HasHandler"/> answers true for exactly those.
+/// 3, 6, 9, 12, 13, 14, 15, 20, 21, 23, 25, 27, 30, 37, 42 and 44 — the sixteen ids below —
+/// and <c>CombatRuntime.ResolveCast</c> dispatches each by id.
 ///
 /// <para><b>Both halves matter.</b> A spell wrongly IN the set gets an effect the original never
 /// gives it; a spell wrongly OUT of it silently falls through to the generic path and merely does
@@ -27,10 +26,6 @@ using Xunit;
 /// wrong spell. Pairing each id with the shipped name makes that executable.</para>
 /// </remarks>
 public class CombatSpellHandlerSetTests {
-    /// <summary>The original's non-empty arms, in id order.</summary>
-    private static readonly int[] OriginalArms =
-        { 3, 6, 9, 12, 13, 14, 15, 20, 21, 23, 25, 27, 30, 37, 42, 44 };
-
     private static SpellList? LoadShippedSpells() {
         string? dir = AppContext.BaseDirectory;
         while (!string.IsNullOrEmpty(dir)) {
@@ -44,15 +39,6 @@ public class CombatSpellHandlerSetTests {
         }
 
         return null;
-    }
-
-    [Fact]
-    public void ExactlyTheOriginalsArmsHaveAHandler() {
-        int[] handled = Enumerable.Range(0, 45)
-            .Where(SpellPerSpellHandlers.HasHandler)
-            .ToArray();
-
-        Assert.Equal(OriginalArms, handled);
     }
 
     [Theory]
@@ -82,6 +68,5 @@ public class CombatSpellHandlerSetTests {
 
         Assert.True(spells.Spells.TryGetValue(spellId, out Spell? spell), $"no spell {spellId}");
         Assert.Equal(shippedName, spell!.Name);
-        Assert.True(SpellPerSpellHandlers.HasHandler(spellId));
     }
 }

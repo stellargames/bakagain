@@ -17,16 +17,22 @@ public static class SpellTargetingRules {
         /// <summary>An actor that is still in the fight.</summary>
         LivingActor,
 
-        /// <summary>A named character — a party member rather than a creature.</summary>
+        /// <summary>
+        /// A named character — a party member rather than a creature. Types 2 and 3 reject actor
+        /// number zero, which every monster carries.
+        /// </summary>
         NamedCharacter,
 
         /// <summary>An empty, unblocked cell with no crystal on it.</summary>
         ClearGround,
 
-        /// <summary>An actor that has already been put out of the fight.</summary>
+        /// <summary>
+        /// A dead actor — type 7, which only Final Rest carries. The cursor tests <c>CAF_DEAD</c>
+        /// (COMBAT.C:2202-2207), so a Grief-frozen enemy (incapacitated, not dead) is refused.
+        /// </summary>
         DownedActor,
 
-        /// <summary>A cell holding a red or green crystal.</summary>
+        /// <summary>A cell holding a red or green crystal (<c>CrystalChain.IsCrystalElement</c>).</summary>
         Crystal,
     }
 
@@ -56,84 +62,11 @@ public static class SpellTargetingRules {
     }
 
     /// <summary>
-    /// <b>A spell that deals no damage is a spell that aims at the ground.</b>
-    /// </summary>
-    /// <remarks>
-    /// The three types <see cref="SpellCastTail.DeliveryFor"/> sends down the charge-only path — 5, 6
-    /// and 8 — are exactly the three the cursor refuses to point at an actor. So "this spell delivers
-    /// nothing" and "this spell is not aimed at anybody" are the same fact seen from the two ends of
-    /// the cast.
-    /// <para><b>Deliberately callerless.</b> A cross-check that SpellCastTail.DeliveryFor and AimOf agree; both are live.</para>
-    /// </remarks>
-    public static bool ChargeOnlyTypesAimAtGround(int targetingType) =>
-        SpellCastTail.DeliveryFor(targetingType) != SpellCastTail.Delivery.ChargeOnly
-        || AimOf(targetingType) == Aim.ClearGround
-        || AimOf(targetingType) == Aim.Crystal;
-
-    /// <summary>
-    /// <b>Final Rest is a coup de grâce.</b>
-    /// </summary>
-    /// <remarks>
-    /// Targeting type 7 is the only one that demands a <i>dead</i> target (the cursor tests
-    /// <c>CAF_DEAD</c>, COMBAT.C:2202-2207), and Final Rest is the only spell that carries it. So it
-    /// is cast on a body: its post-animation arm takes the corpse off the grid, which is what stops a
-    /// Black Slayer rising. Nothing in the spell record says so; the rule lives in the cursor check.
-    /// A Grief-frozen enemy is incapacitated but not dead, and the original refuses it.
-    ///
-    /// <para>It also explains why no monster can cast it: the caster AI only ever asks for types 0
-    /// and 1 (see <c>MonsterSpellcasting</c>), so type 7 is out of its reach by construction.</para>
-    ///
-    /// <para><b>Deliberately callerless.</b> HotspotService.SpellTargetIsValid applies it for Aim.DownedActor.</para>
-    /// </remarks>
-    public static bool RequiresADownedTarget(int targetingType) =>
-        AimOf(targetingType) == Aim.DownedActor;
-
-    /// <summary>
-    /// <b>The buff types demand a named character.</b>
-    /// </summary>
-    /// <remarks>
-    /// Types 2 and 3 test the hovered actor's <i>actor number</i> and reject zero — the value
-    /// monsters carry. So the spells that route to the heal delivery or hang a lingering effect can
-    /// only be aimed at the party, and the cursor enforces it before the dispatcher ever sees the
-    /// cast.
-    ///
-    /// <para><b>Deliberately callerless.</b> HotspotService.SpellTargetIsValid applies it for Aim.NamedCharacter: a live party member.</para>
-    /// </remarks>
-    public static bool PartyOnly(int targetingType) => AimOf(targetingType) == Aim.NamedCharacter;
-
-    /// <summary>
-    /// The crystal kinds type 8 accepts.
-    /// </summary>
-    /// <remarks>
-    /// Red or green, and nothing else — a cell with any other trap element is refused, as is a cell
-    /// with none. Its counterpart is the clear-ground rule for types 5 and 6, which refuses a cell
-    /// that <i>has</i> a crystal: between them the two rules partition the floor.
-    ///
-    /// <para><b>Deliberately callerless.</b> The crystal-aimed path tests CrystalChain.IsCrystalElement, elements 7-8, which are exactly the red and green crystals.</para>
-    /// </remarks>
-    public static bool CrystalIsTargetable(bool isRedCrystal, bool isGreenCrystal) =>
-        isRedCrystal || isGreenCrystal;
-
-    /// <summary>
     /// Whether clear ground accepts this cell.
     /// </summary>
     /// <param name="blocked">The cell is impassable.</param>
     /// <param name="hasCrystal">The cell carries a trap crystal.</param>
     public static bool GroundIsTargetable(bool blocked, bool hasCrystal) => !blocked && !hasCrystal;
-
-    /// <summary>
-    /// An actor that has been put out of the fight is refused by <b>every</b> actor-aimed type
-    /// except type 7.
-    /// </summary>
-    /// <remarks>
-    /// Types 0, 1, 2, 3 and 4 all test the same status bit and reject it when set; type 7 tests it
-    /// and rejects when <i>clear</i>. So the same bit reads as "not a valid target" for eight spells
-    /// and "the only valid target" for one.
-    ///
-    /// <para><b>Deliberately callerless.</b> HotspotService.SpellTargetIsValid applies it for Aim.DownedActor, the one aim that accepts a downed target.</para>
-    /// </remarks>
-    public static bool AcceptsIncapacitated(int targetingType) =>
-        AimOf(targetingType) == Aim.DownedActor;
 
     /// <summary>
     /// The cursor bounds the check accepts, which are one wider than the nominal grid.
@@ -197,18 +130,4 @@ public static class SpellTargetingRules {
 
     /// <summary>The distance value standing for "the cursor is not over a grid cell".</summary>
     public const int OffGridDistance = 1000;
-
-    /// <summary>
-    /// With nothing under the cursor, <b>only a crystal-aimed spell may still be cast at an
-    /// actor</b>.
-    /// </summary>
-    /// <remarks>
-    /// The empty-cell branch lets type 8 through to the same call the actor path uses, passing the
-    /// null it found. Every other type falls to the ground-cast test instead, so an empty cell and a
-    /// type that wants an actor simply does not commit.
-    ///
-    /// <para><b>Deliberately callerless.</b> CombatTargetSelection.ResolveOnField commits a crystal-aimed cast on an empty cell, and ground clicks go straight to ResolveCellCast.</para>
-    /// </remarks>
-    public static bool EmptyCellStillCasts(int targetingType) =>
-        AimOf(targetingType) == Aim.Crystal || AimOf(targetingType) == Aim.ClearGround;
 }

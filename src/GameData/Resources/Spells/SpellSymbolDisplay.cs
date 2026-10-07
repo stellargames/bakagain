@@ -19,7 +19,7 @@ public static class SpellSymbolDisplay {
     public static bool SymbolsAreFontGlyphs => true;
 
     /// <summary>
-    /// <b>THE COLOUR ARGUMENTS BELOW NEVER REACH THE SCREEN.</b>
+    /// <b>THE ROUTINE'S COLOUR ARGUMENTS NEVER REACH THE SCREEN.</b>
     /// </summary>
     /// <remarks>
     /// Established 2026-08-19 by reading the blitter rather than the caller. SPELL.FNT declares
@@ -29,20 +29,18 @@ public static class SpellSymbolDisplay {
     /// caller chose, and none of them fall in the 1..4 range that would be remapped instead.
     ///
     /// <para>So the fade-in produces a DELAY and not a fade — the seven passes still wait seven
-    /// ticks each, and the symbols still appear gradually in the sense of arriving late, but they
-    /// never change colour. And <see cref="SelectedColour"/>'s shimmer marks nothing at all: the
+    /// ticks each (<see cref="FadePasses"/>, <see cref="FadePassTicks"/>), and the symbols still
+    /// appear gradually in the sense of arriving late, but they never change colour. The routine
+    /// brightens each pass by the colour step, rests at <c>base + 12 * step</c>, and shimmers the
+    /// selected symbol through eight pens from 208, one every four ticks — and none of it shows: the
     /// selected symbol draws exactly like its neighbours.</para>
     ///
-    /// <para>The rules are kept rather than deleted because they are what the routine <i>says</i>,
-    /// and a font with pens below 5 — a mod's, or a different symbol font — would obey them. But a
-    /// port must not build a highlight out of them and call it faithful: for the shipped data there
-    /// is no colour highlight on the casting ring to reproduce.</para>
+    /// <para>Those colour rules are not modelled. A font with pens below 5 — a mod's, or a different
+    /// symbol font — would obey them, but a port must not build a highlight out of them and call it
+    /// faithful: for the shipped data there is no colour highlight on the casting ring to
+    /// reproduce.</para>
     /// </remarks>
     public static bool ColourAppliesToTheShippedSymbolFont => false;
-
-    /// <summary>The lowest glyph byte that is used as a pen outright.</summary>
-    /// <remarks>Below this the blitter substitutes an entry from its own five-colour table.</remarks>
-    public const int LowestLiteralPen = 5;
 
     /// <summary>
     /// <b>Only spells the caster can actually cast are drawn.</b>
@@ -107,53 +105,6 @@ public static class SpellSymbolDisplay {
 
     /// <summary>Timer ticks each pass waits before the next.</summary>
     public const int FadePassTicks = 7;
-
-    /// <summary>
-    /// The text colour for a fade pass.
-    /// </summary>
-    /// <remarks>
-    /// The symbols are drawn seven times, brightening by <paramref name="colourStep"/> each pass with
-    /// a wait between — so they fade in rather than appear. A port that draws them once gets the
-    /// right picture and loses the entrance.
-    /// </remarks>
-    public static int FadeColour(int baseColour, int pass, int colourStep) =>
-        baseColour + (pass * colourStep);
-
-    /// <summary>
-    /// The multiplier the settled draw uses, after the fade has finished.
-    /// </summary>
-    /// <remarks>
-    /// <b>Twelve, not the fade's last pass.</b> The fade brightens to
-    /// <c>base + 6 * step</c> and the settled draw then jumps to <c>base + 12 * step</c>, so the
-    /// symbols land brighter than the animation left them. Reusing the last fade colour as the
-    /// resting colour leaves the whole ring dimmer than the game shows it.
-    /// </remarks>
-    public const int SettledColourMultiplier = 12;
-
-    /// <summary>The colour an unselected symbol rests at.</summary>
-    public static int SettledColour(int baseColour, int colourStep) =>
-        baseColour + (colourStep * SettledColourMultiplier);
-
-    /// <summary>First colour of the selected symbol's cycle.</summary>
-    public const int SelectionColourBase = 208;
-
-    /// <summary>Colours the selection cycles through.</summary>
-    public const int SelectionColourCount = 8;
-
-    /// <summary>Ticks the selection holds each colour.</summary>
-    public const int SelectionTicksPerColour = 4;
-
-    /// <summary>
-    /// The colour of the selected symbol on a given tick.
-    /// </summary>
-    /// <remarks>
-    /// <b>The selected symbol shimmers; it is not merely a different colour.</b> It cycles through
-    /// eight colours from <see cref="SelectionColourBase"/>, advancing every four ticks off a global
-    /// counter the routine increments as it draws. A port that paints the selection one fixed colour
-    /// loses the only thing marking it as live.
-    /// </remarks>
-    public static int SelectedColour(int tick) =>
-        SelectionColourBase + ((tick / SelectionTicksPerColour) % SelectionColourCount);
 
     /// <summary>
     /// <b>The spell font is selected for the draw and the game font restored on the way out.</b>

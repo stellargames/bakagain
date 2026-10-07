@@ -72,11 +72,9 @@ public class CastSymbolPickingTests {
         // SPELL.FNT is a byte per pixel and drawGlyphClipped takes each byte of 5 or more AS the
         // pen, overwriting the caller's colour. Its ink bytes are 0, 6, 35, 108, 110 — all either
         // transparent or at or above the threshold — so the fade never fades and the "selected"
-        // shimmer marks nothing. Kept as a rule because it is what the routine says; pinned as
-        // inapplicable so nobody builds a highlight out of it and calls it faithful.
+        // shimmer marks nothing. Pinned as inapplicable so nobody builds a highlight out of it and
+        // calls it faithful.
         Assert.False(SpellSymbolDisplay.ColourAppliesToTheShippedSymbolFont);
-        Assert.All(new[] { 6, 35, 108, 110 },
-            pen => Assert.True(pen >= SpellSymbolDisplay.LowestLiteralPen));
     }
 
     [Fact]

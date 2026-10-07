@@ -13,7 +13,6 @@ public class SpellTargetingRulesTests {
         // "Delivers nothing" and "is not aimed at anybody" turn out to be the same fact.
         foreach (int type in new[] { 5, 6, 8 }) {
             Assert.Equal(SpellCastTail.Delivery.ChargeOnly, SpellCastTail.DeliveryFor(type));
-            Assert.True(SpellTargetingRules.ChargeOnlyTypesAimAtGround(type));
             Assert.NotEqual(SpellTargetingRules.Aim.LivingActor, SpellTargetingRules.AimOf(type));
         }
     }
@@ -21,8 +20,8 @@ public class SpellTargetingRulesTests {
     [Fact]
     public void TheHealDeliveryIsTheTypeThatDemandsAPartyMember() {
         Assert.Equal(SpellCastTail.Delivery.Type2Routine, SpellCastTail.DeliveryFor(2));
-        Assert.True(SpellTargetingRules.PartyOnly(2));
-        Assert.True(SpellTargetingRules.PartyOnly(3));
+        Assert.Equal(SpellTargetingRules.Aim.NamedCharacter, SpellTargetingRules.AimOf(2));
+        Assert.Equal(SpellTargetingRules.Aim.NamedCharacter, SpellTargetingRules.AimOf(3));
     }
 
     [Fact]
@@ -37,7 +36,6 @@ public class SpellTargetingRulesTests {
     public void FinalRestCanOnlyBePointedAtSomethingAlreadyDown() {
         // The spell that kills outright finishes what is already down — a rule that lives only in
         // the cursor check, not in the spell record.
-        Assert.True(SpellTargetingRules.RequiresADownedTarget(7));
         Assert.Equal(SpellTargetingRules.Aim.DownedActor, SpellTargetingRules.AimOf(7));
     }
 
@@ -47,7 +45,7 @@ public class SpellTargetingRulesTests {
             if (type == 7) {
                 continue;
             }
-            Assert.False(SpellTargetingRules.AcceptsIncapacitated(type));
+            Assert.NotEqual(SpellTargetingRules.Aim.DownedActor, SpellTargetingRules.AimOf(type));
         }
     }
 
@@ -62,13 +60,6 @@ public class SpellTargetingRulesTests {
     [Fact]
     public void ABlockedCellIsNeverClearGround() {
         Assert.False(SpellTargetingRules.GroundIsTargetable(blocked: true, hasCrystal: false));
-    }
-
-    [Fact]
-    public void OnlyRedAndGreenCrystalsAreTargetable() {
-        Assert.True(SpellTargetingRules.CrystalIsTargetable(isRedCrystal: true, isGreenCrystal: false));
-        Assert.True(SpellTargetingRules.CrystalIsTargetable(isRedCrystal: false, isGreenCrystal: true));
-        Assert.False(SpellTargetingRules.CrystalIsTargetable(isRedCrystal: false, isGreenCrystal: false));
     }
 
     [Fact]
@@ -100,14 +91,6 @@ public class SpellTargetingRulesTests {
     public void NorDoesOneWithTheCursorOffTheGrid() {
         Assert.False(SpellTargetingRules.ClickCommitsTheCast(
             mouseY: 10, cursorDistance: SpellTargetingRules.OffGridDistance));
-    }
-
-    [Fact]
-    public void AnEmptyCellOnlyCastsForTheGroundAimedTypes() {
-        Assert.True(SpellTargetingRules.EmptyCellStillCasts(8));
-        Assert.True(SpellTargetingRules.EmptyCellStillCasts(5));
-        Assert.False(SpellTargetingRules.EmptyCellStillCasts(0));
-        Assert.False(SpellTargetingRules.EmptyCellStillCasts(7));
     }
 
     [Fact]

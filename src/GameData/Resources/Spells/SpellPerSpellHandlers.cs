@@ -15,56 +15,6 @@ using GameData;
 /// </summary>
 public static class SpellPerSpellHandlers {
     /// <summary>
-    /// Whether this spell has a handler at all.
-    /// </summary>
-    /// <remarks>
-    /// Twenty-nine of the forty-five spells fall through to the shared tail untouched. The switch is
-    /// large but mostly empty, which is why reading the jump table rather than the case list is the
-    /// only honest way to know who is special.
-    ///
-    /// <para><b>Deliberately callerless.</b> CombatRuntime.ResolveCast dispatches each handler by spell id; CombatSpellHandlerSetTests pins that this set and the arms agree with the original.</para>
-    /// </remarks>
-    public static bool HasHandler(int spellId) {
-        switch (spellId) {
-            case SpellIds.DespairThyEyes:
-            case SpellIds.HochosHaven:
-            case SpellIds.BaneOfBlackSlayers:
-            case SpellIds.Nightfingers:
-            case SpellIds.GriefOfAThousandNights:
-            case SpellIds.Mirrorwall:
-            case SpellIds.TouchOfLimsKragma:
-            case SpellIds.UnfortunateFlux:
-            case SpellIds.MadGodsRage:
-            case SpellIds.SkinOfTheDragon:
-            case SpellIds.Steelfire:
-            case SpellIds.WindsOfEortis:
-            case SpellIds.Invitation:
-            case SpellIds.BlackNimbus:
-            case SpellIds.StrengthDrain:
-            case SpellIds.EvilSeek:
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    /// <summary>
-    /// Spells whose handler is <b>nothing but a sound</b>.
-    /// </summary>
-    /// <remarks>
-    /// Their entire mechanical effect comes from the calculation switch — all three are
-    /// CostTimesDuration spells that registered a lingering effect before ever reaching here. Worth
-    /// knowing before someone goes looking for the code that makes Skin of the Dragon work: there
-    /// isn't any, beyond the duration arithmetic and a sound cue.
-    ///
-    /// <para><b>Deliberately callerless.</b> The three cues come from SpellCastSound.ForCombatSpell, and the effect is the duration arithmetic, so there is nothing to call.</para>
-    /// </remarks>
-    public static bool HandlerIsSoundOnly(int spellId) =>
-        spellId == SpellIds.HochosHaven
-        || spellId == SpellIds.UnfortunateFlux
-        || spellId == SpellIds.SkinOfTheDragon;
-
-    /// <summary>
     /// Spells whose handler <b>zeroes the magnitude the calculation just produced</b>.
     /// </summary>
     /// <remarks>
@@ -108,18 +58,6 @@ public static class SpellPerSpellHandlers {
         return divisor == 0 ? 0 : spellCost / divisor;
     }
 
-    /// <summary>
-    /// Strength Drain's projectile <b>flies out and comes back</b>.
-    /// </summary>
-    /// <remarks>
-    /// Its handler runs the projectile sweep twice: once from the caster to the target, and then —
-    /// from whatever actor the first sweep actually struck, which need not be the intended target —
-    /// back to the caster, with that actor flinching in between. So the visual encodes the transfer,
-    /// and the return leg's origin is decided by the outbound hit rather than by the targeting.
-    /// <para><b>Deliberately callerless.</b> Presentation not ported: CombatRuntime applies the drain without a projectile.</para>
-    /// </remarks>
-    public static bool DrainProjectileReturnsToCaster => true;
-
     /// <summary>The amount Despair Thy Eyes subtracts from each accuracy.</summary>
     public const int DespairAccuracyPenalty = -20;
 
@@ -129,25 +67,6 @@ public static class SpellPerSpellHandlers {
         ActorAttribute.AccuracyMelee,
         ActorAttribute.AccuracyCasting,
     };
-
-    /// <summary>
-    /// <b>Despair Thy Eyes hits party members and monsters through different machinery.</b>
-    /// </summary>
-    /// <param name="targetActorNumber">0 for a monster; 1-6 for a member of the party.</param>
-    /// <remarks>
-    /// A monster takes the penalty through the ordinary attribute-change call — a straight, permanent
-    /// -20 on all three accuracies. A named character instead gets three <i>timed</i> modifiers
-    /// registered in their eight-slot modifier table. Same spell, same twenty points, two different
-    /// durability rules, chosen by whether the victim has a slot table at all.
-    ///
-    /// <para>The two paths also differ in scale: the permanent call is passed -0x1400 while the
-    /// timed one is passed -20, because the permanent path works in the 8.8 fixed point
-    /// <c>StatEngine.Modify</c> already models. Copying one number into the other path is out by a
-    /// factor of 256.</para>
-    ///
-    /// <para><b>Deliberately callerless.</b> CombatRuntime.TryAddStatusEffect makes the same choice on Combatant.IsPartyMember for every timed stat change, Despair Thy Eyes included.</para>
-    /// </remarks>
-    public static bool DespairIsPermanentFor(int targetActorNumber) => targetActorNumber == 0;
 
     /// <summary>
     /// The timed modifier's second timestamp is the current game time <b>doubled</b>.

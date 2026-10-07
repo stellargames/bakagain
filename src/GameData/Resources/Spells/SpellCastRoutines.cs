@@ -70,17 +70,6 @@ public static class SpellCastRoutines {
         creatureType == WindElementalCreatureType && targetCurrentStrength <= drain;
 
     /// <summary>
-    /// <b>Resistance stops Strength Drain before anything at all happens.</b>
-    /// </summary>
-    /// <remarks>
-    /// A fifth <c>check_spell_resistance</c> site, on top of the four in the dispatcher — and the
-    /// strictest of them: it precedes even the sound, so a resisted drain is silent. See
-    /// <see cref="SpellCastTail.ResistanceCheckSites"/>.
-    /// <para><b>Deliberately callerless.</b> CombatRuntime.ApplyDrainWithRecoil returns on TargetResists before anything else.</para>
-    /// </remarks>
-    public static bool DrainIsResisted(bool targetResists) => targetResists;
-
-    /// <summary>
     /// <b>Strength Drain announces itself with the healing sound.</b>
     /// </summary>
     /// <remarks>
@@ -272,27 +261,6 @@ public static class SpellCastRoutines {
 
     /// <summary>What each hop after the first retains, as a percentage.</summary>
     public const int EvilSeekFalloffPercent = 80;
-
-    /// <summary>
-    /// The damage the given hop deals, hop 0 being the original target.
-    /// </summary>
-    /// <remarks>
-    /// <b>The first hop is at full power.</b> The multiplier starts at 100 and only drops to 80
-    /// after it has been applied once, so the original target takes <c>cost × 2</c> and each
-    /// subsequent victim takes 80% of the one before — integer-truncated, which is what eventually
-    /// ends the chain.
-    ///
-    /// <para><b>Deliberately callerless.</b> CombatRuntime.ApplyEvilSeekChain carries the decay
-    /// inline, matching cspell_chain_damage's `decay = 100` then `decay = 0x50`.</para>
-    /// </remarks>
-    public static int EvilSeekPowerAtHop(int spellCost, int hop) {
-        int power = EvilSeekInitialPower(spellCost);
-        for (int i = 1; i <= hop; i++) {
-            power = power * EvilSeekFalloffPercent / 100;
-        }
-
-        return power;
-    }
 
     /// <summary>
     /// <b>Resistance breaks a link's damage but not the chain.</b>
@@ -561,32 +529,6 @@ public static class SpellCastRoutines {
     /// <para><b>Deliberately callerless.</b> The port passes a null caster to ResolveCast (ReflectCastFrom, the cannon), which skips exactly the caster-owned steps.</para>
     /// </remarks>
     public static bool SyntheticCasterIsFabricatedOnTheStack => true;
-
-    /// <summary>
-    /// <b>The power is negated on the way in — and that is what makes it work.</b>
-    /// </summary>
-    /// <remarks>
-    /// A negative cost is the dispatcher's exemption from two things at once: the cast cannot miss
-    /// (<see cref="SpellHitResolution.CanMiss"/>) and the caster is never billed
-    /// (<see cref="SpellCastTail.CasterPays"/>). Both are exactly what a caster that does not exist
-    /// needs — it has no skill to roll and no health to spend.
-    ///
-    /// <para>So the negative-cost path recorded earlier as "the surprising exemption" is not an edge
-    /// case at all: this is the caller it was written for.</para>
-    /// <para><b>Deliberately callerless.</b> Inline at both caster-less call sites: ResolveCast(null, …, -cost) and -CannonLine.Intensity.</para>
-    /// </remarks>
-    public static int SyntheticCasterPower(int power) => -power;
-
-    /// <summary>
-    /// <b>Strength Drain is refused outright on this path.</b>
-    /// </summary>
-    /// <remarks>
-    /// The only spell the entry point rejects by number, before it even plays a sound. It is also
-    /// the one spell that <i>transfers to the caster</i> — and there is no caster to receive it, so
-    /// half the spell would land nowhere. A refusal rather than a half-effect.
-    /// <para><b>Deliberately callerless.</b> ResolveCast runs ApplyDrainWithRecoil only with a caster, and no caster-less source casts Strength Drain.</para>
-    /// </remarks>
-    public static bool SyntheticCasterRefuses(int spellId) => spellId == SpellIds.StrengthDrain;
 
     /// <summary>The surcharge global is cleared on entry, before anything else.</summary>
     /// <remarks><b>Deliberately callerless.</b> ReflectCastFrom clears SurchargeNextCast on entry, and ResolveCast clears it on every path.</remarks>

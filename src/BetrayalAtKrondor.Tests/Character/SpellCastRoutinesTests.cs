@@ -135,28 +135,14 @@ public class SpellCastRoutinesTests {
     }
 
     [Fact]
-    public void TheFirstHopIsAtFullPower() {
-        // The multiplier only drops to 80 after being applied once, so the original target takes
-        // the undiminished figure.
-        Assert.Equal(60, SpellCastRoutines.EvilSeekPowerAtHop(spellCost: 30, hop: 0));
-    }
-
-    [Fact]
-    public void AndEachHopAfterKeepsFourFifthsOfTheOneBefore() {
-        Assert.Equal(48, SpellCastRoutines.EvilSeekPowerAtHop(spellCost: 30, hop: 1));
-        Assert.Equal(38, SpellCastRoutines.EvilSeekPowerAtHop(spellCost: 30, hop: 2));
-        Assert.Equal(30, SpellCastRoutines.EvilSeekPowerAtHop(spellCost: 30, hop: 3));
-    }
-
-    [Fact]
     public void TheTruncationIsWhatEventuallyEndsTheChain() {
         // Integer division, not rounding: a chain started weak dies out rather than trailing off
         // into fractions forever.
         // A minimum-cost cast starts at 2 and is spent after two hops: 2 -> 1 -> 0.
-        Assert.Equal(2, SpellCastRoutines.EvilSeekPowerAtHop(spellCost: 1, hop: 0));
-        Assert.Equal(1, SpellCastRoutines.EvilSeekPowerAtHop(spellCost: 1, hop: 1));
-        Assert.True(SpellCastRoutines.EvilSeekEndsAtZeroPower(
-            SpellCastRoutines.EvilSeekPowerAtHop(spellCost: 1, hop: 2)));
+        Assert.Equal(1, 2 * SpellCastRoutines.EvilSeekFalloffPercent / 100);
+        Assert.Equal(0, 1 * SpellCastRoutines.EvilSeekFalloffPercent / 100);
+        Assert.False(SpellCastRoutines.EvilSeekEndsAtZeroPower(1));
+        Assert.True(SpellCastRoutines.EvilSeekEndsAtZeroPower(0));
     }
 
     [Fact]

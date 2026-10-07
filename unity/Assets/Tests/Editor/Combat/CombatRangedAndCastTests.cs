@@ -620,9 +620,9 @@ namespace BakAgain.Tests.Editor.Combat {
         // *** NOT 1. *** These tests want a spell with no per-spell handler, and spell 1 is Dannon's
         // Delusions — one of the five whose magnitude the original zeroes before delivery. Using it
         // as a stand-in "generic spell" made three of them assert that a spell which deals nothing
-        // deals damage, and they only came apart when the zeroing was finally wired. Candle Glow is
-        // in neither SpellPerSpellHandlers.HasHandler nor SpellCastTail.HookFor, and is not
-        // Skyfire, whose metal-gear rule lives in the magnitude itself.
+        // deals damage, and they only came apart when the zeroing was finally wired. Candle Glow has
+        // no per-spell arm (CSPELL.C:1372-1455) and no SpellCastTail.HookFor, and is not Skyfire,
+        // whose metal-gear rule lives in the magnitude itself.
         private const int OrdinarySpell = SpellIds.CandleGlow;
 
         private static Spell SpellOf(int damage, int targetingType = 1) =>

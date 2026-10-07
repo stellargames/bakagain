@@ -10,35 +10,6 @@ using Xunit;
 /// </summary>
 public class SpellPerSpellHandlersTests {
     [Fact]
-    public void MostSpellsFallStraightThrough() {
-        Assert.False(SpellPerSpellHandlers.HasHandler(SpellIds.Skyfire));
-        Assert.False(SpellPerSpellHandlers.HasHandler(SpellIds.Stardusk));
-        Assert.False(SpellPerSpellHandlers.HasHandler(SpellIds.Firestorm));
-    }
-
-    [Fact]
-    public void SixteenDoNot() {
-        foreach (int id in new[] {
-                     SpellIds.DespairThyEyes, SpellIds.HochosHaven, SpellIds.BaneOfBlackSlayers,
-                     SpellIds.Nightfingers, SpellIds.GriefOfAThousandNights, SpellIds.Mirrorwall,
-                     SpellIds.TouchOfLimsKragma, SpellIds.UnfortunateFlux, SpellIds.MadGodsRage,
-                     SpellIds.SkinOfTheDragon, SpellIds.Steelfire, SpellIds.WindsOfEortis,
-                     SpellIds.Invitation, SpellIds.BlackNimbus, SpellIds.StrengthDrain,
-                     SpellIds.EvilSeek,
-                 }) {
-            Assert.True(SpellPerSpellHandlers.HasHandler(id));
-        }
-    }
-
-    [Fact]
-    public void ThreeHandlersAreNothingButASound() {
-        Assert.True(SpellPerSpellHandlers.HandlerIsSoundOnly(SpellIds.SkinOfTheDragon));
-        Assert.True(SpellPerSpellHandlers.HandlerIsSoundOnly(SpellIds.HochosHaven));
-        Assert.True(SpellPerSpellHandlers.HandlerIsSoundOnly(SpellIds.UnfortunateFlux));
-        Assert.False(SpellPerSpellHandlers.HandlerIsSoundOnly(SpellIds.Steelfire));
-    }
-
-    [Fact]
     public void StrengthDrainAndEvilSeekDiscardTheirOwnMagnitude() {
         Assert.True(SpellPerSpellHandlers.ZeroesMagnitude(SpellIds.StrengthDrain));
         Assert.True(SpellPerSpellHandlers.ZeroesMagnitude(SpellIds.EvilSeek));
@@ -72,13 +43,6 @@ public class SpellPerSpellHandlersTests {
     public void AZeroDamageFieldWouldDivideByZero() {
         // Same blind spot as the other two divisions; answered rather than faulted.
         Assert.Equal(0, SpellPerSpellHandlers.StrengthDrained(spellCost: 20, damage: 0));
-    }
-
-    [Fact]
-    public void DespairHitsMonstersPermanentlyAndPartyMembersOnATimer() {
-        Assert.True(SpellPerSpellHandlers.DespairIsPermanentFor(0));
-        Assert.False(SpellPerSpellHandlers.DespairIsPermanentFor(1));
-        Assert.False(SpellPerSpellHandlers.DespairIsPermanentFor(6));
     }
 
     [Fact]

@@ -60,13 +60,13 @@ public class FieldSpellDispatchTests {
         // Three lighting spells share one sound and also share the power-extends-it formula; the
         // other three split two-and-one on sound while sharing one formula. So neither grouping
         // can be derived from the other.
-        Assert.Equal(FieldSpells.CreationSound, FieldSpells.SoundFor(FieldSpells.DragonsBreath));
-        Assert.Equal(FieldSpells.CreationSound, FieldSpells.SoundFor(FieldSpells.Stardusk));
-        Assert.Equal(FieldSpells.GeneralSound, FieldSpells.SoundFor(FieldSpells.Union));
-        Assert.Equal(FieldSpells.GeneralSound, FieldSpells.SoundFor(FieldSpells.AndTheLightShallLie));
-        Assert.Equal(FieldSpells.ScentSound, FieldSpells.SoundFor(FieldSpells.ScentOfSarig));
-        Assert.NotEqual(FieldSpells.SoundFor(FieldSpells.Union),
-            FieldSpells.SoundFor(FieldSpells.ScentOfSarig));
+        Assert.Equal(FieldSpells.CreationSound, SpellCastSound.ForCast(FieldSpells.DragonsBreath));
+        Assert.Equal(FieldSpells.CreationSound, SpellCastSound.ForCast(FieldSpells.Stardusk));
+        Assert.Equal(FieldSpells.GeneralSound, SpellCastSound.ForCast(FieldSpells.Union));
+        Assert.Equal(FieldSpells.GeneralSound, SpellCastSound.ForCast(FieldSpells.AndTheLightShallLie));
+        Assert.Equal(FieldSpells.ScentSound, SpellCastSound.ForCast(FieldSpells.ScentOfSarig));
+        Assert.NotEqual(SpellCastSound.ForCast(FieldSpells.Union),
+            SpellCastSound.ForCast(FieldSpells.ScentOfSarig));
         Assert.False(FieldSpells.PowerExtendsDuration(FieldSpells.Union));
         Assert.False(FieldSpells.PowerExtendsDuration(FieldSpells.ScentOfSarig));
     }

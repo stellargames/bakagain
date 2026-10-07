@@ -79,11 +79,6 @@ public static class FieldSpells {
     public static bool IsInstantaneous(int spellId) =>
         spellId == EyesOfIshap || spellId == TheUnseen || spellId == NacreCicatrix;
 
-    /// <summary>Whether the handler receives the record's duration.</summary>
-    /// <remarks><b>Deliberately callerless.</b> FieldSpellCaster routes the three locators to CastLocatorAsync, which takes no duration.</remarks>
-    public static bool TakesDuration(int spellId) =>
-        IsFieldSpell(spellId) && !IsInstantaneous(spellId);
-
     /// <summary>
     /// <b>The spell table is not resident outside the cast screen.</b>
     /// </summary>
@@ -112,10 +107,6 @@ public static class FieldSpells {
     /// <para><b>Deliberately callerless.</b> CastScreen hands on CasterId = roster[caster], the member the player settled on.</para>
     /// </remarks>
     public static bool SeedCasterIsNotTheActingCaster => true;
-
-    /// <summary>The active party slot the cast screen is opened on.</summary>
-    /// <remarks><b>Deliberately callerless.</b> The port's CastScreen opens on its own remembered caster selection.</remarks>
-    public const int SeedPartySlot = 0;
 
     /// <summary>
     /// An unrecognised spell number is <b>silently ignored</b>.
@@ -198,32 +189,6 @@ public static class FieldSpells {
     public static bool RefusedInZone(int spellId, bool underground) =>
         (RequiresUnderground(spellId) && !underground)
         || (RequiresAboveGround(spellId) && underground);
-
-    /// <summary>
-    /// <b>"And the Light Shall Lie" does not touch the lighting.</b>
-    /// </summary>
-    /// <remarks>
-    /// Its name and its flavour text both talk about light, and its handler sets one plain spell
-    /// timer with no light timer and no zone gate. The text says as much — the effect is invisible
-    /// and "specifically designed for Moraeulf" — but the name invites the wrong grouping, so it is
-    /// worth stating that it belongs with Scent of Sarig and Union rather than with the three that
-    /// change what the world looks like.
-    /// <para><b>Deliberately callerless.</b> A naming note; DrivesWorldLighting is the rule FieldSpellCaster applies.</para>
-    /// </remarks>
-    public static bool NameSuggestsLightingButDoesNot(int spellId) =>
-        spellId == AndTheLightShallLie;
-
-    /// <summary>
-    /// <b>A timed field spell charges even when it produces no effect.</b>
-    /// </summary>
-    /// <remarks>
-    /// The cost is applied outside the branch that sets the timers, so a computed time of zero means
-    /// no timer, no light change — and the caster pays anyway. The two zone-gated spells are the
-    /// exceptions, because in the wrong zone they return before reaching either.
-    /// <para><b>Deliberately callerless.</b> FieldSpellCaster.CastAsync calls ApplyCost outside the timer branch; RefusedInZone returns before it.</para>
-    /// </remarks>
-    public static bool ChargesEvenWithNoEffect(int spellId) =>
-        !RequiresUnderground(spellId) && !RequiresAboveGround(spellId);
 
     /// <summary>
     /// Eyes of Ishap's success chance: <b>ten percent per point of power</b>.
@@ -430,27 +395,6 @@ public static class FieldSpells {
             case DragonsBreath: return (int)World.LightSourceDecay.Source.DragonsBreath;
             case CandleGlow: return (int)World.LightSourceDecay.Source.CandleGlow;
             case Stardusk: return (int)World.LightSourceDecay.Source.Stardusk;
-            default: return -1;
-        }
-    }
-
-    /// <summary>The sound a timed field spell plays, or -1 for one that plays none.</summary>
-    /// <remarks>
-    /// <b>Three sounds across six spells, and they do not group the way the effects do.</b> The
-    /// three lighting spells share one, And the Light Shall Lie and Union share another, and Scent
-    /// of Sarig has its own — so the audio grouping matches the duration formula for the first
-    /// three and cuts across it for the rest.
-    /// <para><b>Deliberately callerless.</b> Superseded by SpellCastSound.ForCast, which FieldSpellCaster plays and which agrees for all six timed spells.</para>
-    /// </remarks>
-    public static int SoundFor(int spellId) {
-        if (DrivesWorldLighting(spellId)) {
-            return CreationSound;
-        }
-
-        switch (spellId) {
-            case AndTheLightShallLie:
-            case Union: return GeneralSound;
-            case ScentOfSarig: return ScentSound;
             default: return -1;
         }
     }

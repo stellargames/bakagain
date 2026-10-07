@@ -43,21 +43,6 @@ public class FieldSpellsTests {
     }
 
     [Fact]
-    public void AndTheOtherSixDo() {
-        foreach (int id in FieldSpells.All) {
-            if (FieldSpells.IsInstantaneous(id)) {
-                continue;
-            }
-            Assert.True(FieldSpells.TakesDuration(id));
-        }
-    }
-
-    [Fact]
-    public void ASpellOutsideTheListTakesNoDurationBecauseItDoesNothing() {
-        Assert.False(FieldSpells.TakesDuration(SpellIds.Skyfire));
-    }
-
-    [Fact]
     public void StarduskIsAFieldSpellDespiteItsCastingRestrictions() {
         // SpellIds already singles it out for where it may be cast; that is a different question
         // from whether the overworld dispatcher handles it.
@@ -101,15 +86,6 @@ public class FieldSpellsTests {
     public void CandleGlowAboveGroundIsACompleteNoOp() {
         // It returns before the sound, the text, the timers and the cost — silent and free.
         Assert.True(FieldSpells.RequiresUnderground(FieldSpells.CandleGlow));
-        Assert.False(FieldSpells.ChargesEvenWithNoEffect(FieldSpells.CandleGlow));
-    }
-
-    [Fact]
-    public void ButEveryOtherTimedSpellChargesEvenWithNoEffect() {
-        // The cost sits outside the branch that sets the timers.
-        Assert.True(FieldSpells.ChargesEvenWithNoEffect(FieldSpells.DragonsBreath));
-        Assert.True(FieldSpells.ChargesEvenWithNoEffect(FieldSpells.ScentOfSarig));
-        Assert.Equal(0, FieldSpells.DurationTicks(0, 20, powerExtendsIt: true));
     }
 
     [Fact]
@@ -128,7 +104,6 @@ public class FieldSpellsTests {
     public void AFailedLocatorStillCostsFullPrice() {
         // The cost is applied before the roll is taken.
         Assert.True(FieldSpells.IsLocatorRoll(FieldSpells.EyesOfIshap));
-        Assert.True(FieldSpells.ChargesEvenWithNoEffect(FieldSpells.EyesOfIshap));
     }
     [Fact]
     public void AllThreeNoDurationSpellsAreLocators() {
@@ -223,16 +198,8 @@ public class FieldSpellsTests {
     }
 
     [Fact]
-    public void BothZoneGatedSpellsAreFreeInTheWrongZone() {
-        // They return before the sound, the text, the timers and the cost.
-        Assert.False(FieldSpells.ChargesEvenWithNoEffect(FieldSpells.CandleGlow));
-        Assert.False(FieldSpells.ChargesEvenWithNoEffect(FieldSpells.Stardusk));
-    }
-
-    [Fact]
     public void AndTheLightShallLieDoesNotTouchTheLighting() {
         // Its name and flavour text both talk about light; its handler sets one plain spell timer.
-        Assert.True(FieldSpells.NameSuggestsLightingButDoesNot(FieldSpells.AndTheLightShallLie));
         Assert.False(FieldSpells.DrivesWorldLighting(FieldSpells.AndTheLightShallLie));
         Assert.False(FieldSpells.PowerExtendsDuration(FieldSpells.AndTheLightShallLie));
     }
