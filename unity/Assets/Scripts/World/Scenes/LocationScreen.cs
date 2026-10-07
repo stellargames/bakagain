@@ -264,6 +264,9 @@ namespace BakAgain.World.Scenes {
         /// then override which action runs — <see cref="GdsSceneRules.OutcomeFor"/>.
         /// </remarks>
         public void PrimaryAction(int menuEntryActionId) {
+            if (_describing) {
+                return;
+            }
             _ = Act(menuEntryActionId);
         }
 
@@ -275,6 +278,9 @@ namespace BakAgain.World.Scenes {
         /// every description in the game.
         /// </remarks>
         public async Awaitable SecondaryAction(int menuEntryActionId) {
+            if (_describing) {
+                return;
+            }
             GdsHotspot hotspot = HotspotFor(menuEntryActionId);
             if (!GdsSceneInteraction.HasExamine(hotspot)) {
                 // Faithful: a hotspot with no examine dialog says nothing at all.
@@ -282,6 +288,11 @@ namespace BakAgain.World.Scenes {
             }
 
             await Examine(hotspot).AsTask();
+            // needRefresh (TOWNSCN.C:452, :624-631): the location says what it is again afterwards.
+            // Not on a location torn down meanwhile: its description would outlive it.
+            if (isActiveAndEnabled) {
+                await ShowSceneDescriptionAsync();
+            }
         }
 
         /// <summary>
@@ -313,10 +324,23 @@ namespace BakAgain.World.Scenes {
 
             // In-scene: render without blocking so the held picture stays visible underneath, then
             // wait the way the original does — see DismissAsync.
-            await _dialogs.DisplayEntry(play);
-            await DismissAsync();
+            _describing = true;
+            try {
+                await _dialogs.DisplayEntry(play);
+                await DismissAsync();
+            } finally {
+                _describing = false;
+            }
             _dialogs.ClearDialog();
         }
+
+        /// <summary>
+        /// An in-scene description is up: the hotspots take no click. The original runs no menu while
+        /// it waits (TOWNSCN.C:449 blocks in <c>townscene_cursor_wait_for_drag</c>), so the click that
+        /// ends a description never reaches the hotspot under it — the bottom strip's exit included
+        /// (TASK-856).
+        /// </summary>
+        private bool _describing;
 
         /// <summary>
         /// Puts the establishment's name on its sign above the description.
@@ -453,9 +477,16 @@ namespace BakAgain.World.Scenes {
                 int dx = Mathf.RoundToInt(now.x - start.x);
                 int dy = Mathf.RoundToInt(now.y - start.y);
                 if (GdsSceneInteraction.ExamineEndsOn(clicked, dx, dy)) {
-                    return;
+                    break;
                 }
             }
+            // dialog_input_wait_release (TOWNSCN.C:243): the ending click is swallowed. Hold until the
+            // buttons are up, plus a frame so the hotspot's Clickable sees its release while the
+            // description still owns the input.
+            while (isActiveAndEnabled && (_pointer.Primary.IsDown || _pointer.Secondary.IsDown)) {
+                await UniTask.Yield();
+            }
+            await UniTask.Yield();
         }
 
         private async UniTask Act(int menuEntryActionId) {
