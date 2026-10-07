@@ -48,7 +48,6 @@ MonoBehaviour:
     m_Name: package.openupm.com
     m_Url: https://package.openupm.com
     m_Scopes:
-    - com.serilog.sinks.unity3d
     - extensions.unity.playerprefsex
     - jp.hadashikick.vcontainer
     - org.nuget.microsoft.bcl.asyncinterfaces
@@ -64,7 +63,6 @@ MonoBehaviour:
     - org.nuget.system.memory
     - org.nuget.system.numerics.vectors
     - org.nuget.system.runtime.compilerservices.unsafe
-    - org.nuget.system.text.encoding.codepages
     - org.nuget.system.text.encodings.web
     - org.nuget.system.text.json
     - org.nuget.system.threading.channels

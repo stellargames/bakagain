@@ -8,7 +8,6 @@
     "Unity.InputSystem",
     "SimpleFileBrowser.Runtime",
     "VContainer",
-    "Serilog.Sinks.Unity3D",
     "UniTask",
     "UniTask.Addressables",
     "Unity.TextMeshPro",

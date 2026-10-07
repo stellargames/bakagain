@@ -7,13 +7,6 @@
       "dependencies": {},
       "hash": "ceac8d6946b1125fe782cd171fbcb245b567dbf9"
     },
-    "com.serilog.sinks.unity3d": {
-      "version": "3.0.0",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {},
-      "url": "https://package.openupm.com"
-    },
     "com.unity.2d.sprite": {
       "version": "1.0.0",
       "depth": 0,
@@ -295,69 +288,24 @@
       },
       "url": "https://package.openupm.com"
     },
-    "org.nuget.microsoft.extensions.dependencyinjection": {
-      "version": "8.0.0",
-      "depth": 2,
-      "source": "registry",
-      "dependencies": {
-        "org.nuget.microsoft.bcl.asyncinterfaces": "8.0.0",
-        "org.nuget.microsoft.extensions.dependencyinjection.abstractions": "8.0.0",
-        "org.nuget.system.threading.tasks.extensions": "4.5.4"
-      },
-      "url": "https://package.openupm.com"
-    },
     "org.nuget.microsoft.extensions.dependencyinjection.abstractions": {
-      "version": "8.0.0",
-      "depth": 3,
-      "source": "registry",
-      "dependencies": {
-        "org.nuget.microsoft.bcl.asyncinterfaces": "8.0.0",
-        "org.nuget.system.threading.tasks.extensions": "4.5.4"
-      },
-      "url": "https://package.openupm.com"
-    },
-    "org.nuget.microsoft.extensions.logging": {
       "version": "8.0.0",
       "depth": 1,
       "source": "registry",
       "dependencies": {
         "org.nuget.microsoft.bcl.asyncinterfaces": "8.0.0",
-        "org.nuget.microsoft.extensions.dependencyinjection": "8.0.0",
-        "org.nuget.microsoft.extensions.logging.abstractions": "8.0.0",
-        "org.nuget.microsoft.extensions.options": "8.0.0",
-        "org.nuget.system.diagnostics.diagnosticsource": "8.0.0"
+        "org.nuget.system.threading.tasks.extensions": "4.5.4"
       },
       "url": "https://package.openupm.com"
     },
     "org.nuget.microsoft.extensions.logging.abstractions": {
       "version": "8.0.0",
-      "depth": 2,
+      "depth": 0,
       "source": "registry",
       "dependencies": {
         "org.nuget.microsoft.extensions.dependencyinjection.abstractions": "8.0.0",
         "org.nuget.system.buffers": "4.5.1",
         "org.nuget.system.memory": "4.5.5"
-      },
-      "url": "https://package.openupm.com"
-    },
-    "org.nuget.microsoft.extensions.options": {
-      "version": "8.0.0",
-      "depth": 2,
-      "source": "registry",
-      "dependencies": {
-        "org.nuget.microsoft.extensions.dependencyinjection.abstractions": "8.0.0",
-        "org.nuget.microsoft.extensions.primitives": "8.0.0",
-        "org.nuget.system.componentmodel.annotations": "5.0.0"
-      },
-      "url": "https://package.openupm.com"
-    },
-    "org.nuget.microsoft.extensions.primitives": {
-      "version": "8.0.0",
-      "depth": 3,
-      "source": "registry",
-      "dependencies": {
-        "org.nuget.system.memory": "4.5.5",
-        "org.nuget.system.runtime.compilerservices.unsafe": "6.0.0"
       },
       "url": "https://package.openupm.com"
     },
@@ -370,48 +318,11 @@
       },
       "url": "https://unitynuget-registry.openupm.com"
     },
-    "org.nuget.serilog": {
-      "version": "4.4.0",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {
-        "org.nuget.system.diagnostics.diagnosticsource": "8.0.1",
-        "org.nuget.system.threading.channels": "8.0.0"
-      },
-      "url": "https://unitynuget-registry.openupm.com"
-    },
-    "org.nuget.serilog.extensions.logging": {
-      "version": "8.0.0",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {
-        "org.nuget.microsoft.extensions.logging": "8.0.0",
-        "org.nuget.serilog": "3.1.1"
-      },
-      "url": "https://unitynuget-registry.openupm.com"
-    },
     "org.nuget.system.buffers": {
       "version": "4.5.1",
       "depth": 1,
       "source": "registry",
       "dependencies": {},
-      "url": "https://package.openupm.com"
-    },
-    "org.nuget.system.componentmodel.annotations": {
-      "version": "5.0.0",
-      "depth": 3,
-      "source": "registry",
-      "dependencies": {},
-      "url": "https://package.openupm.com"
-    },
-    "org.nuget.system.diagnostics.diagnosticsource": {
-      "version": "8.0.1",
-      "depth": 1,
-      "source": "registry",
-      "dependencies": {
-        "org.nuget.system.memory": "4.5.5",
-        "org.nuget.system.runtime.compilerservices.unsafe": "6.0.0"
-      },
       "url": "https://package.openupm.com"
     },
     "org.nuget.system.memory": {
@@ -460,15 +371,6 @@
         "org.nuget.system.buffers": "4.5.1",
         "org.nuget.system.memory": "4.5.5",
         "org.nuget.system.runtime.compilerservices.unsafe": "6.0.0",
-        "org.nuget.system.threading.tasks.extensions": "4.5.4"
-      },
-      "url": "https://package.openupm.com"
-    },
-    "org.nuget.system.threading.channels": {
-      "version": "8.0.0",
-      "depth": 1,
-      "source": "registry",
-      "dependencies": {
         "org.nuget.system.threading.tasks.extensions": "4.5.4"
       },
       "url": "https://package.openupm.com"

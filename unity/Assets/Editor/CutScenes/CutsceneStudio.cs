@@ -23,7 +23,6 @@ namespace BakAgain.Editor.Cutscenes {
     using UnityEngine.UIElements;
     using Color = UnityEngine.Color;
     using Image = UnityEngine.UIElements.Image;
-    using LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory;
 
     public class CutsceneStudio : EditorWindow {
         [SerializeField]
@@ -117,7 +116,7 @@ namespace BakAgain.Editor.Cutscenes {
 
         private async UniTaskVoid InitializeAsync() {
             // Poor-man's DI for the editor window
-            var loggerFactory = new LoggerFactory();
+            var loggerFactory = Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance;
             ILogger<CutsceneFrameProcessor> frameProcessorLogger =
                 ConditionalLoggingExtensions.CreateLogger<CutsceneFrameProcessor>(loggerFactory);
             var resourceCache = new ResourceCache();
