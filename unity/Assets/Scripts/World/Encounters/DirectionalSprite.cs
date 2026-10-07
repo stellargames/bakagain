@@ -247,9 +247,6 @@ namespace BakAgain.World.Encounters {
 
         private int _tintRung;
 
-        /// <summary>Which fade rung this sprite is currently drawn through — 0 is untinted.</summary>
-        public int TintRung => _tintRung;
-
         /// <summary>
         /// Redraw this sprite through fade rung <paramref name="rung"/> of the zone's RMP.
         /// </summary>

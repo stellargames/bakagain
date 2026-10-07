@@ -74,9 +74,6 @@ namespace BakAgain.ResourceManagement.Loaders {
             _logger = logger;
         }
 
-        /// <summary>Number of fields built (0 when <c>inAddress</c> is unset).</summary>
-        public int FieldCount => _fields.Count;
-
         /// <summary>Sets the displayed text for field <paramref name="index"/> and
         /// redraws its caret/highlight against the (possibly now out-of-range)
         /// selection. No-op if out of range / nothing built yet.</summary>

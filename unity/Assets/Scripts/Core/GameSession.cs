@@ -2718,9 +2718,6 @@ namespace BakAgain.Core {
             }
         }
 
-        // Test seam (kept for existing tests): same in-session overlay.
-        internal void SetGlobalFlagForTest(int key, bool set) => SetGlobalFlag(key, set);
-
         /// <summary>
         /// Give a party slot live attributes without hydrating a save — the seam spell costs,
         /// combat write-back and upkeep all need to be assertable.

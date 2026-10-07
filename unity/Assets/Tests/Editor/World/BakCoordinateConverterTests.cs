@@ -42,13 +42,6 @@ namespace BakAgain.Tests.Editor.World {
         }
 
         [Test]
-        public void ConvertVertexPosition_Short_ConvertsCorrectly() {
-            // TBL vertices use short (signed 16-bit)
-            var result = BakCoordinateConverter.ConvertVertexPosition(-100, 200, 300);
-            Assert.AreEqual(new Vector3(-1f, 3f, 2f), result);
-        }
-
-        [Test]
         public void BakAngleToDegrees_IsInverted() {
             // Angles are negated into [0, 360): degrees = (65536 - bakAngle) % 65536 / 65536 * 360.
             // Raw 0 maps to exactly 0°; one raw step below zero (0xFFFF) maps to one step (0.0055°).

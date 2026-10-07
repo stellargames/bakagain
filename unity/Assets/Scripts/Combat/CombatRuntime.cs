@@ -4028,23 +4028,6 @@ namespace BakAgain.Combat {
         /// <summary>Equipment category 4 — worn armour.</summary>
         public const int ArmorCategory = 4;
 
-        /// <summary>
-        /// <b>The weapon's accuracy and damage fields are NOT crossed — this used to say they
-        /// were, and every melee in the game was resolved on the wrong pair because of it.</b>
-        /// </summary>
-        /// <remarks>
-        /// The claim was assembled out of two different routines: the to-hit came from the SWING
-        /// (<c>combat_arena_melee_attack</c>, <c>nDefense_or_range_close</c>) and the damage from
-        /// the THRUST (<c>resolve_melee_swing</c>, which passes <c>attack_type = 1</c> and so reads
-        /// <c>nThrust_damage</c>). Read either body whole and it pairs like its name.
-        ///
-        /// <para><b>What is genuinely swapped is canassa's two function NAMES.</b>
-        /// <c>combat_arena_resolve_melee_swing</c> is the thrust and <c>combat_arena_melee_attack</c>
-        /// is the swing — see <see cref="CombatActionDispatch.AccuracyOf"/>, which now owns the
-        /// pairing and the evidence.</para>
-        /// </remarks>
-        public static bool MeleeWeaponFieldsPairByName => true;
-
         /// <summary>An equipped item, or an empty value meaning bare-handed / unarmoured.</summary>
         private readonly struct Equipped {
             public Equipped(GameData.Resources.Object.ObjectInfo info, int condition,

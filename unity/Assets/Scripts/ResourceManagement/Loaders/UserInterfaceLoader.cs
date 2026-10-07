@@ -169,10 +169,6 @@ namespace BakAgain.ResourceManagement.Loaders {
         /// model's faithful defaults".</summary>
         public GameData.Resources.Inventory.InventoryLayout Inventory => _userInterface?.Inventory;
 
-        /// <summary>Number of IN-form fields built by the companion <see cref="InputFormRenderer"/>
-        /// (0 when no <c>inputFormAddress</c> is set / nothing built yet).</summary>
-        public int InputFieldCount => _inputForm?.FieldCount ?? 0;
-
         /// <summary>Pushes the displayed text for IN-form field <paramref name="i"/>
         /// (see <see cref="InputFormRenderer.SetText"/>). No-op if nothing built yet.</summary>
         public void SetInputText(int i, string text) => _inputForm?.SetText(i, text);

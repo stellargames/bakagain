@@ -44,25 +44,9 @@ namespace GameData.Resources.World;
 /// <c>interactable_bush_food</c> / <c>_poison</c> / <c>_healing</c> = 26 / 27 / 28, which is why
 /// they are three members here and not one.</para>
 /// </summary>
-public enum WorldEntityType : byte {
-    Ground      = 0,   Road        = 1,   Bridge    = 2,   Water      = 3,
-    Landscape   = 4,   Decoration  = 5,   GroundPatch = 7, Fence      = 8,
-    MineCorridor = 14,
-    Container   = 6,   RiftMachine = 9,   Building  = 10,  Grave      = 12,
-    WayMarker   = 13,  Pit         = 15,  Corpse    = 16,  Dirt       = 17,
-    Corn        = 18,  Ashes       = 19,  Tunnel    = 20,  Door       = 23,
-    Crystals    = 24,  RockPile    = 25,  Bush      = 26,  BushPoison = 27,
-    BushHealing = 28,  StoneSlab   = 29,  TreeStump = 30,  Well       = 31,
-    SiegeEngine = 33,  ScareCrow   = 34,  DeadAnimal = 35, Catapult   = 36,
-    Pillar      = 37,  LandscapeAlt = 38, TunnelExit = 39, Bag        = 41,
-    Grove       = 21,  Fern        = 22,  Ladder    = 42,
-}
-
-/// <summary>
-/// Where the nine names added on 2026-09-12 come from, and which of them are provisional.
-/// </summary>
 /// <remarks>
-/// <b>Read out of the shipped zone tables, not inferred.</b> Every <c>Z##.TBL</c> entry carries a
+/// <para><b>Where the nine names added on 2026-09-12 come from, and which of them are provisional.</b></para>
+/// /// <b>Read out of the shipped zone tables, not inferred.</b> Every <c>Z##.TBL</c> entry carries a
 /// kind and a NAME, so a census over all ten zones says outright what each kind holds:
 ///
 /// <list type="table">
@@ -80,4 +64,16 @@ public enum WorldEntityType : byte {
 /// not cross is a continuous band of landscape mesh, and the port refuses it because the original
 /// refuses it. Naming it turns a census result into something a reader can see in the code.</para>
 /// </remarks>
-internal static class WorldEntityTypeProvenance { }
+public enum WorldEntityType : byte {
+    Ground      = 0,   Road        = 1,   Bridge    = 2,   Water      = 3,
+    Landscape   = 4,   Decoration  = 5,   GroundPatch = 7, Fence      = 8,
+    MineCorridor = 14,
+    Container   = 6,   RiftMachine = 9,   Building  = 10,  Grave      = 12,
+    WayMarker   = 13,  Pit         = 15,  Corpse    = 16,  Dirt       = 17,
+    Corn        = 18,  Ashes       = 19,  Tunnel    = 20,  Door       = 23,
+    Crystals    = 24,  RockPile    = 25,  Bush      = 26,  BushPoison = 27,
+    BushHealing = 28,  StoneSlab   = 29,  TreeStump = 30,  Well       = 31,
+    SiegeEngine = 33,  ScareCrow   = 34,  DeadAnimal = 35, Catapult   = 36,
+    Pillar      = 37,  LandscapeAlt = 38, TunnelExit = 39, Bag        = 41,
+    Grove       = 21,  Fern        = 22,  Ladder    = 42,
+}

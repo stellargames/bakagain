@@ -355,20 +355,6 @@ namespace BakAgain.Audio {
             _currentSongId = null;
             _currentTrack = MusicPlayback.NoTrack;
         }
-
-        public void StopAllSounds()
-        {
-            _logger.LogInformation("Stopping all sounds.");
-            _songPlayer.Stop();
-            _currentSongId = null;
-            _currentTrack = MusicPlayback.NoTrack;
-
-            IEnumerable<MidiSynthPlayer> activePlayers = _sfxPlayers.Where(sfxPlayer => sfxPlayer.IsPlaying);
-            foreach (MidiSynthPlayer sfxPlayer in activePlayers) {
-                sfxPlayer.Stop();
-            }
-            _activeSfxPlayers.Clear();
-        }
     }
 
     internal enum SoundDriver : byte {

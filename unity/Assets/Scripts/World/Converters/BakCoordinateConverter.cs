@@ -11,7 +11,6 @@ namespace BakAgain.World.Converters {
     public static class BakCoordinateConverter {
         public const float WorldScale = 100f;
         public const float TileSizeBak = GameData.Resources.World.WorldTileCache.TileWorldSize;
-        public const float TileSizeUnity = TileSizeBak / WorldScale; // 640
 
         /// <summary>Convert BaK world position (uint, from WLD) to Unity Vector3.</summary>
         public static Vector3 ConvertPosition(uint bakX, uint bakY, uint bakZ) {
@@ -29,11 +28,6 @@ namespace BakAgain.World.Converters {
                 bakZ / WorldScale,
                 bakY / WorldScale
             );
-        }
-
-        /// <summary>Convert BaK vertex position (short, from TBL) to Unity Vector3.</summary>
-        public static Vector3 ConvertVertexPosition(short bakX, short bakY, short bakZ) {
-            return ConvertPosition(bakX, bakY, bakZ);
         }
 
         /// <summary>Convert BaK ushort angles to Unity Quaternion.</summary>

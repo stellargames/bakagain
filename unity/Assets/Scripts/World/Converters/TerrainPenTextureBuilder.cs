@@ -58,19 +58,6 @@ namespace BakAgain.World.Converters {
 
         private static readonly Dictionary<int, Dictionary<TerrainPen, Texture2D>> _baked = new();
 
-        /// <summary>All textured pens (everything except <see cref="TerrainPen.FlatFill"/>).</summary>
-        public static readonly TerrainPen[] TexturedPens = {
-            TerrainPen.Ground,
-            TerrainPen.Road,
-            TerrainPen.Path,
-            TerrainPen.River,
-            TerrainPen.Dirt,
-            TerrainPen.Waterfall,
-            TerrainPen.Horizon1,
-            TerrainPen.Horizon2,
-            TerrainPen.GroundLod,
-        };
-
         /// <summary>
         /// Every textured pen's texture for <paramref name="zone"/>, baked once per zone per session.
         /// If the SCX cannot be loaded each pen falls back to white.

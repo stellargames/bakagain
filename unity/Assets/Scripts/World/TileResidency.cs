@@ -28,9 +28,6 @@ namespace BakAgain.World {
         private readonly Dictionary<(int X, int Y), List<GameObject>> _byTile = new();
         private (int X, int Y)? _appliedFor;
 
-        /// <summary>Tiles this zone registered.</summary>
-        public int TileCount => _byTile.Count;
-
         /// <summary>The tile the last <see cref="Apply"/> centred on, if any.</summary>
         public (int X, int Y)? Centre => _appliedFor;
 
@@ -80,23 +77,6 @@ namespace BakAgain.World {
                 }
             }
             return true;
-        }
-
-        /// <summary>Turn every tile back on — the state a zone is built in.</summary>
-        /// <remarks>
-        /// For anything that needs the whole zone at once: the overhead map, a screenshot, or a
-        /// caller that has not established where the party is. Clears the centre so the next
-        /// <see cref="Apply"/> is not skipped by the early-out.
-        /// </remarks>
-        public void ShowAll() {
-            _appliedFor = null;
-            foreach (List<GameObject> roots in _byTile.Values) {
-                foreach (GameObject root in roots) {
-                    if (root != null && !root.activeSelf) {
-                        root.SetActive(true);
-                    }
-                }
-            }
         }
     }
 }

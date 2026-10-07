@@ -154,12 +154,12 @@ public class DialogTypeResolverTests {
     }
 
     [Fact]
-    public void ResolveStyle_PicksTheCorrectRow() {
+    public void ResolvedStyleId_PicksTheCorrectRow() {
         // Source = Normal (0), no overrides → effective 2 → row 2's area.
         // VGA (13, 11, 294, 101) → canonical (65, 66, 1470, 606).
         var entry = new DialogEntry { DialogType = DialogType.Normal, ActorNumber = 0 };
 
-        DialogStyle style = DialogTypeResolver.ResolveStyle(DialogContext.None, entry, _table);
+        DialogStyle style = _table.Get(DialogTypeResolver.ResolveEffectiveStyleId(DialogContext.None, entry));
 
         Assert.Equal(LayoutLength.Px(65f), style.DefaultArea.Left);
         Assert.Equal(LayoutLength.Px(66f), style.DefaultArea.Top);
