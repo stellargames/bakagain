@@ -28,6 +28,8 @@ namespace BakAgain.ResourceManagement {
         private readonly IResourceProvider _resourceProvider;
         private readonly Dictionary<(string path, Type type), object> _resourceCache = new();
         private readonly Dictionary<string, IResource> _extractedResourceCache = new();
+        // The pack the two caches were filled under: they hold resources as that pack translated them.
+        private GameData.Resources.Text.LanguagePack _cachedUnder;
         private readonly ILogger _logger; 
 
         public BakResourceProvider() {
@@ -58,6 +60,13 @@ namespace BakAgain.ResourceManagement {
 
         private object LoadResource(string path, Type resourceType) {
             _logger.LogDebug("{ClassName}: Requested {ResourceType} '{Path}'", nameof(BakResourceProvider), resourceType, path);
+
+            // A pack switched since (LanguagePacks.Reload) must not be handed the old pack's text.
+            if (!ReferenceEquals(_cachedUnder, LanguagePacks.Current)) {
+                _resourceCache.Clear();
+                _extractedResourceCache.Clear();
+                _cachedUnder = LanguagePacks.Current;
+            }
 
             // Check final resource cache first
             (string path, Type resourceType) cacheKey = (path, resourceType);

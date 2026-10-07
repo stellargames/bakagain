@@ -811,6 +811,10 @@ namespace BakAgain.UI {
             }
         }
 
+        private void OnDestroy() {
+            _resources?.Release();
+        }
+
         // Full teardown: drop the panel and disable the overlay GameObject.
         // Used after a dialog completes (or is cancelled / cleared) so the
         // overlay no longer captures input or composites a transparent layer.

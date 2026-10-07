@@ -88,6 +88,7 @@ namespace BakAgain.UI {
             GameData.Resources.Location.TeleportDestinationSet result = await handle;
             if (handle.Status == AsyncOperationStatus.Succeeded && result != null) {
                 _teleportDestinations = result;
+                _held.Add(handle);
             } else {
                 _logger.LogError("Failed to load {Key}; dialog teleports cannot be applied", TeleportKey);
             }
@@ -102,6 +103,7 @@ namespace BakAgain.UI {
             KeywordList result = await handle;
             if (handle.Status == AsyncOperationStatus.Succeeded && result != null) {
                 _keywords = result;
+                _held.Add(handle);
             } else {
                 _logger.LogError("Failed to load keyword table {Key}; confirmation buttons will show numeric keys", KeywordsKey);
             }
@@ -130,6 +132,7 @@ namespace BakAgain.UI {
             DialogStyleTable table = await handle;
             if (handle.Status == AsyncOperationStatus.Succeeded && table != null) {
                 _styleTable = table;
+                _held.Add(handle);
             } else {
                 _logger.LogError(
                     "Failed to load dialog style table {Key}; falling back to the shipped rows compiled into GameData",
@@ -168,11 +171,31 @@ namespace BakAgain.UI {
             }
 
             _sprites[address] = sprite;
+            _held.Add(handle);
             return sprite;
         }
 
         private readonly System.Collections.Generic.Dictionary<string, UnityEngine.Sprite> _sprites
             = new System.Collections.Generic.Dictionary<string, UnityEngine.Sprite>();
+
+        // The handles behind the lifetime caches above. Held, they pin each asset in Addressables'
+        // operation cache for the whole process, so a later load of the same key gets this
+        // instance back, already converted — under whatever language pack was current then.
+        private readonly System.Collections.Generic.List<AsyncOperationHandle> _held
+            = new System.Collections.Generic.List<AsyncOperationHandle>();
+
+        /// <summary>Ends the loader's lifetime: drops its caches and releases what it loaded.</summary>
+        public void Release() {
+            foreach (AsyncOperationHandle handle in _held) {
+                Addressables.Release(handle);
+            }
+            _held.Clear();
+            _keywords = null;
+            _teleportDestinations = null;
+            _styleTable = null;
+            _defaultPalette = null;
+            _sprites.Clear();
+        }
 
         public async UniTask<Color[]> GetDefaultPaletteAsync() {
             if (_defaultPalette != null) {
@@ -183,6 +206,7 @@ namespace BakAgain.UI {
             PaletteResource palette = await handle;
             if (handle.Status == AsyncOperationStatus.Succeeded && palette != null) {
                 _defaultPalette = palette.Colors.ToUnity();
+                _held.Add(handle);
             } else {
                 _logger.LogError("Failed to load default dialog palette {Key}", DefaultDialogPaletteKey);
                 _defaultPalette = Array.Empty<Color>();
