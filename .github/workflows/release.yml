@@ -102,3 +102,17 @@ jobs:
           files: dist/*
           prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true
+      # The site links the files directly (/releases/latest skips pre-releases), so point it at this
+      # release. The VPS pulls website/ from main.
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          path: repo
+      - name: Point the website at this release
+        working-directory: repo
+        run: |
+          website/set-release.sh "${GITHUB_REF_NAME}" ../dist
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -am "Website: downloads point at ${GITHUB_REF_NAME}"
+          git push
