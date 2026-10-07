@@ -19,15 +19,11 @@ namespace BakAgain.UI {
     /// (a per-field text/selection model this screen owns and pushes to the
     /// loader's non-editable <c>InputFormRenderer</c>, built from Task 2) that
     /// the pickers fill in on selection, and the Save/Cancel/Remove Game/Remove
-    /// Directory buttons. Mirrors <see cref="LoadGameMenu"/>; the two pickers,
-    /// Open/Close, and the <see cref="IFilePickerSource"/> implementation are
-    /// identical.
+    /// Directory buttons. The two pickers are <see cref="SaveLoadMenuBase"/>'s,
+    /// shared with <see cref="LoadGameMenu"/>.
     /// </summary>
-    [RequireComponent(typeof(UserInterfaceLoader))]
-    public class SaveGameMenu : BakAgain.UI.Navigation.ScreenBase, IActionHandler, IFilePickerSource, IScreenInput {
+    public class SaveGameMenu : SaveLoadMenuBase, IActionHandler, IScreenInput {
         // REQ_SAVE action ids — verified against generated/REQ/REQ_SAVE.json.
-        private const int DirectoryPickerAction = 197;
-        private const int FilePickerAction = 196;
         private const int ButtonSave = 193;
         private const int ButtonCancel = 192;
         // *** THE REMOVE BUTTONS ARE NEVER GREYED, and there is nothing to update. *** The original
@@ -47,35 +43,9 @@ namespace BakAgain.UI {
         private const int DirFieldMaxLength = 8;
         private const int GameFieldMaxLength = 89;
 
-        // Picker geometry decoded from filePicker_create (sub_ovr142_0) args at
-        // the two call sites in dialog_LoadGame @ 0x6e2fb / 0x6e318 — dialog_SaveGame
-        // shares the same layout (REQ_SAVE's FilePicker entries carry no geometry
-        // of their own, same as REQ_LOAD's):
-        //   arg_0 = xOffset, arg_2 = yOffset (VGA px), arg_4 = total_width
-        //   (list + a 16px scrollbar the engine reserves on the right),
-        //   arg_6 = visible rows. Raw VGA args are Directories (33,49,85) and
-        //   Games (125,49,159); the widget height is (fontHeight+5)*rows + 2
-        //   ≈ 67 VGA. Scaled here into the canonical 1600×1200 stage (×5 / ×6,
-        //   Canonical.VgaScale*) so they land in the same square-pixel space as
-        //   the REQ buttons — the loader draws purely in canonical px and never
-        //   sees VGA. The 16px scrollbar reservation is applied loader-side.
-        private static readonly Rect DirectoryPickerRect = new(165, 294, 425, 462);
-        private static readonly Rect FilePickerRect = new(625, 294, 795, 462);
-        private const int VisibleRows = 5;
-
         private ILogger _logger;
-        private ISaveGameDirectoryService _saves;
         private SaveGameService _saveGameService;
         private IDialogManager _dialogManager;
-        private BakAgain.UI.Navigation.IScreenNavigator _navigator;
-        private UserInterfaceLoader _loader;
-
-        // Snapshots populated as the user navigates. Both lists are empty
-        // until the directory picker fires a selection in the left pane.
-        private IReadOnlyList<SaveDirectoryInfo> _directories = Array.Empty<SaveDirectoryInfo>();
-        private IReadOnlyList<SaveSlotInfo> _slots = Array.Empty<SaveSlotInfo>();
-        private int _selectedDirectory = -1;
-        private int _selectedSlot = -1;
 
         // The per-field text/caret/selection model this screen owns and drives (the fields
         // are now drawn non-editable by InputFormRenderer — see Task 2 in
@@ -92,9 +62,9 @@ namespace BakAgain.UI {
         // which way it goes).
         private int _activeField = 1;
 
-        private void Awake() {
+        protected override void Awake() {
+            base.Awake();
             _logger = LogManager.LoggerFactory.CreateLogger<SaveGameMenu>();
-            _loader = GetComponent<UserInterfaceLoader>();
             // The loader (re)builds its boxes asynchronously every time this screen is
             // (re)enabled; reconcile the initial focus once they exist (mirrors
             // MenuLayerHost's own Built-event + IsBuilt pull-reconcile pattern for the
@@ -218,7 +188,8 @@ namespace BakAgain.UI {
             _ = LoadDirectoriesAsync();
         }
 
-        private void OnDisable() {
+        protected override void OnDisable() {
+            base.OnDisable();
             _pressRoot?.UnregisterCallback<UnityEngine.UIElements.PointerDownEvent>(OnRootPointerDown);
             _pressRoot = null;
             if (_osk != null) {
@@ -226,47 +197,22 @@ namespace BakAgain.UI {
                 _osk = null;
                 _oskField = -1;
             }
-            _selectedDirectory = -1;
-            _selectedSlot = -1;
-            _directories = Array.Empty<SaveDirectoryInfo>();
-            _slots = Array.Empty<SaveSlotInfo>();
         }
 
-        private async UniTask LoadDirectoriesAsync() {
-            // The original's MkSaveGameDir always seeds GAMES\SAVES.G01 when the
-            // save dialog opens, so a fresh install (no save-set dirs yet) still
-            // has a directory to select.
+        // The original's MkSaveGameDir always seeds GAMES\SAVES.G01 when the
+        // save dialog opens, so a fresh install (no save-set dirs yet) still
+        // has a directory to select.
+        protected override async UniTask LoadDirectoriesAsync() {
             await _saves.EnsureDefaultDirectoryAsync();
-            _directories = await _saves.ListDirectoriesAsync();
-            _slots = Array.Empty<SaveSlotInfo>();
-            _selectedSlot = -1;
-            // Open with the first directory selected (which in turn selects its
-            // first save), matching the engine's initial highlight.
-            _selectedDirectory = _directories.Count > 0 ? 0 : -1;
-            _loader.RefreshFilePicker(DirectoryPickerAction);
-            if (_selectedDirectory >= 0) {
-                // Pre-fill the dir box for the auto-selected directory. The push is a no-op
-                // until the loader has built the fields; OnLoaderBuilt's reconcile re-pushes
-                // the model once they exist.
-                SetFieldText(0, _directories[0].DisplayName);
-                await RefreshSlotsAsync(_directories[0].Name);
-            } else {
-                _loader.RefreshFilePicker(FilePickerAction);
-            }
+            await base.LoadDirectoriesAsync();
         }
 
-        // Re-lists the slots of one directory and refreshes the right-pane
-        // picker. Factored out of the initial directory load so Save/Remove
-        // Game can call it again after their write/delete completes.
-        private async UniTask RefreshSlotsAsync(string directoryName) {
-            _slots = await _saves.ListSlotsAsync(directoryName);
-            // Auto-select the first save of the (newly) selected directory.
-            _selectedSlot = _slots.Count > 0 ? 0 : -1;
-            _loader.RefreshFilePicker(FilePickerAction);
-            if (_selectedSlot >= 0) {
-                SetFieldText(1, _slots[_selectedSlot].DisplayName);
-            }
-        }
+        // A picker selection fills the matching box, select-all'd so it reads as
+        // selected/overwritable, matching the original's screenshot (MAINMENU.C:690-705).
+        protected override void OnDirectorySelected(SaveDirectoryInfo directory) =>
+            SetFieldText(0, directory.DisplayName);
+
+        protected override void OnSlotSelected(SaveSlotInfo slot) => SetFieldText(1, slot.DisplayName);
 
         // --- IActionHandler ---
 
@@ -312,6 +258,8 @@ namespace BakAgain.UI {
         // everything: an existing directory/save name (case rules below) is
         // reused (overwrite), a name with no match creates a new directory or
         // allocates a new slot.
+        protected override void Activate() => DoSave();
+
         private async void DoSave() {
             string dirName = _text[0].Trim();
             string gameName = _text[1];
@@ -418,78 +366,6 @@ namespace BakAgain.UI {
             SaveDirectoryInfo dir = _directories[_selectedDirectory];
             await _saves.DeleteDirectoryAsync(dir.Name);
             await LoadDirectoriesAsync(); // re-lists directories (and re-selects/loads their slots) + button states
-        }
-
-        private void Close() => _navigator.Pop().Forget();
-
-        // Grey out Remove Game / Remove Directory when there's nothing selected to remove.
-        // UserInterfaceLoader doesn't currently expose a per-element enable/disable hook (no
-        // SetElementEnabled/SetDisabled/GetElement-style API — checked; enabled state is baked
-        // in at build time from the REQ's Disabled flag only). Until one exists, this is a no-op;
-        // DoRemoveGame/DoRemoveDirectory already guard on _selectedSlot/_selectedDirectory < 0,
-        // so an unguarded button press is safe, just not visually greyed.
-        // TODO: no per-element enable hook on UserInterfaceLoader yet.
-
-        // --- IFilePickerSource ---
-
-        public Rect GetPickerRect(int actionId) => actionId switch {
-            DirectoryPickerAction => DirectoryPickerRect,
-            FilePickerAction => FilePickerRect,
-            _ => Rect.zero,
-        };
-
-        public int GetVisibleRows(int actionId) => VisibleRows;
-
-        public int GetItemCount(int actionId) => actionId switch {
-            DirectoryPickerAction => _directories.Count,
-            FilePickerAction => _slots.Count,
-            _ => 0,
-        };
-
-        public string GetItemLabel(int actionId, int index) => actionId switch {
-            DirectoryPickerAction when index >= 0 && index < _directories.Count =>
-                _directories[index].DisplayName,
-            FilePickerAction when index >= 0 && index < _slots.Count =>
-                _slots[index].DisplayName,
-            _ => string.Empty,
-        };
-
-        public int GetSelectedIndex(int actionId) => actionId switch {
-            DirectoryPickerAction => _selectedDirectory,
-            FilePickerAction => _selectedSlot,
-            _ => -1,
-        };
-
-        public void OnItemSelected(int actionId, int index) {
-            switch (actionId) {
-                case DirectoryPickerAction:
-                    _selectedDirectory = index;
-                    if (index >= 0 && index < _directories.Count) {
-                        SetFieldText(0, _directories[index].DisplayName);
-                        // Repopulates the Games picker and (via RefreshSlotsAsync) sets the
-                        // game-box field for the newly-selected directory's auto-selected slot.
-                        _ = RefreshSlotsAsync(_directories[index].Name);
-                    }
-                            break;
-                case FilePickerAction:
-                    _selectedSlot = index;
-                    if (index >= 0 && index < _slots.Count) {
-                        // SetFieldText select-alls the filled name so it reads as
-                        // selected/overwritable, matching the original's screenshot.
-                        SetFieldText(1, _slots[index].DisplayName);
-                    }
-                            break;
-            }
-        }
-
-        public void OnItemActivated(int actionId, int index) {
-            // Double-click: select the row, then (for a save slot) save into it —
-            // mirrors dialog_LoadGame's double-click-to-restore, adapted to Save's
-            // double-click-to-save. Double-clicking a directory just selects it.
-            OnItemSelected(actionId, index);
-            if (actionId == FilePickerAction) {
-                DoSave();
-            }
         }
 
         // --- IScreenInput ---
@@ -600,33 +476,5 @@ namespace BakAgain.UI {
 
         public void OnCancel() => Close();
 
-        // Moves the Games picker selection by delta (∓1), reusing the same
-        // OnItemSelected(FilePickerAction, ...) path the picker's own mouse click/double-click
-        // handling uses (updates _selectedSlot, fills the game-box field, select-alls it).
-        // Unlike a mouse click, nothing else redraws the picker afterward, so this also asks
-        // the loader to redraw the highlighted row. Clamps at the ends rather than wrapping.
-        private bool MoveGamesSelection(int delta) {
-            if (_slots.Count == 0) {
-                return false;
-            }
-            int newIndex = Math.Clamp((_selectedSlot < 0 ? 0 : _selectedSlot) + delta, 0, _slots.Count - 1);
-            OnItemSelected(FilePickerAction, newIndex);
-            _loader.RefreshFilePicker(FilePickerAction);
-            return true;
-        }
-
-        // Moves the Directories picker selection by delta (∓1) the same way — OnItemSelected
-        // also kicks off RefreshSlotsAsync for the newly-selected directory's Games list, same
-        // as a mouse click on a directory row would.
-        private bool MoveDirectorySelection(int delta) {
-            if (_directories.Count == 0) {
-                return false;
-            }
-            int newIndex = Math.Clamp((_selectedDirectory < 0 ? 0 : _selectedDirectory) + delta, 0,
-                _directories.Count - 1);
-            OnItemSelected(DirectoryPickerAction, newIndex);
-            _loader.RefreshFilePicker(DirectoryPickerAction);
-            return true;
-        }
     }
 }
