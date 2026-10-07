@@ -165,6 +165,8 @@ namespace BakAgain.UI {
                     Directory.CreateDirectory(_overrideTextField.value);
                 }
                 BakResourceSettings.OverridePath = _overrideTextField.value;
+                // The pack lives under this folder; read before it was set, it was English.
+                LanguagePacks.Reload();
             } catch (Exception e) {
                 Logger.LogError(e, "Error setting override path");
             }

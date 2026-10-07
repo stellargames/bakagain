@@ -66,8 +66,6 @@ public static class ShootTargetPanel {
     /// <summary>Label of the damage row.</summary>
     public static string DamageLabel => Text.UiStrings.Get("base:uistring:combat.damage_label_ranged"); // TASK-775: the EXE's own entry, so a pack translates it
 
-    /// <summary>Drawn one pixel past the accuracy value. The damage value has none.</summary>
-    public const string PercentSign = "%";
 
 
     /// <summary>Top of the name line at <paramref name="index"/>, counting from zero.</summary>

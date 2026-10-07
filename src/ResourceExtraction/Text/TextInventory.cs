@@ -19,7 +19,8 @@ using System.Linq;
 /// <param name="Key">The <see cref="TextKey"/> — a translation's PO msgctxt.</param>
 /// <param name="Text">The original English.</param>
 /// <param name="Source">The resource it came from, for a translator's context.</param>
-public sealed record TextEntry(string Key, string Text, string Source);
+/// <param name="Room">The one line's width in game-screen pixels, when the text has a fixed box.</param>
+public sealed record TextEntry(string Key, string Text, string Source, int? Room = null);
 
 /// <summary>
 /// Every player-visible string in the player's game data, keyed (TASK-772) — what a POT is
@@ -60,7 +61,7 @@ public static class TextInventory {
     /// <summary>Every string, through the same walk a language pack writes with (<see cref="TextSlots"/>).</summary>
     public static IEnumerable<TextEntry> Enumerate(IResourceProvider provider) =>
         TextResources(provider).SelectMany(r =>
-            TextSlots.Of(r.Resource, r.Id).Select(slot => new TextEntry(slot.Key, slot.Text, r.Id)));
+            TextSlots.Of(r.Resource, r.Id).Select(slot => new TextEntry(slot.Key, slot.Text, r.Id, slot.Room)));
 
     private static IEnumerable<string> WithExtension(IResourceProvider provider, string extension) =>
         provider.GetDictionary().Keys

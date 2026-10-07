@@ -94,4 +94,11 @@ public class KeywordPromptTests {
         Assert.Equal(KeywordPrompt.NothingChosen, KeywordPrompt.Result(0));
         Assert.Equal(KeywordPrompt.NothingChosen, KeywordPrompt.Result(0x7f));
     }
+
+    [Fact]
+    public void ASpeakerWithNoNameStillGetsTheHeadingNotItsTemplate() {
+        // A name the lookup could not find reaches here as null; the heading must not fall back to
+        // the raw "{name} asked about:" pattern.
+        Assert.Equal(" asked about:", KeywordPrompt.PromptFor(null!));
+    }
 }

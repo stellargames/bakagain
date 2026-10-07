@@ -18,12 +18,22 @@ public static class PotTemplate {
     /// <summary>A conversion <see cref="GameData.Resources.Text.CFormat"/> fills.</summary>
     private static readonly Regex PrintfConversion = new Regex(@"%(\d+\$)?[lFh]*[dscu]");
 
-    public static void Write(IEnumerable<TextEntry> entries, TextWriter writer) {
+    /// <param name="measure">The English's width in game-screen pixels (the game font), for an
+    /// entry with a <see cref="TextEntry.Room"/>; null leaves the room out.</param>
+    public static void Write(IEnumerable<TextEntry> entries, TextWriter writer, System.Func<string, int>? measure = null) {
         var catalog = new POCatalog { Encoding = "UTF-8", Language = string.Empty };
         foreach (TextEntry entry in entries) {
             var comments = new List<POComment> {
                 new POReferenceComment { References = new List<POSourceReference> { new(entry.Source, 0) } },
             };
+            if (entry.Room is int room && measure?.Invoke(entry.Text) is int english && english > 0) {
+                // A budget in characters is what a translator can act on; it is the English's own
+                // average glyph, so it is "about". The caption shrinks to 60% before it overflows.
+                int fit = entry.Text.Length * room / english;
+                comments.Add(new POExtractedComment {
+                    Text = $"One line, {room} px wide. The English takes {english} px: about {fit} characters fit.",
+                });
+            }
             if (GameData.Resources.Text.UiTemplates.IsTemplate(entry.Key)) {
                 // Weblate's flag for ICU MessageFormat: it then checks placeholders and plurals.
                 comments.Add(new POFlagsComment { Flags = new HashSet<string> { "icu-message-format" } });

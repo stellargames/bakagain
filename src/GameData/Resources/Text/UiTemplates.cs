@@ -63,7 +63,14 @@ public static class UiTemplates {
     public const string PercentKey = "port:template:percent";
 
     /// <summary><paramref name="n"/> as a percentage, through <see cref="PercentKey"/>.</summary>
-    public static string Percent(object n) => Format(PercentKey, ("n", n));
+    /// <remarks>The combat panels redraw every frame, so the untranslated "{n}%" with a whole number
+    /// skips MessageFormat: same text, no allocation of a value table per call.</remarks>
+    public static string Percent(object n) =>
+        n is int whole && (!UiStrings.Catalog.TryGet(PercentKey, out string template) || template == EnglishPercent)
+            ? whole.ToString(CultureInfo.InvariantCulture) + "%"
+            : Format(PercentKey, ("n", n));
+
+    private const string EnglishPercent = "{n}%";
 
     /// <summary>The Preferences screen's language button (TASK-782): "Language: <c>{name}</c>".</summary>
     public const string LanguageChoiceKey = "port:template:language_choice";
@@ -98,6 +105,10 @@ public static class UiTemplates {
         }
     }
 
+    /// <summary>"<c>{using}</c>, <c>{state}</c>" — an item's status line when it is both in use and
+    /// broken or repairable; INVINSP.C:377-383 strcat's the ", " (TASK-775).</summary>
+    public const string ItemUsingAndState = "port:template:item_using_and_state";
+
     /// <summary>CHEAT CENTRAL's subtitle.</summary>
     public const string CheatCentralSubtitle = "port:template:cheat_central_subtitle";
 
@@ -112,7 +123,7 @@ public static class UiTemplates {
             + "other {{s, plural, one {# sovereign} other {# sovereigns}} and {r, plural, one {# royal} other {# royals}}}}"),
         (LanguageChoiceKey, _ => "Language: {name}"),
         (LanguageChoicePendingKey, _ => "{name} (restart)"),
-        (PercentKey, _ => "{n}%"),
+        (PercentKey, _ => EnglishPercent),
         (TouchMove, _ => "Move"),
         (TouchCast, _ => "Cast"),
         (TouchCastHere, _ => "Cast here"),
@@ -132,6 +143,7 @@ public static class UiTemplates {
         (QuantityGive, c => Literal(c.Get("base:uistring:quantity.give_prefix")) + "{n}{max, select, yes {"
             + Literal(c.Get("base:uistring:quantity.all_suffix")) + "} other {}}"),
         (CheatCentralSubtitle, _ => Literal("Enjoy with caution...")),
+        (ItemUsingAndState, _ => "{using}, {state}"),
     };
 
     /// <summary>Whether a catalog key is one of these templates (its text is MessageFormat, not plain).</summary>

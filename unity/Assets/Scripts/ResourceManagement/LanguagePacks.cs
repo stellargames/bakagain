@@ -41,7 +41,16 @@ namespace BakAgain.ResourceManagement {
             if (string.IsNullOrEmpty(BakResourceSettings.OverridePath) || !Directory.Exists(lang)) {
                 yield break;
             }
-            foreach (string dir in Directory.GetDirectories(lang)) {
+            string[] dirs;
+            try {
+                dirs = Directory.GetDirectories(lang);
+            } catch (Exception e) {
+                // Scoped storage on Android can refuse a listing the folder check allowed; a menu
+                // button must not throw over it.
+                Debug.LogWarning($"Could not list language packs in {lang} ({e.Message}).");
+                yield break;
+            }
+            foreach (string dir in dirs) {
                 string locale = Path.GetFileName(dir);
                 if (File.Exists(PathFor(BakResourceSettings.OverridePath, locale))) {
                     yield return locale;

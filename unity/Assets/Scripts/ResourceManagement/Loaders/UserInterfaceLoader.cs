@@ -914,6 +914,8 @@ namespace BakAgain.ResourceManagement.Loaders {
 
             RefreshToggles();
             await _labels.BuildLabels(stage, canvasWidth, () => isActiveAndEnabled);
+            // An LBL label has no width; a longer translation runs into the widgets on its row (TASK-779).
+            BakAgain.UI.TextOverflowReport.CheckLabelsAgainstSiblings(stage, "req-label");
             await _inputForm.BuildFields(stage, canvasWidth, () => isActiveAndEnabled);
 
             // Hand the built nav widgets to the input-ownership layer (MenuLayerHost, on the in-scope

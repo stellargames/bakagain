@@ -104,6 +104,88 @@ namespace BakAgain.Tests.PlayMode.UI.Localization {
         }
 
         [UnityTest]
+        public IEnumerator AShopNameRunningIntoTheNextCellIsReported() {
+            // A shelf cell's name is centred and allowed to overhang (DisplayText @0x5634d), so a
+            // long translation reaches into the neighbouring cell's name — each in its own cell.
+            UIDocument doc = Doc();
+            yield return null;
+            var grid = new VisualElement { style = { width = 600, height = 200, position = Position.Absolute } };
+            doc.rootVisualElement.Add(grid);
+            void Cell(float x, string name) {
+                var cell = new VisualElement { style = { position = Position.Absolute, left = x, top = 0, width = 200, height = 100 } };
+                var l = new Label(name) {
+                    style = { position = Position.Absolute, left = Length.Percent(50), bottom = 0,
+                        whiteSpace = WhiteSpace.NoWrap, translate = new Translate(Length.Percent(-50), 0) },
+                };
+                GameFontText.Apply(l);
+                cell.Add(l);
+                grid.Add(cell);
+            }
+            Cell(0, "[Bröàdšwörd ~~~~~~~~~~~~] (100%)");
+            Cell(200, "[Gréàtšwörd ~~~~~~~~~~~~] (100%)");
+            Cell(400, "Dagger");
+            TextOverflowReport.CheckRows(grid, descendants: true);
+            yield return new WaitForSecondsRealtime(0.5f);
+
+            Assert.IsTrue(TextOverflowReport.Entries.Any(e => e.Kind == TextOverflowReport.Collision
+                && e.Text.Contains("Bröàdšwörd")));
+        }
+
+        [UnityTest]
+        public IEnumerator ALineRunningPastItsPanelsEdgeIsReported_AndOneInsideIsNot() {
+            // The cast screen's info lines sit at a fixed x and never wrap, so a longer translation
+            // runs off the parchment (TASK-779: seen in qps on Scent of Sarig's effect line).
+            UIDocument doc = Doc();
+            yield return null;
+            var panel = new VisualElement { style = { width = 1600, height = 600, position = Position.Absolute } };
+            doc.rootVisualElement.Add(panel);
+            Label At(string text, float y) {
+                var l = new Label(text) { style = { position = Position.Absolute, left = 100, top = y } };
+                GameFontText.Apply(l);
+                panel.Add(l);
+                return l;
+            }
+            At("Duration: 12 hours", 0);
+            At("[Çàštér çàñ šéñšé tràppéd çhéšt ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~]", 60);
+            TextOverflowReport.CheckRightEdge(panel, 900f);
+            yield return new WaitForSecondsRealtime(0.5f);
+
+            Assert.IsTrue(TextOverflowReport.Entries.Any(e => e.Kind == TextOverflowReport.Line
+                && e.Text.Contains("tràppéd")));
+            Assert.IsFalse(TextOverflowReport.Entries.Any(e => e.Text.Contains("Duration")));
+        }
+
+        [UnityTest]
+        public IEnumerator ALabelRunningIntoAButtonIsReported_AndOneBesideItIsNot() {
+            // An LBL label has a position and no width (Preferences' "Step Size:"); a longer
+            // translation runs into the REQ buttons on its row.
+            UIDocument doc = Doc();
+            yield return null;
+            var stage = new VisualElement { style = { width = 1600, height = 600, position = Position.Absolute } };
+            doc.rootVisualElement.Add(stage);
+            void Button(float x, float y) => stage.Add(new VisualElement {
+                style = { position = Position.Absolute, left = x, top = y, width = 200, height = 60 },
+            });
+            Label Caption(string text, float x, float y) {
+                var l = new Label(text) { style = { position = Position.Absolute, left = x, top = y } };
+                l.AddToClassList("req-label");
+                GameFontText.Apply(l);
+                stage.Add(l);
+                return l;
+            }
+            Button(600, 0);
+            Button(600, 200);
+            Caption("Step:", 100, 0);
+            Caption("[Štépgröötté ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~]", 100, 200);
+            TextOverflowReport.CheckLabelsAgainstSiblings(stage, "req-label");
+            yield return new WaitForSecondsRealtime(0.5f);
+
+            Assert.IsTrue(TextOverflowReport.Entries.Any(e => e.Kind == TextOverflowReport.Collision
+                && e.Text.Contains("Štépgröötté")));
+            Assert.IsFalse(TextOverflowReport.Entries.Any(e => e.Text.Contains("Step:")));
+        }
+
+        [UnityTest]
         public IEnumerator ACaptionTooWideEvenAtTheSmallestFitIsReported() {
             UIDocument doc = Doc();
             yield return null;

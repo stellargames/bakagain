@@ -10,8 +10,39 @@ using Xunit;
 /// </summary>
 [Collection(UiStringsCollection.Name)]
 public class UiTemplatesTests {
+    [Fact]
+    public void APercentageIsTheNumberAndItsSign_OrTheTranslationsForm() {
+        UiStringCatalog saved = UiStrings.Catalog;
+        try {
+            UiStrings.Catalog = UiStringCatalog.Embedded;
+            Assert.Equal("55%", UiTemplates.Percent(55));
+            UiStrings.Catalog = Translated(UiTemplates.PercentKey, "{n} %");   // French spaces its sign
+            Assert.Equal("55 %", UiTemplates.Percent(55));
+        } finally {
+            UiStrings.Catalog = saved;
+        }
+    }
+
     private static UiStringCatalog Translated(string key, string text) =>
         UiStringCatalog.Embedded.TranslatedBy(new LanguagePack("de", new Dictionary<string, string> { [key] = text }));
+
+    [Fact]
+    public void TheItemStatusJoinerIsATemplate() {
+        // INVINSP.C:377-383 strcat's ", " between "Using" and the item's state (TASK-775).
+        Assert.Equal("Using, Repairable",
+            UiTemplates.Format(UiTemplates.ItemUsingAndState, ("using", (object)"Using"), ("state", (object)"Repairable")));
+
+        UiStringCatalog previous = UiStrings.Catalog;
+        try {
+            UiStrings.Catalog = UiStringCatalog.From(new Dictionary<string, string> {
+                [UiTemplates.ItemUsingAndState] = "{using} \u2014 {state}",
+            });
+            Assert.Equal("In gebruik \u2014 Repareerbaar",
+                UiTemplates.Format(UiTemplates.ItemUsingAndState, ("using", (object)"In gebruik"), ("state", (object)"Repareerbaar")));
+        } finally {
+            UiStrings.Catalog = previous;
+        }
+    }
 
     [Fact]
     public void EnglishIsTheOriginalConcatenation() {

@@ -83,23 +83,23 @@ namespace BakAgain.UI.Inventory {
             if (item == null) {
                 return string.Empty;
             }
-            var s = new System.Text.StringBuilder();
             // The separator belongs to "Using": INVINSP.C:377-383 strcat's ", " only inside the
             // branch that wrote "Using", so a carried broken item reads "Broken", not ", Broken".
-            // (Measured on James's 74% Lamprey: the original shows "Repairable".)
-            if (affecting
-                && ((item.ItemFlags & ItemEquipped) != 0 || (obj?.EquipAttributeMask ?? 0) != 0)) {
-                s.Append(GameData.Resources.Text.UiStrings.Get("base:uistring:item.using"));
-                if ((item.ItemFlags & (ItemBroken | ItemRepairable)) != 0) {
-                    s.Append(", ");
-                }
-            }
-            if ((item.ItemFlags & ItemBroken) != 0) {
-                s.Append(GameData.Resources.Text.UiStrings.Get("base:uistring:item.broken"));
-            } else if ((item.ItemFlags & ItemRepairable) != 0) {
-                s.Append(GameData.Resources.Text.UiStrings.Get("base:uistring:item.repairable"));
-            }
-            return s.ToString();
+            // (Measured on James's 74% Lamprey: the original shows "Repairable".) The joined form is
+            // a template, so a language can join them its own way (TASK-775).
+            string usingText = affecting
+                && ((item.ItemFlags & ItemEquipped) != 0 || (obj?.EquipAttributeMask ?? 0) != 0)
+                ? GameData.Resources.Text.UiStrings.Get("base:uistring:item.using")
+                : string.Empty;
+            string state = (item.ItemFlags & ItemBroken) != 0
+                ? GameData.Resources.Text.UiStrings.Get("base:uistring:item.broken")
+                : (item.ItemFlags & ItemRepairable) != 0
+                    ? GameData.Resources.Text.UiStrings.Get("base:uistring:item.repairable")
+                    : string.Empty;
+            return usingText.Length > 0 && state.Length > 0
+                ? GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.ItemUsingAndState,
+                    ("using", (object)usingText), ("state", (object)state))
+                : usingText + state;
         }
 
         /// <summary>

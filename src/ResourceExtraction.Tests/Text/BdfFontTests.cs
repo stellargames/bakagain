@@ -110,4 +110,52 @@ public class BdfFontTests {
         Assert.Equal(new[] { 'A', 8364 }, font.AllGlyphs().Select(g => g.Character));
         Assert.True(font.GlyphFor('A')!.IsSet(0, 2));   // the pack's dots, not the original's A
     }
+
+    [Fact]
+    public void AFileThatBreaksPartWayChangesNothing() {
+        // A pack font that fails on its second glyph must not leave the first one merged: a half-merged
+        // font draws some letters from the pack and some not, with nothing saying which.
+        const string broken = """
+            STARTFONT 2.1
+            STARTCHAR adieresis
+            ENCODING 228
+            DWIDTH 5 0
+            BBX 4 1 0 0
+            BITMAP
+            90
+            ENDCHAR
+            STARTCHAR broken
+            ENCODING notanumber
+            ENDCHAR
+            ENDFONT
+            """;
+        FontResource font = Game();
+        Assert.ThrowsAny<System.Exception>(() => BdfFont.MergeInto(font, new StringReader(broken)));
+        Assert.Empty(font.ExtraGlyphs);
+    }
+
+    [Fact]
+    public void AGlyphWithoutItsOwnWidthDoesNotBorrowThePreviousOne() {
+        const string twoGlyphs = """
+            STARTFONT 2.1
+            STARTCHAR wide
+            ENCODING 228
+            DWIDTH 7 0
+            BBX 4 1 0 0
+            BITMAP
+            90
+            ENDCHAR
+            STARTCHAR nowidth
+            ENCODING 246
+            BBX 4 1 0 0
+            BITMAP
+            90
+            ENDCHAR
+            ENDFONT
+            """;
+        FontResource font = Game();
+        BdfFont.MergeInto(font, new StringReader(twoGlyphs));
+        Assert.Equal(7, font.ExtraGlyphs[228].Width);
+        Assert.Equal(4, font.ExtraGlyphs[246].Width);   // its own box, not the 7 before it
+    }
 }

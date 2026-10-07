@@ -111,6 +111,12 @@ namespace BakAgain.UI {
             // The language actually running, not the raw setting: a setting naming a pack that is not
             // installed runs English, and starting from it would show "(restart)" for good.
             _pendingLanguage = LanguagePacks.Current.Locale;
+            // With no pack installed (and no pseudo language outside development builds) English is
+            // the only choice, and a button that cycles through one entry reads as broken.
+            if (root.Q<Button>(LanguageChoiceName) == null
+                && GameData.Resources.Text.LanguageChoice.Available(LanguagePacks.Installed(), Debug.isDebugBuild).Count < 2) {
+                return;
+            }
             if (root.Q<Button>(LanguageChoiceName) != null) {
                 RefreshLanguageCaption(root);
                 return;

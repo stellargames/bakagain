@@ -1358,10 +1358,6 @@ internal static class Program {
                           + $"{resist} with a resistance.");
     }
 
-    // KRONDOR.EXE's player-visible strings. Authoring-time only — the runtime reads the JSON this
-    // writes, never the executable. Two outputs, one source of truth: the copy under GameData is the
-    // embedded resource the game actually uses; the generated/ copy exists for verify-generated and
-    // for human diffing.
     /// <summary>
     /// Writes the translator's template (TASK-783): every keyed string of the player's data and
     /// KRONDOR.EXE, as a gettext POT.
@@ -1382,11 +1378,18 @@ internal static class Program {
             Console.Error.WriteLine($"KRONDOR.EXE not found at {exePath}; its strings are not in the template.");
         }
         using (var writer = new StreamWriter(outPath, append: false, new UTF8Encoding(false))) {
-            ResourceExtraction.Text.PotTemplate.Write(entries, writer);
+            // A fixed caption's room is told in characters, measured in the font that draws it.
+            var font = provider.GetResource<GameData.Resources.Font.FontResource>("GAME.FNT");
+            ResourceExtraction.Text.PotTemplate.Write(entries, writer,
+                text => text.Sum(c => font.GlyphFor(c)?.Width ?? 0));
         }
         Console.WriteLine($"Wrote {entries.Count} strings to {Path.GetFullPath(outPath)}.");
     }
 
+    // KRONDOR.EXE's player-visible strings. Authoring-time only — the runtime reads the JSON this
+    // writes, never the executable. Two outputs, one source of truth: the copy under GameData is the
+    // embedded resource the game actually uses; the generated/ copy exists for verify-generated and
+    // for human diffing.
     private static void ExtractUiStrings(string gamePath) {
         string exePath = Path.Combine(gamePath, "KRONDOR.EXE");
         if (!File.Exists(exePath)) {

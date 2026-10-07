@@ -72,7 +72,7 @@ public static class GlyphSynthesis {
     public static IReadOnlyList<int> AddComposed(FontResource font, IEnumerable<int> characters) {
         var missing = new List<int>();
         foreach (int c in characters.Distinct()) {
-            if (font.GlyphFor(c) != null || c < 0x20) {
+            if (Draws(font, c) || c < 0x20) {
                 continue;
             }
             Grid? made = Build(font, c);
@@ -83,6 +83,29 @@ public static class GlyphSynthesis {
             }
         }
         return missing;
+    }
+
+    /// <summary>
+    /// Whether the font already draws <paramref name="c"/>. Outside ASCII a glyph with no ink is
+    /// not the letter: PUZZLE.FNT and ALIEN.FNT carry 251 glyphs from character 0, mostly empty
+    /// placeholders, and reading those as letters left a riddle's "käme" drawn as "kme".
+    /// </summary>
+    private static bool Draws(FontResource font, int c) {
+        FontGlyph? glyph = font.GlyphFor(c);
+        if (glyph == null) {
+            return false;
+        }
+        if (c < 0x80 || font.ExtraGlyphs.ContainsKey(c)) {
+            return true;
+        }
+        for (int y = 0; y < glyph.Rows.Count; y++) {
+            for (int x = 0; x < glyph.Width; x++) {
+                if (glyph.PixelAt(x, y) != 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static Grid? Build(FontResource font, int c) {

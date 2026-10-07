@@ -37,7 +37,25 @@ public static class PoLanguagePack {
         }
         // The pack's own folder names it (Lang/<locale>/); the header's Language is a PO editor's
         // guess ("nl_NL", or absent), so it only stands in when the caller has no locale.
-        return new LanguagePack(locale ?? catalog.Language ?? string.Empty, text);
+        return new LanguagePack(locale ?? catalog.Language ?? string.Empty, text, Capitals(catalog));
+    }
+
+    /// <summary>
+    /// The pack's own illuminated capitals (TASK-827): an extension header, <c>X-Drop-Caps: E=19, W=20</c>,
+    /// naming the letter each added BMX/BOOK/&lt;n&gt;.png draws. Unparseable pairs are skipped.
+    /// </summary>
+    private static Dictionary<char, int> Capitals(POCatalog catalog) {
+        var capitals = new Dictionary<char, int>();
+        if (catalog.Headers == null || !catalog.Headers.TryGetValue("X-Drop-Caps", out string? value) || value == null) {
+            return capitals;
+        }
+        foreach (string pair in value.Split(',')) {
+            string[] parts = pair.Split('=');
+            if (parts.Length == 2 && parts[0].Trim().Length == 1 && int.TryParse(parts[1].Trim(), out int picture)) {
+                capitals[parts[0].Trim()[0]] = picture;
+            }
+        }
+        return capitals;
     }
 
     private static bool IsFuzzy(IPOEntry entry) =>
