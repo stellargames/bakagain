@@ -77,7 +77,9 @@ namespace BakAgain.World.Encounters {
         /// sparks first.
         /// </summary>
         private static bool HoldsTheBoard(SpellVisualKind kind) =>
-            kind == SpellVisualKind.WhirlwindFlight || kind == SpellVisualKind.HopBurst;
+            kind == SpellVisualKind.WhirlwindFlight || kind == SpellVisualKind.HopBurst
+            // Final Rest: the body sinks before the post-animation arm takes it off the grid.
+            || kind == SpellVisualKind.Sink;
 
         /// <summary>Queue a visual raised by the rules.</summary>
         public void Enqueue(SpellVisual visual, Combatant from, Combatant to) {

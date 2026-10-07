@@ -49,6 +49,17 @@ namespace BakAgain.Tests.PlayMode.World {
         }
 
         [UnityTest]
+        public IEnumerator FinalRestsSinkHoldsTheBoard() {
+            // cspell_invoke_effect sinks the body BEFORE the post-animation arm takes it off the grid
+            // (CSPELL.C:1459-1475). Our rules remove it at once, so a redraw that did not wait dropped
+            // the sprite before the sink could move it: the body just vanished (TASK-117).
+            SpellVfx vfx = Vfx();
+            vfx.Enqueue(new SpellVisual(SpellVisualKind.Sink), new Combatant(), new Combatant());
+            Assert.IsTrue(vfx.HoldsMovers);
+            yield return Drain(vfx, 1);
+        }
+
+        [UnityTest]
         public IEnumerator OtherVisualsDoNotHoldTheMovers() {
             SpellVfx vfx = Vfx();
             vfx.Enqueue(new SpellVisual(SpellVisualKind.Rebound), new Combatant(), new Combatant());
