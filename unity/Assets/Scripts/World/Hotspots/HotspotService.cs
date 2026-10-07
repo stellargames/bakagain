@@ -2220,8 +2220,10 @@ using GameData.Resources.Scene;
                 meleeMovePattern: monster.AiPatterns?.MeleeMove ?? stats.MeleeMovePattern.Min,
                 // The shooter's own accuracy decides how much room it needs around a target before
                 // it will fire: CombatAi.AllyClearanceForAccuracy. Left unset, every monster is a
-                // perfect shot.
-                crossbowAccuracy: stats.AccuracyCrossbow.Min,
+                // perfect shot. *** THE LIVE STAT, NOT THE TEMPLATE'S MINIMUM. *** CBTAITRN.C:240
+                // reads stat_actor_get(actor, 5, 0): a MONST10 shooter ranges 45..65, clearance 2 at
+                // the minimum but 1 from 51 up (TASK-851, as TASK-844 for the cast).
+                crossbowAccuracy: StatBase(live, GameData.ActorAttribute.AccuracyCrossbow),
                 // What the support turn's recipient test reads — MonsterHealTurn.CanReceive wants
                 // a percentage, unlike the spell CHOICE, which reads raw health.
                 healthPercent: PercentOf(live, GameData.ActorAttribute.Health),
