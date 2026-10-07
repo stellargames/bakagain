@@ -15,7 +15,6 @@
 
     <ItemGroup>
       <PackageReference Include="Karambolo.PO" Version="1.13.0" />
-      <PackageReference Include="Melanchall.DryWetMidi" Version="8.0.0" />
     </ItemGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Unity' ">
