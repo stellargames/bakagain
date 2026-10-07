@@ -60,7 +60,7 @@ namespace BakAgain.ResourceManagement {
         /// </summary>
         public static string ActiveFolder() =>
             Current == LanguagePack.English ? null
-                : Path.Combine(BakResourceSettings.OverridePath ?? string.Empty, "Lang", BakResourceSettings.Language);
+                : Path.Combine(BakResourceSettings.OverridePath ?? string.Empty, "Lang", Current.Locale);
 
         /// <summary>The pack's pixel font for a game font: <c>fonts/&lt;GAME|BOOK&gt;.bdf</c> beside the PO file.</summary>
         public static string FontPathFor(string overridePath, string locale, string fontId) =>
@@ -77,7 +77,7 @@ namespace BakAgain.ResourceManagement {
             if (Current == LanguagePack.English || font.PixelFormat != FontPixelFormat.Monochrome) {
                 return;
             }
-            string path = FontPathFor(BakResourceSettings.OverridePath, BakResourceSettings.Language, font.Id);
+            string path = FontPathFor(BakResourceSettings.OverridePath, Current.Locale, font.Id);
             if (File.Exists(path)) {
                 try {
                     using var reader = new StreamReader(path);

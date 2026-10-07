@@ -47,4 +47,9 @@ public class CFormatTests {
     [Fact]
     public void PositionalAndLengthModifiersCombine() =>
         Assert.Equal("b a", CFormat.Apply("%2$Fs %1$ld", "a", "b"));
+
+    // A pack's typo must not crash the screen that formats it.
+    [Fact]
+    public void AnOverlongPositionPrintsNothingRatherThanThrowing() =>
+        Assert.Equal("x  y", CFormat.Apply("x %99999999999$d y", 3));
 }

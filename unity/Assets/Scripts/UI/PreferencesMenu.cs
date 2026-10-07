@@ -187,7 +187,7 @@ namespace BakAgain.UI {
                     break;
                 case ButtonOk:
                     _preferences.Apply(_working);
-                    if (!string.IsNullOrEmpty(_pendingLanguage) && _pendingLanguage != BakResourceSettings.Language) {
+                    if (!string.IsNullOrEmpty(_pendingLanguage) && _pendingLanguage != LanguagePacks.Current.Locale) {
                         BakResourceSettings.Language = _pendingLanguage;
                     }
                     Close();

@@ -534,8 +534,8 @@ namespace BakAgain.World {
         /// then two plain frames. Awaitable: the original holds the detonation line until it ends.
         /// </summary>
         /// <remarks>
-        /// Sized from the shape the original draws it through: zone entry 0xB6 is named <c>boom</c>
-        /// and carries radius 400 (Z01.TBL), so the burst is 800 world units across. ponytail: one
+        /// Sized by the three sprite faces of the shape the original draws it through (zone entry
+        /// 0xB6, <c>boom</c>; 0x8E underground). ponytail: one
         /// frame is one combat frame (~59 ms) — the original's world frame is unpaced.
         /// </remarks>
         public async UniTask PlayChestExplosionAsync(int bakX, int bakY) {
@@ -551,7 +551,7 @@ namespace BakAgain.World {
             ZoneTableEntry shape = _zoneSceneBuilder.Table?.Entries is { } entries
                 && ChestTrap.ExplosionShape(_zoneSceneBuilder.Underground) is int id && id < entries.Count
                 ? entries[id] : null;
-            SpriteBMeshFace[] faces = shape?.Dat.Lods[0].Meshes[0].MeshFaces.OfType<SpriteBMeshFace>().ToArray();
+            SpriteBMeshFace[] faces = shape?.Dat?.Lods.FirstOrDefault()?.Meshes.FirstOrDefault()?.MeshFaces.OfType<SpriteBMeshFace>().ToArray();
             if (faces == null || faces.Length < 3) {
                 return;
             }
@@ -1080,8 +1080,20 @@ namespace BakAgain.World {
             }
             // A whirlwind reaches the victim where it stood before the rules pushed it; the walk
             // back comes after (CSPELL.C:653-668). The flight anchors on these very sprites.
-            while (_spellVfx != null && _spellVfx.HoldsMovers) {
-                await UniTask.Yield();
+            // The hold is part of the slide: the arena stays busy, so the fight cannot move on and a
+            // second redraw cannot start its own slide from the same markers.
+            _sliding = true;
+            try {
+                while (_spellVfx != null && _spellVfx.HoldsMovers) {
+                    await UniTask.Yield();
+                }
+            }
+            finally {
+                _sliding = false;
+            }
+            if (_arenaRoot == null) {
+                ForgetWalkedCells();
+                return;
             }
 
             var targets = new List<Transform>();

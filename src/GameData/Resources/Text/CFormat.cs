@@ -50,7 +50,9 @@ public static class CFormat {
                 digits++;
             }
             if (digits > j && digits < format.Length && format[digits] == '$') {
-                position = int.Parse(format.Substring(j, digits - j), CultureInfo.InvariantCulture) - 1;
+                // Too many digits names no argument: print nothing rather than throw.
+                position = int.TryParse(format.Substring(j, digits - j), NumberStyles.None, CultureInfo.InvariantCulture, out int p)
+                    ? p - 1 : int.MaxValue;
                 j = digits + 1;
             }
             // Skip length modifiers: l, ld, F (far), h.

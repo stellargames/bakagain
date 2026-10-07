@@ -114,5 +114,8 @@ jobs:
           website/set-release.sh "${GITHUB_REF_NAME}" ../dist
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -am "Website: downloads point at ${GITHUB_REF_NAME}"
-          git push
+          # A re-run for the same tag finds the page already pointing here.
+          if ! git diff --quiet; then
+            git commit -am "Website: downloads point at ${GITHUB_REF_NAME}"
+            git push
+          fi
