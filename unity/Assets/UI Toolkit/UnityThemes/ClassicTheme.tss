@@ -283,3 +283,27 @@
 .enhanced-panel .text-button:disabled {
     opacity: 0.45;
 }
+
+/* Enhanced full-screen travel HUD (spec 2026-10-08 §3, EnhancedHudLayout). The REQ_MAIN elements
+   are moved in here; the panel is 1200 units high at every aspect, so vertical percentages are of
+   the window height. Two-class selectors so these beat .req-hitbox's absolute placement. Portrait
+   widths are copied from their heights by EnhancedHudLayout (square boxes). */
+.enhanced-hud { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+.enhanced-hud .enhanced-hud__portraits { position: absolute; left: 1.5%; top: 3%; height: 40.4%; flex-direction: column; justify-content: space-between; }
+/* The buttons keep their REQ size (the face is the icon at native size), so the column is scaled
+   as a whole: 96% tall unscaled x 0.735 = the mockup's 3%..73.7% of the window. */
+.enhanced-hud .enhanced-hud__buttons { position: absolute; right: 1.5%; top: 3%; height: 96%; flex-direction: column; justify-content: space-between; scale: 0.735 0.735; transform-origin: right top; }
+.enhanced-hud .enhanced-hud__top { position: absolute; top: 2.5%; left: 0; right: 0; flex-direction: row; justify-content: center; align-items: center; }
+.enhanced-hud .enhanced-hud__portrait { position: relative; height: 30.7%; }
+.enhanced-hud .enhanced-hud__button { position: relative; }
+.enhanced-hud .enhanced-hud__compass { position: relative; }
+.enhanced-hud .enhanced-hud__status { margin-left: 10px; padding: 3px 9px; border-radius: 3px; background-color: rgba(0, 0, 0, 0.6); color: rgb(232, 216, 176); -unity-font-style: bold; white-space: nowrap; }
+.enhanced-hud__ring { position: absolute; left: -6%; top: -6%; right: -6%; bottom: -6%; }
+.enhanced-hud__dot { position: absolute; width: 18%; height: 18%; border-radius: 50%; border-width: 1px; border-color: rgb(0, 0, 0); }
+.enhanced-hud__dot--Sick { background-color: rgb(220, 200, 50); }
+.enhanced-hud__dot--Plagued { background-color: rgb(150, 60, 160); }
+.enhanced-hud__dot--Poisoned { background-color: rgb(70, 190, 70); }
+.enhanced-hud__dot--Drunk { background-color: rgb(200, 120, 40); }
+.enhanced-hud__dot--Healing { background-color: rgb(90, 160, 230); }
+.enhanced-hud__dot--Starving { background-color: rgb(150, 150, 150); }
+.enhanced-hud__dot--NearDeath { background-color: rgb(200, 30, 30); }

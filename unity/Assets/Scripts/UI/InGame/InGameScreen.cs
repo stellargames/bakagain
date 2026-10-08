@@ -71,6 +71,11 @@ namespace BakAgain.UI.InGame {
         // map through a rect the world is not (yet) drawn in; Update flips both together.
         private FullScreenViewport _fullScreen;
         private bool _fullScreenShown;
+        // Enhanced full-screen travel's HUD: the REQ_MAIN elements moved around the window (spec §3).
+        private readonly GameData.Resources.Layout.EnhancedTravelLayout _enhancedLayout = new();
+        private EnhancedHudLayout _hud;
+        private PortraitRingView[] _rings;
+        private float _ringClock;
 
         /// <summary>The painted backdrop element, while a fight that has one is running.</summary>
         private VisualElement _combatBackdrop;
@@ -734,6 +739,7 @@ namespace BakAgain.UI.InGame {
             _partyHeads = new PartyHeadsView(_gameSession, _resources);
             _partyHeads.Attach(root);
             _partyHeads.RenderAsync().Forget();
+            _hud = new EnhancedHudLayout(root) { StatusFontFraction = _enhancedLayout.StatusFontFraction };
         }
 
         /// <summary>
@@ -817,6 +823,7 @@ namespace BakAgain.UI.InGame {
             _combatFrame = null;
             _compassArrows = System.Array.Empty<VisualElement>();
             _interaction = null;
+            RevertHud(); _hud = null;
         }
 
         private async UniTask FadeRootAsync(VisualElement root, float from, float to) {
@@ -848,6 +855,7 @@ namespace BakAgain.UI.InGame {
             _combatFrame = null;
             _compassArrows = System.Array.Empty<VisualElement>();
             _interaction = null;
+            RevertHud(); _hud = null;
         }
 
         // Per-frame: refresh the compass + world view, and drive movement — but only while the
@@ -948,6 +956,7 @@ namespace BakAgain.UI.InGame {
                 _fullScreenShown = !_fullScreenShown;
                 _worldView.Rehost();
             }
+            SyncEnhancedHud();
             _worldView?.Tick();
             // Not in a fight: the arena runs instead of the world loop in the original, and the touch
             // aids' C3 pad (which sets the same held-pad state) moves the combat cursor there.
@@ -1106,6 +1115,63 @@ namespace BakAgain.UI.InGame {
             (_inCombat?.Invoke() ?? false) && actionId != ActionWorldViewport;
 
         // Every frame, so only a change does anything (TASK-576 was this call without the guard).
+        /// <summary>
+        /// Keeps the Enhanced HUD in step with the full-window world: applied while it is, reverted
+        /// to the faithful REQ layout otherwise (a fight, the option off). The status line and rings
+        /// are polled at 4 Hz.
+        /// </summary>
+        private void SyncEnhancedHud() {
+            if (_hud == null) {
+                return;
+            }
+            bool wantHud = _fullScreen != null && _fullScreen.Active;
+            if (wantHud && !_hud.Applied && _hud.Apply()) {
+                if (GameOptions.IsOn(EnhancedFeature.PortraitRings)) {
+                    VisualElement root = _document.rootVisualElement;
+                    _rings = new PortraitRingView[3];
+                    for (int i = 0; i < _rings.Length; i++) {
+                        _rings[i] = new PortraitRingView(_gameSession, root.Q($"hotspot_{ActionPartyMember1 + i}"), i);
+                    }
+                }
+                _ringClock = 0f;
+            } else if (!wantHud && _hud.Applied) {
+                RevertHud();
+                // The revert un-hides the compass arrows; a fight that has just started hid them a
+                // moment ago in this same frame, so have the chrome re-applied.
+                _combatChromeShown = !(_inCombat?.Invoke() ?? false);
+                RefreshCombatChrome();
+            }
+            if (!_hud.Applied) {
+                return;
+            }
+            // ponytail: 4 Hz poll; switch to a party-stats change event if one appears.
+            _ringClock -= Time.unscaledDeltaTime;
+            if (_ringClock > 0f) {
+                return;
+            }
+            _ringClock = 0.25f;
+            if (_rings != null) {
+                foreach (PortraitRingView r in _rings) {
+                    r.Refresh();
+                }
+            }
+            if (_clock != null) {
+                _hud.SetStatus(GameData.Resources.Text.UiTemplates.Format(
+                    GameData.Resources.Text.UiTemplates.EnhancedStatusKey,
+                    ("day", _clock.Day), ("hour", _clock.HourOfDay)));
+            }
+        }
+
+        private void RevertHud() {
+            if (_rings != null) {
+                foreach (PortraitRingView r in _rings) {
+                    r.Remove();
+                }
+            }
+            _rings = null;
+            _hud?.Revert();
+        }
+
         private void RefreshCombatChrome() {
             bool inCombat = _inCombat?.Invoke() ?? false;
             if (inCombat == _combatChromeShown) {
