@@ -22,7 +22,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
     /// </summary>
     public class FullScreenPickingTests {
         [UnityTest]
-        public IEnumerator AGroundPointRoundTripsThroughTheRectTheWorldIsDrawnIn([Values(false, true)] bool fullScreen) {
+        public IEnumerator AGroundPointRoundTripsThroughTheRectTheWorldIsDrawnIn([Values(false, true)] bool fullScreen, [Values(0f, 30f, -15f)] float lookPitchDegrees) {
             GameViewResolutionScope gameView = GameViewResolutionScope.Force(1920, 1080);
             yield return null;
 
@@ -37,7 +37,8 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             try {
                 Camera cam = camGo.AddComponent<Camera>();
                 cam.transform.position = new Vector3(0f, 10f, -10f);
-                cam.transform.rotation = Quaternion.Euler(30f, 0f, 0f);
+                // The 30 degrees of the faithful view plus Enhanced mode's view-only LookPitch.
+                cam.transform.rotation = Quaternion.Euler(30f + lookPitchDegrees, 0f, 0f);
                 cam.fieldOfView = 40f;
 
                 UIDocument document = host.AddComponent<UIDocument>();

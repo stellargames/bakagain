@@ -92,6 +92,29 @@ namespace BakAgain.World {
 
         public void MoveForward() => Step(forward: true);
         public void MoveBackward() => Step(forward: false);
+        /// <summary>
+        /// Enhanced free look (spec 2026-10-08 section 4): true lets the heading be anything and makes road
+        /// travel read the nearest compass point. Null or false is the faithful game.
+        /// </summary>
+        public Func<bool> FreeHeading { get; set; }
+
+        /// <summary>View-only pitch offset in BaK angle units. Never saved, never read by a rule.</summary>
+        public short LookPitch { get; set; }
+
+        /// <summary>The heading road travel probes with: identity unless <see cref="FreeHeading"/>.</summary>
+        public ushort TravelHeading(ushort heading) =>
+            FreeHeading?.Invoke() == true ? RoadTravel.SnapToStride(heading, RoadTravel.CompassStep) : heading;
+
+        /// <summary>Free look's turn: what <see cref="Turn"/> does, to an arbitrary heading.</summary>
+        public void LookTo(ushort heading) {
+            if (CameraIsAnimating) {
+                return;
+            }
+            _swingYaw = null;
+            _session.Rotation = unchecked((short)heading);
+            SyncCamera();
+        }
+
         public void TurnLeft() => Turn(turnViewLeft: true);
         public void TurnRight() => Turn(turnViewLeft: false);
 
@@ -196,7 +219,8 @@ namespace BakAgain.World {
         /// unaffected; only the animation between them differs.</para>
         /// </remarks>
         private void TravelStep(bool forward) {
-            ushort heading = unchecked((ushort)_session.Rotation);
+            ushort raw = unchecked((ushort)_session.Rotation);
+            ushort heading = TravelHeading(raw);
             ushort probeHeading = forward ? heading : unchecked((ushort)(heading + 0x8000));
 
             _collision.BuildCandidates(_session.PositionX, _session.PositionY, DetailLevel);
@@ -261,6 +285,9 @@ namespace BakAgain.World {
             (int dx, int dy) = RoadTravel.AxisOffset(probeHeading, travelStep);
             _session.PositionX = savedX + dx;
             _session.PositionY = savedY + dy;
+            if (heading != raw) {
+                _session.Rotation = unchecked((short)heading);
+            }
             if (_collision.TryScan(_session.PositionX, _session.PositionY, out _, out int groundZ)) {
                 SetEyeHeight(groundZ);
             }
@@ -271,6 +298,7 @@ namespace BakAgain.World {
                 // and returns 1 without touching the flag.
                 _session.PositionX = savedX;
                 _session.PositionY = savedY;
+                _session.Rotation = unchecked((short)raw);
                 _eyeZ = savedEye;
                 _session.PositionZ = savedEye;
                 AdvanceClockForStep(stepStands: false);
@@ -1042,7 +1070,7 @@ namespace BakAgain.World {
             _camera.transform.position = BakCoordinateConverter.ConvertPosition(
                 _session.PositionX, _session.PositionY, _eyeZ);
             _camera.transform.rotation = BakCoordinateConverter.ConvertRotation(
-                _cameraPitch, 0, _swingYaw ?? unchecked((ushort)_session.Rotation));
+                unchecked((ushort)(_cameraPitch + LookPitch)), 0, _swingYaw ?? unchecked((ushort)_session.Rotation));
         }
 
         /// <summary>

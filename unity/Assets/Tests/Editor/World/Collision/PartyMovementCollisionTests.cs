@@ -209,6 +209,40 @@ namespace BakAgain.Tests.Editor.World.Collision {
             Assert.AreEqual(Centre, rig.Session.PositionY);
         }
 
+        [Test]
+        public void WithFreeHeadingAnOffCompassHeadingTravelsAlongTheNearestCompassPoint() {
+            // Enhanced free look (spec 2026-10-08 section 4): the faithful test above turns and stays put;
+            // with FreeHeading on the same press steps and faces exactly west. A travel step is the
+            // ordinary step distance (Medium = 800 here), not a whole cell.
+            var rig = OnARoadBendingWest();
+            rig.Movement.FreeHeading = () => true;
+            rig.Session.Rotation = unchecked((short)(0x4000 + 300));
+
+            rig.Movement.MoveForward();
+
+            (int dx, int dy) = RoadTravel.AxisOffset(0x4000, 800);
+            Assert.AreEqual(0x4000, (ushort)rig.Session.Rotation);
+            Assert.AreEqual(Centre + dx, rig.Session.PositionX, "stepped along west");
+            Assert.AreEqual(Centre + dy, rig.Session.PositionY);
+            Assert.AreNotEqual(Centre, rig.Session.PositionX);
+        }
+
+        [Test]
+        public void TravelHeadingIsTheIdentityWithoutFreeHeading() {
+            var rig = OnARoadBendingWest();
+            for (int h = 0; h < 0x10000; h += 97)
+                Assert.AreEqual((ushort)h, rig.Movement.TravelHeading((ushort)h));
+        }
+
+        [Test]
+        public void TravelHeadingSnapsToTheNearestCompassPointWrappingAtZero() {
+            var rig = OnARoadBendingWest();
+            rig.Movement.FreeHeading = () => true;
+            Assert.AreEqual(0, rig.Movement.TravelHeading(0xFFF0));
+            Assert.AreEqual(0x2000, rig.Movement.TravelHeading(0x1100));
+            Assert.AreEqual(0, rig.Movement.TravelHeading(0x0F00));
+        }
+
         // The pivot probes one degree at a time (PartyMovement.PivotSteps = 45 across 45 degrees),
         // so the i'th correction is 8192*i/45 in BaK angle space.
         private static short Correction(int degrees) => (short)(0x2000 * degrees / 45);
