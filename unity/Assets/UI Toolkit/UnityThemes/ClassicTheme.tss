@@ -271,3 +271,11 @@
     background-color: rgb(172, 132, 70);
     border-color: rgb(236, 210, 140);
 }
+
+.enhanced-panel {
+    background-color: rgb(150, 112, 62);
+    border-width: 3px;
+    border-color: rgb(58, 40, 22);
+    padding: 2%;
+    justify-content: space-around;
+}

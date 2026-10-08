@@ -55,6 +55,7 @@ namespace BakAgain.UI {
         private UserInterfaceLoader _loader;
 
         private Preferences _working;
+        private EnhancedOptionsDraft _enhancedDraft;
 
         private void Awake() {
             _logger = LogManager.LoggerFactory.CreateLogger<PreferencesMenu>();
@@ -75,6 +76,7 @@ namespace BakAgain.UI {
         protected override async UniTask OnBeforeShowAsync() {
             await _preferences.EnsureLoadedAsync();
             _working = _preferences.Current.Clone();
+            _enhancedDraft = EnhancedOptionsDraft.Load();
         }
 
         // Which build and where its log is, for bug reports. Re-added on every show: the
@@ -91,6 +93,7 @@ namespace BakAgain.UI {
                 root.Add(label);
             }
             AddLanguageChoice(root);
+            AddEnhancedChoice(root);
         }
 
         private const string BuildInfoName = "build-info";
@@ -121,18 +124,18 @@ namespace BakAgain.UI {
                 RefreshLanguageCaption(root);
                 return;
             }
-            if (_loader == null || !_loader.TryGetElementRect(ButtonOk, out Rect ok)
-                || !_loader.TryGetElementRect(ToggleIntroduction, out Rect above)) {
+            if (!TryGetChoiceRow(out Rect row)) {
                 return;
             }
+            Rect ok = row;
             var button = new Button { name = LanguageChoiceName };
             button.AddToClassList("text-button");
             button.AddToClassList(LanguageChoiceName);
             button.style.position = Position.Absolute;
             button.style.left = ok.x;
-            button.style.width = ok.width;
+            button.style.width = ShareRow(row, left: true, shared: true).width;
             button.style.height = ok.height;
-            button.style.top = (above.yMax + ok.y - ok.height) / 2f;
+            button.style.top = row.y;
             GameFontText.Caption(button, string.Empty);
             button.clicked += () => {
                 System.Collections.Generic.IReadOnlyList<string> all = GameData.Resources.Text.LanguageChoice.Available(
@@ -142,6 +145,147 @@ namespace BakAgain.UI {
             };
             CanonicalStage.GetOrCreate(root, _loader.Frame).Add(button);
             RefreshLanguageCaption(root);
+        }
+
+        private const string EnhancedChoiceName = "enhanced-choice";
+        private const string EnhancedPanelName = "enhanced-panel";
+
+        /// <summary>The row between Introduction and OK at OK's size, from the two REQ rects.</summary>
+        private bool TryGetChoiceRow(out Rect row) {
+            row = default;
+            if (_loader == null || !_loader.TryGetElementRect(ButtonOk, out Rect ok)
+                || !_loader.TryGetElementRect(ToggleIntroduction, out Rect above)) {
+                return false;
+            }
+            row = new Rect(ok.x, (above.yMax + ok.y - ok.height) / 2f, ok.width, ok.height);
+            return true;
+        }
+
+        /// <summary>
+        /// The Language button's half of <paramref name="row"/>, or the Enhanced button's: the whole
+        /// row when no language button is shown.
+        /// </summary>
+        private static Rect ShareRow(Rect row, bool left, bool shared) {
+            if (!shared) {
+                return row;
+            }
+            float gap = row.height * 0.1f;
+            float half = (row.width - gap) / 2f;
+            return left ? new Rect(row.x, row.y, half, row.height)
+                : new Rect(row.x + half + gap, row.y, half, row.height);
+        }
+
+        /// <summary>
+        /// The Enhanced button (opt-in extras, not in the original): shares the language button's
+        /// row, or takes it whole. Opens the options panel; nothing is saved until OK.
+        /// </summary>
+        private void AddEnhancedChoice(VisualElement root) {
+            if (root.Q<Button>(EnhancedChoiceName) != null) {
+                RefreshEnhancedCaption(root);
+                return;
+            }
+            if (!TryGetChoiceRow(out Rect row)) {
+                return;
+            }
+            Rect rect = ShareRow(row, left: false, shared: root.Q<Button>(LanguageChoiceName) != null);
+            var button = new Button { name = EnhancedChoiceName };
+            button.AddToClassList("text-button");
+            button.AddToClassList(EnhancedChoiceName);
+            button.style.position = Position.Absolute;
+            button.style.left = rect.x;
+            button.style.top = rect.y;
+            button.style.width = rect.width;
+            button.style.height = rect.height;
+            GameFontText.Caption(button, string.Empty);
+            button.clicked += () => OpenEnhancedPanel(root);
+            CanonicalStage.GetOrCreate(root, _loader.Frame).Add(button);
+            RefreshEnhancedCaption(root);
+        }
+
+        private void RefreshEnhancedCaption(VisualElement root) {
+            Label caption = root.Q<Button>(EnhancedChoiceName)?.Q<Label>("caption");
+            if (caption == null || _enhancedDraft == null) {
+                return;
+            }
+            caption.text = GameData.Resources.Text.UiTemplates.Format(
+                GameData.Resources.Text.UiTemplates.EnhancedButtonKey,
+                ("state", GameData.Resources.Text.UiTemplates.Format(_enhancedDraft.Master
+                    ? GameData.Resources.Text.UiTemplates.EnhancedStateOn
+                    : GameData.Resources.Text.UiTemplates.EnhancedStateOff)));
+        }
+
+        /// <summary>
+        /// The options panel over the left columns (Step Size's first radio down to Detail's last),
+        /// read from the REQ. One button per row reading "[x] caption": a UI Toolkit Toggle's label
+        /// cannot wear the game-font caption.
+        /// </summary>
+        private void OpenEnhancedPanel(VisualElement root) {
+            if (root.Q<VisualElement>(EnhancedPanelName) != null || _enhancedDraft == null
+                || !_loader.TryGetElementRect(StepSizeBase, out Rect top)
+                || !_loader.TryGetElementRect(DetailBase + 3, out Rect bottom)
+                || !_loader.TryGetElementRect(ToggleSound, out Rect rightColumn)
+                || !_loader.TryGetElementRect(ButtonOk, out Rect ok)) {
+                return;
+            }
+            var panel = new VisualElement { name = EnhancedPanelName };
+            panel.AddToClassList("enhanced-panel");
+            panel.style.position = Position.Absolute;
+            panel.style.left = top.x;
+            panel.style.top = top.y;
+            panel.style.width = rightColumn.x - ok.height * 0.1f - top.x;
+            panel.style.height = bottom.yMax - top.y;
+
+            var features = new System.Collections.Generic.List<VisualElement>();
+            Button Row(Action onClick) {
+                var row = new Button();
+                row.AddToClassList("text-button");
+                row.style.height = ok.height;
+                row.style.flexShrink = 0;
+                GameFontText.Caption(row, string.Empty);
+                row.clicked += onClick;
+                panel.Add(row);
+                return row;
+            }
+
+            void Refresh() {
+                foreach (VisualElement f in features) {
+                    f.SetEnabled(_enhancedDraft.Master);
+                }
+                RefreshEnhancedCaption(root);
+            }
+
+            Button master = Row(null);
+            void SetMaster() => SetBoxText(master, GameData.Resources.Text.UiTemplates.EnhancedButtonKey,
+                _enhancedDraft.Master, state: true);
+            master.clicked += () => { _enhancedDraft.Master = !_enhancedDraft.Master; SetMaster(); Refresh(); };
+            SetMaster();
+
+            AddFeatureRow(GameData.Resources.Text.UiTemplates.EnhancedFeatureFullScreen, EnhancedFeature.FullScreenTravel);
+            AddFeatureRow(GameData.Resources.Text.UiTemplates.EnhancedFeatureMouseLook, EnhancedFeature.MouseLook);
+            AddFeatureRow(GameData.Resources.Text.UiTemplates.EnhancedFeatureRings, EnhancedFeature.PortraitRings);
+
+            Button done = Row(() => panel.RemoveFromHierarchy());
+            done.Q<Label>("caption").text = GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedDone);
+
+            CanonicalStage.GetOrCreate(root, _loader.Frame).Add(panel);
+            Refresh();
+
+            void AddFeatureRow(string key, EnhancedFeature feature) {
+                Button row = null;
+                row = Row(() => { _enhancedDraft[feature] = !_enhancedDraft[feature]; SetBoxText(row, key, _enhancedDraft[feature]); });
+                SetBoxText(row, key, _enhancedDraft[feature]);
+                features.Add(row);
+            }
+        }
+
+        /// <summary>A panel row's caption: "[x] Full-screen travel", or for the master "Enhanced: On".</summary>
+        private static void SetBoxText(Button row, string key, bool on, bool state = false) {
+            string text = state
+                ? GameData.Resources.Text.UiTemplates.Format(key, ("state", GameData.Resources.Text.UiTemplates.Format(on
+                    ? GameData.Resources.Text.UiTemplates.EnhancedStateOn
+                    : GameData.Resources.Text.UiTemplates.EnhancedStateOff)))
+                : (on ? "[x] " : "[ ] ") + GameData.Resources.Text.UiTemplates.Format(key);
+            row.Q<Label>("caption").text = text;
         }
 
         private void RefreshLanguageCaption(VisualElement root) {
@@ -199,6 +343,7 @@ namespace BakAgain.UI {
                     break;
                 case ButtonOk:
                     _preferences.Apply(_working);
+                    _enhancedDraft?.Commit();
                     if (!string.IsNullOrEmpty(_pendingLanguage) && _pendingLanguage != LanguagePacks.Current.Locale) {
                         BakResourceSettings.Language = _pendingLanguage;
                     }

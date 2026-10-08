@@ -79,6 +79,15 @@ public static class UiTemplates {
     /// game next starts, and the shorter wording still fits the button.</summary>
     public const string LanguageChoicePendingKey = "port:template:language_choice_pending";
 
+    /// <summary>The Preferences screen's Enhanced button: "Enhanced: <c>{state}</c>".</summary>
+    public const string EnhancedButtonKey = "port:template:enhanced_button";
+    public const string EnhancedStateOn = "port:template:enhanced_state_on";
+    public const string EnhancedStateOff = "port:template:enhanced_state_off";
+    public const string EnhancedFeatureFullScreen = "port:template:enhanced_feature_full_screen";
+    public const string EnhancedFeatureMouseLook = "port:template:enhanced_feature_mouse_look";
+    public const string EnhancedFeatureRings = "port:template:enhanced_feature_rings";
+    public const string EnhancedDone = "port:template:enhanced_done";
+
     /// <summary>
     /// An amount in prose (TASK-777): <c>{case}</c> is <c>sovereigns</c>, <c>royals</c> or <c>both</c>,
     /// <c>{s}</c> and <c>{r}</c> the counts, each a CLDR plural in the pack's own language. English
@@ -123,6 +132,13 @@ public static class UiTemplates {
             + "other {{s, plural, one {# sovereign} other {# sovereigns}} and {r, plural, one {# royal} other {# royals}}}}"),
         (LanguageChoiceKey, _ => "Language: {name}"),
         (LanguageChoicePendingKey, _ => "{name} (restart)"),
+        (EnhancedButtonKey, _ => "Enhanced: {state}"),
+        (EnhancedStateOn, _ => "On"),
+        (EnhancedStateOff, _ => "Off"),
+        (EnhancedFeatureFullScreen, _ => "Full-screen travel"),
+        (EnhancedFeatureMouseLook, _ => "Mouse and touch look"),
+        (EnhancedFeatureRings, _ => "Health rings"),
+        (EnhancedDone, _ => "Done"),
         (PercentKey, _ => EnglishPercent),
         (TouchMove, _ => "Move"),
         (TouchCast, _ => "Cast"),
