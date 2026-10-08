@@ -86,11 +86,13 @@ namespace BakAgain.UI.InGame {
         /// <summary>Per frame: follows the fight state and the active pointer.</summary>
         public void Refresh(bool inFight) {
             bool touch = IsTouch;
-            if (inFight == _inFight && touch == _wasTouch
+            float centreY = PadCentreY;
+            if (centreY == _lastCentreY && inFight == _inFight && touch == _wasTouch
                 && _state.CursorContext == _lastContext && _state.AwaitingTarget == _lastAwaiting
                 && _state.CastAccepted == _lastCastAccepted && _state.MoveAccepted == _lastMoveAccepted) {
                 return;
             }
+            _lastCentreY = centreY;
             _lastContext = _state.CursorContext;
             _lastAwaiting = _state.AwaitingTarget;
             _lastCastAccepted = _state.CastAccepted;
@@ -220,6 +222,13 @@ namespace BakAgain.UI.InGame {
 
         private void OnGeometry(GeometryChangedEvent _) => Layout();
 
+        /// <summary>Overrides the pad cluster's vertical centre (fraction of the window); null = the layout's.</summary>
+        public System.Func<float?> PadCentreYOverride { get; set; }
+
+        private float _lastCentreY = float.NaN;
+
+        private float PadCentreY => PadCentreYOverride?.Invoke() ?? _layout.PadCentreY;
+
         private void Layout() {
             if (_root == null) {
                 return;
@@ -249,7 +258,9 @@ namespace BakAgain.UI.InGame {
                 }
                 float barW = bar == _left ? leftW : rightW;
                 float cell = barW * _layout.PadSize / 3f;
-                var centre = new Vector2(barW / 2f, h * _layout.PadCentreY);
+                // A wide window makes the bars (and the pads, sized by bar width) bigger than the window is tall:
+                // keep the whole cluster inside it (Enhanced 21:9; a no-op at every aspect that already fit).
+                var centre = new Vector2(barW / 2f, Mathf.Min(h * PadCentreY, h - 1.5f * cell));
                 Vector2 off = kv.Key switch {
                     Forward => new Vector2(0, -cell),
                     Back => new Vector2(0, cell),

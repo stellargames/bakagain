@@ -74,6 +74,23 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             });
 
         [UnityTest]
+        public IEnumerator ThePadCentreYOverrideLowersThePadsAndKeepsThemInTheWindow() =>
+            Harness(2666, Touch(), (view, root, state) => {
+                // Place() writes inline styles, so read those: layout only updates next frame.
+                float Top(string pad) => root.Q(pad).style.top.value.value;
+                float faithful = Top("touchpad_72");
+                float? centre = 0.86f;
+                view.PadCentreYOverride = () => centre;
+                view.Refresh(inFight: false);
+                Assert.Greater(Top("touchpad_72"), faithful);
+                VisualElement back = root.Q("touchpad_80");
+                Assert.LessOrEqual(back.style.top.value.value + back.style.height.value.value, 1200f, "the back pad stays inside the window");
+                centre = null;
+                view.Refresh(inFight: false);
+                Assert.AreEqual(faithful, Top("touchpad_72"), 0.01f, "null restores the layout's value");
+            });
+
+        [UnityTest]
         public IEnumerator TheGridButtonShowsInAFightAndAsksForTheToggle() =>
             Harness(2666, Touch(), (view, root, state) => {
                 Assert.AreEqual(DisplayStyle.None, root.Q("touch-grid").style.display.value, "not on the travel screen");

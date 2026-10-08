@@ -17,7 +17,7 @@ public sealed class EnhancedTravelLayout
     public float PitchLimitDegrees { get; set; } = 30f;
 
     /// <summary>Vertical centre of the touch movement pads, as a fraction of the window height.</summary>
-    public float TouchPadCentreY { get; set; } = 0.82f;
+    public float TouchPadCentreY { get; set; } = 0.86f;
 
     /// <summary>The HUD status line's font size, as a fraction of the window height.</summary>
     public float StatusFontFraction { get; set; } = 0.024f;

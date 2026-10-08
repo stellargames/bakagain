@@ -734,6 +734,8 @@ namespace BakAgain.UI.InGame {
                 _touchTargeting = new CombatTouchTargeting(TouchInputState.Instance,
                     p => _interaction?.CombatantAtScreenPoint(p),
                     (slot, party, primary) => _hotspotTarget?.Invoke(slot, party, primary));
+                _touchControls.PadCentreYOverride = () => _fullScreen != null && _fullScreen.Active && !AFightIsRunning()
+                    ? _enhancedLayout.TouchPadCentreY : (float?)null;
                 _touchControls.MoveRequested += GroundClickAtCursor;
                 _touchControls.MeleeRequested += thrust => _touchTargeting?.Melee(thrust);
             }
