@@ -124,18 +124,18 @@ namespace BakAgain.UI {
                 RefreshLanguageCaption(root);
                 return;
             }
-            if (!TryGetChoiceRow(out Rect row)) {
+            if (_loader == null || !_loader.TryGetElementRect(ButtonOk, out Rect ok)
+                || !_loader.TryGetElementRect(ToggleIntroduction, out Rect above)) {
                 return;
             }
-            Rect ok = row;
             var button = new Button { name = LanguageChoiceName };
             button.AddToClassList("text-button");
             button.AddToClassList(LanguageChoiceName);
             button.style.position = Position.Absolute;
             button.style.left = ok.x;
-            button.style.width = ShareRow(row, left: true, shared: true).width;
+            button.style.width = ok.width;
             button.style.height = ok.height;
-            button.style.top = row.y;
+            button.style.top = (above.yMax + ok.y - ok.height) / 2f;
             GameFontText.Caption(button, string.Empty);
             button.clicked += () => {
                 System.Collections.Generic.IReadOnlyList<string> all = GameData.Resources.Text.LanguageChoice.Available(
@@ -150,44 +150,23 @@ namespace BakAgain.UI {
         private const string EnhancedChoiceName = "enhanced-choice";
         private const string EnhancedPanelName = "enhanced-panel";
 
-        /// <summary>The row between Introduction and OK at OK's size, from the two REQ rects.</summary>
-        private bool TryGetChoiceRow(out Rect row) {
-            row = default;
-            if (_loader == null || !_loader.TryGetElementRect(ButtonOk, out Rect ok)
-                || !_loader.TryGetElementRect(ToggleIntroduction, out Rect above)) {
-                return false;
-            }
-            row = new Rect(ok.x, (above.yMax + ok.y - ok.height) / 2f, ok.width, ok.height);
-            return true;
-        }
-
         /// <summary>
-        /// The Language button's half of <paramref name="row"/>, or the Enhanced button's: the whole
-        /// row when no language button is shown.
-        /// </summary>
-        private static Rect ShareRow(Rect row, bool left, bool shared) {
-            if (!shared) {
-                return row;
-            }
-            float gap = row.height * 0.1f;
-            float half = (row.width - gap) / 2f;
-            return left ? new Rect(row.x, row.y, half, row.height)
-                : new Rect(row.x + half + gap, row.y, half, row.height);
-        }
-
-        /// <summary>
-        /// The Enhanced button (opt-in extras, not in the original): shares the language button's
-        /// row, or takes it whole. Opens the options panel; nothing is saved until OK.
+        /// The Enhanced button (opt-in extras, not in the original): sits in the free space below
+        /// Turn Size in the left column, placed from the REQ rects. Opens the options panel; nothing is saved until OK.
         /// </summary>
         private void AddEnhancedChoice(VisualElement root) {
             if (root.Q<Button>(EnhancedChoiceName) != null) {
                 RefreshEnhancedCaption(root);
                 return;
             }
-            if (!TryGetChoiceRow(out Rect row)) {
+            if (_loader == null || !_loader.TryGetElementRect(TurnSizeBase, out Rect left)
+                || !_loader.TryGetElementRect(DetailBase, out Rect middle)
+                || !_loader.TryGetElementRect(TurnSizeBase + 2, out Rect lastTurn)
+                || !_loader.TryGetElementRect(ButtonOk, out Rect ok)) {
                 return;
             }
-            Rect rect = ShareRow(row, left: false, shared: root.Q<Button>(LanguageChoiceName) != null);
+            float gap = ok.height * 0.2f;
+            var rect = new Rect(left.x, lastTurn.yMax + gap, middle.x - left.x - gap, ok.height);
             var button = new Button { name = EnhancedChoiceName };
             button.AddToClassList("text-button");
             button.AddToClassList(EnhancedChoiceName);

@@ -279,3 +279,7 @@
     padding: 2%;
     justify-content: space-around;
 }
+
+.enhanced-panel .text-button:disabled {
+    opacity: 0.45;
+}
