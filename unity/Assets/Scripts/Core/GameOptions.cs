@@ -37,5 +37,32 @@ namespace BakAgain.Core {
                 PlayerPrefs.Save();
             }
         }
+
+        private const string EnhancedKey = "enhanced";
+
+        /// <summary>
+        /// The Enhanced-mode master switch. Off by default: a new player gets the faithful game.
+        /// Only exactly 1 reads as on, so a corrupt value falls back to faithful.
+        /// </summary>
+        public static bool Enhanced {
+            get => PlayerPrefs.GetInt(EnhancedKey, 0) == 1;
+            set => Store(EnhancedKey, value);
+        }
+
+        /// <summary>A feature's own switch; defaults on, so the master alone turns on the full set.</summary>
+        public static bool GetFeature(EnhancedFeature feature) =>
+            PlayerPrefs.GetInt(FeatureKey(feature), 1) == 1;
+
+        public static void SetFeature(EnhancedFeature feature, bool on) => Store(FeatureKey(feature), on);
+
+        /// <summary>The one check every Enhanced call site makes.</summary>
+        public static bool IsOn(EnhancedFeature feature) => Enhanced && GetFeature(feature);
+
+        private static string FeatureKey(EnhancedFeature feature) => $"{EnhancedKey} {feature}";
+
+        private static void Store(string key, bool value) {
+            PlayerPrefs.SetInt(key, value ? 1 : 0);
+            PlayerPrefs.Save();
+        }
     }
 }
