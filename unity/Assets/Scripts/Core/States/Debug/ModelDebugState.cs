@@ -120,6 +120,15 @@ namespace BakAgain.Core.States.Debug {
 
             canvasGO.AddComponent<GraphicRaycaster>();
 
+            // The runtime has no uGUI EventSystem (UI is UI Toolkit; TASK-803 found the same with
+            // the full map's Exit button), so without one every button on this panel is dead.
+            // The viewer is an Editor-only debug state, so it brings its own.
+            if (UnityEngine.EventSystems.EventSystem.current == null) {
+                new GameObject("ModelDebugEventSystem", typeof(UnityEngine.EventSystems.EventSystem),
+                    typeof(UnityEngine.InputSystem.UI.InputSystemUIInputModule))
+                    .transform.SetParent(canvasGO.transform, false);
+            }
+
             // Background panel
             var panelGO = new GameObject("Panel");
             panelGO.transform.SetParent(canvasGO.transform, false);
@@ -155,7 +164,8 @@ namespace BakAgain.Core.States.Debug {
             CreateButton(canvasGO, "PrevModel", "Prev Model", new Vector2(0.02f, 0.18f), new Vector2(0.13f, 0.23f), PreviousModel);
             CreateButton(canvasGO, "NextModel", "Next Model", new Vector2(0.17f, 0.18f), new Vector2(0.28f, 0.23f), NextModel);
 
-            CreateButton(canvasGO, "ResetView", "Reset View", new Vector2(0.02f, 0.11f), new Vector2(0.28f, 0.16f), ResetView);
+            CreateButton(canvasGO, "ResetView", "Reset View", new Vector2(0.02f, 0.11f), new Vector2(0.15f, 0.16f), ResetView);
+            CreateButton(canvasGO, "ToggleTravel", "Travel", new Vector2(0.16f, 0.11f), new Vector2(0.28f, 0.16f), ToggleTravel);
             CreateButton(canvasGO, "ToggleWireframe", "Wire", new Vector2(0.02f, 0.04f), new Vector2(0.10f, 0.09f), ToggleWireframe);
             CreateButton(canvasGO, "ToggleBBox", "BBox", new Vector2(0.11f, 0.04f), new Vector2(0.19f, 0.09f), ToggleBBox);
             CreateButton(canvasGO, "ToggleGid", "GID", new Vector2(0.20f, 0.04f), new Vector2(0.28f, 0.09f), ToggleGid);
@@ -690,9 +700,38 @@ namespace BakAgain.Core.States.Debug {
             LoadCurrentModel().Forget();
         }
 
+        // *** "TRAVEL" REPRODUCES THE WORLD'S DEPTH CONDITIONS, WHICH THE CLOSE-UP VIEW HIDES. ***
+        // Coplanar faces z-fight in travel and not here: travel looks through the original's narrow
+        // lens (≈13.5° vertical, START.DAT focal 5<<9 over the 606-unit view) from far away, at world
+        // coordinates thousands of units from the origin, where float precision is coarse. The toggle
+        // moves the model to a real party position ((670400, 1066800) BaK units, scaled by WorldScale)
+        // and switches to the travel lens, backing the camera off so the framing stays the same.
+        private static readonly Vector3 TravelOrigin = new Vector3(
+            670400f / BakCoordinateConverter.WorldScale, 0f, 1066800f / BakCoordinateConverter.WorldScale);
+        private const float CloseUpFov = 60f;
+        private bool _travel;
+
+        private Vector3 Pivot => _modelRoot != null ? _modelRoot.transform.position : Vector3.zero;
+
+        public void ToggleTravel() {
+            _travel = !_travel;
+            if (_modelRoot != null) {
+                _modelRoot.transform.position = _travel ? TravelOrigin : Vector3.zero;
+            }
+            if (_camera != null) {
+                _camera.fieldOfView = _travel
+                    ? (float)WorldProjection.VerticalFovDegrees(606, 5 << 9)
+                    : CloseUpFov;
+            }
+            ResetView();
+        }
+
         public void ResetView() {
             if (_camera != null) {
-                _camera.transform.position = new Vector3(0, 5, -15);
+                // Same framing at either lens: distance scales with 1 / tan(fov / 2).
+                float back = Mathf.Tan(CloseUpFov * 0.5f * Mathf.Deg2Rad)
+                    / Mathf.Tan(_camera.fieldOfView * 0.5f * Mathf.Deg2Rad);
+                _camera.transform.position = Pivot + new Vector3(0, 5, -15) * back;
                 _camera.transform.rotation = Quaternion.Euler(15, 0, 0);
             }
             if (_modelRoot != null) {
@@ -777,8 +816,8 @@ namespace BakAgain.Core.States.Debug {
 
         public void OrbitCamera(float deltaX, float deltaY) {
             if (_camera != null && _currentModel != null) {
-                _camera.transform.RotateAround(Vector3.zero, Vector3.up, deltaX);
-                _camera.transform.RotateAround(Vector3.zero, _camera.transform.right, -deltaY);
+                _camera.transform.RotateAround(Pivot, Vector3.up, deltaX);
+                _camera.transform.RotateAround(Pivot, _camera.transform.right, -deltaY);
             }
         }
 
