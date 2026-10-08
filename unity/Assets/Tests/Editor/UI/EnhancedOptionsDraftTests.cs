@@ -5,12 +5,13 @@ namespace BakAgain.Tests.Editor.UI {
     using UnityEngine;
 
     public class EnhancedOptionsDraftTests {
-        [SetUp, TearDown]
-        public void Clear() {
-            PlayerPrefs.DeleteKey("enhanced");
-            foreach (EnhancedFeature f in System.Enum.GetValues(typeof(EnhancedFeature)))
-                PlayerPrefs.DeleteKey($"enhanced {f}");
-        }
+        private EnhancedPrefsStash _stash;
+
+        [SetUp]
+        public void SetUp() => _stash = EnhancedPrefsStash.Take();
+
+        [TearDown]
+        public void TearDown() => _stash.Restore();
 
         [Test]
         public void EditsAreNotSavedUntilCommit() {
@@ -24,6 +25,22 @@ namespace BakAgain.Tests.Editor.UI {
             Assert.IsTrue(GameOptions.Enhanced);
             Assert.IsFalse(GameOptions.GetFeature(EnhancedFeature.PortraitRings));
             Assert.IsTrue(GameOptions.GetFeature(EnhancedFeature.MouseLook));
+        }
+
+        [Test]
+        public void TheHealthRingsRowNeedsFullScreenTravel() {
+            var draft = new EnhancedOptionsDraft { Master = true };
+            foreach (EnhancedFeature f in System.Enum.GetValues(typeof(EnhancedFeature))) draft[f] = true;
+            Assert.IsTrue(PreferencesMenu.EnhancedRowEnabled(draft, EnhancedFeature.PortraitRings));
+
+            draft[EnhancedFeature.FullScreenTravel] = false;
+            Assert.IsFalse(PreferencesMenu.EnhancedRowEnabled(draft, EnhancedFeature.PortraitRings), "rings only draw full-screen");
+            Assert.IsTrue(PreferencesMenu.EnhancedRowEnabled(draft, EnhancedFeature.MouseLook), "the others do not care");
+            Assert.IsTrue(PreferencesMenu.EnhancedRowEnabled(draft, EnhancedFeature.FullScreenTravel));
+
+            draft.Master = false;
+            draft[EnhancedFeature.FullScreenTravel] = true;
+            Assert.IsFalse(PreferencesMenu.EnhancedRowEnabled(draft, EnhancedFeature.FullScreenTravel), "the master gates all");
         }
     }
 }

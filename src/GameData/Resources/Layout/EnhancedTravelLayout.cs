@@ -7,10 +7,10 @@ namespace GameData.Resources.Layout;
 /// </summary>
 public sealed class EnhancedTravelLayout
 {
-    /// <summary>Panel px a press must travel before it is a look-drag rather than a click.</summary>
+    /// <summary>Screen pixels (<c>IPointer.Delta</c>) a press must travel before it is a look-drag rather than a click.</summary>
     public float DragThresholdPx { get; set; } = 8f;
 
-    /// <summary>Look rotation per panel px of drag.</summary>
+    /// <summary>Look rotation per screen pixel (<c>IPointer.Delta</c>) of drag.</summary>
     public float DegreesPerPixel { get; set; } = 0.25f;
 
     /// <summary>How far mouse/touch look may pitch the camera either way.</summary>

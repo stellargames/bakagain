@@ -829,6 +829,7 @@ namespace BakAgain.UI.InGame {
             _compassArrows = System.Array.Empty<VisualElement>();
             _interaction = null;
             RevertHud(); _hud = null;
+            RestoreLookCursor();
         }
 
         private async UniTask FadeRootAsync(VisualElement root, float from, float to) {
@@ -861,6 +862,7 @@ namespace BakAgain.UI.InGame {
             _compassArrows = System.Array.Empty<VisualElement>();
             _interaction = null;
             RevertHud(); _hud = null;
+            RestoreLookCursor();
         }
 
         // Per-frame: refresh the compass + world view, and drive movement — but only while the
@@ -1600,16 +1602,12 @@ namespace BakAgain.UI.InGame {
                 && GameOptions.IsOn(EnhancedFeature.MouseLook);
             Vector2 look = _look?.Tick(lookOn, StartsOnWorld) ?? Vector2.zero;
             if (look != Vector2.zero) {
-                const float unitsPerDegree = 65536f / 360f;
-                int yaw = (ushort)_gameSession.Rotation - Mathf.RoundToInt(look.x * unitsPerDegree);
-                _movement.LookTo(unchecked((ushort)yaw));
-                float limit = _enhancedLayout.PitchLimitDegrees * unitsPerDegree;
-                _movement.LookPitch = (short)Mathf.Clamp(_movement.LookPitch + look.y * unitsPerDegree, -limit, limit);
-                _movement.SyncToCamera();
+                _movement.ApplyLook(look.x, look.y, _enhancedLayout.PitchLimitDegrees);
             }
             SetLookCursor(_look != null && _look.Dragging);
-            if (AFightIsRunning() && _movement != null && _movement.LookPitch != 0) {
-                _movement.LookPitch = 0;   // the battle camera is level in the original
+            // The battle camera is level in the original, and look switched off is the faithful view.
+            if (AFightIsRunning() || !GameOptions.IsOn(EnhancedFeature.MouseLook)) {
+                _movement?.LevelLook();
             }
         }
 
@@ -1631,6 +1629,16 @@ namespace BakAgain.UI.InGame {
                 }
             }
             return false;
+        }
+
+        // The screen went away mid-drag: the software cursor must not stay hidden (InGameScreen is
+        // ICursorManager.Hide's only caller). No warp — the drag's screen is gone.
+        private void RestoreLookCursor() {
+            if (!_lookCursorHidden) {
+                return;
+            }
+            _lookCursorHidden = false;
+            (_resolver?.Resolve(typeof(BakAgain.UI.Cursor.ICursorManager)) as BakAgain.UI.Cursor.ICursorManager)?.Show();
         }
 
         // Hide the cursor for the drag; on release put it back where the drag began.

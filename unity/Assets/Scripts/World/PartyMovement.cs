@@ -115,6 +115,33 @@ namespace BakAgain.World {
             SyncCamera();
         }
 
+        private const float AngleUnitsPerDegree = 65536f / 360f;
+
+        /// <summary>
+        /// One free-look drag delta: turn the real heading by <paramref name="yawDegrees"/> (positive
+        /// turns right) through <see cref="LookTo"/>, and pitch the view by
+        /// <paramref name="pitchDegrees"/> (positive looks up), held within ±<paramref name="pitchLimitDegrees"/>.
+        /// </summary>
+        public void ApplyLook(float yawDegrees, float pitchDegrees, float pitchLimitDegrees) {
+            int yaw = (ushort)_session.Rotation - Mathf.RoundToInt(yawDegrees * AngleUnitsPerDegree);
+            LookTo(unchecked((ushort)yaw));
+            float limit = pitchLimitDegrees * AngleUnitsPerDegree;
+            LookPitch = (short)Mathf.Clamp(LookPitch + pitchDegrees * AngleUnitsPerDegree, -limit, limit);
+            SyncToCamera();
+        }
+
+        /// <summary>
+        /// Drop the free-look pitch: a fight (the battle camera is level in the original) or free look
+        /// turned off must leave the faithful, level view. A no-op when already level.
+        /// </summary>
+        public void LevelLook() {
+            if (LookPitch == 0) {
+                return;
+            }
+            LookPitch = 0;
+            SyncToCamera();
+        }
+
         public void TurnLeft() => Turn(turnViewLeft: true);
         public void TurnRight() => Turn(turnViewLeft: false);
 

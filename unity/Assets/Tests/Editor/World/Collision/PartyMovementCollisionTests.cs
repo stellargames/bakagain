@@ -80,14 +80,14 @@ namespace BakAgain.Tests.Editor.World.Collision {
         }
 
         private static Rig Build(ProximityWorld world, StepSize step = StepSize.Medium,
-            TurnSize turn = TurnSize.Large, bool underground = false) {
+            TurnSize turn = TurnSize.Large, bool underground = false, System.Func<int, int, bool> hotspotPass = null) {
             var rig = new Rig { Session = new GameSession { PositionX = 0, PositionY = 0, Rotation = 0 } };
             var prefs = new FakePreferencesService();
             prefs.Current.StepSize = step;
             prefs.Current.TurnSize = turn;
             rig.Movement = new PartyMovement(rig.Session, Table(), prefs, camera: null,
                 cameraHeightZ: ZoneCameraZ, cameraPitch: 0, collision: world,
-                playSfx: id => rig.Sounds.Add(id), underground: underground);
+                hotspotPass: hotspotPass, playSfx: id => rig.Sounds.Add(id), underground: underground);
             return rig;
         }
 
@@ -147,12 +147,12 @@ namespace BakAgain.Tests.Editor.World.Collision {
         /// A road running through the party's cell and bending WEST: north is not road, so a party
         /// facing north is refused and the sweep has to find the bend.
         /// </summary>
-        private static Rig OnARoadBendingWest() {
+        private static Rig OnARoadBendingWest(System.Func<int, int, bool> hotspotPass = null) {
             var rig = Build(
                 WorldWith(groundElevation: 0,
                     (Road, Centre, Centre, 700),
                     (Road, WestCell, Centre, 700)),
-                turn: TurnSize.Medium);
+                turn: TurnSize.Medium, hotspotPass: hotspotPass);
             rig.Session.PositionX = Centre;
             rig.Session.PositionY = Centre;
             Assert.IsTrue(rig.Movement.TryEngageTravel(), "the rig must actually be on road");
@@ -225,6 +225,25 @@ namespace BakAgain.Tests.Editor.World.Collision {
             Assert.AreEqual(Centre + dx, rig.Session.PositionX, "stepped along west");
             Assert.AreEqual(Centre + dy, rig.Session.PositionY);
             Assert.AreNotEqual(Centre, rig.Session.PositionX);
+        }
+
+        [Test]
+        public void AFreeHeadingTravelStepTheHotspotPassRefusesRestoresTheRawHeading() {
+            // The rollback in TravelStep: the hotspot fired where the party stood, so the step is
+            // undone — position AND the compass snap, back to the player's own off-compass heading.
+            bool refuse = false;
+            var rig = OnARoadBendingWest(hotspotPass: (_, _) => !refuse);
+            rig.Movement.FreeHeading = () => true;
+            short raw = unchecked((short)(0x4000 + 300));
+            rig.Session.Rotation = raw;
+            refuse = true;
+
+            rig.Movement.MoveForward();
+
+            Assert.AreEqual(raw, rig.Session.Rotation, "back to the raw heading");
+            Assert.AreEqual(Centre, rig.Session.PositionX, "position unchanged");
+            Assert.AreEqual(Centre, rig.Session.PositionY);
+            Assert.IsTrue(rig.Movement.IsTravelling, "travel is not ended");
         }
 
         [Test]

@@ -47,5 +47,52 @@ namespace BakAgain.Tests.Editor.World {
             Assert.AreEqual(before, (session.Rotation, session.PositionX, session.PositionY, session.PositionZ),
                 "pitch has no session field to leak into; the pose is untouched");
         }
+
+        private const float Units = 65536f / 360f;
+
+        [Test]
+        public void ApplyLookClampsThePitchBothWays() {
+            var (movement, _, _) = Build();
+            movement.ApplyLook(0f, 50f, 30f);
+            Assert.AreEqual((short)(30f * Units), movement.LookPitch, "held at +limit");
+            movement.ApplyLook(0f, -10f, 30f);
+            Assert.AreEqual((short)(20f * Units), movement.LookPitch, "and comes back from it");
+            movement.ApplyLook(0f, -500f, 30f);
+            Assert.AreEqual((short)(-30f * Units), movement.LookPitch, "held at -limit");
+        }
+
+        [Test]
+        public void ApplyLookTurnsTheHeadingThroughLookToRightIsPositive() {
+            var (movement, session, cam) = Build();
+            session.Rotation = 0x4000;
+            movement.ApplyLook(10f, 0f, 30f);
+            ushort expected = unchecked((ushort)(0x4000 - Mathf.RoundToInt(10f * Units)));
+            Assert.AreEqual(expected, (ushort)session.Rotation);
+            Assert.Less(Quaternion.Angle(BakCoordinateConverter.ConvertRotation(0, 0, expected), cam.transform.rotation), 0.01f,
+                "the camera follows, as LookTo makes it");
+        }
+
+        [Test]
+        public void LevelLookZeroesThePitchAndResyncsTheCamera() {
+            var (movement, session, cam) = Build();
+            session.Rotation = 0x2000;
+            movement.ApplyLook(0f, 20f, 30f);
+            Assert.Greater(Quaternion.Angle(BakCoordinateConverter.ConvertRotation(0, 0, 0x2000), cam.transform.rotation), 1f);
+
+            movement.LevelLook();
+
+            Assert.AreEqual(0, movement.LookPitch);
+            Assert.Less(Quaternion.Angle(BakCoordinateConverter.ConvertRotation(0, 0, 0x2000), cam.transform.rotation), 0.01f,
+                "the view is level again at once, not at the next move");
+        }
+
+        [Test]
+        public void LevelLookIsANoOpWhenAlreadyLevel() {
+            var (movement, _, cam) = Build();
+            Quaternion marker = Quaternion.Euler(1f, 2f, 3f);
+            cam.transform.rotation = marker;
+            movement.LevelLook();
+            Assert.Less(Quaternion.Angle(marker, cam.transform.rotation), 0.01f, "nothing written");
+        }
     }
 }

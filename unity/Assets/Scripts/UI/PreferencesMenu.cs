@@ -214,7 +214,7 @@ namespace BakAgain.UI {
             panel.style.width = rightColumn.x - ok.height * 0.1f - top.x;
             panel.style.height = bottom.yMax - top.y;
 
-            var features = new System.Collections.Generic.List<VisualElement>();
+            var features = new System.Collections.Generic.List<(VisualElement Row, EnhancedFeature Feature)>();
             Button Row(Action onClick) {
                 var row = new Button();
                 row.AddToClassList("text-button");
@@ -227,8 +227,8 @@ namespace BakAgain.UI {
             }
 
             void Refresh() {
-                foreach (VisualElement f in features) {
-                    f.SetEnabled(_enhancedDraft.Master);
+                foreach ((VisualElement row, EnhancedFeature feature) in features) {
+                    row.SetEnabled(EnhancedRowEnabled(_enhancedDraft, feature));
                 }
                 RefreshEnhancedCaption(root);
             }
@@ -251,11 +251,18 @@ namespace BakAgain.UI {
 
             void AddFeatureRow(string key, EnhancedFeature feature) {
                 Button row = null;
-                row = Row(() => { _enhancedDraft[feature] = !_enhancedDraft[feature]; SetBoxText(row, key, _enhancedDraft[feature]); });
+                row = Row(() => { _enhancedDraft[feature] = !_enhancedDraft[feature]; SetBoxText(row, key, _enhancedDraft[feature]); Refresh(); });
                 SetBoxText(row, key, _enhancedDraft[feature]);
-                features.Add(row);
+                features.Add((row, feature));
             }
         }
+
+        /// <summary>
+        /// Whether a feature row can be toggled: every feature needs the master, and the health rings
+        /// only draw on the full-screen HUD.
+        /// </summary>
+        internal static bool EnhancedRowEnabled(EnhancedOptionsDraft draft, EnhancedFeature feature) =>
+            draft.Master && (feature != EnhancedFeature.PortraitRings || draft[EnhancedFeature.FullScreenTravel]);
 
         /// <summary>A panel row's caption: "[x] Full-screen travel", or for the master "Enhanced: On".</summary>
         private static void SetBoxText(Button row, string key, bool on, bool state = false) {

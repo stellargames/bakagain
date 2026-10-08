@@ -5,12 +5,26 @@ namespace BakAgain.Tests.Editor.Core {
 
     /// <summary>Enhanced mode is the master AND the feature; master off by default, features on.</summary>
     public class EnhancedOptionsTests {
-        private static readonly string[] Keys = {
-            "enhanced", "enhanced FullScreenTravel", "enhanced MouseLook", "enhanced PortraitRings" };
+        private EnhancedPrefsStash _stash;
 
-        [SetUp, TearDown]
-        public void Clear() {
-            foreach (string k in Keys) PlayerPrefs.DeleteKey(k);
+        [SetUp]
+        public void SetUp() => _stash = EnhancedPrefsStash.Take();
+
+        [TearDown]
+        public void TearDown() => _stash.Restore();
+
+        [Test]
+        public void TheStashPutsThePlayersOwnValuesBack() {
+            PlayerPrefs.SetInt("enhanced", 1);
+            EnhancedPrefsStash inner = EnhancedPrefsStash.Take();
+            Assert.IsFalse(PlayerPrefs.HasKey("enhanced"), "cleared for the test");
+            PlayerPrefs.SetInt("enhanced", 0);
+            PlayerPrefs.SetInt("enhanced MouseLook", 0);
+
+            inner.Restore();
+
+            Assert.AreEqual(1, PlayerPrefs.GetInt("enhanced", -1), "a present key comes back with its value");
+            Assert.IsFalse(PlayerPrefs.HasKey("enhanced MouseLook"), "an absent key stays absent");
         }
 
         [Test]
