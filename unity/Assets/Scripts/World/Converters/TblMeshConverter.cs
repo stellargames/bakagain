@@ -124,6 +124,35 @@ namespace BakAgain.World.Converters {
                     dupPaintOrder, keyTriangles);
             }
 
+            var emitFaces = GatherFaces(dat);
+
+            // Paint-order pass 1: classify every renderable face into its coplanar group.
+            PaintOrderAssigner assigner = null;
+            int[] groupIds = null;
+            float[] ranks = null;
+            List<Vector3[]>[] cutPieces = null;
+            if (assignPaintOrder) {
+                (assigner, groupIds, ranks) = ClassifyAll(emitFaces);
+                // Pass 1b: cut later coplanar overlays out of the faces they paint over, so no two
+                // surfaces share depth (see CutCoplanarOverlaps).
+                cutPieces = CutCoplanarOverlaps(emitFaces, groupIds, assigner, null);
+            }
+
+            // Pass 2: emit, with the per-face rank (kept as the tie-break for anything left uncut).
+            for (int i = 0; i < emitFaces.Count; i++) {
+                var (face, verts, pool, flags, frame) = emitFaces[i];
+                float rank = (assigner != null && groupIds[i] >= 0) ? ranks[i] : 0f;
+                AppendFace(face, verts, palette, mapPalette, dupVertices, dupColors,
+                    dupMapColors, dupUvs, dupPaintOrder, rank, flags, frame, keyTriangles,
+                    cutPieces?[i]);
+            }
+
+            return ToTerrainMeshData(dupVertices, dupColors, dupMapColors, dupUvs, dupPaintOrder,
+                keyTriangles);
+        }
+
+        private static List<(PolygonFace Face, Vector3[] Verts, int Pool, byte Flags, byte Frame)>
+            GatherFaces(TableDatInfo dat) {
             var lod = dat.Lods[0];
             var unityPools = new Vector3[lod.VertexPools.Count][];
             var emitFaces = new List<(PolygonFace Face, Vector3[] Verts, int Pool, byte Flags, byte Frame)>();
@@ -164,34 +193,269 @@ namespace BakAgain.World.Converters {
                             meshRec.RuntimeFlagsIndex, (byte)frame));
                 }
             }
+            return emitFaces;
+        }
 
-            // Paint-order pass 1: classify every renderable face into its coplanar group. Geometry is
-            // never modified — the rank only feeds the shader's depth-bias tie-break.
-            PaintOrderAssigner assigner = null;
-            int[] groupIds = null;
-            float[] ranks = null;
-            if (assignPaintOrder) {
-                assigner = new PaintOrderAssigner();
-                groupIds = new int[emitFaces.Count];
-                ranks = new float[emitFaces.Count];
-                for (int i = 0; i < emitFaces.Count; i++) {
-                    var (face, verts, pool, _, _) = emitFaces[i];
-                    groupIds[i] = -1;
-                    if (IsRenderable(face, verts))
-                        (groupIds[i], ranks[i]) = assigner.Classify(pool, face.VertexIndices, verts);
-                }
-            }
-
-            // Pass 2: emit, with the per-face rank.
+        private static (PaintOrderAssigner, int[], float[]) ClassifyAll(
+            List<(PolygonFace Face, Vector3[] Verts, int Pool, byte Flags, byte Frame)> emitFaces) {
+            var assigner = new PaintOrderAssigner();
+            var groupIds = new int[emitFaces.Count];
+            var ranks = new float[emitFaces.Count];
             for (int i = 0; i < emitFaces.Count; i++) {
-                var (face, verts, pool, flags, frame) = emitFaces[i];
-                float rank = (assigner != null && groupIds[i] >= 0) ? ranks[i] : 0f;
-                AppendFace(face, verts, palette, mapPalette, dupVertices, dupColors,
-                    dupMapColors, dupUvs, dupPaintOrder, rank, flags, frame, keyTriangles);
+                var (face, verts, pool, _, _) = emitFaces[i];
+                groupIds[i] = -1;
+                if (IsRenderable(face, verts))
+                    (groupIds[i], ranks[i]) = assigner.Classify(pool, face.VertexIndices, verts);
+            }
+            return (assigner, groupIds, ranks);
+        }
+
+        /// <summary>Counts of same-facing, overlapping face pairs within a coplanar group — before
+        /// and after <see cref="CutCoplanarOverlaps"/> — for the corpus census.</summary>
+        public sealed class CoplanarCensus {
+            public int PairsBefore;
+            public int PairsAfter;
+            /// <summary>Of <see cref="PairsAfter"/>, those whose earlier face is slot-textured
+            /// (deliberately not cut: its UVs would need remapping).</summary>
+            public int AfterTexturedBase;
+            /// <summary>Of <see cref="PairsAfter"/>, those where either face is concave.</summary>
+            public int AfterConcave;
+            /// <summary>Of <see cref="PairsAfter"/>, those where the later face is only NEAR the
+            /// earlier one's plane (beyond <see cref="CutPlaneTolerance"/>): left to the rank nudge.</summary>
+            public int AfterOffPlane;
+        }
+
+        /// <summary>Runs pass 1 and the cut over <paramref name="dat"/> and adds its pair counts to
+        /// <paramref name="census"/>. Diagnostic only; the converter does the same work.</summary>
+        public static void CensusCoplanarOverlaps(TableDatInfo dat, CoplanarCensus census) {
+            if (dat.Lods.Count == 0) return;
+            var emitFaces = GatherFaces(dat);
+            var (assigner, groupIds, _) = ClassifyAll(emitFaces);
+            CutCoplanarOverlaps(emitFaces, groupIds, assigner, census);
+        }
+
+        /// <summary>
+        /// Pass 1b: within each coplanar group, cut every LATER same-facing overlapping face out of
+        /// each EARLIER one. Returns, per face, the convex 3D pieces to emit in its place, or null to
+        /// emit the face as authored (also an empty list: fully covered, emit nothing).
+        /// </summary>
+        /// <remarks>
+        /// The original painted these in order with no depth buffer, so the later face simply covers
+        /// the earlier. With a depth buffer they tie and z-fight at distance however small the rank
+        /// nudge; removing the covered region leaves nothing to tie. Using each cutter's ORIGINAL
+        /// outline is right even when that cutter is itself cut later: what replaced it is still
+        /// painted over the same region.
+        /// <para>Who may cut whom (Cull Back everywhere, so a face is seen from its front only):
+        /// j cuts i when j is visible wherever i is — j double-sided, or both single-sided with the
+        /// same facing. Exclusions (v1): only unflagged meshes (RuntimeFlags 0xFF) take part, since a
+        /// flip-book frame is not always drawn; a slot-TEXTURED face is never cut (its quad UVs would
+        /// need remapping) but may cut a flat face; concave faces (8 with real area in the corpus)
+        /// neither cut nor are cut; a cutter must lie on the cut face's own plane (within
+        /// <see cref="CutPlaneTolerance"/>), so tilted near-coplanar decals keep the rank nudge alone.
+        /// Lines never reach a group.</para>
+        /// <para>Pieces are lifted back onto the cut face's OWN plane, not the group's, so a
+        /// near-coplanar face keeps its authored offset (see <see cref="PaintOrderAssigner"/>).</para>
+        /// </remarks>
+        /// <summary>
+        /// How far (Unity units) a cutter's vertices may sit from the cut face's own plane. 1.5 BaK:
+        /// exact coplanarity in the data is only exact to the extractor's world-up rounding (half a
+        /// unit a vertex), while the near-coplanar decals the group also admits (bridge-deck planks
+        /// tilted 3-5 BaK through their deck) must NOT cut — the hole edge would sit on the deck's
+        /// plane and the plank below it, opening a see-through crack (seen on Z01 bridge1).
+        /// </summary>
+        private const float CutPlaneTolerance = 0.015f;
+
+        private static List<Vector3[]>[] CutCoplanarOverlaps(
+            List<(PolygonFace Face, Vector3[] Verts, int Pool, byte Flags, byte Frame)> emitFaces,
+            int[] groupIds, PaintOrderAssigner assigner, CoplanarCensus census) {
+            var result = new List<Vector3[]>[emitFaces.Count];
+            var byGroup = new Dictionary<int, List<int>>();
+            for (int i = 0; i < emitFaces.Count; i++) {
+                if (groupIds[i] < 0 || emitFaces[i].Flags != MaterialKey.NoRuntimeFlags) continue;
+                if (!byGroup.TryGetValue(groupIds[i], out var list)) byGroup[groupIds[i]] = list = new List<int>();
+                list.Add(i);
             }
 
-            return ToTerrainMeshData(dupVertices, dupColors, dupMapColors, dupUvs, dupPaintOrder,
-                keyTriangles);
+            foreach (var kv in byGroup) {
+                var members = kv.Value;
+                if (members.Count < 2) continue;
+                Vector3 n = assigner.GroupNormal(kv.Key);
+                Vector3 u = Vector3.Cross(n, Mathf.Abs(n.y) < 0.9f ? Vector3.up : Vector3.right).normalized;
+                Vector3 v = Vector3.Cross(n, u);   // u x v = n: a face facing +n projects CCW
+
+                int m = members.Count;
+                var shape = new (double X, double Y)[m][];
+                var facing = new int[m];
+                var convex = new bool[m];
+                var planeN = new Vector3[m];
+                var planeD = new float[m];
+                for (int k = 0; k < m; k++) {
+                    var (face, verts, _, _, _) = emitFaces[members[k]];
+                    var poly = new (double X, double Y)[face.VertexIndices.Count];
+                    for (int c = 0; c < poly.Length; c++) {
+                        Vector3 p = verts[face.VertexIndices[c]];
+                        poly[c] = (Vector3.Dot(p, u), Vector3.Dot(p, v));
+                    }
+                    shape[k] = poly;
+                    facing[k] = Vector3.Dot(FaceNormal(face.VertexIndices, verts), n) >= 0f ? 1 : -1;
+                    convex[k] = GameData.Resources.World.ConvexClip.IsConvex(poly);
+                    planeN[k] = FaceNormal(face.VertexIndices, verts).normalized;
+                    Vector3 centroid = Vector3.zero;
+                    foreach (int vi in face.VertexIndices) centroid += verts[vi];
+                    planeD[k] = Vector3.Dot(planeN[k], centroid / face.VertexIndices.Count);
+                }
+                // Every vertex of j lies on i's own plane.
+                bool OnPlaneOf(int j, int i) {
+                    var (face, verts, _, _, _) = emitFaces[members[j]];
+                    foreach (int vi in face.VertexIndices)
+                        if (Mathf.Abs(Vector3.Dot(planeN[i], verts[vi]) - planeD[i]) > CutPlaneTolerance) return false;
+                    return true;
+                }
+                Vector3[] Solid(int k) {
+                    var (face, verts, _, _, _) = emitFaces[members[k]];
+                    var pts = new Vector3[face.VertexIndices.Count];
+                    for (int c = 0; c < pts.Length; c++) pts[c] = verts[face.VertexIndices[c]];
+                    return pts;
+                }
+                bool DoubleSided(int k) => emitFaces[members[k]].Face.CullMode == FaceCullMode.DoubleSided;
+                bool Textured(int k) => emitFaces[members[k]].Face.TextureBitmap != null;
+                // j is visible wherever i is.
+                bool Covers(int j, int i) => DoubleSided(j) || (!DoubleSided(i) && facing[i] == facing[j]);
+                // Some viewpoint sees both.
+                bool CanFight(int i, int j) => DoubleSided(i) || DoubleSided(j) || facing[i] == facing[j];
+
+                var pieces = new List<(double X, double Y)[]>[m];
+                for (int i = 0; i < m; i++) {
+                    pieces[i] = new List<(double X, double Y)[]> { shape[i] };
+                    if (Textured(i) || !convex[i]) continue;
+                    // The face's own outline first, then each cutter that actually cut it.
+                    var outlines = new List<((double X, double Y)[] Flat, Vector3[] Solid)> { (shape[i], Solid(i)) };
+                    for (int j = i + 1; j < m; j++) {
+                        if (!convex[j] || !Covers(j, i) || !OnPlaneOf(j, i)) continue;
+                        var next = new List<(double X, double Y)[]>();
+                        bool cutByJ = false;
+                        foreach (var piece in pieces[i]) {
+                            var rest = GameData.Resources.World.ConvexClip.Subtract(piece, shape[j]);
+                            if (rest.Count != 1 || !ReferenceEquals(rest[0], piece)) cutByJ = true;
+                            next.AddRange(rest);
+                        }
+                        pieces[i] = next;
+                        if (cutByJ) outlines.Add((shape[j], Solid(j)));
+                    }
+                    if (outlines.Count > 1) result[members[i]] = Lift(outlines, pieces[i], u, v, n, facing[i]);
+                }
+
+                if (census == null) continue;
+                for (int i = 0; i < m; i++)
+                    for (int j = i + 1; j < m; j++) {
+                        if (!CanFight(i, j)) continue;
+                        if (GameData.Resources.World.ConvexClip.Overlaps(shape[i], shape[j])) census.PairsBefore++;
+                        bool still = false;
+                        foreach (var a in pieces[i]) {
+                            foreach (var b in pieces[j])
+                                if (GameData.Resources.World.ConvexClip.Overlaps(a, b)) { still = true; break; }
+                            if (still) break;
+                        }
+                        if (!still) continue;
+                        census.PairsAfter++;
+                        if (Textured(i)) census.AfterTexturedBase++;
+                        else if (!convex[i] || !convex[j]) census.AfterConcave++;
+                        else if (!OnPlaneOf(j, i)) census.AfterOffPlane++;
+                    }
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Lift 2D group-plane pieces back to 3D, restoring the face's winding. outlines[0] is the
+        /// cut face, the rest the faces that cut it, each as (2D projection, 3D corners).
+        /// </summary>
+        /// <remarks>
+        /// <b>Every piece corner is placed on the 3D geometry it came from, not on a fitted plane.</b>
+        /// A corner that is one of the face's own takes the authored vertex; one on the face's own
+        /// boundary is interpolated along that 3D edge (watertight with the neighbour sharing it);
+        /// one on a cutter's boundary is interpolated along the CUTTER's 3D edge, so the hole edge
+        /// meets the overlay that fills it exactly. Lifting hole corners onto the face's own plane
+        /// instead left a crack wherever the overlay sat a fraction of a unit below it (Z01 bridge1
+        /// showed the ground line through the deck). The plane lift is only the fallback.
+        /// </remarks>
+        private static List<Vector3[]> Lift(
+            List<((double X, double Y)[] Flat, Vector3[] Solid)> outlines,
+            List<(double X, double Y)[]> pieces, Vector3 u, Vector3 v, Vector3 n, int facing) {
+            const double OnEdge = 1e-5;   // Unity units: 0.001 BaK, far below the 0.01 data grid
+            var own = outlines[0].Solid;
+            Vector3 nI = Vector3.zero, centroid = Vector3.zero;
+            for (int c = 0; c < own.Length; c++) {
+                Vector3 a = own[c], b = own[(c + 1) % own.Length];
+                nI += Vector3.Cross(a, b);   // Newell, in cross form
+                centroid += a;
+            }
+            nI.Normalize();
+            centroid /= own.Length;
+            double dI = Vector3.Dot(nI, centroid);
+            double nn = Vector3.Dot(nI, n);
+
+            Vector3 Place(double x, double y) {
+                foreach (var (flat, solid) in outlines)
+                    for (int c = 0; c < flat.Length; c++) {
+                        double dx = flat[c].X - x, dy = flat[c].Y - y;
+                        if ((dx * dx) + (dy * dy) < OnEdge * OnEdge) return solid[c];
+                    }
+                foreach (var (flat, solid) in outlines)
+                    for (int c = 0; c < flat.Length; c++) {
+                        var a = flat[c];
+                        var b = flat[(c + 1) % flat.Length];
+                        double ex = b.X - a.X, ey = b.Y - a.Y, len2 = (ex * ex) + (ey * ey);
+                        if (len2 < 1e-12) continue;
+                        double t = (((x - a.X) * ex) + ((y - a.Y) * ey)) / len2;
+                        if (t < 0 || t > 1) continue;
+                        double px = a.X + (t * ex) - x, py = a.Y + (t * ey) - y;
+                        if ((px * px) + (py * py) < OnEdge * OnEdge)
+                            return Vector3.Lerp(solid[c], solid[(c + 1) % flat.Length], (float)t);
+                    }
+                Vector3 p0 = (u * (float)x) + (v * (float)y);
+                return p0 + (n * (float)((dI - Vector3.Dot(nI, p0)) / nn));
+            }
+
+            // No T-junctions: a cutter corner lying INSIDE a piece edge (a plank shorter than the
+            // gap it borders) becomes a vertex of that edge too, or the rasteriser leaves pinholes
+            // along it. The piece stays convex; the extra corner is collinear.
+            List<(double X, double Y)> WithJunctions((double X, double Y)[] piece) {
+                var outPts = new List<(double X, double Y)>(piece.Length + 2);
+                var onEdge = new List<(double T, (double X, double Y) P)>();
+                for (int c = 0; c < piece.Length; c++) {
+                    var a = piece[c];
+                    var b = piece[(c + 1) % piece.Length];
+                    outPts.Add(a);
+                    double ex = b.X - a.X, ey = b.Y - a.Y, len2 = (ex * ex) + (ey * ey);
+                    if (len2 < 1e-12) continue;
+                    double tEps = OnEdge / System.Math.Sqrt(len2);
+                    onEdge.Clear();
+                    foreach (var (flat, _) in outlines)
+                        foreach (var q in flat) {
+                            double t = (((q.X - a.X) * ex) + ((q.Y - a.Y) * ey)) / len2;
+                            if (t <= tEps || t >= 1 - tEps) continue;
+                            double px = a.X + (t * ex) - q.X, py = a.Y + (t * ey) - q.Y;
+                            if ((px * px) + (py * py) < OnEdge * OnEdge) onEdge.Add((t, q));
+                        }
+                    onEdge.Sort((l, r) => l.T.CompareTo(r.T));
+                    foreach (var (_, q) in onEdge) {
+                        var last = outPts[outPts.Count - 1];
+                        if (System.Math.Abs(last.X - q.X) + System.Math.Abs(last.Y - q.Y) > OnEdge) outPts.Add(q);
+                    }
+                }
+                return outPts;
+            }
+
+            var lifted = new List<Vector3[]>(pieces.Count);
+            foreach (var flatPiece in pieces) {
+                var piece = WithJunctions(flatPiece);
+                var pts = new Vector3[piece.Count];
+                for (int c = 0; c < piece.Count; c++)
+                    pts[facing > 0 ? c : piece.Count - 1 - c] = Place(piece[c].X, piece[c].Y);
+                lifted.Add(pts);
+            }
+            return lifted;
         }
 
         /// <summary>Half-width of a line face's ribbon, in BaK units.</summary>
@@ -257,7 +521,7 @@ namespace BakAgain.World.Converters {
             List<Vector3> dupVertices, List<Color> dupColors, List<Vector4> dupMapColors,
             List<Vector2> dupUvs,
             List<float> dupPaintOrder, float rank, byte runtimeFlags, byte frame,
-            Dictionary<MaterialKey, List<int>> keyTriangles) {
+            Dictionary<MaterialKey, List<int>> keyTriangles, List<Vector3[]> pieces = null) {
 
             if (IsRenderableLine(face, meshVerts)) {
                 AppendLine(face, meshVerts, palette, mapPalette, dupVertices, dupColors,
@@ -289,43 +553,43 @@ namespace BakAgain.World.Converters {
                 keyTriangles[key] = tris = new List<int>();
 
             bool textured = textureKey != null && face.VertexIndices.Count == 4;
-            void PushUvs() {
-                if (textured) {
-                    // V flipped: BMX sprite texture origin vs quad winding put the bitmap
-                    // upside-down; map the 4 quad verts to the bitmap's top edge first.
-                    dupUvs.Add(new Vector2(0, 1)); dupUvs.Add(new Vector2(1, 1));
-                    dupUvs.Add(new Vector2(1, 0)); dupUvs.Add(new Vector2(0, 0));
-                } else {
-                    for (int i = 0; i < face.VertexIndices.Count; i++) dupUvs.Add(Vector2.zero);
+
+            // One polygon: duplicated verts + triangles, and the reverse winding when double-sided.
+            void Emit(Vector3[] pts, List<int> local, bool withTexture) {
+                for (int side = 0; side < (doubleSided ? 2 : 1); side++) {
+                    int baseIndex = dupVertices.Count;
+                    foreach (Vector3 p in pts) {
+                        dupVertices.Add(p);
+                        dupColors.Add(faceColor); dupPaintOrder.Add(rank);
+                        dupMapColors.Add(mapColor);
+                    }
+                    if (withTexture) {
+                        // V flipped: BMX sprite texture origin vs quad winding put the bitmap
+                        // upside-down; map the 4 quad verts to the bitmap's top edge first.
+                        dupUvs.Add(new Vector2(0, 1)); dupUvs.Add(new Vector2(1, 1));
+                        dupUvs.Add(new Vector2(1, 0)); dupUvs.Add(new Vector2(0, 0));
+                    } else {
+                        for (int i = 0; i < pts.Length; i++) dupUvs.Add(Vector2.zero);
+                    }
+                    for (int i = 0; i < local.Count; i += 3) {
+                        tris.Add(baseIndex + local[i]);
+                        tris.Add(baseIndex + local[side == 0 ? i + 1 : i + 2]);
+                        tris.Add(baseIndex + local[side == 0 ? i + 2 : i + 1]);
+                    }
                 }
             }
 
-            int baseIndex = dupVertices.Count;
-            for (int i = 0; i < face.VertexIndices.Count; i++) {
-                dupVertices.Add(meshVerts[face.VertexIndices[i]]);
-                dupColors.Add(faceColor); dupPaintOrder.Add(rank);
-                dupMapColors.Add(mapColor);
+            if (pieces == null) {
+                var pts = new Vector3[face.VertexIndices.Count];
+                for (int i = 0; i < pts.Length; i++) pts[i] = meshVerts[face.VertexIndices[i]];
+                Emit(pts, Triangulate(face.VertexIndices, meshVerts), textured);
+                return;
             }
-            PushUvs();
-            List<int> local = Triangulate(face.VertexIndices, meshVerts);
-            for (int i = 0; i < local.Count; i += 3) {
-                tris.Add(baseIndex + local[i]);
-                tris.Add(baseIndex + local[i + 1]);
-                tris.Add(baseIndex + local[i + 2]);
-            }
-            if (doubleSided) {
-                int backBase = dupVertices.Count;
-                for (int i = 0; i < face.VertexIndices.Count; i++) {
-                    dupVertices.Add(meshVerts[face.VertexIndices[i]]);
-                    dupColors.Add(faceColor); dupPaintOrder.Add(rank);
-                    dupMapColors.Add(mapColor);
-                }
-                PushUvs();
-                for (int i = 0; i < local.Count; i += 3) {
-                    tris.Add(backBase + local[i]);
-                    tris.Add(backBase + local[i + 2]);
-                    tris.Add(backBase + local[i + 1]);
-                }
+            // Cut pieces (CutCoplanarOverlaps) are convex and never textured: a fan is exact.
+            foreach (var piece in pieces) {
+                var fan = new List<int>((piece.Length - 2) * 3);
+                for (int i = 1; i < piece.Length - 1; i++) { fan.Add(0); fan.Add(i); fan.Add(i + 1); }
+                Emit(piece, fan, false);
             }
         }
 
@@ -579,6 +843,9 @@ namespace BakAgain.World.Converters {
             /// (church ≤1, bridge planks 4.8, fall1 rock 6.5 BaK); real inter-surface offsets
             /// (double decks, floors) are an order of magnitude larger.</summary>
             private const float GroupDistance = 0.10f;
+
+            /// <summary>The group's canonical (sign-normalised) unit normal.</summary>
+            public Vector3 GroupNormal(int groupId) => _groups[groupId].Normal;
 
             /// <summary>
             /// Pass 1: assign the face to its coplanar group (founding one on its own Newell plane if
