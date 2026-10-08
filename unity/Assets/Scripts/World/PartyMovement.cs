@@ -298,7 +298,9 @@ namespace BakAgain.World {
                 // and returns 1 without touching the flag.
                 _session.PositionX = savedX;
                 _session.PositionY = savedY;
-                _session.Rotation = unchecked((short)raw);
+                if (heading != raw) {
+                    _session.Rotation = unchecked((short)raw);
+                }
                 _eyeZ = savedEye;
                 _session.PositionZ = savedEye;
                 AdvanceClockForStep(stepStands: false);

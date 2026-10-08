@@ -193,6 +193,8 @@ namespace BakAgain.UI.InGame {
         private IPointer _pointer;
         private IGameplayInput _gameplay;
         private ClassicMovementDriver _movementDriver;
+        private MouseLookDriver _look;
+        private bool _lookCursorHidden;
         private TravelLayerHost _travelHost;
 
         // (rosterSlot, distanceInFine) -> loot that body. Null outside a fight, which is why the
@@ -365,6 +367,7 @@ namespace BakAgain.UI.InGame {
         public void SetMovement(BakAgain.World.PartyMovement movement) {
             _movement = movement;
             _movementDriver = new ClassicMovementDriver(_document, movement, _gameplay, _pointer);
+            _look = new MouseLookDriver(_pointer, _enhancedLayout);
             // The world arrives after the REQ is built, so the button's first honest state is here.
             RefreshFollowRoadButton();
         }
@@ -967,6 +970,7 @@ namespace BakAgain.UI.InGame {
             }
             // While lifted the arrows look around instead of walking (the original's loop owns them).
             _movementDriver?.Tick(travelling && !_lifting);
+            TickMouseLook(travelling && !_lifting);
             if (travelling) {
                 OpenCheatCentralOnItsChord();
             }
@@ -1563,7 +1567,7 @@ namespace BakAgain.UI.InGame {
         /// </summary>
         private void HandleTouchLongPress() {
             TouchInputState touch = TouchInputState.Instance;
-            if (touch == null || _touchControls == null || AFightIsRunning()) {
+            if (touch == null || _touchControls == null || AFightIsRunning() || _look?.Dragging == true) {
                 // Not ticked here, so a release in these frames would never be seen: an unfinished
                 // press must not become an instant long-press on the next tap.
                 _touchHold.Reset();
@@ -1585,6 +1589,63 @@ namespace BakAgain.UI.InGame {
             }
         }
 
+        /// <summary>
+        /// Enhanced free look (spec 2026-10-08 §4): a right-drag (a finger on touch) on the world turns
+        /// the party's real heading and pitches the view. Off, or in a fight, it does nothing.
+        /// </summary>
+        private void TickMouseLook(bool travelling) {
+            bool lookOn = travelling && _movement != null && _gameSession != null
+                && GameOptions.IsOn(EnhancedFeature.MouseLook);
+            Vector2 look = _look?.Tick(lookOn, StartsOnWorld) ?? Vector2.zero;
+            if (look != Vector2.zero) {
+                const float unitsPerDegree = 65536f / 360f;
+                int yaw = (ushort)_gameSession.Rotation - Mathf.RoundToInt(look.x * unitsPerDegree);
+                _movement.LookTo(unchecked((ushort)yaw));
+                float limit = _enhancedLayout.PitchLimitDegrees * unitsPerDegree;
+                _movement.LookPitch = (short)Mathf.Clamp(_movement.LookPitch + look.y * unitsPerDegree, -limit, limit);
+                _movement.SyncToCamera();
+            }
+            SetLookCursor(_look != null && _look.Dragging);
+            if (AFightIsRunning() && _movement != null && _movement.LookPitch != 0) {
+                _movement.LookPitch = 0;   // the battle camera is level in the original
+            }
+        }
+
+        // The press landed on the 3D view rather than on the HUD: nothing picked, or the world's own
+        // elements (in full-screen, hotspot_192 is stretched over the window, under the HUD).
+        private bool StartsOnWorld(Vector2 screen) {
+            IPanel panel = _document?.rootVisualElement?.panel;
+            if (panel == null) {
+                return false;
+            }
+            Vector2 panelPos = RuntimePanelUtils.ScreenToPanel(panel, new Vector2(screen.x, Screen.height - screen.y));
+            VisualElement picked = panel.Pick(panelPos);
+            if (picked == null || picked.name == "WorldViewport" || picked.name == "WorldViewportFullWindow") {
+                return true;
+            }
+            for (VisualElement el = picked; el != null; el = el.parent) {
+                if (el.name == $"hotspot_{ActionWorldViewport}") {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Hide the cursor for the drag; on release put it back where the drag began.
+        private void SetLookCursor(bool dragging) {
+            if (dragging == _lookCursorHidden) {
+                return;
+            }
+            _lookCursorHidden = dragging;
+            var cursor = _resolver?.Resolve(typeof(BakAgain.UI.Cursor.ICursorManager)) as BakAgain.UI.Cursor.ICursorManager;
+            if (dragging) {
+                cursor?.Hide();
+            } else {
+                cursor?.Show();
+                UnityEngine.InputSystem.Mouse.current?.WarpCursorPosition(_look.DragStart);
+            }
+        }
+
         // The REQ action of an element or its nearest named ancestor (hotspot_N / imagebutton_N).
         private static int? ReqActionOf(VisualElement element) {
             for (VisualElement el = element; el != null; el = el.parent) {
@@ -1601,6 +1662,9 @@ namespace BakAgain.UI.InGame {
         // Left-click / key dispatch. STUBBED: each branch logs its intent. The real
         // movement, encamp, cast, map, options and party-screen transitions plug in here.
         public void PrimaryAction(int menuEntryActionId) {
+            if (menuEntryActionId == ActionWorldViewport && _look != null && _look.ConsumeClick()) {
+                return;   // the release of a touch look-drag
+            }
             if (RefusedDuringAFight(menuEntryActionId)) {
                 return;
             }
@@ -1710,6 +1774,9 @@ namespace BakAgain.UI.InGame {
         // its DDX help string (ids 223–232). The party portraits and world viewport have no
         // help text in the original, so they fall through.
         public async Awaitable SecondaryAction(int menuEntryActionId) {
+            if (menuEntryActionId == ActionWorldViewport && _look != null && _look.ConsumeClick()) {
+                return;   // the release of a right-drag look
+            }
             if (RefusedDuringAFight(menuEntryActionId)) {
                 return;
             }

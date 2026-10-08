@@ -189,12 +189,12 @@ namespace BakAgain.Testing {
         /// and the item never left the container. Every frame of this is re-queued with the button
         /// down, as ClickRoutine does for its press.
         /// </remarks>
-        public static void DragAt(Vector2 from, Vector2 to) =>
-            Instance.StartCoroutine(Instance.DragRoutine(from, to));
+        public static void DragAt(Vector2 from, Vector2 to, bool rightButton = false) =>
+            Instance.StartCoroutine(Instance.DragRoutine(from, to, rightButton ? MouseButton.Right : MouseButton.Left));
 
         private const int DragSteps = 12;
 
-        private IEnumerator DragRoutine(Vector2 from, Vector2 to) {
+        private IEnumerator DragRoutine(Vector2 from, Vector2 to, MouseButton button) {
             Mouse m = Mouse.current;
             if (m == null) { Last = "FAIL: no Mouse.current"; yield break; }
             Vector2 prev = m.position.ReadValue();
@@ -204,18 +204,18 @@ namespace BakAgain.Testing {
                 yield return null;
             }
             for (int i = 0; i < PressFrames; i++) {
-                InputSystem.QueueStateEvent(m, new MouseState { position = from }.WithButton(MouseButton.Left, true));
+                InputSystem.QueueStateEvent(m, new MouseState { position = from }.WithButton(button, true));
                 yield return null;
             }
             Vector2 last = from;
             for (int i = 1; i <= DragSteps; i++) {
                 Vector2 at = Vector2.Lerp(from, to, (float)i / DragSteps);
-                InputSystem.QueueStateEvent(m, new MouseState { position = at, delta = at - last }.WithButton(MouseButton.Left, true));
+                InputSystem.QueueStateEvent(m, new MouseState { position = at, delta = at - last }.WithButton(button, true));
                 last = at;
                 yield return null;
             }
             for (int i = 0; i < PressFrames; i++) {
-                InputSystem.QueueStateEvent(m, new MouseState { position = to }.WithButton(MouseButton.Left, true));
+                InputSystem.QueueStateEvent(m, new MouseState { position = to }.WithButton(button, true));
                 yield return null;
             }
             for (int i = 0; i < ReleaseFrames; i++) {
