@@ -369,6 +369,25 @@ public static class StatEngine {
     /// timed modifiers still have no owner.</param>
     public static int Get(ActorStat stat, ActorAttribute attribute, ActorStat healthOfActor,
         StatReadMode mode = StatReadMode.Effective, Func<int, int>? applyPartyEffects = null) {
+        int value = Peek(stat, attribute, healthOfActor, mode, applyPartyEffects);
+        // The original writes the value it read back into the slot's cached-effective byte, which
+        // the save then carries. Peek computes the same value without that write.
+        if (mode != StatReadMode.Stored && mode != StatReadMode.Maximum) {
+            stat.Effective = (byte)(value > 0xfa ? 0xfa : value);
+        }
+        return value;
+    }
+
+    /// <summary>
+    /// <see cref="Get"/>'s value WITHOUT its side effect: the slot's cached-effective byte is not
+    /// written. For port-only readers (the Enhanced HUD's rings) that must not change a save the
+    /// faithful game would write.
+    /// </summary>
+    /// <remarks>
+    /// <paramref name="applyPartyEffects"/> must be side-effect free as well for the read to be.
+    /// </remarks>
+    public static int Peek(ActorStat stat, ActorAttribute attribute, ActorStat healthOfActor,
+        StatReadMode mode = StatReadMode.Effective, Func<int, int>? applyPartyEffects = null) {
         if (stat == null) {
             throw new ArgumentNullException(nameof(stat));
         }
@@ -384,14 +403,11 @@ public static class StatEngine {
         }
 
         int value = stat.Base;
-        stat.Effective = stat.Base;
-
         if (stat.Modifier != 0) {
             value += stat.Modifier;
             if (value < 0) {
                 value = 0;
             }
-            stat.Effective = unchecked((byte)value);
         }
 
         if (applyPartyEffects != null) {
@@ -411,7 +427,6 @@ public static class StatEngine {
         if (value > ReadMax[index]) {
             value = ReadMax[index];
         }
-        stat.Effective = (byte)(value > 0xfa ? 0xfa : value);
         return value;
     }
 

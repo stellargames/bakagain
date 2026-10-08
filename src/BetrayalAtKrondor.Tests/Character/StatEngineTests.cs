@@ -14,6 +14,23 @@ public class StatEngineTests {
     private static ActorStat Stat(byte value, byte max, byte experience = 0, sbyte modifier = 0) =>
         new ActorStat { Base = value, Max = max, Experience = experience, Modifier = modifier };
 
+    // ---- a read without a side effect -------------------------------------
+
+    [Fact]
+    public void PeekReadsWhatGetReadsAndWritesNothing() {
+        ActorStat health = Stat(20, max: 40);
+        ActorStat melee = Stat(50, max: 60, modifier: 4);
+        melee.Effective = 0xEE;
+        health.Effective = 0xEE;
+
+        int peeked = StatEngine.Peek(melee, ActorAttribute.AccuracyMelee, health);
+
+        Assert.Equal(0xEE, melee.Effective);
+        Assert.Equal(0xEE, health.Effective);
+        Assert.Equal(StatEngine.Get(melee, ActorAttribute.AccuracyMelee, health), peeked);
+        Assert.Equal(peeked, melee.Effective);   // Get still writes, as stat_actor_get does
+    }
+
     // ---- changing a value -------------------------------------------------
 
     [Fact]

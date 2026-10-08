@@ -577,8 +577,13 @@ namespace BakAgain.Core {
         /// or the eight fill with dead entries and new modifiers start evicting live ones.</para>
         /// </remarks>
         public Func<int, int> PartyEffectsFor(int characterIndex, ActorAttribute attribute,
-            bool inCombat) => value => {
-            value = ApplyStatModifiers(characterIndex, attribute, value, inCombat);
+            bool inCombat) => PartyEffects(characterIndex, attribute, inCombat, freeExpired: true);
+
+        // freeExpired false is the side-effect-free read PeekEffectiveStat needs: a lapsed modifier
+        // contributes nothing either way, it is only left in its slot for the next real read.
+        private Func<int, int> PartyEffects(int characterIndex, ActorAttribute attribute,
+            bool inCombat, bool freeExpired) => value => {
+            value = ApplyStatModifiers(characterIndex, attribute, value, inCombat, freeExpired);
             return ConditionEngine.ApplyAttributePenalties(
                 value, attribute, ConditionsOf(characterIndex));
         };
@@ -592,7 +597,7 @@ namespace BakAgain.Core {
         /// forced through this one.
         /// </remarks>
         private int ApplyStatModifiers(int characterIndex, ActorAttribute attribute, int value,
-            bool inCombat) {
+            bool inCombat, bool freeExpired) {
             if (StatModifiers == null
                 || characterIndex < 0
                 || characterIndex >= GameData.Resources.Character.ActorStatModifiers.Characters) {
@@ -614,7 +619,7 @@ namespace BakAgain.Core {
                 }
                 value = GameData.Resources.Character.ActorStatModifiers.Apply(
                     entry, value, inCombat, time, out bool expired);
-                if (expired) {
+                if (expired && freeExpired) {
                     StatModifiers[index] = default;
                     MarkStatModifiersDirty();
                 }
@@ -1834,6 +1839,27 @@ namespace BakAgain.Core {
             }
             return StatEngine.Get(stats[index], attribute, stats[(int)ActorAttribute.Health],
                 StatReadMode.Effective, PartyEffectsFor(characterIndex, attribute, inCombat: false));
+        }
+
+        /// <summary>
+        /// <see cref="EffectiveStat"/>'s value with NO side effect: no cached-effective byte is
+        /// written and no lapsed modifier is freed.
+        /// </summary>
+        /// <remarks>
+        /// For port-only readers the original has no counterpart for — the Enhanced HUD's portrait
+        /// rings. <see cref="EffectiveStat"/> is <c>stat_actor_get</c>, which writes the slot's
+        /// cached value as it reads; a read the faithful game never makes would otherwise change
+        /// the save (found by statediff: Stamina's cached byte 41 vs 40).
+        /// </remarks>
+        public int PeekEffectiveStat(int characterIndex, ActorAttribute attribute) {
+            ActorStat[] stats = StatsOf(characterIndex);
+            var index = (int)attribute;
+            if (stats == null || index < 0 || index >= stats.Length || stats[index] == null) {
+                return 0;
+            }
+            return StatEngine.Peek(stats[index], attribute, stats[(int)ActorAttribute.Health],
+                StatReadMode.Effective,
+                PartyEffects(characterIndex, attribute, inCombat: false, freeExpired: false));
         }
 
         /// <summary>

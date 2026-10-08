@@ -42,8 +42,10 @@ namespace BakAgain.UI.InGame {
             if (!present) return;
             int id = roster[_slot];
             (double S, double H) f = PortraitRing.Fractions(
-                _session.EffectiveStat(id, ActorAttribute.Stamina),
-                _session.EffectiveStat(id, ActorAttribute.Health),
+                // Peek, not EffectiveStat: the faithful HUD makes no such read, and EffectiveStat
+                // writes the cached-effective byte the save carries.
+                _session.PeekEffectiveStat(id, ActorAttribute.Stamina),
+                _session.PeekEffectiveStat(id, ActorAttribute.Health),
                 _session.EffectivePoolMax(id));
             if (f != _fractions) { _fractions = f; _ring.MarkDirtyRepaint(); }
             RebuildDots(_session.ConditionsOf(id));
