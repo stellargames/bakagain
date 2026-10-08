@@ -1642,7 +1642,18 @@ namespace BakAgain.UI.InGame {
                 cursor?.Hide();
             } else {
                 cursor?.Show();
-                UnityEngine.InputSystem.Mouse.current?.WarpCursorPosition(_look.DragStart);
+                if (_pointer == null || !_pointer.IsPresent) {
+                    return;   // touch: no cursor to restore
+                }
+                // The software cursor goes back through its own warp (CursorManager.WarpTo).
+                cursor?.WarpTo(BakAgain.Graphics.CanonicalConversion.ScreenToCanonical(_look.DragStart,
+                    new Vector2(Screen.width, Screen.height), BakAgain.UI.CanonicalStage.Find(_document?.rootVisualElement)));
+                // The OS pointer too, or its next move reclaims the cursor at the drag's far end. Not in
+                // the Editor, whose warp origin is the desktop (CursorManager.WarpTo's note).
+                // ponytail: unverified until a built player is driven.
+                if (!Application.isEditor) {
+                    UnityEngine.InputSystem.Mouse.current?.WarpCursorPosition(_look.DragStart);
+                }
             }
         }
 
