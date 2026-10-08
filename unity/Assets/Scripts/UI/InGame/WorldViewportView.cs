@@ -76,6 +76,9 @@ namespace BakAgain.UI.InGame {
                     ? FullWindowHost(panelRoot)
                     : panelRoot?.Q(name: "hotspot_192") ?? CanonicalViewportHost(panelRoot);
             HideFrame(panelRoot, fullWindow);
+            if (fullWindow) {
+                StretchClickArea(panelRoot);
+            }
             _host = host;
             if (host == null) {
                 _logger.LogWarning("WorldViewportView: no host for the world view; not shown.");
@@ -122,6 +125,63 @@ namespace BakAgain.UI.InGame {
 
         private const string FullWindowHostName = "WorldViewportFullWindow";
         private bool _frameHidden;
+
+        // *** THE WORLD'S CLICK AREA FOLLOWS THE WORLD. *** Clicks, right-clicks, touch long-presses
+        // and hover reach the world only through the REQ's ClickArea 192 (the loader's own handlers
+        // on that element dispatch to InGameScreen). Full-window, that element is stretched over
+        // the whole window and sent to the back of its parent, so every point no other widget
+        // covers takes the one existing path, and every REQ widget still wins over it. Restored
+        // (rect and sibling index) whenever the world leaves the full window.
+        private VisualElement _clickArea;
+        private int _clickAreaIndex;
+        private StyleLength _clickLeft, _clickTop, _clickWidth, _clickHeight;
+
+        private void StretchClickArea(VisualElement panelRoot) {
+            VisualElement area = panelRoot?.Q(name: "hotspot_192");
+            if (area?.parent == null || _clickArea != null) {
+                return;
+            }
+            _clickArea = area;
+            _clickAreaIndex = area.parent.IndexOf(area);
+            _clickLeft = area.style.left;
+            _clickTop = area.style.top;
+            _clickWidth = area.style.width;
+            _clickHeight = area.style.height;
+            area.SendToBack();
+            FitClickArea();
+        }
+
+        // Per frame (Tick) as well as on attach: the window can resize, and before the first
+        // layout pass there is nothing to measure.
+        private void FitClickArea() {
+            if (_clickArea?.panel == null) {
+                return;
+            }
+            Rect parent = _clickArea.parent.worldBound;
+            Rect window = _clickArea.panel.visualTree.layout;
+            if (float.IsNaN(parent.x) || float.IsNaN(parent.y) || window.width <= 0f || window.height <= 0f) {
+                return;
+            }
+            _clickArea.style.left = -parent.x;
+            _clickArea.style.top = -parent.y;
+            _clickArea.style.width = window.width;
+            _clickArea.style.height = window.height;
+        }
+
+        private void RestoreClickArea() {
+            if (_clickArea == null) {
+                return;
+            }
+            _clickArea.style.left = _clickLeft;
+            _clickArea.style.top = _clickTop;
+            _clickArea.style.width = _clickWidth;
+            _clickArea.style.height = _clickHeight;
+            VisualElement parent = _clickArea.parent;
+            if (parent != null) {
+                parent.Insert(Mathf.Min(_clickAreaIndex, parent.childCount - 1), _clickArea);
+            }
+            _clickArea = null;
+        }
 
         // FRAME.SCR is the stage's background image (set asynchronously by BackgroundImageLoader);
         // the tint is ours alone, so clearing it hides the frame whenever it arrives. Null restores
@@ -186,6 +246,7 @@ namespace BakAgain.UI.InGame {
             if (_element == null) {
                 return;
             }
+            FitClickArea();
             Vector2Int wanted = WantedRenderTextureSize();
             if (wanted != _rtSize) {
                 AllocateRenderTexture();
@@ -287,6 +348,7 @@ namespace BakAgain.UI.InGame {
             DetachRenderTexture();
             _element?.RemoveFromHierarchy();
             _element = null;
+            RestoreClickArea();
             // The full-window host is ours; hotspot_192 and the stage are the REQ's and stay.
             if (_host?.name == FullWindowHostName) {
                 _host.RemoveFromHierarchy();

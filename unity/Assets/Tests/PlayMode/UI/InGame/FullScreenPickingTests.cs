@@ -81,6 +81,103 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             yield return null;
         }
 
+        /// <summary>
+        /// Full-window, a click anywhere no REQ widget covers must reach the world through the one
+        /// existing path — the ClickArea 192 element, whose loader handlers dispatch the click,
+        /// right-click, long-press and hover — while the widgets still win where they are.
+        /// <see cref="IPanel.Pick"/> is what the event system targets a pointer event with.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AClickOutsideTheOldViewportReachesTheWorldOnlyWhenFullScreen() {
+            GameViewResolutionScope gameView = GameViewResolutionScope.Force(1920, 1080);
+            yield return null;
+
+            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            settings.scaleMode = PanelScaleMode.ScaleWithScreenSize;
+            settings.screenMatchMode = PanelScreenMatchMode.MatchWidthOrHeight;
+            settings.match = 1f;
+            settings.referenceResolution = new Vector2Int(Canonical.Width, Canonical.Height);
+            var host = new GameObject("FullScreenClickHost");
+            var camGo = new GameObject("FullScreenClickCamera");
+            WorldViewportView view = null;
+            try {
+                Camera cam = camGo.AddComponent<Camera>();
+                cam.transform.position = new Vector3(0f, 10f, -10f);
+                cam.transform.rotation = Quaternion.Euler(30f, 0f, 0f);
+
+                UIDocument document = host.AddComponent<UIDocument>();
+                document.panelSettings = settings;
+                VisualElement root = document.rootVisualElement;
+                VisualElement stage = CanonicalStage.GetOrCreate(root,
+                    new DesignFrame { Width = Canonical.Width, Height = Canonical.Height, Fit = LayoutFit.Contain });
+                var inner = new WorldViewport();
+                Area c = inner.CanonicalRect;
+                // REQ_MAIN order: the buttons come BEFORE ClickArea 192, so a stretched 192 left in
+                // place would cover them.
+                var button = new VisualElement {
+                    name = "imagebutton_50",
+                    style = { position = Position.Absolute, left = 1000, top = 990, width = 170, height = 174 },
+                };
+                stage.Add(button);
+                var area = new VisualElement {
+                    name = "hotspot_192",
+                    style = { position = Position.Absolute, left = c.X, top = c.Y, width = c.Width, height = c.Height },
+                };
+                stage.Add(area);
+
+                bool active = true;
+                var fs = new FullScreenViewport(inner, () => active, () => new Vector2(Screen.width, Screen.height));
+                view = new WorldViewportView(fs, NullLogger.Instance);
+                view.SetWorldCamera(cam);
+                view.Attach(root);
+                yield return null;
+                view.Tick();
+                yield return null;
+                yield return null;
+
+                // A side-bar point (left of the 4:3 stage) and one below the old frame, mid-stage.
+                var sideBar = new Vector2(60f, Screen.height * 0.5f);
+                var belowFrame = new Vector2(Screen.width * 0.5f, Screen.height * 0.3f);
+                Rect stageRect = CanonicalStage.ScreenRect(stage, out _);
+                Assert.IsFalse(inner.ToScreenRect(stageRect).Contains(sideBar), "outside the old viewport");
+                Assert.IsFalse(inner.ToScreenRect(stageRect).Contains(belowFrame), "outside the old viewport");
+                foreach (Vector2 p in new[] { sideBar, belowFrame }) {
+                    Assert.AreSame(area, PickAt(root, p), $"the world's click area takes {p}");
+                    Assert.IsTrue(WorldPicker.PickGroundPoint(cam, fs, p + new Vector2(0f, -100f), stageRect).HasValue
+                        || WorldPicker.PickGroundPoint(cam, fs, p, stageRect).HasValue,
+                        $"and the world pick maps it ({p})");
+                }
+                Vector2 buttonCentre = ScreenPointOf(root, button);
+                Assert.AreSame(button, PickAt(root, buttonCentre), "a REQ widget still wins over the world");
+
+                // Back to the frame: the click area is the REQ's rect again, in its REQ place.
+                active = false;
+                view.Rehost();
+                yield return null;
+                yield return null;
+                Assert.AreNotSame(area, PickAt(root, sideBar), "faithful: the side bar is not the world");
+                Assert.AreEqual(c.X, area.resolvedStyle.left, 1f);   // layout snaps to device pixels
+                Assert.AreEqual(c.Width, area.resolvedStyle.width, 1f);
+                Assert.AreEqual(1, stage.IndexOf(area), "restored to its REQ sibling index");
+            } finally {
+                view?.Dispose();
+                Object.DestroyImmediate(camGo);
+                Object.DestroyImmediate(host);
+                Object.DestroyImmediate(settings);
+                gameView.Restore();
+            }
+            yield return null;
+        }
+
+        private static VisualElement PickAt(VisualElement root, Vector2 screen) =>
+            root.panel.Pick(RuntimePanelUtils.ScreenToPanel(root.panel, new Vector2(screen.x, Screen.height - screen.y)));
+
+        private static Vector2 ScreenPointOf(VisualElement root, VisualElement e) {
+            float scale = Screen.height / root.panel.visualTree.layout.height;
+            Vector2 c = e.worldBound.center * scale;
+            return new Vector2(c.x, Screen.height - c.y);
+        }
+
         private static void AssertDrawnRectIsPickedRect(WorldViewportView view, FullScreenViewport fs,
             Camera cam, VisualElement stage, VisualElement root, bool active) {
             Rect stageRect = CanonicalStage.ScreenRect(stage, out bool fallback);
