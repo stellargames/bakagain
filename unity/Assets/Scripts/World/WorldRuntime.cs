@@ -2403,10 +2403,13 @@ namespace BakAgain.World {
             if (_viewport == null) {
                 return _worldCamera != null ? _worldCamera.fieldOfView : 60f;
             }
-            // Enhanced full-screen: the camera's aspect is the window's, not the original view's.
-            // At the original's own aspect this returns exactly VerticalFovDegrees, so the faithful
-            // path (and the 4:3 combat stage) is unchanged.
-            float aspect = _worldCamera != null && _worldCamera.aspect > 0f ? _worldCamera.aspect : _viewport.ViewportAspect;
+            // Enhanced full-screen only: the camera's aspect is then the window's. Without a bound
+            // render texture the camera's aspect is the SCREEN's, so every other case uses the
+            // viewport's own aspect, where Cover returns exactly VerticalFovDegrees: the faithful
+            // lens is exact whenever Enhanced full-screen is off.
+            bool windowAspect = BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.FullScreenTravel)
+                && _worldCamera != null && _worldCamera.targetTexture != null && _worldCamera.aspect > 0f;
+            float aspect = windowAspect ? _worldCamera.aspect : _viewport.ViewportAspect;
             return (float)GameData.Resources.World.WorldProjection.CoverVerticalFovDegrees(
                 _viewport.CanonicalRect.Width, _viewport.CanonicalRect.Height,
                 focalLength ?? _viewport.FocalLength, aspect);
