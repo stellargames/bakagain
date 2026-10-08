@@ -169,6 +169,66 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             yield return null;
         }
 
+        /// <summary>
+        /// A fight can hang its painted backdrop (or a floating number) off the world element in
+        /// the same frame it starts, before Update rehosts the world into the frame. The rehost
+        /// must carry those children over, or the backdrop leaves the tree for good.
+        /// </summary>
+        [Test]
+        public void ARehostCarriesTheWorldElementsChildrenAcross() {
+            var camGo = new GameObject("FullScreenRehostCamera");
+            WorldViewportView view = null;
+            try {
+                var root = new VisualElement();
+                root.Add(new VisualElement { name = "hotspot_192" });
+                bool active = true;
+                var fs = new FullScreenViewport(new WorldViewport(), () => active, () => new Vector2(640, 360));
+                view = new WorldViewportView(fs, NullLogger.Instance);
+                view.SetWorldCamera(camGo.AddComponent<Camera>());
+                view.Attach(root);
+                VisualElement before = view.Element;
+                var backdrop = new VisualElement { name = "CombatBackdrop" };
+                before.Add(backdrop);
+
+                active = false;   // the fight has started
+                view.Rehost();
+
+                Assert.AreNotSame(before, view.Element, "the world moved host");
+                Assert.AreSame(view.Element, backdrop.parent, "the backdrop moved with it");
+                Assert.AreEqual("hotspot_192", view.Element.parent.name);
+            } finally {
+                view?.Dispose();
+                Object.DestroyImmediate(camGo);
+            }
+        }
+
+        /// <summary>
+        /// A view disposed while full-screen (the travel screen hidden under a menu) must give the
+        /// frame back: the next view starts knowing nothing of the hidden tint.
+        /// </summary>
+        [Test]
+        public void DisposingAFullScreenViewShowsTheFrameAgain() {
+            var camGo = new GameObject("FullScreenFrameCamera");
+            try {
+                var root = new VisualElement();
+                VisualElement stage = CanonicalStage.GetOrCreate(root,
+                    new DesignFrame { Width = Canonical.Width, Height = Canonical.Height, Fit = LayoutFit.Contain });
+                stage.Add(new VisualElement { name = "hotspot_192" });
+                var fs = new FullScreenViewport(new WorldViewport(), () => true, () => new Vector2(640, 360));
+                var view = new WorldViewportView(fs, NullLogger.Instance);
+                view.SetWorldCamera(camGo.AddComponent<Camera>());
+                view.Attach(root);
+                Assert.AreEqual(Color.clear, stage.style.unityBackgroundImageTintColor.value, "hidden while full-screen");
+
+                view.Dispose();
+
+                Assert.AreEqual(StyleKeyword.Null, stage.style.unityBackgroundImageTintColor.keyword,
+                    "the frame's tint is the stylesheet's again");
+            } finally {
+                Object.DestroyImmediate(camGo);
+            }
+        }
+
         private static VisualElement PickAt(VisualElement root, Vector2 screen) =>
             root.panel.Pick(RuntimePanelUtils.ScreenToPanel(root.panel, new Vector2(screen.x, Screen.height - screen.y)));
 

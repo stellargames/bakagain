@@ -101,8 +101,18 @@ namespace BakAgain.UI.InGame {
             if (_panelRoot == null) {
                 return;
             }
+            // Whatever hangs off the world element (a fight's painted backdrop, floating combat
+            // numbers) can be added in the very frame the fight starts, before this rehost; it moves
+            // with the world rather than leaving the tree with the old element.
+            var children = new System.Collections.Generic.List<VisualElement>(_element?.Children()
+                ?? System.Array.Empty<VisualElement>());
             Dispose();
             Attach(_panelRoot, _canonicalOverride);
+            if (_element != null) {
+                foreach (VisualElement child in children) {
+                    _element.Add(child);
+                }
+            }
         }
 
         /// <summary>Enhanced full-screen: the world fills the window, under the stage.</summary>
@@ -349,6 +359,9 @@ namespace BakAgain.UI.InGame {
             _element?.RemoveFromHierarchy();
             _element = null;
             RestoreClickArea();
+            // A view that is gone must not leave the frame hidden: the next view starts with
+            // _frameHidden false and would never undo it. Rehost re-hides it in the same call.
+            HideFrame(_panelRoot, false);
             // The full-window host is ours; hotspot_192 and the stage are the REQ's and stay.
             if (_host?.name == FullWindowHostName) {
                 _host.RemoveFromHierarchy();
