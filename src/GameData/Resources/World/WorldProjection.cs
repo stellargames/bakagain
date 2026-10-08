@@ -46,4 +46,18 @@ public static class WorldProjection {
 
         return 2.0 * Math.Atan(0.5 * viewHeight / focalLength) * (180.0 / Math.PI);
     }
+
+    /// <summary>
+    /// The vertical field for a window of <paramref name="aspect"/> that never shows less than the
+    /// original view on either axis (Enhanced full-screen, spec 2026-10-08): the larger of the
+    /// original's vertical field and the vertical field that keeps its horizontal one.
+    /// </summary>
+    public static double CoverVerticalFovDegrees(double viewWidth, double viewHeight, double focalLength, double aspect) {
+        if (aspect <= 0) {
+            throw new ArgumentOutOfRangeException(nameof(aspect));
+        }
+        double keepVertical = VerticalFovDegrees(viewHeight, focalLength);
+        double keepHorizontal = 2.0 * Math.Atan(0.5 * viewWidth / focalLength / aspect) * (180.0 / Math.PI);
+        return Math.Max(keepVertical, keepHorizontal);
+    }
 }

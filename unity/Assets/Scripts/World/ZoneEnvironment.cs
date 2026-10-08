@@ -89,6 +89,7 @@ namespace BakAgain.World {
                 _travelBackdropSaved = true;
             }
 
+            MapModeOn = on;
             if (Horizon != null) {
                 Horizon.gameObject.SetActive(!on);
             }
@@ -114,6 +115,9 @@ namespace BakAgain.World {
         }
 
         private static readonly int MapModeId = Shader.PropertyToID("_MapMode");
+
+        /// <summary>True while an overhead map or locator has the camera in map mode.</summary>
+        public bool MapModeOn { get; private set; }
 
         private bool _travelBackdropSaved;
         private float _travelFarClip;

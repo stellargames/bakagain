@@ -2403,8 +2403,28 @@ namespace BakAgain.World {
             if (_viewport == null) {
                 return _worldCamera != null ? _worldCamera.fieldOfView : 60f;
             }
-            return (float)GameData.Resources.World.WorldProjection.VerticalFovDegrees(
-                _viewport.CanonicalRect.Height, focalLength ?? _viewport.FocalLength);
+            // Enhanced full-screen: the camera's aspect is the window's, not the original view's.
+            // At the original's own aspect this returns exactly VerticalFovDegrees, so the faithful
+            // path (and the 4:3 combat stage) is unchanged.
+            float aspect = _worldCamera != null && _worldCamera.aspect > 0f ? _worldCamera.aspect : _viewport.ViewportAspect;
+            return (float)GameData.Resources.World.WorldProjection.CoverVerticalFovDegrees(
+                _viewport.CanonicalRect.Width, _viewport.CanonicalRect.Height,
+                focalLength ?? _viewport.FocalLength, aspect);
+        }
+
+        /// <summary>Re-applies the travel lens after the world's render texture changed shape.</summary>
+        /// <remarks>
+        /// Not while the arena, a backdrop dialog or the camera lift owns the camera
+        /// (<c>CameraSuspended</c>), nor while the overhead map or locator does (map mode, which the
+        /// map screens do not report through CameraSuspended).
+        /// </remarks>
+        public void RefreshTravelFov() {
+            if (_worldCamera == null || _zoneDef == null
+                || (_partyMovement?.CameraSuspended ?? false)
+                || (Environment?.MapModeOn ?? false)) {
+                return;
+            }
+            _worldCamera.fieldOfView = TravelFov(_zoneDef.FocalLength);
         }
 
         private Camera CreateWorldCamera() {

@@ -72,4 +72,26 @@ public class WorldProjectionTests {
         Assert.Throws<ArgumentOutOfRangeException>(() => WorldProjection.VerticalFovDegrees(0, TravelFocalLength));
         Assert.Throws<ArgumentOutOfRangeException>(() => WorldProjection.VerticalFovDegrees(TravelViewHeight, 0));
     }
+
+    [Theory]
+    [InlineData(4.0 / 3.0)]
+    [InlineData(16.0 / 9.0)]
+    [InlineData(1470.0 / 606.0)]
+    [InlineData(21.0 / 9.0)]
+    [InlineData(32.0 / 9.0)]
+    public void FullScreenNeverShowsLessThanTheOriginalOnEitherAxis(double aspect) {
+        double v = WorldProjection.CoverVerticalFovDegrees(TravelViewWidth, TravelViewHeight, TravelFocalLength, aspect);
+        double original = WorldProjection.VerticalFovDegrees(TravelViewHeight, TravelFocalLength);
+        double tanH = Math.Tan(v * Math.PI / 360.0) * aspect;
+
+        Assert.True(v >= original - 1e-9, "vertical");
+        Assert.True(tanH >= 147.0 / 512.0 - 1e-9, "horizontal");
+    }
+
+    [Fact]
+    public void AtTheOriginalsOwnAspectTheLensIsUnchanged() {
+        double v = WorldProjection.CoverVerticalFovDegrees(
+            TravelViewWidth, TravelViewHeight, TravelFocalLength, (double)TravelViewWidth / TravelViewHeight);
+        Assert.Equal(WorldProjection.VerticalFovDegrees(TravelViewHeight, TravelFocalLength), v, 9);
+    }
 }
