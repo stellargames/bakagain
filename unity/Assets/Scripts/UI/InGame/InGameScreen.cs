@@ -66,6 +66,11 @@ namespace BakAgain.UI.InGame {
         private PartyHeadsView _partyHeads;
         private IWorldViewport _worldViewport;
         private WorldViewportView _worldView;
+        // Enhanced full-screen (spec 2026-10-08 §2): one adapter for the view AND the picker. Its
+        // Active is the state the view was last hosted in, not the wanted one, so a click can never
+        // map through a rect the world is not (yet) drawn in; Update flips both together.
+        private FullScreenViewport _fullScreen;
+        private bool _fullScreenShown;
 
         /// <summary>The painted backdrop element, while a fight that has one is running.</summary>
         private VisualElement _combatBackdrop;
@@ -590,9 +595,15 @@ namespace BakAgain.UI.InGame {
             if (root == null || _worldView != null) {
                 return;
             }
-            // World viewport RT as a child of hotspot_192.
-            _worldView = new WorldViewportView(_worldViewport, _logger);
+            // World viewport RT as a child of hotspot_192 — or of the whole window under Enhanced
+            // full-screen.
+            _fullScreenShown = WantFullScreen();
+            _fullScreen = new FullScreenViewport(_worldViewport,
+                () => _fullScreenShown, () => new Vector2(Screen.width, Screen.height));
+            _worldView = new WorldViewportView(_fullScreen, _logger);
             _worldView.SetWorldCamera(_pendingCamera);
+            // Every new texture changes the camera's aspect, and the Enhanced lens follows it.
+            _worldView.RenderTextureChanged += () => _resolver?.Resolve<BakAgain.World.WorldRuntime>()?.RefreshTravelFov();
             _worldView.Attach(root);
             var interactionHandlers = new System.Collections.Generic.List<BakAgain.World.Interaction.IWorldInteractionHandler> {
                 new BakAgain.World.Interaction.ContainerInteractionHandler(
@@ -640,7 +651,7 @@ namespace BakAgain.UI.InGame {
             // root (lazily, see CanonicalStage.FindOrCached) rather than being handed a snapshot
             // that may still be null at this point in the build order.
             _interaction = new WorldInteractionController(
-                _pendingCamera, _worldViewport, _pointer, root, interactionHandlers,
+                _pendingCamera, _fullScreen, _pointer, root, interactionHandlers,
                 // A body on the arena is not a world object, so it comes back from the pick as
                 // itself. The distance is measured here because this is what holds the camera.
                 // *** THE CELL UNDER THE CURSOR NAMES THE TARGET, NOT THE SPRITE. *** The seam
@@ -932,6 +943,11 @@ namespace BakAgain.UI.InGame {
             _lighting?.Refresh();
             RefreshFollowRoadState();
             RefreshEncampButtonFace();
+            // A fight starting or ending, or the option changing on Preferences OK.
+            if (_worldView != null && WantFullScreen() != _fullScreenShown) {
+                _fullScreenShown = !_fullScreenShown;
+                _worldView.Rehost();
+            }
             _worldView?.Tick();
             // Not in a fight: the arena runs instead of the world loop in the original, and the touch
             // aids' C3 pad (which sets the same held-pad state) moves the combat cursor there.
@@ -1267,6 +1283,9 @@ namespace BakAgain.UI.InGame {
             _overheadMap.ReopenAfterFight = false;
             _navigator.Push(_overheadMap).Forget();
         }
+
+        private bool WantFullScreen() =>
+            GameOptions.IsOn(EnhancedFeature.FullScreenTravel) && !AFightIsRunning();
 
         private bool AFightIsRunning() =>
             (_resolver?.Resolve(typeof(BakAgain.World.WorldRuntime))

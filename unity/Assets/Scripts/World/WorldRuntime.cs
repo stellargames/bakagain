@@ -203,8 +203,10 @@ namespace BakAgain.World {
             // START.DAT's zoom, which g_active_window carries for travel and combat alike
             // (WorldProjection). Measured against the original at ambush 305: 94 of 104 cells, the
             // 10 this zoom puts off screen.
-            probe.fieldOfView = TravelFov(null);
-            probe.aspect = _worldCamera.aspect;
+            // The arena is never full-screen, so the probe takes the original's lens even while the
+            // travel camera is still on the Enhanced full-window texture.
+            probe.fieldOfView = TravelFov(null, arena: true);
+            probe.aspect = WindowLens ? _viewport?.ViewportAspect ?? _worldCamera.aspect : _worldCamera.aspect;
 
             // ponytail: colliders built per probe, one fight trigger at a time; cache per zone if it shows up in a profile.
             float reach = (CombatGroundCheck.ForwardOffset + (CombatGrid.Height + 4) * cellSize)
@@ -1687,7 +1689,7 @@ namespace BakAgain.World {
             // grid it projects at ~32.4° horizontal, which is shift 9, while zones 10-12 ship 8.
             // Reusing the walking camera means we inherit the zone's, which halved the underground
             // arena on screen (TASK-604). RestoreWalkingCamera puts the zone's back.
-            _worldCamera.fieldOfView = TravelFov(null);
+            _worldCamera.fieldOfView = TravelFov(null, arena: true);
         }
 
         /// <summary>
@@ -2398,7 +2400,7 @@ namespace BakAgain.World {
         /// The camera is square and takes the viewport's own aspect: the original's 6:5 pixel is in
         /// the world's heights, not here (WorldProjection, TASK-764).
         /// </remarks>
-        private float TravelFov(int? focalLength) {
+        private float TravelFov(int? focalLength, bool arena = false) {
             _viewport ??= _resolver?.Resolve(typeof(IWorldViewport)) as IWorldViewport;
             if (_viewport == null) {
                 return _worldCamera != null ? _worldCamera.fieldOfView : 60f;
@@ -2407,13 +2409,16 @@ namespace BakAgain.World {
             // render texture the camera's aspect is the SCREEN's, so every other case uses the
             // viewport's own aspect, where Cover returns exactly VerticalFovDegrees: the faithful
             // lens is exact whenever Enhanced full-screen is off.
-            bool windowAspect = BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.FullScreenTravel)
-                && _worldCamera != null && _worldCamera.targetTexture != null && _worldCamera.aspect > 0f;
-            float aspect = windowAspect ? _worldCamera.aspect : _viewport.ViewportAspect;
+            // The arena (and its room probe) is never full-screen: a fight takes the world back into
+            // the frame, and the probe decides which cells the fight may use — a rule.
+            float aspect = WindowLens && !arena ? _worldCamera.aspect : _viewport.ViewportAspect;
             return (float)GameData.Resources.World.WorldProjection.CoverVerticalFovDegrees(
                 _viewport.CanonicalRect.Width, _viewport.CanonicalRect.Height,
                 focalLength ?? _viewport.FocalLength, aspect);
         }
+
+        private bool WindowLens => BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.FullScreenTravel)
+            && _worldCamera != null && _worldCamera.targetTexture != null && _worldCamera.aspect > 0f;
 
         /// <summary>Re-applies the travel lens after the world's render texture changed shape.</summary>
         /// <remarks>

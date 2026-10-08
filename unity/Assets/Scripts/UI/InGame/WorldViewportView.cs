@@ -31,6 +31,11 @@ namespace BakAgain.UI.InGame {
         private RenderTexture _rt;
         private Vector2Int _rtSize;
         private Camera _camera;
+        private VisualElement _host;
+
+        /// <summary>Raised after every render-texture (re)allocation, the first one included — the
+        /// camera's aspect has just followed the new texture, so a lens that depends on it is stale.</summary>
+        public event System.Action RenderTextureChanged;
 
         public WorldViewportView(IWorldViewport viewport, ILogger logger) {
             _viewport = viewport;
@@ -64,9 +69,14 @@ namespace BakAgain.UI.InGame {
             _canonicalOverride = canonicalOverride;
             // An override wins outright rather than falling back: a REQ that happens to carry a
             // ClickArea 192 would otherwise silently put the world back in the travel viewport.
+            bool fullWindow = canonicalOverride == null && _viewport is FullScreenViewport { Active: true };
             VisualElement host = canonicalOverride is { } inset
                 ? HostAtRect(panelRoot, inset)
-                : panelRoot?.Q(name: "hotspot_192") ?? CanonicalViewportHost(panelRoot);
+                : fullWindow
+                    ? FullWindowHost(panelRoot)
+                    : panelRoot?.Q(name: "hotspot_192") ?? CanonicalViewportHost(panelRoot);
+            HideFrame(panelRoot, fullWindow);
+            _host = host;
             if (host == null) {
                 _logger.LogWarning("WorldViewportView: no host for the world view; not shown.");
                 return;
@@ -78,6 +88,56 @@ namespace BakAgain.UI.InGame {
             };
             host.Add(_element);
             AllocateRenderTexture();
+        }
+
+        /// <summary>
+        /// Rebuilds the world element in whichever host <see cref="Attach"/> picks now — Enhanced
+        /// full-screen turning on or off, or a fight taking the world back into the frame.
+        /// </summary>
+        public void Rehost() {
+            if (_panelRoot == null) {
+                return;
+            }
+            Dispose();
+            Attach(_panelRoot, _canonicalOverride);
+        }
+
+        /// <summary>Enhanced full-screen: the world fills the window, under the stage.</summary>
+        /// <remarks>
+        /// First child of the document root, so the stage (and every REQ widget on it) draws over it.
+        /// </remarks>
+        private static VisualElement FullWindowHost(VisualElement panelRoot) {
+            if (panelRoot == null) {
+                return null;
+            }
+            var host = new VisualElement {
+                name = FullWindowHostName,
+                pickingMode = PickingMode.Ignore,
+                style = { position = Position.Absolute, left = 0, top = 0, right = 0, bottom = 0 },
+            };
+            panelRoot.Insert(0, host);
+
+            return host;
+        }
+
+        private const string FullWindowHostName = "WorldViewportFullWindow";
+        private bool _frameHidden;
+
+        // FRAME.SCR is the stage's background image (set asynchronously by BackgroundImageLoader);
+        // the tint is ours alone, so clearing it hides the frame whenever it arrives. Null restores
+        // the stylesheet's tint, which is what every faithful path has always had.
+        private void HideFrame(VisualElement panelRoot, bool hide) {
+            // Faithful never touches the stage: only undo what full-screen did.
+            if (!hide && !_frameHidden) {
+                return;
+            }
+            _frameHidden = hide;
+            VisualElement stage = CanonicalStage.FindOrCached(_stage, panelRoot);
+            if (stage == null) {
+                return;
+            }
+            _stage = stage;
+            stage.style.unityBackgroundImageTintColor = hide ? new StyleColor(Color.clear) : new StyleColor(StyleKeyword.Null);
         }
 
         /// <summary>
@@ -220,12 +280,18 @@ namespace BakAgain.UI.InGame {
             if (_element != null) {
                 _element.style.backgroundImage = Background.FromRenderTexture(_rt);
             }
+            RenderTextureChanged?.Invoke();
         }
 
         public void Dispose() {
             DetachRenderTexture();
             _element?.RemoveFromHierarchy();
             _element = null;
+            // The full-window host is ours; hotspot_192 and the stage are the REQ's and stay.
+            if (_host?.name == FullWindowHostName) {
+                _host.RemoveFromHierarchy();
+            }
+            _host = null;
         }
 
         private void DetachRenderTexture() {
