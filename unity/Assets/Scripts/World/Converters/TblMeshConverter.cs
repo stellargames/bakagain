@@ -235,6 +235,22 @@ namespace BakAgain.World.Converters {
         }
 
         /// <summary>
+        /// How far (Unity units) a cutter's vertices may sit from the cut face's own plane: 0.5 BaK,
+        /// the extractor's world-up rounding (half a unit a vertex), i.e. "coplanar in the data".
+        /// </summary>
+        /// <remarks>
+        /// Tilted near-coplanar decals the group also admits (bridge-deck planks 3-5 BaK through
+        /// their deck) must NOT cut: the hole edge would sit on the deck's plane and the plank below
+        /// it, opening a see-through crack (seen on Z01 bridge1). Kept tight rather than at 1.5 BaK
+        /// because an off-plane cutter leaves a wedge up to this size where a hole edge meets the
+        /// face's boundary (<see cref="Lift"/> keeps such a point on the face's own edge). Measured
+        /// 2026-10-08: 0.005 leaves 158 corpus pairs uncut against 110 at 0.015 (the extra 48 are
+        /// 0.5-1.5 BaK off-plane and keep the rank nudge); house, church, inn, temple and bridge1
+        /// look the same at Travel range either way.
+        /// </remarks>
+        private const float CutPlaneTolerance = 0.005f;
+
+        /// <summary>
         /// Pass 1b: within each coplanar group, cut every LATER same-facing overlapping face out of
         /// each EARLIER one. Returns, per face, the convex 3D pieces to emit in its place, or null to
         /// emit the face as authored (also an empty list: fully covered, emit nothing).
@@ -253,18 +269,10 @@ namespace BakAgain.World.Converters {
         /// neither cut nor are cut; a cutter must lie on the cut face's own plane (within
         /// <see cref="CutPlaneTolerance"/>), so tilted near-coplanar decals keep the rank nudge alone.
         /// Lines never reach a group.</para>
-        /// <para>Pieces are lifted back onto the cut face's OWN plane, not the group's, so a
-        /// near-coplanar face keeps its authored offset (see <see cref="PaintOrderAssigner"/>).</para>
+        /// <para>Every surviving point stays on authored geometry — the face's own corners and
+        /// edges, or the cutter's edges along a hole (see <see cref="Lift"/>) — so a near-coplanar
+        /// face keeps its authored offset (see <see cref="PaintOrderAssigner"/>).</para>
         /// </remarks>
-        /// <summary>
-        /// How far (Unity units) a cutter's vertices may sit from the cut face's own plane. 1.5 BaK:
-        /// exact coplanarity in the data is only exact to the extractor's world-up rounding (half a
-        /// unit a vertex), while the near-coplanar decals the group also admits (bridge-deck planks
-        /// tilted 3-5 BaK through their deck) must NOT cut — the hole edge would sit on the deck's
-        /// plane and the plank below it, opening a see-through crack (seen on Z01 bridge1).
-        /// </summary>
-        private const float CutPlaneTolerance = 0.015f;
-
         private static List<Vector3[]>[] CutCoplanarOverlaps(
             List<(PolygonFace Face, Vector3[] Verts, int Pool, byte Flags, byte Frame)> emitFaces,
             int[] groupIds, PaintOrderAssigner assigner, CoplanarCensus census) {
@@ -417,9 +425,12 @@ namespace BakAgain.World.Converters {
                 return p0 + (n * (float)((dI - Vector3.Dot(nI, p0)) / nn));
             }
 
-            // No T-junctions: a cutter corner lying INSIDE a piece edge (a plank shorter than the
-            // gap it borders) becomes a vertex of that edge too, or the rasteriser leaves pinholes
-            // along it. The piece stays convex; the extra corner is collinear.
+            // No T-junctions: a cutter corner — or a sibling piece's corner — lying INSIDE a piece
+            // edge becomes a vertex of that edge too, or the rasteriser leaves pinholes along it.
+            // The piece stays convex; the extra corner is collinear.
+            // Known limit: strip-cutting also puts new vertices on the face's OUTER edges (where a
+            // strip line meets the boundary), which neighbouring faces in other planes do not share.
+            // Those are placed exactly on the 3D edge (Place below), so any pinhole is sub-pixel.
             List<(double X, double Y)> WithJunctions((double X, double Y)[] piece) {
                 var outPts = new List<(double X, double Y)>(piece.Length + 2);
                 var onEdge = new List<(double T, (double X, double Y) P)>();
@@ -431,13 +442,19 @@ namespace BakAgain.World.Converters {
                     if (len2 < 1e-12) continue;
                     double tEps = OnEdge / System.Math.Sqrt(len2);
                     onEdge.Clear();
+                    void Consider((double X, double Y) q) {
+                        double t = (((q.X - a.X) * ex) + ((q.Y - a.Y) * ey)) / len2;
+                        if (t <= tEps || t >= 1 - tEps) return;
+                        double px = a.X + (t * ex) - q.X, py = a.Y + (t * ey) - q.Y;
+                        if ((px * px) + (py * py) < OnEdge * OnEdge) onEdge.Add((t, q));
+                    }
                     foreach (var (flat, _) in outlines)
-                        foreach (var q in flat) {
-                            double t = (((q.X - a.X) * ex) + ((q.Y - a.Y) * ey)) / len2;
-                            if (t <= tEps || t >= 1 - tEps) continue;
-                            double px = a.X + (t * ex) - q.X, py = a.Y + (t * ey) - q.Y;
-                            if ((px * px) + (py * py) < OnEdge * OnEdge) onEdge.Add((t, q));
-                        }
+                        foreach (var q in flat) Consider(q);
+                    // Sibling pieces too: the clipper strips the face by EXTENDING hole edges, so with
+                    // two or more cutters a later cutter's strip line ends on an internal edge of a
+                    // piece an earlier one made, at a point that is no outline's corner.
+                    foreach (var sibling in pieces)
+                        foreach (var q in sibling) Consider(q);
                     onEdge.Sort((l, r) => l.T.CompareTo(r.T));
                     foreach (var (_, q) in onEdge) {
                         var last = outPts[outPts.Count - 1];
@@ -585,11 +602,19 @@ namespace BakAgain.World.Converters {
                 Emit(pts, Triangulate(face.VertexIndices, meshVerts), textured);
                 return;
             }
-            // Cut pieces (CutCoplanarOverlaps) are convex and never textured: a fan is exact.
+            // Cut pieces (CutCoplanarOverlaps) are convex and never textured. They carry collinear
+            // junction vertices, so fan from an added CENTRE vertex, not from a corner: a corner fan
+            // spans a whole collinear run with one triangle edge and re-creates the T-junction the
+            // junction vertex was inserted to remove.
             foreach (var piece in pieces) {
-                var fan = new List<int>((piece.Length - 2) * 3);
-                for (int i = 1; i < piece.Length - 1; i++) { fan.Add(0); fan.Add(i); fan.Add(i + 1); }
-                Emit(piece, fan, false);
+                int k = piece.Length;
+                var pts = new Vector3[k + 1];
+                Vector3 centre = Vector3.zero;
+                for (int i = 0; i < k; i++) { pts[i] = piece[i]; centre += piece[i]; }
+                pts[k] = centre / k;
+                var fan = new List<int>(k * 3);
+                for (int i = 0; i < k; i++) { fan.Add(k); fan.Add(i); fan.Add((i + 1) % k); }
+                Emit(pts, fan, false);
             }
         }
 
@@ -823,7 +848,9 @@ namespace BakAgain.World.Converters {
         /// algorithm sit a few BaK units off their base, or tilt through it (bridge-ramp planks ±3–5,
         /// fall1's stream-bed rock 6.5).
         /// <para/>
-        /// Geometry is NEVER modified. An earlier version projected joining faces onto the group plane
+        /// The assigner never moves a vertex (the coplanar cut in <see cref="CutCoplanarOverlaps"/>
+        /// removes covered area but keeps every surviving point on its authored geometry). An earlier
+        /// version projected joining faces onto the group plane
         /// to make the tie exact, but that destroyed authored separations: fall1's two topmost river
         /// faces are hinged on a shared edge with their free vertex 0.37–0.49 BaK clear of the rock, and
         /// flattening that left the pair to be separated by the rank bias alone — ~10× less margin, and
@@ -849,7 +876,7 @@ namespace BakAgain.World.Converters {
 
             /// <summary>
             /// Pass 1: assign the face to its coplanar group (founding one on its own Newell plane if
-            /// none matches). Geometry is never modified.
+            /// none matches). Never moves a vertex.
             /// Returns (groupId, rank); groupId −1 for a degenerate face (no plane, no bias).
             /// </summary>
             public (int GroupId, float Rank) Classify(int poolIndex, List<int> indices, Vector3[] verts) {
@@ -911,9 +938,11 @@ namespace BakAgain.World.Converters {
         /// Convert an EF_DEPTH_SORTED model (half-timbered houses, landscape, props). In the original
         /// (no Z-buffer) these were painted back-to-front by draw ORDER, which is what resolved their
         /// exactly-coplanar timber/plaster/window faces. Here the geometry renders through the shared
-        /// per-pen path — identical to <see cref="ConvertTerrainEntity"/> — plus a per-coplanar-group
-        /// paint-order rank (see <see cref="PaintOrderAssigner"/>) that the ClassicPolygon shader turns
-        /// into a tiny depth-tie-break bias. <paramref name="entityName"/> is retained for signature
+        /// per-pen path — identical to <see cref="ConvertTerrainEntity"/> — but each later coplanar
+        /// overlay is first cut out of the faces it paints over (<see cref="CutCoplanarOverlaps"/>),
+        /// and the per-coplanar-group paint-order rank (see <see cref="PaintOrderAssigner"/>) remains
+        /// as the ClassicPolygon depth-tie-break for whatever is left uncut.
+        /// <paramref name="entityName"/> is retained for signature
         /// stability and future per-model diagnostics.
         /// </summary>
         public static TerrainMeshData ConvertDepthSortedEntity(TableDatInfo dat, Color[] palette,

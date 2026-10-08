@@ -38,6 +38,8 @@ namespace BakAgain.Tests.Editor.World {
                 + $"concave {census.AfterConcave}, off-plane {census.AfterOffPlane})");
 
             Assert.Greater(census.PairsBefore, 100, "the walk reached the shipped models");
+            // Regression bound, measured 2026-10-08 at CutPlaneTolerance 0.005: 2327 -> 158.
+            Assert.LessOrEqual(census.PairsAfter, 158, "the cut leaves no more pairs than it did");
             Assert.AreEqual(census.AfterTexturedBase + census.AfterConcave + census.AfterOffPlane,
                 census.PairsAfter,
                 "every overlap left is one of the deliberate exclusions");

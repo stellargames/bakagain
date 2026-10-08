@@ -16,10 +16,10 @@ namespace BakAgain.ResourceManagement.Converters {
     public static class TblModelConverter {
         public static async UniTask<GameObject> BuildVisualAsync(ZoneTableEntry entry, WorldEntityRenderContext ctx) {
             var dat = entry.Dat;
-            // Depth-sorted models currently render identically to terrain (plain per-pen z-buffered
-            // emit) — the depth-sort branch is kept as the hook where a painter's-order-faithful
-            // coplanar fix will plug in. Texturing is a per-face property either way, so landscape
-            // models (depth-sorted) keep their ground textures.
+            // Depth-sorted models go through the same per-pen z-buffered emit as terrain, plus the
+            // painter's-order coplanar fix: later coplanar overlays are cut out of the faces beneath
+            // them, and a paint-order rank breaks any tie left. Texturing is a per-face property
+            // either way, so landscape models (depth-sorted) keep their ground textures.
             var meshData = dat.IsDepthSorted
                 ? TblMeshConverter.ConvertDepthSortedEntity(dat, ctx.Palette, entry.Name, ctx.MapPalette)
                 : TblMeshConverter.ConvertTerrainEntity(dat, ctx.Palette, ctx.MapPalette);

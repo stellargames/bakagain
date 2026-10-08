@@ -16,9 +16,11 @@ using System.Collections.Generic;
 public static class ConvexClip {
     /// <summary>
     /// Distance tolerance, in the caller's units (Unity world units in practice). TBL vertices are
-    /// integer BaK units divided by 100, so the coordinate grid is 0.01; a tenth of that separates
-    /// "touching" from "overlapping" without ever swallowing a real one-unit overlap, and sits far
-    /// above double rounding on values of ~0.1-100.
+    /// integer BaK units divided by 100, so on an axis-aligned plane the coordinate grid is 0.01 and
+    /// a tenth of that separates "touching" from "overlapping" without swallowing a one-unit
+    /// overlap. Projected onto a tilted plane the grid is no longer 0.01, but a real overlap is still
+    /// a fraction of a BaK unit at the least. The value sits far above the float error of the
+    /// projection itself (inputs are float positions up to ~100, so ~1e-5).
     /// </summary>
     public const double Epsilon = 1e-3;
 
