@@ -88,6 +88,9 @@ public static class UiTemplates {
     public const string EnhancedFeatureRings = "port:template:enhanced_feature_rings";
     public const string EnhancedDone = "port:template:enhanced_done";
 
+    /// <summary>The Enhanced travel HUD's status line: "Day <c>{day}</c> · <c>{hour}</c>:00".</summary>
+    public const string EnhancedStatusKey = "port:template:enhanced_status";
+
     /// <summary>
     /// An amount in prose (TASK-777): <c>{case}</c> is <c>sovereigns</c>, <c>royals</c> or <c>both</c>,
     /// <c>{s}</c> and <c>{r}</c> the counts, each a CLDR plural in the pack's own language. English
@@ -139,6 +142,7 @@ public static class UiTemplates {
         (EnhancedFeatureMouseLook, _ => "Mouse and touch look"),
         (EnhancedFeatureRings, _ => "Health rings"),
         (EnhancedDone, _ => "Done"),
+        (EnhancedStatusKey, _ => "Day {day} · {hour}:00"),
         (PercentKey, _ => EnglishPercent),
         (TouchMove, _ => "Move"),
         (TouchCast, _ => "Cast"),
