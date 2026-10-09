@@ -100,12 +100,14 @@ namespace BakAgain.ResourceManagement.Converters {
         /// missing/z-fighting rivers and roads; if that shows up, the layering needs to distinguish
         /// landscape relief (EntityType 4, depth-sorted) from objects standing on terrain.
         /// </summary>
+        private const int ObjectLayer = 3;
+
         private static int PaintLayer(byte drawPriority) {
             switch (drawPriority) {
                 case 8: return 0;   // ground / base
                 case 7: return 1;   // road, path, field
                 case 6: return 2;   // river
-                default: return 3;  // 0 = non-terrain object / landscape relief
+                default: return ObjectLayer;  // 0 = non-terrain object / landscape relief
             }
         }
 
@@ -118,6 +120,9 @@ namespace BakAgain.ResourceManagement.Converters {
         /// scales with the polygon's depth slope and is what separates large near-coplanar planes at
         /// grazing angles (a river sheet over ground). Dropping the factor term made rivers z-fight
         /// the ground immediately — verified 2026-07-20, do not remove it.
+        /// <para>Objects (layer 3) take the constant term only: the factor is per polygon, so inside
+        /// a model it pulled edge-on walls through the faces above them (a gable through its roof).
+        /// </para>
         /// </summary>
         public static Material GetLayeredTerrainMaterial(TerrainPen pen, byte drawPriority,
             WorldEntityRenderContext ctx) {
@@ -128,9 +133,14 @@ namespace BakAgain.ResourceManagement.Converters {
             mat = new Material(baseMat);
             int layer = PaintLayer(drawPriority);
             mat.renderQueue = (int)RenderQueue.Geometry + layer;
-            if (layer > 0) { // overlays (road/river) bias toward camera to win the coplanar depth test
-                mat.SetFloat(OffsetFactorId, -layer);
+            if (layer > 0) { // overlays bias toward camera to win the coplanar depth test
                 mat.SetFloat(OffsetUnitsId, -layer);
+                // The slope-scaled term only for the terrain overlays (road/river sheets lying on
+                // ground). It is per POLYGON: on an object a wall seen edge-on has a huge depth slope
+                // and was pulled far past the roof above it — the gable pierced the house roof along
+                // its top edge (2026-10-09). Objects keep the constant term, which moves a whole
+                // model alike and still orders DrawPriority 0 over the terrain layers.
+                mat.SetFloat(OffsetFactorId, layer == ObjectLayer ? 0f : -layer);
             }
             ctx.LayeredTerrainCache[key] = mat;
             return mat;

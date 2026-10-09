@@ -39,18 +39,37 @@ namespace BakAgain.Tests.Editor.World {
         }
 
         [Test]
-        public void Overlay_layers_carry_both_depth_bias_terms() {
+        public void Terrain_overlays_carry_both_depth_bias_terms() {
             var ctx = NewContext();
 
             var groundMat = MatFor(ctx, 8);
-            var objMat = MatFor(ctx, 0);
-
             Assert.AreEqual(0f, groundMat.GetFloat("_OffsetUnits"), "base layer takes no bias");
-            Assert.Less(objMat.GetFloat("_OffsetUnits"), 0f, "constant bias toward the camera");
+            Assert.AreEqual(0f, groundMat.GetFloat("_OffsetFactor"), "base layer takes no bias");
             // _OffsetFactor scales with the polygon's depth slope and is what separates large
             // near-coplanar planes at grazing angles (a river sheet over ground). Removing it made
             // rivers z-fight the ground immediately — verified in-game 2026-07-20. Do not drop it.
-            Assert.Less(objMat.GetFloat("_OffsetFactor"), 0f, "slope-scaled term is required");
+            foreach (byte dp in new byte[] { 7, 6 }) {
+                var m = MatFor(ctx, dp);
+                Assert.Less(m.GetFloat("_OffsetUnits"), 0f, $"DrawPriority {dp}: constant bias toward the camera");
+                Assert.Less(m.GetFloat("_OffsetFactor"), 0f, $"DrawPriority {dp}: slope-scaled term is required");
+            }
+
+            ctx.Dispose();
+        }
+
+        [Test]
+        public void Objects_take_the_constant_bias_but_no_slope_scaled_term() {
+            // A slope-scaled offset is per POLYGON: a wall seen edge-on has a huge depth slope and is
+            // pulled far forward while the roof above it is not, so the gable pierced the roof
+            // (the "tear in the roof", 2026-10-09). Objects keep the constant term, which moves a
+            // whole model uniformly and still puts DrawPriority 0 over the river layer.
+            var ctx = NewContext();
+
+            var objMat = MatFor(ctx, 0);
+            var riverMat = MatFor(ctx, 6);
+            Assert.AreEqual(0f, objMat.GetFloat("_OffsetFactor"), "no slope-scaled term on objects");
+            Assert.Less(objMat.GetFloat("_OffsetUnits"), riverMat.GetFloat("_OffsetUnits"),
+                "objects still bias toward the camera past the river layer");
 
             ctx.Dispose();
         }
