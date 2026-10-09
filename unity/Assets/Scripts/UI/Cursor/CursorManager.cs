@@ -54,7 +54,6 @@ namespace BakAgain.UI.Cursor {
                 style = { position = Position.Absolute, width = 0, height = 0 }
             };
             _root.Add(_cursorElement);
-            UnityEngine.Cursor.visible = false; // desktop: hide the OS cursor; we draw our own
             SelectSet("POINTER");   // sets the active BMX name only — no resource load
         }
 
@@ -108,6 +107,10 @@ namespace BakAgain.UI.Cursor {
                 _cache[key] = entry;
             }
             if (_cursorElement == null) return;
+            // Hide the OS cursor only once ours can be drawn: the sprite comes from the original's
+            // POINTER.BMX, which cannot load before a game path is set — hiding it in Awake left the
+            // MetaMenu (where that path is chosen) with no cursor at all.
+            UnityEngine.Cursor.visible = false;
             _cursorElement.style.backgroundImage = new StyleBackground(entry.sprite);
             _cursorElement.style.width = entry.sprite.rect.width;
             _cursorElement.style.height = entry.sprite.rect.height;
