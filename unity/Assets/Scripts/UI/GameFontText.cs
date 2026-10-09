@@ -13,7 +13,8 @@ namespace BakAgain.UI {
     /// extractor) and <c>FntTrueType</c> builds its glyphs at it, so text renders at the original's
     /// proportions with nothing applied afterwards — and a square-pixel mod font is not stretched.
     ///
-    /// <para><b>Size.</b> <see cref="FontSizePx"/>, from the font's own cell and pixel width.</para>
+    /// <para><b>Size.</b> <see cref="FontSizePx"/>, from the font's own cell and pixel width — or, for
+    /// Enhanced mode's book font, from the line pitch (<see cref="GameFonts.IsBookFont"/>).</para>
     /// </remarks>
     internal static class GameFontText {
         /// <summary>
@@ -69,9 +70,16 @@ namespace BakAgain.UI {
         internal static float FontSizePx {
             get {
                 GameData.Resources.Font.FontResource font = GameFonts.GameFont;
+                if (GameFonts.IsBookFont) {
+                    // A real typeface has no cell to count: its em is set from the line pitch it must
+                    // fill, and it is drawn with its own (square) proportions — no stretch.
+                    return BookFontLayout.EmPerLinePitch * LinePitchPx(DialogLineGapVgaRows);
+                }
                 return (float)((font.Height + 1) * font.PixelWidth);
             }
         }
+
+        private static readonly GameData.Resources.Layout.EnhancedFontLayout BookFontLayout = new();
 
         /// <summary>Apply the game font's size and whitespace handling to a label.</summary>
         internal static void Apply(VisualElement element) {

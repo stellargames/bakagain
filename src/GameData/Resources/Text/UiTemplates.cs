@@ -86,6 +86,7 @@ public static class UiTemplates {
     public const string EnhancedFeatureFullScreen = "port:template:enhanced_feature_full_screen";
     public const string EnhancedFeatureMouseLook = "port:template:enhanced_feature_mouse_look";
     public const string EnhancedFeatureRings = "port:template:enhanced_feature_rings";
+    public const string EnhancedFeatureBookFont = "port:template:enhanced_feature_book_font";
     public const string EnhancedDone = "port:template:enhanced_done";
 
     /// <summary>The Enhanced travel HUD's status line: "Day <c>{day}</c> · <c>{hour}</c>:00".</summary>
@@ -141,6 +142,7 @@ public static class UiTemplates {
         (EnhancedFeatureFullScreen, _ => "Full-screen travel"),
         (EnhancedFeatureMouseLook, _ => "Mouse and touch look"),
         (EnhancedFeatureRings, _ => "Health rings"),
+        (EnhancedFeatureBookFont, _ => "Book font (restart)"),
         (EnhancedDone, _ => "Done"),
         (EnhancedStatusKey, _ => "Day {day} · {hour}:00"),
         (PercentKey, _ => EnglishPercent),

@@ -4,5 +4,8 @@ namespace BakAgain.Core {
         FullScreenTravel,
         MouseLook,
         PortraitRings,
+
+        /// <summary>The game font drawn in Alegreya Medium instead of GAME.FNT; bound when the fonts are built, so at launch.</summary>
+        BookFont,
     }
 }

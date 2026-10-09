@@ -242,6 +242,7 @@ namespace BakAgain.UI {
             AddFeatureRow(GameData.Resources.Text.UiTemplates.EnhancedFeatureFullScreen, EnhancedFeature.FullScreenTravel);
             AddFeatureRow(GameData.Resources.Text.UiTemplates.EnhancedFeatureMouseLook, EnhancedFeature.MouseLook);
             AddFeatureRow(GameData.Resources.Text.UiTemplates.EnhancedFeatureRings, EnhancedFeature.PortraitRings);
+            AddFeatureRow(GameData.Resources.Text.UiTemplates.EnhancedFeatureBookFont, EnhancedFeature.BookFont);
 
             Button done = Row(() => panel.RemoveFromHierarchy());
             done.Q<Label>("caption").text = GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedDone);

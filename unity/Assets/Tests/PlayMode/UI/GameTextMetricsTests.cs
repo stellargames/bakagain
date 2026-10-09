@@ -58,6 +58,9 @@ namespace BakAgain.Tests.PlayMode.UI {
             using (new IsolatedResourceLocators()) {
                 ResourceManagementInitializer.InitializeResourceManagement();
                 GameFonts.Build();
+                if (GameFonts.IsBookFont) {
+                    GameFonts.Build(bookFont: false); // these pin GAME.FNT, whatever the player's Enhanced options
+                }
             }
             _font = GameFonts.Game;
             Assert.That(_font, Is.Not.Null, "GameFonts.Build() produced no font from GAME.FNT.");

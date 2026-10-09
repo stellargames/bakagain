@@ -68,20 +68,46 @@ namespace BakAgain.UI {
             Application.quitting += () => panelSettings.textSettings = original;
         }
 
+        /// <summary>
+        /// Whether <see cref="Game"/> is Enhanced mode's book font (Alegreya Medium) rather than
+        /// GAME.FNT — decided once, when the fonts are built, which is why the option says "(restart)".
+        /// <see cref="GameFont"/> stays GAME.FNT either way: line pitch is the original's.
+        /// </summary>
+        public static bool IsBookFont { get; private set; }
+
         /// <summary>Build <see cref="Game"/> and <see cref="Book"/> once, from the loaded game data.</summary>
         public static void Build() {
-            if (Game != null) {
-                return;
+            if (Game == null) {
+                Build(BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.BookFont));
             }
+        }
+
+        /// <summary>Build the fonts now, with or without the book font — what <see cref="Build()"/> does once.</summary>
+        internal static void Build(bool bookFont) {
             string dir = Path.Combine(Application.temporaryCachePath, "Fonts");
             Directory.CreateDirectory(dir);
             // From a Font, not from the file path: UI Toolkit's text generator renders from the
             // asset's source Font and draws nothing ("FontAsset is invalid. Please assign a Source
             // Font File") for an asset made straight from a path.
-            Game = FontAsset.CreateFontAsset(LoadTrueType(dir, "GAME.FNT", "Game", out _gameFont), 90, 18,
-                GlyphRenderMode.SDFAA_HINTED, 1024, 1024, UnityEngine.TextCore.Text.AtlasPopulationMode.Dynamic, true);
+            Font game = LoadTrueType(dir, "GAME.FNT", "Game", out _gameFont);
+            IsBookFont = bookFont;
+            Game = bookFont ? LoadBookFont()
+                : FontAsset.CreateFontAsset(game, 90, 18,
+                    GlyphRenderMode.SDFAA_HINTED, 1024, 1024, UnityEngine.TextCore.Text.AtlasPopulationMode.Dynamic, true);
             Book = TMP_FontAsset.CreateFontAsset(LoadTrueType(dir, "BOOK.FNT", "Book", out _bookFont), 90, 9,
                 GlyphRenderMode.SDFAA, 1024, 1024, TMPro.AtlasPopulationMode.Dynamic, true);
+        }
+
+        /// <summary>
+        /// Alegreya Medium, with its Medium Italic as the face <c>&lt;i&gt;</c> switches to at the
+        /// text's regular weight (400 → slot 4) instead of a slanted Medium.
+        /// </summary>
+        private static FontAsset LoadBookFont() {
+            FontAsset Make(string name) => FontAsset.CreateFontAsset(Resources.Load<Font>("Fonts/Alegreya/" + name), 90, 9,
+                GlyphRenderMode.SDFAA, 1024, 1024, UnityEngine.TextCore.Text.AtlasPopulationMode.Dynamic, true);
+            FontAsset regular = Make("Alegreya-Medium");
+            regular.fontWeightTable[4].italicTypeface = Make("Alegreya-MediumItalic");
+            return regular;
         }
 
         private static Font LoadTrueType(string dir, string fntKey, string family, out FontResource fnt) {

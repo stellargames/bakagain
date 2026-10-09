@@ -45,6 +45,15 @@ namespace BakAgain.Tests.Editor.Core {
         }
 
         [Test]
+        public void TheBookFontComesOnWithTheMaster() {
+            Assert.IsFalse(GameOptions.IsOn(EnhancedFeature.BookFont), "faithful GAME.FNT by default");
+            GameOptions.Enhanced = true;
+            Assert.IsTrue(GameOptions.IsOn(EnhancedFeature.BookFont));
+            GameOptions.SetFeature(EnhancedFeature.BookFont, false);
+            Assert.IsFalse(GameOptions.IsOn(EnhancedFeature.BookFont));
+        }
+
+        [Test]
         public void AnUnexpectedStoredValueReadsAsOff() {
             PlayerPrefs.SetInt("enhanced", 7);
             Assert.IsFalse(GameOptions.Enhanced);
