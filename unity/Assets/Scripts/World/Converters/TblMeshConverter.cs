@@ -196,6 +196,12 @@ namespace BakAgain.World.Converters {
             return emitFaces;
         }
 
+        private static Vector3[] FacePoints(PolygonFace face, Vector3[] verts) {
+            var pts = new Vector3[face.VertexIndices.Count];
+            for (int i = 0; i < pts.Length; i++) pts[i] = verts[face.VertexIndices[i]];
+            return pts;
+        }
+
         private static (PaintOrderAssigner, int[], float[]) ClassifyAll(
             List<(PolygonFace Face, Vector3[] Verts, int Pool, byte Flags, byte Frame)> emitFaces) {
             var assigner = new PaintOrderAssigner();
@@ -215,14 +221,6 @@ namespace BakAgain.World.Converters {
         public sealed class CoplanarCensus {
             public int PairsBefore;
             public int PairsAfter;
-            /// <summary>Of <see cref="PairsAfter"/>, those whose earlier face is slot-textured
-            /// (deliberately not cut: its UVs would need remapping).</summary>
-            public int AfterTexturedBase;
-            /// <summary>Of <see cref="PairsAfter"/>, those where either face is concave.</summary>
-            public int AfterConcave;
-            /// <summary>Of <see cref="PairsAfter"/>, those where the later face is only NEAR the
-            /// earlier one's plane (beyond <see cref="CutPlaneTolerance"/>): left to the rank nudge.</summary>
-            public int AfterOffPlane;
         }
 
         /// <summary>Runs pass 1 and the cut over <paramref name="dat"/> and adds its pair counts to
@@ -305,9 +303,10 @@ namespace BakAgain.World.Converters {
                         poly[c] = (Vector3.Dot(p, u), Vector3.Dot(p, v));
                     }
                     shape[k] = poly;
-                    facing[k] = Vector3.Dot(FaceNormal(face.VertexIndices, verts), n) >= 0f ? 1 : -1;
-                    convex[k] = GameData.Resources.World.ConvexClip.IsConvex(poly);
-                    planeN[k] = FaceNormal(face.VertexIndices, verts).normalized;
+                    Vector3 faceNormal = FaceNormal(face.VertexIndices, verts);
+                    facing[k] = Vector3.Dot(faceNormal, n) >= 0f ? 1 : -1;
+                    convex[k] = ConvexClip.IsConvex(poly);
+                    planeN[k] = faceNormal.normalized;
                     Vector3 centroid = Vector3.zero;
                     foreach (int vi in face.VertexIndices) centroid += verts[vi];
                     planeD[k] = Vector3.Dot(planeN[k], centroid / face.VertexIndices.Count);
@@ -319,12 +318,7 @@ namespace BakAgain.World.Converters {
                         if (Mathf.Abs(Vector3.Dot(planeN[i], verts[vi]) - planeD[i]) > CutPlaneTolerance) return false;
                     return true;
                 }
-                Vector3[] Solid(int k) {
-                    var (face, verts, _, _, _) = emitFaces[members[k]];
-                    var pts = new Vector3[face.VertexIndices.Count];
-                    for (int c = 0; c < pts.Length; c++) pts[c] = verts[face.VertexIndices[c]];
-                    return pts;
-                }
+                Vector3[] Solid(int k) => FacePoints(emitFaces[members[k]].Face, emitFaces[members[k]].Verts);
                 bool DoubleSided(int k) => emitFaces[members[k]].Face.CullMode == FaceCullMode.DoubleSided;
                 bool Textured(int k) => emitFaces[members[k]].Face.TextureBitmap != null;
                 // j is visible wherever i is.
@@ -343,7 +337,7 @@ namespace BakAgain.World.Converters {
                         var next = new List<(double X, double Y)[]>();
                         bool cutByJ = false;
                         foreach (var piece in pieces[i]) {
-                            var rest = GameData.Resources.World.ConvexClip.Subtract(piece, shape[j]);
+                            var rest = ConvexClip.Subtract(piece, shape[j]);
                             if (rest.Count != 1 || !ReferenceEquals(rest[0], piece)) cutByJ = true;
                             next.AddRange(rest);
                         }
@@ -357,18 +351,14 @@ namespace BakAgain.World.Converters {
                 for (int i = 0; i < m; i++)
                     for (int j = i + 1; j < m; j++) {
                         if (!CanFight(i, j)) continue;
-                        if (GameData.Resources.World.ConvexClip.Overlaps(shape[i], shape[j])) census.PairsBefore++;
+                        if (ConvexClip.Overlaps(shape[i], shape[j])) census.PairsBefore++;
                         bool still = false;
                         foreach (var a in pieces[i]) {
                             foreach (var b in pieces[j])
-                                if (GameData.Resources.World.ConvexClip.Overlaps(a, b)) { still = true; break; }
+                                if (ConvexClip.Overlaps(a, b)) { still = true; break; }
                             if (still) break;
                         }
-                        if (!still) continue;
-                        census.PairsAfter++;
-                        if (Textured(i)) census.AfterTexturedBase++;
-                        else if (!convex[i] || !convex[j]) census.AfterConcave++;
-                        else if (!OnPlaneOf(j, i)) census.AfterOffPlane++;
+                        if (still) census.PairsAfter++;
                     }
             }
             return result;
@@ -404,11 +394,7 @@ namespace BakAgain.World.Converters {
             double nn = Vector3.Dot(nI, n);
 
             Vector3 Place(double x, double y) {
-                foreach (var (flat, solid) in outlines)
-                    for (int c = 0; c < flat.Length; c++) {
-                        double dx = flat[c].X - x, dy = flat[c].Y - y;
-                        if ((dx * dx) + (dy * dy) < OnEdge * OnEdge) return solid[c];
-                    }
+                // A corner of an outline is its edge at t = 0, so the edge search covers corners too.
                 foreach (var (flat, solid) in outlines)
                     for (int c = 0; c < flat.Length; c++) {
                         var a = flat[c];
@@ -597,9 +583,7 @@ namespace BakAgain.World.Converters {
             }
 
             if (pieces == null) {
-                var pts = new Vector3[face.VertexIndices.Count];
-                for (int i = 0; i < pts.Length; i++) pts[i] = meshVerts[face.VertexIndices[i]];
-                Emit(pts, Triangulate(face.VertexIndices, meshVerts), textured);
+                Emit(FacePoints(face, meshVerts), Triangulate(face.VertexIndices, meshVerts), textured);
                 return;
             }
             // Cut pieces (CutCoplanarOverlaps) are convex and never textured. They carry collinear

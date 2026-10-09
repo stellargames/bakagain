@@ -119,10 +119,8 @@ namespace BakAgain.ResourceManagement.Converters {
         /// Both offset terms matter: <c>_OffsetUnits</c> is a constant bias, <c>_OffsetFactor</c>
         /// scales with the polygon's depth slope and is what separates large near-coplanar planes at
         /// grazing angles (a river sheet over ground). Dropping the factor term made rivers z-fight
-        /// the ground immediately — verified 2026-07-20, do not remove it.
-        /// <para>Objects (layer 3) take the constant term only: the factor is per polygon, so inside
-        /// a model it pulled edge-on walls through the faces above them (a gable through its roof).
-        /// </para>
+        /// the ground immediately — verified 2026-07-20, do not remove it. Objects are the
+        /// exception (see below).
         /// </summary>
         public static Material GetLayeredTerrainMaterial(TerrainPen pen, byte drawPriority,
             WorldEntityRenderContext ctx) {
