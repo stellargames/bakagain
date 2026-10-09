@@ -186,12 +186,17 @@ namespace BakAgain.UI {
             if (caption == null || _enhancedDraft == null) {
                 return;
             }
-            caption.text = GameData.Resources.Text.UiTemplates.Format(
-                GameData.Resources.Text.UiTemplates.EnhancedButtonKey,
-                ("state", GameData.Resources.Text.UiTemplates.Format(_enhancedDraft.Master
-                    ? GameData.Resources.Text.UiTemplates.EnhancedStateOn
-                    : GameData.Resources.Text.UiTemplates.EnhancedStateOff)));
+            caption.text = BoxText(GameData.Resources.Text.UiTemplates.EnhancedButtonKey, _enhancedDraft.Master,
+                state: true, pending: FontChangePending(_enhancedDraft));
         }
+
+        /// <summary>
+        /// Whether OK would change the font from the one loaded. The fonts are bound when the game
+        /// starts (<see cref="GameFonts.Build()"/>), so the master and the Book font row say "(restart)"
+        /// while the choice differs from what is drawn — the language button's pattern.
+        /// </summary>
+        internal static bool FontChangePending(EnhancedOptionsDraft draft) =>
+            (draft.Master && draft[EnhancedFeature.BookFont]) != GameFonts.IsBookFont;
 
         /// <summary>
         /// The options panel over the left columns (Step Size's first radio down to Detail's last),
@@ -226,18 +231,21 @@ namespace BakAgain.UI {
                 return row;
             }
 
+            var captions = new System.Collections.Generic.List<Action>();
             void Refresh() {
                 foreach ((VisualElement row, EnhancedFeature feature) in features) {
                     row.SetEnabled(EnhancedRowEnabled(_enhancedDraft, feature));
+                }
+                foreach (Action caption in captions) {
+                    caption();
                 }
                 RefreshEnhancedCaption(root);
             }
 
             Button master = Row(null);
-            void SetMaster() => SetBoxText(master, GameData.Resources.Text.UiTemplates.EnhancedButtonKey,
-                _enhancedDraft.Master, state: true);
-            master.clicked += () => { _enhancedDraft.Master = !_enhancedDraft.Master; SetMaster(); Refresh(); };
-            SetMaster();
+            captions.Add(() => master.Q<Label>("caption").text = BoxText(GameData.Resources.Text.UiTemplates.EnhancedButtonKey,
+                _enhancedDraft.Master, state: true, pending: FontChangePending(_enhancedDraft)));
+            master.clicked += () => { _enhancedDraft.Master = !_enhancedDraft.Master; Refresh(); };
 
             AddFeatureRow(GameData.Resources.Text.UiTemplates.EnhancedFeatureFullScreen, EnhancedFeature.FullScreenTravel);
             AddFeatureRow(GameData.Resources.Text.UiTemplates.EnhancedFeatureMouseLook, EnhancedFeature.MouseLook);
@@ -251,9 +259,9 @@ namespace BakAgain.UI {
             Refresh();
 
             void AddFeatureRow(string key, EnhancedFeature feature) {
-                Button row = null;
-                row = Row(() => { _enhancedDraft[feature] = !_enhancedDraft[feature]; SetBoxText(row, key, _enhancedDraft[feature]); Refresh(); });
-                SetBoxText(row, key, _enhancedDraft[feature]);
+                Button row = Row(() => { _enhancedDraft[feature] = !_enhancedDraft[feature]; Refresh(); });
+                captions.Add(() => row.Q<Label>("caption").text = BoxText(key, _enhancedDraft[feature],
+                    pending: feature == EnhancedFeature.BookFont && FontChangePending(_enhancedDraft)));
                 features.Add((row, feature));
             }
         }
@@ -265,14 +273,17 @@ namespace BakAgain.UI {
         internal static bool EnhancedRowEnabled(EnhancedOptionsDraft draft, EnhancedFeature feature) =>
             draft.Master && (feature != EnhancedFeature.PortraitRings || draft[EnhancedFeature.FullScreenTravel]);
 
-        /// <summary>A panel row's caption: "[x] Full-screen travel", or for the master "Enhanced: On".</summary>
-        private static void SetBoxText(Button row, string key, bool on, bool state = false) {
+        /// <summary>A panel row's caption: "[x] Full-screen travel", or for the master "Enhanced: On";
+        /// "(restart)" appended while the choice waits for the next start.</summary>
+        private static string BoxText(string key, bool on, bool state = false, bool pending = false) {
             string text = state
                 ? GameData.Resources.Text.UiTemplates.Format(key, ("state", GameData.Resources.Text.UiTemplates.Format(on
                     ? GameData.Resources.Text.UiTemplates.EnhancedStateOn
                     : GameData.Resources.Text.UiTemplates.EnhancedStateOff)))
                 : (on ? "[x] " : "[ ] ") + GameData.Resources.Text.UiTemplates.Format(key);
-            row.Q<Label>("caption").text = text;
+            return pending
+                ? GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedPendingKey, ("text", text))
+                : text;
         }
 
         private void RefreshLanguageCaption(VisualElement root) {

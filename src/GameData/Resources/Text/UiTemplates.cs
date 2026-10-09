@@ -87,6 +87,10 @@ public static class UiTemplates {
     public const string EnhancedFeatureMouseLook = "port:template:enhanced_feature_mouse_look";
     public const string EnhancedFeatureRings = "port:template:enhanced_feature_rings";
     public const string EnhancedFeatureBookFont = "port:template:enhanced_feature_book_font";
+
+    /// <summary>An Enhanced caption whose choice waits for the next start (the font is bound at
+    /// start): "<c>{text}</c> (restart)", as <see cref="LanguageChoicePendingKey"/>.</summary>
+    public const string EnhancedPendingKey = "port:template:enhanced_pending";
     public const string EnhancedDone = "port:template:enhanced_done";
 
     /// <summary>The Enhanced travel HUD's status line: "Day <c>{day}</c> · <c>{hour}</c>:00".</summary>
@@ -142,7 +146,8 @@ public static class UiTemplates {
         (EnhancedFeatureFullScreen, _ => "Full-screen travel"),
         (EnhancedFeatureMouseLook, _ => "Mouse and touch look"),
         (EnhancedFeatureRings, _ => "Health rings"),
-        (EnhancedFeatureBookFont, _ => "Book font (restart)"),
+        (EnhancedFeatureBookFont, _ => "Book font"),
+        (EnhancedPendingKey, _ => "{text} (restart)"),
         (EnhancedDone, _ => "Done"),
         (EnhancedStatusKey, _ => "Day {day} · {hour}:00"),
         (PercentKey, _ => EnglishPercent),

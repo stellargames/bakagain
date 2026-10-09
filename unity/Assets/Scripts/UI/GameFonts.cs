@@ -83,30 +83,53 @@ namespace BakAgain.UI {
         }
 
         /// <summary>Build the fonts now, with or without the book font — what <see cref="Build()"/> does once.</summary>
+        /// <remarks>
+        /// Each kind of asset is made once and reused by a later call (tests switch back and forth):
+        /// a rebuild must not destroy an asset, because labels already drawn hold on to it, and
+        /// making a fresh set on every call leaked one per switch.
+        /// </remarks>
         internal static void Build(bool bookFont) {
             string dir = Path.Combine(Application.temporaryCachePath, "Fonts");
             Directory.CreateDirectory(dir);
+            _gameFont = Addressables.LoadAssetAsync<FontResource>("GAME.FNT").WaitForCompletion();
+            if (bookFont && _alegreya == null) {
+                _alegreya = LoadBookFont();
+            }
+            // A missing bundled font is a broken build, not a reason to draw nothing: GAME.FNT then.
+            IsBookFont = bookFont && _alegreya != null;
             // From a Font, not from the file path: UI Toolkit's text generator renders from the
             // asset's source Font and draws nothing ("FontAsset is invalid. Please assign a Source
             // Font File") for an asset made straight from a path.
-            Font game = LoadTrueType(dir, "GAME.FNT", "Game", out _gameFont);
-            IsBookFont = bookFont;
-            Game = bookFont ? LoadBookFont()
-                : FontAsset.CreateFontAsset(game, 90, 18,
+            if (!IsBookFont && _gameFntAsset == null) {
+                _gameFntAsset = FontAsset.CreateFontAsset(TrueType(dir, _gameFont, "Game"), 90, 18,
                     GlyphRenderMode.SDFAA_HINTED, 1024, 1024, UnityEngine.TextCore.Text.AtlasPopulationMode.Dynamic, true);
-            Book = TMP_FontAsset.CreateFontAsset(LoadTrueType(dir, "BOOK.FNT", "Book", out _bookFont), 90, 9,
+            }
+            Game = IsBookFont ? _alegreya : _gameFntAsset;
+            _bookFont = Addressables.LoadAssetAsync<FontResource>("BOOK.FNT").WaitForCompletion();
+            Book ??= TMP_FontAsset.CreateFontAsset(TrueType(dir, _bookFont, "Book"), 90, 9,
                 GlyphRenderMode.SDFAA, 1024, 1024, TMPro.AtlasPopulationMode.Dynamic, true);
         }
 
+        private static FontAsset _gameFntAsset;
+        private static FontAsset _alegreya;
+
         /// <summary>
         /// Alegreya Medium, with its Medium Italic as the face <c>&lt;i&gt;</c> switches to at the
-        /// text's regular weight (400 → slot 4) instead of a slanted Medium.
+        /// text's regular weight (400 → slot 4) instead of a slanted Medium. Null if the bundled
+        /// fonts are missing.
         /// </summary>
         private static FontAsset LoadBookFont() {
-            FontAsset Make(string name) => FontAsset.CreateFontAsset(Resources.Load<Font>("Fonts/Alegreya/" + name), 90, 9,
+            Font medium = Resources.Load<Font>("Fonts/Alegreya/Alegreya-Medium");
+            Font italic = Resources.Load<Font>("Fonts/Alegreya/Alegreya-MediumItalic");
+            if (medium == null) {
+                return null;
+            }
+            FontAsset Make(Font font) => FontAsset.CreateFontAsset(font, 90, 9,
                 GlyphRenderMode.SDFAA, 1024, 1024, UnityEngine.TextCore.Text.AtlasPopulationMode.Dynamic, true);
-            FontAsset regular = Make("Alegreya-Medium");
-            regular.fontWeightTable[4].italicTypeface = Make("Alegreya-MediumItalic");
+            FontAsset regular = Make(medium);
+            if (italic != null) {
+                regular.fontWeightTable[4].italicTypeface = Make(italic);
+            }
             return regular;
         }
 
@@ -149,8 +172,7 @@ namespace BakAgain.UI {
             return advances;
         }
 
-        private static Font LoadTrueType(string dir, string fntKey, string family, out FontResource fnt) {
-            fnt = Addressables.LoadAssetAsync<FontResource>(fntKey).WaitForCompletion();
+        private static Font TrueType(string dir, FontResource fnt, string family) {
             string path = Path.Combine(dir, family + ".ttf");
             File.WriteAllBytes(path, FntTrueType.Build(fnt, family));
 

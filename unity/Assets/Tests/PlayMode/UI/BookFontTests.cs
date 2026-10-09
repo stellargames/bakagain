@@ -148,5 +148,15 @@ namespace BakAgain.Tests.PlayMode.UI {
             Assert.That(sizes[0], Is.EqualTo(GameFontText.FontSizePx).Within(0.6f), "OK keeps the game font's size");
             Assert.That(sizes[2], Is.LessThan(sizes[0] - 1f), "the long caption shrinks on its own, as before");
         }
+
+        [Test]
+        public void ASizeChosenForGameFntIsScaledToTheBookFont() {
+            GameFonts.Build(bookFont: false);
+            float gameFnt = GameFontText.FontSizePx;
+            Assert.AreEqual(48f, GameFontText.InDrawnFont(48f), 0.001f, "GAME.FNT: unchanged");
+
+            GameFonts.Build(bookFont: true);
+            Assert.AreEqual(48f * GameFontText.FontSizePx / gameFnt, GameFontText.InDrawnFont(48f), 0.001f);
+        }
     }
 }

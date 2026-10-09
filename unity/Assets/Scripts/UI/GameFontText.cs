@@ -70,15 +70,31 @@ namespace BakAgain.UI {
         /// </summary>
         internal static float FontSizePx {
             get {
-                GameData.Resources.Font.FontResource font = GameFonts.GameFont;
+                GameFonts.Build(); // IsBookFont is decided by the build
                 if (GameFonts.IsBookFont) {
                     // A real typeface has no cell to count: its em is set from the line pitch it must
                     // fill, and it is drawn with its own (square) proportions — no stretch.
                     return BookFontLayout.EmPerLinePitch * LinePitchPx(DialogLineGapVgaRows);
                 }
+                return GameFntSizePx;
+            }
+        }
+
+        // GAME.FNT's own size: FntTrueType's em, the cell plus one row in pixel widths.
+        private static float GameFntSizePx {
+            get {
+                GameData.Resources.Font.FontResource font = GameFonts.GameFont;
                 return (float)((font.Height + 1) * font.PixelWidth);
             }
         }
+
+        /// <summary>
+        /// A size chosen for GAME.FNT (layout data written against its metrics), in the font that
+        /// draws: unchanged with GAME.FNT; with the book font, scaled by the book em over GAME.FNT's,
+        /// as <see cref="FontSizePx"/> itself is.
+        /// </summary>
+        internal static float InDrawnFont(float gameFontSizePx) =>
+            GameFonts.IsBookFont ? gameFontSizePx * FontSizePx / GameFntSizePx : gameFontSizePx;
 
         private static readonly GameData.Resources.Layout.EnhancedFontLayout BookFontLayout = new();
 
@@ -162,6 +178,11 @@ namespace BakAgain.UI {
         internal const string CaptionClass = "game-caption";
 
         /// <summary>One caption size for every caption under <paramref name="screen"/>: the smallest fit.</summary>
+        /// <remarks>"Screen" is the caption's UIDocument — so a dialog overlay's choice, keyword and
+        /// farewell buttons share one size, and the Preferences Enhanced panel shares the screen's.</remarks>
+        // ponytail: every caption's geometry change remeasures all N captions on its screen (N² text
+        // measures per layout pass); fine for menus of a few dozen buttons, cache per-caption fits
+        // and refit once per frame if a screen with hundreds of captions ever appears.
         internal static void FitScreen(VisualElement screen) {
             List<Label> captions = screen.Query<Label>(className: CaptionClass).ToList();
             float scale = 1f;

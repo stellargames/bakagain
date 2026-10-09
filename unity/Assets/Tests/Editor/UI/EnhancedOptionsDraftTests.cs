@@ -42,5 +42,20 @@ namespace BakAgain.Tests.Editor.UI {
             draft[EnhancedFeature.FullScreenTravel] = true;
             Assert.IsFalse(PreferencesMenu.EnhancedRowEnabled(draft, EnhancedFeature.FullScreenTravel), "the master gates all");
         }
+
+        [Test]
+        public void TheMasterAndBookFontSayRestartWhileTheFontWouldChange() {
+            Assume.That(GameFonts.IsBookFont, Is.False, "the run loads GAME.FNT");
+            var draft = new EnhancedOptionsDraft { Master = true };
+            foreach (EnhancedFeature f in System.Enum.GetValues(typeof(EnhancedFeature))) draft[f] = true;
+            Assert.IsTrue(PreferencesMenu.FontChangePending(draft), "OK would load the book font at the next start");
+
+            draft.Master = false;
+            Assert.IsFalse(PreferencesMenu.FontChangePending(draft), "master off: GAME.FNT, as loaded");
+
+            draft.Master = true;
+            draft[EnhancedFeature.BookFont] = false;
+            Assert.IsFalse(PreferencesMenu.FontChangePending(draft));
+        }
     }
 }

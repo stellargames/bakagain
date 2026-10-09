@@ -420,7 +420,9 @@ namespace BakAgain.UI {
         // flex properties (Row.Flow) actually place them.
         private Label MakeLabel(string text) {
             var label = new Label(text);
-            label.style.fontSize = LayoutApplier.ToStyleLength(_layout.FontSize);
+            label.style.fontSize = _layout.FontSize.Unit == GameData.Resources.Layout.LayoutLengthUnit.Px
+                ? GameFontText.InDrawnFont(_layout.FontSize.Value)
+                : LayoutApplier.ToStyleLength(_layout.FontSize);
             if (GameFonts.Game != null) {
                 label.style.unityFontDefinition = new StyleFontDefinition(GameFonts.Game);
             }
