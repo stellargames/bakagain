@@ -7,8 +7,10 @@ namespace GameData.Resources.Layout;
 public sealed class EnhancedFontLayout
 {
     /// <summary>
-    /// The font's em as a multiple of the game's dialog line pitch. Measured: at 1.04 the original
-    /// Gorath dialog wraps line for line as it does in GAME.FNT (pitch 44 px against an em of 45.6 px).
+    /// The font's em as a multiple of the game's dialog line pitch. The book font wraps with its own
+    /// widths; surveyed 2026-10-09 over every narrative and spoken DDX entry in English and German,
+    /// 0.757 (em 50 at the 66 px pitch) is the largest size at which no entry wraps to more lines
+    /// than the original does in GAME.FNT, so no page or box gets longer.
     /// </summary>
-    public float EmPerLinePitch { get; set; } = 1.04f;
+    public float EmPerLinePitch { get; set; } = 0.757f;
 }

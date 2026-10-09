@@ -110,6 +110,45 @@ namespace BakAgain.UI {
             return regular;
         }
 
+        /// <summary>
+        /// Each character's advance in the book font at <paramref name="em"/> canonical px, for a
+        /// prepared dialog string — what <see cref="GameTextWrapper"/> wraps with when
+        /// <see cref="IsBookFont"/>. Italic runs (the DDX control codes, decoded as
+        /// <see cref="DialogTextFormatter"/> styles them) measure in the italic face; the codes
+        /// themselves and line breaks have no width.
+        /// </summary>
+        /// <remarks>Glyph advances only, no kerning. Checked against the text engine over every
+        /// narrative and spoken line in English and German: the drawn line matches the sum to
+        /// within rounding (kerning mostly tightens it), and no wrapped line ends past its box.</remarks>
+        internal static float[] BookAdvances(string text, float em) {
+            var advances = new float[text?.Length ?? 0];
+            if (advances.Length == 0) {
+                return advances;
+            }
+            var italic = new bool[text.Length];
+            foreach (GameData.Resources.Dialog.DialogTextRuns.Run run in
+                     GameData.Resources.Dialog.DialogTextRuns.Decode(text, 0, text.Length, 0)) {
+                for (int i = run.Start; i < run.Start + run.Length; i++) {
+                    italic[i] = run.Italic;
+                }
+            }
+            FontAsset regular = Game;
+            FontAsset oblique = regular.fontWeightTable[4].italicTypeface ?? regular;
+            regular.TryAddCharacters(text, out string _);
+            oblique.TryAddCharacters(text, out string _);
+            for (int i = 0; i < text.Length; i++) {
+                char c = text[i];
+                if (c == '\n' || (c >= '\uE000' && c <= '\uE00F')) {
+                    continue;
+                }
+                FontAsset face = italic[i] ? oblique : regular;
+                advances[i] = face.characterLookupTable.TryGetValue(c, out UnityEngine.TextCore.Text.Character character)
+                    ? character.glyph.metrics.horizontalAdvance * face.faceInfo.scale * em / face.faceInfo.pointSize
+                    : em / 2f; // ponytail: a letter the face lacks is drawn as nothing; half an em keeps the wrap conservative
+            }
+            return advances;
+        }
+
         private static Font LoadTrueType(string dir, string fntKey, string family, out FontResource fnt) {
             fnt = Addressables.LoadAssetAsync<FontResource>(fntKey).WaitForCompletion();
             string path = Path.Combine(dir, family + ".ttf");

@@ -56,6 +56,21 @@ namespace BakAgain.UI {
         /// as-is.
         /// </summary>
         internal static List<Line> Wrap(string text, int maxWidth, int maxLines = MaxLines) {
+            var advances = new float[text?.Length ?? 0];
+            for (int i = 0; i < advances.Length; i++) {
+                advances[i] = BakFontData.GetRawCharWidth(text[i], BakFontData.GameFontIndex);
+            }
+            return Wrap(text, maxWidth, advances, maxLines);
+        }
+
+        /// <summary>
+        /// The same wrap over any font: <paramref name="advances"/>[i] is the width of
+        /// <c>text[i]</c> in the unit of <paramref name="maxWidth"/>. GAME.FNT passes its whole raw
+        /// pixels (so the sums and comparisons are the original's integer ones); Enhanced mode's
+        /// book font passes its own advances in canonical px (<see cref="GameFonts.BookAdvances"/>),
+        /// so the breaks fit the font that draws.
+        /// </summary>
+        internal static List<Line> Wrap(string text, float maxWidth, float[] advances, int maxLines = MaxLines) {
             var lines = new List<Line>();
             if (string.IsNullOrEmpty(text)) {
                 return lines;
@@ -64,14 +79,14 @@ namespace BakAgain.UI {
             int lineStart = 0;
             while (lines.Count < maxLines && lineStart < text.Length) {
                 int at = lineStart;
-                int width = 0;
+                float width = 0;
                 // The original tracks the NEGATIVE — "no break point seen on this line yet"
                 // (var_1, set at 0x4b765 and cleared at 0x4b7b8) — because that is the case the
                 // back-search must not run for.
                 bool sawBreakPoint = false;
 
                 while (at < text.Length && text[at] != '\n') {
-                    int advance = BakFontData.GetRawCharWidth(text[at], BakFontData.GameFontIndex);
+                    float advance = advances[at];
                     if (width + advance > maxWidth) {
                         break;
                     }

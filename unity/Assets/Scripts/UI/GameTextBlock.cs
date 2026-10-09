@@ -257,7 +257,11 @@ namespace BakAgain.UI {
                 return;
             }
 
-            List<GameTextWrapper.Line> lines = GameTextWrapper.Wrap(_text, maxWidth);
+            // Enhanced mode's book font breaks where ITS words run out of room, in canonical px;
+            // GAME.FNT keeps the original's integer wrap exactly.
+            List<GameTextWrapper.Line> lines = GameFonts.IsBookFont
+                ? GameTextWrapper.Wrap(_text, width, GameFonts.BookAdvances(_text, GameFontText.FontSizePx))
+                : GameTextWrapper.Wrap(_text, maxWidth);
             int start = Mathf.Clamp(_firstLine, 0, Mathf.Max(0, lines.Count - 1));
             // *** A CHOICE RECORD THAT STILL WILL NOT FIT STARTS LOWER. *** See
             // ChoiceOverflowTopNudge: the original tests the lines REMAINING against the already

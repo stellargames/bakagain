@@ -1,5 +1,6 @@
 namespace BakAgain.UI {
     using BakAgain.Graphics;
+    using System.Collections.Generic;
     using UnityEngine;
     using UnityEngine.UIElements;
 
@@ -118,6 +119,7 @@ namespace BakAgain.UI {
                 pickingMode = PickingMode.Ignore,
             };
             Apply(caption);
+            caption.AddToClassList(CaptionClass);
             // Apply wants PreWrap because dialog prose needs its spaces; a button caption is sized
             // by the REQ's own rect and must not reflow inside it.
             caption.style.whiteSpace = WhiteSpace.NoWrap;
@@ -139,25 +141,76 @@ namespace BakAgain.UI {
         /// laid out to fit, is untouched. Re-run on every geometry change, so a caption whose text
         /// changes later (the touch buttons' Cast/Thrust) refits; it only writes when the size
         /// actually moves, which is what stops the callback feeding itself.
+        ///
+        /// <para><b>With the book font, one size per screen.</b> Its widths are not the ones the
+        /// buttons were drawn around, so several captions shrink, and each shrinking on its own put
+        /// four sizes on one menu. Every caption on the screen (the UIDocument the button is in)
+        /// takes the smallest of their fits instead. GAME.FNT keeps the per-caption fit unchanged.</para>
         /// </remarks>
         internal static void FitWidth(Label caption, VisualElement box) {
-            float room = box.contentRect.width;
+            if (GameFonts.IsBookFont) {
+                FitScreen(ScreenOf(caption));
+                return;
+            }
+            float scale = FitScale(caption, box);
+            if (!float.IsNaN(scale)) {
+                Resize(caption, FontSizePx * scale);
+            }
+        }
+
+        /// <summary>The class every <see cref="Caption"/> label carries, so a screen can find its captions.</summary>
+        internal const string CaptionClass = "game-caption";
+
+        /// <summary>One caption size for every caption under <paramref name="screen"/>: the smallest fit.</summary>
+        internal static void FitScreen(VisualElement screen) {
+            List<Label> captions = screen.Query<Label>(className: CaptionClass).ToList();
+            float scale = 1f;
+            foreach (Label c in captions) {
+                // A button that is not drawn does not get a say in the screen's size.
+                if (c.resolvedStyle.display == DisplayStyle.None || c.resolvedStyle.visibility == Visibility.Hidden
+                    || c.parent?.resolvedStyle.display == DisplayStyle.None) {
+                    continue;
+                }
+                float s = FitScale(c, c.parent);
+                if (!float.IsNaN(s)) {
+                    scale = Mathf.Min(scale, s);
+                }
+            }
+            foreach (Label c in captions) {
+                Resize(c, FontSizePx * scale);
+            }
+        }
+
+        // The top of the caption's own UIDocument: the element just under the panel's root.
+        private static VisualElement ScreenOf(VisualElement element) {
+            while (element.parent != null && element.parent.parent != null) {
+                element = element.parent;
+            }
+            return element;
+        }
+
+        private static void Resize(Label caption, float size) {
+            if (Mathf.Abs(size - caption.resolvedStyle.fontSize) > 0.5f) {
+                caption.style.fontSize = size;
+            }
+        }
+
+        // The scale (of FontSizePx) at which the caption fits its box, or NaN when it cannot be told yet.
+        private static float FitScale(Label caption, VisualElement box) {
+            float room = box?.contentRect.width ?? 0f;
             float current = caption.resolvedStyle.fontSize;
             if (room <= 0f || current <= 0f || string.IsNullOrEmpty(caption.text)) {
-                return;
+                return float.NaN;
             }
             float full = FontSizePx;
             Vector2 measured = caption.MeasureTextSize(caption.text, 0f, VisualElement.MeasureMode.Undefined,
                 0f, VisualElement.MeasureMode.Undefined);
             float natural = measured.x * full / current;
-            float want = natural <= room ? full : Mathf.Max(full * MinFitScale, full * room / natural);
             if (natural * MinFitScale > room + 0.5f) {
                 TextOverflowReport.Report(TextOverflowReport.Caption, caption.text,
                     $"{natural * MinFitScale:0} px at the smallest fit, {room:0} px of room");
             }
-            if (Mathf.Abs(want - current) > 0.5f) {
-                caption.style.fontSize = want;
-            }
+            return natural <= room ? 1f : Mathf.Max(MinFitScale, room / natural);
         }
     }
 }
