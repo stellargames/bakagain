@@ -1,4 +1,5 @@
 namespace BakAgain.Tests.Editor.World {
+    using BakAgain.Tests.TestSupport;
     using BakAgain.World;
     using NUnit.Framework;
     using UnityEngine;
@@ -6,6 +7,7 @@ namespace BakAgain.Tests.Editor.World {
     public class FullScreenViewportTests {
         private static readonly Rect Stage = new Rect(240, 0, 1440, 1080);
 
+        [RequiresShippedGameData]   // WorldViewport reads START.DAT for the travel lens
         [Test]
         public void InactiveItIsTheTravelViewport() {
             var inner = new WorldViewport();

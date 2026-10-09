@@ -20,6 +20,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
     /// (the real theme), with the world's click area stretched full-window by the real
     /// <see cref="WorldViewportView"/> — the arrangement the travel screen has in full-screen.
     /// </summary>
+    [RequiresShippedGameData]
     public class EnhancedHudLayoutTests {
         // REQ_MAIN.json: name -> (x, y, w, h).
         private static readonly (string Name, int X, int Y, int W, int H)[] ReqMain = {

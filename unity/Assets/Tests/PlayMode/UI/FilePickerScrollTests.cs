@@ -1,4 +1,5 @@
 namespace BakAgain.Tests.PlayMode.UI {
+    using BakAgain.Tests.TestSupport;
     using BakAgain.ResourceManagement.Loaders;
     using BakAgain.UI;
     using GameData.Resources.Menu;
@@ -11,6 +12,7 @@ namespace BakAgain.Tests.PlayMode.UI {
     /// scrolled into view one row at a time, like the original's widget_list_scroll ->
     /// listwidget_ensure_visible (canassa UI/WIDGET.C:215, UI/LISTWDG.C:333).
     /// </summary>
+    [RequiresShippedGameData]
     public class FilePickerScrollTests {
         private sealed class Source : IFilePickerSource {
             public int Selected;

@@ -20,6 +20,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
     /// <see cref="WorldPicker"/>) around one adapter, and checks that a ground point drawn at a pixel
     /// is the ground point picked at that pixel, faithful and full-window, and after a rehost.
     /// </summary>
+    [RequiresShippedGameData]
     public class FullScreenPickingTests {
         [UnityTest]
         public IEnumerator AGroundPointRoundTripsThroughTheRectTheWorldIsDrawnIn([Values(false, true)] bool fullScreen, [Values(0f, 30f, -15f)] float lookPitchDegrees) {
