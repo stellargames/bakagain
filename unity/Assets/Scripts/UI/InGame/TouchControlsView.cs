@@ -64,7 +64,8 @@ namespace BakAgain.UI.InGame {
             _left = Bar("touch-left");
             _right = Bar("touch-right");
             foreach (int id in PadIds) {
-                _pads[id] = Button($"touchpad_{id}", Glyph(id), null);
+                _pads[id] = Button($"touchpad_{id}", string.Empty, null);
+                AddArrow(_pads[id], id);
                 RegisterHold(_pads[id], id, reqArrow: false);
             }
             _grid = Button("touch-grid", "#", _state.RequestGridToggle);
@@ -320,12 +321,32 @@ namespace BakAgain.UI.InGame {
             }
         }
 
-        private static string Glyph(int id) => id switch {
-            Forward => "▲",
-            Back => "▼",
-            TurnLeft => "◀",
-            _ => "▶",
-        };
+// A filled triangle at PadGlyphSize of the pad, in the caption colour: the ▲▼◀▶ glyphs come
+        // from a fallback font that fills a quarter of its em, so no font size made them fill the pad.
+        private void AddArrow(VisualElement pad, int id) {
+            Label caption = pad.Q<Label>();
+            caption.style.flexGrow = 1;
+            caption.generateVisualContent += ctx => {
+                Rect r = caption.contentRect;
+                float half = Mathf.Min(r.width, r.height) * _layout.PadGlyphSize / 2f;
+                Vector2 c = r.center;
+                Vector2 tip = id switch {
+                    Forward => Vector2.down,
+                    Back => Vector2.up,
+                    TurnLeft => Vector2.left,
+                    _ => Vector2.right,
+                };
+                Vector2 side = new Vector2(-tip.y, tip.x);
+                Painter2D p = ctx.painter2D;
+                p.fillColor = caption.resolvedStyle.color;
+                p.BeginPath();
+                p.MoveTo(c + tip * half);
+                p.LineTo(c - tip * half + side * half);
+                p.LineTo(c - tip * half - side * half);
+                p.ClosePath();
+                p.Fill();
+            };
+        }
 
         private static void Place(VisualElement e, float x, float y, float w, float h, bool visible) {
             e.style.left = x;

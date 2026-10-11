@@ -10,6 +10,8 @@ public sealed class TouchControlsLayout
 {
     public float PadSize { get; set; } = 0.8f;
     public float PadCentreY { get; set; } = 0.55f;
+    /// <summary>The drawn arrow's size, as a fraction of its pad's side.</summary>
+    public float PadGlyphSize { get; set; } = 0.8f;
     public float ButtonWidth { get; set; } = 0.8f;
     public float ButtonHeight { get; set; } = 0.12f;
     public float ThrustY { get; set; } = 0.45f;

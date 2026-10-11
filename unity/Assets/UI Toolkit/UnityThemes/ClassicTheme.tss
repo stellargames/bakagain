@@ -289,10 +289,11 @@
    the window height. Two-class selectors so these beat .req-hitbox's absolute placement. Portrait
    widths are copied from their heights by EnhancedHudLayout (square boxes). */
 .enhanced-hud { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
-.enhanced-hud .enhanced-hud__portraits { position: absolute; left: 1.5%; top: 3%; height: 40.4%; flex-direction: column; justify-content: space-between; }
+.enhanced-hud .enhanced-hud__portraits { position: absolute; left: 1.5%; top: 3%; height: 48%; flex-direction: column; justify-content: space-between; }
 /* The buttons keep their REQ size (the face is the icon at native size), so the column is scaled
-   as a whole: 96% tall unscaled x 0.735 = the mockup's 3%..73.7% of the window. */
-.enhanced-hud .enhanced-hud__buttons { position: absolute; right: 1.5%; top: 3%; height: 96%; flex-direction: column; justify-content: space-between; scale: 0.735 0.735; transform-origin: right top; }
+   as a whole: 96% tall unscaled x 0.8 = 3%..79.8% of the window (owner, 2026-10-11: bigger than
+   the mockup's 0.735). Lower than that meets the touch pads' forward arrow on a 16:9 screen. */
+.enhanced-hud .enhanced-hud__buttons { position: absolute; right: 1.5%; top: 3%; height: 96%; flex-direction: column; justify-content: space-between; scale: 0.8 0.8; transform-origin: right top; }
 .enhanced-hud .enhanced-hud__top { position: absolute; top: 2.5%; left: 0; right: 0; flex-direction: row; justify-content: center; align-items: center; }
 .enhanced-hud .enhanced-hud__portrait { position: relative; height: 30.7%; }
 .enhanced-hud .enhanced-hud__button { position: relative; }
