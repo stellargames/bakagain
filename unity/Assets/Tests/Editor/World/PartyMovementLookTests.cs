@@ -15,10 +15,10 @@ namespace BakAgain.Tests.Editor.World {
             if (_cam != null) Object.DestroyImmediate(_cam);
         }
 
-        private (PartyMovement, GameSession, Camera) Build() {
+        private (PartyMovement, GameSession, Camera) Build(TurnSize turnSize = TurnSize.Medium) {
             var session = new GameSession();
             var prefs = new FakePreferencesService();
-            prefs.Current.TurnSize = TurnSize.Medium;
+            prefs.Current.TurnSize = turnSize;
             _cam = new GameObject("cam");
             Camera cam = _cam.AddComponent<Camera>();
             var movement = new PartyMovement(session, new MovementData("MOVEMENT.DAT") {
@@ -70,6 +70,17 @@ namespace BakAgain.Tests.Editor.World {
             Assert.AreEqual(expected, (ushort)session.Rotation);
             Assert.Less(Quaternion.Angle(BakCoordinateConverter.ConvertRotation(0, 0, expected), cam.transform.rotation), 0.01f,
                 "the camera follows, as LookTo makes it");
+        }
+
+        [TestCase(TurnSize.Small, 0.5f)]
+        [TestCase(TurnSize.Medium, 1f)]
+        [TestCase(TurnSize.Large, 2f)]
+        public void TheTurnSizePreferenceScalesTheLook(TurnSize turnSize, float scale) {
+            var (movement, session, _) = Build(turnSize);
+            session.Rotation = 0x4000;
+            movement.ApplyLook(10f, 4f, 30f);
+            Assert.AreEqual(unchecked((ushort)(0x4000 - Mathf.RoundToInt(10f * scale * Units))), (ushort)session.Rotation);
+            Assert.AreEqual((short)(4f * scale * Units), movement.LookPitch);
         }
 
         [Test]

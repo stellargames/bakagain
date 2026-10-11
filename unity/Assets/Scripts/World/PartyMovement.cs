@@ -121,8 +121,13 @@ namespace BakAgain.World {
         /// One free-look drag delta: turn the real heading by <paramref name="yawDegrees"/> (positive
         /// turns right) through <see cref="LookTo"/>, and pitch the view by
         /// <paramref name="pitchDegrees"/> (positive looks up), held within ±<paramref name="pitchLimitDegrees"/>.
+        /// Both are scaled by the turn size, relative to Medium.
         /// </summary>
         public void ApplyLook(float yawDegrees, float pitchDegrees, float pitchLimitDegrees) {
+            // The Preferences turn size is the look's sensitivity too: Small halves it, Large doubles it.
+            float scale = _movement.TurnAngleFor(_preferences.Current.TurnSize) / (float)_movement.TurnAngleFor(TurnSize.Medium);
+            yawDegrees *= scale;
+            pitchDegrees *= scale;
             int yaw = (ushort)_session.Rotation - Mathf.RoundToInt(yawDegrees * AngleUnitsPerDegree);
             LookTo(unchecked((ushort)yaw));
             float limit = pitchLimitDegrees * AngleUnitsPerDegree;
