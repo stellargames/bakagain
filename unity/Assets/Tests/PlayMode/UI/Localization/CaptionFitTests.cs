@@ -14,11 +14,13 @@ namespace BakAgain.Tests.PlayMode.UI.Localization {
         public void NeedsTheGameData() => BakAgain.Tests.TestSupport.ShippedGameData.RequireOrIgnore();
 
         private GameObject _go;
+        private GameObject _otherScreen;
         private PanelSettings _panel;
 
         [TearDown]
         public void TearDown() {
             Object.Destroy(_go);
+            Object.Destroy(_otherScreen);
             Object.Destroy(_panel);
         }
 
@@ -28,12 +30,16 @@ namespace BakAgain.Tests.PlayMode.UI.Localization {
             var doc = _go.AddComponent<UIDocument>();
             _panel = ScriptableObject.CreateInstance<PanelSettings>();
             doc.panelSettings = _panel;
+            // The roomy caption is on a screen of its own: captions on one screen share one size.
+            _otherScreen = new GameObject("CaptionFitOtherScreen");
+            var otherDoc = _otherScreen.AddComponent<UIDocument>();
+            otherDoc.panelSettings = _panel;
             yield return null;
 
             var narrow = new VisualElement { style = { width = 120, height = 60, position = Position.Absolute } };
             var wide = new VisualElement { style = { width = 1200, height = 60, top = 100, position = Position.Absolute } };
             doc.rootVisualElement.Add(narrow);
-            doc.rootVisualElement.Add(wide);
+            otherDoc.rootVisualElement.Add(wide);
             Label squeezed = GameFontText.Caption(narrow, "[Stàrt Ñéw Gàmé ~~~~]");
             Label roomy = GameFontText.Caption(wide, "Restore");
             for (int i = 0; i < 10; i++) {

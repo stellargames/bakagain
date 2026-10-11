@@ -133,20 +133,12 @@ namespace BakAgain.Tests.PlayMode.UI {
         }
 
         [UnityTest]
-        public IEnumerator On_EveryCaptionOnAScreenTakesTheSmallestFit() {
+        public IEnumerator EveryCaptionOnAScreenTakesTheSmallestFit([Values] bool bookFont) {
             var sizes = new List<float>();
-            yield return CaptionSizes(bookFont: true, sizes);
+            yield return CaptionSizes(bookFont, sizes);
             Assert.That(sizes[2], Is.LessThan(GameFontText.FontSizePx - 1f), "the long caption had to shrink");
             Assert.That(sizes[0], Is.EqualTo(sizes[2]).Within(0.6f), "and the short one shrinks with it");
             Assert.That(sizes[1], Is.EqualTo(sizes[2]).Within(0.6f));
-        }
-
-        [UnityTest]
-        public IEnumerator Off_EachCaptionStillFitsOnItsOwn() {
-            var sizes = new List<float>();
-            yield return CaptionSizes(bookFont: false, sizes);
-            Assert.That(sizes[0], Is.EqualTo(GameFontText.FontSizePx).Within(0.6f), "OK keeps the game font's size");
-            Assert.That(sizes[2], Is.LessThan(sizes[0] - 1f), "the long caption shrinks on its own, as before");
         }
 
         [Test]

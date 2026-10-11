@@ -140,46 +140,32 @@ namespace BakAgain.UI {
             // by the REQ's own rect and must not reflow inside it.
             caption.style.whiteSpace = WhiteSpace.NoWrap;
             chrome.Add(caption);
-            caption.RegisterCallback<GeometryChangedEvent>(_ => FitWidth(caption, chrome));
+            caption.RegisterCallback<GeometryChangedEvent>(_ => FitScreen(ScreenOf(caption)));
             return caption;
         }
 
         /// <summary>The smallest a caption shrinks to, as a share of the game font's size.</summary>
         internal const float MinFitScale = 0.6f;
 
-        /// <summary>
-        /// A caption wider than its button is drawn smaller until it fits — the fit policy for fixed
-        /// captions (TASK-779). A translation runs a third past English and the REQ rects were drawn
-        /// around the English words.
-        /// </summary>
-        /// <remarks>
-        /// <b>A caption that fits keeps the game font's own size exactly</b>, so English, which was
-        /// laid out to fit, is untouched. Re-run on every geometry change, so a caption whose text
-        /// changes later (the touch buttons' Cast/Thrust) refits; it only writes when the size
-        /// actually moves, which is what stops the callback feeding itself.
-        ///
-        /// <para><b>With the book font, one size per screen.</b> Its widths are not the ones the
-        /// buttons were drawn around, so several captions shrink, and each shrinking on its own put
-        /// four sizes on one menu. Every caption on the screen (the UIDocument the button is in)
-        /// takes the smallest of their fits instead. GAME.FNT keeps the per-caption fit unchanged.</para>
-        /// </remarks>
-        internal static void FitWidth(Label caption, VisualElement box) {
-            if (GameFonts.IsBookFont) {
-                FitScreen(ScreenOf(caption));
-                return;
-            }
-            float scale = FitScale(caption, box);
-            if (!float.IsNaN(scale)) {
-                Resize(caption, FontSizePx * scale);
-            }
-        }
-
         /// <summary>The class every <see cref="Caption"/> label carries, so a screen can find its captions.</summary>
         internal const string CaptionClass = "game-caption";
 
-        /// <summary>One caption size for every caption under <paramref name="screen"/>: the smallest fit.</summary>
-        /// <remarks>"Screen" is the caption's UIDocument — so a dialog overlay's choice, keyword and
-        /// farewell buttons share one size, and the Preferences Enhanced panel shares the screen's.</remarks>
+        /// <summary>
+        /// A caption wider than its button is drawn smaller until it fits — the fit policy for fixed
+        /// captions (TASK-779). A translation runs a third past English, the book font's widths are
+        /// not GAME.FNT's, and the REQ rects were drawn around the English GAME.FNT words.
+        /// </summary>
+        /// <remarks>
+        /// <b>One size per screen.</b> Every caption on the screen (the UIDocument the button is in)
+        /// takes the smallest of their fits: each shrinking on its own put four sizes on one menu.
+        /// A screen whose captions all fit keeps the game font's own size exactly, so English GAME.FNT
+        /// is untouched. Re-run on every geometry change, so a caption whose text changes later (the
+        /// touch buttons' Cast/Thrust) refits; it only writes when the size actually moves, which is
+        /// what stops the callback feeding itself.
+        ///
+        /// <para>"Screen" is the caption's UIDocument — so a dialog overlay's choice, keyword and
+        /// farewell buttons share one size, and the Preferences Enhanced panel shares the screen's.</para>
+        /// </remarks>
         // ponytail: every caption's geometry change remeasures all N captions on its screen (N² text
         // measures per layout pass); fine for menus of a few dozen buttons, cache per-caption fits
         // and refit once per frame if a screen with hundreds of captions ever appears.
