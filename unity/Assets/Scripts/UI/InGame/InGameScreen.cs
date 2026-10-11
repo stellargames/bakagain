@@ -1152,6 +1152,12 @@ namespace BakAgain.UI.InGame {
             if (!_hud.Applied) {
                 return;
             }
+            // A dialog over travel cuts a hole at the world viewport, and the full-screen HUD (and the
+            // spell plaque, which no frame art surrounds any more) would show through it: hidden while
+            // anything is open over the travel screen.
+            bool shown = _travelHost != null && _travelHost.IsInputActive;
+            _hud.SetVisible(shown);
+            _effectCaption?.SetVisible(shown);
             // ponytail: 4 Hz poll; switch to a party-stats change event if one appears.
             _ringClock -= Time.unscaledDeltaTime;
             if (_ringClock > 0f) {
@@ -1178,6 +1184,7 @@ namespace BakAgain.UI.InGame {
             }
             _rings = null;
             _hud?.Revert();
+            _effectCaption?.SetVisible(true);
         }
 
         private void RefreshCombatChrome() {

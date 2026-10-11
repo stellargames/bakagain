@@ -123,6 +123,12 @@ namespace BakAgain.UI.InGame {
             }
         }
 
+        /// <summary>Shows or hides the plaque and its symbols without dropping them.</summary>
+        public void SetVisible(bool visible) {
+            if (_plaque != null) _plaque.visible = visible;
+            if (_symbols != null) _symbols.visible = visible;
+        }
+
         /// <summary>Drops the elements this view put on the stage.</summary>
         public void Dispose() {
             _plaque?.RemoveFromHierarchy();

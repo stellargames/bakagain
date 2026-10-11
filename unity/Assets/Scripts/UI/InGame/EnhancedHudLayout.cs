@@ -118,6 +118,12 @@ namespace BakAgain.UI.InGame {
             _status = null;
         }
 
+        /// <summary>Hides the HUD without undoing it, e.g. while a dialog shows the world through its hole.</summary>
+        public void SetVisible(bool visible) {
+            // display, not visibility: the rings set their own visibility, which beats an inherited one.
+            if (_hud != null) _hud.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
         public void SetStatus(string text) {
             if (_status != null && _status.text != text) _status.text = text;
         }
