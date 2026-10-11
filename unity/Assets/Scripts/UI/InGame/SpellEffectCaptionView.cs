@@ -27,6 +27,9 @@ namespace BakAgain.UI.InGame {
         /// <remarks>Public so a screen rebuilding onto a persistent stage can drop the old one.</remarks>
         public const string PlaqueName = "BakSpellEffectCaption";
 
+        /// <summary>The row of effect runes drawn over the plaque.</summary>
+        public const string SymbolsName = PlaqueName + "Symbols";
+
         private readonly GameSession _session;
         private readonly IResourceProviderService _resources;
         private readonly ILogger _logger;
@@ -70,7 +73,7 @@ namespace BakAgain.UI.InGame {
             // The caption centres on the SCREEN, not on the plaque, so the row is a child of the
             // stage rather than of the plaque — and it is a row so the glyphs centre as one word.
             _symbols = new VisualElement {
-                name = PlaqueName + "Symbols",
+                name = SymbolsName,
                 pickingMode = PickingMode.Ignore,
                 style = {
                     position = Position.Absolute,

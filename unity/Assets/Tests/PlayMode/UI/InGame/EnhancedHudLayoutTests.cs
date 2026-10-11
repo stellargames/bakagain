@@ -72,6 +72,21 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
                 name = CompassView.WindowName,
                 style = { position = Position.Absolute, left = 720, top = 726, width = 155, height = 60 },
             });
+            // SpellEffectCaptionView's plaque and rune row, inline as it builds them.
+            stage.Add(new VisualElement {
+                name = SpellEffectCaptionView.PlaqueName,
+                style = {
+                    position = Position.Absolute, left = 640, top = 10, width = 320, height = 48,
+                    backgroundImage = Background.FromTexture2D(Texture2D.whiteTexture),
+                },
+            });
+            stage.Add(new VisualElement {
+                name = SpellEffectCaptionView.SymbolsName,
+                style = {
+                    position = Position.Absolute, left = 800, top = 20,
+                    translate = new StyleTranslate(new Translate(Length.Percent(-50f), 0)),
+                },
+            });
 
             _camGo = new GameObject("~EnhancedHudCamera");
             var fs = new FullScreenViewport(inner, () => true, () => new Vector2(Screen.width, Screen.height));
@@ -100,11 +115,22 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             StyleLength oldLeft = head.style.left;
             StyleLength oldWidth = head.style.width;
             StyleEnum<Position> compassPosition = compass.style.position;
+            VisualElement bar = _root.Q(SpellEffectCaptionView.PlaqueName);
+            VisualElement runes = _root.Q(SpellEffectCaptionView.SymbolsName);
+            VisualElement stage = bar.parent;
+            StyleBackground parchment = bar.style.backgroundImage;
+            StyleTranslate runesTranslate = runes.style.translate;
 
             var hud = new EnhancedHudLayout(_root);
             Assert.IsTrue(hud.Apply());
             yield return null;
             yield return null;
+            Assert.AreSame(compass.parent, bar.parent, "the spell bar in the top strip");
+            Assert.Less(bar.worldBound.xMax, compass.worldBound.xMin + 1f, "left of the compass");
+            Assert.AreEqual(StyleKeyword.Null, bar.style.backgroundImage.keyword, "the parchment is off");
+            Assert.Greater(bar.resolvedStyle.backgroundColor.a, 0f, "the theme's translucent bar instead");
+            Assert.Less(bar.resolvedStyle.backgroundColor.a, 1f);
+            Assert.AreSame(bar, runes.parent, "the runes ride on the bar");
             Assert.AreEqual("enhanced-hud", head.parent.parent.name, "in the HUD's portrait column");
             Assert.AreEqual(DisplayStyle.None, _root.Q("imagebutton_72").resolvedStyle.display);
             Assert.AreEqual("enhanced-hud", compass.parent.parent.name, "the compass in the top strip");
@@ -117,6 +143,10 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             Assert.AreEqual(oldLeft, head.style.left);
             Assert.AreEqual(oldWidth, head.style.width);
             Assert.AreEqual(compassPosition, compass.style.position, "the compass's inline absolute is back");
+            Assert.AreSame(stage, bar.parent);
+            Assert.AreSame(stage, runes.parent);
+            Assert.AreEqual(parchment, bar.style.backgroundImage, "the parchment is back");
+            Assert.AreEqual(runesTranslate, runes.style.translate);
             Assert.IsFalse(head.ClassListContains("enhanced-hud__portrait"));
             Assert.AreEqual(DisplayStyle.Flex, _root.Q("imagebutton_72").resolvedStyle.display);
             Assert.IsNull(_root.Q("enhanced-hud"), "the container is gone");

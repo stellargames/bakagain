@@ -21,6 +21,8 @@ namespace BakAgain.UI.InGame {
             "imagebutton_48", "imagebutton_18", "imagebutton_24" };
         private static readonly string[] Arrows = { "imagebutton_72", "imagebutton_80", "imagebutton_75", "imagebutton_77" };
         private const string Compass = CompassView.WindowName;
+        private const string SpellBar = SpellEffectCaptionView.PlaqueName;
+        private const string SpellRunes = SpellEffectCaptionView.SymbolsName;
 
         private readonly VisualElement _root;
         private readonly List<Saved> _saved = new();
@@ -33,10 +35,13 @@ namespace BakAgain.UI.InGame {
             public readonly int Index;
             public readonly StyleEnum<Position> Position;
             public readonly StyleLength Left, Top, Width, Height;
+            public readonly StyleBackground Background;
+            public readonly StyleTranslate Translate;
             public Saved(VisualElement e) {
                 Element = e; Parent = e.parent; Index = e.parent.IndexOf(e);
                 Position = e.style.position;
                 Left = e.style.left; Top = e.style.top; Width = e.style.width; Height = e.style.height;
+                Background = e.style.backgroundImage; Translate = e.style.translate;
             }
         }
 
@@ -56,6 +61,8 @@ namespace BakAgain.UI.InGame {
             var all = new List<string>(Portraits);
             all.AddRange(Buttons);
             all.Add(Compass);
+            all.Add(SpellBar);
+            all.Add(SpellRunes);
             all.AddRange(Arrows);
             foreach (string name in all) {
                 if (_root.Q(name) == null) {
@@ -82,6 +89,14 @@ namespace BakAgain.UI.InGame {
             // (inline, re-applied on every press), the compass strips are sized from the window in
             // panel px. The theme scales the button column as a whole instead.
             foreach (string n in Buttons) Move(_root.Q(n), buttons, "enhanced-hud__button", clearSize: false);
+            // The spell plaque sits left of the compass on the theme's translucent bar instead of its
+            // parchment, with the runes inside it rather than centred on the stage.
+            VisualElement bar = _root.Q(SpellBar);
+            Move(bar, top, "enhanced-hud__spellbar", clearSize: false);
+            bar.style.backgroundImage = StyleKeyword.Null;
+            VisualElement runes = _root.Q(SpellRunes);
+            Move(runes, bar, "enhanced-hud__spellrunes", clearSize: false);
+            runes.style.translate = StyleKeyword.Null;
             Move(_root.Q(Compass), top, "enhanced-hud__compass", clearSize: false);
             top.Add(_status);
             foreach (string n in Arrows) _root.Q(n).style.display = DisplayStyle.None;
@@ -103,10 +118,13 @@ namespace BakAgain.UI.InGame {
                 s.Element.RemoveFromClassList("enhanced-hud__portrait");
                 s.Element.RemoveFromClassList("enhanced-hud__button");
                 s.Element.RemoveFromClassList("enhanced-hud__compass");
+                s.Element.RemoveFromClassList("enhanced-hud__spellbar");
+                s.Element.RemoveFromClassList("enhanced-hud__spellrunes");
                 s.Parent.Insert(Mathf.Min(s.Index, s.Parent.childCount), s.Element);
                 s.Element.style.position = s.Position;
                 s.Element.style.left = s.Left; s.Element.style.top = s.Top;
                 s.Element.style.width = s.Width; s.Element.style.height = s.Height;
+                s.Element.style.backgroundImage = s.Background; s.Element.style.translate = s.Translate;
             }
             _saved.Clear();
             foreach (string n in Arrows) {
