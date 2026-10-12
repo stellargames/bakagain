@@ -47,10 +47,17 @@ namespace BakAgain.Book {
         private CurlSheet _front;
         private CurlSheet _back;
         private CurlSheet _shadow;
+        private CurlSheet _crease;
         private Texture2D _shot;
         private Rect _stage;
         private bool _spineLeft;
         private Rect _facingUv;
+        // Where the sheet comes to rest, so it lands exactly on what is drawn there: the facing page
+        // sits this much lower (DIALOG.SCX's drop), under the binding's shade.
+        private float _facingDrop;
+        private Rect _creaseRect;
+        private float _creaseOpacity;
+        private static readonly Vector3[] Corners = new Vector3[4];
         private SpineSide _spine;
 
         /// <summary>The one turn, made on first use and kept across scenes.</summary>
@@ -118,6 +125,16 @@ namespace BakAgain.Book {
             Build();
             _back.Texture = backdrop.FacingImage.texture;
             _facingUv = backdrop.FacingImage.uvRect;
+            _facingDrop = ScreenRect(backdrop.FacingPage).yMin - _stage.yMin;
+            var shade = backdrop.Shade.GetComponent<RawImage>();
+            _creaseRect = ScreenRect(backdrop.Shade);
+            _creaseOpacity = shade.enabled && shade.texture != null ? shade.color.a : 0;
+            _crease.Texture = shade.texture;
+            if (shade.texture != null) {
+                shade.texture.wrapMode = TextureWrapMode.Clamp;   // clear beyond the band, not its edge smeared
+            }
+            _crease.V0 = (_stage.yMin + _facingDrop - _creaseRect.yMin) / _creaseRect.height;
+            _crease.V1 = _crease.V0 + _stage.height / _creaseRect.height;
             ReleaseShot();
             // Read back now, at this frame's end: the render-texture grab is deferred, and by the time
             // it runs the next page is already drawn. ponytail: one CPU read-back per turn (~8 MB at
@@ -133,6 +150,7 @@ namespace BakAgain.Book {
             _front.Columns.Clear();
             _back.Columns.Clear();
             _shadow.Columns.Clear();
+            _crease.Columns.Clear();
             _canvas.enabled = true;
             return true;
         }
@@ -189,6 +207,7 @@ namespace BakAgain.Book {
             float dir = _spineLeft ? 1 : -1;
             _front.Columns.Clear();
             _back.Columns.Clear();
+            _crease.Columns.Clear();
             float x = 0, z = 0;
             for (int i = 0; i <= Segments; i++) {
                 float s = i * step;
@@ -202,17 +221,23 @@ namespace BakAgain.Book {
                 float angle = Angle(turn, lead, s, width);
                 float grow = 1 + Lift * z / width;
                 float screenX = spineX + dir * x;
-                float bottom = _stage.center.y - _stage.height / 2 * grow;
-                float top = _stage.center.y + _stage.height / 2 * grow;
+                // 0 lying on the page, 1 lying on the facing side: settles to the facing page's height.
+                float over = (1 - Mathf.Cos(angle)) / 2;
+                float centre = _stage.center.y + _facingDrop * over;
+                float bottom = centre - _stage.height / 2 * grow;
+                float top = centre + _stage.height / 2 * grow;
                 float shade = Mathf.Lerp(EdgeOnShade, 1, Mathf.Abs(Mathf.Cos(angle)));
                 float frontU = (spineX + dir * s) / Screen.width;
                 float facingLocal = _spineLeft ? 1 - s / width : s / width;
                 float backU = _facingUv.x + facingLocal * _facingUv.width;
                 _front.Columns.Add((screenX, bottom, top, frontU, shade, frontUp));
                 _back.Columns.Add((screenX, bottom, top, backU, shade, !frontUp));
+                float creaseU = (spineX - dir * s - _creaseRect.xMin) / _creaseRect.width;
+                _crease.Columns.Add((screenX, bottom, top, creaseU, _creaseOpacity * over, !frontUp));
             }
             _front.SetVerticesDirty();
             _back.SetVerticesDirty();
+            _crease.SetVerticesDirty();
 
             // Beyond the sheet's reach on the page side, fading out, strongest while the sheet stands highest.
             float reach = 0;
@@ -257,6 +282,9 @@ namespace BakAgain.Book {
             _shadow.Shadow = true;
             _front = NewSheet("Front");
             _back = NewSheet("Back");
+            // The binding's shade on the back as it settles: under our canvas, it would show only once the sheet is gone.
+            _crease = NewSheet("Crease");
+            _crease.Shadow = true;
         }
 
         private CurlSheet NewSheet(string name) {
@@ -268,6 +296,11 @@ namespace BakAgain.Book {
             rect.anchorMin = rect.anchorMax = rect.pivot = Vector2.zero;   // local space = screen pixels
             rect.anchoredPosition = Vector2.zero;
             return sheet;
+        }
+
+        private static Rect ScreenRect(RectTransform rect) {
+            rect.GetWorldCorners(Corners);
+            return Rect.MinMaxRect(Corners[0].x, Corners[0].y, Corners[2].x, Corners[2].y);
         }
 
         private void ReleaseShot() {
