@@ -298,9 +298,8 @@
 .enhanced-hud .enhanced-hud__portrait { position: relative; height: 30.7%; }
 .enhanced-hud .enhanced-hud__button { position: relative; }
 .enhanced-hud .enhanced-hud__compass { position: relative; }
-/* The spell plaque without its parchment: a translucent tan in its place. The runes are red with
-   black outlines, which a dark bar swallowed. */
-.enhanced-hud .enhanced-hud__spellbar { position: relative; margin-right: 10px; border-radius: 3px; background-color: rgba(190, 160, 110, 0.55); flex-direction: row; justify-content: center; align-items: center; }
+/* The spell plaque without its parchment, on the status line's dark bar (owner, 2026-10-12). */
+.enhanced-hud .enhanced-hud__spellbar { position: relative; margin-right: 10px; border-radius: 3px; background-color: rgba(0, 0, 0, 0.6); flex-direction: row; justify-content: center; align-items: center; }
 .enhanced-hud .enhanced-hud__spellrunes { position: relative; }
 .enhanced-hud .enhanced-hud__status { margin-left: 10px; padding: 3px 9px; border-radius: 3px; background-color: rgba(0, 0, 0, 0.6); color: rgb(232, 216, 176); -unity-font-style: bold; white-space: nowrap; }
 .enhanced-hud__ring { position: absolute; left: -6%; top: -6%; right: -6%; bottom: -6%; }

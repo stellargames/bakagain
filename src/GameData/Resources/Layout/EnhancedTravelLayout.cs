@@ -13,6 +13,9 @@ public sealed class EnhancedTravelLayout
     /// <summary>Look rotation per screen pixel (<c>IPointer.Delta</c>) of drag.</summary>
     public float DegreesPerPixel { get; set; } = 0.25f;
 
+    /// <summary>Pitch's share of <see cref="DegreesPerPixel"/>: looking up and down is slower than turning.</summary>
+    public float PitchFraction { get; set; } = 0.5f;
+
     /// <summary>How far mouse/touch look may pitch the camera either way.</summary>
     public float PitchLimitDegrees { get; set; } = 30f;
 

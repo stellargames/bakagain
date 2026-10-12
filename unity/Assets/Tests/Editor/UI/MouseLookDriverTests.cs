@@ -90,5 +90,13 @@ namespace BakAgain.Tests.Editor.UI {
             Vector2 look = _d.Tick(true, World);
             Assert.Greater(Mathf.Abs(look.y), 0f);
         }
+
+        [Test]
+        public void LookingUpAndDownIsSlowerThanTurning() {
+            Frame(true, Vector2.zero, pressed: true);
+            Frame(true, new Vector2(20, 0));
+            Vector2 look = Frame(true, new Vector2(10, 10));
+            Assert.Less(Mathf.Abs(look.y), Mathf.Abs(look.x));
+        }
     }
 }

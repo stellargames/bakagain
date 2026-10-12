@@ -68,7 +68,7 @@ namespace BakAgain.UI.InGame {
                 }
                 Dragging = true;
             }
-            return d * _layout.DegreesPerPixel;
+            return new Vector2(d.x, d.y * _layout.PitchFraction) * _layout.DegreesPerPixel;
         }
     }
 }
