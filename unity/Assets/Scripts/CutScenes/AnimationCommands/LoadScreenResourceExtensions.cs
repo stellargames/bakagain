@@ -24,6 +24,8 @@ namespace BakAgain.CutScenes.AnimationCommands {
 
                 Drawing.DrawImage(backgroundImage, 0, 0, Orientation.Normal, Vector2.one, cutsceneState);
                 cutsceneState.CopyBuffer(cutsceneState.CurrentDrawBufferIndex, cutsceneState.BackgroundBufferIndex);
+                // A parchment screen (CHAPTER.SCR) gets the open book around it; a picture clears it.
+                BakAgain.UI.BookSpreadBackdrop.Show(cutsceneState.ContainerImage.Graphic, backgroundImage);
             };
         }
     }

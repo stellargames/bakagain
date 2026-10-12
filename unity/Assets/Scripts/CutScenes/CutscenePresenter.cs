@@ -404,6 +404,7 @@ namespace BakAgain.CutScenes {
             BakAgain.Graphics.Drawing.DrawImage(image, 0, 0, BakAgain.Graphics.Orientation.Normal,
                 UnityEngine.Vector2.one, cutsceneState);
             cutsceneState.CopyBuffer(cutsceneState.CurrentDrawBufferIndex, cutsceneState.BackgroundBufferIndex);
+            BakAgain.UI.BookSpreadBackdrop.Show(cutsceneState.ContainerImage.Graphic, image);
         }
 
         private async UniTask<Cutscene> LoadCutsceneResource(string cutSceneName) {

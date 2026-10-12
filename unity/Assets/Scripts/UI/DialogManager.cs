@@ -257,6 +257,15 @@ namespace BakAgain.UI {
         /// <para><b>Failure is silent and harmless.</b> A missing image means the dialog draws as it
         /// did before rather than not at all.</para>
         /// </remarks>
+        // The full-screen parchment the open book is drawn around; taken down with the panel.
+        private VisualElement _bookSpreadPage;
+
+        // Only a parchment that covers the stage is a page; one with the world cut through it is a frame.
+        private void ShowBookSpread(VisualElement backdrop, Sprite parchment) {
+            _bookSpreadPage = backdrop;
+            BookSpreadBackdrop.Show(backdrop, parchment.texture);
+        }
+
         private async UniTask AddFullScreenBackdropAsync(VisualElement stage, DialogEntry entry,
             Color[] palette) {
             if (stage == null || !DialogBackdrop.DrawsFullScreenBackdrop(entry)) {
@@ -285,6 +294,7 @@ namespace BakAgain.UI {
                 || frame.Width <= 0 || frame.Height <= 0) {
                 AddBackdropWindow(backdrop, parchment, 0, 0, Length.Percent(100), Length.Percent(100),
                     0, 0, Length.Percent(100), Length.Percent(100));
+                ShowBookSpread(backdrop, parchment);
                 return;
             }
 
@@ -299,6 +309,7 @@ namespace BakAgain.UI {
             Rect? hole = DialogBackdrop.RedrawsWorldViewport(entry.Flags) ? WorldViewportHole() : null;
             if (hole == null) {
                 AddBackdropWindow(backdrop, parchment, 0, 0, w, h, 0, 0, w, h);
+                ShowBookSpread(backdrop, parchment);
                 return;
             }
 
@@ -692,6 +703,10 @@ namespace BakAgain.UI {
         private void RemovePanel(BakAgain.UI.InputCore.IInputLayer mine) {
             RestoreCameraIfTurned();
             RemoveSpeakerFace();
+            if (_bookSpreadPage != null) {
+                BookSpreadBackdrop.Hide(_bookSpreadPage);
+                _bookSpreadPage = null;
+            }
             if (_activePanel != null) {
                 _activePanel.RemoveFromHierarchy();
                 _activePanel = null;

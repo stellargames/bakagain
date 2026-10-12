@@ -103,9 +103,17 @@ namespace BakAgain.UI {
             if (_table.texture != null) {
                 _table.texture.wrapMode = TextureWrapMode.Mirror;   // alternate copies mirrored: no seam
             }
-            // The plain parchment every dialog is drawn on, mirrored or not, is the facing page: no page art is shipped.
-            Sprite facing = Addressables.LoadAssetAsync<Sprite>(GameData.Resources.Dialog.DialogBackdrop.Resource).WaitForCompletion();
-            _facing = NewImage(_back, facing != null ? facing.texture : null);
+            // The plain parchment every dialog is drawn on is the facing page: no page art is shipped.
+            // Loaded asynchronously: Show is called from inside other loads' callbacks, where
+            // WaitForCompletion throws ("Reentering the Update method is not allowed").
+            _facing = NewImage(_back, null);
+            Addressables.LoadAssetAsync<Sprite>(GameData.Resources.Dialog.DialogBackdrop.Resource).Completed += loaded => {
+                if (this == null || loaded.Result == null) {
+                    return;
+                }
+                _facing.texture = loaded.Result.texture;
+                _placed = default;   // re-place: the mirroring depends on the page
+            };
             _front = NewCanvas("Front", FrontSortingOrder);
             _shade = NewImage(_front, Resources.Load<Texture2D>("BookSpread/crease"));
             _back.enabled = _front.enabled = false;

@@ -64,6 +64,14 @@ namespace BakAgain.Tests.PlayMode.UI {
             return image;
         }
 
+        // DIALOG.SCX arrives asynchronously; the facing page is drawn once it has.
+        private static IEnumerator FacingPageLoaded() {
+            for (int f = 0; f < 300 && !BookSpreadBackdrop.Instance.FacingPage.GetComponent<RawImage>().enabled; f++) {
+                yield return null;
+            }
+            yield return null;
+        }
+
         private static Rect ScreenRect(RectTransform rect) {
             var corners = new Vector3[4];
             rect.GetWorldCorners(corners);
@@ -74,7 +82,7 @@ namespace BakAgain.Tests.PlayMode.UI {
         public IEnumerator ALeftBoundPage_HasTheFacingPageAndShadeOnItsLeft() {
             RawImage surface = Surface();
             BookSpreadBackdrop.Show(surface, Page(leftStraight: true, rightStraight: false));
-            yield return null;
+            yield return FacingPageLoaded();
 
             BookSpreadBackdrop b = BookSpreadBackdrop.Instance;
             Rect stage = ScreenRect(surface.rectTransform);
@@ -95,7 +103,7 @@ namespace BakAgain.Tests.PlayMode.UI {
         public IEnumerator ARightBoundPage_HasThemOnItsRight() {
             RawImage surface = Surface();
             BookSpreadBackdrop.Show(surface, Page(leftStraight: false, rightStraight: true));
-            yield return null;
+            yield return FacingPageLoaded();
 
             BookSpreadBackdrop b = BookSpreadBackdrop.Instance;
             Rect stage = ScreenRect(surface.rectTransform);
@@ -202,6 +210,29 @@ namespace BakAgain.Tests.PlayMode.UI {
                 BookSpreadBackdrop.Show(stage, Page(leftStraight: true, rightStraight: false));
                 Assert.IsFalse(BookSpreadBackdrop.Instance.Drawn, "Show itself draws nothing before layout");
                 yield return null;
+            } finally {
+                Object.DestroyImmediate(settings);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator TheMainMenusBackground_ShowsTheBook_UntilTheScreenCloses() {
+            _host = new GameObject("MenuHost");
+            _host.SetActive(false);
+            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            try {
+                _host.AddComponent<UIDocument>().panelSettings = settings;
+                _host.AddComponent<BakAgain.ResourceManagement.Loaders.BackgroundImageLoader>();   // OPTIONS0.SCX by default
+                _host.SetActive(true);
+                for (int f = 0; f < 300 && !(BookSpreadBackdrop.Exists && BookSpreadBackdrop.Instance.Drawn); f++) {
+                    yield return null;
+                }
+                Assert.IsTrue(BookSpreadBackdrop.Exists, "the menu asked for the book");
+                Assert.AreEqual(SpineSide.Left, BookSpreadBackdrop.Instance.Spine, "OPTIONS0.SCX is straight on the left");
+
+                _host.SetActive(false);   // what the navigator does on Pop
+                yield return null;
+                Assert.IsFalse(BookSpreadBackdrop.Instance.Drawn);
             } finally {
                 Object.DestroyImmediate(settings);
             }

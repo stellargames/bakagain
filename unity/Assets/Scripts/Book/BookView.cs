@@ -58,6 +58,8 @@ namespace BakAgain.Book {
             backgroundImage.texture = background.texture;
             _backgroundWidth = background.texture.width;
             _backgroundHeight = background.texture.height;
+            // Per page: the even and odd parchments are bound on opposite sides.
+            BookSpreadBackdrop.Show(backgroundImage, background.texture);
         }
 
         // Pillar/letter-boxes the page to the background's aspect inside the canvas and sizes both the

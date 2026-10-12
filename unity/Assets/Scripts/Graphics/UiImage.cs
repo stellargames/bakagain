@@ -21,6 +21,9 @@ namespace BakAgain.Graphics {
             SupportsFading = true;
         }
 
+        /// <summary>The uGUI image this wraps; null when it wraps a UI Toolkit image.</summary>
+        public Graphic Graphic => _rawImage;
+
         [CanBeNull]
         public Texture2D Texture => _rawImage?.texture as Texture2D ?? _image?.image as Texture2D;
 

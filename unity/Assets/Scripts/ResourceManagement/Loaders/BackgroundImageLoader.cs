@@ -55,6 +55,8 @@ namespace BakAgain.ResourceManagement.Loaders {
                 // sprite size in the top-left corner.
                 stage.style.backgroundSize =
                     new BackgroundSize(Length.Percent(100), Length.Percent(100));
+                // The open book around the page, for as long as this stage is on screen.
+                BookSpreadBackdrop.Show(stage, operationHandle.Result.texture);
             };
         }
 

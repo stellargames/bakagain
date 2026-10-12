@@ -435,6 +435,7 @@ namespace BakAgain.UI {
                 if (background != null) {
                     stage.style.backgroundImage = Background.FromSprite(background);
                     stage.style.backgroundSize = new BackgroundSize(Length.Percent(100), Length.Percent(100));
+                    BookSpreadBackdrop.Show(stage, background.texture);
                 }
             } catch (Exception e) {
                 _logger.LogError(e, "Failed to load credits background {Key}.", BackgroundKey);
