@@ -39,6 +39,8 @@ namespace BakAgain.Book {
 
         // How long the next screen gets to draw its page before the turn gives up and cuts.
         private const float NextPageTimeout = 1f;
+        // A book loads its pictures before it draws its first page.
+        private const float BookPageTimeout = 3f;
         // How long a new page that is not where the grabbed one was gets to lay out before the turn
         // gives up (a book's first frame spans the whole canvas).
         private const float SettleSeconds = 0.2f;
@@ -174,6 +176,10 @@ namespace BakAgain.Book {
             // An sRGB texture: the screen holds sRGB values, which a linear texture would show too light.
             _shot = new Texture2D(Screen.width, Screen.height, TextureFormat.RGBA32, mipChain: false, linear: false);
             _shot.ReadPixels(new Rect(0, 0, Screen.width, Screen.height), 0, 0, recalculateMipMaps: false);
+            if (IsBlack(_shot, _stage)) {
+                ReleaseShot();   // a page already blacked out (a scene's last frame): nothing to turn
+                return false;
+            }
             _shot.Apply(false);
             _front.Texture = _shot;
             (_front.V0, _front.V1) = (_stage.yMin / Screen.height, _stage.yMax / Screen.height);
@@ -211,7 +217,7 @@ namespace BakAgain.Book {
         }
 
         private async UniTaskVoid TurnOntoNextPageAsync(object outgoing) {
-            if (await NextPageAsync(outgoing)) {
+            if (await NextPageAsync(outgoing, BookPageTimeout)) {
                 await PlayAsync(() => false);
             } else {
                 Abandon();
@@ -365,10 +371,10 @@ namespace BakAgain.Book {
 
         // The next screen has drawn its page, bound like the grabbed one and in the same place.
         // A new page gets SettleSeconds to lay out.
-        private async UniTask<bool> NextPageAsync(object outgoing) {
+        private async UniTask<bool> NextPageAsync(object outgoing, float timeout = NextPageTimeout) {
             var waited = new Settling();
             var elsewhere = new Settling();
-            while (!waited.GaveUp(NextPageTimeout)) {
+            while (!waited.GaveUp(timeout)) {
                 await UniTask.Yield();
                 if (LandsOnPage(outgoing)) {
                     return true;
@@ -524,6 +530,21 @@ namespace BakAgain.Book {
             }
             _crease.V0 = (_stage.yMin + _facingDrop - _creaseRect.yMin) / _creaseRect.height;
             _crease.V1 = _crease.V0 + _stage.height / _creaseRect.height;
+        }
+
+        // Every sample of the page area near black: the page is gone already.
+        private static bool IsBlack(Texture2D shot, Rect stage) {
+            const int columns = 8, rows = 6;
+            for (int y = 1; y < rows; y++) {
+                for (int x = 1; x < columns; x++) {
+                    Color c = shot.GetPixel((int)(stage.xMin + stage.width * x / columns),
+                        (int)(stage.yMin + stage.height * y / rows));
+                    if (c.r + c.g + c.b > 0.15f) {
+                        return false;
+                    }
+                }
+            }
+            return true;
         }
 
         private static Rect ScreenRect(RectTransform rect) {
