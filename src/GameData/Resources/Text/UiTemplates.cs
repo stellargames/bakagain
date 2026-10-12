@@ -87,6 +87,7 @@ public static class UiTemplates {
     public const string EnhancedFeatureMouseLook = "port:template:enhanced_feature_mouse_look";
     public const string EnhancedFeatureRings = "port:template:enhanced_feature_rings";
     public const string EnhancedFeatureBookFont = "port:template:enhanced_feature_book_font";
+    public const string EnhancedFeaturePageTurn = "port:template:enhanced_feature_page_turn";
 
     /// <summary>An Enhanced caption whose choice waits for the next start (the font is bound at
     /// start): "<c>{text}</c> (restart)", as <see cref="LanguageChoicePendingKey"/>.</summary>
@@ -147,6 +148,7 @@ public static class UiTemplates {
         (EnhancedFeatureMouseLook, _ => "Mouse and touch look"),
         (EnhancedFeatureRings, _ => "Health rings"),
         (EnhancedFeatureBookFont, _ => "Book font"),
+        (EnhancedFeaturePageTurn, _ => "Turning pages"),
         (EnhancedPendingKey, _ => "{text} (restart)"),
         (EnhancedDone, _ => "Done"),
         (EnhancedStatusKey, _ => "Day {day} · {hour}:00"),

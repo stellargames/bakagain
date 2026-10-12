@@ -106,6 +106,7 @@ namespace BakAgain.UI {
 
         internal bool Drawn => _back.enabled;
         internal RectTransform FacingPage => _facing.rectTransform;
+        internal RawImage FacingImage => _facing;
         internal RectTransform Shade => _shade.rectTransform;
 
         private static void ShowCore(object surface, Texture2D page, Texture2D facing = null) {

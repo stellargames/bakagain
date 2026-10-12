@@ -388,6 +388,22 @@ namespace BakAgain.Book {
             return (paragraphIndex, 0);
         }
 
+        /// <summary>
+        /// Enhanced: grabs the page on screen, lets <paramref name="showNext"/> draw the next one beneath
+        /// it, then turns the grabbed page over (<see cref="BookPageCurl"/>). Cuts when nothing is drawn
+        /// around the page to turn it over.
+        /// </summary>
+        public async Cysharp.Threading.Tasks.UniTask TurnPageAsync(System.Action showNext, System.Func<bool> skip) {
+            if (!TryGetComponent(out BookPageCurl curl)) {
+                curl = gameObject.AddComponent<BookPageCurl>();
+            }
+            bool captured = await curl.CaptureAsync(backgroundImage);
+            showNext();
+            if (captured) {
+                await curl.PlayAsync(skip);
+            }
+        }
+
         public void Show() => bookCanvas.enabled = true;
         public void Hide() {
             ClearPage();

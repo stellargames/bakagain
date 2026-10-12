@@ -46,6 +46,7 @@ namespace BakAgain.Book {
 
         public async UniTask<bool> ShowBookAsync(string bokFileName) {
             _cancelled = false;
+            _navResult = null;
 
             // 1. Load book resource
             _logger.LogInformation("Loading book {FileName}.", bokFileName);
@@ -126,6 +127,7 @@ namespace BakAgain.Book {
             // History stack for backward navigation (stores state *before* the current page)
             var history = new List<(Page page, int paragraphIndex, int lineOffset)>();
 
+            bool turnOver = false;   // a forward step in Enhanced: curl the page instead of cutting
             while (currentPage != null && !_cancelled) {
                 _logger.LogInformation("Showing page {PageNumber} (paragraph {Index}/{Total}, line {LineOffset}).",
                     currentPage.PageNumber, paragraphIndex, allParagraphs.Count, lineOffset);
@@ -136,15 +138,24 @@ namespace BakAgain.Book {
                 string backgroundId = currentPage.PageNumber % 2 == 0 ? BookEvenBackground : BookOddBackground;
                 var background = await _resourceCache.GetOrLoadAsync<Sprite>(backgroundId)
                                  ?? await _resourceCache.GetOrLoadAsync<Sprite>("BOOK.SCX");
-                if (background != null) {
-                    _view.SetBackground(background);
-                }
-
                 await StartPageMusicAsync(currentPage);
 
                 // Render page: layout from currentPage, text from allParagraphs[paragraphIndex..]
-                var (nextParagraphIndex, nextLineOffset) = _view.ShowPage(
-                    currentPage, sprites, colors, allParagraphs, paragraphIndex, lineOffset);
+                int nextParagraphIndex = 0, nextLineOffset = 0;
+                void Render() {
+                    if (background != null) {
+                        _view.SetBackground(background);
+                    }
+                    (nextParagraphIndex, nextLineOffset) = _view.ShowPage(
+                        currentPage, sprites, colors, allParagraphs, paragraphIndex, lineOffset);
+                }
+                if (turnOver) {
+                    // A key during the turn ends it, and stays pending as the next page command.
+                    await _view.TurnPageAsync(Render, () => _navResult != null || _cancelled);
+                } else {
+                    Render();
+                }
+                turnOver = false;
 
                 // Wait for input
                 var nav = await WaitForNav();
@@ -164,6 +175,7 @@ namespace BakAgain.Book {
                 }
 
                 // Forward: save current state to history before advancing
+                turnOver = BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.PageTurn);
                 history.Add((currentPage, paragraphIndex, lineOffset));
                 paragraphIndex = nextParagraphIndex;
                 lineOffset = nextLineOffset;
@@ -227,12 +239,14 @@ namespace BakAgain.Book {
 
         // Wait for the page-nav layer to set a result (Activate/Cancel/MoveFocus → _navResult), or for
         // an external Cancel(). The layer is the sole input source — no device poll here.
+        // A result set while a page was turning is still pending here, so it is taken at once.
         private async UniTask<PageNavigation> WaitForNav() {
-            _navResult = null;
             while (!_cancelled && _navResult == null) {
                 await UniTask.Yield();
             }
-            return _cancelled ? PageNavigation.Cancel : _navResult!.Value;
+            PageNavigation nav = _cancelled ? PageNavigation.Cancel : _navResult!.Value;
+            _navResult = null;
+            return nav;
         }
     }
 }
