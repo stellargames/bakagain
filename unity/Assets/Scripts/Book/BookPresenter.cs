@@ -113,6 +113,7 @@ namespace BakAgain.Book {
             _stack.Push(pageLayer);
             // No pointer while a book is open: bookview_show hides it once each page is presented
             // (BOOKVIEW.C:193). Over the page our book canvas covered it anyway; in the pillars it showed.
+            bool cursorWasHidden = _cursor.IsHidden;
             _cursor.Hide();
             try {
 
@@ -191,7 +192,9 @@ namespace BakAgain.Book {
             return completed;
             } finally {
                 _stack.Remove(pageLayer);
-                _cursor.Show();
+                if (!cursorWasHidden) {
+                    _cursor.Show();
+                }
             }
         }
 

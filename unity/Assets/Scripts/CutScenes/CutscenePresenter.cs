@@ -13,6 +13,7 @@ namespace BakAgain.CutScenes {
         private readonly IResourceCache _resourceCache;
         private readonly ICutscenePlayerFactory _playerFactory;
         private readonly BakAgain.Core.GameSession _session;
+        private readonly BakAgain.UI.Cursor.ICursorManager _cursor;
         private CutscenePlayer _currentPlayer;
         private CutsceneState _currentState;
 
@@ -30,7 +31,9 @@ namespace BakAgain.CutScenes {
         }
 
         public CutscenePresenter(ILogger<CutscenePresenter> logger, IResourceCache resourceCache,
-            ICutscenePlayerFactory playerFactory, BakAgain.Core.GameSession session) {
+            ICutscenePlayerFactory playerFactory, BakAgain.Core.GameSession session,
+            BakAgain.UI.Cursor.ICursorManager cursor) {
+            _cursor = cursor;
             _logger = logger;
             _resourceCache = resourceCache;
             _playerFactory = playerFactory;
@@ -212,6 +215,13 @@ namespace BakAgain.CutScenes {
             if (session == null) {
                 return false;
             }
+            // No pointer over a played cutscene: the original draws it only while g_cursor_hidden
+            // (misnamed: non-zero = drawn, SCREEN.C:280) is set, and a cutscene's dialog steps clear
+            // it around their text (TTMDLG.C:106-123). Not the tag player: a location keeps its
+            // hotspots under the pointer.
+            bool cursorWasHidden = _cursor == null || _cursor.IsHidden;
+            _cursor?.Hide();
+            try {
 
             // Named locals over the session so the playback bodies below read exactly as they did
             // when each entry point owned its own setup — the duplication was in the setup, and only
@@ -274,6 +284,11 @@ namespace BakAgain.CutScenes {
 
                 view.Hide();
                 return true;
+            }
+            } finally {
+                if (!cursorWasHidden) {
+                    _cursor.Show();
+                }
             }
         }
 

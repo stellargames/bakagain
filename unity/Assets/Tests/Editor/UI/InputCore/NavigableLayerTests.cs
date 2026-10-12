@@ -33,6 +33,7 @@ namespace BakAgain.Tests.Editor.UI.InputCore {
             public void Set(GameData.Resources.Cursor.GameCursor cursor) { }
             public void Hide() { }
             public void Show() { }
+            public bool IsHidden => false;
         }
 
         [Test]

@@ -73,7 +73,7 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
 
         private static CutscenePresenter PresenterThatCannotLoad() =>
             new CutscenePresenter(NullLogger<CutscenePresenter>.Instance, new EmptyCache(),
-                new NoPlayerExpected(), null);
+                new NoPlayerExpected(), null, null);
 
         /// <summary>A cache with just enough for the load and the palette to succeed.</summary>
         /// <remarks>
@@ -159,7 +159,7 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
         public IEnumerator AThrowDuringSetupLeavesNoCurrentPlayerBehind() =>
             UniTask.ToCoroutine(async () => {
                 var presenter = new CutscenePresenter(NullLogger<CutscenePresenter>.Instance,
-                    new LoadableCache(), new ThrowingFactory(), null);
+                    new LoadableCache(), new ThrowingFactory(), null, null);
                 var view = new CanvasView();
                 try {
                     InvalidOperationException raised = null;

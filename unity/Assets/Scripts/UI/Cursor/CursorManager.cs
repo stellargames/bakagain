@@ -77,6 +77,8 @@ namespace BakAgain.UI.Cursor {
             SetByIndex(row.index);
         }
 
+        public bool IsHidden => _hidden;
+
         public void Hide() {
             _hidden = true;
             if (_cursorElement != null) _cursorElement.style.display = DisplayStyle.None;

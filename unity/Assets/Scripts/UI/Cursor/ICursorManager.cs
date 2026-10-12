@@ -23,6 +23,10 @@ namespace BakAgain.UI.Cursor {
         void Hide();
         void Show();
 
+        /// <summary>Whether <see cref="Hide"/> is in force — so a screen that hides the cursor inside
+        /// another that already did (a book in a chapter cutscene) restores it as it found it.</summary>
+        bool IsHidden { get; }
+
         /// <summary>Keyboard menu navigation: warp the cursor to the focused widget centre (canonical px).
         /// Any subsequent real pointer movement reclaims ownership.</summary>
         void WarpTo(Vector2 canonicalPosition);

@@ -32,6 +32,7 @@ namespace BakAgain.Tests.PlayMode.UI {
             public void Set(GameCursor cursor) { }
             public void Hide() { }
             public void Show() { }
+            public bool IsHidden => false;
             public void WarpTo(Vector2 canonicalPosition) { }
             public Vector2 CanonicalPosition => Vector2.zero;
         }
