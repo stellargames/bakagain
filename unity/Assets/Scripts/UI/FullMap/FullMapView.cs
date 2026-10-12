@@ -413,6 +413,9 @@ namespace BakAgain.UI.FullMap {
                 if (_backgroundFitter != null && _backgroundSprite != null && _backgroundSprite.rect.height > 0f) {
                     _backgroundFitter.aspectRatio = _backgroundSprite.rect.width / _backgroundSprite.rect.height;
                 }
+                // The map lies on the table, not on black (not in the original, which filled the screen).
+                BookSpreadBackdrop.ShowSheet(backgroundImage);
+                _letterboxBacking.enabled = false;
             }
 
             if (partyIcon != null) {

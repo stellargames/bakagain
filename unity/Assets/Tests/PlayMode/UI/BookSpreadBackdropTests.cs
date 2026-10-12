@@ -99,6 +99,31 @@ namespace BakAgain.Tests.PlayMode.UI {
             Assert.AreEqual(_layout.ShadeWidth * stage.height, shade.width, 0.5f);
         }
 
+        // The full map is a loose sheet on the table (owner, 2026-10-12): the table and the sheet's
+        // shadow, no facing page, no binding, and no spine for a page turn to find.
+        [UnityTest]
+        public IEnumerator ASheet_LiesOnTheTableWithItsShadowAndNoBook() {
+            RawImage surface = Surface();
+            BookSpreadBackdrop.ShowSheet(surface);
+            yield return null;
+
+            BookSpreadBackdrop b = BookSpreadBackdrop.Instance;
+            Rect stage = ScreenRect(surface.rectTransform);
+            Rect shadow = ScreenRect(b.SheetShadow.rectTransform);
+            Assert.IsTrue(b.Drawn, "the table is drawn");
+            Assert.AreEqual(SpineSide.NotAPage, b.Spine, "not a page: nothing turns it");
+            Assert.IsTrue(b.SheetShadow.enabled);
+            Assert.IsFalse(b.FacingPage.GetComponent<RawImage>().enabled, "no facing page");
+            Assert.IsFalse(b.Shade.GetComponentInParent<Canvas>().enabled, "no binding");
+            float reach = _layout.SheetShadowWidth * stage.height;
+            Assert.AreEqual(stage.xMin - reach, shadow.xMin, 0.5f, "the shadow reaches past the sheet");
+            Assert.Less(shadow.yMin, stage.yMin - reach, "and falls a little below it");
+
+            surface.enabled = false;
+            yield return null;
+            Assert.IsFalse(b.Drawn, "and goes with the sheet");
+        }
+
         // The book's facing page is its own parchment, mirrored and level, so top and bottom line up
         // (owner, 2026-10-12): DIALOG.SCX's tears sit 12-18 px in from the edge, the book's at 0-9.
         [UnityTest]

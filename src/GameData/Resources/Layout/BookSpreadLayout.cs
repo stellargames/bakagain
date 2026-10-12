@@ -16,4 +16,13 @@ public sealed class BookSpreadLayout
 
     /// <summary>The shade's strength: 0 is none, 1 is the crease map as drawn.</summary>
     public float ShadeOpacity { get; set; } = 0.85f;
+
+    /// <summary>How far the shadow of a loose sheet on the table (the full map) reaches past its edges.</summary>
+    public float SheetShadowWidth { get; set; } = 0.03f;
+
+    /// <summary>How far that shadow sits below the sheet, as if lit from above and behind.</summary>
+    public float SheetShadowDrop { get; set; } = 0.008f;
+
+    /// <summary>The sheet shadow's strength at the sheet's edge.</summary>
+    public float SheetShadowOpacity { get; set; } = 0.6f;
 }

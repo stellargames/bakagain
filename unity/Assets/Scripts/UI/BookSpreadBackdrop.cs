@@ -47,8 +47,24 @@ namespace BakAgain.UI {
         private RawImage _table;
         private RawImage _facing;
         private RawImage _shade;
+        private RawImage _sheetShadow;
+        private Vector2Int _sheetShadowSize;
         private Texture2D _dialogPage;
         private (Rect Stage, Texture2D Page, Texture2D Facing, int Width, int Height) _placed;
+
+        /// <summary>
+        /// A loose sheet lying on the table, not a page in a book (the full map): the table around it
+        /// and its shadow, no facing page, no binding. Never turned like a page.
+        /// </summary>
+        public static void ShowSheet(Graphic surface) {
+            if (surface == null) {
+                return;
+            }
+            BookSpreadBackdrop backdrop = Instance;
+            backdrop._shown.RemoveAll(e => e.Surface == (object)surface);
+            backdrop._shown.Add((surface, null, null));
+            backdrop.Refresh();
+        }
 
         /// <summary>Show the book around <paramref name="page"/>, drawn on a UI Toolkit stage.</summary>
         public static void Show(VisualElement surface, Texture2D page) => ShowCore(surface, page);
@@ -112,6 +128,7 @@ namespace BakAgain.UI {
         /// <summary>Where the page is, in screen pixels, while <see cref="Drawn"/>.</summary>
         internal Rect Stage { get; private set; }
         internal RectTransform Shade => _shade.rectTransform;
+        internal RawImage SheetShadow => _sheetShadow;
 
         private static void ShowCore(object surface, Texture2D page, Texture2D facing = null) {
             if (surface == null || page == null) {
@@ -155,6 +172,7 @@ namespace BakAgain.UI {
             if (_table.texture != null) {
                 _table.texture.wrapMode = TextureWrapMode.Mirror;   // alternate copies mirrored: no seam
             }
+            _sheetShadow = NewImage(_back, null);
             _facing = NewImage(_back, null);
             _front = NewCanvas("Front", FrontSortingOrder);
             _shade = NewImage(_front, Resources.Load<Texture2D>("BookSpread/crease"));
@@ -181,6 +199,11 @@ namespace BakAgain.UI {
             _shown.RemoveAll(e => !IsOnScreen(e.Surface));
             (object surface, Texture2D page, Texture2D ownFacing) = _shown.Count > 0 ? _shown[_shown.Count - 1] : (null, null, null);
             Surface = surface;
+            _sheetShadow.enabled = false;
+            if (surface != null && page == null) {
+                ShowAsSheet(surface);
+                return;
+            }
             Spine = page != null ? SpineOf(page) : SpineSide.NotAPage;
             if (Spine == SpineSide.NotAPage || !TryStageRect(surface, out Rect stage)) {
                 Spine = SpineSide.NotAPage;
@@ -218,6 +241,57 @@ namespace BakAgain.UI {
             float shadeWidth = Layout.ShadeWidth * stage.height;
             SetRect(_shade, new Rect(spineX - shadeWidth / 2, stage.yMin, shadeWidth, stage.height));
             _shade.color = new Color(1, 1, 1, Layout.ShadeOpacity);
+        }
+
+        // The table, and the sheet's shadow on it. Not a page: no spine, so nothing turns it.
+        private void ShowAsSheet(object surface) {
+            Spine = SpineSide.NotAPage;
+            _front.enabled = false;
+            if (!TryStageRect(surface, out Rect stage)) {
+                _back.enabled = false;
+                return;
+            }
+            Stage = stage;
+            _back.enabled = true;
+            _facing.enabled = false;
+            _sheetShadow.enabled = true;
+            if (_placed == (stage, null, null, Screen.width, Screen.height)) {
+                return;
+            }
+            _placed = (stage, null, null, Screen.width, Screen.height);
+            Place(stage, facing: null, drop: 0);
+            float reach = Layout.SheetShadowWidth * stage.height;
+            var area = new Rect(stage.xMin - reach, stage.yMin - reach - Layout.SheetShadowDrop * stage.height,
+                stage.width + 2 * reach, stage.height + 2 * reach);
+            SetRect(_sheetShadow, area);
+            var size = new Vector2Int(256, Mathf.Max(8, Mathf.RoundToInt(256 * area.height / area.width)));
+            if (size != _sheetShadowSize) {
+                _sheetShadowSize = size;
+                if (_sheetShadow.texture != null) {
+                    Destroy(_sheetShadow.texture);
+                }
+                _sheetShadow.texture = SheetShadowTexture(size, reach * size.x / area.width, Layout.SheetShadowOpacity);
+            }
+        }
+
+        // A rectangle's soft shadow: opaque inside, fading to nothing over `reach` texels outside it,
+        // round at the corners.
+        private static Texture2D SheetShadowTexture(Vector2Int size, float reach, float opacity) {
+            var pixels = new Color32[size.x * size.y];
+            for (int y = 0; y < size.y; y++) {
+                float dy = Mathf.Max(0, Mathf.Max(reach - y, y - (size.y - 1 - reach)));
+                for (int x = 0; x < size.x; x++) {
+                    float dx = Mathf.Max(0, Mathf.Max(reach - x, x - (size.x - 1 - reach)));
+                    float fade = 1 - Mathf.Clamp01(Mathf.Sqrt(dx * dx + dy * dy) / reach);
+                    pixels[y * size.x + x] = new Color32(0, 0, 0, (byte)(255 * opacity * fade * fade));
+                }
+            }
+            var texture = new Texture2D(size.x, size.y, TextureFormat.RGBA32, false) {
+                name = "SheetShadow", wrapMode = TextureWrapMode.Clamp,
+            };
+            texture.SetPixels32(pixels);
+            texture.Apply(false, makeNoLongerReadable: true);
+            return texture;
         }
 
         private static bool IsOnScreen(object surface) => surface switch {
