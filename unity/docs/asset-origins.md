@@ -15,6 +15,7 @@ Where every committed binary asset comes from, so the public release carries not
 | `Assets/Plugins/netstandard2.1/*` | built from `src/` (GameData, ResourceExtraction) | MIT |
 | `Assets/Custom/Fonts/Victor_Mono/**`, `VictorMono-Regular.ttf` | Victor Mono | SIL OFL 1.1 (`OFL.txt` alongside) |
 | `Assets/Resources/Fonts/Alegreya/Alegreya-Medium.ttf`, `Alegreya-MediumItalic.ttf` | Alegreya (Huerta Tipográfica), google/fonts `ofl/alegreya` variable fonts instanced at wght=500 with fontTools `varLib.instancer` (2026-10-09) | SIL OFL 1.1 (`OFL.txt` alongside) |
+| `Assets/Resources/BookSpread/table.jpg`, `crease.png` | original artwork generated for the project with Google Gemini (gemini-3-pro-image-preview, 2026-10-11): a top-down dark oak table, and the crease of an open book seen from above (no text, no game art); resized, the crease cropped to its centre strip and turned into a darkening mask | project (MIT) |
 | `Assets/TextMesh Pro/**` (LiberationSans, EmojiOne, shaders) | TextMesh Pro essential resources (Unity) | Unity Companion License; Liberation Sans OFL 1.1 |
 | `Assets/Custom/Icons/Icon.png` | app icon, owner-supplied illustration, not game art | **owner to confirm the source** |
 | `Assets/Localization/*.asset` | the port's own UI strings (loading screen, game-folder prompt), English and Dutch | project (MIT) |
