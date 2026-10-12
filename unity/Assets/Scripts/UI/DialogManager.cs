@@ -323,13 +323,67 @@ namespace BakAgain.UI {
 
             // above, below, left-of and right-of the viewport — between them exactly the frame minus
             // the hole, with no overlap.
-            Background around = Background.FromSprite(parchment);
+            // Still a page, with the world seen through a window cut in it: the book goes around it.
+            Background around = ShowBookSpread(backdrop, parchment);
+            AddWorldThroughWindow(backdrop, v);
             AddBackdropWindow(backdrop, around, 0, 0, w, v.yMin, 0, 0, w, h);
             AddBackdropWindow(backdrop, around, 0, belowY, w, h - belowY, 0, -belowY, w, h);
             AddBackdropWindow(backdrop, around, 0, v.yMin, v.xMin, v.height, 0, -v.yMin, w, h);
             AddBackdropWindow(backdrop, around, rightX, v.yMin, w - rightX, v.height,
                 -rightX, -v.yMin, w, h);
             AddViewportOutline(backdrop, v, palette);
+        }
+
+        /// <summary>
+        /// The world, drawn in the page's window by the page itself, and hidden everywhere else while
+        /// the page is up.
+        /// </summary>
+        /// <remarks>
+        /// <b>So the book can be seen around the page.</b> The world view is an element of the travel
+        /// screen, in the same panel as this dialog and above the book's canvas; in Enhanced
+        /// full-screen travel it fills the whole window, so the pillars showed the world rather than
+        /// the table. Here the window holds a clipped copy of the same render texture, placed where
+        /// the world view is, and the world view itself is hidden until the page goes. In the
+        /// classic HUD the world view is exactly the window, so nothing changes there.
+        /// </remarks>
+        private static void AddWorldThroughWindow(VisualElement backdrop, Rect hole) {
+            VisualElement world = backdrop.panel?.visualTree.Q(name: "WorldViewport");
+            if (world == null) {
+                return;
+            }
+            var window = new VisualElement {
+                name = "BakDialogWorldWindow",
+                pickingMode = PickingMode.Ignore,
+                style = {
+                    position = Position.Absolute,
+                    left = hole.xMin, top = hole.yMin, width = hole.width, height = hole.height,
+                    overflow = Overflow.Hidden,
+                },
+            };
+            var view = new VisualElement {
+                pickingMode = PickingMode.Ignore,
+                style = { position = Position.Absolute },
+            };
+            window.Add(view);
+            backdrop.Add(window);
+
+            void Follow(GeometryChangedEvent _) {
+                Rect at = window.WorldToLocal(world.worldBound);
+                view.style.left = at.x;
+                view.style.top = at.y;
+                view.style.width = at.width;
+                view.style.height = at.height;
+                view.style.backgroundImage = world.style.backgroundImage;
+            }
+            window.RegisterCallback<GeometryChangedEvent>(Follow);
+            world.RegisterCallback<GeometryChangedEvent>(Follow);
+
+            StyleEnum<Visibility> shown = world.style.visibility;
+            world.style.visibility = Visibility.Hidden;
+            backdrop.RegisterCallback<DetachFromPanelEvent>(_ => {
+                world.UnregisterCallback<GeometryChangedEvent>(Follow);
+                world.style.visibility = shown;
+            });
         }
 
         /// <summary>
