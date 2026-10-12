@@ -39,6 +39,7 @@ namespace BakAgain.UI {
         // at 1600x1200); drop them on a screen change if a mod ships dozens of page images.
         private static readonly Dictionary<Texture2D, Texture2D> Untorn = new();
         private static BookSpreadBackdrop _instance;
+        private static readonly Vector3[] Corners = new Vector3[4];   // GetWorldCorners' out array, reused every frame
 
         private readonly List<(object Surface, Texture2D Page)> _shown = new();
         private Canvas _back;
@@ -49,20 +50,28 @@ namespace BakAgain.UI {
         private SpineSide _facingSpine;
         private (Rect Stage, Texture2D Page, int Width, int Height) _placed;
 
-        /// <summary>
-        /// Show the book around <paramref name="page"/>, drawn on a UI Toolkit stage. Returns the image
-        /// to draw: for a page, a copy with its torn-away edges cleared so the table shows through
-        /// them; anything else unchanged.
-        /// </summary>
-        public static Texture2D Show(VisualElement surface, Texture2D page) => ShowCore(surface, page);
+        /// <summary>Show the book around <paramref name="page"/>, drawn on a UI Toolkit stage.</summary>
+        public static void Show(VisualElement surface, Texture2D page) => ShowCore(surface, page);
 
-        /// <summary>Show the book around <paramref name="page"/>, drawn on a uGUI image; returns the image to draw.</summary>
-        public static Texture2D Show(Graphic surface, Texture2D page) => ShowCore(surface, page);
+        /// <summary>Show the book around <paramref name="page"/>, drawn on a uGUI image.</summary>
+        public static void Show(Graphic surface, Texture2D page) => ShowCore(surface, page);
 
         /// <summary>A cutscene screen: its pixels, whichever form it was loaded in.</summary>
-        /// <remarks>The cutscene draws its own buffer, so its tears stay black (no copy is drawn).</remarks>
         public static void Show(Graphic surface, IndexedTexture page) =>
             ShowCore(surface, page == null ? null : page.DirectTexture ? page.DirectTexture : page.IndexTexture);
+
+        /// <summary>
+        /// <paramref name="page"/> with its tears see-through, for an owner that draws it on a screen of
+        /// its own: the tears are the palette's black, opaque in the loaded image, and the table belongs
+        /// in them. Only black joined to the border is cleared (<see cref="PageSpine.TornAway"/>), so
+        /// ink stays. Anything that is not a page comes back unchanged.
+        /// </summary>
+        /// <remarks>
+        /// <b>Only for a screen with nothing live beneath it but the table</b> (the navigator's REQ
+        /// screens, credits). A dialog's parchment lies over the travel screen and a book over the
+        /// cutscene that opened it, so their tears would show those instead; they keep their black.
+        /// </remarks>
+        public static Texture2D WithTearsOpen(Texture2D page) => page == null ? null : PageToDraw(page);
 
         /// <summary>Stop drawing for <paramref name="surface"/>, for an owner whose surface stays on screen.</summary>
         public static void Hide(object surface) {
@@ -93,20 +102,16 @@ namespace BakAgain.UI {
         internal RectTransform FacingPage => _facing.rectTransform;
         internal RectTransform Shade => _shade.rectTransform;
 
-        private static Texture2D ShowCore(object surface, Texture2D page) {
+        private static void ShowCore(object surface, Texture2D page) {
             if (surface == null || page == null) {
-                return page;
+                return;
             }
             BookSpreadBackdrop backdrop = Instance;
             backdrop._shown.RemoveAll(e => e.Surface == surface);
             backdrop._shown.Add((surface, page));
             backdrop.Refresh();
-            return PageToDraw(page);
         }
 
-        // The page with its torn-away edges see-through: the tears are the palette's black, opaque in
-        // the loaded image, and the table belongs in them. Only black joined to the border is cleared
-        // (PageSpine.TornAway), so ink on the page stays.
         private static Texture2D PageToDraw(Texture2D page) {
             if (SpineOf(page) == SpineSide.NotAPage) {
                 return page;
@@ -172,10 +177,9 @@ namespace BakAgain.UI {
                 _back.enabled = _front.enabled = false;
                 return;
             }
-            bool bound = Spine != SpineSide.Loose;
             _back.enabled = true;
-            _front.enabled = bound && _shade.texture != null;
-            _facing.enabled = bound && _facing.texture != null;
+            _front.enabled = _shade.texture != null;
+            _facing.enabled = _facing.texture != null;
             if (_placed != (stage, page, Screen.width, Screen.height)) {
                 _placed = (stage, page, Screen.width, Screen.height);
                 Place(stage);
@@ -187,9 +191,6 @@ namespace BakAgain.UI {
             if (_table.texture != null) {
                 float tileWidth = Screen.height * (float)_table.texture.width / _table.texture.height;
                 _table.uvRect = new Rect(0, 0, Screen.width / tileWidth, 1);
-            }
-            if (Spine == SpineSide.Loose) {
-                return;
             }
             bool left = Spine == SpineSide.Left;
             float spineX = left ? stage.xMin : stage.xMax;
@@ -212,8 +213,8 @@ namespace BakAgain.UI {
         // The page's rectangle in screen pixels, bottom-left origin (the overlay canvases' space).
         private static bool TryStageRect(object surface, out Rect stage) {
             if (surface is Graphic g) {
-                var corners = new Vector3[4];
-                g.rectTransform.GetWorldCorners(corners);
+                g.rectTransform.GetWorldCorners(Corners);
+                Vector3[] corners = Corners;
                 stage = Rect.MinMaxRect(corners[0].x, corners[0].y, corners[2].x, corners[2].y);
             } else {
                 var v = (VisualElement)surface;

@@ -25,8 +25,8 @@ public class PageSpineTests {
         Assert.Equal(SpineSide.Right, PageSpine.Of(Column(1200, 180), Column(1200, 1164)));
 
     [Fact]
-    public void BothFrayed_IsALoosePage() =>
-        Assert.Equal(SpineSide.Loose, PageSpine.Of(Column(1200, 180), Column(1200, 300)));
+    public void BothFrayed_IsNotAPage() =>
+        Assert.Equal(SpineSide.NotAPage, PageSpine.Of(Column(1200, 180), Column(1200, 300)));
 
     [Fact]
     public void BothStraight_IsNotAPage() =>
@@ -34,11 +34,11 @@ public class PageSpineTests {
 
     [Fact]
     public void JustUnderTheShare_IsFrayed() =>
-        Assert.Equal(SpineSide.Loose, PageSpine.Of(Column(100, 89), Column(100, 0)));
+        Assert.Equal(SpineSide.Right, PageSpine.Of(Column(100, 89), Column(100, 100)));
 
     [Fact]
-    public void AnEmptyImage_IsALoosePage() =>
-        Assert.Equal(SpineSide.Loose, PageSpine.Of(new bool[0], new bool[0]));
+    public void AnEmptyImage_IsNotAPage() =>
+        Assert.Equal(SpineSide.NotAPage, PageSpine.Of(new bool[0], new bool[0]));
 
     // Rows top to bottom; '#' dark, '.' paper.
     private static bool[] Grid(params string[] rows) {

@@ -6,7 +6,10 @@ using System.Linq;
 /// <summary>How a full-screen image sits in the open book.</summary>
 public enum SpineSide
 {
-    /// <summary>Both outer edges straight: a picture, not a page. Nothing is drawn around it.</summary>
+    /// <summary>
+    /// Not a bound page: both outer edges straight (a picture) or neither (a panel such as CAST.SCX,
+    /// whose lower third is torn-black down both sides). Nothing is drawn around it.
+    /// </summary>
     NotAPage,
 
     /// <summary>Bound on its left edge: the facing page and the binding are to its left.</summary>
@@ -14,9 +17,6 @@ public enum SpineSide
 
     /// <summary>Bound on its right edge.</summary>
     Right,
-
-    /// <summary>Frayed on both sides: a loose page, with only the table around it.</summary>
-    Loose,
 }
 
 /// <summary>
@@ -33,10 +33,9 @@ public static class PageSpine
     public static SpineSide Of(bool[] leftColumnOpaque, bool[] rightColumnOpaque) =>
         (IsStraight(leftColumnOpaque), IsStraight(rightColumnOpaque)) switch
         {
-            (true, true) => SpineSide.NotAPage,
             (true, false) => SpineSide.Left,
             (false, true) => SpineSide.Right,
-            _ => SpineSide.Loose,
+            _ => SpineSide.NotAPage,
         };
 
     /// <summary>

@@ -56,8 +56,9 @@ namespace BakAgain.ResourceManagement.Loaders {
                     new BackgroundSize(Length.Percent(100), Length.Percent(100));
                 // The open book around the page, for as long as this stage is on screen; a page is
                 // drawn with its torn edges see-through so the table shows in them.
-                stage.style.backgroundImage =
-                    Background.FromTexture2D(BookSpreadBackdrop.Show(stage, operationHandle.Result.texture));
+                Texture2D page = operationHandle.Result.texture;
+                BookSpreadBackdrop.Show(stage, page);
+                stage.style.backgroundImage = Background.FromTexture2D(BookSpreadBackdrop.WithTearsOpen(page));
             };
         }
 

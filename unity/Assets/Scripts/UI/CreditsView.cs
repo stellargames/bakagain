@@ -434,7 +434,8 @@ namespace BakAgain.UI {
                 Sprite background = await _resourceCache.GetOrLoadAsync<Sprite>(BackgroundKey);
                 if (background != null) {
                     stage.style.backgroundSize = new BackgroundSize(Length.Percent(100), Length.Percent(100));
-                    stage.style.backgroundImage = Background.FromTexture2D(BookSpreadBackdrop.Show(stage, background.texture));
+                    BookSpreadBackdrop.Show(stage, background.texture);
+                    stage.style.backgroundImage = Background.FromTexture2D(BookSpreadBackdrop.WithTearsOpen(background.texture));
                 }
             } catch (Exception e) {
                 _logger.LogError(e, "Failed to load credits background {Key}.", BackgroundKey);

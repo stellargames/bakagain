@@ -113,16 +113,14 @@ namespace BakAgain.Tests.PlayMode.UI {
             Assert.AreEqual(stage.xMax, ScreenRect(b.Shade).center.x, 0.5f);
         }
 
+        // A panel torn down both sides (CAST.SCX's lower third) is not a bound page: no book, no table.
         [UnityTest]
-        public IEnumerator ALoosePage_GetsOnlyTheTable() {
+        public IEnumerator APageFrayedOnBothSides_DrawsNothing() {
             BookSpreadBackdrop.Show(Surface(), Page(leftStraight: false, rightStraight: false));
             yield return null;
 
-            BookSpreadBackdrop b = BookSpreadBackdrop.Instance;
-            Assert.AreEqual(SpineSide.Loose, b.Spine);
-            Assert.IsTrue(b.Drawn, "the table is drawn");
-            Assert.IsFalse(b.FacingPage.GetComponent<RawImage>().enabled);
-            Assert.IsFalse(b.Shade.GetComponentInParent<Canvas>().enabled);
+            Assert.AreEqual(SpineSide.NotAPage, BookSpreadBackdrop.Instance.Spine);
+            Assert.IsFalse(BookSpreadBackdrop.Instance.Drawn);
         }
 
         [UnityTest]
@@ -241,11 +239,11 @@ namespace BakAgain.Tests.PlayMode.UI {
             Texture2D page = Page(leftStraight: true, rightStraight: false);
             Texture2D picture = Page(leftStraight: true, rightStraight: true);
 
-            Texture2D drawn = BookSpreadBackdrop.Show(Surface("Page"), page);
+            Texture2D drawn = BookSpreadBackdrop.WithTearsOpen(page);
             Assert.AreNotSame(page, drawn, "the tears are cleared in a copy");
             Assert.AreEqual(page.width, drawn.width);
-            Assert.AreSame(drawn, BookSpreadBackdrop.Show(Surface("Again"), page), "made once per page");
-            Assert.AreSame(picture, BookSpreadBackdrop.Show(Surface("Picture"), picture));
+            Assert.AreSame(drawn, BookSpreadBackdrop.WithTearsOpen(page), "made once per page");
+            Assert.AreSame(picture, BookSpreadBackdrop.WithTearsOpen(picture));
         }
 
         [UnityTest]

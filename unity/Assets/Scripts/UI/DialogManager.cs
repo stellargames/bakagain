@@ -219,6 +219,14 @@ namespace BakAgain.UI {
         private VisualElement _speakerNamePill;
         private VisualElement _speakerNamePillShadow;
 
+        // Only a parchment that covers the stage is a page; one with the world cut through it is a
+        // frame. The book lasts while the backdrop element is on screen. Its tears stay black: the
+        // travel screen lies beneath, and would show through them.
+        private static Background ShowBookSpread(VisualElement backdrop, Sprite parchment) {
+            BookSpreadBackdrop.Show(backdrop, parchment.texture);
+            return Background.FromSprite(parchment);
+        }
+
         /// <summary>
         /// Draws the speaking actor's portrait — <c>ExecuteDialog</c>'s call into
         /// <c>ShowDialogWithFace</c> with mode 0 (@0x49986).
@@ -257,16 +265,6 @@ namespace BakAgain.UI {
         /// <para><b>Failure is silent and harmless.</b> A missing image means the dialog draws as it
         /// did before rather than not at all.</para>
         /// </remarks>
-        // The full-screen parchment the open book is drawn around; taken down with the panel.
-        private VisualElement _bookSpreadPage;
-
-        // Only a parchment that covers the stage is a page; one with the world cut through it is a frame.
-        // Returns the parchment to draw: with its torn edges see-through, so the table shows in them.
-        private Background ShowBookSpread(VisualElement backdrop, Sprite parchment) {
-            _bookSpreadPage = backdrop;
-            return Background.FromTexture2D(BookSpreadBackdrop.Show(backdrop, parchment.texture));
-        }
-
         private async UniTask AddFullScreenBackdropAsync(VisualElement stage, DialogEntry entry,
             Color[] palette) {
             if (stage == null || !DialogBackdrop.DrawsFullScreenBackdrop(entry)) {
@@ -703,10 +701,6 @@ namespace BakAgain.UI {
         private void RemovePanel(BakAgain.UI.InputCore.IInputLayer mine) {
             RestoreCameraIfTurned();
             RemoveSpeakerFace();
-            if (_bookSpreadPage != null) {
-                BookSpreadBackdrop.Hide(_bookSpreadPage);
-                _bookSpreadPage = null;
-            }
             if (_activePanel != null) {
                 _activePanel.RemoveFromHierarchy();
                 _activePanel = null;

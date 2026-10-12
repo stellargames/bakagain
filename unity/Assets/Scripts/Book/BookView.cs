@@ -57,9 +57,10 @@ namespace BakAgain.Book {
         public void SetBackground(Sprite background) {
             _backgroundWidth = background.texture.width;
             _backgroundHeight = background.texture.height;
-            // Per page: the even and odd parchments are bound on opposite sides. Drawn with its torn
-            // edges see-through, so the table shows in them.
-            backgroundImage.texture = BookSpreadBackdrop.Show(backgroundImage, background.texture);
+            backgroundImage.texture = background.texture;
+            // Per page, though both BOOK_EVEN and BOOK_ODD are bound on the left (the odd one is
+            // mirrored top to bottom). Tears stay black: the cutscene that opened the book lies beneath.
+            BookSpreadBackdrop.Show(backgroundImage, background.texture);
         }
 
         // Pillar/letter-boxes the page to the background's aspect inside the canvas and sizes both the
