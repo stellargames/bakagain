@@ -99,6 +99,24 @@ namespace BakAgain.Tests.PlayMode.UI {
             Assert.AreEqual(_layout.ShadeWidth * stage.height, shade.width, 0.5f);
         }
 
+        // The book's facing page is its own parchment, mirrored and level, so top and bottom line up
+        // (owner, 2026-10-12): DIALOG.SCX's tears sit 12-18 px in from the edge, the book's at 0-9.
+        [UnityTest]
+        public IEnumerator AFacingPageOfItsOwn_IsDrawnLevelAndMirrored() {
+            RawImage surface = Surface();
+            Texture2D page = Page(leftStraight: true, rightStraight: false);
+            BookSpreadBackdrop.Show(surface, page, facingPage: page);
+            yield return null;
+
+            Rect stage = ScreenRect(surface.rectTransform);
+            RawImage facing = BookSpreadBackdrop.Instance.FacingPage.GetComponent<RawImage>();
+            Assert.IsTrue(facing.enabled);
+            Assert.AreEqual(stage.yMin, ScreenRect(facing.rectTransform).yMin, 0.5f, "level with the shown page");
+            Assert.AreEqual(stage.xMin, ScreenRect(facing.rectTransform).xMax, 0.5f);
+            Assert.AreEqual(-1f, facing.uvRect.width, "mirrored: its straight edge on the binding");
+            Assert.AreEqual(page.width, facing.texture.width, "the page itself, not DIALOG.SCX");
+        }
+
         [UnityTest]
         public IEnumerator ARightBoundPage_HasThemOnItsRight() {
             RawImage surface = Surface();

@@ -21,6 +21,7 @@ namespace BakAgain.Book {
         private readonly BakAgain.ResourceManagement.IResourceProviderService _resources;
         private readonly BakAgain.Audio.MidiPlaybackManager _midi;
         private readonly ILogger<BookPresenter> _logger;
+        private readonly BakAgain.UI.Cursor.ICursorManager _cursor;
         private bool _cancelled;
         // Set by the page layer (Activate=forward, Cancel=cancel, MoveFocus Left/Right=back/forward).
         private PageNavigation? _navResult;
@@ -31,7 +32,8 @@ namespace BakAgain.Book {
             IResourceCache resourceCache,
             BakAgain.ResourceManagement.IResourceProviderService resources,
             BakAgain.Audio.MidiPlaybackManager midi,
-            ILogger<BookPresenter> logger
+            ILogger<BookPresenter> logger,
+            BakAgain.UI.Cursor.ICursorManager cursor
         ) {
             _view = view;
             _stack = stack;
@@ -39,6 +41,7 @@ namespace BakAgain.Book {
             _resources = resources;
             _midi = midi;
             _logger = logger;
+            _cursor = cursor;
         }
 
         public async UniTask<bool> ShowBookAsync(string bokFileName) {
@@ -108,6 +111,9 @@ namespace BakAgain.Book {
                     : PageNavigation.Forward,
                 anyIntentActivates: true);
             _stack.Push(pageLayer);
+            // No pointer while a book is open: bookview_show hides it once each page is presented
+            // (BOOKVIEW.C:193). Over the page our book canvas covered it anyway; in the pillars it showed.
+            _cursor.Hide();
             try {
 
             // 7. Page navigation loop with dynamic text pagination
@@ -185,6 +191,7 @@ namespace BakAgain.Book {
             return completed;
             } finally {
                 _stack.Remove(pageLayer);
+                _cursor.Show();
             }
         }
 

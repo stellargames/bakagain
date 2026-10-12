@@ -59,8 +59,9 @@ namespace BakAgain.Book {
             _backgroundHeight = background.texture.height;
             backgroundImage.texture = background.texture;
             // Per page, though both BOOK_EVEN and BOOK_ODD are bound on the left (the odd one is
-            // mirrored top to bottom). Tears stay black: the cutscene that opened the book lies beneath.
-            BookSpreadBackdrop.Show(backgroundImage, background.texture);
+            // mirrored top to bottom). The facing page is this one, so their tops and bottoms line up.
+            // Tears stay black: the cutscene that opened the book lies beneath.
+            BookSpreadBackdrop.Show(backgroundImage, background.texture, facingPage: background.texture);
         }
 
         // Pillar/letter-boxes the page to the background's aspect inside the canvas and sizes both the

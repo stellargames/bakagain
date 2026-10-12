@@ -41,20 +41,26 @@ namespace BakAgain.UI {
         private static BookSpreadBackdrop _instance;
         private static readonly Vector3[] Corners = new Vector3[4];   // GetWorldCorners' out array, reused every frame
 
-        private readonly List<(object Surface, Texture2D Page)> _shown = new();
+        private readonly List<(object Surface, Texture2D Page, Texture2D Facing)> _shown = new();
         private Canvas _back;
         private Canvas _front;
         private RawImage _table;
         private RawImage _facing;
         private RawImage _shade;
-        private SpineSide _facingSpine;
-        private (Rect Stage, Texture2D Page, int Width, int Height) _placed;
+        private Texture2D _dialogPage;
+        private (Rect Stage, Texture2D Page, Texture2D Facing, int Width, int Height) _placed;
 
         /// <summary>Show the book around <paramref name="page"/>, drawn on a UI Toolkit stage.</summary>
         public static void Show(VisualElement surface, Texture2D page) => ShowCore(surface, page);
 
         /// <summary>Show the book around <paramref name="page"/>, drawn on a uGUI image.</summary>
-        public static void Show(Graphic surface, Texture2D page) => ShowCore(surface, page);
+        /// <param name="facingPage">
+        /// The page across the binding, for a book whose pages are not cut like DIALOG.SCX (the book's
+        /// own parchment, 1280x960, torn 0-9 px from its edges against DIALOG.SCX's 12-18). Drawn
+        /// mirrored and level, so the two pages' tops and bottoms line up. Null: DIALOG.SCX, a little lower.
+        /// </param>
+        public static void Show(Graphic surface, Texture2D page, Texture2D facingPage = null) =>
+            ShowCore(surface, page, facingPage);
 
         /// <summary>A cutscene screen: its pixels, whichever form it was loaded in.</summary>
         public static void Show(Graphic surface, IndexedTexture page) =>
@@ -102,13 +108,13 @@ namespace BakAgain.UI {
         internal RectTransform FacingPage => _facing.rectTransform;
         internal RectTransform Shade => _shade.rectTransform;
 
-        private static void ShowCore(object surface, Texture2D page) {
+        private static void ShowCore(object surface, Texture2D page, Texture2D facing = null) {
             if (surface == null || page == null) {
                 return;
             }
             BookSpreadBackdrop backdrop = Instance;
             backdrop._shown.RemoveAll(e => e.Surface == surface);
-            backdrop._shown.Add((surface, page));
+            backdrop._shown.Add((surface, page, facing));
             backdrop.Refresh();
         }
 
@@ -159,10 +165,8 @@ namespace BakAgain.UI {
                 if (this == null || loaded.Result == null) {
                     return;
                 }
-                Texture2D facing = loaded.Result.texture;
-                _facingSpine = SpineOf(facing);
-                _facing.texture = PageToDraw(facing);
-                _placed = default;   // re-place: the mirroring depends on the page
+                _dialogPage = loaded.Result.texture;
+                _placed = default;   // re-place: the facing page has arrived
             };
         }
 
@@ -170,23 +174,24 @@ namespace BakAgain.UI {
 
         private void Refresh() {
             _shown.RemoveAll(e => !IsOnScreen(e.Surface));
-            (object surface, Texture2D page) = _shown.Count > 0 ? _shown[_shown.Count - 1] : (null, null);
+            (object surface, Texture2D page, Texture2D ownFacing) = _shown.Count > 0 ? _shown[_shown.Count - 1] : (null, null, null);
             Spine = page != null ? SpineOf(page) : SpineSide.NotAPage;
             if (Spine == SpineSide.NotAPage || !TryStageRect(surface, out Rect stage)) {
                 Spine = SpineSide.NotAPage;
                 _back.enabled = _front.enabled = false;
                 return;
             }
+            Texture2D facing = ownFacing != null ? ownFacing : _dialogPage;
             _back.enabled = true;
             _front.enabled = _shade.texture != null;
-            _facing.enabled = _facing.texture != null;
-            if (_placed != (stage, page, Screen.width, Screen.height)) {
-                _placed = (stage, page, Screen.width, Screen.height);
-                Place(stage);
+            _facing.enabled = facing != null;
+            if (_placed != (stage, page, facing, Screen.width, Screen.height)) {
+                _placed = (stage, page, facing, Screen.width, Screen.height);
+                Place(stage, facing, drop: ownFacing != null ? 0f : Layout.FacingPageDrop);
             }
         }
 
-        private void Place(Rect stage) {
+        private void Place(Rect stage, Texture2D facing, float drop) {
             SetRect(_table, new Rect(0, 0, Screen.width, Screen.height));
             if (_table.texture != null) {
                 float tileWidth = Screen.height * (float)_table.texture.width / _table.texture.height;
@@ -195,10 +200,14 @@ namespace BakAgain.UI {
             bool left = Spine == SpineSide.Left;
             float spineX = left ? stage.xMin : stage.xMax;
             SetRect(_facing, new Rect(left ? stage.xMin - stage.width : stage.xMax,
-                stage.yMin - Layout.FacingPageDrop * stage.height, stage.width, stage.height));
-            // Its straight edge goes against the binding: mirrored when it is bound on the same side as the shown page.
-            bool mirror = _facingSpine == Spine;
-            _facing.uvRect = mirror ? new Rect(1, 0, -1, 1) : new Rect(0, 0, 1, 1);
+                stage.yMin - drop * stage.height, stage.width, stage.height));
+            if (facing != null) {
+                // Its tears open onto the table, which is on the same canvas.
+                _facing.texture = PageToDraw(facing);
+                // Its straight edge goes against the binding: mirrored when it is bound on the same side as the shown page.
+                bool mirror = SpineOf(facing) == Spine;
+                _facing.uvRect = mirror ? new Rect(1, 0, -1, 1) : new Rect(0, 0, 1, 1);
+            }
             float shadeWidth = Layout.ShadeWidth * stage.height;
             SetRect(_shade, new Rect(spineX - shadeWidth / 2, stage.yMin, shadeWidth, stage.height));
             _shade.color = new Color(1, 1, 1, Layout.ShadeOpacity);
