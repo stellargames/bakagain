@@ -31,9 +31,6 @@ namespace BakAgain.UI {
         // Over BookView's canvas (10), the highest surface a page is drawn on: the shade lies ON the page.
         private const int FrontSortingOrder = 11;
 
-        // The darkest a pixel can be and still be parchment rather than the black around a torn edge.
-        private const float PaperMinimum = 0.08f;
-
         private static readonly BookSpreadLayout Layout = new();
         // ponytail: keyed by texture and never pruned — a few bytes per parchment ever shown; prune on
         // texture destroy if mods ever stream hundreds of pages.
@@ -237,9 +234,10 @@ namespace BakAgain.UI {
             return spine;
         }
 
-        // Paper, row by row, down one column. A torn-away pixel is either transparent or the palette's
-        // black, depending on how the image was loaded (measured: BLANK.SCX and BOOK.SCX load their
-        // torn edge as opaque 0,0,0), so both count as no paper.
+        // Paper, row by row, down one column. A torn-away pixel is palette index 0: transparent in an
+        // indexed cutscene texture, opaque exact black in a loaded sprite (measured: BLANK.SCX and
+        // BOOK.SCX load their tears as 0,0,0). Only EXACT black: the travel frame's edge is a dark
+        // brown, and a "dark" threshold read it as torn.
         private static bool[] Opaque(Texture2D page, int x) {
             Color[] column = page.GetPixels(x, 0, 1, page.height);
             var paper = new bool[column.Length];
@@ -249,7 +247,7 @@ namespace BakAgain.UI {
             return paper;
         }
 
-        private static bool IsPaper(Color c) => c.a >= 0.5f && Mathf.Max(c.r, c.g, c.b) >= PaperMinimum;
+        private static bool IsPaper(Color c) => c.a >= 0.5f && (c.r > 0f || c.g > 0f || c.b > 0f);
 
         private Canvas NewCanvas(string name, int sortingOrder) {
             var host = new GameObject(name);

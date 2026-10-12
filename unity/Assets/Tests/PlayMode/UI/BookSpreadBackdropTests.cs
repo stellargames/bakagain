@@ -215,6 +215,27 @@ namespace BakAgain.Tests.PlayMode.UI {
             }
         }
 
+        // The travel frame's edge is a dark brown (~20,8,4) and the tears are the palette's black, opaque
+        // as loaded: only exact black is torn, however dark the paper.
+        [UnityTest]
+        public IEnumerator ADarkEdgeIsPaper_OnlyExactBlackIsTorn() {
+            var page = new Texture2D(40, 30, TextureFormat.RGBA32, false);
+            var pixels = new Color32[40 * 30];
+            for (int y = 0; y < 30; y++) {
+                for (int x = 0; x < 40; x++) {
+                    pixels[y * 40 + x] = x == 0 ? new Color32(20, 8, 4, 255)
+                        : x == 39 && y % 5 != 0 ? new Color32(0, 0, 0, 255)
+                        : new Color32(200, 180, 120, 255);
+                }
+            }
+            page.SetPixels32(pixels);
+            page.Apply();
+
+            BookSpreadBackdrop.Show(Surface(), page);
+            yield return null;
+            Assert.AreEqual(SpineSide.Left, BookSpreadBackdrop.Instance.Spine);
+        }
+
         [Test]
         public void APageIsDrawnFromAnUntornCopy_APictureAsItIs() {
             Texture2D page = Page(leftStraight: true, rightStraight: false);
