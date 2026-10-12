@@ -10,14 +10,25 @@ namespace BakAgain.Book {
         /// <summary>Per column, spine to outer edge: screen x, the column's bottom and top y, texture u, shade.</summary>
         public readonly System.Collections.Generic.List<(float X, float Bottom, float Top, float U, float Shade, bool Shown)> Columns = new();
 
-        public Texture Texture;
+        private Texture _texture;
+
+        /// <summary>What the face shows; changing it rebinds the face (a plain field would keep the old one).</summary>
+        public Texture Texture {
+            get => _texture;
+            set {
+                if (_texture != value) {
+                    _texture = value;
+                    SetMaterialDirty();
+                }
+            }
+        }
         public float V0;
         public float V1 = 1;
 
         /// <summary>Drawn black, its shade as the opacity: a shadow, not a face.</summary>
         public bool Shadow;
 
-        public override Texture mainTexture => Texture != null ? Texture : s_WhiteTexture;
+        public override Texture mainTexture => _texture != null ? _texture : s_WhiteTexture;
 
         protected override void OnPopulateMesh(VertexHelper vh) {
             vh.Clear();

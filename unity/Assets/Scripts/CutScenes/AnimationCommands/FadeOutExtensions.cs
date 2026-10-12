@@ -17,6 +17,13 @@ namespace BakAgain.CutScenes.AnimationCommands {
                 if (!Application.isPlaying)
                     return;
 
+                // Enhanced: the last fade of a scene that ends on a page is held instead, for the
+                // page that follows (a chapter's book) to turn it over. The screen still shows the
+                // frame as it began, so that is what is grabbed.
+                if (cutsceneState.FrameEndsScene && await BakAgain.Book.BookPageCurl.HoldAsync()) {
+                    return;
+                }
+
                 // The speed argument indexes the original's step table, and the fade is that many
                 // palette writes long — see FadeRamp, which also explains why a bigger speed is a
                 // SLOWER fade and why speed 0 is a cut rather than a fast ramp. This used to be an

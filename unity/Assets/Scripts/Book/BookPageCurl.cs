@@ -96,11 +96,13 @@ namespace BakAgain.Book {
         public static async UniTask<bool> TryTurnAsync(object incoming, Func<UniTask> change) {
             bool page = incoming is Component screen && screen.TryGetComponent(out ResourceManagement.Loaders.BackgroundImageLoader _);
             bool cutscene = incoming is CutScenes.CutSceneView;
+            // The book draws its page once its presenter runs, after the push that shows it.
+            bool book = incoming is BookView;
             bool held = Exists && _instance._held;
             if (held) {
                 _instance._held = false;
             }
-            if (!Core.GameOptions.IsOn(Core.EnhancedFeature.PageTurn) || (!page && !cutscene)) {
+            if (!Core.GameOptions.IsOn(Core.EnhancedFeature.PageTurn) || (!page && !cutscene && !book)) {
                 if (held) {
                     _instance.Abandon();
                 }
@@ -124,9 +126,13 @@ namespace BakAgain.Book {
                 curl.Abandon();
                 throw;
             }
+            // Not awaited: the cutscene plays, and the book draws, only once the push has returned.
             if (cutscene) {
-                // Not awaited: the cutscene plays only once the push that showed it has returned.
                 curl.TurnOntoCutsceneAsync().Forget();
+                return true;
+            }
+            if (book) {
+                curl.TurnOntoNextPageAsync(outgoing).Forget();
                 return true;
             }
             if (await curl.NextPageAsync(outgoing)) {
@@ -152,18 +158,6 @@ namespace BakAgain.Book {
             _spine = backdrop.Spine;
             _spineLeft = _spine == SpineSide.Left;
             Build();
-            _back.Texture = backdrop.FacingImage.texture;
-            _facingUv = backdrop.FacingImage.uvRect;
-            _facingDrop = ScreenRect(backdrop.FacingPage).yMin - _stage.yMin;
-            var shade = backdrop.Shade.GetComponent<RawImage>();
-            _creaseRect = ScreenRect(backdrop.Shade);
-            _creaseOpacity = shade.enabled && shade.texture != null ? shade.color.a : 0;
-            _crease.Texture = shade.texture;
-            if (shade.texture != null) {
-                shade.texture.wrapMode = TextureWrapMode.Clamp;   // clear beyond the band, not its edge smeared
-            }
-            _crease.V0 = (_stage.yMin + _facingDrop - _creaseRect.yMin) / _creaseRect.height;
-            _crease.V1 = _crease.V0 + _stage.height / _creaseRect.height;
             ReleaseShot();
             // Read back now, at this frame's end: the render-texture grab is deferred, and by the time
             // it runs the next page is already drawn. ponytail: one CPU read-back per turn (~8 MB at
@@ -189,17 +183,30 @@ namespace BakAgain.Book {
         /// transition that follows to turn (New Game clears the menu before pushing the chapter's
         /// cutscene). Let go after <see cref="HeldTimeoutMs"/> if nothing takes it up.
         /// </summary>
-        public static async UniTask HoldAsync() {
+        /// <returns>Whether the page was grabbed and is held.</returns>
+        public static async UniTask<bool> HoldAsync() {
             if (!Core.GameOptions.IsOn(Core.EnhancedFeature.PageTurn)) {
-                return;
+                return false;
             }
             BookPageCurl curl = Instance;
-            if (curl._held || !await curl.CaptureAsync()) {
-                return;
+            if (curl._held) {
+                return true;
+            }
+            if (!await curl.CaptureAsync()) {
+                return false;
             }
             curl._outgoing = BookSpreadBackdrop.Instance.Surface;
             curl._held = true;
             curl.LetGoUnlessTakenAsync(++curl._holdGeneration).Forget();
+            return true;
+        }
+
+        private async UniTaskVoid TurnOntoNextPageAsync(object outgoing) {
+            if (await NextPageAsync(outgoing)) {
+                await PlayAsync(() => false);
+            } else {
+                Abandon();
+            }
         }
 
         private async UniTaskVoid LetGoUnlessTakenAsync(int generation) {
@@ -216,7 +223,21 @@ namespace BakAgain.Book {
         /// False: the fade runs, after the grab has gone.
         /// </summary>
         public static bool TakeFadeIn() {
-            if (!Exists || _instance._awaitingFadeIn == null) {
+            if (!Exists) {
+                return false;
+            }
+            BookPageCurl curl = _instance;
+            if (curl._held) {
+                // A scene ended on a page and the next one opens on one, on the same screen.
+                curl._held = false;
+                if (curl.LandsOnPage(outgoing: null)) {   // the same cutscene image, a new page on it
+                    curl.PlayAsync(() => false).Forget();
+                    return true;
+                }
+                curl.Abandon();
+                return false;
+            }
+            if (curl._awaitingFadeIn == null) {
                 return false;
             }
             UniTaskCompletionSource<bool> waiting = _instance._awaitingFadeIn;
@@ -288,6 +309,7 @@ namespace BakAgain.Book {
 
         /// <summary>Turns the grabbed page over the spine; <paramref name="skip"/> ends it at once.</summary>
         public async UniTask PlayAsync(Func<bool> skip) {
+            ReadLanding();
             _canvas.enabled = true;
             _frozen.enabled = false;
             try {
@@ -402,6 +424,24 @@ namespace BakAgain.Book {
             rect.anchorMin = rect.anchorMax = rect.pivot = Vector2.zero;   // local space = screen pixels
             rect.anchoredPosition = Vector2.zero;
             return sheet;
+        }
+
+        // Where the sheet comes to rest is what the backdrop draws NOW: the next screen's facing page,
+        // which need not be the grabbed one's (a cutscene's DIALOG.SCX, lower; a book's own, level).
+        private void ReadLanding() {
+            BookSpreadBackdrop backdrop = BookSpreadBackdrop.Instance;
+            _back.Texture = backdrop.FacingImage.texture;
+            _facingUv = backdrop.FacingImage.uvRect;
+            _facingDrop = ScreenRect(backdrop.FacingPage).yMin - _stage.yMin;
+            var shade = backdrop.Shade.GetComponent<RawImage>();
+            _creaseRect = ScreenRect(backdrop.Shade);
+            _creaseOpacity = shade.enabled && shade.texture != null ? shade.color.a : 0;
+            _crease.Texture = shade.texture;
+            if (shade.texture != null) {
+                shade.texture.wrapMode = TextureWrapMode.Clamp;   // clear beyond the band, not its edge smeared
+            }
+            _crease.V0 = (_stage.yMin + _facingDrop - _creaseRect.yMin) / _creaseRect.height;
+            _crease.V1 = _crease.V0 + _stage.height / _creaseRect.height;
         }
 
         private static Rect ScreenRect(RectTransform rect) {
