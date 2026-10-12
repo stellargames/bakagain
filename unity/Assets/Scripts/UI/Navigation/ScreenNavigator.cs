@@ -42,30 +42,19 @@ namespace BakAgain.UI.Navigation {
 
         public IScreen Current => _stack.Count > 0 ? _stack[_stack.Count - 1].Screen : null;
 
-        public UniTask ResetTo(IScreen root) => Serialize(async () => {
-            await Fade.FadeOutAsync();
+        public UniTask ResetTo(IScreen root) => Serialize(() => TransitionAsync(fade: true, root, () => {
             _stack.Clear();
             AddTop(root);
             _stack[_stack.Count - 1].IsBase = true;
-            await EnsureTopShownAsync();
-            await Fade.FadeInAsync();
-        });
+        }));
 
         public UniTask Push(IScreen screen) => PushCore(screen, fade: true);
 
         /// <inheritdoc />
         public UniTask PushUnfaded(IScreen screen) => PushCore(screen, fade: false);
 
-        private UniTask PushCore(IScreen screen, bool fade) => Serialize(async () => {
-            if (fade) {
-                await Fade.FadeOutAsync();
-            }
-            AddTop(screen);
-            await EnsureTopShownAsync();
-            if (fade) {
-                await Fade.FadeInAsync();
-            }
-        });
+        private UniTask PushCore(IScreen screen, bool fade) =>
+            Serialize(() => TransitionAsync(fade, screen, () => AddTop(screen)));
 
         /// <inheritdoc />
         /// <remarks>
@@ -100,10 +89,8 @@ namespace BakAgain.UI.Navigation {
         /// <inheritdoc />
         public UniTask PopUnfaded() => PopCore(fade: false);
 
-        private UniTask PopCore(bool fade, int count = 1) => Serialize(async () => {
-            if (fade) {
-                await Fade.FadeOutAsync();
-            }
+        private UniTask PopCore(bool fade, int count = 1) => Serialize(() => TransitionAsync(fade,
+            _stack.Count > count ? _stack[_stack.Count - 1 - count].Screen : null, () => {
             bool tookBase = false;
             for (int i = 0; i < count && _stack.Count > 0; i++) {
                 tookBase |= _stack[_stack.Count - 1].IsBase;
@@ -132,14 +119,9 @@ namespace BakAgain.UI.Navigation {
                     + "Whoever called this popped a screen it did not push (TASK-569).\n"
                     + new System.Diagnostics.StackTrace(true));
             }
-            await EnsureTopShownAsync();
-            if (fade) {
-                await Fade.FadeInAsync();
-            }
-        });
+        }));
 
-        public UniTask Replace(IScreen screen) => Serialize(async () => {
-            await Fade.FadeOutAsync();
+        public UniTask Replace(IScreen screen) => Serialize(() => TransitionAsync(fade: true, screen, () => {
             bool wasBase = false;
             if (_stack.Count > 0) {
                 wasBase = _stack[_stack.Count - 1].IsBase;
@@ -147,9 +129,28 @@ namespace BakAgain.UI.Navigation {
             }
             AddTop(screen);
             _stack[_stack.Count - 1].IsBase = wasBase; // replacing the base installs a new base
-            await EnsureTopShownAsync();
-            await Fade.FadeInAsync();
-        });
+        }));
+
+        /// <summary>
+        /// Changes the stack and shows its new top: faded, or in Enhanced, between two screens drawn as
+        /// bound pages, by turning the page (TASK-872) — the turn replaces the fade both ways.
+        /// </summary>
+        private async UniTask TransitionAsync(bool fade, IScreen incoming, Action change) {
+            async UniTask ChangeAsync() {
+                change();
+                await EnsureTopShownAsync();
+            }
+            if (fade && await Book.BookPageCurl.TryTurnAsync(incoming, ChangeAsync)) {
+                return;
+            }
+            if (fade) {
+                await Fade.FadeOutAsync();
+            }
+            await ChangeAsync();
+            if (fade) {
+                await Fade.FadeInAsync();
+            }
+        }
 
         // *** Clear DOES NOT FADE, and that is deliberate. *** It empties the stack on the way OUT
         // of a configuration and is followed by a ResetTo into the next one, which fades. Fading here

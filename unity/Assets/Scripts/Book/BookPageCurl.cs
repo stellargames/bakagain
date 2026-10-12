@@ -16,6 +16,10 @@ namespace BakAgain.Book {
     /// <see cref="BookSpreadBackdrop"/> draws, sampled where each point lands, so the sheet comes to
     /// rest looking exactly like what was already there. The bend is a strip of columns from the spine,
     /// each rotated a little further than the one before it, so the outer edge leads.
+    ///
+    /// <para>Turned by the book between its pages, and by the screen navigator between two menu
+    /// screens drawn as bound pages (<see cref="TryTurnAsync"/>). From the grab until the turn starts,
+    /// the grab covers the whole screen, so the next screen can lay out unseen.</para>
     /// </remarks>
     public sealed class BookPageCurl : MonoBehaviour {
         private const float Seconds = 0.55f;
@@ -33,9 +37,13 @@ namespace BakAgain.Book {
         // Over BookView (10) and the binding's shade (11): the lifted sheet is above the crease.
         private const int SortingOrder = 12;
 
-        private static readonly Vector3[] Corners = new Vector3[4];
+        // How long the next screen gets to draw its page before the turn gives up and cuts.
+        private const float NextPageTimeout = 1f;
+
+        private static BookPageCurl _instance;
 
         private Canvas _canvas;
+        private RawImage _frozen;
         private CurlSheet _front;
         private CurlSheet _back;
         private CurlSheet _shadow;
@@ -43,21 +51,70 @@ namespace BakAgain.Book {
         private Rect _stage;
         private bool _spineLeft;
         private Rect _facingUv;
+        private SpineSide _spine;
+
+        /// <summary>The one turn, made on first use and kept across scenes.</summary>
+        public static BookPageCurl Instance {
+            get {
+                if (_instance == null) {
+                    var host = new GameObject("PageCurl");
+                    DontDestroyOnLoad(host);
+                    _instance = host.AddComponent<BookPageCurl>();
+                }
+                return _instance;
+            }
+        }
+
+        internal static bool Exists => _instance != null;
 
         /// <summary>
-        /// Grabs the page as it is on screen, at the end of this frame. False when no open book is
-        /// drawn around it, so there is nothing to turn over.
+        /// Enhanced: if the page on screen and <paramref name="incoming"/> are both bound pages, grabs
+        /// the page, runs <paramref name="change"/> under the grab and turns the page over onto the next
+        /// one. False, having done nothing, when this is not a page-to-page change: the caller makes it.
         /// </summary>
-        public async UniTask<bool> CaptureAsync(Graphic page) {
+        /// <remarks>
+        /// Whether the incoming screen is a page is known only once it has drawn one, so a screen that
+        /// shows an SCX background is a candidate (<see cref="BackgroundImageLoader"/>), and one that
+        /// turns out not to be bound the same way, or not to draw in time, is cut to.
+        /// </remarks>
+        public static async UniTask<bool> TryTurnAsync(object incoming, Func<UniTask> change) {
+            if (!Core.GameOptions.IsOn(Core.EnhancedFeature.PageTurn)
+                || !(incoming is Component screen && screen.TryGetComponent(out ResourceManagement.Loaders.BackgroundImageLoader _))) {
+                return false;
+            }
+            BookPageCurl curl = Instance;
+            if (!await curl.CaptureAsync()) {
+                return false;
+            }
+            object outgoing = BookSpreadBackdrop.Instance.Surface;
+            try {
+                await change();
+            } catch {
+                curl.Abandon();
+                throw;
+            }
+            if (await curl.NextPageAsync(outgoing)) {
+                await curl.PlayAsync(() => false);
+            } else {
+                curl.Abandon();
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Grabs the page as it is on screen, at the end of this frame, and holds the grab over the
+        /// screen until the turn. False when no open book is drawn around it: nothing to turn over.
+        /// </summary>
+        public async UniTask<bool> CaptureAsync() {
             BookSpreadBackdrop backdrop = BookSpreadBackdrop.Exists ? BookSpreadBackdrop.Instance : null;
             if (backdrop == null || !backdrop.Drawn || backdrop.Spine == SpineSide.NotAPage
                 || backdrop.FacingImage.texture == null) {
                 return false;
             }
             await UniTask.WaitForEndOfFrame(this);
-            page.rectTransform.GetWorldCorners(Corners);
-            _stage = Rect.MinMaxRect(Corners[0].x, Corners[0].y, Corners[2].x, Corners[2].y);
-            _spineLeft = backdrop.Spine == SpineSide.Left;
+            _stage = backdrop.Stage;
+            _spine = backdrop.Spine;
+            _spineLeft = _spine == SpineSide.Left;
             Build();
             _back.Texture = backdrop.FacingImage.texture;
             _facingUv = backdrop.FacingImage.uvRect;
@@ -71,12 +128,44 @@ namespace BakAgain.Book {
             _shot.Apply(false);
             _front.Texture = _shot;
             (_front.V0, _front.V1) = (_stage.yMin / Screen.height, _stage.yMax / Screen.height);
+            _frozen.texture = _shot;
+            _frozen.enabled = true;
+            _front.Columns.Clear();
+            _back.Columns.Clear();
+            _shadow.Columns.Clear();
+            _canvas.enabled = true;
             return true;
+        }
+
+        // The next screen has drawn its page, bound like the grabbed one and in the same place.
+        private async UniTask<bool> NextPageAsync(object outgoing) {
+            float waited = 0;
+            while (waited < NextPageTimeout) {
+                await UniTask.Yield();
+                waited += Time.unscaledDeltaTime;
+                BookSpreadBackdrop backdrop = BookSpreadBackdrop.Instance;
+                object surface = backdrop.Surface;
+                if (surface != null && !ReferenceEquals(surface, outgoing)) {
+                    Rect stage = backdrop.Stage;
+                    return backdrop.Drawn && backdrop.Spine == _spine
+                        && Mathf.Abs(stage.xMin - _stage.xMin) < 1 && Mathf.Abs(stage.width - _stage.width) < 1
+                        && Mathf.Abs(stage.yMin - _stage.yMin) < 1 && Mathf.Abs(stage.height - _stage.height) < 1;
+                }
+            }
+            return false;
+        }
+
+        // No turn after all: take the grab down, showing the next screen as it is.
+        private void Abandon() {
+            _canvas.enabled = false;
+            _frozen.enabled = false;
+            ReleaseShot();
         }
 
         /// <summary>Turns the grabbed page over the spine; <paramref name="skip"/> ends it at once.</summary>
         public async UniTask PlayAsync(Func<bool> skip) {
             _canvas.enabled = true;
+            _frozen.enabled = false;
             try {
                 // Stepped per frame, a slow frame counting as 1/30 s at most: the frames right after the
                 // grab can stall (its read-back and upload), and a clock would skip the lift entirely.
@@ -86,9 +175,8 @@ namespace BakAgain.Book {
                 }
             } finally {
                 if (_canvas != null) {
-                    _canvas.enabled = false;
+                    Abandon();
                 }
-                ReleaseShot();
             }
         }
 
@@ -150,12 +238,20 @@ namespace BakAgain.Book {
             if (_canvas != null) {
                 return;
             }
-            // A root object: under BookView's canvas it would be a nested canvas, in that canvas's space.
-            var host = new GameObject("PageCurl");
-            _canvas = host.AddComponent<Canvas>();
+            // On this root object: under BookView's canvas it would be a nested canvas, in that canvas's space.
+            _canvas = gameObject.AddComponent<Canvas>();
             _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             _canvas.sortingOrder = SortingOrder;
             _canvas.enabled = false;
+            var frozenHost = new GameObject("Grab", typeof(RectTransform));
+            frozenHost.transform.SetParent(_canvas.transform, false);
+            _frozen = frozenHost.AddComponent<RawImage>();
+            _frozen.raycastTarget = false;
+            _frozen.enabled = false;
+            RectTransform full = _frozen.rectTransform;
+            full.anchorMin = Vector2.zero;
+            full.anchorMax = Vector2.one;
+            full.offsetMin = full.offsetMax = Vector2.zero;
             // Shadow under all; front before back: the back is always the outer, higher part of the sheet.
             _shadow = NewSheet("Shadow");
             _shadow.Shadow = true;
@@ -181,11 +277,6 @@ namespace BakAgain.Book {
             }
         }
 
-        private void OnDestroy() {
-            ReleaseShot();
-            if (_canvas != null) {
-                Destroy(_canvas.gameObject);
-            }
-        }
+        private void OnDestroy() => ReleaseShot();
     }
 }

@@ -107,6 +107,10 @@ namespace BakAgain.UI {
         internal bool Drawn => _back.enabled;
         internal RectTransform FacingPage => _facing.rectTransform;
         internal RawImage FacingImage => _facing;
+        /// <summary>The latest live surface a page is drawn on, a book or not; null when none is.</summary>
+        internal object Surface { get; private set; }
+        /// <summary>Where the page is, in screen pixels, while <see cref="Drawn"/>.</summary>
+        internal Rect Stage { get; private set; }
         internal RectTransform Shade => _shade.rectTransform;
 
         private static void ShowCore(object surface, Texture2D page, Texture2D facing = null) {
@@ -176,12 +180,14 @@ namespace BakAgain.UI {
         private void Refresh() {
             _shown.RemoveAll(e => !IsOnScreen(e.Surface));
             (object surface, Texture2D page, Texture2D ownFacing) = _shown.Count > 0 ? _shown[_shown.Count - 1] : (null, null, null);
+            Surface = surface;
             Spine = page != null ? SpineOf(page) : SpineSide.NotAPage;
             if (Spine == SpineSide.NotAPage || !TryStageRect(surface, out Rect stage)) {
                 Spine = SpineSide.NotAPage;
                 _back.enabled = _front.enabled = false;
                 return;
             }
+            Stage = stage;
             Texture2D facing = ownFacing != null ? ownFacing : _dialogPage;
             _back.enabled = true;
             _front.enabled = _shade.texture != null;

@@ -32,6 +32,9 @@ namespace BakAgain.Tests.PlayMode.UI {
             if (BookSpreadBackdrop.Exists) {
                 Object.DestroyImmediate(BookSpreadBackdrop.Instance.gameObject);
             }
+            if (BookPageCurl.Exists) {
+                Object.DestroyImmediate(BookPageCurl.Instance.gameObject);
+            }
         }
 
         // A left-bound parchment, half a 4:3 stage, on an overlay canvas as BookView draws it.
@@ -59,26 +62,40 @@ namespace BakAgain.Tests.PlayMode.UI {
             RawImage page = BookPage();
             BookSpreadBackdrop.Show(page, (Texture2D)page.texture, facingPage: (Texture2D)page.texture);
             await UniTask.Yield();
-            var curl = _host.AddComponent<BookPageCurl>();
+            BookPageCurl curl = BookPageCurl.Instance;
 
-            Assert.IsTrue(await curl.CaptureAsync(page), "a page with the book drawn around it can be turned");
+            Assert.IsTrue(await curl.CaptureAsync(), "a page with the book drawn around it can be turned");
             int frames = 0;
             bool shownMidTurn = false;
             await curl.PlayAsync(() => {
-                shownMidTurn |= GameObject.Find("PageCurl").GetComponent<Canvas>().enabled;
+                shownMidTurn |= curl.GetComponent<Canvas>().enabled;
                 return ++frames > 5;
             });
 
             Assert.IsTrue(shownMidTurn, "the sheet is drawn while the page turns");
-            Assert.IsFalse(GameObject.Find("PageCurl").GetComponent<Canvas>().enabled, "and gone once it has");
+            Assert.IsFalse(curl.GetComponent<Canvas>().enabled, "and gone once it has");
         });
 
         [UnityTest]
         public IEnumerator APageWithNoBookAroundIt_IsNotTurned() => UniTask.ToCoroutine(async () => {
-            RawImage page = BookPage();
-            var curl = _host.AddComponent<BookPageCurl>();
+            BookPage();
 
-            Assert.IsFalse(await curl.CaptureAsync(page), "nothing is drawn around it to turn it over: cut");
+            Assert.IsFalse(await BookPageCurl.Instance.CaptureAsync(), "nothing is drawn around it to turn it over: cut");
+        });
+
+        // The navigator asks before every transition; anything but a screen that draws an SCX page is
+        // left to it, untouched.
+        [UnityTest]
+        public IEnumerator AScreenThatDrawsNoPage_IsLeftToTheCaller() => UniTask.ToCoroutine(async () => {
+            RawImage page = BookPage();
+            BookSpreadBackdrop.Show(page, (Texture2D)page.texture, facingPage: (Texture2D)page.texture);
+            await UniTask.Yield();
+            bool changed = false;
+
+            bool turned = await BookPageCurl.TryTurnAsync(_host, () => { changed = true; return UniTask.CompletedTask; });
+
+            Assert.IsFalse(turned);
+            Assert.IsFalse(changed, "the caller makes the change itself");
         });
     }
 }

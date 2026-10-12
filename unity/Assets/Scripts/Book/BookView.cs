@@ -394,10 +394,8 @@ namespace BakAgain.Book {
         /// around the page to turn it over.
         /// </summary>
         public async Cysharp.Threading.Tasks.UniTask TurnPageAsync(System.Action showNext, System.Func<bool> skip) {
-            if (!TryGetComponent(out BookPageCurl curl)) {
-                curl = gameObject.AddComponent<BookPageCurl>();
-            }
-            bool captured = await curl.CaptureAsync(backgroundImage);
+            BookPageCurl curl = BookPageCurl.Instance;
+            bool captured = await curl.CaptureAsync();
             showNext();
             if (captured) {
                 await curl.PlayAsync(skip);
