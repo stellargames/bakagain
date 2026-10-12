@@ -38,6 +38,9 @@ namespace BakAgain.UI {
         // ponytail: keyed by texture and never pruned — a few bytes per parchment ever shown; prune on
         // texture destroy if mods ever stream hundreds of pages.
         private static readonly Dictionary<Texture2D, SpineSide> Spines = new();
+        // ponytail: one GPU-only copy per distinct page ever shown (a handful of SCX screens, ~8 MB each
+        // at 1600x1200); drop them on a screen change if a mod ships dozens of page images.
+        private static readonly Dictionary<Texture2D, Texture2D> Untorn = new();
         private static BookSpreadBackdrop _instance;
 
         private readonly List<(object Surface, Texture2D Page)> _shown = new();
@@ -46,15 +49,21 @@ namespace BakAgain.UI {
         private RawImage _table;
         private RawImage _facing;
         private RawImage _shade;
+        private SpineSide _facingSpine;
         private (Rect Stage, Texture2D Page, int Width, int Height) _placed;
 
-        /// <summary>Show the book around <paramref name="page"/>, drawn on a UI Toolkit stage.</summary>
-        public static void Show(VisualElement surface, Texture2D page) => ShowCore(surface, page);
+        /// <summary>
+        /// Show the book around <paramref name="page"/>, drawn on a UI Toolkit stage. Returns the image
+        /// to draw: for a page, a copy with its torn-away edges cleared so the table shows through
+        /// them; anything else unchanged.
+        /// </summary>
+        public static Texture2D Show(VisualElement surface, Texture2D page) => ShowCore(surface, page);
 
-        /// <summary>Show the book around <paramref name="page"/>, drawn on a uGUI image.</summary>
-        public static void Show(Graphic surface, Texture2D page) => ShowCore(surface, page);
+        /// <summary>Show the book around <paramref name="page"/>, drawn on a uGUI image; returns the image to draw.</summary>
+        public static Texture2D Show(Graphic surface, Texture2D page) => ShowCore(surface, page);
 
         /// <summary>A cutscene screen: its pixels, whichever form it was loaded in.</summary>
+        /// <remarks>The cutscene draws its own buffer, so its tears stay black (no copy is drawn).</remarks>
         public static void Show(Graphic surface, IndexedTexture page) =>
             ShowCore(surface, page == null ? null : page.DirectTexture ? page.DirectTexture : page.IndexTexture);
 
@@ -87,14 +96,44 @@ namespace BakAgain.UI {
         internal RectTransform FacingPage => _facing.rectTransform;
         internal RectTransform Shade => _shade.rectTransform;
 
-        private static void ShowCore(object surface, Texture2D page) {
+        private static Texture2D ShowCore(object surface, Texture2D page) {
             if (surface == null || page == null) {
-                return;
+                return page;
             }
             BookSpreadBackdrop backdrop = Instance;
             backdrop._shown.RemoveAll(e => e.Surface == surface);
             backdrop._shown.Add((surface, page));
             backdrop.Refresh();
+            return PageToDraw(page);
+        }
+
+        // The page with its torn-away edges see-through: the tears are the palette's black, opaque in
+        // the loaded image, and the table belongs in them. Only black joined to the border is cleared
+        // (PageSpine.TornAway), so ink on the page stays.
+        private static Texture2D PageToDraw(Texture2D page) {
+            if (SpineOf(page) == SpineSide.NotAPage) {
+                return page;
+            }
+            if (!Untorn.TryGetValue(page, out Texture2D copy)) {
+                Color32[] pixels = page.GetPixels32();
+                var dark = new bool[pixels.Length];
+                for (int i = 0; i < pixels.Length; i++) {
+                    dark[i] = !IsPaper(pixels[i]);
+                }
+                bool[] torn = PageSpine.TornAway(dark, page.width, page.height);
+                for (int i = 0; i < pixels.Length; i++) {
+                    if (torn[i]) {
+                        pixels[i].a = 0;
+                    }
+                }
+                copy = new Texture2D(page.width, page.height, TextureFormat.RGBA32, false) {
+                    name = page.name, filterMode = page.filterMode, wrapMode = page.wrapMode,
+                };
+                copy.SetPixels32(pixels);
+                copy.Apply(false, makeNoLongerReadable: true);
+                Untorn[page] = copy;
+            }
+            return copy;
         }
 
         private void Awake() {
@@ -103,20 +142,26 @@ namespace BakAgain.UI {
             if (_table.texture != null) {
                 _table.texture.wrapMode = TextureWrapMode.Mirror;   // alternate copies mirrored: no seam
             }
-            // The plain parchment every dialog is drawn on is the facing page: no page art is shipped.
-            // Loaded asynchronously: Show is called from inside other loads' callbacks, where
-            // WaitForCompletion throws ("Reentering the Update method is not allowed").
             _facing = NewImage(_back, null);
+            _front = NewCanvas("Front", FrontSortingOrder);
+            _shade = NewImage(_front, Resources.Load<Texture2D>("BookSpread/crease"));
+            _back.enabled = _front.enabled = false;
+        }
+
+        // The plain parchment every dialog is drawn on is the facing page: no page art is shipped.
+        // Loaded in Start, not Awake: the first Show usually comes from inside another load's Completed
+        // callback (BackgroundImageLoader), and the sprite converter's own WaitForCompletion throws
+        // there ("Reentering the Update method is not allowed").
+        private void Start() {
             Addressables.LoadAssetAsync<Sprite>(GameData.Resources.Dialog.DialogBackdrop.Resource).Completed += loaded => {
                 if (this == null || loaded.Result == null) {
                     return;
                 }
-                _facing.texture = loaded.Result.texture;
+                Texture2D facing = loaded.Result.texture;
+                _facingSpine = SpineOf(facing);
+                _facing.texture = PageToDraw(facing);
                 _placed = default;   // re-place: the mirroring depends on the page
             };
-            _front = NewCanvas("Front", FrontSortingOrder);
-            _shade = NewImage(_front, Resources.Load<Texture2D>("BookSpread/crease"));
-            _back.enabled = _front.enabled = false;
         }
 
         private void LateUpdate() => Refresh();
@@ -154,7 +199,7 @@ namespace BakAgain.UI {
             SetRect(_facing, new Rect(left ? stage.xMin - stage.width : stage.xMax,
                 stage.yMin - Layout.FacingPageDrop * stage.height, stage.width, stage.height));
             // Its straight edge goes against the binding: mirrored when it is bound on the same side as the shown page.
-            bool mirror = _facing.texture is Texture2D facing && SpineOf(facing) == Spine;
+            bool mirror = _facingSpine == Spine;
             _facing.uvRect = mirror ? new Rect(1, 0, -1, 1) : new Rect(0, 0, 1, 1);
             float shadeWidth = Layout.ShadeWidth * stage.height;
             SetRect(_shade, new Rect(spineX - shadeWidth / 2, stage.yMin, shadeWidth, stage.height));
@@ -199,11 +244,12 @@ namespace BakAgain.UI {
             Color[] column = page.GetPixels(x, 0, 1, page.height);
             var paper = new bool[column.Length];
             for (int y = 0; y < column.Length; y++) {
-                Color c = column[y];
-                paper[y] = c.a >= 0.5f && Mathf.Max(c.r, c.g, c.b) >= PaperMinimum;
+                paper[y] = IsPaper(column[y]);
             }
             return paper;
         }
+
+        private static bool IsPaper(Color c) => c.a >= 0.5f && Mathf.Max(c.r, c.g, c.b) >= PaperMinimum;
 
         private Canvas NewCanvas(string name, int sortingOrder) {
             var host = new GameObject(name);

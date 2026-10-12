@@ -261,9 +261,10 @@ namespace BakAgain.UI {
         private VisualElement _bookSpreadPage;
 
         // Only a parchment that covers the stage is a page; one with the world cut through it is a frame.
-        private void ShowBookSpread(VisualElement backdrop, Sprite parchment) {
+        // Returns the parchment to draw: with its torn edges see-through, so the table shows in them.
+        private Background ShowBookSpread(VisualElement backdrop, Sprite parchment) {
             _bookSpreadPage = backdrop;
-            BookSpreadBackdrop.Show(backdrop, parchment.texture);
+            return Background.FromTexture2D(BookSpreadBackdrop.Show(backdrop, parchment.texture));
         }
 
         private async UniTask AddFullScreenBackdropAsync(VisualElement stage, DialogEntry entry,
@@ -292,9 +293,8 @@ namespace BakAgain.UI {
             // a hardcoded 1600x1200 is wrong for any resource that ships another.
             if (!CanonicalStage.TryGetFrame(stage, out DesignFrame frame, out _)
                 || frame.Width <= 0 || frame.Height <= 0) {
-                AddBackdropWindow(backdrop, parchment, 0, 0, Length.Percent(100), Length.Percent(100),
+                AddBackdropWindow(backdrop, ShowBookSpread(backdrop, parchment), 0, 0, Length.Percent(100), Length.Percent(100),
                     0, 0, Length.Percent(100), Length.Percent(100));
-                ShowBookSpread(backdrop, parchment);
                 return;
             }
 
@@ -308,8 +308,7 @@ namespace BakAgain.UI {
             // gap through the narrative the player is meant to read.
             Rect? hole = DialogBackdrop.RedrawsWorldViewport(entry.Flags) ? WorldViewportHole() : null;
             if (hole == null) {
-                AddBackdropWindow(backdrop, parchment, 0, 0, w, h, 0, 0, w, h);
-                ShowBookSpread(backdrop, parchment);
+                AddBackdropWindow(backdrop, ShowBookSpread(backdrop, parchment), 0, 0, w, h, 0, 0, w, h);
                 return;
             }
 
@@ -319,10 +318,11 @@ namespace BakAgain.UI {
 
             // above, below, left-of and right-of the viewport — between them exactly the frame minus
             // the hole, with no overlap.
-            AddBackdropWindow(backdrop, parchment, 0, 0, w, v.yMin, 0, 0, w, h);
-            AddBackdropWindow(backdrop, parchment, 0, belowY, w, h - belowY, 0, -belowY, w, h);
-            AddBackdropWindow(backdrop, parchment, 0, v.yMin, v.xMin, v.height, 0, -v.yMin, w, h);
-            AddBackdropWindow(backdrop, parchment, rightX, v.yMin, w - rightX, v.height,
+            Background around = Background.FromSprite(parchment);
+            AddBackdropWindow(backdrop, around, 0, 0, w, v.yMin, 0, 0, w, h);
+            AddBackdropWindow(backdrop, around, 0, belowY, w, h - belowY, 0, -belowY, w, h);
+            AddBackdropWindow(backdrop, around, 0, v.yMin, v.xMin, v.height, 0, -v.yMin, w, h);
+            AddBackdropWindow(backdrop, around, rightX, v.yMin, w - rightX, v.height,
                 -rightX, -v.yMin, w, h);
             AddViewportOutline(backdrop, v, palette);
         }
@@ -378,7 +378,7 @@ namespace BakAgain.UI {
         /// (<paramref name="x"/>, <paramref name="y"/>) holding a full-sheet copy offset to
         /// (<paramref name="imgX"/>, <paramref name="imgY"/>).
         /// </summary>
-        private static void AddBackdropWindow(VisualElement parent, Sprite parchment,
+        private static void AddBackdropWindow(VisualElement parent, Background parchment,
             Length x, Length y, Length width, Length height,
             Length imgX, Length imgY, Length imgW, Length imgH) {
             var clip = new VisualElement {
@@ -394,7 +394,7 @@ namespace BakAgain.UI {
                 style = {
                     position = Position.Absolute,
                     left = imgX, top = imgY, width = imgW, height = imgH,
-                    backgroundImage = Background.FromSprite(parchment),
+                    backgroundImage = parchment,
                     backgroundSize = new BackgroundSize(Length.Percent(100), Length.Percent(100)),
                 },
             });

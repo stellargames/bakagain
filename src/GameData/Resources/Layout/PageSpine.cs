@@ -1,5 +1,6 @@
 namespace GameData.Resources.Layout;
 
+using System.Collections.Generic;
 using System.Linq;
 
 /// <summary>How a full-screen image sits in the open book.</summary>
@@ -37,6 +38,45 @@ public static class PageSpine
             (false, true) => SpineSide.Right,
             _ => SpineSide.Loose,
         };
+
+    /// <summary>
+    /// The torn-away part of a page: the dark pixels joined (4-way) to the image's border. The tears
+    /// are drawn in the palette's black, which an opaque image cannot tell from ink, but ink inside
+    /// the page never touches the border. Row-major, <paramref name="width"/> x <paramref name="height"/>.
+    /// </summary>
+    public static bool[] TornAway(bool[] dark, int width, int height)
+    {
+        var torn = new bool[dark.Length];
+        var open = new Stack<int>();
+        void Reach(int i)
+        {
+            if (dark[i] && !torn[i])
+            {
+                torn[i] = true;
+                open.Push(i);
+            }
+        }
+        for (int x = 0; x < width; x++)
+        {
+            Reach(x);
+            Reach((height - 1) * width + x);
+        }
+        for (int y = 0; y < height; y++)
+        {
+            Reach(y * width);
+            Reach(y * width + width - 1);
+        }
+        while (open.Count > 0)
+        {
+            int i = open.Pop();
+            int x = i % width;
+            if (x > 0) Reach(i - 1);
+            if (x < width - 1) Reach(i + 1);
+            if (i >= width) Reach(i - width);
+            if (i + width < dark.Length) Reach(i + width);
+        }
+        return torn;
+    }
 
     private static bool IsStraight(bool[] column) =>
         column.Length > 0 && column.Count(opaque => opaque) >= StraightShare * column.Length;

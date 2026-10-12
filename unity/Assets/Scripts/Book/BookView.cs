@@ -55,11 +55,11 @@ namespace BakAgain.Book {
         // with the font sized on the horizontal factor alone.
 
         public void SetBackground(Sprite background) {
-            backgroundImage.texture = background.texture;
             _backgroundWidth = background.texture.width;
             _backgroundHeight = background.texture.height;
-            // Per page: the even and odd parchments are bound on opposite sides.
-            BookSpreadBackdrop.Show(backgroundImage, background.texture);
+            // Per page: the even and odd parchments are bound on opposite sides. Drawn with its torn
+            // edges see-through, so the table shows in them.
+            backgroundImage.texture = BookSpreadBackdrop.Show(backgroundImage, background.texture);
         }
 
         // Pillar/letter-boxes the page to the background's aspect inside the canvas and sizes both the

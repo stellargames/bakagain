@@ -39,4 +39,45 @@ public class PageSpineTests {
     [Fact]
     public void AnEmptyImage_IsALoosePage() =>
         Assert.Equal(SpineSide.Loose, PageSpine.Of(new bool[0], new bool[0]));
+
+    // Rows top to bottom; '#' dark, '.' paper.
+    private static bool[] Grid(params string[] rows) {
+        var dark = new bool[rows.Length * rows[0].Length];
+        for (int y = 0; y < rows.Length; y++) {
+            for (int x = 0; x < rows[y].Length; x++) {
+                dark[y * rows[0].Length + x] = rows[y][x] == '#';
+            }
+        }
+        return dark;
+    }
+
+    [Fact]
+    public void TornAway_IsTheDarkThatReachesTheEdge_NotTheInkInside() {
+        bool[] torn = PageSpine.TornAway(Grid(
+            "##.#",
+            "#...",
+            "..#.",
+            "...#"), 4, 4);
+
+        Assert.Equal(Grid(
+            "##.#",
+            "#...",
+            "....",
+            "...#"), torn);
+    }
+
+    [Fact]
+    public void TornAway_FollowsANotchInward() {
+        bool[] torn = PageSpine.TornAway(Grid(
+            ".#..",
+            ".#..",
+            ".##.",
+            "...."), 4, 4);
+
+        Assert.Equal(Grid(
+            ".#..",
+            ".#..",
+            ".##.",
+            "...."), torn);
+    }
 }

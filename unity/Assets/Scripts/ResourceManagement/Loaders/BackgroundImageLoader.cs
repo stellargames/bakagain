@@ -49,14 +49,15 @@ namespace BakAgain.ResourceManagement.Loaders {
                 // screen) but would make this loader depend on the other's load order/lifecycle for
                 // something CanonicalStage.GetOrCreate already reconciles correctly on its own.
                 VisualElement stage = CanonicalStage.GetOrCreate(_uiDocument.rootVisualElement, null);
-                stage.style.backgroundImage = Background.FromSprite(operationHandle.Result);
                 // SCX backgrounds are 320×200 source pixels — stretch to fill
                 // the canonical 1600×1200 stage instead of rendering at native
                 // sprite size in the top-left corner.
                 stage.style.backgroundSize =
                     new BackgroundSize(Length.Percent(100), Length.Percent(100));
-                // The open book around the page, for as long as this stage is on screen.
-                BookSpreadBackdrop.Show(stage, operationHandle.Result.texture);
+                // The open book around the page, for as long as this stage is on screen; a page is
+                // drawn with its torn edges see-through so the table shows in them.
+                stage.style.backgroundImage =
+                    Background.FromTexture2D(BookSpreadBackdrop.Show(stage, operationHandle.Result.texture));
             };
         }
 

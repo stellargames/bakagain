@@ -215,6 +215,18 @@ namespace BakAgain.Tests.PlayMode.UI {
             }
         }
 
+        [Test]
+        public void APageIsDrawnFromAnUntornCopy_APictureAsItIs() {
+            Texture2D page = Page(leftStraight: true, rightStraight: false);
+            Texture2D picture = Page(leftStraight: true, rightStraight: true);
+
+            Texture2D drawn = BookSpreadBackdrop.Show(Surface("Page"), page);
+            Assert.AreNotSame(page, drawn, "the tears are cleared in a copy");
+            Assert.AreEqual(page.width, drawn.width);
+            Assert.AreSame(drawn, BookSpreadBackdrop.Show(Surface("Again"), page), "made once per page");
+            Assert.AreSame(picture, BookSpreadBackdrop.Show(Surface("Picture"), picture));
+        }
+
         [UnityTest]
         public IEnumerator TheMainMenusBackground_ShowsTheBook_UntilTheScreenCloses() {
             _host = new GameObject("MenuHost");
@@ -229,6 +241,9 @@ namespace BakAgain.Tests.PlayMode.UI {
                 }
                 Assert.IsTrue(BookSpreadBackdrop.Exists, "the menu asked for the book");
                 Assert.AreEqual(SpineSide.Left, BookSpreadBackdrop.Instance.Spine, "OPTIONS0.SCX is straight on the left");
+                yield return FacingPageLoaded();
+                Assert.IsTrue(BookSpreadBackdrop.Instance.FacingPage.GetComponent<RawImage>().enabled,
+                    "the facing page loads even though the menu asked from inside its own load's callback");
 
                 _host.SetActive(false);   // what the navigator does on Pop
                 yield return null;
