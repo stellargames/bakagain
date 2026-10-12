@@ -74,8 +74,6 @@ namespace BakAgain.UI.InGame {
         // Enhanced full-screen travel's HUD: the REQ_MAIN elements moved around the window (spec §3).
         private readonly GameData.Resources.Layout.EnhancedTravelLayout _enhancedLayout = new();
         private EnhancedHudLayout _hud;
-        private PortraitRingView[] _rings;
-        private float _ringClock;
 
         /// <summary>The painted backdrop element, while a fight that has one is running.</summary>
         private VisualElement _combatBackdrop;
@@ -744,7 +742,7 @@ namespace BakAgain.UI.InGame {
             _partyHeads = new PartyHeadsView(_gameSession, _resources);
             _partyHeads.Attach(root);
             _partyHeads.RenderAsync().Forget();
-            _hud = new EnhancedHudLayout(root) { StatusFontFraction = _enhancedLayout.StatusFontFraction };
+            _hud = new EnhancedHudLayout(root, _gameSession, _clock, _enhancedLayout.StatusFontFraction);
         }
 
         /// <summary>
@@ -828,7 +826,7 @@ namespace BakAgain.UI.InGame {
             _combatFrame = null;
             _compassArrows = System.Array.Empty<VisualElement>();
             _interaction = null;
-            RevertHud(); _hud = null;
+            _hud?.Revert(); _hud = null;
             RestoreLookCursor();
         }
 
@@ -847,23 +845,7 @@ namespace BakAgain.UI.InGame {
         // Teardown safety net: dispose all sub-views even if this GameObject is
         // deactivated/destroyed by a path other than Hide(). Idempotent: when Hide() drove
         // the deactivation it already disposed and nulled, so this is a no-op then.
-        private void OnDisable() {
-            if (_loader != null) {
-                _loader.Built -= OnLoaderBuilt;
-            }
-            _worldView?.Dispose(); _worldView = null;
-            _partyHeads?.Dispose(); _partyHeads = null;
-            _effectCaption?.Dispose(); _effectCaption = null;
-            _combatPanel?.Dispose(); _combatPanel = null;
-            _touchControls?.Dispose(); _touchControls = null;
-            _touchTargeting = null;
-            _compass = null;
-            _combatFrame = null;
-            _compassArrows = System.Array.Empty<VisualElement>();
-            _interaction = null;
-            RevertHud(); _hud = null;
-            RestoreLookCursor();
-        }
+        private void OnDisable() => TeardownContent();
 
         // Per-frame: refresh the compass + world view, and drive movement — but only while the
         // travel surface owns input. The gate (TravelLayerHost.IsInputActive) is false whenever a
@@ -1123,68 +1105,23 @@ namespace BakAgain.UI.InGame {
             (_inCombat?.Invoke() ?? false) && actionId != ActionWorldViewport;
 
         // Every frame, so only a change does anything (TASK-576 was this call without the guard).
-        /// <summary>
-        /// Keeps the Enhanced HUD in step with the full-window world: applied while it is, reverted
-        /// to the faithful REQ layout otherwise (a fight, the option off). The status line and rings
-        /// are polled at 4 Hz.
-        /// </summary>
+        // The Enhanced HUD is up while the world is full-window, and out of sight while anything is
+        // open over the travel screen: a dialog over travel cuts a hole at the world viewport, and the
+        // HUD (and the spell plaque, which no frame art surrounds any more) would show through it.
         private void SyncEnhancedHud() {
             if (_hud == null) {
                 return;
             }
-            bool wantHud = _fullScreen != null && _fullScreen.Active;
-            if (wantHud && !_hud.Applied && _hud.Apply()) {
-                if (GameOptions.IsOn(EnhancedFeature.PortraitRings)) {
-                    VisualElement root = _document.rootVisualElement;
-                    _rings = new PortraitRingView[3];
-                    for (int i = 0; i < _rings.Length; i++) {
-                        _rings[i] = new PortraitRingView(_gameSession, root.Q($"hotspot_{ActionPartyMember1 + i}"), i);
-                    }
-                }
-                _ringClock = 0f;
-            } else if (!wantHud && _hud.Applied) {
-                RevertHud();
+            bool wasApplied = _hud.Applied;
+            bool shown = _travelHost != null && _travelHost.IsInputActive;
+            _hud.Sync(_fullScreen != null && _fullScreen.Active, shown);
+            _effectCaption?.SetVisible(!_hud.Applied || shown);
+            if (wasApplied && !_hud.Applied) {
                 // The revert un-hides the compass arrows; a fight that has just started hid them a
                 // moment ago in this same frame, so have the chrome re-applied.
                 _combatChromeShown = !(_inCombat?.Invoke() ?? false);
                 RefreshCombatChrome();
             }
-            if (!_hud.Applied) {
-                return;
-            }
-            // A dialog over travel cuts a hole at the world viewport, and the full-screen HUD (and the
-            // spell plaque, which no frame art surrounds any more) would show through it: hidden while
-            // anything is open over the travel screen.
-            bool shown = _travelHost != null && _travelHost.IsInputActive;
-            _hud.SetVisible(shown);
-            _effectCaption?.SetVisible(shown);
-            // ponytail: 4 Hz poll; switch to a party-stats change event if one appears.
-            _ringClock -= Time.unscaledDeltaTime;
-            if (_ringClock > 0f) {
-                return;
-            }
-            _ringClock = 0.25f;
-            if (_rings != null) {
-                foreach (PortraitRingView r in _rings) {
-                    r.Refresh();
-                }
-            }
-            if (_clock != null) {
-                _hud.SetStatus(GameData.Resources.Text.UiTemplates.Format(
-                    GameData.Resources.Text.UiTemplates.EnhancedStatusKey,
-                    ("day", _clock.Day), ("hour", _clock.HourOfDay)));
-            }
-        }
-
-        private void RevertHud() {
-            if (_rings != null) {
-                foreach (PortraitRingView r in _rings) {
-                    r.Remove();
-                }
-            }
-            _rings = null;
-            _hud?.Revert();
-            _effectCaption?.SetVisible(true);
         }
 
         private void RefreshCombatChrome() {

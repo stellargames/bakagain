@@ -95,15 +95,6 @@ namespace BakAgain.UI {
         /// </remarks>
         public static Texture2D WithTearsOpen(Texture2D page) => page == null ? null : PageToDraw(page);
 
-        /// <summary>Stop drawing for <paramref name="surface"/>, for an owner whose surface stays on screen.</summary>
-        public static void Hide(object surface) {
-            if (_instance == null) {
-                return;
-            }
-            _instance._shown.RemoveAll(e => e.Surface == surface);
-            _instance.Refresh();
-        }
-
         internal static bool Exists => _instance != null;
 
         internal static BookSpreadBackdrop Instance {
@@ -176,6 +167,9 @@ namespace BakAgain.UI {
             _facing = NewImage(_back, null);
             _front = NewCanvas("Front", FrontSortingOrder);
             _shade = NewImage(_front, Resources.Load<Texture2D>("BookSpread/crease"));
+            if (_shade.texture != null) {
+                _shade.texture.wrapMode = TextureWrapMode.Clamp;   // the page turn samples past the band: clear there, not smeared
+            }
             _back.enabled = _front.enabled = false;
         }
 

@@ -123,5 +123,27 @@ namespace BakAgain.Tests.PlayMode.UI {
             Assert.IsFalse(turned);
             Assert.IsFalse(changed, "the caller makes the change itself");
         });
+
+        // A page grabbed while the last turn is still playing (a book skipped mid-turn) is a grab of
+        // the screen, and outlives the turn it interrupted.
+        [UnityTest]
+        public IEnumerator AGrabTakenMidTurn_SurvivesTheTurnItInterrupts() => UniTask.ToCoroutine(async () => {
+            RawImage page = BookPage();
+            BookSpreadBackdrop.Show(page, (Texture2D)page.texture, facingPage: (Texture2D)page.texture);
+            await UniTask.Yield();
+            BookPageCurl curl = BookPageCurl.Instance;
+            Assert.IsTrue(await curl.CaptureAsync());
+            UniTask turning = curl.PlayAsync();
+            await UniTask.Yield();
+
+            Assert.IsTrue(await curl.CaptureAsync(), "grabbed mid-turn");
+            await turning;
+            for (int i = 0; i < 3; i++) {
+                await UniTask.Yield();
+            }
+
+            Assert.IsTrue(curl.GetComponent<Canvas>().enabled, "the interrupted turn leaves the new grab up");
+            Assert.IsNotNull(curl.GetComponentInChildren<RawImage>().texture, "with its picture");
+        });
     }
 }

@@ -17,9 +17,11 @@ namespace BakAgain.Book {
     /// rest looking exactly like what was already there. The bend is a strip of columns from the spine,
     /// each rotated a little further than the one before it, so the outer edge leads.
     ///
-    /// <para>Turned by the book between its pages, and by the screen navigator between two menu
-    /// screens drawn as bound pages (<see cref="TryTurnAsync"/>). From the grab until the turn starts,
-    /// the grab covers the whole screen, so the next screen can lay out unseen.</para>
+    /// <para>Turned by the book between its pages, and by the screen navigator between two screens
+    /// drawn as bound pages, cutscenes included (<see cref="TryTurnAsync"/>). A page about to be torn
+    /// down (a cleared menu, a book's last page, a cutscene's fade-out, a closed narrative page) is
+    /// grabbed and held for what follows to turn (<see cref="HoldAsync"/>). From the grab until the
+    /// turn starts, the grab covers the whole screen, so the next screen can lay out unseen.</para>
     /// </remarks>
     public sealed class BookPageCurl : MonoBehaviour {
         private const float Seconds = 0.55f;
@@ -41,13 +43,13 @@ namespace BakAgain.Book {
         private const float NextPageTimeout = 1f;
         // A book loads its pictures before it draws its first page.
         private const float BookPageTimeout = 3f;
+        // A cutscene loads its resources first, so it gets longer to reach its first fade-in.
+        private const float CutsceneFadeInTimeout = 1.5f;
+        // A held grab is let go if nothing takes it up in this time.
+        private const float HoldTimeout = 2f;
         // How long a new page that is not where the grabbed one was gets to lay out before the turn
         // gives up (a book's first frame spans the whole canvas).
         private const float SettleSeconds = 0.2f;
-        // A cutscene loads its resources first, so it gets longer to reach its first fade-in.
-        private const float CutsceneFadeInTimeout = 1.5f;
-        // A grab held by a navigator Clear is let go if no transition takes it up in this time.
-        private const int HeldTimeoutMs = 2000;
 
         private static BookPageCurl _instance;
         private static int _cutsceneFramesShown;
@@ -70,11 +72,17 @@ namespace BakAgain.Book {
         private static readonly Vector3[] Corners = new Vector3[4];
         private SpineSide _spine;
         private object _outgoing;
+
+        // The grab on screen. Every new grab and every let-go bumps it, so an async step that finds it
+        // changed knows its grab is gone and touches nothing.
+        private int _generation;
+        // Grabbed ahead of a change, for whatever comes next to take up (HoldAsync).
         private bool _held;
+        // A held narrative page waits for the cutscene beneath to show its next frame.
         private bool _turnOnCutsceneFrame;
-        private int _holdGeneration;
-        // Set while a cutscene is being turned to: its first fade-in answers whether it lands on a page.
-        private UniTaskCompletionSource<bool> _awaitingFadeIn;
+        // Turning to a cutscene: its first fade-in answers whether it lands on a page.
+        private bool _awaitingFadeIn;
+        private bool? _fadeIn;
 
         /// <summary>The one turn, made on first use and kept across scenes.</summary>
         public static BookPageCurl Instance {
@@ -92,8 +100,9 @@ namespace BakAgain.Book {
 
         /// <summary>
         /// Enhanced: if the page on screen and <paramref name="incoming"/> are both bound pages, grabs
-        /// the page, runs <paramref name="change"/> under the grab and turns the page over onto the next
-        /// one. False, having done nothing, when this is not a page-to-page change: the caller makes it.
+        /// the page (or takes up a held grab), runs <paramref name="change"/> under it and turns the page
+        /// over onto the next one. False, having done nothing, when this is not a page-to-page change:
+        /// the caller makes it.
         /// </summary>
         /// <remarks>
         /// Whether the incoming screen is a page is known only once it has drawn one, so a screen that
@@ -106,9 +115,6 @@ namespace BakAgain.Book {
             // The book draws its page once its presenter runs, after the push that shows it.
             bool book = incoming is BookView;
             bool held = Exists && _instance._held;
-            if (held) {
-                _instance._held = false;
-            }
             if (!Core.GameOptions.IsOn(Core.EnhancedFeature.PageTurn) || (!page && !cutscene && !book)) {
                 if (held) {
                     _instance.Abandon();
@@ -116,36 +122,30 @@ namespace BakAgain.Book {
                 return false;
             }
             BookPageCurl curl = Instance;
-            if (!held) {
-                if (!await curl.CaptureAsync()) {
-                    return false;
-                }
-                curl._outgoing = BookSpreadBackdrop.Instance.Surface;
+            if (held) {
+                curl._held = false;
+            } else if (!await curl.CaptureAsync()) {
+                return false;
             }
+            int generation = curl._generation;
             object outgoing = curl._outgoing;
             if (cutscene) {
-                curl._awaitingFadeIn = new UniTaskCompletionSource<bool>();
+                curl._awaitingFadeIn = true;
+                curl._fadeIn = null;
             }
             try {
                 await change();
             } catch {
-                curl._awaitingFadeIn = null;
                 curl.Abandon();
                 throw;
             }
             // Not awaited: the cutscene plays, and the book draws, only once the push has returned.
             if (cutscene) {
-                curl.TurnOntoCutsceneAsync().Forget();
-                return true;
-            }
-            if (book) {
-                curl.TurnOntoNextPageAsync(outgoing).Forget();
-                return true;
-            }
-            if (await curl.NextPageAsync(outgoing)) {
-                await curl.PlayAsync(() => false);
+                curl.TurnOntoCutsceneAsync(generation).Forget();
+            } else if (book) {
+                curl.TurnOrLetGoAsync(generation, curl.UntilAsync(generation, BookPageTimeout, curl.NextPage(outgoing))).Forget();
             } else {
-                curl.Abandon();
+                await curl.TurnOrLetGoAsync(generation, curl.UntilAsync(generation, NextPageTimeout, curl.NextPage(outgoing)));
             }
             return true;
         }
@@ -153,6 +153,7 @@ namespace BakAgain.Book {
         /// <summary>
         /// Grabs the page as it is on screen, at the end of this frame, and holds the grab over the
         /// screen until the turn. False when no open book is drawn around it: nothing to turn over.
+        /// A turn still running is let go first, so the grab is of the screen, not of its sheet.
         /// </summary>
         public async UniTask<bool> CaptureAsync() {
             BookSpreadBackdrop backdrop = BookSpreadBackdrop.Exists ? BookSpreadBackdrop.Instance : null;
@@ -160,25 +161,33 @@ namespace BakAgain.Book {
                 || backdrop.FacingImage.texture == null) {
                 return false;
             }
+            Abandon();
+            int generation = _generation;
             // The page as it is now: by the end of the frame its owner may already have registered the
             // next one, while the screen still shows this one (a cutscene's black fill before a fade-out).
             Rect stage = backdrop.Stage;
             SpineSide spine = backdrop.Spine;
+            object surface = backdrop.Surface;
             await UniTask.WaitForEndOfFrame(this);
+            if (!Alive(generation)) {
+                return false;
+            }
             _stage = stage;
             _spine = spine;
             _spineLeft = _spine == SpineSide.Left;
+            _outgoing = surface;
             Build();
-            ReleaseShot();
             // Read back now, at this frame's end: the render-texture grab is deferred, and by the time
-            // it runs the next page is already drawn. ponytail: one CPU read-back per turn (~8 MB at
-            // 1080p); a camera render into a texture avoids the stall if a phone ever stutters here.
+            // it runs the next page is already drawn. ponytail: one CPU read-back per turn; a camera
+            // render into a texture avoids the stall if a phone ever stutters here.
             // An sRGB texture: the screen holds sRGB values, which a linear texture would show too light.
-            _shot = new Texture2D(Screen.width, Screen.height, TextureFormat.RGBA32, mipChain: false, linear: false);
+            if (_shot == null || _shot.width != Screen.width || _shot.height != Screen.height) {
+                ReleaseShot();
+                _shot = new Texture2D(Screen.width, Screen.height, TextureFormat.RGBA32, mipChain: false, linear: false);
+            }
             _shot.ReadPixels(new Rect(0, 0, Screen.width, Screen.height), 0, 0, recalculateMipMaps: false);
             if (IsBlack(_shot, _stage)) {
-                ReleaseShot();   // a page already blacked out (a scene's last frame): nothing to turn
-                return false;
+                return false;   // a page already blacked out (a scene's last frame): nothing to turn
             }
             _shot.Apply(false);
             _front.Texture = _shot;
@@ -194,9 +203,10 @@ namespace BakAgain.Book {
         }
 
         /// <summary>
-        /// Enhanced: grabs the page on screen and holds it while the screens are cleared, for the
-        /// transition that follows to turn (New Game clears the menu before pushing the chapter's
-        /// cutscene). Let go after <see cref="HeldTimeoutMs"/> if nothing takes it up.
+        /// Enhanced: grabs the page on screen and holds it while its owner tears it down, for what
+        /// follows to turn: the next pushed screen (<see cref="TryTurnAsync"/>), a cutscene's fade-in
+        /// (<see cref="TakeFadeIn"/>), its next frame (<see cref="TurnOnNextCutsceneFrame"/>), or any
+        /// page drawn in the same place. Let go after <see cref="HoldTimeout"/> if nothing does.
         /// </summary>
         /// <returns>Whether the page was grabbed and is held.</returns>
         public static async UniTask<bool> HoldAsync() {
@@ -210,42 +220,21 @@ namespace BakAgain.Book {
             if (!await curl.CaptureAsync()) {
                 return false;
             }
-            curl._outgoing = BookSpreadBackdrop.Instance.Surface;
             curl._held = true;
-            curl.LetGoUnlessTakenAsync(++curl._holdGeneration).Forget();
+            curl.LetGoUnlessTakenAsync(curl._generation).Forget();
             return true;
         }
 
-        private async UniTaskVoid TurnOntoNextPageAsync(object outgoing) {
-            if (await NextPageAsync(outgoing, BookPageTimeout)) {
-                await PlayAsync(() => false);
-            } else {
-                Abandon();
-            }
-        }
-
-        // While held: a page drawn elsewhere in the same place (a narrative page, the next screen) is
-        // turned onto; nothing within HeldTimeoutMs lets the grab go.
+        // While held: a page drawn in the same place (a narrative page, the next screen) is turned
+        // onto; nothing within HoldTimeout lets the grab go. Taken up elsewhere, it just stops.
         private async UniTaskVoid LetGoUnlessTakenAsync(int generation) {
-            var waited = new Settling();
-            while (true) {
-                await UniTask.Yield();
-                if (this == null || !_held || _holdGeneration != generation) {
-                    return;   // taken up, or let go
-                }
-                if (waited.GaveUp(HeldTimeoutMs / 1000f)) {
-                    break;
-                }
-                // Not while a closed narrative page waits for the cutscene to redraw beneath it.
-                if (!_turnOnCutsceneFrame && LandsOnPage(_outgoing)) {
-                    _held = false;
-                    await PlayAsync(() => false);
-                    return;
-                }
+            // Not while a closed narrative page waits for the cutscene to redraw beneath it.
+            bool lands = await UntilAsync(generation, HoldTimeout,
+                () => !_held ? false : !_turnOnCutsceneFrame && LandsOnPage(_outgoing) ? true : null);
+            if (Alive(generation) && _held) {
+                _held = false;
+                await TurnOrLetGoAsync(generation, UniTask.FromResult(lands));
             }
-            _held = false;
-            _turnOnCutsceneFrame = false;
-            Abandon();
         }
 
         /// <summary>
@@ -264,17 +253,8 @@ namespace BakAgain.Book {
             if (!Exists || !_instance._turnOnCutsceneFrame) {
                 return;
             }
-            BookPageCurl curl = _instance;
-            curl._turnOnCutsceneFrame = false;
-            if (!curl._held) {
-                return;
-            }
-            curl._held = false;
-            if (curl.LandsOnPage(outgoing: null)) {
-                curl.PlayAsync(() => false).Forget();
-            } else {
-                curl.Abandon();
-            }
+            _instance._turnOnCutsceneFrame = false;
+            _instance.TakeUpHold();
         }
 
         /// <summary>
@@ -289,61 +269,49 @@ namespace BakAgain.Book {
             BookPageCurl curl = _instance;
             if (curl._held) {
                 // A scene ended on a page and the next one opens on one, on the same screen.
-                curl._held = false;
-                if (curl.LandsOnPage(outgoing: null)) {   // the same cutscene image, a new page on it
-                    curl.PlayAsync(() => false).Forget();
-                    return true;
-                }
-                curl.Abandon();
+                return curl.TakeUpHold();
+            }
+            if (!curl._awaitingFadeIn) {
                 return false;
             }
-            if (curl._awaitingFadeIn == null) {
-                return false;
-            }
-            UniTaskCompletionSource<bool> waiting = _instance._awaitingFadeIn;
-            _instance._awaitingFadeIn = null;
-            bool lands = _instance.LandsOnPage(_instance._outgoing);
+            curl._awaitingFadeIn = false;
+            bool lands = curl.LandsOnPage(curl._outgoing);
+            curl._fadeIn = lands;
             if (!lands) {
-                _instance.Abandon();
+                curl.Abandon();
             }
-            waiting.TrySetResult(lands);
+            return lands;
+        }
+
+        // The held grab, turned onto the same cutscene image with a new page on it, or let go.
+        private bool TakeUpHold() {
+            if (!_held) {
+                return false;
+            }
+            _held = false;
+            bool lands = LandsOnPage(outgoing: null);
+            TurnOrLetGoAsync(_generation, UniTask.FromResult(lands)).Forget();
             return lands;
         }
 
         // The grab holds until the cutscene's first fade-in says whether it fades in a page, or until it
         // shows a frame with a page in place.
-        private async UniTaskVoid TurnOntoCutsceneAsync() {
-            UniTaskCompletionSource<bool> waiting = _awaitingFadeIn;
+        private async UniTaskVoid TurnOntoCutsceneAsync(int generation) {
             int framesAtStart = _cutsceneFramesShown;
-            var waited = new Settling();
-            var elsewhere = new Settling();
-            while (waiting.Task.Status == UniTaskStatus.Pending) {
-                await UniTask.Yield();
-                if (waited.GaveUp(CutsceneFadeInTimeout)) {
-                    break;
+            Func<bool?> nextPage = NextPage(_outgoing);
+            bool lands = await UntilAsync(generation, CutsceneFadeInTimeout, () => {
+                if (_fadeIn.HasValue) {
+                    return _fadeIn;
                 }
-                // A cutscene that draws something else first is not going to be turned to.
-                object surface = BookSpreadBackdrop.Instance.Surface;
-                bool lands = LandsOnPage(_outgoing);
-                if (surface != null && !ReferenceEquals(surface, _outgoing) && !lands
-                    && elsewhere.GaveUp()) {
-                    break;
-                }
+                bool? next = nextPage();
                 // Back on a cutscene after a book, its page is redrawn with no fade-in: turn once it is shown.
-                if (lands && _cutsceneFramesShown > framesAtStart) {
-                    _awaitingFadeIn = null;
-                    waiting.TrySetResult(true);
-                }
+                return next == true && _cutsceneFramesShown <= framesAtStart ? null : next;
+            });
+            if (Alive(generation)) {
+                _awaitingFadeIn = false;
+                _fadeIn = null;
             }
-            if (waiting.Task.Status == UniTaskStatus.Pending) {
-                _awaitingFadeIn = null;
-                waiting.TrySetResult(false);
-                Abandon();
-                return;
-            }
-            if (await waiting.Task) {
-                await PlayAsync(() => false);
-            }
+            await TurnOrLetGoAsync(generation, UniTask.FromResult(lands));
         }
 
         // How long a page that is not where the grabbed one was has been seen: given up on after
@@ -358,8 +326,41 @@ namespace BakAgain.Book {
             }
         }
 
+        // Yields a frame at a time until answer() says (true or false), the time runs out (false), or
+        // the grab is gone (false).
+        private async UniTask<bool> UntilAsync(int generation, float timeout, Func<bool?> answer) {
+            var waited = new Settling();
+            while (!waited.GaveUp(timeout)) {
+                await UniTask.Yield();
+                if (!Alive(generation)) {
+                    return false;
+                }
+                bool? said = answer();
+                if (said.HasValue) {
+                    return said.Value;
+                }
+            }
+            return false;
+        }
+
+        // True once the next screen has drawn its page bound like the grabbed one and in the same
+        // place; false once a page drawn anywhere else has had SettleSeconds to lay out there.
+        private Func<bool?> NextPage(object outgoing) {
+            var elsewhere = new Settling();
+            return () => {
+                if (LandsOnPage(outgoing)) {
+                    return true;
+                }
+                object surface = BookSpreadBackdrop.Exists ? BookSpreadBackdrop.Instance.Surface : null;
+                return surface != null && !ReferenceEquals(surface, outgoing) && elsewhere.GaveUp() ? false : null;
+            };
+        }
+
         // The page now drawn is bound like the grabbed one and in the same place.
         private bool LandsOnPage(object outgoing) {
+            if (!BookSpreadBackdrop.Exists) {
+                return false;
+            }
             BookSpreadBackdrop backdrop = BookSpreadBackdrop.Instance;
             object surface = backdrop.Surface;
             Rect stage = backdrop.Stage;
@@ -369,46 +370,51 @@ namespace BakAgain.Book {
                 && Mathf.Abs(stage.yMin - _stage.yMin) < 1 && Mathf.Abs(stage.height - _stage.height) < 1;
         }
 
-        // The next screen has drawn its page, bound like the grabbed one and in the same place.
-        // A new page gets SettleSeconds to lay out.
-        private async UniTask<bool> NextPageAsync(object outgoing, float timeout = NextPageTimeout) {
-            var waited = new Settling();
-            var elsewhere = new Settling();
-            while (!waited.GaveUp(timeout)) {
-                await UniTask.Yield();
-                if (LandsOnPage(outgoing)) {
-                    return true;
-                }
-                object surface = BookSpreadBackdrop.Instance.Surface;
-                if (surface != null && !ReferenceEquals(surface, outgoing)
-                    && elsewhere.GaveUp()) {
-                    return false;
-                }
+        private bool Alive(int generation) => this != null && generation == _generation;
+
+        private async UniTask TurnOrLetGoAsync(int generation, UniTask<bool> lands) {
+            bool turn = await lands;
+            if (!Alive(generation)) {
+                return;
             }
-            return false;
+            if (turn) {
+                await PlayAsync();
+            } else {
+                Abandon();
+            }
         }
 
-        // No turn after all: take the grab down, showing the next screen as it is.
+        // No turn after all, or the turn is over: take the grab down, showing the screen as it is.
         private void Abandon() {
-            _canvas.enabled = false;
-            _frozen.enabled = false;
-            ReleaseShot();
+            _generation++;
+            _held = false;
+            _turnOnCutsceneFrame = false;
+            _awaitingFadeIn = false;
+            _fadeIn = null;
+            if (_canvas != null) {
+                _canvas.enabled = false;
+                _frozen.enabled = false;
+            }
         }
 
         /// <summary>Turns the grabbed page over the spine; <paramref name="skip"/> ends it at once.</summary>
-        public async UniTask PlayAsync(Func<bool> skip) {
+        public async UniTask PlayAsync(Func<bool> skip = null) {
+            int generation = _generation;
             ReadLanding();
             _canvas.enabled = true;
             _frozen.enabled = false;
             try {
                 // Stepped per frame, a slow frame counting as 1/30 s at most: the frames right after the
                 // grab can stall (its read-back and upload), and a clock would skip the lift entirely.
-                for (float t = 0; t < 1 && !skip(); t += Mathf.Min(Time.unscaledDeltaTime, MaxStep) / Seconds) {
+                for (float t = 0; t < 1 && !(skip?.Invoke() ?? false); t += Mathf.Min(Time.unscaledDeltaTime, MaxStep) / Seconds) {
                     Pose(t);
                     await UniTask.Yield();
+                    if (!Alive(generation)) {
+                        return;   // a new grab took over
+                    }
                 }
             } finally {
-                if (_canvas != null) {
+                if (Alive(generation)) {
                     Abandon();
                 }
             }
@@ -525,9 +531,6 @@ namespace BakAgain.Book {
             _creaseRect = ScreenRect(backdrop.Shade);
             _creaseOpacity = shade.enabled && shade.texture != null ? shade.color.a : 0;
             _crease.Texture = shade.texture;
-            if (shade.texture != null) {
-                shade.texture.wrapMode = TextureWrapMode.Clamp;   // clear beyond the band, not its edge smeared
-            }
             _crease.V0 = (_stage.yMin + _facingDrop - _creaseRect.yMin) / _creaseRect.height;
             _crease.V1 = _crease.V0 + _stage.height / _creaseRect.height;
         }

@@ -206,9 +206,6 @@ namespace BakAgain.UI {
             return true;
         }
 
-        // Remove any active panel from the UI tree without changing the
-        // overlay's GameObject active state. Used at the start of a show call
-        // (a new panel is about to take its place).
         private BakAgain.World.IWorldViewport _worldViewport;
 
         /// <summary>Sprite cache for the speaker portrait — distinct from the DDX loader above.</summary>
@@ -227,26 +224,14 @@ namespace BakAgain.UI {
             return Background.FromSprite(parchment);
         }
 
-        // The parchment covering the stage under the dialog on screen, if any: a page (TASK-872).
+        // The parchment under the dialog on screen, if any; the next show swaps it for its own.
+        private VisualElement _backdrop;
+
+        // That parchment when it covers the stage: a page (TASK-872).
         private VisualElement _pageBackdrop;
 
         public bool ShowsPage => _pageBackdrop != null && _pageBackdrop.panel != null;
 
-        /// <summary>
-        /// Draws the speaking actor's portrait — <c>ExecuteDialog</c>'s call into
-        /// <c>ShowDialogWithFace</c> with mode 0 (@0x49986).
-        /// </summary>
-        /// <remarks>
-        /// <b>Mode 0 is "centred horizontally, bottom-aligned to the RENDER VIEW".</b> Not to the
-        /// dialog panel and not to the window — the portrait stands in the world viewport with the
-        /// text box below it, which is why it moves when the viewport does and why nothing here
-        /// states a position of its own. The two insets come from
-        /// <see cref="BakAgain.World.IWorldViewport.CanonicalRect"/>; the size comes from the art.
-        ///
-        /// <para>A speaker of 0 is "nobody speaks" rather than actor zero, and actors at or above
-        /// 49 have no portrait — <see cref="ActorFaceView"/> answers false for both and nothing is
-        /// drawn, which is an ordinary outcome for most dialog in the game.</para>
-        /// </remarks>
         /// <summary>
         /// The full-screen parchment some dialogs are drawn on — <c>DIALOG.SCX</c>, with the world
         /// view left showing through it.
@@ -291,6 +276,7 @@ namespace BakAgain.UI {
                 },
             };
             stage.Insert(0, backdrop);
+            _backdrop = backdrop;
 
             // The canonical frame comes from the stage the dialog was built with, never a constant:
             // a hardcoded 1600x1200 is wrong for any resource that ships another.
@@ -377,53 +363,57 @@ namespace BakAgain.UI {
             window.Add(view);
             backdrop.Add(window);
 
-            void Follow(GeometryChangedEvent _) {
+            // Every frame the window is on a panel (the scheduler pauses off one): the world view
+            // moves with the HUD's layout, and its render texture is replaced when it is rebuilt.
+            window.schedule.Execute(() => {
                 Rect at = window.WorldToLocal(world.worldBound);
                 view.style.left = at.x;
                 view.style.top = at.y;
                 view.style.width = at.width;
                 view.style.height = at.height;
                 view.style.backgroundImage = world.style.backgroundImage;
-            }
-            window.RegisterCallback<GeometryChangedEvent>(Follow);
-            world.RegisterCallback<GeometryChangedEvent>(Follow);
-
-            backdrop.RegisterCallback<DetachFromPanelEvent>(e => {
-                if (e.target == backdrop) {
-                    world.UnregisterCallback<GeometryChangedEvent>(Follow);
-                }
-            });
+            }).Every(0);
             HideWorldUnder(backdrop);
         }
 
+        // The full pages on a panel, and the world view they hide.
+        private static readonly System.Collections.Generic.HashSet<VisualElement> PagesOverTheWorld = new();
+        private static VisualElement _hiddenWorld;
+
         // The world view is hidden while a full page is up: in Enhanced full-screen travel it fills the
-        // window, above the book, and would show in the pillars. It comes back when the page goes.
-        // Hidden whenever the page is on a panel, restored whenever it leaves one: the page can be
-        // built before its stage is attached, and the full-screen open wipe moves it once it is.
+        // window, above the book, and would show in the pillars. It comes back when the last page goes.
+        // Counted by attach and detach: the page can be built before its stage is attached, the
+        // full-screen open wipe moves it once it is, and two pages overlap while one replaces the other.
         private static void HideWorldUnder(VisualElement backdrop) {
-            VisualElement world = null;
-            StyleEnum<Visibility> shown = default;
-            void Hide() {
-                world = backdrop.panel?.visualTree.Q(name: "WorldViewport");
-                if (world != null) {
-                    shown = world.style.visibility;
-                    world.style.visibility = Visibility.Hidden;
+            void Attached() {
+                // A panel torn down whole sends no detach: what it held is forgotten here.
+                PagesOverTheWorld.RemoveWhere(p => p.panel == null);
+                if (_hiddenWorld?.panel == null) {
+                    _hiddenWorld = null;
+                }
+                if (!PagesOverTheWorld.Add(backdrop) || _hiddenWorld != null) {
+                    return;
+                }
+                _hiddenWorld = backdrop.panel.visualTree.Q(name: "WorldViewport");
+                if (_hiddenWorld != null) {
+                    _hiddenWorld.style.visibility = Visibility.Hidden;
                 }
             }
             backdrop.RegisterCallback<AttachToPanelEvent>(e => {
                 if (e.target == backdrop) {
-                    Hide();
+                    Attached();
                 }
             });
             // The page's own detach, not a child's.
             backdrop.RegisterCallback<DetachFromPanelEvent>(e => {
-                if (e.target == backdrop && world != null) {
-                    world.style.visibility = shown;
-                    world = null;
+                if (e.target == backdrop && PagesOverTheWorld.Remove(backdrop) && PagesOverTheWorld.Count == 0
+                    && _hiddenWorld != null) {
+                    _hiddenWorld.style.visibility = StyleKeyword.Null;
+                    _hiddenWorld = null;
                 }
             });
             if (backdrop.panel != null) {
-                Hide();
+                Attached();
             }
         }
 
@@ -501,6 +491,21 @@ namespace BakAgain.UI {
             parent.Add(clip);
         }
 
+        /// <summary>
+        /// Draws the speaking actor's portrait — <c>ExecuteDialog</c>'s call into
+        /// <c>ShowDialogWithFace</c> with mode 0 (@0x49986).
+        /// </summary>
+        /// <remarks>
+        /// <b>Mode 0 is "centred horizontally, bottom-aligned to the RENDER VIEW".</b> Not to the
+        /// dialog panel and not to the window — the portrait stands in the world viewport with the
+        /// text box below it, which is why it moves when the viewport does and why nothing here
+        /// states a position of its own. The two insets come from
+        /// <see cref="BakAgain.World.IWorldViewport.CanonicalRect"/>; the size comes from the art.
+        ///
+        /// <para>A speaker of 0 is "nobody speaks" rather than actor zero, and actors at or above
+        /// 49 have no portrait — <see cref="ActorFaceView"/> answers false for both and nothing is
+        /// drawn, which is an ordinary outcome for most dialog in the game.</para>
+        /// </remarks>
         private void ShowSpeakerFace(VisualElement stage, DialogEntry entry) {
             RemoveSpeakerFace();
             if (stage == null || entry == null || _worldViewport == null || _sprites == null) {
@@ -2258,7 +2263,12 @@ namespace BakAgain.UI {
                     palette = await _resources.GetDefaultPaletteAsync();
                 }
 
+                // The previous entry's parchment stays until this one's is in, so a chain of
+                // pages never shows the screen beneath between two of them.
+                VisualElement previousBackdrop = _backdrop;
+                _backdrop = _pageBackdrop = null;
                 await AddFullScreenBackdropAsync(stage, entry, palette);
+                previousBackdrop?.RemoveFromHierarchy();
                 TurnCameraForBackdrop(entry);
                 ShowSpeakerFace(stage, entry);
 

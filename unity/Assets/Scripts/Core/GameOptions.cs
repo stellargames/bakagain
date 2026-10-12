@@ -7,9 +7,7 @@ namespace BakAgain.Core {
     /// </summary>
     /// <remarks>
     /// These are OPTIONS, not save state: they belong to the player and outlive any one game, which
-    /// is why they sit in <see cref="PlayerPrefs"/> next to
-    /// <see cref="BakAgain.World.Rendering.WorldRenderModeService"/> rather than in
-    /// <see cref="GameSession"/>. Putting one in the save would make it travel with a shared save
+    /// is why they sit in <see cref="PlayerPrefs"/> rather than in <see cref="GameSession"/>. Putting one in the save would make it travel with a shared save
     /// file and reset itself when the player loaded someone else's.
     /// </remarks>
     public static class GameOptions {

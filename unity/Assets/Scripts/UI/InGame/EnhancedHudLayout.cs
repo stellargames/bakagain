@@ -1,5 +1,6 @@
 namespace BakAgain.UI.InGame {
     using System.Collections.Generic;
+    using BakAgain.Core;
     using UnityEngine;
     using UnityEngine.UIElements;
 
@@ -8,6 +9,7 @@ namespace BakAgain.UI.InGame {
     /// reparented into one container on the document root. Every element keeps its action id, so
     /// clicks go through InGameScreen's existing Primary/SecondaryAction. All geometry is in the
     /// theme (<c>.enhanced-hud*</c>); this class only moves elements and clears their inline REQ placement.
+    /// It also owns what only the HUD shows: the portrait rings and the day/hour status line.
     /// </summary>
     /// <remarks>
     /// The container is added to the document root AFTER the canonical stage, so it sits above the
@@ -25,6 +27,11 @@ namespace BakAgain.UI.InGame {
         private const string SpellRunes = SpellEffectCaptionView.SymbolsName;
 
         private readonly VisualElement _root;
+        private readonly GameSession _session;
+        private readonly Core.Services.GameClock _clock;
+        private readonly float _statusFontFraction;
+        private PortraitRingView[] _rings;
+        private float _pollClock;
         private readonly List<Saved> _saved = new();
         private VisualElement _hud;
         private Label _status;
@@ -45,12 +52,74 @@ namespace BakAgain.UI.InGame {
             }
         }
 
-        public EnhancedHudLayout(VisualElement root) => _root = root;
+        /// <param name="statusFontFraction">The status line's font size as a fraction of the window's height.</param>
+        public EnhancedHudLayout(VisualElement root, GameSession session, Core.Services.GameClock clock, float statusFontFraction) {
+            _root = root;
+            _session = session;
+            _clock = clock;
+            _statusFontFraction = statusFontFraction;
+        }
 
         public bool Applied => _hud != null;
 
-        /// <summary>The status line's font size as a fraction of the HUD's height.</summary>
-        public float StatusFontFraction { get; set; } = 0.024f;
+        /// <summary>
+        /// Once a frame: applied while <paramref name="wanted"/> (the world is full-window), reverted to
+        /// the faithful REQ layout otherwise, and hidden while not <paramref name="shown"/>. The rings
+        /// follow their option; they and the status line are polled at 4 Hz.
+        /// </summary>
+        public void Sync(bool wanted, bool shown) {
+            if (wanted && !Applied) {
+                if (!Apply()) {
+                    return;
+                }
+                _pollClock = 0f;
+            } else if (!wanted) {
+                Revert();
+                return;
+            }
+            SetVisible(shown);
+            if (GameOptions.IsOn(EnhancedFeature.PortraitRings) != (_rings != null)) {
+                SyncRings();
+                _pollClock = 0f;
+            }
+            // ponytail: 4 Hz poll; switch to a party-stats change event if one appears.
+            _pollClock -= Time.unscaledDeltaTime;
+            if (_pollClock > 0f) {
+                return;
+            }
+            _pollClock = 0.25f;
+            if (_rings != null) {
+                foreach (PortraitRingView r in _rings) {
+                    r.Refresh();
+                }
+            }
+            if (_clock != null) {
+                SetStatus(GameData.Resources.Text.UiTemplates.Format(
+                    GameData.Resources.Text.UiTemplates.EnhancedStatusKey,
+                    ("day", _clock.Day), ("hour", _clock.HourOfDay)));
+            }
+        }
+
+        private void SyncRings() {
+            RemoveRings();
+            if (!GameOptions.IsOn(EnhancedFeature.PortraitRings) || _session == null) {
+                return;
+            }
+            _rings = new PortraitRingView[Portraits.Length];
+            for (int i = 0; i < _rings.Length; i++) {
+                _rings[i] = new PortraitRingView(_session, _root.Q(Portraits[i]), i);
+            }
+        }
+
+        private void RemoveRings() {
+            if (_rings == null) {
+                return;
+            }
+            foreach (PortraitRingView r in _rings) {
+                r.Remove();
+            }
+            _rings = null;
+        }
 
         /// <summary>
         /// Moves the elements into the HUD. False, with nothing moved, when one is missing (the
@@ -106,13 +175,14 @@ namespace BakAgain.UI.InGame {
             _hud.RegisterCallback<GeometryChangedEvent>(_ => {
                 if (_hud == null) return;
                 foreach (VisualElement e in _hud.Query(className: "enhanced-hud__portrait").ToList()) e.style.width = e.resolvedStyle.height;
-                _status.style.fontSize = _hud.resolvedStyle.height * StatusFontFraction;
+                _status.style.fontSize = _hud.resolvedStyle.height * _statusFontFraction;
             });
             return true;
         }
 
         public void Revert() {
             if (!Applied) return;
+            RemoveRings();
             for (int i = _saved.Count - 1; i >= 0; i--) {
                 Saved s = _saved[i];
                 s.Element.RemoveFromClassList("enhanced-hud__portrait");
@@ -137,12 +207,12 @@ namespace BakAgain.UI.InGame {
         }
 
         /// <summary>Hides the HUD without undoing it, e.g. while a dialog shows the world through its hole.</summary>
-        public void SetVisible(bool visible) {
+        private void SetVisible(bool visible) {
             // display, not visibility: the rings set their own visibility, which beats an inherited one.
             if (_hud != null) _hud.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
-        public void SetStatus(string text) {
+        private void SetStatus(string text) {
             if (_status != null && _status.text != text) _status.text = text;
         }
 
