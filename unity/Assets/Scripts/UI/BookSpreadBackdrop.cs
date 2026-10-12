@@ -1,0 +1,226 @@
+namespace BakAgain.UI {
+    using BakAgain.ResourceManagement.Models;
+    using GameData.Resources.Layout;
+    using System.Collections.Generic;
+    using UnityEngine;
+    using UnityEngine.AddressableAssets;
+    using UnityEngine.UI;
+    using UnityEngine.UIElements;
+
+    /// <summary>
+    /// The open book around a full-screen parchment (spec 2026-10-11-book-spread-pillars-design.md in
+    /// the private workspace): a table in the pillars, the facing page across the parchment's straight
+    /// edge, and the binding's shade over both pages. Not in the original, which filled the screen;
+    /// drawn in both modes (owner, 2026-10-11).
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Shown by whatever draws the page, for as long as that surface is on screen.</b> Each
+    /// owner calls <see cref="Show(VisualElement, Texture2D)"/> with the element (or uGUI image) the
+    /// page is drawn on. An entry is dropped as soon as its surface leaves the screen, so a screen
+    /// closed by any route cannot leave the book over the world. The latest live surface wins, and the
+    /// one below comes back when it goes.</para>
+    ///
+    /// <para><b>The spine is read from the page</b> (<see cref="PageSpine"/>): straight edge = bound
+    /// edge. Two straight edges is a picture, which draws nothing and still hides any page below it.</para>
+    /// </remarks>
+    public sealed class BookSpreadBackdrop : MonoBehaviour {
+        // Under every UI surface (the shared panel and the cutscene canvas are 0), so the table and the
+        // facing page show only in the pillars and through the page's torn notches.
+        private const int BackSortingOrder = -100;
+
+        // Over BookView's canvas (10), the highest surface a page is drawn on: the shade lies ON the page.
+        private const int FrontSortingOrder = 11;
+
+        // The darkest a pixel can be and still be parchment rather than the black around a torn edge.
+        private const float PaperMinimum = 0.08f;
+
+        private static readonly BookSpreadLayout Layout = new();
+        // ponytail: keyed by texture and never pruned — a few bytes per parchment ever shown; prune on
+        // texture destroy if mods ever stream hundreds of pages.
+        private static readonly Dictionary<Texture2D, SpineSide> Spines = new();
+        private static BookSpreadBackdrop _instance;
+
+        private readonly List<(object Surface, Texture2D Page)> _shown = new();
+        private Canvas _back;
+        private Canvas _front;
+        private RawImage _table;
+        private RawImage _facing;
+        private RawImage _shade;
+        private (Rect Stage, Texture2D Page, int Width, int Height) _placed;
+
+        /// <summary>Show the book around <paramref name="page"/>, drawn on a UI Toolkit stage.</summary>
+        public static void Show(VisualElement surface, Texture2D page) => ShowCore(surface, page);
+
+        /// <summary>Show the book around <paramref name="page"/>, drawn on a uGUI image.</summary>
+        public static void Show(Graphic surface, Texture2D page) => ShowCore(surface, page);
+
+        /// <summary>A cutscene screen: its pixels, whichever form it was loaded in.</summary>
+        public static void Show(Graphic surface, IndexedTexture page) =>
+            ShowCore(surface, page == null ? null : page.DirectTexture ? page.DirectTexture : page.IndexTexture);
+
+        /// <summary>Stop drawing for <paramref name="surface"/>, for an owner whose surface stays on screen.</summary>
+        public static void Hide(object surface) {
+            if (_instance == null) {
+                return;
+            }
+            _instance._shown.RemoveAll(e => e.Surface == surface);
+            _instance.Refresh();
+        }
+
+        internal static bool Exists => _instance != null;
+
+        internal static BookSpreadBackdrop Instance {
+            get {
+                if (_instance == null) {
+                    var host = new GameObject(nameof(BookSpreadBackdrop));
+                    DontDestroyOnLoad(host);
+                    _instance = host.AddComponent<BookSpreadBackdrop>();
+                }
+                return _instance;
+            }
+        }
+
+        /// <summary>The spine of the page the book is drawn around; <see cref="SpineSide.NotAPage"/> when nothing is drawn.</summary>
+        internal SpineSide Spine { get; private set; }
+
+        internal bool Drawn => _back.enabled;
+        internal RectTransform FacingPage => _facing.rectTransform;
+        internal RectTransform Shade => _shade.rectTransform;
+
+        private static void ShowCore(object surface, Texture2D page) {
+            if (surface == null || page == null) {
+                return;
+            }
+            BookSpreadBackdrop backdrop = Instance;
+            backdrop._shown.RemoveAll(e => e.Surface == surface);
+            backdrop._shown.Add((surface, page));
+            backdrop.Refresh();
+        }
+
+        private void Awake() {
+            _back = NewCanvas("Back", BackSortingOrder);
+            _table = NewImage(_back, Resources.Load<Texture2D>("BookSpread/table"));
+            if (_table.texture != null) {
+                _table.texture.wrapMode = TextureWrapMode.Mirror;   // alternate copies mirrored: no seam
+            }
+            // The plain parchment every dialog is drawn on, mirrored or not, is the facing page: no page art is shipped.
+            Sprite facing = Addressables.LoadAssetAsync<Sprite>(GameData.Resources.Dialog.DialogBackdrop.Resource).WaitForCompletion();
+            _facing = NewImage(_back, facing != null ? facing.texture : null);
+            _front = NewCanvas("Front", FrontSortingOrder);
+            _shade = NewImage(_front, Resources.Load<Texture2D>("BookSpread/crease"));
+            _back.enabled = _front.enabled = false;
+        }
+
+        private void LateUpdate() => Refresh();
+
+        private void Refresh() {
+            _shown.RemoveAll(e => !IsOnScreen(e.Surface));
+            (object surface, Texture2D page) = _shown.Count > 0 ? _shown[_shown.Count - 1] : (null, null);
+            Spine = page != null ? SpineOf(page) : SpineSide.NotAPage;
+            if (Spine == SpineSide.NotAPage || !TryStageRect(surface, out Rect stage)) {
+                Spine = SpineSide.NotAPage;
+                _back.enabled = _front.enabled = false;
+                return;
+            }
+            bool bound = Spine != SpineSide.Loose;
+            _back.enabled = true;
+            _front.enabled = bound && _shade.texture != null;
+            _facing.enabled = bound && _facing.texture != null;
+            if (_placed != (stage, page, Screen.width, Screen.height)) {
+                _placed = (stage, page, Screen.width, Screen.height);
+                Place(stage);
+            }
+        }
+
+        private void Place(Rect stage) {
+            SetRect(_table, new Rect(0, 0, Screen.width, Screen.height));
+            if (_table.texture != null) {
+                float tileWidth = Screen.height * (float)_table.texture.width / _table.texture.height;
+                _table.uvRect = new Rect(0, 0, Screen.width / tileWidth, 1);
+            }
+            if (Spine == SpineSide.Loose) {
+                return;
+            }
+            bool left = Spine == SpineSide.Left;
+            float spineX = left ? stage.xMin : stage.xMax;
+            SetRect(_facing, new Rect(left ? stage.xMin - stage.width : stage.xMax,
+                stage.yMin - Layout.FacingPageDrop * stage.height, stage.width, stage.height));
+            // Its straight edge goes against the binding: mirrored when it is bound on the same side as the shown page.
+            bool mirror = _facing.texture is Texture2D facing && SpineOf(facing) == Spine;
+            _facing.uvRect = mirror ? new Rect(1, 0, -1, 1) : new Rect(0, 0, 1, 1);
+            float shadeWidth = Layout.ShadeWidth * stage.height;
+            SetRect(_shade, new Rect(spineX - shadeWidth / 2, stage.yMin, shadeWidth, stage.height));
+            _shade.color = new Color(1, 1, 1, Layout.ShadeOpacity);
+        }
+
+        private static bool IsOnScreen(object surface) => surface switch {
+            VisualElement v => v.panel != null && v.resolvedStyle.display != DisplayStyle.None,
+            Graphic g => g != null && g.isActiveAndEnabled && g.canvas != null && g.canvas.isActiveAndEnabled,
+            _ => false,
+        };
+
+        // The page's rectangle in screen pixels, bottom-left origin (the overlay canvases' space).
+        private static bool TryStageRect(object surface, out Rect stage) {
+            if (surface is Graphic g) {
+                var corners = new Vector3[4];
+                g.rectTransform.GetWorldCorners(corners);
+                stage = Rect.MinMaxRect(corners[0].x, corners[0].y, corners[2].x, corners[2].y);
+            } else {
+                var v = (VisualElement)surface;
+                float panelHeight = v.panel.visualTree.layout.height;
+                Rect w = v.worldBound;
+                float scale = Screen.height / panelHeight;
+                stage = new Rect(w.x * scale, Screen.height - w.yMax * scale, w.width * scale, w.height * scale);
+            }
+            return stage.width > 0 && stage.height > 0 && !float.IsNaN(stage.x) && !float.IsNaN(stage.y);
+        }
+
+        private static SpineSide SpineOf(Texture2D page) {
+            if (!Spines.TryGetValue(page, out SpineSide spine)) {
+                Spines[page] = spine = page.isReadable
+                    ? PageSpine.Of(Opaque(page, 0), Opaque(page, page.width - 1))
+                    : SpineSide.NotAPage;
+            }
+            return spine;
+        }
+
+        // Paper, row by row, down one column. A torn-away pixel is either transparent or the palette's
+        // black, depending on how the image was loaded (measured: BLANK.SCX and BOOK.SCX load their
+        // torn edge as opaque 0,0,0), so both count as no paper.
+        private static bool[] Opaque(Texture2D page, int x) {
+            Color[] column = page.GetPixels(x, 0, 1, page.height);
+            var paper = new bool[column.Length];
+            for (int y = 0; y < column.Length; y++) {
+                Color c = column[y];
+                paper[y] = c.a >= 0.5f && Mathf.Max(c.r, c.g, c.b) >= PaperMinimum;
+            }
+            return paper;
+        }
+
+        private Canvas NewCanvas(string name, int sortingOrder) {
+            var host = new GameObject(name);
+            host.transform.SetParent(transform, false);
+            var canvas = host.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = sortingOrder;
+            return canvas;
+        }
+
+        private static RawImage NewImage(Canvas canvas, Texture texture) {
+            var host = new GameObject(texture != null ? texture.name : "missing");
+            host.transform.SetParent(canvas.transform, false);
+            var image = host.AddComponent<RawImage>();
+            image.texture = texture;
+            image.raycastTarget = false;
+            image.enabled = texture != null;   // a RawImage with no texture draws white
+            RectTransform rect = image.rectTransform;
+            rect.anchorMin = rect.anchorMax = rect.pivot = Vector2.zero;
+            return image;
+        }
+
+        private static void SetRect(Graphic graphic, Rect rect) {
+            graphic.rectTransform.anchoredPosition = rect.position;
+            graphic.rectTransform.sizeDelta = rect.size;
+        }
+    }
+}
