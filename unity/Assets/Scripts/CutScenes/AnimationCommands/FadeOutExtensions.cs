@@ -17,10 +17,11 @@ namespace BakAgain.CutScenes.AnimationCommands {
                 if (!Application.isPlaying)
                     return;
 
-                // Enhanced: the last fade of a scene that ends on a page is held instead, for the
-                // page that follows (a chapter's book) to turn it over. The screen still shows the
-                // frame as it began, so that is what is grabbed.
-                if (cutsceneState.FrameEndsScene && await BakAgain.Book.BookPageCurl.HoldAsync()) {
+                // Enhanced: a page fading out to black is held instead, for the page that follows (a
+                // narrative page, the next screen, a chapter's book) to turn it over. The screen still
+                // shows the frame as it began, so that is what is grabbed. A fade of part of the
+                // palette is a picture fading inside its page, and stays a fade.
+                if (args.Start <= 1 && args.Length >= 255 && await BakAgain.Book.BookPageCurl.HoldAsync()) {
                     return;
                 }
 

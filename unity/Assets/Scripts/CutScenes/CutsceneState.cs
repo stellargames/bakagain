@@ -172,9 +172,6 @@ namespace BakAgain.CutScenes {
         /// </summary>
         public bool EndScene { get; set; }
 
-        /// <summary>The frame being drawn ends with <see cref="GameData.Resources.Animation.FrameCommands.EndScene"/>.</summary>
-        public bool FrameEndsScene { get; set; }
-
         public Queue<AudioResource> RequestedAudio { get; set; } = new(8);
         public Queue<CutsceneDialogRequest> RequestedDialogs { get; set; } = new(4);
         public (int Start, int End) Range1 { get; set; }

@@ -42,7 +42,6 @@ namespace BakAgain.CutScenes
             CancellationToken cancellationToken, Func<UniTask> showDialogs = null)
         {
             state.PrepareBuffers();
-            state.FrameEndsScene = commands.Any(c => c is GameData.Resources.Animation.FrameCommands.EndScene);
 
             foreach (var frameCommand in commands.Select(AnimationCommandMap.GetAction).Where(func => func != null))
             {

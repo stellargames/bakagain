@@ -40,6 +40,7 @@ namespace BakAgain.CutScenes {
 
         public static void RenderOutput(this CutsceneState cutsceneState) {
             Graphics.CopyTexture(cutsceneState.OutputBuffer, cutsceneState.Canvas);
+            BakAgain.Book.BookPageCurl.CutsceneFrameShown();
         }
 
         public static void CopyBuffer(this CutsceneState cutsceneState, int src, int dst) {

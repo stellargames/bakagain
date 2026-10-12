@@ -93,6 +93,9 @@ namespace BakAgain.UI {
         /// </summary>
         void ClearDialog();
 
+        /// <summary>The dialog on screen is drawn on a parchment covering the stage: a page of its own.</summary>
+        bool ShowsPage => false;
+
         /// <summary>
         /// Let presses through the panel a <see cref="DisplayEntry(DialogPlay, CancellationToken)"/>
         /// left up, to whatever screen is underneath. For a caller that ends the view on a press

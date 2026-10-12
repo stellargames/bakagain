@@ -192,7 +192,8 @@ namespace BakAgain.Book {
                 );
             }
 
-            // 8. Cleanup
+            // 8. Cleanup. Enhanced: the last page is held on screen for what comes next to turn it over.
+            await BookPageCurl.HoldAsync();
             _view.Hide();
 
             if (completed) {

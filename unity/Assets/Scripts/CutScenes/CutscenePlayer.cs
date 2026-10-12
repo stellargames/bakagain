@@ -183,7 +183,13 @@ namespace BakAgain.CutScenes {
                     continue;
                 }
                 if (request.Clear) {
+                    // Enhanced: a narrative page that closes turns over onto the page drawn next.
+                    bool held = _dialogManager != null && _dialogManager.ShowsPage
+                        && await BakAgain.Book.BookPageCurl.HoldAsync();
                     _dialogManager?.ClearDialog();
+                    if (held) {
+                        BakAgain.Book.BookPageCurl.TurnOnNextCutsceneFrame();
+                    }
 
                     continue;
                 }

@@ -227,6 +227,11 @@ namespace BakAgain.UI {
             return Background.FromSprite(parchment);
         }
 
+        // The parchment covering the stage under the dialog on screen, if any: a page (TASK-872).
+        private VisualElement _pageBackdrop;
+
+        public bool ShowsPage => _pageBackdrop != null && _pageBackdrop.panel != null;
+
         /// <summary>
         /// Draws the speaking actor's portrait — <c>ExecuteDialog</c>'s call into
         /// <c>ShowDialogWithFace</c> with mode 0 (@0x49986).
@@ -293,6 +298,7 @@ namespace BakAgain.UI {
                 || frame.Width <= 0 || frame.Height <= 0) {
                 AddBackdropWindow(backdrop, ShowBookSpread(backdrop, parchment), 0, 0, Length.Percent(100), Length.Percent(100),
                     0, 0, Length.Percent(100), Length.Percent(100));
+                _pageBackdrop = backdrop;
                 return;
             }
 
@@ -307,6 +313,7 @@ namespace BakAgain.UI {
             Rect? hole = DialogBackdrop.RedrawsWorldViewport(entry.Flags) ? WorldViewportHole() : null;
             if (hole == null) {
                 AddBackdropWindow(backdrop, ShowBookSpread(backdrop, parchment), 0, 0, w, h, 0, 0, w, h);
+                _pageBackdrop = backdrop;
                 return;
             }
 
