@@ -30,6 +30,14 @@ namespace BakAgain.CutScenes.AnimationCommands {
                     return;
                 }
 
+                // Enhanced: a page turn from the menu is waiting on this fade; it reveals the page instead.
+                if (BakAgain.Book.BookPageCurl.TakeFadeIn()) {
+                    cutsceneState.SetPalette(currentPalette);
+                    cutsceneState.RenderIndexed();
+                    cutsceneState.RenderOutput();
+                    return;
+                }
+
                 var tempPalette = new Color[currentPalette.Length];
                 Array.Copy(currentPalette, tempPalette, currentPalette.Length); // Initial copy
 

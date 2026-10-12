@@ -155,7 +155,9 @@ namespace BakAgain.UI.Navigation {
         // *** Clear DOES NOT FADE, and that is deliberate. *** It empties the stack on the way OUT
         // of a configuration and is followed by a ResetTo into the next one, which fades. Fading here
         // as well would darken twice for one transition, with a flash of the cleared screen between.
+        // In Enhanced it grabs the page on screen first, for the transition that follows to turn.
         public UniTask Clear() => Serialize(async () => {
+            await Book.BookPageCurl.HoldAsync();
             _stack.Clear();
             await EnsureTopShownAsync();
         });

@@ -83,6 +83,32 @@ namespace BakAgain.Tests.PlayMode.UI {
             Assert.IsFalse(await BookPageCurl.Instance.CaptureAsync(), "nothing is drawn around it to turn it over: cut");
         });
 
+        // New Game clears the menu before it pushes the next screen; the grab is held for that push,
+        // and let go by it when it does not turn.
+        [UnityTest]
+        public IEnumerator AHeldGrab_IsLetGoByATransitionThatDoesNotTurn() => UniTask.ToCoroutine(async () => {
+            bool enhanced = GameOptions.Enhanced, turning = GameOptions.GetFeature(EnhancedFeature.PageTurn);
+            GameOptions.Enhanced = true;
+            GameOptions.SetFeature(EnhancedFeature.PageTurn, true);
+            try {
+                RawImage page = BookPage();
+                BookSpreadBackdrop.Show(page, (Texture2D)page.texture, facingPage: (Texture2D)page.texture);
+                await UniTask.Yield();
+
+                await BookPageCurl.HoldAsync();
+                Assert.IsTrue(BookPageCurl.Instance.GetComponent<Canvas>().enabled, "the grab holds the screen");
+                bool changed = false;
+                bool turned = await BookPageCurl.TryTurnAsync(_host, () => { changed = true; return UniTask.CompletedTask; });
+
+                Assert.IsFalse(turned);
+                Assert.IsFalse(changed);
+                Assert.IsFalse(BookPageCurl.Instance.GetComponent<Canvas>().enabled, "and lets go");
+            } finally {
+                GameOptions.Enhanced = enhanced;
+                GameOptions.SetFeature(EnhancedFeature.PageTurn, turning);
+            }
+        });
+
         // The navigator asks before every transition; anything but a screen that draws an SCX page is
         // left to it, untouched.
         [UnityTest]
