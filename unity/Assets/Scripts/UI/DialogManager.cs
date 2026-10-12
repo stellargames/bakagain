@@ -298,6 +298,7 @@ namespace BakAgain.UI {
                 || frame.Width <= 0 || frame.Height <= 0) {
                 AddBackdropWindow(backdrop, ShowBookSpread(backdrop, parchment), 0, 0, Length.Percent(100), Length.Percent(100),
                     0, 0, Length.Percent(100), Length.Percent(100));
+                HideWorldUnder(backdrop);
                 _pageBackdrop = backdrop;
                 return;
             }
@@ -313,6 +314,7 @@ namespace BakAgain.UI {
             Rect? hole = DialogBackdrop.RedrawsWorldViewport(entry.Flags) ? WorldViewportHole() : null;
             if (hole == null) {
                 AddBackdropWindow(backdrop, ShowBookSpread(backdrop, parchment), 0, 0, w, h, 0, 0, w, h);
+                HideWorldUnder(backdrop);
                 _pageBackdrop = backdrop;
                 return;
             }
@@ -347,7 +349,15 @@ namespace BakAgain.UI {
         /// classic HUD the world view is exactly the window, so nothing changes there.
         /// </remarks>
         private static void AddWorldThroughWindow(VisualElement backdrop, Rect hole) {
-            VisualElement world = backdrop.panel?.visualTree.Q(name: "WorldViewport");
+            if (backdrop.panel == null) {
+                void OnAttach(AttachToPanelEvent _) {
+                    backdrop.UnregisterCallback<AttachToPanelEvent>(OnAttach);
+                    AddWorldThroughWindow(backdrop, hole);
+                }
+                backdrop.RegisterCallback<AttachToPanelEvent>(OnAttach);
+                return;
+            }
+            VisualElement world = backdrop.panel.visualTree.Q(name: "WorldViewport");
             if (world == null) {
                 return;
             }
@@ -378,12 +388,43 @@ namespace BakAgain.UI {
             window.RegisterCallback<GeometryChangedEvent>(Follow);
             world.RegisterCallback<GeometryChangedEvent>(Follow);
 
-            StyleEnum<Visibility> shown = world.style.visibility;
-            world.style.visibility = Visibility.Hidden;
-            backdrop.RegisterCallback<DetachFromPanelEvent>(_ => {
-                world.UnregisterCallback<GeometryChangedEvent>(Follow);
-                world.style.visibility = shown;
+            backdrop.RegisterCallback<DetachFromPanelEvent>(e => {
+                if (e.target == backdrop) {
+                    world.UnregisterCallback<GeometryChangedEvent>(Follow);
+                }
             });
+            HideWorldUnder(backdrop);
+        }
+
+        // The world view is hidden while a full page is up: in Enhanced full-screen travel it fills the
+        // window, above the book, and would show in the pillars. It comes back when the page goes.
+        // Hidden whenever the page is on a panel, restored whenever it leaves one: the page can be
+        // built before its stage is attached, and the full-screen open wipe moves it once it is.
+        private static void HideWorldUnder(VisualElement backdrop) {
+            VisualElement world = null;
+            StyleEnum<Visibility> shown = default;
+            void Hide() {
+                world = backdrop.panel?.visualTree.Q(name: "WorldViewport");
+                if (world != null) {
+                    shown = world.style.visibility;
+                    world.style.visibility = Visibility.Hidden;
+                }
+            }
+            backdrop.RegisterCallback<AttachToPanelEvent>(e => {
+                if (e.target == backdrop) {
+                    Hide();
+                }
+            });
+            // The page's own detach, not a child's.
+            backdrop.RegisterCallback<DetachFromPanelEvent>(e => {
+                if (e.target == backdrop && world != null) {
+                    world.style.visibility = shown;
+                    world = null;
+                }
+            });
+            if (backdrop.panel != null) {
+                Hide();
+            }
         }
 
         /// <summary>
