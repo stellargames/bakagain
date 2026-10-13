@@ -33,8 +33,9 @@ namespace BakAgain.Tests.PlayMode.UI {
     /// screen — but it is the shipped loop, not a re-implementation of it.</para>
     /// </remarks>
     public class DialogWaitEndsWhenItsPanelIsTornDownTests {
+        // No [Timeout]: the loops below are bounded in frames, and a CI frame takes about a second
+        // (14.6 s here on 2026-10-07, 18.2 s on 2026-10-13), so a 15 s wall-clock cap failed a passing run.
         [UnityTest]
-        [Timeout(15000)]
         public IEnumerator WaitForDismiss_EndsWhenItsScrimIsDetached_NotOnlyOnItsOwnDismissal() =>
             UniTask.ToCoroutine(async () => {
                 var go = new GameObject("DialogManagerUnderTest");
