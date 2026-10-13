@@ -1114,7 +1114,10 @@ namespace BakAgain.UI.InGame {
                 return;
             }
             bool wasApplied = _hud.Applied;
-            bool shown = _travelHost != null && _travelHost.IsInputActive;
+            // A dialog page hides the world view the moment it is attached, but takes input only after
+            // its open wipe and text reveal: gated on input alone, the HUD sat on the page for ~4 frames.
+            bool shown = _travelHost != null && _travelHost.IsInputActive
+                && _worldView?.Element?.style.visibility != Visibility.Hidden;
             _hud.Sync(_fullScreen != null && _fullScreen.Active, shown);
             _effectCaption?.SetVisible(!_hud.Applied || shown);
             if (wasApplied && !_hud.Applied) {
