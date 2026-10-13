@@ -48,25 +48,10 @@ namespace BakAgain.UI.InGame {
         private readonly float _statusFontFraction;
         private PortraitRingView[] _rings;
         private float _pollClock;
-        private readonly List<Saved> _saved = new();
         private VisualElement _hud;
         private Label _status;
         private bool _warned;
-
-        private readonly struct Saved {
-            public readonly VisualElement Element, Parent;
-            public readonly int Index;
-            public readonly StyleEnum<Position> Position;
-            public readonly StyleLength Left, Top, Width, Height;
-            public readonly StyleBackground Background;
-            public readonly StyleTranslate Translate;
-            public Saved(VisualElement e) {
-                Element = e; Parent = e.parent; Index = e.parent.IndexOf(e);
-                Position = e.style.position;
-                Left = e.style.left; Top = e.style.top; Width = e.style.width; Height = e.style.height;
-                Background = e.style.backgroundImage; Translate = e.style.translate;
-            }
-        }
+        private readonly MovedElements _moved = new();
 
         /// <param name="statusFontFraction">The status line's font size as a fraction of the window's height.</param>
         public EnhancedHudLayout(VisualElement root, GameSession session, Core.Services.GameClock clock, float statusFontFraction,
@@ -170,30 +155,30 @@ namespace BakAgain.UI.InGame {
 
             _hud = new VisualElement { name = "enhanced-hud", pickingMode = PickingMode.Ignore };
             _hud.AddToClassList("enhanced-hud");
-            VisualElement portraits = Box("enhanced-hud__portraits");
-            VisualElement buttons = Box("enhanced-hud__buttons");
-            VisualElement top = Box("enhanced-hud__top");
+            VisualElement portraits = MovedElements.Box("enhanced-hud__portraits");
+            VisualElement buttons = MovedElements.Box("enhanced-hud__buttons");
+            VisualElement top = MovedElements.Box("enhanced-hud__top");
             _status = new Label { name = "enhanced-hud-status", pickingMode = PickingMode.Ignore };
             _status.AddToClassList("enhanced-hud__status");
             _hud.Add(portraits); _hud.Add(buttons); _hud.Add(top);
             _root.Add(_hud);
 
-            foreach (string n in _elements.Portraits) Move(_root.Q(n), portraits, "enhanced-hud__portrait", clearSize: true);
+            foreach (string n in _elements.Portraits) _moved.Move(_root.Q(n), portraits, "enhanced-hud__portrait", clearSize: true);
             // Buttons and the compass keep their REQ size: a button's face is its icon at native size
             // (inline, re-applied on every press), the compass strips are sized from the window in
             // panel px. The theme scales the button column as a whole instead.
-            foreach (string n in _elements.Buttons) Move(_root.Q(n), buttons, "enhanced-hud__button", clearSize: false);
+            foreach (string n in _elements.Buttons) _moved.Move(_root.Q(n), buttons, "enhanced-hud__button", clearSize: false);
             // The spell plaque sits left of the compass on the theme's translucent bar instead of its
             // parchment, with the runes inside it rather than centred on the stage.
             if (_elements.SpellBar) {
                 VisualElement bar = _root.Q(SpellBar);
-                Move(bar, top, "enhanced-hud__spellbar", clearSize: false);
+                _moved.Move(bar, top, "enhanced-hud__spellbar", clearSize: false);
                 bar.style.backgroundImage = StyleKeyword.Null;
                 VisualElement runes = _root.Q(SpellRunes);
-                Move(runes, bar, "enhanced-hud__spellrunes", clearSize: false);
+                _moved.Move(runes, bar, "enhanced-hud__spellrunes", clearSize: false);
                 runes.style.translate = StyleKeyword.Null;
             }
-            Move(_root.Q(Compass), top, "enhanced-hud__compass", clearSize: false);
+            _moved.Move(_root.Q(Compass), top, "enhanced-hud__compass", clearSize: false);
             top.Add(_status);
             foreach (string n in _elements.Arrows) _root.Q(n).style.display = DisplayStyle.None;
 
@@ -210,20 +195,7 @@ namespace BakAgain.UI.InGame {
         public void Revert() {
             if (!Applied) return;
             RemoveRings();
-            for (int i = _saved.Count - 1; i >= 0; i--) {
-                Saved s = _saved[i];
-                s.Element.RemoveFromClassList("enhanced-hud__portrait");
-                s.Element.RemoveFromClassList("enhanced-hud__button");
-                s.Element.RemoveFromClassList("enhanced-hud__compass");
-                s.Element.RemoveFromClassList("enhanced-hud__spellbar");
-                s.Element.RemoveFromClassList("enhanced-hud__spellrunes");
-                s.Parent.Insert(Mathf.Min(s.Index, s.Parent.childCount), s.Element);
-                s.Element.style.position = s.Position;
-                s.Element.style.left = s.Left; s.Element.style.top = s.Top;
-                s.Element.style.width = s.Width; s.Element.style.height = s.Height;
-                s.Element.style.backgroundImage = s.Background; s.Element.style.translate = s.Translate;
-            }
-            _saved.Clear();
+            _moved.RestoreAll();
             foreach (string n in _elements.Arrows) {
                 VisualElement a = _root.Q(n);
                 if (a != null) a.style.display = StyleKeyword.Null;
@@ -241,24 +213,6 @@ namespace BakAgain.UI.InGame {
 
         private void SetStatus(string text) {
             if (_status != null && _status.text != text) _status.text = text;
-        }
-
-        private void Move(VisualElement e, VisualElement into, string cls, bool clearSize) {
-            _saved.Add(new Saved(e));
-            // Inline REQ placement beats any class, so it has to go for the theme to apply.
-            e.style.position = StyleKeyword.Null;
-            e.style.left = StyleKeyword.Null; e.style.top = StyleKeyword.Null;
-            if (clearSize) {
-                e.style.width = StyleKeyword.Null; e.style.height = StyleKeyword.Null;
-            }
-            e.AddToClassList(cls);
-            into.Add(e);
-        }
-
-        private static VisualElement Box(string cls) {
-            var c = new VisualElement { pickingMode = PickingMode.Ignore };
-            c.AddToClassList(cls);
-            return c;
         }
     }
 }
