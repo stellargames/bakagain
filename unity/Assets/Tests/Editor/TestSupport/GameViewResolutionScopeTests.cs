@@ -71,6 +71,7 @@ namespace BakAgain.Tests.Editor.TestSupport {
         }
 
         [Test]
+        [Category("Graphics")] // the Game view presets need a graphics device: CI runs this in the job with graphics
         public void REPEATEDForcingMintsAtMostOnePreset() {
             // *** THE RULE: one shared preset name, for ever. *** A per-fixture name is a per-fixture
             // saved preset, and six fixtures x two names each is how thirteen accumulated. Three

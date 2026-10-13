@@ -7,6 +7,7 @@ namespace BakAgain.Tests.Editor.Graphics {
     using UnityEngine;
     using UnityEngine.UI;
 
+    [Category("Graphics")] // reads what the GPU drew: CI runs these in the job with graphics
     public class DrawingTests {
         private CutsceneState _cutsceneState;
         private RenderTexture _indexedBuffer;

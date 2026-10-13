@@ -8,6 +8,7 @@ namespace BakAgain.Tests.PlayMode.World {
     /// were linear and the output encode brightened them. Measured on walk SAVE621 (chapter 5, zone 5)
     /// at noon: the mine entrance's pen 190 (73,44,24) drew as (146,115,86) (TASK-747).
     /// </summary>
+    [Category("Graphics")] // reads what the GPU drew: CI runs these in the job with graphics
     public class ClassicPolygonColourTests {
         [Test]
         public void AFlatFaceRendersItsPaletteColour() {

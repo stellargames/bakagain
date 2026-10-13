@@ -27,6 +27,7 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
     /// invisible in shipped data: all 16 <c>DrawBorder</c> uses run under a pair whose pens are
     /// equal.</para>
     /// </remarks>
+    [Category("Graphics")] // reads what the GPU drew: CI runs these in the job with graphics
     public class CutscenePenSelectionTests {
         private const int FullPalette = 256;
         private const int OutlinePen = 6;   // SetColors' FIRST word, as the shipped scripts use it

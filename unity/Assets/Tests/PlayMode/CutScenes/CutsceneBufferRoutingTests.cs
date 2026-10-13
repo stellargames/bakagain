@@ -14,6 +14,7 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
     /// destination is the classic failure here and would show as the background eating the frame
     /// rather than the other way round.</para>
     /// </summary>
+    [Category("Graphics")] // reads what the GPU drew: CI runs these in the job with graphics
     public class CutsceneBufferRoutingTests {
         private const int FullPalette = 256;
 

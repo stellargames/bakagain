@@ -28,6 +28,7 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
     /// <para>The palette makes each index recoverable from the red channel, the same trick the pen
     /// tests use, so a sampled pixel says which index was drawn there.</para>
     /// </remarks>
+    [Category("Graphics")] // reads what the GPU drew: CI runs these in the job with graphics
     public class CutsceneDrawImagePixelTests {
         private const int FullPalette = 256;
 

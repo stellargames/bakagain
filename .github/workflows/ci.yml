@@ -45,9 +45,20 @@ jobs:
       - run: dotnet build src/ResourceExtraction/ResourceExtraction.csproj -c Unity
       - run: dotnet test src/BakAgain.slnx
 
+  # Two runs of the same suite. The runner has no GPU, so Unity renders in software (Mesa llvmpipe) at
+  # ~1.65 s a frame: the whole suite took 1270 s that way and 8.9 s with -nographics (TASK-875). So
+  # everything runs without graphics except the tests tagged Category("Graphics"), which read what
+  # the GPU drew and get their own, small run with the software renderer.
   unity-tests:
     needs: dotnet
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: no-graphics, args: '-nographics -testCategory !Graphics' }
+          - { name: graphics, args: '-testCategory Graphics' }
+    name: unity-tests (${{ matrix.name }})
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -69,4 +80,6 @@ jobs:
         with:
           projectPath: unity
           testMode: playmode
+          customParameters: ${{ matrix.args }}
+          checkName: Test Results (${{ matrix.name }})
           githubToken: ${{ secrets.GITHUB_TOKEN }}

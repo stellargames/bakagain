@@ -22,6 +22,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
     /// camera on Attach and disables it on Dispose, so the world renders only while the travel
     /// viewport is displaying it.
     /// </summary>
+    [Category("Graphics")] // reads what the GPU drew: CI runs these in the job with graphics
     public class WorldViewportViewTests {
         private sealed class StubViewport : IWorldViewport {
             public Area CanonicalRect => new Area(65, 66, 1470, 606);
