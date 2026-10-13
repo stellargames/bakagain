@@ -5,7 +5,7 @@ namespace BakAgain.UI.InGame {
     using UnityEngine.UIElements;
 
     /// <summary>
-    /// Enhanced full-screen travel's HUD (spec 2026-10-08 §3): the REQ_MAIN elements themselves,
+    /// Enhanced full-screen travel's HUD (spec 2026-10-08 §3), and the overhead map's: the REQ elements themselves,
     /// reparented into one container on the document root. Every element keeps its action id, so
     /// clicks go through InGameScreen's existing Primary/SecondaryAction. All geometry is in the
     /// theme (<c>.enhanced-hud*</c>); this class only moves elements and clears their inline REQ placement.
@@ -16,17 +16,33 @@ namespace BakAgain.UI.InGame {
     /// world's click area (hotspot_192), which full-screen stretches over the whole window.
     /// </remarks>
     public sealed class EnhancedHudLayout {
-        // REQ_MAIN: follow-road is a Toggle, so it is toggle_19, not imagebutton_19.
-        private static readonly string[] Portraits = { "hotspot_2", "hotspot_3", "hotspot_4" };
-        private static readonly string[] Buttons = {
-            "toggle_19", "imagebutton_50", "imagebutton_46",
-            "imagebutton_48", "imagebutton_18", "imagebutton_24" };
-        private static readonly string[] Arrows = { "imagebutton_72", "imagebutton_80", "imagebutton_75", "imagebutton_77" };
+        /// <summary>The REQ elements one screen's HUD moves: travel's REQ_MAIN or the map's REQ_MAP.</summary>
+        public sealed class Elements {
+            public string[] Portraits, Buttons, Arrows;
+            /// <summary>Travel only: REQ_MAP has no spell plaque.</summary>
+            public bool SpellBar;
+        }
+
+        // Both REQs: follow-road is a Toggle, so it is toggle_19, not imagebutton_19.
+        private static readonly string[] PortraitNames = { "hotspot_2", "hotspot_3", "hotspot_4" };
+        private static readonly string[] ArrowNames = { "imagebutton_72", "imagebutton_80", "imagebutton_75", "imagebutton_77" };
+
+        public static readonly Elements Travel = new() {
+            Portraits = PortraitNames, Arrows = ArrowNames, SpellBar = true,
+            Buttons = new[] { "toggle_19", "imagebutton_50", "imagebutton_46", "imagebutton_48", "imagebutton_18", "imagebutton_24" },
+        };
+
+        public static readonly Elements Map = new() {
+            Portraits = PortraitNames, Arrows = ArrowNames, SpellBar = false,
+            Buttons = new[] { "toggle_19", "imagebutton_33", "imagebutton_73", "imagebutton_81", "imagebutton_18", "imagebutton_50" },
+        };
+
         private const string Compass = CompassView.WindowName;
         private const string SpellBar = SpellEffectCaptionView.PlaqueName;
         private const string SpellRunes = SpellEffectCaptionView.SymbolsName;
 
         private readonly VisualElement _root;
+        private readonly Elements _elements;
         private readonly GameSession _session;
         private readonly Core.Services.GameClock _clock;
         private readonly float _statusFontFraction;
@@ -53,8 +69,10 @@ namespace BakAgain.UI.InGame {
         }
 
         /// <param name="statusFontFraction">The status line's font size as a fraction of the window's height.</param>
-        public EnhancedHudLayout(VisualElement root, GameSession session, Core.Services.GameClock clock, float statusFontFraction) {
+        public EnhancedHudLayout(VisualElement root, GameSession session, Core.Services.GameClock clock, float statusFontFraction,
+                Elements elements) {
             _root = root;
+            _elements = elements;
             _session = session;
             _clock = clock;
             _statusFontFraction = statusFontFraction;
@@ -105,9 +123,9 @@ namespace BakAgain.UI.InGame {
             if (!GameOptions.IsOn(EnhancedFeature.PortraitRings) || _session == null) {
                 return;
             }
-            _rings = new PortraitRingView[Portraits.Length];
+            _rings = new PortraitRingView[_elements.Portraits.Length];
             for (int i = 0; i < _rings.Length; i++) {
-                _rings[i] = new PortraitRingView(_session, _root.Q(Portraits[i]), i);
+                _rings[i] = new PortraitRingView(_session, _root.Q(_elements.Portraits[i]), i);
             }
         }
 
@@ -127,16 +145,18 @@ namespace BakAgain.UI.InGame {
         /// </summary>
         public bool Apply() {
             if (Applied) return true;
-            var all = new List<string>(Portraits);
-            all.AddRange(Buttons);
+            var all = new List<string>(_elements.Portraits);
+            all.AddRange(_elements.Buttons);
             all.Add(Compass);
-            all.Add(SpellBar);
-            all.Add(SpellRunes);
-            all.AddRange(Arrows);
+            if (_elements.SpellBar) {
+                all.Add(SpellBar);
+                all.Add(SpellRunes);
+            }
+            all.AddRange(_elements.Arrows);
             foreach (string name in all) {
                 if (_root.Q(name) == null) {
                     if (!_warned) {
-                        Debug.LogWarning($"EnhancedHud: REQ_MAIN element '{name}' missing; keeping the faithful layout.");
+                        Debug.LogWarning($"EnhancedHud: REQ element '{name}' missing; keeping the faithful layout.");
                         _warned = true;
                     }
                     return false;
@@ -153,22 +173,24 @@ namespace BakAgain.UI.InGame {
             _hud.Add(portraits); _hud.Add(buttons); _hud.Add(top);
             _root.Add(_hud);
 
-            foreach (string n in Portraits) Move(_root.Q(n), portraits, "enhanced-hud__portrait", clearSize: true);
+            foreach (string n in _elements.Portraits) Move(_root.Q(n), portraits, "enhanced-hud__portrait", clearSize: true);
             // Buttons and the compass keep their REQ size: a button's face is its icon at native size
             // (inline, re-applied on every press), the compass strips are sized from the window in
             // panel px. The theme scales the button column as a whole instead.
-            foreach (string n in Buttons) Move(_root.Q(n), buttons, "enhanced-hud__button", clearSize: false);
+            foreach (string n in _elements.Buttons) Move(_root.Q(n), buttons, "enhanced-hud__button", clearSize: false);
             // The spell plaque sits left of the compass on the theme's translucent bar instead of its
             // parchment, with the runes inside it rather than centred on the stage.
-            VisualElement bar = _root.Q(SpellBar);
-            Move(bar, top, "enhanced-hud__spellbar", clearSize: false);
-            bar.style.backgroundImage = StyleKeyword.Null;
-            VisualElement runes = _root.Q(SpellRunes);
-            Move(runes, bar, "enhanced-hud__spellrunes", clearSize: false);
-            runes.style.translate = StyleKeyword.Null;
+            if (_elements.SpellBar) {
+                VisualElement bar = _root.Q(SpellBar);
+                Move(bar, top, "enhanced-hud__spellbar", clearSize: false);
+                bar.style.backgroundImage = StyleKeyword.Null;
+                VisualElement runes = _root.Q(SpellRunes);
+                Move(runes, bar, "enhanced-hud__spellrunes", clearSize: false);
+                runes.style.translate = StyleKeyword.Null;
+            }
             Move(_root.Q(Compass), top, "enhanced-hud__compass", clearSize: false);
             top.Add(_status);
-            foreach (string n in Arrows) _root.Q(n).style.display = DisplayStyle.None;
+            foreach (string n in _elements.Arrows) _root.Q(n).style.display = DisplayStyle.None;
 
             // Square portraits from the theme's heights, and the status font from the window height —
             // sizes derived from layout data, not coordinates.
@@ -197,7 +219,7 @@ namespace BakAgain.UI.InGame {
                 s.Element.style.backgroundImage = s.Background; s.Element.style.translate = s.Translate;
             }
             _saved.Clear();
-            foreach (string n in Arrows) {
+            foreach (string n in _elements.Arrows) {
                 VisualElement a = _root.Q(n);
                 if (a != null) a.style.display = StyleKeyword.Null;
             }

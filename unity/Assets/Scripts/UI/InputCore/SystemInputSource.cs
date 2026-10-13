@@ -112,6 +112,12 @@ namespace BakAgain.UI.InputCore {
         public Vector2 ScreenPosition => Pointer?.position.ReadValue() ?? Vector2.zero;
         public Vector2 Delta => Pointer?.delta.ReadValue() ?? Vector2.zero;
         public Vector2 Scroll => Mouse?.scroll.ReadValue() ?? Vector2.zero;
+
+        public void WarpOsPointer(Vector2 screenPosition) {
+            if (!Application.isEditor) {
+                Mouse?.WarpCursorPosition(screenPosition);
+            }
+        }
         IPointerButton IPointer.Primary => _primary;
         IPointerButton IPointer.Secondary => _secondary;
     }

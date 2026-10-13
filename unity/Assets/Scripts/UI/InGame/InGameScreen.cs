@@ -742,7 +742,8 @@ namespace BakAgain.UI.InGame {
             _partyHeads = new PartyHeadsView(_gameSession, _resources);
             _partyHeads.Attach(root);
             _partyHeads.RenderAsync().Forget();
-            _hud = new EnhancedHudLayout(root, _gameSession, _clock, _enhancedLayout.StatusFontFraction);
+            _hud = new EnhancedHudLayout(root, _gameSession, _clock, _enhancedLayout.StatusFontFraction,
+                EnhancedHudLayout.Travel);
         }
 
         /// <summary>
@@ -1602,12 +1603,9 @@ namespace BakAgain.UI.InGame {
                 // The software cursor goes back through its own warp (CursorManager.WarpTo).
                 cursor?.WarpTo(BakAgain.Graphics.CanonicalConversion.ScreenToCanonical(_look.DragStart,
                     new Vector2(Screen.width, Screen.height), BakAgain.UI.CanonicalStage.Find(_document?.rootVisualElement)));
-                // The OS pointer too, or its next move reclaims the cursor at the drag's far end. Not in
-                // the Editor, whose warp origin is the desktop (CursorManager.WarpTo's note).
+                // The OS pointer too, or its next move reclaims the cursor at the drag's far end.
                 // ponytail: unverified until a built player is driven.
-                if (!Application.isEditor) {
-                    UnityEngine.InputSystem.Mouse.current?.WarpCursorPosition(_look.DragStart);
-                }
+                _pointer.WarpOsPointer(_look.DragStart);
             }
         }
 

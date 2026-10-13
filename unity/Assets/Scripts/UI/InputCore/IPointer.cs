@@ -30,6 +30,10 @@ namespace BakAgain.UI.InputCore {
         Vector2 Scroll { get; }             // wheel/scroll delta
         IPointerButton Primary { get; }     // left mouse / touch
         IPointerButton Secondary { get; }   // right mouse / (mobile) long-press
+
+        /// <summary>Moves the OS mouse pointer (screen coords). A no-op in the Editor, whose warp
+        /// origin is the desktop rather than the Game View, and without a mouse.</summary>
+        void WarpOsPointer(Vector2 screenPosition);
     }
 
     public interface IPointerButton {

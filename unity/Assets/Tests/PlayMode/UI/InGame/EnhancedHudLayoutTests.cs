@@ -121,7 +121,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             StyleBackground parchment = bar.style.backgroundImage;
             StyleTranslate runesTranslate = runes.style.translate;
 
-            var hud = new EnhancedHudLayout(_root, session: null, clock: null, statusFontFraction: 0.024f);
+            var hud = new EnhancedHudLayout(_root, session: null, clock: null, statusFontFraction: 0.024f, EnhancedHudLayout.Travel);
             Assert.IsTrue(hud.Apply());
             yield return null;
             yield return null;
@@ -159,7 +159,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             VisualElement parent = head.parent;
 
             LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex("EnhancedHud"));
-            var hud = new EnhancedHudLayout(_root, session: null, clock: null, statusFontFraction: 0.024f);
+            var hud = new EnhancedHudLayout(_root, session: null, clock: null, statusFontFraction: 0.024f, EnhancedHudLayout.Travel);
             Assert.IsFalse(hud.Apply());
             Assert.IsFalse(hud.Apply(), "a retry (the compass builds late) stays quiet: one warning");
             Assert.AreSame(parent, head.parent);
@@ -174,7 +174,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
         /// </summary>
         [UnityTest]
         public IEnumerator EveryMovedElementTakesItsOwnClickAboveTheWorld() {
-            var hud = new EnhancedHudLayout(_root, session: null, clock: null, statusFontFraction: 0.024f);
+            var hud = new EnhancedHudLayout(_root, session: null, clock: null, statusFontFraction: 0.024f, EnhancedHudLayout.Travel);
             Assert.IsTrue(hud.Apply());
             yield return null;
             yield return null;

@@ -23,6 +23,7 @@ namespace BakAgain.UI.InputCore {
         public Vector2 ScreenPosition { get; set; }
         public Vector2 Delta { get; set; }
         public Vector2 Scroll { get; set; }
+        public void WarpOsPointer(Vector2 screenPosition) { }
         public Button Primary { get; } = new Button();
         public Button Secondary { get; } = new Button();
         IPointerButton IPointer.Primary => Primary;

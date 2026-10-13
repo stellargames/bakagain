@@ -60,6 +60,15 @@ namespace BakAgain.UI.InGame {
         private ArchiveImage _marker;
         private int _markerIcon = -1;
         private bool _zoomUpLive = true;
+        private Core.Services.GameClock _clock;
+        private FullScreenViewport _fullScreen;
+        private EnhancedHudLayout _hud;
+        private MapViewControl _view;
+        private readonly GameData.Resources.Layout.EnhancedMapLayout _mapLayout = new();
+        private readonly GameData.Resources.Layout.EnhancedTravelLayout _travelLayout = new();
+        // The camera height on screen, easing to the zoom step; negative until the first frame.
+        private float _shownHeight = -1f;
+        private (int X, int Y, int Rotation) _partyPose;
         private bool _zoomDownLive = true;
 
         // The option, read through one property so the camera and the marker can never disagree
@@ -86,7 +95,9 @@ namespace BakAgain.UI.InGame {
             BakAgain.UI.Inventory.InventoryMenu inventoryMenu,
             BakAgain.UI.Character.CharacterSheetScreen characterSheet,
             IPointer pointer, IGameplayInput gameplay, IMapOptionInput mapOptions,
-            ICheatInput cheat, BakAgain.UI.Cheats.ChestCheatScreen cheatChest) {
+            ICheatInput cheat, BakAgain.UI.Cheats.ChestCheatScreen cheatChest,
+            Core.Services.GameClock clock) {
+            _clock = clock;
             _cheat = cheat;
             _cheatChest = cheatChest;
             _session = session;
@@ -116,7 +127,8 @@ namespace BakAgain.UI.InGame {
             }
             _movementDriver = new ClassicMovementDriver(_document, Movement, _gameplay, _pointer);
             ApplyMapCamera();
-            ApplyMapBackdrop();
+            ApplyMapLens();
+            ShowAutomap();
         }
 
         private void OnLoaderBuilt(System.Collections.Generic.IReadOnlyList<NavWidget> widgets) {
@@ -131,11 +143,25 @@ namespace BakAgain.UI.InGame {
             if (root == null || _worldView != null) {
                 return;
             }
-            _worldView = new WorldViewportView(_worldViewport, _logger);
+            // Under Enhanced full-screen the map fills the window as travel does (TASK-861), with the
+            // REQ_MAP controls moved into the same HUD. A fight closes the map, so no fight check.
+            _fullScreen = new FullScreenViewport(_worldViewport,
+                () => GameOptions.IsOn(EnhancedFeature.FullScreenTravel), () => new Vector2(Screen.width, Screen.height));
+            _worldView = new WorldViewportView(_fullScreen, _logger);
             _worldView.SetWorldCamera(_world?.WorldCamera);
+            // Every new texture changes the camera's aspect, and the full-window lens follows it.
+            _worldView.RenderTextureChanged += ApplyMapLens;
             // REQ_MAP has no viewport element of its own; the view falls back to the RE-verified
             // canonical rect, which is the same hole the travel screen's hotspot_192 sits in.
             _worldView.Attach(root);
+            _hud = new EnhancedHudLayout(root, _session, _clock, _travelLayout.StatusFontFraction,
+                EnhancedHudLayout.Map);
+            VisualElement viewport = root.Q(name: "WorldViewport");
+            if (viewport != null) {
+                _view = new MapViewControl(_mapLayout, (steps, at) => Zoom(steps > 0
+                    ? LocalMapScreen.MapAction.ZoomUpOneStep : LocalMapScreen.MapAction.ZoomDownOneStep, at, checkRange: true));
+                _view.Attach(viewport, _world?.WorldCamera);
+            }
 
             if (_loader.TryGetElementRect(
                     GameData.Resources.Menu.UserInterface.CompassWindowActionId, out Rect compassRect)) {
@@ -201,7 +227,7 @@ namespace BakAgain.UI.InGame {
 
             if (LocalMapScreen.TryWheelZoom(evt.delta.y, _session.MapCameraZ, def.MapZoomStep,
                     def.MapMinZ, def.MapMaxZ, out LocalMapScreen.MapAction action)) {
-                Zoom(action);
+                Zoom(action, evt.mousePosition);
             }
             // Stopped either way: at the end of the range the wheel does nothing, exactly as a
             // greyed zoom button does nothing, but it is still the map's wheel.
@@ -250,7 +276,11 @@ namespace BakAgain.UI.InGame {
             if (_marker == null) {
                 return;
             }
-            int icon = OverheadMapMarker.IconIndexFor(unchecked((ushort)_session.Rotation), NorthUp);
+            // The heading against the camera's: under north-up with no turn that is the party's own,
+            // and on the turning map it is 0, the fixed arrow — the original's two cases.
+            int icon = OverheadMapMarker.IconIndexFor(
+                unchecked((ushort)_session.Rotation) - MapYaw(), northUp: true);
+            PlaceMarker();
             if (icon == _markerIcon) {
                 return;
             }
@@ -258,7 +288,25 @@ namespace BakAgain.UI.InGame {
             _marker.address = $"MAPICONS.BMX#{icon}";
         }
 
+        // The party sits wherever the camera projects it: the middle, until the view is dragged.
+        private void PlaceMarker() {
+            Camera cam = _world?.WorldCamera;
+            VisualElement host = _marker?.parent;
+            if (cam == null || host == null || _session == null) {
+                return;
+            }
+            Vector3 v = cam.WorldToViewportPoint(
+                BakCoordinateConverter.ConvertPosition(_session.PositionX, _session.PositionY, 0));
+            Rect r = host.contentRect;
+            _marker.style.translate = new Translate((v.x - 0.5f) * r.width, (0.5f - v.y) * r.height);
+        }
+
         private void OnDisable() {
+            _hud?.Revert();
+            _hud = null;
+            _view?.Detach();
+            _view = null;
+            _shownHeight = -1f;
             if (_loader != null) {
                 _loader.Built -= OnLoaderBuilt;
             }
@@ -363,6 +411,7 @@ namespace BakAgain.UI.InGame {
             _touchControls?.Refresh(inFight: false);
             _movementDriver?.Tick(ownsInput);
             ToggleNorthUpIfAsked(ownsInput);
+            _hud?.Sync(_fullScreen != null && _fullScreen.Active, ownsInput);
             OpenCheatChestOnALongHold(ownsInput);
             CloseOnAWorldExitRequest(ownsInput);
             CloseWhenAFightStarts();
@@ -392,6 +441,7 @@ namespace BakAgain.UI.InGame {
                 return;
             }
             GameOptions.NorthUpMap = !GameOptions.NorthUpMap;
+            _view?.Recentre();
         }
 
         /// <summary>
@@ -411,12 +461,38 @@ namespace BakAgain.UI.InGame {
                 return;
             }
             ClampZoomIntoRange();
-            cam.transform.position = BakCoordinateConverter.ConvertPosition(
-                _session.PositionX, _session.PositionY, (int)_session.MapCameraZ);
-            int yaw = LocalMapScreen.MapRendersWithYaw(unchecked((ushort)_session.Rotation), NorthUp);
+            // A step or a turn of the party puts a dragged or turned view back on it.
+            var pose = (_session.PositionX, _session.PositionY, _session.Rotation);
+            if (_shownHeight >= 0f && pose != _partyPose) {
+                _view?.Recentre();
+            }
+            _partyPose = pose;
+
+            // The shown height eases to the zoom step; the step itself is what the session keeps.
+            float target = _session.MapCameraZ / BakCoordinateConverter.WorldScale;
+            float before = _shownHeight;
+            _shownHeight = _shownHeight < 0f ? target
+                : Mathf.Lerp(_shownHeight, target, 1f - Mathf.Exp(-_mapLayout.ZoomEaseRate * Time.unscaledDeltaTime));
+            if (Mathf.Abs(_shownHeight - target) < 0.01f) {
+                _shownHeight = target;
+            }
+
             cam.transform.rotation = BakCoordinateConverter.ConvertRotation(
-                unchecked((ushort)LocalMapScreen.TopDownPitch), 0, unchecked((ushort)yaw));
+                unchecked((ushort)LocalMapScreen.TopDownPitch), 0, unchecked((ushort)MapYaw()));
+            _view?.Clamp(_shownHeight);
+            Vector3 party = BakCoordinateConverter.ConvertPosition(_session.PositionX, _session.PositionY, 0);
+            Vector2 pan = _view?.Pan ?? Vector2.zero;
+            cam.transform.position = new Vector3(party.x + pan.x, _shownHeight, party.z + pan.y);
+            if (before >= 0f && !Mathf.Approximately(before, _shownHeight)) {
+                // The fog and far plane are keyed to the height, so an easing zoom moves them too.
+                ApplyMapLens();
+            }
         }
+
+        // The party's yaw unless north-up (LocalMapScreen.MapRendersWithYaw), plus any turn the
+        // player has given the view.
+        private int MapYaw() =>
+            (LocalMapScreen.MapRendersWithYaw(unchecked((ushort)_session.Rotation), NorthUp) + (_view?.Turn ?? 0)) & 0xFFFF;
 
         /// <summary>
         /// Puts the world's backdrop into map mode at the current height.
@@ -426,22 +502,29 @@ namespace BakAgain.UI.InGame {
         /// and only the height it is keyed to ever changes. <see cref="ZoneEnvironment"/> owns what
         /// map mode actually means.
         /// </remarks>
-        private void ApplyMapBackdrop() {
+        private void ApplyMapLens() {
             Camera cam = _world?.WorldCamera;
             if (cam == null) {
                 return;
             }
 
             // The map reuses the travel viewport, so its rect — and therefore its FOV — is that one's.
+            int focal = _world?.ZoneDefinition?.FocalLength ?? _worldViewport.FocalLength;
             _world.Environment?.SetOverheadMapMode(
                 cam, on: true, cameraHeight: cam.transform.position.y,
-                mapViewHeight: _worldViewport.CanonicalRect.Height,
-                focalLength: _world?.ZoneDefinition?.FocalLength ?? _worldViewport.FocalLength);
+                mapViewHeight: _worldViewport.CanonicalRect.Height, focalLength: focal);
+            if (_fullScreen != null && _fullScreen.Active && cam.aspect > 0f) {
+                // Full-window, the lens widens until the faithful view is covered, as travel's does.
+                cam.fieldOfView = (float)GameData.Resources.World.WorldProjection.CoverVerticalFovDegrees(
+                    _worldViewport.CanonicalRect.Width, _worldViewport.CanonicalRect.Height, focal, cam.aspect);
+            }
+        }
 
-            // Underground, the map is not the world seen from above — it is the dungeon automap:
-            // the same placements drawn from the map model table, of which only the ones the party
-            // has walked past appear. Above ground Automap is null and this does nothing.
-            DungeonAutomapView automap = _world.Automap;
+        // Underground, the map is not the world seen from above — it is the dungeon automap: the
+        // same placements drawn from the map model table, of which only the ones the party has
+        // walked past appear. Above ground Automap is null and this does nothing.
+        private void ShowAutomap() {
+            DungeonAutomapView automap = _world?.Automap;
             if (automap != null) {
                 int shown = automap.Show(_session?.AutomapVisits, _session?.CurrentZone ?? 0);
                 _logger?.LogInformation("Dungeon automap: showing {Shown} of {Mapped} mapped placements.",
@@ -464,16 +547,26 @@ namespace BakAgain.UI.InGame {
             }
         }
 
-        private void Zoom(LocalMapScreen.MapAction action) {
+        /// <param name="about">A panel point to zoom about (wheel, pinch); null zooms about the middle.</param>
+        /// <param name="checkRange">For a gesture: the one-step arms clamp nothing themselves, so a
+        /// control without a gated button asks the same predicates the gate does (see <see cref="OnWheel"/>).</param>
+        private void Zoom(LocalMapScreen.MapAction action, Vector2? about = null, bool checkRange = false) {
             ZoneDefinition def = _world?.ZoneDefinition;
             if (def == null || _session == null) {
                 return;
             }
+            if (checkRange && !(action == LocalMapScreen.MapAction.ZoomUpOneStep
+                    ? LocalMapScreen.CanZoomUp(_session.MapCameraZ, def.MapZoomStep, def.MapMaxZ)
+                    : LocalMapScreen.CanZoomDown(_session.MapCameraZ, def.MapZoomStep, def.MapMinZ))) {
+                return;
+            }
+            long from = _session.MapCameraZ;
             _session.MapCameraZ = LocalMapScreen.CameraZAfter(
-                action, _session.MapCameraZ, def.MapZoomStep, def.MapMinZ, def.MapMaxZ);
-            ApplyMapCamera();
-            // The fog and far plane are keyed to the height, so a zoom moves them too.
-            ApplyMapBackdrop();
+                action, from, def.MapZoomStep, def.MapMinZ, def.MapMaxZ);
+            if (about is { } point) {
+                // About what is on screen now, which mid-ease is not the old step's height.
+                _view?.ZoomAbout(point, _shownHeight, _session.MapCameraZ / BakCoordinateConverter.WorldScale);
+            }
             RefreshZoomButtons(force: false);
         }
 
