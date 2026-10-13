@@ -10,6 +10,12 @@ Shader "BakAgain/ClassicPolygon" {
         // depth only. 0 = inert. Set per-material by the profiles; only depth-sorted models carry
         // non-zero ranks (terrain UV1 = 0).
         _PaintBias ("Paint Bias", Float) = 0
+        // Terrain overlay lift (road, river): world units the vertex moves toward the camera along
+        // its view ray, so its screen position is unchanged and only its depth gets ahead of the
+        // ground it lies on. The Offset state above cannot do this looking straight down (the
+        // overhead map): the slope term is zero there and one unit is about one float depth step,
+        // so roads z-fought the ground. Set per-material by GetLayeredTerrainMaterial. 0 = inert.
+        _LayerLift ("Layer Lift", Float) = 0
     }
     SubShader {
         Tags { "RenderType"="Opaque" "RenderPipeline"="UniversalPipeline" "Queue"="Geometry" }
@@ -67,6 +73,7 @@ Shader "BakAgain/ClassicPolygon" {
 
             CBUFFER_START(UnityPerMaterial)
                 float _PaintBias;
+                float _LayerLift;
             CBUFFER_END
 
             // GLOBAL — see ClassicTerrain. ZoneEnvironment.SetOverheadMapMode is the only writer.
@@ -76,7 +83,10 @@ Shader "BakAgain/ClassicPolygon" {
             Varyings vert(Attributes input) {
                 Varyings output;
                 VertexPositionInputs posInputs = GetVertexPositionInputs(input.positionOS.xyz);
-                output.positionCS = posInputs.positionCS;
+                // _LayerLift: see Properties. Along the view ray, so x/y do not move.
+                float3 liftedWS = posInputs.positionWS
+                    + normalize(GetCameraPositionWS() - posInputs.positionWS) * _LayerLift;
+                output.positionCS = TransformWorldToHClip(liftedWS);
                 // Paint-order depth bias: push later-painted (higher-rank) coplanar faces toward the
                 // camera so they win the depth tie. The post-divide NDC offset is rank*_PaintBias/w²,
                 // i.e. a constant EYE-space depth offset per rank (≈ _PaintBias/nearClip world units) —

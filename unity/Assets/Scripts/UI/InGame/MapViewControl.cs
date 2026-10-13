@@ -22,7 +22,7 @@ namespace BakAgain.UI.InGame {
         private const int FullTurn = 0x10000;
 
         private readonly EnhancedMapLayout _layout;
-        private readonly Action<int, Vector2> _zoomStep;
+        private readonly Action<int> _zoomStep;
         private readonly Dictionary<int, Vector2> _pointers = new();
         private VisualElement _surface;
         private Camera _camera;
@@ -30,8 +30,8 @@ namespace BakAgain.UI.InGame {
         private float _pinchBase;
         private float _twistLast;
 
-        /// <param name="zoomStep">One zoom step about a panel point: +1 lifts the camera (out), -1 lowers it (in).</param>
-        public MapViewControl(EnhancedMapLayout layout, Action<int, Vector2> zoomStep) {
+        /// <param name="zoomStep">One zoom step: +1 lifts the camera (out), -1 lowers it (in).</param>
+        public MapViewControl(EnhancedMapLayout layout, Action<int> zoomStep) {
             _layout = layout;
             _zoomStep = zoomStep;
         }
@@ -68,22 +68,11 @@ namespace BakAgain.UI.InGame {
         }
 
         /// <summary>
-        /// Keeps the ground under <paramref name="panelPoint"/> where it is while the camera goes from
-        /// <paramref name="fromHeight"/> to <paramref name="toHeight"/>.
+        /// Slides the view toward the party, keeping <paramref name="remaining"/> of the pan. A zoom
+        /// is always about the party, so the map never shows a close-up of ground the party is not
+        /// standing on.
         /// </summary>
-        public void ZoomAbout(Vector2 panelPoint, float fromHeight, float toHeight) {
-            if (_surface == null || _camera == null || fromHeight <= 0f) {
-                return;
-            }
-            Rect b = _surface.worldBound;
-            if (b.width <= 0f || !b.Contains(panelPoint)) {
-                return;
-            }
-            (Vector2 right, Vector2 up, float halfW, float halfH) = Axes(fromHeight);
-            float u = (panelPoint.x - b.center.x) / (b.width / 2f);
-            float v = (b.center.y - panelPoint.y) / (b.height / 2f);
-            Pan += (right * (u * halfW) + up * (v * halfH)) * (1f - toHeight / fromHeight);
-        }
+        public void PullIn(float remaining) => Pan *= Mathf.Clamp01(remaining);
 
         /// <summary>Holds the party inside the view at <paramref name="height"/>; call after the camera is turned.</summary>
         public void Clamp(float height) {
@@ -143,10 +132,10 @@ namespace BakAgain.UI.InGame {
             TurnBy(Mathf.DeltaAngle(_twistLast, angle));
             _twistLast = angle;
             if (_pinchBase > 0f && d / _pinchBase >= _layout.PinchStepRatio) {
-                _zoomStep(-1, mid);
+                _zoomStep(-1);
                 _pinchBase = d;
             } else if (_pinchBase > 0f && _pinchBase / Mathf.Max(1f, d) >= _layout.PinchStepRatio) {
-                _zoomStep(+1, mid);
+                _zoomStep(+1);
                 _pinchBase = d;
             }
         }

@@ -12,6 +12,12 @@ Shader "BakAgain/ClassicTerrain" {
         // coplanar water faces have no tie-break and z-fight. Terrain tiles bake rank 0 on every
         // vertex, so the bias is inert for them.
         _PaintBias ("Paint Bias", Float) = 0
+        // Terrain overlay lift (road, river): world units the vertex moves toward the camera along
+        // its view ray, so its screen position is unchanged and only its depth gets ahead of the
+        // ground it lies on. The Offset state above cannot do this looking straight down (the
+        // overhead map): the slope term is zero there and one unit is about one float depth step,
+        // so roads z-fought the ground. Set per-material by GetLayeredTerrainMaterial. 0 = inert.
+        _LayerLift ("Layer Lift", Float) = 0
     }
     SubShader {
         Tags { "RenderType"="Opaque" "RenderPipeline"="UniversalPipeline" "Queue"="Geometry" }
@@ -53,6 +59,7 @@ Shader "BakAgain/ClassicTerrain" {
                 float _TexScale;
                 float _ColorBlend;
                 float _PaintBias;
+                float _LayerLift;
             CBUFFER_END
 
             // GLOBAL, not per-material: the overhead map is a mode the whole world enters at once,
@@ -66,7 +73,10 @@ Shader "BakAgain/ClassicTerrain" {
             Varyings vert(Attributes input) {
                 Varyings output;
                 VertexPositionInputs posInputs = GetVertexPositionInputs(input.positionOS.xyz);
-                output.positionCS = posInputs.positionCS;
+                // _LayerLift: see Properties. Along the view ray, so x/y do not move.
+                float3 liftedWS = posInputs.positionWS
+                    + normalize(GetCameraPositionWS() - posInputs.positionWS) * _LayerLift;
+                output.positionCS = TransformWorldToHClip(liftedWS);
                 output.color = input.color;
                 output.worldPos = TransformObjectToWorld(input.positionOS.xyz);
                 output.worldNormal = TransformObjectToWorldNormal(input.normalOS);

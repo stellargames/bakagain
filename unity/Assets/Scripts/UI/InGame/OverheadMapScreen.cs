@@ -158,8 +158,8 @@ namespace BakAgain.UI.InGame {
                 EnhancedHudLayout.Map);
             VisualElement viewport = root.Q(name: "WorldViewport");
             if (viewport != null) {
-                _view = new MapViewControl(_mapLayout, (steps, at) => Zoom(steps > 0
-                    ? LocalMapScreen.MapAction.ZoomUpOneStep : LocalMapScreen.MapAction.ZoomDownOneStep, at, checkRange: true));
+                _view = new MapViewControl(_mapLayout, steps => Zoom(steps > 0
+                    ? LocalMapScreen.MapAction.ZoomUpOneStep : LocalMapScreen.MapAction.ZoomDownOneStep, checkRange: true));
                 _view.Attach(viewport, _world?.WorldCamera);
             }
 
@@ -227,7 +227,7 @@ namespace BakAgain.UI.InGame {
 
             if (LocalMapScreen.TryWheelZoom(evt.delta.y, _session.MapCameraZ, def.MapZoomStep,
                     def.MapMinZ, def.MapMaxZ, out LocalMapScreen.MapAction action)) {
-                Zoom(action, evt.mousePosition);
+                Zoom(action);
             }
             // Stopped either way: at the end of the range the wheel does nothing, exactly as a
             // greyed zoom button does nothing, but it is still the map's wheel.
@@ -476,6 +476,11 @@ namespace BakAgain.UI.InGame {
             if (Mathf.Abs(_shownHeight - target) < 0.01f) {
                 _shownHeight = target;
             }
+            if (before >= 0f && !Mathf.Approximately(before, target)) {
+                // A zoom is about the party: a dragged view slides home as the height eases, and
+                // is on the party when the step is reached.
+                _view?.PullIn((_shownHeight - target) / (before - target));
+            }
 
             cam.transform.rotation = BakCoordinateConverter.ConvertRotation(
                 unchecked((ushort)LocalMapScreen.TopDownPitch), 0, unchecked((ushort)MapYaw()));
@@ -547,10 +552,9 @@ namespace BakAgain.UI.InGame {
             }
         }
 
-        /// <param name="about">A panel point to zoom about (wheel, pinch); null zooms about the middle.</param>
         /// <param name="checkRange">For a gesture: the one-step arms clamp nothing themselves, so a
         /// control without a gated button asks the same predicates the gate does (see <see cref="OnWheel"/>).</param>
-        private void Zoom(LocalMapScreen.MapAction action, Vector2? about = null, bool checkRange = false) {
+        private void Zoom(LocalMapScreen.MapAction action, bool checkRange = false) {
             ZoneDefinition def = _world?.ZoneDefinition;
             if (def == null || _session == null) {
                 return;
@@ -563,10 +567,6 @@ namespace BakAgain.UI.InGame {
             long from = _session.MapCameraZ;
             _session.MapCameraZ = LocalMapScreen.CameraZAfter(
                 action, from, def.MapZoomStep, def.MapMinZ, def.MapMaxZ);
-            if (about is { } point) {
-                // About what is on screen now, which mid-ease is not the old step's height.
-                _view?.ZoomAbout(point, _shownHeight, _session.MapCameraZ / BakCoordinateConverter.WorldScale);
-            }
             RefreshZoomButtons(force: false);
         }
 

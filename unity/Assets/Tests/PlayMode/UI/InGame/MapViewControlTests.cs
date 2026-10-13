@@ -22,7 +22,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
         private Camera _cam;
         private MapViewControl _view;
         private VisualElement _surface;
-        private readonly List<(int Steps, Vector2 At)> _zooms = new();
+        private readonly List<int> _zooms = new();
         private readonly EnhancedMapLayout _layout = new();
 
         [UnitySetUp]
@@ -48,7 +48,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             _cam.transform.SetPositionAndRotation(new Vector3(0, Height, 0), Quaternion.Euler(90f, 0f, 0f));
 
             _zooms.Clear();
-            _view = new MapViewControl(_layout, (steps, at) => _zooms.Add((steps, at)));
+            _view = new MapViewControl(_layout, steps => _zooms.Add(steps));
             _view.Attach(viewport, _cam);
             _surface = viewport.Q("BakMapGestures");
             yield return null;
@@ -115,22 +115,12 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             Send<PointerDownEvent>(2, b, touch: true);
             Send<PointerMoveEvent>(2, Centre + new Vector2(80f, 0f), touch: true);
             Assert.AreEqual(1, _zooms.Count, "100 -> 130 apart is past the step ratio");
-            Assert.AreEqual(-1, _zooms[0].Steps, "apart is in: the camera comes down");
+            Assert.AreEqual(-1, _zooms[0], "apart is in: the camera comes down");
             Send<PointerMoveEvent>(2, Centre - new Vector2(10f, 0f), touch: true);
             Assert.AreEqual(2, _zooms.Count);
-            Assert.AreEqual(+1, _zooms[1].Steps);
+            Assert.AreEqual(+1, _zooms[1]);
             Send<PointerUpEvent>(1, a, touch: true);
             Send<PointerUpEvent>(2, b, touch: true);
-            yield return null;
-        }
-
-        [UnityTest]
-        public IEnumerator AZoomKeepsTheGroundUnderThePoint() {
-            Vector2 at = Centre + new Vector2(_surface.worldBound.width / 4f, 0f);
-            _view.ZoomAbout(at, Height, Height / 2f);
-            // A quarter of the width right is half the half-width; halving the height pulls the
-            // centre half of that way across.
-            Assert.AreEqual(HalfH * _cam.aspect * 0.5f * 0.5f, _view.Pan.x, 0.01f);
             yield return null;
         }
 

@@ -16,6 +16,10 @@ namespace BakAgain.ResourceManagement.Converters {
     public static class WorldMeshObjects {
         private static readonly int OffsetFactorId = Shader.PropertyToID("_OffsetFactor");
         private static readonly int OffsetUnitsId = Shader.PropertyToID("_OffsetUnits");
+        private static readonly int LayerLiftId = Shader.PropertyToID("_LayerLift");
+
+        /// <summary>World units a road or river is lifted toward the camera per paint layer (one BaK unit).</summary>
+        private const float OverlayLift = 0.01f;
 
         /// <summary>
         /// Builds a per-pen layered terrain/polygon GameObject with one sub-mesh per pen, each
@@ -99,6 +103,9 @@ namespace BakAgain.ResourceManagement.Converters {
         /// with a landscape block, the block will now win and the river will disappear. Watch for
         /// missing/z-fighting rivers and roads; if that shows up, the layering needs to distinguish
         /// landscape relief (EntityType 4, depth-sorted) from objects standing on terrain.
+        /// Seen 2026-10-13 on the overhead map: roads lying exactly in a flat landscape block's
+        /// plane flickered against it, because looking straight down the slope term is zero. The
+        /// overlay lift (<c>_LayerLift</c>, below) puts roads and rivers on top of those blocks.
         /// </summary>
         private const int ObjectLayer = 3;
 
@@ -139,6 +146,9 @@ namespace BakAgain.ResourceManagement.Converters {
                 // its top edge (2026-10-09). Objects keep the constant term, which moves a whole
                 // model alike and still orders DrawPriority 0 over the terrain layers.
                 mat.SetFloat(OffsetFactorId, layer == ObjectLayer ? 0f : -layer);
+                // And the overlays a depth lift that holds when the slope term is zero (the
+                // overhead map looks straight down); objects keep their offsets only.
+                mat.SetFloat(LayerLiftId, layer == ObjectLayer ? 0f : layer * OverlayLift);
             }
             ctx.LayeredTerrainCache[key] = mat;
             return mat;
