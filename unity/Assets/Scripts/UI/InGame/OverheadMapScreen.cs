@@ -181,6 +181,9 @@ namespace BakAgain.UI.InGame {
                 _touchControls = new TouchControlsView(BakAgain.UI.InputCore.TouchInputState.Instance,
                     _pointer, new GameData.Resources.Layout.TouchControlsLayout());
                 _touchControls.Build(root, CanonicalStage.GetOrCreate(root, _loader.Frame));
+                // Full-window, the map's buttons sit in the bars: the pads go under them, as in travel.
+                _touchControls.PadCentreYOverride = () => _fullScreen != null && _fullScreen.Active
+                    ? _travelLayout.TouchPadCentreY : (float?)null;
             }
             // Registered here rather than in OnAfterShow because the root only exists once the REQ
             // has built, and this method is the one place that is true. The guard above makes it
@@ -408,7 +411,7 @@ namespace BakAgain.UI.InGame {
             // Same gate the travel HUD uses: a dialog over the map is resolved above this screen's
             // layer, so the party stops while it is up.
             bool ownsInput = _layerHost != null && _layerHost.IsInputActive;
-            _touchControls?.Refresh(inFight: false);
+            _touchControls?.Refresh(inFight: false, hidden: false);
             _movementDriver?.Tick(ownsInput);
             ToggleNorthUpIfAsked(ownsInput);
             _hud?.Sync(_fullScreen != null && _fullScreen.Active, ownsInput);

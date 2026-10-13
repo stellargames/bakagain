@@ -41,6 +41,7 @@ namespace BakAgain.UI.InGame {
         private VisualElement _panelRoot;
         private bool _inFight;
         private bool _wasTouch;
+        private bool _hidden;
 
         public TouchControlsView(TouchInputState state, IPointer pointer, TouchControlsLayout layout) {
             _state = state;
@@ -85,10 +86,11 @@ namespace BakAgain.UI.InGame {
         }
 
         /// <summary>Per frame: follows the fight state and the active pointer.</summary>
-        public void Refresh(bool inFight) {
+        /// <param name="hidden">Out of sight, e.g. under a dialog page whose book fills the side bars.</param>
+        public void Refresh(bool inFight, bool hidden) {
             bool touch = IsTouch;
             float centreY = PadCentreY;
-            if (centreY == _lastCentreY && inFight == _inFight && touch == _wasTouch
+            if (centreY == _lastCentreY && inFight == _inFight && touch == _wasTouch && hidden == _hidden
                 && _state.CursorContext == _lastContext && _state.AwaitingTarget == _lastAwaiting
                 && _state.CastAccepted == _lastCastAccepted && _state.MoveAccepted == _lastMoveAccepted) {
                 return;
@@ -100,6 +102,7 @@ namespace BakAgain.UI.InGame {
             _lastMoveAccepted = _state.MoveAccepted;
             _inFight = inFight;
             _wasTouch = touch;
+            _hidden = hidden;
             Layout();
         }
 
@@ -243,7 +246,7 @@ namespace BakAgain.UI.InGame {
             float rightW = _root.layout.width - rightX;
             bool bars = !float.IsNaN(leftW) && !float.IsNaN(rightW)
                 && leftW >= _layout.MinBarWidth && rightW >= _layout.MinBarWidth;
-            bool show = IsTouch && bars;
+            bool show = IsTouch && bars && !_hidden;
             Place(_left, 0, 0, leftW, h, show);
             Place(_right, rightX, 0, rightW, h, show);
             if (!show) {

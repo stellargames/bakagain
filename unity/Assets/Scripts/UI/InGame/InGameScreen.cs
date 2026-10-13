@@ -926,7 +926,7 @@ namespace BakAgain.UI.InGame {
             }
             _compass?.Refresh();
             ReopenTheMapAfterAFight();
-            _touchControls?.Refresh(AFightIsRunning());
+            _touchControls?.Refresh(AFightIsRunning(), hidden: APageHidesTheWorld);
             HandleTouchLongPress();
             ClearTouchTargetingAfterAFight();
             HandleTouchCursor();
@@ -1109,6 +1109,9 @@ namespace BakAgain.UI.InGame {
         // The Enhanced HUD is up while the world is full-window, and out of sight while anything is
         // open over the travel screen: a dialog over travel cuts a hole at the world viewport, and the
         // HUD (and the spell plaque, which no frame art surrounds any more) would show through it.
+        // A full dialog page is up: it hides the world view and its book fills the side bars.
+        private bool APageHidesTheWorld => _worldView?.Element?.style.visibility == Visibility.Hidden;
+
         private void SyncEnhancedHud() {
             if (_hud == null) {
                 return;
@@ -1116,8 +1119,7 @@ namespace BakAgain.UI.InGame {
             bool wasApplied = _hud.Applied;
             // A dialog page hides the world view the moment it is attached, but takes input only after
             // its open wipe and text reveal: gated on input alone, the HUD sat on the page for ~4 frames.
-            bool shown = _travelHost != null && _travelHost.IsInputActive
-                && _worldView?.Element?.style.visibility != Visibility.Hidden;
+            bool shown = _travelHost != null && _travelHost.IsInputActive && !APageHidesTheWorld;
             _hud.Sync(_fullScreen != null && _fullScreen.Active, shown);
             _effectCaption?.SetVisible(!_hud.Applied || shown);
             if (wasApplied && !_hud.Applied) {
