@@ -54,20 +54,29 @@ namespace BakAgain.Tests.TestSupport {
             scope._haveSizeIndex = TryGetSelectedSizeIndex(out scope._originalSizeIndex);
 
             PlayModeWindow.SetCustomRenderingResolution(width, height, SharedPresetName);
-            ExpectTheViewErrorWithoutGraphics();
             PlayModeWindow.SetViewType(PlayModeWindow.PlayModeViewTypes.GameView);
             return scope;
         }
 
-        // CI runs most tests with -nographics (TASK-875). The Editor then logs this error once, while
-        // it creates the Game view window, and it would fail whichever test happened to open it first.
-        private static void ExpectTheViewErrorWithoutGraphics() {
+        /// <summary>
+        /// Without a graphics device, asks for the Game view once with its errors not failing anything.
+        /// </summary>
+        /// <remarks>
+        /// CI runs most tests with -nographics (TASK-875). The Editor then logs "No graphic device is
+        /// available to initialize the view" (and to show the window) the first time a session asks
+        /// for the Game view, and only then: in two CI runs those errors failed exactly one test, the
+        /// first to force a resolution. The run's set-up fixture calls this before any test.
+        /// </remarks>
+        internal static void OpenOnceWithoutGraphics() {
             if (SystemInfo.graphicsDeviceType != UnityEngine.Rendering.GraphicsDeviceType.Null) {
                 return;
             }
-            System.Type gameViewType = typeof(EditorWindow).Assembly.GetType("UnityEditor.GameView");
-            if (gameViewType != null && Resources.FindObjectsOfTypeAll(gameViewType).Length == 0) {
-                UnityEngine.TestTools.LogAssert.Expect(LogType.Error, "No graphic device is available to initialize the view.");
+            bool ignoring = UnityEngine.TestTools.LogAssert.ignoreFailingMessages;
+            UnityEngine.TestTools.LogAssert.ignoreFailingMessages = true;
+            try {
+                Force(1920, 1080).Restore();
+            } finally {
+                UnityEngine.TestTools.LogAssert.ignoreFailingMessages = ignoring;
             }
         }
 

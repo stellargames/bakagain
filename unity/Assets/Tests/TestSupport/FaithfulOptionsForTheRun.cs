@@ -20,6 +20,7 @@ namespace BakAgain.Tests {
 
         [OneTimeSetUp]
         public void Clear() {
+            TestSupport.GameViewResolutionScope.OpenOnceWithoutGraphics();
             _language = BakResourceSettings.Language;
             BakResourceSettings.Language = "en";
             LanguagePacks.Reload();
