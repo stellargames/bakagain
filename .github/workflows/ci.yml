@@ -1,5 +1,8 @@
-# Pull requests, version tags and manual runs: the .NET libraries and their tests, then the Unity
+# Pull requests, manual runs and every release: the .NET libraries and their tests, then the Unity
 # project's tests. Nothing here has the original game's data, so tests that need it skip.
+#
+# A release runs this through workflow_call (release.yml's tests job), and publishes only when it
+# passes; so a version tag does not trigger it a second time on its own.
 #
 # Unity needs a licence to run: repo secrets UNITY_LICENSE (the .ulf of a Personal licence),
 # UNITY_EMAIL and UNITY_PASSWORD. Fork pull requests do not get secrets, so their Unity job is
@@ -11,8 +14,8 @@
 name: CI
 
 on:
-  # Not on every push to main (owner's call, 2026-09-27): pull requests, version tags and manual
-  # runs only. Pushes to main are tested when a PR or a tag brings them in.
+  # Not on every push to main (owner's call, 2026-09-27): pull requests, releases and manual runs
+  # only. Pushes to main are tested when a PR or a release brings them in.
   pull_request:
     # Site, docs, format specs and licence texts are not built or tested.
     paths-ignore:
@@ -22,12 +25,13 @@ on:
       - 'formats/**'
       - '**/*.md'
       - 'LICENSE*'
-  push:
-    tags: ['v*']
+  workflow_call:
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # The workflow's name is the caller's when called, so a release's tests and a manual CI run on the
+  # same ref do not cancel each other.
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

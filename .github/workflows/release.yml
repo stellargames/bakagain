@@ -1,5 +1,5 @@
-# A tag v* builds Windows, Linux and Android and publishes them as a GitHub Release. Tags with a
-# hyphen (v0.1.0-alpha) become pre-releases.
+# A tag v* builds Windows, Linux and Android, runs the tests (ci.yml), and only when both pass
+# publishes the players as a GitHub Release. Tags with a hyphen (v0.1.0-alpha) become pre-releases.
 #
 # Secrets: UNITY_LICENSE, UNITY_EMAIL, UNITY_PASSWORD (as ci.yml), and for Android
 # ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASS, ANDROID_KEYALIAS_NAME, ANDROID_KEYALIAS_PASS.
@@ -76,8 +76,17 @@ jobs:
           # Dry-run builds only; a tag's builds live on as Release assets.
           retention-days: 7
 
+  # The same tests a pull request runs (ci.yml), alongside the player builds: a failing test publishes
+  # nothing and leaves the website on the previous release.
+  tests:
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+    permissions:
+      contents: read
+      checks: write   # unity-test-runner reports its results as a check
+
   publish:
-    needs: build
+    needs: [build, tests]
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     steps:
