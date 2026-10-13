@@ -252,6 +252,7 @@ namespace BakAgain.UI {
             AddFeatureRow(GameData.Resources.Text.UiTemplates.EnhancedFeatureRings, EnhancedFeature.PortraitRings);
             AddFeatureRow(GameData.Resources.Text.UiTemplates.EnhancedFeatureBookFont, EnhancedFeature.BookFont);
             AddFeatureRow(GameData.Resources.Text.UiTemplates.EnhancedFeaturePageTurn, EnhancedFeature.PageTurn);
+            AddFeatureRow(GameData.Resources.Text.UiTemplates.EnhancedFeatureInventory, EnhancedFeature.Inventory);
 
             Button done = Row(() => panel.RemoveFromHierarchy());
             done.Q<Label>("caption").text = GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedDone);

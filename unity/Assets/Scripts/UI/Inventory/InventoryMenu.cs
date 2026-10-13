@@ -882,7 +882,7 @@ namespace BakAgain.UI.Inventory {
         // click-anywhere-to-close target; here the stage recogniser provides that, so the effect is
         // the same.
         private void NeutralizeCatchAllHotspot() {
-            VisualElement catchAll = _stage?.Q($"hotspot_{BackgroundCatchAll}");
+            VisualElement catchAll = Root?.Q($"hotspot_{BackgroundCatchAll}");
             if (catchAll != null) {
                 catchAll.pickingMode = PickingMode.Ignore;
             }
@@ -1354,7 +1354,7 @@ namespace BakAgain.UI.Inventory {
             if (_stage == null || !HasContainerImage) {
                 return;
             }
-            VisualElement host = _stage.Q($"hotspot_{WindowContainerImage}");
+            VisualElement host = Root?.Q($"hotspot_{WindowContainerImage}");
             if (host == null) {
                 return;
             }
@@ -2616,11 +2616,32 @@ namespace BakAgain.UI.Inventory {
                 return false;
             }
             foreach (int action in ChromeHotspotActions) {
-                if (_ui.TryGetElementRect(action, out Rect rect) && rect.Contains(stageLocal)) {
+                if (TryGetChromeRect(action, out Rect rect) && rect.Contains(stageLocal)) {
                     return true;
                 }
             }
             return false;
+        }
+
+        private VisualElement Root => _document != null ? _document.rootVisualElement : null;
+
+        /// <summary>
+        /// A chrome element's rect in <see cref="_stage"/>'s local space, read from where the element
+        /// actually IS rather than from the REQ. Faithful, the two are the same rect; with the Enhanced
+        /// layout the element has moved out of the stage, and the drop tests must follow it. Falls back
+        /// to the REQ rect while the element is missing or not laid out yet.
+        /// </summary>
+        private bool TryGetChromeRect(int action, out Rect stageLocal) {
+            VisualElement element = Root?.Q($"hotspot_{action}") ?? Root?.Q($"imagebutton_{action}");
+            Rect world = element?.worldBound ?? Rect.zero;
+            if (_stage != null && element?.panel != null && world.width > 0f && world.height > 0f) {
+                Vector2 min = _stage.WorldToLocal(world.min);
+                Vector2 max = _stage.WorldToLocal(world.max);
+                stageLocal = Rect.MinMaxRect(min.x, min.y, max.x, max.y);
+                return true;
+            }
+            stageLocal = Rect.zero;
+            return _ui != null && _ui.TryGetElementRect(action, out stageLocal);
         }
 
         /// <summary>
@@ -2655,7 +2676,7 @@ namespace BakAgain.UI.Inventory {
         // render so a portrait switch moves it; hidden in loot mode, where there is no active member.
         private void UpdateActiveMemberCircle() {
             int slot = ActivePortraitSlot();
-            VisualElement host = slot < 0 ? null : _stage?.Q($"hotspot_{slot + PortraitSlot1}");
+            VisualElement host = slot < 0 ? null : Root?.Q($"hotspot_{slot + PortraitSlot1}");
             if (host == null) {
                 _activeCircle?.RemoveFromHierarchy();
                 return;
@@ -2690,7 +2711,7 @@ namespace BakAgain.UI.Inventory {
         // Parent (or reparent) the pulsing-circle overlay onto portrait 0/1/2's click area and restart
         // its pulse. The element is reused across hovers; released with the screen in OnDisable.
         private void ShowHoverCircle(int portraitSlot) {
-            VisualElement host = _stage?.Q($"hotspot_{portraitSlot + PortraitSlot1}");
+            VisualElement host = Root?.Q($"hotspot_{portraitSlot + PortraitSlot1}");
             if (host == null) {
                 return;
             }
@@ -2752,8 +2773,7 @@ namespace BakAgain.UI.Inventory {
         /// 32), so this is a plain hit test on that hotspot's rect, not a Pick.
         /// </summary>
         private bool IsOverContainerWindow(Vector2 stageLocal) =>
-            _ui != null && _ui.TryGetElementRect(WindowContainerImage, out Rect rect)
-                && rect.Contains(stageLocal);
+            TryGetChromeRect(WindowContainerImage, out Rect rect) && rect.Contains(stageLocal);
 
         /// <summary>
         /// Show or hide the container window's drag-time border. Faithful to the two call sites of
@@ -2783,7 +2803,7 @@ namespace BakAgain.UI.Inventory {
                 _discardBorder = null;
                 return;
             }
-            VisualElement host = _stage?.Q($"hotspot_{WindowContainerImage}");
+            VisualElement host = Root?.Q($"hotspot_{WindowContainerImage}");
             if (host == null) {
                 return;
             }
@@ -3074,6 +3094,11 @@ namespace BakAgain.UI.Inventory {
         /// the screen anyway.
         /// </summary>
         public void PrimaryAction(int actionId) {
+            // The picker owns input until it answers. Faithful, its stage scrim already covers the
+            // chrome; the Enhanced chrome sits outside the stage, so the guard is stated here.
+            if (_pickerOpen) {
+                return;
+            }
             switch (actionId) {
                 case ButtonExit:
                     Close();
@@ -4665,8 +4690,8 @@ namespace BakAgain.UI.Inventory {
         private void FlyDroppedItemToPortrait() {
             int portraitSlot = _dropPortraitSlot;
             ObjectInfo obj = _dropObject;
-            if (_stage == null || obj == null || portraitSlot < 0 || _ui == null
-                || !_ui.TryGetElementRect(portraitSlot + PortraitSlot1, out Rect portrait)) {
+            if (_stage == null || obj == null || portraitSlot < 0
+                || !TryGetChromeRect(portraitSlot + PortraitSlot1, out Rect portrait)) {
                 return;
             }
             Audio.MenuSoundService.Instance?.Play(
@@ -4756,7 +4781,7 @@ namespace BakAgain.UI.Inventory {
 
         private int PortraitUnder(Vector2 stageLocal) {
             for (int slot = 0; slot < 3; slot++) {
-                if (_ui != null && _ui.TryGetElementRect(slot + PortraitSlot1, out Rect rect)
+                if (TryGetChromeRect(slot + PortraitSlot1, out Rect rect)
                     && rect.Contains(stageLocal)) {
                     return slot;
                 }

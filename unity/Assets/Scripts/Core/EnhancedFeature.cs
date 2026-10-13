@@ -10,5 +10,8 @@ namespace BakAgain.Core {
 
         /// <summary>A book page turns with a curl instead of the original's cut (forward only).</summary>
         PageTurn,
+
+        /// <summary>The inventory full-window, with examine and give made explicit (spec 2026-10-13).</summary>
+        Inventory,
     }
 }
