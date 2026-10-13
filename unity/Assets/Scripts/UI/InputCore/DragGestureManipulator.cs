@@ -118,6 +118,9 @@ namespace BakAgain.UI.InputCore {
         /// </remarks>
         public System.Func<Vector2, bool> StartsDrag { get; set; }
 
+        /// <summary>Whether the last primary press was a finger (for hosts whose touch rules differ).</summary>
+        public bool LastPressWasTouch { get; private set; }
+
         /// <summary>True between a primary press and its release.</summary>
         public bool IsPressed => _capturedPointer != PointerId.invalidPointerId;
 
@@ -187,6 +190,7 @@ namespace BakAgain.UI.InputCore {
             }
             _pressLocal = Local(e);
             _dragging = false;
+            LastPressWasTouch = e.pointerType == UnityEngine.UIElements.PointerType.touch;
             UpdateClickCount(e.pointerId, e.button, _pressLocal);
             // Capture so move/up keep arriving once the pointer leaves whatever was pressed. Without
             // this a drag would stop dead at the item cell's edge.

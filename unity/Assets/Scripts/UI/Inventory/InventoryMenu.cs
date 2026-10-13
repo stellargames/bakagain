@@ -52,7 +52,7 @@ namespace BakAgain.UI.Inventory {
     /// build, the grid is (re)rendered on the loader's <see cref="UserInterfaceLoader.Built"/>
     /// event.</para>
     /// </summary>
-    public class InventoryMenu : BakAgain.UI.Navigation.ScreenBase, IActionHandler {
+    public partial class InventoryMenu : BakAgain.UI.Navigation.ScreenBase, IActionHandler {
         // REQ_INV action ids: portraits = party slots 1-3, Use, Exit, gold/funds.
         private const int ButtonExit = 1;
         private const int PortraitSlot1 = 2;
@@ -225,7 +225,11 @@ namespace BakAgain.UI.Inventory {
         private readonly List<VisualElement> _placeholders = new();
         private readonly object _placeholderOwner = new object();
 
+        // The surface the item area is drawn on: the REQ's canonical stage, or with the Enhanced layout
+        // applied, its sheet — the same frame, shown full-window (spec 2026-10-13).
         private VisualElement _stage;
+        private EnhancedInventoryLayout _enhanced;
+        private bool EnhancedApplied => _enhanced?.Applied == true;
         private VisualElement _ghost;
         private float _ghostW = 200f;
         private float _ghostH = 180f;
@@ -700,7 +704,34 @@ namespace BakAgain.UI.Inventory {
                 _ui.Built -= OnReqBuilt;
                 _ui.Built += OnReqBuilt;
             }
+            _enhanced?.Revert();
+            _enhanced = null;
             return UniTask.CompletedTask;
+        }
+
+        /// <summary>
+        /// With the Enhanced layout, the screen fades in only once the REQ has built and the layout is
+        /// applied — or after a second at most; shown earlier, the faithful chrome would fade in and
+        /// then jump.
+        /// </summary>
+        protected override async UniTask BuildWhileHiddenAsync() {
+            // Here, not in OnBeforeShowAsync: the document has no root until the screen is active.
+            if (!GameOptions.IsOn(EnhancedFeature.Inventory) || Root == null) {
+                return;
+            }
+            _enhanced = new EnhancedInventoryLayout(Root, _gameSession);
+            _enhancedWired = false;
+            _givingSlot = -1;
+            if (_ui == null) {
+                return;
+            }
+            float deadline = Time.realtimeSinceStartup + 1f;
+            while (!_ui.IsBuilt && Time.realtimeSinceStartup < deadline) {
+                await UniTask.Yield();
+            }
+            if (_ui.IsBuilt) {
+                RenderCurrent();
+            }
         }
 
         protected override void OnAfterShow() {
@@ -769,8 +800,13 @@ namespace BakAgain.UI.Inventory {
             _placeholders.Clear();
             _resources?.ReleaseAssets(_placeholderOwner);
             _money.Clear();
+            _enhanced?.Revert();
             _stage = null;
         }
+
+        private static Rect HintRect(LayoutHint hint) => hint == null
+            ? Rect.zero
+            : new Rect(hint.Left.Value, hint.Top.Value, hint.Width.Value, hint.Height.Value);
 
         private void RenderCurrent() {
             if (_document == null || _document.rootVisualElement == null) {
@@ -781,6 +817,9 @@ namespace BakAgain.UI.Inventory {
             // sibling UserInterfaceLoader at all (defensive — see the `_ui == null` guard above);
             // the normal path reads the real REQ_INV/REQ_INV2 frame.
             _stage = CanonicalStage.GetOrCreate(_document.rootVisualElement, _ui?.Frame);
+            if (_enhanced != null && _enhanced.Apply(_stage, HintRect(Layout.FullItemsBox))) {
+                _stage = _enhanced.Sheet;
+            }
             // Classic full-screen presentation: black the pillarbox margins so the 4:3 stage sits in
             // letterbox bars. (This once doubled as hiding the live world that bled through the margins
             // in the overlay era; the world camera is now disabled whenever this screen is up — see
@@ -831,7 +870,15 @@ namespace BakAgain.UI.Inventory {
             // it at the end of every UI_DrawInventory, so it is on the loot screen and the shop as
             // much as on a member's own pack. Redrawn here rather than only on a purse change,
             // because every path that spends or collects money ends in a RenderCurrent anyway.
-            _money.Render(_stage, _gameSession.PartyGold, Layout);
+            if (EnhancedApplied) {
+                _money.Clear();
+                _enhanced.SetPurse(GameData.Money.MoneyFormatter.Format(_gameSession.PartyGold,
+                    GameData.Money.CurrencyStyle.Abbreviated));
+                _enhanced.RefreshNames();
+                _enhanced.RefreshRings();
+            } else {
+                _money.Render(_stage, _gameSession.PartyGold, Layout);
+            }
             // The grid's geometry comes from the REQ resource (_ui.Inventory/_ui.Frame), not from
             // the renderer — same source as the stage's own frame above. Handed over as `Layout`,
             // the one property that resolves "the screen's inventory geometry": before the async
@@ -864,6 +911,8 @@ namespace BakAgain.UI.Inventory {
             // The container window's frame is part of the REDRAW in a non-member view — a shop, chest
             // or corpse always shows it (INVENTOR.C:399-400) — so place it here, not only on a drag.
             UpdateDiscardBorder(dragging: false, overWindow: false);
+            ExitGiveMode(); // the selection it acted on is gone
+            SyncEnhancedChrome();
         }
 
         // REQ_INV's action-128 element is a full-screen (1600×1200) ClickArea. UserInterfaceLoader adds
@@ -1438,7 +1487,7 @@ namespace BakAgain.UI.Inventory {
             if (_partyHeads == null || _stage == null || _headsAttached) {
                 return;
             }
-            _partyHeads.Attach(_stage);
+            _partyHeads.Attach(Root); // the hotspots, wherever the layout has put them
             _partyHeads.RenderAsync().Forget();
             _headsAttached = true;
         }
@@ -1469,6 +1518,10 @@ namespace BakAgain.UI.Inventory {
                 return;
             }
             float threshold = DragThreshold(Layout.DragThreshold);
+            if (_gesture != null && _gesture.target != _stage) {
+                // The Enhanced layout applied after a first, faithful render: follow the surface.
+                TeardownStageInput();
+            }
             if (_gesture != null) {
                 _gesture.DragThreshold = threshold;
                 return;
@@ -1519,7 +1572,7 @@ namespace BakAgain.UI.Inventory {
 
         private void TeardownStageInput() {
             if (_gesture != null) {
-                _stage?.RemoveManipulator(_gesture);
+                _gesture.target?.RemoveManipulator(_gesture);
                 _gesture = null;
             }
             _pulseTick?.Pause();
@@ -1555,6 +1608,7 @@ namespace BakAgain.UI.Inventory {
                 }
                 return;
             }
+            ExitGiveMode(); // any press on the field leaves Give… without moving anything
             _pressSlot = SlotAt(stageLocal); // -1 if not on an item (buttons handle themselves)
             _pressPos = stageLocal;
             _pressClickCount = clickCount;
@@ -1604,6 +1658,7 @@ namespace BakAgain.UI.Inventory {
         private void OnDragStarted(Vector2 stageLocal) {
             if (_pressSlot >= 0) {
                 StartDrag(_pressSlot);
+                ShowDragFeedback(_pressSlot);
             }
         }
 
@@ -1612,7 +1667,9 @@ namespace BakAgain.UI.Inventory {
                 return;
             }
             PositionGhost(stageLocal);
-            SetHoverPortrait(PortraitUnder(stageLocal));
+            int portrait = PortraitUnder(stageLocal);
+            SetHoverPortrait(portrait);
+            ShowHoverLabel(portrait);
             UpdateDiscardBorder(dragging: true, overWindow: IsOverContainerWindow(stageLocal));
             UpdatePaperdollBorder(dragging: true, _dragSlot, stageLocal);
         }
@@ -1637,6 +1694,7 @@ namespace BakAgain.UI.Inventory {
             }
             int startSlot = _pressSlot;
             _pressSlot = -1;
+            ClearDragFeedback();
             if (!wasDrag || _dragSlot < 0) {
                 SelectItem(startSlot, _pressClickCount); // click selects; double-click uses
                 return;
@@ -1746,6 +1804,12 @@ namespace BakAgain.UI.Inventory {
                 // delayed the button by a click and is contradicted by the original's own UI.)
                 _inspectOpen = true;
                 RefreshContainerImage(); // inspecting counts as a selection: keys -> bag
+                if (EnhancedApplied) {
+                    // Enhanced: the description and the stats together, no More Info (spec 2026-10-13).
+                    await ShowEnhancedExamineAsync(item, obj, play);
+                    SyncEnhancedChrome();
+                    return;
+                }
                 await _dialogs.DisplayEntry(play);
                 // The description sits in the dialog overlay, above this screen, and would swallow
                 // the press that ends the view -- the original takes a press anywhere, text included.
@@ -2062,7 +2126,7 @@ namespace BakAgain.UI.Inventory {
                 _gameSession.SetDialogKeyObjectId(_displayed.Items[slot].ObjectId);
             }
             bool sameSlot = _selectedSlot == slot;
-            if (sameSlot && clickCount >= 2
+            if (sameSlot && clickCount >= 2 && DoubleTapUses
                 && _displayed?.ContainerType == SaveGameContainerType.Inventory) {
                 UseSelectedItem();
                 return;
@@ -2078,6 +2142,7 @@ namespace BakAgain.UI.Inventory {
             SetOutline(_stage.Q($"item_slot_{slot}"), on: true, fill: true);
             ShowSelectionQuantity(slot, on: true);
             RefreshContainerImage(); // keys -> bag on the first selection
+            SyncEnhancedChrome();
         }
 
         /// <summary>
@@ -2584,6 +2649,7 @@ namespace BakAgain.UI.Inventory {
             ShowSelectionQuantity(_selectedSlot, on: false);
             _selectedSlot = -1;
             RefreshContainerImage(); // bag -> keys
+            SyncEnhancedChrome();
         }
 
         /// <summary>
@@ -3104,14 +3170,23 @@ namespace BakAgain.UI.Inventory {
                     Close();
                     break;
                 case PortraitSlot1:
+                    if (GiveModePortraitPressed(actionId - PortraitSlot1)) {
+                        break;
+                    }
                     DeselectItem();
                     SelectMember(0);
                     break;
                 case PortraitSlot2:
+                    if (GiveModePortraitPressed(actionId - PortraitSlot1)) {
+                        break;
+                    }
                     DeselectItem();
                     SelectMember(1);
                     break;
                 case PortraitSlot3:
+                    if (GiveModePortraitPressed(actionId - PortraitSlot1)) {
+                        break;
+                    }
                     DeselectItem();
                     SelectMember(2);
                     break;
@@ -4791,6 +4866,7 @@ namespace BakAgain.UI.Inventory {
 
         private void ResetGesture() {
             _gesture?.Cancel();
+            ClearDragFeedback();
             DestroyGhost();
             SetHoverPortrait(-1);
             UpdateDiscardBorder(dragging: false, overWindow: false);

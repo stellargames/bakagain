@@ -311,3 +311,35 @@
 .enhanced-hud__dot--Healing { background-color: rgb(90, 160, 230); }
 .enhanced-hud__dot--Starving { background-color: rgb(150, 150, 150); }
 .enhanced-hud__dot--NearDeath { background-color: rgb(200, 30, 30); }
+
+/* Enhanced inventory (spec 2026-10-13, EnhancedInventoryLayout). The panel is 1200 units high at every
+   aspect, so vertical px and percentages are of the window height. The REQ elements moved in here
+   carry .req-hitbox, hence the two-class selectors. 55px is the game font's own size (.req-label). */
+.enhanced-inv { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background-color: rgb(43, 26, 14); background-repeat: repeat-x; background-size: auto 100%; }
+.enhanced-inv .enhanced-inv__frame { position: absolute; left: 2.5%; top: 3%; right: 20%; bottom: 20.5%; padding: 10px; border-radius: 8px; border-width: 2px; border-color: rgb(122, 82, 40); background-color: rgb(74, 48, 24); }
+.enhanced-inv .enhanced-inv__field { flex-grow: 1; overflow: visible; }
+.enhanced-inv .enhanced-inv__sheet { position: absolute; left: 0; top: 0; width: 1600px; height: 1200px; transform-origin: 0 0; }
+.enhanced-inv .enhanced-inv__portraits { position: absolute; right: 1.5%; top: 3%; bottom: 20.5%; width: 17%; flex-direction: column; justify-content: space-between; align-items: center; }
+.enhanced-inv .enhanced-inv__portrait { align-items: center; }
+.enhanced-inv .enhanced-inv__head { position: relative; width: 205px; height: 205px; }
+.enhanced-inv .enhanced-inv__name { margin-top: 4px; font-size: 55px; white-space: nowrap; color: rgb(232, 216, 176); -unity-text-align: middle-center; }
+.enhanced-inv .enhanced-inv__portrait--target .enhanced-inv__head { scale: 1.06 1.06; }
+.enhanced-inv .enhanced-inv__portrait--target .enhanced-inv__name { color: rgb(255, 246, 220); }
+.enhanced-inv .enhanced-inv__portrait--hover .enhanced-inv__head { scale: 1.12 1.12; }
+.enhanced-inv .enhanced-inv__portrait--holder { opacity: 0.45; }
+.enhanced-inv .enhanced-inv__shade { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.9); }
+.enhanced-inv .enhanced-inv__head .enhanced-inv__shade { border-radius: 50%; }
+.enhanced-inv .enhanced-inv__bar { position: absolute; left: 2.5%; right: 1.5%; bottom: 2.5%; height: 16%; flex-direction: row; align-items: center; padding: 0 18px; border-radius: 8px; border-width: 2px; border-color: rgb(122, 82, 40); background-color: rgba(42, 29, 18, 0.92); }
+.enhanced-inv .enhanced-inv__window { position: relative; flex-shrink: 0; margin-right: 18px; }
+.enhanced-inv .enhanced-inv__purse { position: relative; flex-shrink: 0; margin-right: 18px; justify-content: center; align-items: center; border-radius: 8px; background-color: rgb(0, 0, 0); }
+.enhanced-inv .enhanced-inv__purse-text { font-size: 55px; white-space: nowrap; color: rgb(232, 216, 176); }
+.enhanced-inv .enhanced-inv__hint { flex-grow: 1; flex-shrink: 1; overflow: hidden; font-size: 44px; white-space: normal; color: rgb(205, 185, 143); }
+.enhanced-inv .enhanced-inv__action { flex-shrink: 0; height: 100px; margin: 0 14px 0 0; padding: 0 26px; border-width: 0; border-radius: 8px; background-color: rgb(0, 0, 0); font-size: 55px; color: rgb(232, 216, 176); }
+.enhanced-inv .enhanced-inv__action:hover { background-color: rgb(40, 28, 14); }
+.enhanced-inv .enhanced-inv__action:disabled { opacity: 0.4; }
+.enhanced-inv .enhanced-inv__action--armed { border-width: 4px; border-color: rgb(212, 160, 42); }
+.enhanced-inv .enhanced-inv__button { position: relative; flex-shrink: 0; margin-left: 6px; }
+.enhanced-inv .enhanced-inv__examine { position: absolute; left: 5%; right: 4%; top: 7%; bottom: 7%; flex-direction: row; }
+.enhanced-inv .enhanced-inv__description { flex-grow: 1; flex-basis: 0; font-size: 44px; white-space: normal; color: var(--ui-ink); }
+.enhanced-inv .enhanced-inv__stats { flex-grow: 1; flex-basis: 0; overflow: hidden; margin-left: 24px; padding-left: 24px; border-left-width: 2px; border-color: rgba(58, 36, 16, 0.4); }
+.enhanced-inv .enhanced-inv__stat-lines { position: absolute; left: 24px; top: 0; transform-origin: 0 0; }
