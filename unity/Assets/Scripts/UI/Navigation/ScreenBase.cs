@@ -8,7 +8,8 @@ namespace BakAgain.UI.Navigation {
     /// Show = optional async prep (<see cref="OnBeforeShowAsync"/>, e.g. loading the data an
     /// <c>IMenuStateProvider</c> must answer from the moment the REQ builds) → activate the
     /// GameObject (triggers BackgroundImageLoader/UserInterfaceLoader OnEnable + MenuLayerHost's
-    /// input-layer push) → fade the <see cref="UIDocument"/> root in over <see cref="_fadeSeconds"/>
+    /// input-layer push) → optional build while still invisible (<see cref="BuildWhileHiddenAsync"/>)
+    /// → fade the <see cref="UIDocument"/> root in over <see cref="_fadeSeconds"/>
     /// → optional post-activation kick-off (<see cref="OnAfterShow"/>).
     /// Hide = fade the root out → deactivate (triggers each component's OnDisable teardown +
     /// input-layer pop).
@@ -30,6 +31,11 @@ namespace BakAgain.UI.Navigation {
             }
             await OnBeforeShowAsync();
             gameObject.SetActive(true);
+            VisualElement root = GetComponent<UIDocument>()?.rootVisualElement;
+            if (root != null) {
+                root.style.opacity = 0f;
+            }
+            await BuildWhileHiddenAsync();
             await FadeAsync(0f, 1f);
             OnAfterShow();
         }
@@ -67,6 +73,12 @@ namespace BakAgain.UI.Navigation {
         /// <summary>Async prep that must complete BEFORE the GameObject activates (state the
         /// REQ build reads on enable — toggle models, chapter marks).</summary>
         protected virtual UniTask OnBeforeShowAsync() => UniTask.CompletedTask;
+
+        /// <summary>
+        /// Runs with the screen active but at opacity 0, and the fade-in waits for it: a screen whose
+        /// layout settles a few frames after it is built builds here, and is first seen settled.
+        /// </summary>
+        protected virtual UniTask BuildWhileHiddenAsync() => UniTask.CompletedTask;
 
         /// <summary>Post-activation kick-off (fire-and-forget content loads that need the
         /// loader awake — file-picker population, input-field models).</summary>

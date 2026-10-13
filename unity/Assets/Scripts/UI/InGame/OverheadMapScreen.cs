@@ -115,7 +115,11 @@ namespace BakAgain.UI.InGame {
             _mapOptions = mapOptions;
         }
 
-        protected override void OnAfterShow() {
+        // Built while the screen is still invisible. Under Enhanced full-screen the HUD applies only
+        // once every REQ element and portrait exists, a few frames after the REQ builds; shown before
+        // that, the classic chrome faded in and then snapped to the full-window map. So the fade-in
+        // waits for the HUD, or a second at most.
+        protected override async UniTask BuildWhileHiddenAsync() {
             _closingForWorldExit = false;
             if (_loader == null) {
                 return;
@@ -129,6 +133,13 @@ namespace BakAgain.UI.InGame {
             ApplyMapCamera();
             ApplyMapLens();
             ShowAutomap();
+            if (!GameOptions.IsOn(EnhancedFeature.FullScreenTravel)) {
+                return;
+            }
+            float deadline = Time.unscaledTime + 1f;
+            while ((_hud == null || !_hud.Applied) && Time.unscaledTime < deadline && this != null) {
+                await UniTask.Yield();
+            }
         }
 
         private void OnLoaderBuilt(System.Collections.Generic.IReadOnlyList<NavWidget> widgets) {
@@ -185,7 +196,7 @@ namespace BakAgain.UI.InGame {
                 _touchControls.PadCentreYOverride = () => _fullScreen != null && _fullScreen.Active
                     ? _travelLayout.TouchPadCentreY : (float?)null;
             }
-            // Registered here rather than in OnAfterShow because the root only exists once the REQ
+            // Registered here rather than in BuildWhileHiddenAsync because the root only exists once the REQ
             // has built, and this method is the one place that is true. The guard above makes it
             // run once per show, so the callback is not stacked on a rebuild.
             root.RegisterCallback<WheelEvent>(OnWheel);
