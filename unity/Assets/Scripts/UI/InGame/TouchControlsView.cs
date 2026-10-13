@@ -86,8 +86,9 @@ namespace BakAgain.UI.InGame {
         }
 
         /// <summary>Per frame: follows the fight state and the active pointer.</summary>
-        /// <param name="hidden">Out of sight, e.g. under a dialog page whose book fills the side bars.</param>
-        public void Refresh(bool inFight, bool hidden) {
+        /// <remarks>Out of sight while a dialog page is up: its book fills the side bars.</remarks>
+        public void Refresh(bool inFight) {
+            bool hidden = DialogManager.PageOverTheWorld;
             bool touch = IsTouch;
             float centreY = PadCentreY;
             if (centreY == _lastCentreY && inFight == _inFight && touch == _wasTouch && hidden == _hidden

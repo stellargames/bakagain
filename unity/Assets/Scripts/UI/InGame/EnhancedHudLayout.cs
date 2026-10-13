@@ -80,9 +80,13 @@ namespace BakAgain.UI.InGame {
 
         public bool Applied => _hud != null;
 
+        /// <summary>Whether the last <see cref="Sync"/> left the HUD in sight; chrome beside it follows this.</summary>
+        public bool Shown { get; private set; }
+
         /// <summary>
         /// Once a frame: applied while <paramref name="wanted"/> (the world is full-window), reverted to
-        /// the faithful REQ layout otherwise, and hidden while not <paramref name="shown"/>. The rings
+        /// the faithful REQ layout otherwise, and hidden while not <paramref name="shown"/> or while a
+        /// dialog page is up (<see cref="DialogManager.PageOverTheWorld"/>). The rings
         /// follow their option; they and the status line are polled at 4 Hz.
         /// </summary>
         public void Sync(bool wanted, bool shown) {
@@ -95,7 +99,8 @@ namespace BakAgain.UI.InGame {
                 Revert();
                 return;
             }
-            SetVisible(shown);
+            Shown = shown && !DialogManager.PageOverTheWorld;
+            SetVisible(Shown);
             if (GameOptions.IsOn(EnhancedFeature.PortraitRings) != (_rings != null)) {
                 SyncRings();
                 _pollClock = 0f;

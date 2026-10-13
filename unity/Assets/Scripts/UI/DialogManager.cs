@@ -378,13 +378,29 @@ namespace BakAgain.UI {
 
         // The full pages on a panel, and the world view they hide.
         private static readonly System.Collections.Generic.HashSet<VisualElement> PagesOverTheWorld = new();
+
+        /// <summary>
+        /// A full dialog page is up: the world view is hidden and the page's book fills the side bars.
+        /// </summary>
+        /// <remarks>
+        /// The chrome over the world (the Enhanced HUD, the touch pads) reads this rather than input:
+        /// a page is drawn the frame it is attached but takes input only after its open wipe, and a
+        /// fire-and-forget page never takes it at all.
+        /// </remarks>
+        public static bool PageOverTheWorld {
+            get {
+                // A panel torn down whole sends no detach: what it held is forgotten here.
+                PagesOverTheWorld.RemoveWhere(p => p.panel == null);
+                return PagesOverTheWorld.Count > 0;
+            }
+        }
         private static VisualElement _hiddenWorld;
 
         // The world view is hidden while a full page is up: in Enhanced full-screen travel it fills the
         // window, above the book, and would show in the pillars. It comes back when the last page goes.
         // Counted by attach and detach: the page can be built before its stage is attached, the
         // full-screen open wipe moves it once it is, and two pages overlap while one replaces the other.
-        private static void HideWorldUnder(VisualElement backdrop) {
+        internal static void HideWorldUnder(VisualElement backdrop) {
             void Attached() {
                 // A panel torn down whole sends no detach: what it held is forgotten here.
                 PagesOverTheWorld.RemoveWhere(p => p.panel == null);

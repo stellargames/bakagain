@@ -40,7 +40,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             view.Build(root, stage);
             yield return null;
             yield return null;
-            view.Refresh(inFight: false, hidden: false);
+            view.Refresh(inFight: false);
             yield return null;
             try {
                 check(view, root, state);
@@ -81,23 +81,29 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
                 float faithful = Top("touchpad_72");
                 float? centre = 0.86f;
                 view.PadCentreYOverride = () => centre;
-                view.Refresh(inFight: false, hidden: false);
+                view.Refresh(inFight: false);
                 Assert.Greater(Top("touchpad_72"), faithful);
                 VisualElement back = root.Q("touchpad_80");
                 Assert.LessOrEqual(back.style.top.value.value + back.style.height.value.value, 1200f, "the back pad stays inside the window");
                 centre = null;
-                view.Refresh(inFight: false, hidden: false);
+                view.Refresh(inFight: false);
                 Assert.AreEqual(faithful, Top("touchpad_72"), 0.01f, "null restores the layout's value");
             });
 
         [UnityTest]
-        public IEnumerator HiddenTakesTheSideBarsAwayAndBringsThemBack() =>
+        public IEnumerator ADialogPageTakesTheSideBarsAwayAndTheyComeBackWithIt() =>
             Harness(2666, Touch(), (view, root, state) => {
                 Assert.AreEqual(DisplayStyle.Flex, root.Q("touch-left").style.display.value, "control: shown in travel");
-                view.Refresh(inFight: false, hidden: true);
+                var page = new VisualElement { name = "test-page" };
+                root.Add(page);
+                BakAgain.UI.DialogManager.HideWorldUnder(page);
+                Assert.IsTrue(BakAgain.UI.DialogManager.PageOverTheWorld, "control: the page registered");
+                view.Refresh(inFight: false);
                 Assert.AreEqual(DisplayStyle.None, root.Q("touch-left").style.display.value, "a dialog page's book fills the bars");
                 Assert.AreEqual(DisplayStyle.None, root.Q("touch-right").style.display.value);
-                view.Refresh(inFight: false, hidden: false);
+                page.RemoveFromHierarchy();
+                Assert.IsFalse(BakAgain.UI.DialogManager.PageOverTheWorld);
+                view.Refresh(inFight: false);
                 Assert.AreEqual(DisplayStyle.Flex, root.Q("touch-left").style.display.value, "back when the page goes");
             });
 
@@ -105,7 +111,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
         public IEnumerator TheGridButtonShowsInAFightAndAsksForTheToggle() =>
             Harness(2666, Touch(), (view, root, state) => {
                 Assert.AreEqual(DisplayStyle.None, root.Q("touch-grid").style.display.value, "not on the travel screen");
-                view.Refresh(inFight: true, hidden: false);
+                view.Refresh(inFight: true);
                 Assert.AreEqual(DisplayStyle.Flex, root.Q("touch-grid").style.display.value);
                 Click(root.Q("touch-grid"));
                 Assert.IsTrue(state.TakeGridToggle());
@@ -210,8 +216,8 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
                 var arrow = new VisualElement { name = "imagebutton_72" };
                 arrow.AddManipulator(new Clickable(() => { }));
                 root.Q("test-stage").Add(arrow);
-                view.Refresh(inFight: true, hidden: false);
-                view.Refresh(inFight: false, hidden: false);   // a relayout picks the arrow up
+                view.Refresh(inFight: true);
+                view.Refresh(inFight: false);   // a relayout picks the arrow up
                 Send<PointerDownEvent>(arrow);
                 Assert.AreEqual(72, state.HeldTouchAction);
                 Assert.IsTrue(state.HeldIsReqArrow, "its own click takes a tap's step");
@@ -223,7 +229,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
         [UnityTest]
         public IEnumerator TheGridButtonIsASmallCornerButton() =>
             Harness(2666, Touch(), (view, root, state) => {
-                view.Refresh(inFight: true, hidden: false);
+                view.Refresh(inFight: true);
                 // Styles, not worldBound: the relayout this Refresh asked for has not run yet.
                 IStyle grid = root.Q("touch-grid").style;
                 Assert.AreEqual(DisplayStyle.Flex, grid.display.value);
@@ -238,7 +244,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
                 var moved = 0;
                 view.MoveRequested += () => moved++;
                 state.CursorContext = CursorContext.Target;
-                view.Refresh(inFight: true, hidden: false);
+                view.Refresh(inFight: true);
                 Assert.AreEqual(DisplayStyle.Flex, root.Q("touchpad_72").style.display.value, "the pad moves the cursor");
                 Assert.IsTrue(root.Q("touch-left").Contains(root.Q("touchpad_72")), "all four on the left thumb in a fight");
                 Assert.AreEqual(DisplayStyle.Flex, root.Q("touch-thrust").style.display.value);
@@ -246,11 +252,11 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
 
                 state.CursorContext = CursorContext.Ground;
                 state.MoveAccepted = false;
-                view.Refresh(inFight: true, hidden: false);
+                view.Refresh(inFight: true);
                 Assert.AreEqual(DisplayStyle.None, root.Q("touch-move").style.display.value,
                     "no Move onto a cell the actor cannot reach (TASK-819)");
                 state.MoveAccepted = true;
-                view.Refresh(inFight: true, hidden: false);
+                view.Refresh(inFight: true);
                 Assert.AreEqual(DisplayStyle.None, root.Q("touch-thrust").style.display.value);
                 Assert.AreEqual(DisplayStyle.Flex, root.Q("touch-move").style.display.value);
                 Click(root.Q("touch-move"));
@@ -258,11 +264,11 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
 
                 state.AwaitingTarget = true;
                 state.CastAccepted = false;
-                view.Refresh(inFight: true, hidden: false);
+                view.Refresh(inFight: true);
                 Assert.AreEqual(DisplayStyle.None, root.Q("touch-move").style.display.value,
                     "no Cast here where the spell would not land (TASK-823)");
                 state.CastAccepted = true;
-                view.Refresh(inFight: true, hidden: false);
+                view.Refresh(inFight: true);
                 Assert.AreEqual(DisplayStyle.Flex, root.Q("touch-move").style.display.value);
                 Assert.AreEqual("Cast here", root.Q("touch-move").Q<Label>().text, "a waiting spell names the button");
             });
@@ -273,7 +279,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
                 var asked = new List<bool>();
                 view.MeleeRequested += asked.Add;
                 state.CursorContext = CursorContext.Target;
-                view.Refresh(inFight: true, hidden: false);
+                view.Refresh(inFight: true);
                 Assert.AreEqual(DisplayStyle.Flex, root.Q("touch-thrust").style.display.value);
                 Click(root.Q("touch-thrust"));
                 Click(root.Q("touch-swing"));

@@ -411,7 +411,7 @@ namespace BakAgain.UI.InGame {
             // Same gate the travel HUD uses: a dialog over the map is resolved above this screen's
             // layer, so the party stops while it is up.
             bool ownsInput = _layerHost != null && _layerHost.IsInputActive;
-            _touchControls?.Refresh(inFight: false, hidden: false);
+            _touchControls?.Refresh(inFight: false);
             _movementDriver?.Tick(ownsInput);
             ToggleNorthUpIfAsked(ownsInput);
             _hud?.Sync(_fullScreen != null && _fullScreen.Active, ownsInput);
