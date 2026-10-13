@@ -54,8 +54,21 @@ namespace BakAgain.Tests.TestSupport {
             scope._haveSizeIndex = TryGetSelectedSizeIndex(out scope._originalSizeIndex);
 
             PlayModeWindow.SetCustomRenderingResolution(width, height, SharedPresetName);
+            ExpectTheViewErrorWithoutGraphics();
             PlayModeWindow.SetViewType(PlayModeWindow.PlayModeViewTypes.GameView);
             return scope;
+        }
+
+        // CI runs most tests with -nographics (TASK-875). The Editor then logs this error once, while
+        // it creates the Game view window, and it would fail whichever test happened to open it first.
+        private static void ExpectTheViewErrorWithoutGraphics() {
+            if (SystemInfo.graphicsDeviceType != UnityEngine.Rendering.GraphicsDeviceType.Null) {
+                return;
+            }
+            System.Type gameViewType = typeof(EditorWindow).Assembly.GetType("UnityEditor.GameView");
+            if (gameViewType != null && Resources.FindObjectsOfTypeAll(gameViewType).Length == 0) {
+                UnityEngine.TestTools.LogAssert.Expect(LogType.Error, "No graphic device is available to initialize the view.");
+            }
         }
 
         /// <summary>Put the Game view back. Safe to call from a <c>finally</c>.</summary>
