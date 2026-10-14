@@ -199,23 +199,6 @@ public class BitmapExtractor : ExtractorBase<ImageSet> {
         }
     }
 
-    public BmImage ExtractSingle(string id, Stream resourceStream) {
-        (string name, int index) = GetNameAndIndex(id);
-
-        using var resourceReader = new BinaryReader(resourceStream, Cp437Encoding.Instance);
-        ushort signature = resourceReader.ReadUInt16();
-        switch (signature) {
-            case 0x1066:
-                return ReadNormalBmxStream(name, resourceReader)[index];
-            case 0x4D42:
-                resourceStream.Seek(0, SeekOrigin.Begin);
-
-                return ReadTaggedBmxStream(name, resourceReader)[index];
-            default:
-                throw new InvalidOperationException($"Invalid BMX signature '{signature:X4}' in file '{id}'");
-        }
-    }
-
     private static (string, int) GetNameAndIndex(string key) {
         int i = key.IndexOf('[');
 

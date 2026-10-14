@@ -91,14 +91,6 @@ public class GeneralResourceProvider : IResourceProvider {
         return new MemoryStream(buffer);
     }
 
-    public void ExtractAllResources() {
-        foreach (KeyValuePair<string, (long, uint)> kvp in _dictionary) {
-            var s = GetResourceStream(_resourceFilePath, kvp.Value.Item1, kvp.Value.Item2);
-            using var outStream = File.Create(Path.Combine(Path.GetDirectoryName(_resourceFilePath)!, kvp.Key));
-            s.CopyTo(outStream);
-        }
-    }
-
     public T GetResource<T>(string resourceId) where T : IResource {
         // Synthesized chapter catalog: probe the archive for each chapter's parts (see ChapterCatalogBuilder).
         if (typeof(T) == typeof(ChapterCatalog)) {
