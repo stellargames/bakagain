@@ -13,9 +13,9 @@ namespace BakAgain.Tests.PlayMode.World {
         [Test]
         public void AFlatFaceRendersItsPaletteColour() {
             Color32 got = Render(new Color32(73, 44, 24, 255), darken: 0f);
-            Assert.That(got.r, Is.InRange(71, 75), $"got {got}");
-            Assert.That(got.g, Is.InRange(42, 46), $"got {got}");
-            Assert.That(got.b, Is.InRange(22, 26), $"got {got}");
+            Assert.That(got.r, Is.InRange(71, 75), $"got {got}; {Found}");
+            Assert.That(got.g, Is.InRange(42, 46), $"got {got}; {Found}");
+            Assert.That(got.b, Is.InRange(22, 26), $"got {got}; {Found}");
         }
 
         /// <summary>
@@ -27,9 +27,9 @@ namespace BakAgain.Tests.PlayMode.World {
         [Test]
         public void DarknessScalesThePaletteValue_NotTheLinearOne() {
             Color32 got = Render(new Color32(73, 44, 24, 255), darken: 0.5f);
-            Assert.That(got.r, Is.InRange(34, 39), $"got {got}");
-            Assert.That(got.g, Is.InRange(20, 24), $"got {got}");
-            Assert.That(got.b, Is.InRange(10, 14), $"got {got}");
+            Assert.That(got.r, Is.InRange(34, 39), $"got {got}; {Found}");
+            Assert.That(got.g, Is.InRange(20, 24), $"got {got}; {Found}");
+            Assert.That(got.b, Is.InRange(10, 14), $"got {got}; {Found}");
         }
 
         /// <summary>
@@ -41,9 +41,9 @@ namespace BakAgain.Tests.PlayMode.World {
         public void TheOverheadMapDrawsTerrainInItsPaletteColour() {
             Color32 got = Render(new Color32(24, 44, 20, 255), darken: 0f, shader: "BakAgain/ClassicTerrain",
                 mapColor: new Vector4(24 / 255f, 44 / 255f, 20 / 255f, 1f));
-            Assert.That(got.r, Is.InRange(22, 26), $"got {got}");
-            Assert.That(got.g, Is.InRange(42, 46), $"got {got}");
-            Assert.That(got.b, Is.InRange(18, 22), $"got {got}");
+            Assert.That(got.r, Is.InRange(22, 26), $"got {got}; {Found}");
+            Assert.That(got.g, Is.InRange(42, 46), $"got {got}; {Found}");
+            Assert.That(got.b, Is.InRange(18, 22), $"got {got}; {Found}");
         }
 
         /// <summary>
@@ -56,9 +56,9 @@ namespace BakAgain.Tests.PlayMode.World {
         public void ASlotTexturedFaceDrawsItsBitmapUntinted() {
             Color32 got = Render(new Color32(60, 44, 36, 255), darken: 0f, shader: "BakAgain/ClassicTexturedPolygon",
                 texel: new Color32(93, 56, 40, 255));
-            Assert.That(got.r, Is.InRange(91, 95), $"got {got}");
-            Assert.That(got.g, Is.InRange(54, 58), $"got {got}");
-            Assert.That(got.b, Is.InRange(38, 42), $"got {got}");
+            Assert.That(got.r, Is.InRange(91, 95), $"got {got}; {Found}");
+            Assert.That(got.g, Is.InRange(54, 58), $"got {got}; {Found}");
+            Assert.That(got.b, Is.InRange(38, 42), $"got {got}; {Found}");
         }
 
         /// <summary>
@@ -78,9 +78,9 @@ namespace BakAgain.Tests.PlayMode.World {
                 RenderSettings.fogStartDistance = 0.001f;
                 RenderSettings.fogEndDistance = 0.002f;
                 Color32 got = Render(new Color32(200, 200, 200, 255), darken: 0.5f, perspective: true);
-                Assert.That(got.r, Is.InRange(37, 43), $"got {got}");
-                Assert.That(got.g, Is.InRange(27, 33), $"got {got}");
-                Assert.That(got.b, Is.InRange(17, 23), $"got {got}");
+                Assert.That(got.r, Is.InRange(37, 43), $"got {got}; {Found}");
+                Assert.That(got.g, Is.InRange(27, 33), $"got {got}; {Found}");
+                Assert.That(got.b, Is.InRange(17, 23), $"got {got}; {Found}");
             } finally {
                 RenderSettings.fog = fog; RenderSettings.fogMode = mode; RenderSettings.fogColor = fc;
                 RenderSettings.fogStartDistance = fs; RenderSettings.fogEndDistance = fe;
@@ -102,6 +102,9 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.That(far.r, Is.GreaterThan(150), $"far {far}");
         }
 
+        /// <summary>The global state the last <see cref="Render"/> found before it set its own.</summary>
+        private static string Found = string.Empty;
+
         private static Color32 Render(Color32 c, float darken, string shader = "BakAgain/ClassicPolygon",
             Vector4? mapColor = null, Color32? texel = null, bool perspective = false, float distance = 5f) {
             var go = new GameObject("quad");
@@ -113,12 +116,16 @@ namespace BakAgain.Tests.PlayMode.World {
                     triangles = new[] { 0, 1, 2, 0, 2, 3 },
                     normals = new[] { Vector3.back, Vector3.back, Vector3.back, Vector3.back },
                 };
+                // Globals outlive Play Mode and other tests: set every one the shaders read, and keep
+                // what was there for the failure message (TASK-874: the first render of a run, and
+                // only that one, once read black — the finally below clears _MapMode after it).
+                Found = $"found _MapMode={Shader.GetGlobalFloat("_MapMode")} _BakLightDarken={Shader.GetGlobalVector("_BakLightDarken")} fog={RenderSettings.fog}";
                 Shader.SetGlobalVector("_BakLightDarken", new Vector4(0, 0, 0, darken));
                 mesh.colors32 = new[] { c, c, c, c };
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;
+                Shader.SetGlobalFloat("_MapMode", mapColor.HasValue ? 1f : 0f);
                 if (mapColor is Vector4 mc) {
                     mesh.SetUVs(2, new System.Collections.Generic.List<Vector4> { mc, mc, mc, mc });
-                    Shader.SetGlobalFloat("_MapMode", 1f);
                 }
                 var material = new Material(Shader.Find(shader));
                 if (texel is Color32 t) {
