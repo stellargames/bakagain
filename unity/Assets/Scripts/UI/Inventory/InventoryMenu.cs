@@ -4279,7 +4279,7 @@ namespace BakAgain.UI.Inventory {
                 }
                 _gameSession.PartyGold = gold;
                 InventoryTransfer.Distribute(holder, 0, ActiveMemberContainers(),
-                    _gameSession.ObjectInfo);
+                    _gameSession.ObjectInfo, MemberConditionsOf);
 
                 return;
             }
@@ -4290,7 +4290,7 @@ namespace BakAgain.UI.Inventory {
             }
             _gameSession.PartyGold = gold;
 
-            EatOnTheSpot(delivered, target, portraitSlot);
+            FeedIfStarving(target, delivered);
         }
 
         /// <summary>
@@ -4321,34 +4321,6 @@ namespace BakAgain.UI.Inventory {
             }
 
             Audio.MenuSoundService.Instance?.Play(info.SoundId);
-        }
-
-        /// <summary>
-        /// Food bought by someone starving is eaten before it is put away.
-        /// </summary>
-        /// <remarks>
-        /// The buyer eats through <see cref="GameData.Resources.Character.UpkeepEngine.ConsumeRations"/>
-        /// — the same meal the hourly upkeep serves, so the shop does not get its own idea of what
-        /// rations do. That matters because the pack may already hold spoiled or poisoned rations,
-        /// and the eating order is the meal's business, not the shop's: what was just bought is not
-        /// necessarily what gets eaten.
-        /// </remarks>
-        private void EatOnTheSpot(RuntimeItem delivered, RuntimeContainer target, int portraitSlot) {
-            GameData.Resources.Object.ObjectInfo rec =
-                _gameSession.ObjectInfo?.GetById(delivered.ObjectId);
-            if (rec?.ObjectType != GameData.ObjectType.Food) {
-                return;
-            }
-
-            GameData.Resources.Character.ActorConditions conditions =
-                _gameSession.ConditionsOf(CharacterIndexOf(portraitSlot));
-            if (conditions == null
-                || !conditions.Has(GameData.ActorCondition.Starving)) {
-                return;
-            }
-
-            GameData.Resources.Character.UpkeepEngine.ConsumeRations(
-                target, conditions, id => _gameSession.ObjectInfo?.GetById(id));
         }
 
         /// <summary>
@@ -4599,8 +4571,10 @@ namespace BakAgain.UI.Inventory {
             // stamped only where discarding does it, so a refusal on any OTHER path — dropping onto
             // a portrait, moving into a container — printed the sentence with a hole in it. Stamping
             // on the shared path covers every caller, including ones not written yet.
+            RuntimeItem moving = null;
             if (_displayed != null && slot >= 0 && slot < _displayed.Items.Count) {
-                _gameSession.SetDialogKeyObjectId(_displayed.Items[slot].ObjectId);
+                moving = _displayed.Items[slot];
+                _gameSession.SetDialogKeyObjectId(moving.ObjectId);
             }
 
             int gold = _gameSession.PartyGold;
@@ -4609,12 +4583,15 @@ namespace BakAgain.UI.Inventory {
                 _gameSession.SharedKeysInventory);
             _gameSession.PartyGold = gold;
             if (plan.Immediate is { } immediate) {
+                if (immediate == InventoryTransfer.Result.Moved) {
+                    FeedIfStarving(target, moving);
+                }
                 ShowTransferResult(immediate, target);
                 DeselectItem();
                 RenderCurrent();
                 return UniTask.CompletedTask;
             }
-            return RunPickerTransferAsync(plan, target);
+            return RunPickerTransferAsync(plan, target, moving);
         }
 
         /// <summary>
@@ -4659,17 +4636,44 @@ namespace BakAgain.UI.Inventory {
         // The plan knows its own target, but TransferPlan.Target is internal to GameData, so the
         // destination rides along rather than widening that library's surface for a message.
         private async UniTask RunPickerTransferAsync(InventoryTransfer.TransferPlan plan,
-            RuntimeContainer target) {
+            RuntimeContainer target, RuntimeItem moving) {
             try {
                 int qty = await ShowQuantityPickerAsync(plan.MaxQuantity, plan.AllowShare);
                 InventoryTransfer.Result result = qty < 0
-                    ? InventoryTransfer.Distribute(plan, ActiveMemberContainers())
+                    ? InventoryTransfer.Distribute(plan, ActiveMemberContainers(), MemberConditionsOf)
                     : InventoryTransfer.Apply(plan, qty);
+                if (qty > 0 && result == InventoryTransfer.Result.Moved) {
+                    FeedIfStarving(target, moving);
+                }
                 ShowTransferResult(result, target);
             } finally {
                 DeselectItem();
                 RenderCurrent();
             }
+        }
+
+        /// <summary>
+        /// Food that reaches a starving member is eaten on the spot — the transfer's own tail
+        /// (CMBINV.C:799-805), which checks the RECEIVER: canassa calls it <c>src</c>, but
+        /// INVENTOR.C:748 passes the portrait's member first.
+        /// </summary>
+        private void FeedIfStarving(RuntimeContainer receiver, RuntimeItem arrived) {
+            if (receiver != null && arrived != null) {
+                InventoryAcquire.FeedIfStarving(receiver, arrived, _gameSession.ObjectInfo,
+                    MemberConditionsOf(receiver));
+            }
+        }
+
+        /// <summary>The conditions of the active member whose pack this is; null for a chest, the
+        /// ground or a shelf, which have no hunger.</summary>
+        private GameData.Resources.Character.ActorConditions MemberConditionsOf(RuntimeContainer pack) {
+            int count = _gameSession.ActivePartyIndices?.Length ?? 0;
+            for (int i = 0; i < count; i++) {
+                if (ReferenceEquals(ResolveMemberContainer(i), pack)) {
+                    return _gameSession.ConditionsOf(CharacterIndexOf(i));
+                }
+            }
+            return null;
         }
 
         // The Share recipients: the active party in roster order (distributeStackToParty walks

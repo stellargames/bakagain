@@ -1,7 +1,9 @@
 namespace GameData.Resources.Inventory;
 
+using GameData.Resources.Character;
 using GameData.Resources.Data;
 using GameData.Resources.Object;
+using System;
 using System.Collections.Generic;
 
 /// <summary>
@@ -247,20 +249,22 @@ public static class InventoryTransfer {
     /// across every recipient with room, in order, as progressive integer portions
     /// (remaining × assigned ÷ recipientCount — small stacks can leave early recipients
     /// empty-handed, faithfully). Zero recipients with room refuses; otherwise the source slot
-    /// is removed first. The starving-member ration auto-consume is a deliberate gap (no
-    /// status system yet).
+    /// is removed first.
+    /// <para><b>A starving recipient eats on the spot</b> (CMBINV.C:858-861): each member who got
+    /// a portion of food and has a Starving rank eats one meal from his pack, inside the loop.
+    /// <paramref name="conditionsOf"/> names each recipient's conditions; null skips the meal.</para>
     /// </summary>
-    /// <summary>Share, answered from a picker: distributes the plan's item (the plan itself
-    /// must be the pending-quantity kind).</summary>
-    public static Result Distribute(TransferPlan plan, IReadOnlyList<RuntimeContainer> recipients) {
+    public static Result Distribute(TransferPlan plan, IReadOnlyList<RuntimeContainer> recipients,
+        Func<RuntimeContainer, ActorConditions?>? conditionsOf = null) {
         if (plan == null || plan.Immediate != null || plan.IsTopUp) {
             return plan?.Immediate ?? Result.Blocked; // top-up pickers have no Share button
         }
-        return Distribute(plan.Source, plan.ItemIndex, recipients, plan.Objects);
+        return Distribute(plan.Source, plan.ItemIndex, recipients, plan.Objects, conditionsOf);
     }
 
     public static Result Distribute(RuntimeContainer source, int itemIndex,
-        IReadOnlyList<RuntimeContainer> recipients, ObjectInfoSet? objects) {
+        IReadOnlyList<RuntimeContainer> recipients, ObjectInfoSet? objects,
+        Func<RuntimeContainer, ActorConditions?>? conditionsOf = null) {
         if (source == null || recipients == null
             || itemIndex < 0 || itemIndex >= source.Items.Count) {
             return Result.Blocked;
@@ -295,6 +299,7 @@ public static class InventoryTransfer {
             r.Dirty = true;
             InventoryOrder.Consolidate(r, objects,
                 r.ContainerType == SaveGameContainerType.Inventory);
+            InventoryAcquire.FeedIfStarving(r, part, objects, conditionsOf?.Invoke(r));
         }
         return Result.Moved;
     }

@@ -176,4 +176,56 @@ public class AcquireCascadeAndFoodTests {
         Assert.Equal(3, Assert.Single(ground.Items).Variable);
         Assert.True(conditions.Has(ActorCondition.Starving));
     }
+
+    // --- Share with party (CMBINV.C:858-861): a starving recipient eats from what he got ---
+
+    [Fact]
+    public void ShareFeedsAStarvingRecipientOneMeal() {
+        // Measured in the original from the same split: 13 over three -> 4, 6, 3, and the starving
+        // third member ends on his own 5 + 3 - 1 = 7 with Starving cleared.
+        RuntimeContainer src = Pack(), a = Pack(), b = Pack(), c = Pack();
+        src.Items.Add(new RuntimeItem(Rations, 13, 0));
+        c.Items.Add(new RuntimeItem(Rations, 5, 0));
+        ActorConditions hungry = Starving();
+
+        InventoryTransfer.Distribute(src, 0, new[] { a, b, c }, Objects(),
+            r => ReferenceEquals(r, c) ? hungry : new ActorConditions());
+
+        Assert.Equal(4, Assert.Single(a.Items).Variable);
+        Assert.Equal(6, Assert.Single(b.Items).Variable);
+        Assert.Equal(7, System.Linq.Enumerable.Sum(c.Items, i => i.Variable)); // this fixture's rations do not merge
+        Assert.Equal(0, hungry[ActorCondition.Starving]);
+    }
+
+    [Fact]
+    public void AStarvingMemberWhoseShareRoundsToNothingDoesNotEat() {
+        // One ration over three: portions 0, 0, 1. The first member gets nothing, so nothing
+        // calls the meal for him, and his own rations stay where they are.
+        RuntimeContainer src = Pack(), a = Pack(), b = Pack(), c = Pack();
+        src.Items.Add(new RuntimeItem(Rations, 1, 0));
+        a.Items.Add(new RuntimeItem(Rations, 5, 0));
+        ActorConditions hungry = Starving();
+
+        InventoryTransfer.Distribute(src, 0, new[] { a, b, c }, Objects(),
+            r => ReferenceEquals(r, a) ? hungry : null);
+
+        Assert.Equal(5, Assert.Single(a.Items).Variable);
+        Assert.Equal(40, hungry[ActorCondition.Starving]);
+        Assert.Equal(1, Assert.Single(c.Items).Variable);
+    }
+
+    [Fact]
+    public void UsingRationsChangesNothingAndSaysTheTailsNoEffectRecord() {
+        // ITEMUSE.C has no category-23 branch: Use leaves the stack alone and plays 0x1B7743,
+        // whose item switch has no case for rations. Measured in the original 2026-10-14: the
+        // Use button on 10 rations left 10 and showed nothing.
+        RuntimeContainer pack = Pack();
+        pack.Items.Add(new RuntimeItem(Rations, 10, 0));
+
+        ItemUseResult r = InventoryUse.Use(pack, 0, InventoryUse.NoTarget, Objects());
+
+        Assert.Equal(ItemUseOutcome.NoEffect, r.Outcome);
+        Assert.Equal(0x1B7743, r.DialogId);
+        Assert.Equal(10, Assert.Single(pack.Items).Variable);
+    }
 }

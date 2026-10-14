@@ -424,6 +424,11 @@ public static class InventoryUse {
                     return new ItemUseResult(ItemUseOutcome.NotPorted, 0, 0, false);
                 }
                 return UseNote(source, context);
+            case ObjectType.Food:              // 23 — no branch in ITEMUSE.C: eating is the
+                // upkeep's and the arrival's business (UpkeepEngine.ConsumeRations), never Use's,
+                // so the outcome stays 0 and the tail plays 0x1B7743, which has no line for food.
+                outcome = ItemUseOutcome.NoEffect;
+                break;
             default:
                 return new ItemUseResult(ItemUseOutcome.NotPorted, 0, 0, false);
         }

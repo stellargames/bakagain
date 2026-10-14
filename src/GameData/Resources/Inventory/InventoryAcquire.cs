@@ -100,7 +100,9 @@ public static class InventoryAcquire {
     }
 
     /// <summary>
-    /// Being handed food while starving eats one immediately — CMBINV.C:1015-1019.
+    /// Being handed food while starving eats one immediately — CMBINV.C:1015-1019, and the same
+    /// rule on every other way food reaches a member: a give or take (CMBINV.C:799-805), Share
+    /// (CMBINV.C:858-861) and a purchase (SHOP.C:165-169).
     /// </summary>
     /// <remarks>
     /// <b>This is the only recovery from Starving the game offers you in the field.</b> The original
@@ -114,7 +116,7 @@ public static class InventoryAcquire {
     /// happens to be; a literal here would silently follow the wrong condition if the order ever
     /// moved.</para>
     /// </remarks>
-    private static void FeedIfStarving(RuntimeContainer container, RuntimeItem item,
+    public static void FeedIfStarving(RuntimeContainer container, RuntimeItem item,
         ObjectInfoSet? objects, GameData.Resources.Character.ActorConditions? conditions) {
         if (conditions == null || objects == null
             || objects.GetById(item.ObjectId)?.ObjectType != ObjectType.Food
