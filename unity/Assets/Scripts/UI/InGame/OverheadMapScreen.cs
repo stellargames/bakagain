@@ -165,8 +165,9 @@ namespace BakAgain.UI.InGame {
             // REQ_MAP has no viewport element of its own; the view falls back to the RE-verified
             // canonical rect, which is the same hole the travel screen's hotspot_192 sits in.
             _worldView.Attach(root);
+            var town = new PartyTownName(_session, _resources, this);
             _hud = new EnhancedHudLayout(root, _session, _clock, _travelLayout.StatusFontFraction,
-                EnhancedHudLayout.Map);
+                EnhancedHudLayout.Map, () => town.Current);
             VisualElement viewport = root.Q(name: "WorldViewport");
             if (viewport != null) {
                 _view = new MapViewControl(_mapLayout, steps => Zoom(steps > 0

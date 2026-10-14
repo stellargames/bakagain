@@ -40,4 +40,12 @@ public class FullMapTownHoverTests {
         Assert.Equal(400 + 15 / 2, centreX);
         Assert.Equal(600 - 66, top);
     }
+
+    [Fact]
+    public void ThePartysMarkerOnATownsIconNamesIt_ElsewhereNothing() {
+        // Markers are percent of the 1600x1200 frame: (400, 600) is 25% / 50%.
+        Assert.Equal("Krondor", Towns().NameUnder(new GameData.Resources.Data.FullMapIcon(true, 25f, 50f, 2)));
+        Assert.Null(Towns().NameUnder(new GameData.Resources.Data.FullMapIcon(true, 50f, 75f, 2)));
+        Assert.Null(Towns().NameUnder(new GameData.Resources.Data.FullMapIcon(false, 25f, 50f, 2)));
+    }
 }

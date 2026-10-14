@@ -59,6 +59,20 @@ public class FullMapTowns : IResource {
     }
 
     /// <summary>
+    /// The name of the town whose icon covers the party's own full-map marker, or null: the same
+    /// hover test (<see cref="TownAt"/>) at the marker's position. The marker moves per map tile, so
+    /// the name shows on the 1-11 tiles around each town (118 of the 316 shipped tiles). For the
+    /// Enhanced status line (TASK-866); the original has no such line.
+    /// </summary>
+    public string? NameUnder(Data.FullMapIcon marker) {
+        if (!marker.Visible) {
+            return null;
+        }
+        int town = TownAt((int)Math.Round(marker.XPercent * 16f), (int)Math.Round(marker.YPercent * 12f));
+        return town < 0 ? null : Towns[town].Name;
+    }
+
+    /// <summary>
     /// Where a town's name is drawn (<c>fmap_screen_run</c>, SCREENS/FMAP.C): centred on
     /// <c>X + IconAnchorX / 2</c>, its top one label height above the town's Y. The label height is
     /// the game font's cell plus one row (<c>fmap_twn_load</c>), which the caller knows in its own

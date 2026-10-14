@@ -742,8 +742,9 @@ namespace BakAgain.UI.InGame {
             _partyHeads = new PartyHeadsView(_gameSession, _resources);
             _partyHeads.Attach(root);
             _partyHeads.RenderAsync().Forget();
+            var town = new PartyTownName(_gameSession, _resources, this);
             _hud = new EnhancedHudLayout(root, _gameSession, _clock, _enhancedLayout.StatusFontFraction,
-                EnhancedHudLayout.Travel);
+                EnhancedHudLayout.Travel, () => town.Current);
         }
 
         /// <summary>

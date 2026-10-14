@@ -46,6 +46,7 @@ namespace BakAgain.UI.InGame {
         private readonly GameSession _session;
         private readonly Core.Services.GameClock _clock;
         private readonly float _statusFontFraction;
+        private readonly System.Func<string> _place;
         private PortraitRingView[] _rings;
         private float _pollClock;
         private VisualElement _hud;
@@ -54,8 +55,10 @@ namespace BakAgain.UI.InGame {
         private readonly MovedElements _moved = new();
 
         /// <param name="statusFontFraction">The status line's font size as a fraction of the window's height.</param>
+        /// <param name="place">The town the party is at, shown before the day (TASK-866); null for none.</param>
         public EnhancedHudLayout(VisualElement root, GameSession session, Core.Services.GameClock clock, float statusFontFraction,
-                Elements elements) {
+                Elements elements, System.Func<string> place = null) {
+            _place = place;
             _root = root;
             _elements = elements;
             _session = session;
@@ -102,9 +105,11 @@ namespace BakAgain.UI.InGame {
                 }
             }
             if (_clock != null) {
-                SetStatus(GameData.Resources.Text.UiTemplates.Format(
+                string status = GameData.Resources.Text.UiTemplates.Format(
                     GameData.Resources.Text.UiTemplates.EnhancedStatusKey,
-                    ("day", _clock.Day), ("hour", _clock.HourOfDay)));
+                    ("day", _clock.Day), ("hour", _clock.HourOfDay));
+                string place = _place?.Invoke();
+                SetStatus(string.IsNullOrEmpty(place) ? status : place + " · " + status);
             }
         }
 
