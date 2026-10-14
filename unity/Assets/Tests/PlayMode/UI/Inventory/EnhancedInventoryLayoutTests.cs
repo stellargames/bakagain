@@ -9,8 +9,8 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
 
     /// <summary>
     /// The Enhanced inventory's layout and interactions (spec 2026-10-13): the REQ chrome moves out
-    /// and back, a drop finds a moved portrait from the sheet, and the Give… mode, the touch rule and
-    /// the verbs behave as designed. The rules themselves stay in the faithful code these call.
+    /// and back, a drop finds a moved portrait from the sheet, and the touch rule and the verbs behave
+    /// as designed. The rules themselves stay in the faithful code these call.
     /// </summary>
     public class EnhancedInventoryLayoutTests {
         private const BindingFlags Any = BindingFlags.NonPublic | BindingFlags.Instance;
@@ -150,23 +150,6 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
 
             Assert.AreEqual(1, (int)Call(menu, "PortraitUnder", onSheet),
                 "the drop test follows the portrait into the column, through the sheet's scale");
-        }
-
-        [Test]
-        public void AnyPressOnTheFieldLeavesGiveModeWithoutMovingAnything() {
-            InventoryMenu menu = Build();
-            Set(menu, "_givingSlot", 0);
-            Set(menu, "_stage", _reqStage);
-
-            menu.OnPrimaryPressed(new Vector2(5, 5), 1);
-
-            Assert.AreEqual(-1, Get<int>(menu, "_givingSlot"));
-        }
-
-        [Test]
-        public void OutsideGiveModeAPortraitPressIsNotTheModes() {
-            InventoryMenu menu = Build();
-            Assert.IsFalse((bool)Call(menu, "GiveModePortraitPressed", 1));
         }
 
         [Test]

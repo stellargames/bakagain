@@ -92,15 +92,10 @@ public static class UiTemplates {
 
     /// <summary>The Enhanced inventory's buttons and labels. Labels name people, never items: a name
     /// is what examining an item reveals.</summary>
-    public const string EnhancedInvExamine = "port:template:enhanced_inv_examine";
-    public const string EnhancedInvGive = "port:template:enhanced_inv_give";
-    public const string EnhancedInvTake = "port:template:enhanced_inv_take";
-    public const string EnhancedInvBuy = "port:template:enhanced_inv_buy";
     public const string EnhancedInvGiveTo = "port:template:enhanced_inv_give_to";
     public const string EnhancedInvTakes = "port:template:enhanced_inv_takes";
     public const string EnhancedInvBuyFor = "port:template:enhanced_inv_buy_for";
     public const string EnhancedInvHasIt = "port:template:enhanced_inv_has_it";
-    public const string EnhancedInvChoose = "port:template:enhanced_inv_choose";
     public const string EnhancedInvBack = "port:template:enhanced_inv_back";
 
     /// <summary>An Enhanced caption whose choice waits for the next start (the font is bound at
@@ -164,15 +159,10 @@ public static class UiTemplates {
         (EnhancedFeatureBookFont, _ => "Book font"),
         (EnhancedFeaturePageTurn, _ => "Turning pages"),
         (EnhancedFeatureInventory, _ => "Inventory"),
-        (EnhancedInvExamine, _ => "Examine"),
-        (EnhancedInvGive, _ => "Give…"),
-        (EnhancedInvTake, _ => "Take…"),
-        (EnhancedInvBuy, _ => "Buy…"),
         (EnhancedInvGiveTo, _ => "Give to {name}"),
         (EnhancedInvTakes, _ => "{name} takes it"),
         (EnhancedInvBuyFor, _ => "Buy for {name}"),
         (EnhancedInvHasIt, _ => "Has it"),
-        (EnhancedInvChoose, _ => "Choose who gets it"),
         (EnhancedInvBack, _ => "Back to the pack"),
         (EnhancedPendingKey, _ => "{text} (restart)"),
         (EnhancedDone, _ => "Done"),

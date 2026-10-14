@@ -10,15 +10,11 @@ namespace BakAgain.UI.Inventory {
     using Templates = GameData.Resources.Text.UiTemplates;
 
     /// <summary>
-    /// The Enhanced inventory's interactions (spec 2026-10-13): Examine and Give… acting on the
-    /// selection, the Give… mode, and what a drag shows. Every verb ends in the faithful code path —
-    /// <see cref="TransferItemTo"/>, the examine view, the drop chain in <c>OnReleased</c> — so nothing
-    /// here decides a rule.
+    /// The Enhanced inventory's interactions (spec 2026-10-13): what a drag shows and the merged
+    /// examine view. Giving is the faithful drag and examining the faithful right-click or long
+    /// press, so nothing here decides a rule.
     /// </summary>
     public partial class InventoryMenu {
-        private int _givingSlot = -1;
-        private bool _enhancedWired;
-
         /// <summary>Which verb moving an item onto a member means in this view.</summary>
         internal enum GiveVerb { Give, Take, Buy }
 
@@ -28,81 +24,11 @@ namespace BakAgain.UI.Inventory {
         private GiveVerb CurrentVerb =>
             VerbFor(ShowingShopShelf, _displayed?.ContainerType == SaveGameContainerType.Inventory);
 
-        /// <summary>Hooks the Enhanced buttons once per applied layout, and refreshes the chrome.</summary>
+        /// <summary>The bar's hint: how to get back while an item is examined.</summary>
         private void SyncEnhancedChrome() {
-            if (!EnhancedApplied) {
-                _enhancedWired = false;
-                return;
+            if (EnhancedApplied) {
+                _enhanced.SetHint(_inspectOpen ? Templates.Format(Templates.EnhancedInvBack) : null);
             }
-            if (!_enhancedWired) {
-                _enhanced.ExamineButton.clicked += () => {
-                    if (_selectedSlot >= 0 && !_inspectOpen && !_pickerOpen) {
-                        ExitGiveMode();
-                        ShowItemDescriptionAsync(_selectedSlot).Forget();
-                    }
-                };
-                _enhanced.GiveButton.clicked += () => {
-                    if (_pickerOpen) {
-                        return;
-                    }
-                    if (_givingSlot >= 0) {
-                        ExitGiveMode();
-                    } else if (_selectedSlot >= 0 && !_inspectOpen) {
-                        EnterGiveMode(_selectedSlot);
-                    }
-                };
-                _enhancedWired = true;
-            }
-            bool selected = _selectedSlot >= 0 && !_inspectOpen;
-            _enhanced.ExamineButton.text = Templates.Format(Templates.EnhancedInvExamine);
-            _enhanced.ExamineButton.SetEnabled(selected);
-            _enhanced.GiveButton.text = Templates.Format(CurrentVerb switch {
-                GiveVerb.Buy => Templates.EnhancedInvBuy,
-                GiveVerb.Take => Templates.EnhancedInvTake,
-                _ => Templates.EnhancedInvGive,
-            });
-            _enhanced.GiveButton.SetEnabled(selected || _givingSlot >= 0);
-            // The lock, the mender and the priest give a portrait or a click their own meaning (who
-            // picks; repair or bless on one click), so there is nothing to give there.
-            _enhanced.GiveButton.style.display = IsLockMode || IsRepairMode || IsBlessingMode
-                ? DisplayStyle.None : DisplayStyle.Flex;
-            _enhanced.GiveButton.EnableInClassList("enhanced-inv__action--armed", _givingSlot >= 0);
-            _enhanced.SetHint(_givingSlot >= 0 ? Templates.Format(Templates.EnhancedInvChoose)
-                : _inspectOpen ? Templates.Format(Templates.EnhancedInvBack)
-                : null);
-        }
-
-        private void EnterGiveMode(int slot) {
-            _givingSlot = slot;
-            MarkPortraits(on: true);
-            SyncEnhancedChrome();
-        }
-
-        private void ExitGiveMode() {
-            if (_givingSlot < 0) {
-                return;
-            }
-            _givingSlot = -1;
-            MarkPortraits(on: false);
-            SyncEnhancedChrome();
-        }
-
-        /// <summary>
-        /// A portrait pressed in Give… mode: the item goes to that member by the faithful transfer.
-        /// The holder's own portrait, or any other press, just leaves the mode.
-        /// </summary>
-        /// <returns>True when the press belonged to the mode.</returns>
-        private bool GiveModePortraitPressed(int portraitSlot) {
-            if (_givingSlot < 0) {
-                return false;
-            }
-            int slot = _givingSlot;
-            bool holder = IsHolder(portraitSlot);
-            ExitGiveMode();
-            if (!holder) {
-                TransferItemTo(slot, portraitSlot);
-            }
-            return true;
         }
 
         // In a member's own pack the displayed member holds the item; a chest, a shelf or the key
@@ -110,7 +36,7 @@ namespace BakAgain.UI.Inventory {
         private bool IsHolder(int portraitSlot) =>
             _displayed?.ContainerType == SaveGameContainerType.Inventory && portraitSlot == ActivePortraitSlot();
 
-        /// <summary>Lights the portraits that can take an item (and dims its holder), or clears them.</summary>
+        /// <summary>Lights the portraits that can take the dragged item (and dims its holder), or clears them.</summary>
         private void MarkPortraits(bool on) {
             if (!EnhancedApplied) {
                 return;
@@ -128,7 +54,7 @@ namespace BakAgain.UI.Inventory {
         }
 
         /// <summary>
-        /// At drag start: the portraits light as in Give… mode, and the paperdoll and the other items
+        /// At drag start: the portraits light, and the paperdoll and the other items
         /// dim where the dragged item cannot go. Presentation only — the drop is still resolved by the
         /// faithful chain, which also gives the original's refusal where this cannot predict one.
         /// </summary>
@@ -182,9 +108,7 @@ namespace BakAgain.UI.Inventory {
             if (!EnhancedApplied) {
                 return;
             }
-            if (_givingSlot < 0) {
-                MarkPortraits(on: false);
-            }
+            MarkPortraits(on: false);
             Root?.Query(ShadeName).ToList().ForEach(e => e.RemoveFromHierarchy());
         }
 

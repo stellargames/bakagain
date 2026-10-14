@@ -720,8 +720,6 @@ namespace BakAgain.UI.Inventory {
                 return;
             }
             _enhanced = new EnhancedInventoryLayout(Root, _gameSession);
-            _enhancedWired = false;
-            _givingSlot = -1;
             if (_ui == null) {
                 return;
             }
@@ -911,7 +909,6 @@ namespace BakAgain.UI.Inventory {
             // The container window's frame is part of the REDRAW in a non-member view — a shop, chest
             // or corpse always shows it (INVENTOR.C:399-400) — so place it here, not only on a drag.
             UpdateDiscardBorder(dragging: false, overWindow: false);
-            ExitGiveMode(); // the selection it acted on is gone
             SyncEnhancedChrome();
         }
 
@@ -1608,7 +1605,6 @@ namespace BakAgain.UI.Inventory {
                 }
                 return;
             }
-            ExitGiveMode(); // any press on the field leaves Give… without moving anything
             _pressSlot = SlotAt(stageLocal); // -1 if not on an item (buttons handle themselves)
             _pressPos = stageLocal;
             _pressClickCount = clickCount;
@@ -3170,23 +3166,14 @@ namespace BakAgain.UI.Inventory {
                     Close();
                     break;
                 case PortraitSlot1:
-                    if (GiveModePortraitPressed(actionId - PortraitSlot1)) {
-                        break;
-                    }
                     DeselectItem();
                     SelectMember(0);
                     break;
                 case PortraitSlot2:
-                    if (GiveModePortraitPressed(actionId - PortraitSlot1)) {
-                        break;
-                    }
                     DeselectItem();
                     SelectMember(1);
                     break;
                 case PortraitSlot3:
-                    if (GiveModePortraitPressed(actionId - PortraitSlot1)) {
-                        break;
-                    }
                     DeselectItem();
                     SelectMember(2);
                     break;

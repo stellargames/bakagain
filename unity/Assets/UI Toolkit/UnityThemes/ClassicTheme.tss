@@ -334,10 +334,6 @@
 .enhanced-inv .enhanced-inv__purse { position: relative; flex-shrink: 0; margin-right: 18px; justify-content: center; align-items: center; border-radius: 8px; background-color: rgb(0, 0, 0); }
 .enhanced-inv .enhanced-inv__purse-text { font-size: 55px; white-space: nowrap; color: rgb(232, 216, 176); }
 .enhanced-inv .enhanced-inv__hint { flex-grow: 1; flex-shrink: 1; overflow: hidden; font-size: 44px; white-space: normal; color: rgb(205, 185, 143); }
-.enhanced-inv .enhanced-inv__action { flex-shrink: 0; height: 100px; margin: 0 14px 0 0; padding: 0 26px; border-width: 0; border-radius: 8px; background-color: rgb(0, 0, 0); font-size: 55px; color: rgb(232, 216, 176); }
-.enhanced-inv .enhanced-inv__action:hover { background-color: rgb(40, 28, 14); }
-.enhanced-inv .enhanced-inv__action:disabled { opacity: 0.4; }
-.enhanced-inv .enhanced-inv__action--armed { border-width: 4px; border-color: rgb(212, 160, 42); }
 .enhanced-inv .enhanced-inv__button { position: relative; flex-shrink: 0; margin-left: 6px; }
 .enhanced-inv .enhanced-inv__examine { position: absolute; left: 5%; right: 4%; top: 7%; bottom: 7%; flex-direction: row; }
 .enhanced-inv .enhanced-inv__description { flex-grow: 1; flex-basis: 0; font-size: 44px; white-space: normal; color: var(--ui-ink); }

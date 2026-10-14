@@ -53,9 +53,6 @@ namespace BakAgain.UI.Inventory {
         /// <summary>The canonical-frame surface the menu draws its item area on while applied.</summary>
         public VisualElement Sheet { get; private set; }
 
-        public Button ExamineButton { get; private set; }
-        public Button GiveButton { get; private set; }
-
         /// <summary>
         /// Moves the chrome and shows the layout. False, with nothing moved, while a REQ element is
         /// missing (the REQ builds asynchronously); warns once.
@@ -121,8 +118,6 @@ namespace BakAgain.UI.Inventory {
             _hint = new Label { pickingMode = PickingMode.Ignore };
             _hint.AddToClassList("enhanced-inv__hint");
             bar.Add(_hint);
-            ExamineButton = ActionButton(bar);
-            GiveButton = ActionButton(bar);
             _moved.Move(_root.Q(UseName), bar, "enhanced-inv__button", clearSize: false);
             _moved.Move(_root.Q(ExitName), bar, "enhanced-inv__button", clearSize: false);
 
@@ -151,7 +146,6 @@ namespace BakAgain.UI.Inventory {
             _layout.RemoveFromHierarchy();
             _layout = _field = Sheet = _reqStage = null;
             _purse = _hint = null;
-            ExamineButton = GiveButton = null;
             Array.Clear(_portraits, 0, 3);
             Array.Clear(_names, 0, 3);
             Array.Clear(_nameOverrides, 0, 3);
@@ -229,13 +223,6 @@ namespace BakAgain.UI.Inventory {
                 0f, 0f, field.width, field.height);
             Sheet.style.translate = new Translate(x, y);
             Sheet.style.scale = new Scale(new Vector2(scale, scale));
-        }
-
-        private Button ActionButton(VisualElement bar) {
-            var b = new Button();
-            b.AddToClassList("enhanced-inv__action");
-            bar.Add(b);
-            return b;
         }
     }
 }
