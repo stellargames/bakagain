@@ -147,7 +147,7 @@ Shader "BakAgain/EnhancedSky" {
                     float mu = dot(v, s);
                     float3 ambient = SkyRadiance(normalize(float3(v.x, 0.15, v.z))) * 0.6;
                     float3 sunlit = _BakSkySunColor.rgb * sunUp * (0.5 + 0.5 * pow(saturate(mu), 4.0)) * (1.0 - 0.5 * thick);
-                    float3 cloudCol = ambient + sunlit * 0.8 + float3(0.02, 0.025, 0.04) * night;
+                    float3 cloudCol = ambient + sunlit * 0.8 + float3(0.006, 0.008, 0.012) * night;
                     float alpha = saturate(density) * smoothstep(0.02, 0.12, v.y);
                     col = lerp(col, cloudCol, alpha);
                 }

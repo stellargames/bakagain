@@ -40,7 +40,9 @@ float3 SkyRadiance(float3 v) {
     float pm = 0.0795775 * (1.0 - g * g) / pow(max(1.0 + g * g - 2.0 * g * mu, 1e-4), 1.5);
     float3 scatter = (BAK_RAYLEIGH * pr + BAK_MIE * pm) / (BAK_RAYLEIGH + BAK_MIE);
     float3 col = scatter * (1.0 - ext) * sunExt * BAK_SKY_GAIN * BakSunUp();
-    col += float3(0.004, 0.006, 0.015);   // night floor: deep blue, never pure black
+    // Night floor: deep blue, never pure black. Low because Lighting's night exposure (+2.8 EV,
+    // SkyLayout.ExposureByHour) lifts it about sevenfold, which is what the eye then sees.
+    col += float3(0.0012, 0.0018, 0.0045);
 
     // Zone anchor: near the horizon, by day, take the zone pen's HUE at the model's own brightness,
     // so each zone keeps its character without the sky going darker toward the horizon.

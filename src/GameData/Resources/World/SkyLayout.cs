@@ -77,8 +77,12 @@ public sealed class SkyLayout {
     };
 
     /// <summary>Post-exposure (EV) per hour that holds the frame's mean luminance to Faithful's with
-    /// Lighting on. Calibrated by EnhancedLightingBrightnessTests.Calibrate; zeros until then.</summary>
-    public double[] ExposureByHour { get; set; } = new double[24];
+    /// Lighting on — ACES crushes the darks, so the night needs the most. Calibrated 2026-10-15 by
+    /// EnhancedLightingBrightnessTests.Calibrate; re-run it after changing <see cref="Grading"/>.</summary>
+    public double[] ExposureByHour { get; set; } = {
+        2.666, 2.684, 2.736, 2.742, 2.748, 2.209, 1.811, 1.441, 1.160, 1.137, 1.143, 1.154,
+        1.160, 1.160, 1.160, 1.160, 1.160, 1.225, 1.652, 2.227, 2.930, 2.856, 2.842, 2.771,
+    };
 
     public CloudClimate ClimateFor(int zone) =>
         Climate.TryGetValue(zone, out CloudClimate c) ? c : DefaultClimate;
