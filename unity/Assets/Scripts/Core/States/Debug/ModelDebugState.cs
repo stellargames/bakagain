@@ -24,7 +24,6 @@ namespace BakAgain.Core.States.Debug {
     public class ModelDebugState {
         private readonly ILogger<ModelDebugState> _logger;
         private readonly IResourceProviderService _resourceProvider;
-        private readonly WorldRenderModeService _renderModeService;
         private readonly IResourceCache _resourceCache;
 
         private WorldEntityRenderContext _renderContext;
@@ -68,11 +67,9 @@ namespace BakAgain.Core.States.Debug {
         public ModelDebugState(
             ILogger<ModelDebugState> logger,
             IResourceProviderService resourceProvider,
-            WorldRenderModeService renderModeService,
             IResourceCache resourceCache) {
             _logger = logger;
             _resourceProvider = resourceProvider;
-            _renderModeService = renderModeService;
             _resourceCache = resourceCache;
         }
 
@@ -338,7 +335,7 @@ namespace BakAgain.Core.States.Debug {
                 // centred close-up model needs no distance fog. Every model then renders through the
                 // shared WorldEntityBuilder, exactly as it appears in-world.
                 _renderContext = WorldEntityRenderContext.Create(
-                    _unityPalette, _renderModeService.CreateProfile());
+                    _unityPalette, new ClassicRenderProfile());
 
                 // Slot-bitmap texturing: the extractor bakes each textured face's resource key
                 // directly, so the viewer's loader just needs the shared resource cache to render

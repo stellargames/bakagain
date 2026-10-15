@@ -17,15 +17,13 @@ namespace BakAgain.World.Rendering {
         /// larger value let high-rank gable faces bleed over the adjacent roof edge), while the per-rank
         /// nudge stays ≥ ~6 float-depth ulps out to fog range (~640 u) on a D32F reversed-Z buffer, so
         /// coplanar ties still resolve. (On a D24 fixed-point buffer the tie-break quantizes away beyond
-        /// ~30 u — acceptable; desktop targets use D32F.) Shared by both render profiles.</summary>
+        /// ~30 u — acceptable; desktop targets use D32F.)</summary>
         public const float CoplanarPaintBias = 5e-5f;
 
         private readonly Shader _terrainShader;
         private readonly Shader _polygonShader;
         private readonly Shader _spriteShader;
         private readonly Shader _slotShader;
-
-        public WorldRenderMode Mode => WorldRenderMode.Classic;
 
         public ClassicRenderProfile() {
             _terrainShader = Shader.Find("BakAgain/ClassicTerrain");

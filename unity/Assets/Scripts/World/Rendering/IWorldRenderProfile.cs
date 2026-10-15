@@ -4,15 +4,11 @@ namespace BakAgain.World.Rendering {
     using UnityEngine;
     using UnityEngine.Rendering;
 
-    public enum WorldRenderMode { Classic, Enhanced }
-
     /// <summary>
     /// Provides all mode-specific rendering configuration for the world scene.
     /// Created once at zone load based on the player's selected mode.
     /// </summary>
     public interface IWorldRenderProfile {
-        WorldRenderMode Mode { get; }
-
         // Note: the material factories take no fog arguments. Fog is applied by URP per fragment
         // (ComputeFogFactor/MixFog) from RenderSettings, configured once via ConfigureFog — not
         // through per-material uniforms.

@@ -27,7 +27,6 @@ namespace BakAgain.World {
         private const float DefaultFogMaxDistance = 640f;
 
         private readonly ILogger<ZoneSceneBuilder> _logger;
-        private readonly WorldRenderModeService _renderModeService;
         private readonly IResourceProviderService _resourceProvider;
         private readonly IResourceCache _resourceCache;
         private readonly BakAgain.Core.GameSession _gameSession;
@@ -36,14 +35,12 @@ namespace BakAgain.World {
 
         public ZoneSceneBuilder(
             ILogger<ZoneSceneBuilder> logger,
-            WorldRenderModeService renderModeService,
             IResourceProviderService resourceProvider,
             IResourceCache resourceCache,
             BakAgain.Core.GameSession gameSession = null,
             GroundBagService groundBags = null,
             DoorVisualService doorVisuals = null) {
             _logger = logger;
-            _renderModeService = renderModeService;
             _resourceProvider = resourceProvider;
             _resourceCache = resourceCache;
             // Optional so the model/zone debug harnesses can build a zone with no session behind
@@ -104,7 +101,7 @@ namespace BakAgain.World {
                 var tbl = await LoadTblAsync(zoneId, root);
                 var palette = await LoadPaletteAsync(zoneId, root);
                 var unityPalette = palette.Colors.ToUnity();
-                var profile = _renderModeService.CreateProfile();
+                var profile = new ClassicRenderProfile();
 
                 // Build fog data from RMP
                 var fogData = await LoadAndBuildFogAsync(zoneId, unityPalette, root);

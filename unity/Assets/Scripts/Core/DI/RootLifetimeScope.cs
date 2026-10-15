@@ -285,7 +285,6 @@ namespace BakAgain.Core.DI {
 #endif
 
             // World rendering
-            builder.Register<WorldRenderModeService>(Lifetime.Singleton);
             builder.Register<ZoneSceneBuilder>(Lifetime.Transient);
             // Ground bags outlive any one zone build (the session owns the containers), so the
             // spawner is a singleton that each build re-points at the zone currently on screen.
