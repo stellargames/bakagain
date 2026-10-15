@@ -11,6 +11,7 @@ float4 _BakSkySunDir;     // xyz = unit vector toward the sun
 float4 _BakSkySunColor;   // rgb = the sun's light colour (SkyClock.SunColor), linear
 float4 _BakSkyZoneColor;  // rgb = the zone's resolved sky pen, linear
 float  _BakSkyAnchor;     // how far the horizon's hue is pulled to the zone's (0..1, already x noon factor)
+float  _BakSkyExposure;   // 2^-EV of Lighting's grading exposure, 1 without it: undoes it for the sky
 
 static const float3 BAK_RAYLEIGH = float3(5.8e-3, 13.5e-3, 33.1e-3);
 static const float  BAK_MIE = 2.1e-3;
@@ -40,9 +41,7 @@ float3 SkyRadiance(float3 v) {
     float pm = 0.0795775 * (1.0 - g * g) / pow(max(1.0 + g * g - 2.0 * g * mu, 1e-4), 1.5);
     float3 scatter = (BAK_RAYLEIGH * pr + BAK_MIE * pm) / (BAK_RAYLEIGH + BAK_MIE);
     float3 col = scatter * (1.0 - ext) * sunExt * BAK_SKY_GAIN * BakSunUp();
-    // Night floor: deep blue, never pure black. Low because Lighting's night exposure (+2.8 EV,
-    // SkyLayout.ExposureByHour) lifts it about sevenfold, which is what the eye then sees.
-    col += float3(0.0012, 0.0018, 0.0045);
+    col += float3(0.004, 0.006, 0.015);   // night floor: deep blue, never pure black
 
     // Zone anchor: near the horizon, by day, take the zone pen's HUE at the model's own brightness,
     // so each zone keeps its character without the sky going darker toward the horizon.

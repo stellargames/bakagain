@@ -36,6 +36,7 @@ namespace BakAgain.World {
         private static readonly int MoonBrightId = Shader.PropertyToID("_BakSkyMoonBright");
         private static readonly int CloudId = Shader.PropertyToID("_BakSkyCloud");
         private static readonly int StarRotId = Shader.PropertyToID("_BakSkyStarRot");
+        private static readonly int SkyExposureId = Shader.PropertyToID("_BakSkyExposure");
 
         /// <summary>The Large Moon's light when it stands in for the sun at night.</summary>
         private static readonly Color MoonLight = new(0.55f, 0.65f, 1f);
@@ -63,6 +64,11 @@ namespace BakAgain.World {
         private ColorAdjustments _colorAdjustments;
         private Bloom _bloom;
 
+        // The last Apply, so the map switch can be re-applied without the lighting refresh.
+        private bool _applied;
+        private bool _appliedMap;
+        private (long Ticks, int Daylight, bool SkyOn, bool LightingOn) _last;
+
         public void Bind(Camera camera, ZoneEnvironment env, int zone, bool underground) {
             _camera = camera;
             _env = env;
@@ -75,6 +81,9 @@ namespace BakAgain.World {
         /// <param name="daylight">The original's daylight level now (15 night .. 64 day).</param>
         public void Apply(long ticks, int daylight, bool skyOn, bool lightingOn) {
             bool map = _env != null && _env.MapModeOn;
+            _applied = true;
+            _appliedMap = map;
+            _last = (ticks, daylight, skyOn, lightingOn);
             bool live = _camera != null && !_underground && !map;
             bool sky = skyOn && live;
             bool lit = lightingOn && live;
@@ -88,6 +97,9 @@ namespace BakAgain.World {
             SetGrading(lit, ticks);
             Shader.SetGlobalVector(SunTintId, lit ? TintAt(ticks, sun) : Vector4.zero);
             Shader.SetGlobalFloat(SkyOnId, sky ? 1f : 0f);
+            // The grading's exposure holds the WORLD at Faithful's brightness; the sky has its own,
+            // so it is divided by the same amount and shows as designed.
+            Shader.SetGlobalFloat(SkyExposureId, lit ? Mathf.Pow(2f, -(float)Clock.ExposureAt(ticks)) : 1f);
         }
 
         /// <summary>No live sky (none bound, or the zone was torn down): leave nothing global behind.</summary>
@@ -108,6 +120,12 @@ namespace BakAgain.World {
         }
 
         private void LateUpdate() {
+            // *** THE MAP IS ITS OWN SCREEN. *** While it is up the travel screen stops refreshing the
+            // lighting, so nothing calls Apply: notice the switch here, or the map is graded, tinted
+            // and has the dome drawn under it (found live at 19:00).
+            if (_applied && _env != null && _env.MapModeOn != _appliedMap) {
+                Apply(_last.Ticks, _last.Daylight, _last.SkyOn, _last.LightingOn);
+            }
             if (_dome != null && _dome.activeSelf && _camera != null) {
                 _dome.transform.SetPositionAndRotation(_camera.transform.position, Quaternion.identity);
             }

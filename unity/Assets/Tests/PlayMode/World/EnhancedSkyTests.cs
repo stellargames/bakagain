@@ -2,8 +2,10 @@ namespace BakAgain.Tests.PlayMode.World {
     using BakAgain.Core;
     using BakAgain.World;
     using GameData.Resources.GameState;
+    using System.Collections;
     using NUnit.Framework;
     using UnityEngine;
+    using UnityEngine.TestTools;
     using UnityEngine.Rendering;
     using UnityEngine.Rendering.Universal;
 
@@ -81,6 +83,27 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.AreEqual(0f, Shader.GetGlobalVector(SunTintId).w);
         }
 
+        /// <summary>
+        /// The overhead map is its own screen: the travel screen stops refreshing the lighting while it
+        /// is up, so nothing calls Apply. The sky must notice the switch by itself (found live: the map
+        /// at 19:00 was graded and tinted).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheMapIsUngradedEvenWithoutARefresh() {
+            _sky.Bind(_camera, _env, 1, false);
+            _sky.Apply(At(19), 30, true, true);
+            Assert.IsTrue(PostOn);
+            _env.SetOverheadMapMode(_camera, true, 1000f, 600f, 9);
+            yield return null;
+            Assert.IsFalse(PostOn, "graded map");
+            Assert.IsFalse(Active("EnhancedSkyDome"), "dome over the map");
+            Assert.AreEqual(0f, Shader.GetGlobalVector(SunTintId).w, "tinted map");
+            _env.SetOverheadMapMode(_camera, false, 1000f, 600f, 9);
+            yield return null;
+            Assert.IsTrue(PostOn, "back in travel, graded again");
+            Assert.IsTrue(Active("EnhancedSkyDome"));
+        }
+
         [Test]
         public void LightingOnTurnsOnPostTheSunAndTheGrading() {
             _sky.Bind(_camera, _env, 1, false);
@@ -103,6 +126,20 @@ namespace BakAgain.Tests.PlayMode.World {
             Vector3 toSun = Shader.GetGlobalVector("_BakSkySunDir");
             Assert.Greater(Vector3.Dot(Child("Sun").forward, -toSun), 0.999f);
             Assert.Greater(toSun.x, 0f, "morning sun is in the east (+X)");
+        }
+
+        /// <summary>
+        /// The grading's exposure holds the WORLD at Faithful's brightness; the sky has its own, so the
+        /// dome is divided by the same exposure and shows as designed (washed out at 07:00 without it).
+        /// </summary>
+        [Test]
+        public void TheSkyIsSparedTheWorldsExposure() {
+            _sky.Bind(_camera, _env, 1, false);
+            _sky.Apply(At(7), 40, true, true);
+            float ev = (float)new GameData.Resources.World.SkyClock(EnhancedSky.Layout).ExposureAt(At(7));
+            Assert.AreEqual(Mathf.Pow(2f, -ev), Shader.GetGlobalFloat("_BakSkyExposure"), 1e-4f);
+            _sky.Apply(At(7), 40, true, false);
+            Assert.AreEqual(1f, Shader.GetGlobalFloat("_BakSkyExposure"), 1e-6f, "no grading, nothing to undo");
         }
 
         [Test]
