@@ -220,14 +220,21 @@ namespace BakAgain.UI {
             panel.style.height = bottom.yMax - top.y;
 
             var features = new System.Collections.Generic.List<(VisualElement Row, EnhancedFeature Feature)>();
-            Button Row(Action onClick) {
+            // The master and Done stay in view; the feature rows between them scroll once there are
+            // more than the panel holds (it fits eight rows at the REQ's own button height).
+            var featureList = new ScrollView(ScrollViewMode.Vertical) {
+                name = "enhanced-feature-list",
+                verticalScrollerVisibility = ScrollerVisibility.Hidden,
+                horizontalScrollerVisibility = ScrollerVisibility.Hidden,
+            };
+            Button Row(Action onClick, VisualElement parent = null) {
                 var row = new Button();
                 row.AddToClassList("text-button");
                 row.style.height = ok.height;
                 row.style.flexShrink = 0;
                 GameFontText.Caption(row, string.Empty);
                 row.clicked += onClick;
-                panel.Add(row);
+                (parent ?? panel).Add(row);
                 return row;
             }
 
@@ -247,12 +254,10 @@ namespace BakAgain.UI {
                 _enhancedDraft.Master, state: true, pending: FontChangePending(_enhancedDraft)));
             master.clicked += () => { _enhancedDraft.Master = !_enhancedDraft.Master; Refresh(); };
 
-            AddFeatureRow(GameData.Resources.Text.UiTemplates.EnhancedFeatureFullScreen, EnhancedFeature.FullScreenTravel);
-            AddFeatureRow(GameData.Resources.Text.UiTemplates.EnhancedFeatureMouseLook, EnhancedFeature.MouseLook);
-            AddFeatureRow(GameData.Resources.Text.UiTemplates.EnhancedFeatureRings, EnhancedFeature.PortraitRings);
-            AddFeatureRow(GameData.Resources.Text.UiTemplates.EnhancedFeatureBookFont, EnhancedFeature.BookFont);
-            AddFeatureRow(GameData.Resources.Text.UiTemplates.EnhancedFeaturePageTurn, EnhancedFeature.PageTurn);
-            AddFeatureRow(GameData.Resources.Text.UiTemplates.EnhancedFeatureInventory, EnhancedFeature.Inventory);
+            panel.Add(featureList);
+            foreach ((string key, EnhancedFeature feature) in FeatureRows) {
+                AddFeatureRow(key, feature);
+            }
 
             Button done = Row(() => panel.RemoveFromHierarchy());
             done.Q<Label>("caption").text = GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedDone);
@@ -261,12 +266,24 @@ namespace BakAgain.UI {
             Refresh();
 
             void AddFeatureRow(string key, EnhancedFeature feature) {
-                Button row = Row(() => { _enhancedDraft[feature] = !_enhancedDraft[feature]; Refresh(); });
+                Button row = Row(() => { _enhancedDraft[feature] = !_enhancedDraft[feature]; Refresh(); }, featureList);
                 captions.Add(() => row.Q<Label>("caption").text = BoxText(key, _enhancedDraft[feature],
                     pending: feature == EnhancedFeature.BookFont && FontChangePending(_enhancedDraft)));
                 features.Add((row, feature));
             }
         }
+
+        /// <summary>The Enhanced panel's feature rows, top to bottom: every <see cref="EnhancedFeature"/> once.</summary>
+        internal static readonly (string Key, EnhancedFeature Feature)[] FeatureRows = {
+            (GameData.Resources.Text.UiTemplates.EnhancedFeatureFullScreen, EnhancedFeature.FullScreenTravel),
+            (GameData.Resources.Text.UiTemplates.EnhancedFeatureMouseLook, EnhancedFeature.MouseLook),
+            (GameData.Resources.Text.UiTemplates.EnhancedFeatureRings, EnhancedFeature.PortraitRings),
+            (GameData.Resources.Text.UiTemplates.EnhancedFeatureBookFont, EnhancedFeature.BookFont),
+            (GameData.Resources.Text.UiTemplates.EnhancedFeaturePageTurn, EnhancedFeature.PageTurn),
+            (GameData.Resources.Text.UiTemplates.EnhancedFeatureInventory, EnhancedFeature.Inventory),
+            (GameData.Resources.Text.UiTemplates.EnhancedFeatureSky, EnhancedFeature.Sky),
+            (GameData.Resources.Text.UiTemplates.EnhancedFeatureLighting, EnhancedFeature.Lighting),
+        };
 
         /// <summary>
         /// Whether a feature row can be toggled: every feature needs the master, and the health rings

@@ -13,5 +13,11 @@ namespace BakAgain.Core {
 
         /// <summary>The inventory full-window, with examine and give made explicit (spec 2026-10-13).</summary>
         Inventory,
+
+        /// <summary>The sky dome — sun, moons, stars, clouds — and the mountains hazed toward it (spec 2026-10-15).</summary>
+        Sky,
+
+        /// <summary>The sun light, its tint on the world and the time-of-day grading; brightness stays the original's.</summary>
+        Lighting,
     }
 }

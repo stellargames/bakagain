@@ -284,6 +284,16 @@
     opacity: 0.45;
 }
 
+/* The feature rows scroll between the master and Done (the panel fits eight rows). This theme does
+   not import Unity's defaults, so the ScrollView's clipping is spelled out here; no scrollbar —
+   the wheel and a drag scroll it, and the cut-off row below says there is more. */
+.enhanced-panel #enhanced-feature-list,
+.enhanced-panel #enhanced-feature-list #unity-content-viewport {
+    flex-grow: 1;
+    flex-shrink: 1;
+    overflow: hidden;
+}
+
 /* Enhanced full-screen travel HUD (spec 2026-10-08 §3, EnhancedHudLayout). The REQ_MAIN elements
    are moved in here; the panel is 1200 units high at every aspect, so vertical percentages are of
    the window height. Two-class selectors so these beat .req-hitbox's absolute placement. Portrait

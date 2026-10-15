@@ -93,6 +93,8 @@ public static class UiTemplates {
     public const string EnhancedFeatureBookFont = "port:template:enhanced_feature_book_font";
     public const string EnhancedFeaturePageTurn = "port:template:enhanced_feature_page_turn";
     public const string EnhancedFeatureInventory = "port:template:enhanced_feature_inventory";
+    public const string EnhancedFeatureSky = "port:template:enhanced_feature_sky";
+    public const string EnhancedFeatureLighting = "port:template:enhanced_feature_lighting";
 
     /// <summary>The Enhanced inventory's buttons and labels. Labels name people, never items: a name
     /// is what examining an item reveals.</summary>
@@ -164,6 +166,8 @@ public static class UiTemplates {
         (EnhancedFeatureBookFont, _ => "Book font"),
         (EnhancedFeaturePageTurn, _ => "Turning pages"),
         (EnhancedFeatureInventory, _ => "Inventory"),
+        (EnhancedFeatureSky, _ => "Sky"),
+        (EnhancedFeatureLighting, _ => "Lighting"),
         (EnhancedInvGiveTo, _ => "Give to {name}"),
         (EnhancedInvTakes, _ => "{name} takes it"),
         (EnhancedInvBuyFor, _ => "Buy for {name}"),
