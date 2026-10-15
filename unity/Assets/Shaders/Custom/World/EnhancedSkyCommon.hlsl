@@ -25,7 +25,7 @@ float BakAirMass(float cosZenith) {
 
 // How far above the horizon the sun is, as a 0..1 fade: the twilight glow dies out below it.
 float BakSunUp() {
-    return smoothstep(-0.12, 0.05, _BakSkySunDir.y);
+    return smoothstep(-0.25, 0.05, _BakSkySunDir.y);   // glow lasts to about -14 degrees (nautical twilight)
 }
 
 // Linear radiance seen along unit direction v. Above the horizon only; callers clamp v.y.

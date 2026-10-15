@@ -81,6 +81,8 @@ namespace BakAgain.World {
             // mainTexture / mainTextureOffset accessors drive it (and the heading UV scroll).
             _material = new Material(Shader.Find("BakAgain/ClassicHorizon"));
             _material.mainTexture = stitched;
+            // The pen the Enhanced sky makes see-through (ClassicHorizon's _SkyKey); unused in Faithful.
+            _material.SetColor("_SkyKey", topColor);
 
             // Create quad mesh
             var filter = gameObject.AddComponent<MeshFilter>();
