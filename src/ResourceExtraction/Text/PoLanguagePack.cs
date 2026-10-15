@@ -58,6 +58,28 @@ public static class PoLanguagePack {
         return capitals;
     }
 
+    /// <summary>
+    /// A field of the PO header (<c>"Name: value\n"</c> lines of the first entry), read without parsing
+    /// the catalog — for a menu that needs a pack's status and not its text. Null when absent.
+    /// </summary>
+    public static string? HeaderField(TextReader reader, string name) {
+        string prefix = "\"" + name + ":";
+        bool inHeader = false;
+        for (string? line = reader.ReadLine(); line != null; line = reader.ReadLine()) {
+            if (line.StartsWith("msgstr", System.StringComparison.Ordinal)) {
+                inHeader = true;
+            } else if (inHeader && !line.StartsWith("\"", System.StringComparison.Ordinal)) {
+                return null;   // the header entry ended
+            } else if (inHeader && line.StartsWith(prefix, System.StringComparison.OrdinalIgnoreCase)) {
+                string value = line.Substring(prefix.Length).Trim();
+                if (value.EndsWith("\"", System.StringComparison.Ordinal)) value = value.Substring(0, value.Length - 1);
+                if (value.EndsWith("\\n", System.StringComparison.Ordinal)) value = value.Substring(0, value.Length - 2);
+                return value.Trim();
+            }
+        }
+        return null;
+    }
+
     private static bool IsFuzzy(IPOEntry entry) =>
         entry.Comments?.OfType<POFlagsComment>().Any(c => c.Flags.Contains("fuzzy")) == true;
 }

@@ -78,4 +78,12 @@ public class PoLanguagePackTests {
         Assert.Equal(19, pack.Capitals['E']);
         Assert.Equal(20, pack.Capitals['W']);
     }
+
+    [Fact]
+    public void AHeaderFieldIsReadWithoutTheCatalog() {
+        string po = Po.Replace("\"Language: nl\\n\"\n", "\"Language: nl\\n\"\n\"X-Status: beta\\n\"\n");
+        Assert.Equal("beta", PoLanguagePack.HeaderField(new StringReader(po), "X-Status"));
+        Assert.Equal("nl", PoLanguagePack.HeaderField(new StringReader(po), "Language"));
+        Assert.Null(PoLanguagePack.HeaderField(new StringReader(Po), "X-Status"));
+    }
 }

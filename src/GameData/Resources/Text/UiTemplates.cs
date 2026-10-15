@@ -79,6 +79,10 @@ public static class UiTemplates {
     /// game next starts, and the shorter wording still fits the button.</summary>
     public const string LanguageChoicePendingKey = "port:template:language_choice_pending";
 
+    /// <summary>A pack its header marks <c>X-Status: beta</c>, named on the language button:
+    /// "<c>{name}</c> (beta)" — playable, not yet reviewed.</summary>
+    public const string LanguageBetaKey = "port:template:language_beta";
+
     /// <summary>The Preferences screen's Enhanced button: "Enhanced: <c>{state}</c>".</summary>
     public const string EnhancedButtonKey = "port:template:enhanced_button";
     public const string EnhancedStateOn = "port:template:enhanced_state_on";
@@ -150,6 +154,7 @@ public static class UiTemplates {
             + "other {{s, plural, one {# sovereign} other {# sovereigns}} and {r, plural, one {# royal} other {# royals}}}}"),
         (LanguageChoiceKey, _ => "Language: {name}"),
         (LanguageChoicePendingKey, _ => "{name} (restart)"),
+        (LanguageBetaKey, _ => "{name} (beta)"),
         (EnhancedButtonKey, _ => "Enhanced: {state}"),
         (EnhancedStateOn, _ => "On"),
         (EnhancedStateOff, _ => "Off"),

@@ -298,7 +298,15 @@ namespace BakAgain.UI {
             caption.text = GameData.Resources.Text.UiTemplates.Format(
                 pending ? GameData.Resources.Text.UiTemplates.LanguageChoicePendingKey
                     : GameData.Resources.Text.UiTemplates.LanguageChoiceKey,
-                ("name", GameData.Resources.Text.LanguageChoice.DisplayName(_pendingLanguage)));
+                ("name", LanguageName(_pendingLanguage)));
+        }
+
+        // "Deutsch (beta)" for a pack its header marks as not yet reviewed.
+        private static string LanguageName(string locale) {
+            string name = GameData.Resources.Text.LanguageChoice.DisplayName(locale);
+            return LanguagePacks.IsBeta(locale)
+                ? GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.LanguageBetaKey, ("name", name))
+                : name;
         }
 
         private void Close() => _navigator.Pop().Forget();

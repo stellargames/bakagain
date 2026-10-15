@@ -58,6 +58,25 @@ namespace BakAgain.ResourceManagement {
             }
         }
 
+        /// <summary>
+        /// Whether a pack's header marks it <c>X-Status: beta</c> (playable, not yet reviewed); false
+        /// when the file is missing or unreadable.
+        /// </summary>
+        public static bool IsBeta(string locale) {
+            string path = PathFor(BakResourceSettings.OverridePath, locale);
+            try {
+                if (!File.Exists(path)) {
+                    return false;
+                }
+                using var reader = new StreamReader(path);
+                return string.Equals(ResourceExtraction.Text.PoLanguagePack.HeaderField(reader, "X-Status"), "beta",
+                    StringComparison.OrdinalIgnoreCase);
+            } catch (Exception e) {
+                Debug.LogWarning($"Could not read the header of {path} ({e.Message}).");
+                return false;
+            }
+        }
+
         /// <summary>The pack file a locale is read from, under the override folder.</summary>
         public static string PathFor(string overridePath, string locale) =>
             Path.Combine(overridePath ?? string.Empty, "Lang", locale, locale + ".po");
