@@ -23,12 +23,21 @@ namespace BakAgain.Tests.PlayMode.World {
         private const float Tolerance = 0.03f;
         private static readonly Color SkyPen = new(40 / 255f, 81 / 255f, 93 / 255f);
 
+        /// <summary>The terrain of a real noon frame (zone 1, dir.G01 save 1, Faithful), quantised to its
+        /// colours and repeated by the area each covers. The sky pen is the camera's clear colour.
+        /// A brighter made-up set calibrated the exposure for mid-tones and left real night ground
+        /// a third too dark (live, 2026-10-15).</summary>
         private static readonly Color32[] WorldColours = {
-            new(34, 60, 22, 255), new(52, 88, 30, 255), new(70, 110, 40, 255), new(24, 44, 18, 255),
-            new(96, 72, 44, 255), new(120, 92, 60, 255), new(73, 44, 24, 255), new(140, 110, 80, 255),
-            new(90, 90, 90, 255), new(130, 130, 125, 255), new(60, 60, 64, 255), new(170, 160, 140, 255),
-            new(40, 81, 93, 255), new(110, 70, 50, 255), new(200, 180, 120, 255), new(30, 30, 30, 255),
+            new(28, 61, 29, 255), new(28, 61, 29, 255), new(28, 61, 29, 255), new(28, 61, 29, 255), new(28, 61, 29, 255), new(28, 61, 29, 255),
+            new(28, 61, 29, 255), new(28, 61, 29, 255), new(93, 60, 42, 255), new(93, 60, 42, 255), new(93, 60, 42, 255), new(93, 60, 42, 255),
+            new(95, 61, 43, 255), new(95, 61, 43, 255), new(95, 61, 43, 255), new(21, 40, 18, 255), new(21, 40, 18, 255), new(21, 40, 18, 255),
+            new(35, 75, 39, 255), new(35, 75, 39, 255), new(35, 75, 39, 255), new(16, 31, 13, 255), new(16, 31, 13, 255), new(26, 52, 25, 255),
+            new(26, 52, 25, 255), new(38, 46, 28, 255), new(38, 46, 28, 255), new(48, 61, 34, 255), new(48, 77, 47, 255), new(64, 58, 36, 255),
         };
+
+        /// <summary>Texture rows the grid covers: three rows of quads from -2 to +1 units of a camera
+        /// 3 units high, 8 px a unit, centred on row 24 (ReadPixels is bottom-up).</summary>
+        private static readonly (int Bottom, int Top) TerrainRows = (9, 31);
 
         private EnhancedPrefsStash _stash;
         private GameObject _root;
@@ -59,7 +68,7 @@ namespace BakAgain.Tests.PlayMode.World {
             var shader = Shader.Find("BakAgain/ClassicPolygon");
             for (int i = 0; i < 16; i++) {
                 for (int row = 0; row < 3; row++) {
-                    Color32 c = WorldColours[(i + (row * 5)) % WorldColours.Length];
+                    Color32 c = WorldColours[((row * 16) + i) % WorldColours.Length];
                     var quad = new GameObject($"q{i}_{row}");
                     quad.transform.SetParent(_root.transform, false);
                     quad.transform.localPosition = new Vector3(-7.5f + i, -1.5f + row, 10f);
@@ -113,11 +122,20 @@ namespace BakAgain.Tests.PlayMode.World {
             RenderTexture.active = _rt;
             _read.ReadPixels(new Rect(0, 0, _rt.width, _rt.height), 0, 0);
             RenderTexture.active = null;
+            // The WORLD's brightness is the rule, so only the terrain rows are measured: the band above
+            // is the sky, which the Sky feature owns. (Averaging both let a lifted sky hide ground that
+            // ACES had crushed: real night ground came out 14 % dark, live 2026-10-15.)
+            Color32[] px = _read.GetPixels32();
             double sum = 0;
-            foreach (Color32 p in _read.GetPixels32()) {
-                sum += (0.2126 * p.r) + (0.7152 * p.g) + (0.0722 * p.b);
+            int n = 0;
+            for (int y = TerrainRows.Bottom; y < TerrainRows.Top; y++) {
+                for (int x = 0; x < _rt.width; x++) {
+                    Color32 p = px[(y * _rt.width) + x];
+                    sum += (0.2126 * p.r) + (0.7152 * p.g) + (0.0722 * p.b);
+                    n++;
+                }
             }
-            return (float)(sum / (_rt.width * _rt.height) / 255.0);
+            return (float)(sum / n / 255.0);
         }
 
         private static IEnumerable<int> Hours() {
