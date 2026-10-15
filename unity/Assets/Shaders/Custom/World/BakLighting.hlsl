@@ -22,6 +22,9 @@ float4 _BakLightDarken;          // rgb = black, a = movement 0..1
 // range 0x70..0xFE -- every world colour, none of the UI's -- toward one palette entry. Applied last,
 // on top of the lighting, because palette_set_scaled re-derives the whole range from the lit palette.
 float4 _BakFlash;                // rgb = target colour, a = movement 0..1
+// Enhanced Lighting's sun tint (spec 2026-10-15-enhanced-sky-design, EnhancedSky.cs): rgb = the light's
+// colour scaled to luminance 1, a = strength. 0 everywhere else, which leaves every colour as it was.
+float4 _BakSunTint;
 
 // The original blends PALETTE entries toward each target (docs/specs/lighting-system.md:58), i.e. in
 // display space, and the targets arrive as raw sRGB vectors. So in Linear colour space the blend is
@@ -34,6 +37,12 @@ half3 ApplyBakLighting(half3 color) {
     color = lerp(color, _BakLightDragonsBreath.rgb, _BakLightDragonsBreath.a);
     color = lerp(color, _BakLightTint.rgb, _BakLightTint.a);
     color = lerp(color, _BakLightDarken.rgb, _BakLightDarken.a);
+    // A colour shift that keeps the pixel's luminance, so the darkening above stays the brightness
+    // rule. Before the flash: a spell's palette flash still lands on top of everything.
+    float lum = dot(color, float3(0.2126, 0.7152, 0.0722));
+    float3 tinted = color * _BakSunTint.rgb;
+    float tintedLum = max(dot(tinted, float3(0.2126, 0.7152, 0.0722)), 1e-4);
+    color = lerp(color, tinted * (lum / tintedLum), _BakSunTint.a);
     color = lerp(color, _BakFlash.rgb, _BakFlash.a);
 #if !defined(UNITY_COLORSPACE_GAMMA)
     color = SRGBToLinear(color);

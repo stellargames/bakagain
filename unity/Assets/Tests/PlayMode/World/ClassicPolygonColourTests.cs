@@ -102,11 +102,30 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.That(far.r, Is.GreaterThan(150), $"far {far}");
         }
 
+        /// <summary>
+        /// Enhanced Lighting's sun tint (spec 2026-10-15) shifts a colour's hue but keeps its brightness,
+        /// so the original's darkening stays the brightness rule: a warm tint on mid grey comes out warm
+        /// at the same luminance (display space, where ApplyBakLighting works).
+        /// </summary>
+        [Test]
+        public void ASunTintShiftsHueButKeepsLuminance() {
+            var warm = new Color(1.3f, 0.95f, 0.6f);
+            float l = (0.2126f * warm.r) + (0.7152f * warm.g) + (0.0722f * warm.b);
+            Color32 plain = Render(new Color32(128, 128, 128, 255), darken: 0f);
+            Color32 tinted = Render(new Color32(128, 128, 128, 255), darken: 0f,
+                sunTint: new Vector4(warm.r / l, warm.g / l, warm.b / l, 1f));
+            static float Luma(Color32 c) => (0.2126f * c.r) + (0.7152f * c.g) + (0.0722f * c.b);
+            Assert.That(Luma(tinted), Is.EqualTo(Luma(plain)).Within(2f), $"plain {plain} tinted {tinted}");
+            Assert.That(tinted.r, Is.GreaterThan(plain.r + 20), $"warmer: {tinted}");
+            Assert.That(tinted.b, Is.LessThan(plain.b - 20), $"warmer: {tinted}");
+        }
+
         /// <summary>The global state the last <see cref="Render"/> found before it set its own.</summary>
         private static string Found = string.Empty;
 
         private static Color32 Render(Color32 c, float darken, string shader = "BakAgain/ClassicPolygon",
-            Vector4? mapColor = null, Color32? texel = null, bool perspective = false, float distance = 5f) {
+            Vector4? mapColor = null, Color32? texel = null, bool perspective = false, float distance = 5f,
+            Vector4? sunTint = null) {
             var go = new GameObject("quad");
             var camGo = new GameObject("cam");
             var rt = new RenderTexture(8, 8, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
@@ -121,6 +140,7 @@ namespace BakAgain.Tests.PlayMode.World {
                 // only that one, once read black — the finally below clears _MapMode after it).
                 Found = $"found _MapMode={Shader.GetGlobalFloat("_MapMode")} _BakLightDarken={Shader.GetGlobalVector("_BakLightDarken")} fog={RenderSettings.fog}";
                 Shader.SetGlobalVector("_BakLightDarken", new Vector4(0, 0, 0, darken));
+                Shader.SetGlobalVector("_BakSunTint", sunTint ?? Vector4.zero);
                 mesh.colors32 = new[] { c, c, c, c };
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;
                 Shader.SetGlobalFloat("_MapMode", mapColor.HasValue ? 1f : 0f);
@@ -155,6 +175,7 @@ namespace BakAgain.Tests.PlayMode.World {
                 return read.GetPixel(4, 4);
             } finally {
                 Shader.SetGlobalVector("_BakLightDarken", Vector4.zero);
+                Shader.SetGlobalVector("_BakSunTint", Vector4.zero);
                 Shader.SetGlobalFloat("_MapMode", 0f);
                 RenderTexture.active = null;
                 Object.DestroyImmediate(go);
