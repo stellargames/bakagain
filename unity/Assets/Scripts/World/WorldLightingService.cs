@@ -80,6 +80,7 @@ namespace BakAgain.World {
 
             int hourTicks = (int)(_session?.GameTimeIn2Seconds ?? 0);
             int daylight = DaylightLevel.At(hourTicks);
+            _daylight = daylight;
             DynamicLighting.Tint tint = Underground
                 ? DynamicLighting.Tint.Candle
                 : stardusk > 0 ? DynamicLighting.Tint.Stardusk : DynamicLighting.Tint.ItemLight;
@@ -99,11 +100,23 @@ namespace BakAgain.World {
         /// it.</b> In the original it is an ordinary palette entry inside the lit range and darkens
         /// with the rest of the world — leaving it alone gives a midnight scene a noon sky, which is
         /// the one part of the picture that makes the whole effect look broken.
+        /// <para>With <paramref name="env"/> it also binds the zone's <see cref="EnhancedSky"/>, which this
+        /// refresh drives: the Enhanced sky and lighting (spec 2026-10-15) only make this clock visible,
+        /// so they run on the same frame and the same daylight level.</para>
         /// </remarks>
-        public void BindSky(Camera camera, Color zoneSky) {
+        public void BindSky(Camera camera, ZoneEnvironment env, int zone, bool underground) {
             _skyCamera = camera;
-            _zoneSky = zoneSky;
+            _zoneSky = env != null ? env.SkyColor : Color.black;
+            _sky = null;
+            if (env != null) {
+                _sky = env.GetComponent<EnhancedSky>();
+                if (_sky == null) _sky = env.gameObject.AddComponent<EnhancedSky>();
+                _sky.Bind(camera, env, zone, underground);
+            }
         }
+
+        private EnhancedSky _sky;
+        private int _daylight = DaylightLevel.Day;
 
         private Camera _skyCamera;
         private Color _zoneSky = Color.black;
@@ -153,6 +166,14 @@ namespace BakAgain.World {
 
             if (_skyCamera != null) {
                 _skyCamera.backgroundColor = Apply(_zoneSky);
+            }
+
+            // Unity's null: a torn-down zone takes its sky with it, and then nothing may linger.
+            if (_sky != null) {
+                _sky.Apply(_session?.GameTimeIn2Seconds ?? 0, _daylight,
+                    GameOptions.IsOn(EnhancedFeature.Sky), GameOptions.IsOn(EnhancedFeature.Lighting));
+            } else {
+                EnhancedSky.Reset(_skyCamera);
             }
         }
 

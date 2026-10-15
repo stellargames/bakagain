@@ -2359,7 +2359,7 @@ namespace BakAgain.World {
             if (_lighting != null) {
                 _lighting.Underground = underground;
                 var env = _zoneRoot != null ? _zoneRoot.GetComponent<ZoneEnvironment>() : null;
-                _lighting.BindSky(_worldCamera, env != null ? env.SkyColor : Color.black);
+                _lighting.BindSky(_worldCamera, env, _gameSession.CurrentZone, underground);
                 _lighting.Refresh();
             }
         }
