@@ -22,9 +22,13 @@ float4 _BakLightDarken;          // rgb = black, a = movement 0..1
 // range 0x70..0xFE -- every world colour, none of the UI's -- toward one palette entry. Applied last,
 // on top of the lighting, because palette_set_scaled re-derives the whole range from the lit palette.
 float4 _BakFlash;                // rgb = target colour, a = movement 0..1
-// Enhanced Lighting's sun tint (spec 2026-10-15-enhanced-sky-design, EnhancedSky.cs): rgb = the light's
-// colour scaled to luminance 1, a = strength. 0 everywhere else, which leaves every colour as it was.
+// Enhanced Lighting's grade (spec 2026-10-15-enhanced-sky-design, EnhancedSky.cs): white balance, the
+// light's colour and split toning, as colour shifts that keep each pixel's luminance, so the darkening
+// above stays the brightness rule at every hour, light level and tint. _BakSunTint: rgb = the tint for
+// bright pixels (luminance 1), a = strength, 0 everywhere outside Enhanced Lighting, which leaves every
+// colour as it was. _BakShadeTint: rgb = the tint for dark pixels (luminance 1), a = saturation.
 float4 _BakSunTint;
+float4 _BakShadeTint;
 
 // The original blends PALETTE entries toward each target (docs/specs/lighting-system.md:58), i.e. in
 // display space, and the targets arrive as raw sRGB vectors. So in Linear colour space the blend is
@@ -37,12 +41,13 @@ half3 ApplyBakLighting(half3 color) {
     color = lerp(color, _BakLightDragonsBreath.rgb, _BakLightDragonsBreath.a);
     color = lerp(color, _BakLightTint.rgb, _BakLightTint.a);
     color = lerp(color, _BakLightDarken.rgb, _BakLightDarken.a);
-    // A colour shift that keeps the pixel's luminance, so the darkening above stays the brightness
-    // rule. Before the flash: a spell's palette flash still lands on top of everything.
-    float lum = dot(color, float3(0.2126, 0.7152, 0.0722));
-    float3 tinted = color * _BakSunTint.rgb;
-    float tintedLum = max(dot(tinted, float3(0.2126, 0.7152, 0.0722)), 1e-4);
-    color = lerp(color, tinted * (lum / tintedLum), _BakSunTint.a);
+    // Before the flash: a spell's palette flash still lands on top of everything.
+    const float3 luma = float3(0.2126, 0.7152, 0.0722);
+    float lum = dot(color, luma);
+    float3 graded = color * lerp(_BakShadeTint.rgb, _BakSunTint.rgb, smoothstep(0.05, 0.6, lum));
+    graded *= lum / max(dot(graded, luma), 1e-4);
+    graded = max(lum + (graded - lum) * _BakShadeTint.a, 0.0);   // saturation about the same luminance
+    color = lerp(color, graded, _BakSunTint.a);
     color = lerp(color, _BakFlash.rgb, _BakFlash.a);
 #if !defined(UNITY_COLORSPACE_GAMMA)
     color = SRGBToLinear(color);

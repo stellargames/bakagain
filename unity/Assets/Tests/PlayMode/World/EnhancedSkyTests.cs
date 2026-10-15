@@ -112,11 +112,28 @@ namespace BakAgain.Tests.PlayMode.World {
             Light sun = Child("Sun").GetComponent<Light>();
             Assert.AreEqual(LightType.Directional, sun.type);
             Assert.IsTrue(sun.isActiveAndEnabled);
-            Volume volume = Child("EnhancedGrading").GetComponent<Volume>();
+            Volume volume = Child("EnhancedBloom").GetComponent<Volume>();
             Assert.IsTrue(volume.isGlobal);
             Assert.IsTrue(volume.profile.TryGet(out Bloom bloom));
-            Assert.AreEqual(!Application.isMobilePlatform, bloom.active);
+            Assert.Greater(bloom.intensity.value, 0f, "desktop blooms the sun and moons");
             Assert.Greater(Shader.GetGlobalVector(SunTintId).w, 0f, "07:00 is tinted");
+        }
+
+        /// <summary>
+        /// Switching post-processing on also applies the project's default volume profile, which carries a
+        /// vignette, motion blur and a lens flare: the grading must neutralise them (review finding).
+        /// </summary>
+        [Test]
+        public void TheGradingAddsNoLensEffects() {
+            _sky.Bind(_camera, _env, 1, false);
+            _sky.Apply(At(12), 64, false, true);
+            VolumeManager.instance.Update(_camera.transform, ~0);
+            VolumeStack stack = VolumeManager.instance.stack;
+            Assert.AreEqual(0f, stack.GetComponent<Vignette>().intensity.value, "vignette");
+            Assert.AreEqual(0f, stack.GetComponent<MotionBlur>().intensity.value, "motion blur");
+            Assert.AreEqual(0f, stack.GetComponent<ScreenSpaceLensFlare>().intensity.value, "lens flare");
+            Assert.AreEqual(TonemappingMode.None, stack.GetComponent<Tonemapping>().mode.value,
+                "tonemapping would change the world's brightness; the grade is luminance-keeping instead");
         }
 
         [Test]
@@ -128,20 +145,6 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.Greater(toSun.x, 0f, "morning sun is in the east (+X)");
         }
 
-        /// <summary>
-        /// The grading's exposure holds the WORLD at Faithful's brightness; the sky has its own, so the
-        /// dome is divided by the same exposure and shows as designed (washed out at 07:00 without it).
-        /// </summary>
-        [Test]
-        public void TheSkyIsSparedTheWorldsExposure() {
-            _sky.Bind(_camera, _env, 1, false);
-            _sky.Apply(At(7), 40, true, true);
-            float ev = (float)new GameData.Resources.World.SkyClock(EnhancedSky.Layout).ExposureAt(At(7));
-            Assert.AreEqual(Mathf.Pow(2f, -ev), Shader.GetGlobalFloat("_BakSkyExposure"), 1e-4f);
-            _sky.Apply(At(7), 40, true, false);
-            Assert.AreEqual(1f, Shader.GetGlobalFloat("_BakSkyExposure"), 1e-6f, "no grading, nothing to undo");
-        }
-
         [Test]
         public void LightingOffRestoresTheCamera() {
             _sky.Bind(_camera, _env, 1, false);
@@ -149,7 +152,7 @@ namespace BakAgain.Tests.PlayMode.World {
             _sky.Apply(At(7), 40, false, false);
             Assert.IsFalse(PostOn);
             Assert.AreEqual(0f, Shader.GetGlobalVector(SunTintId).w);
-            Assert.IsFalse(Active("EnhancedGrading"));
+            Assert.IsFalse(Active("EnhancedBloom"));
         }
 
         [Test]

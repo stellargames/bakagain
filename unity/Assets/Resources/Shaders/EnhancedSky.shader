@@ -152,7 +152,7 @@ Shader "BakAgain/EnhancedSky" {
                     col = lerp(col, cloudCol, alpha);
                 }
 
-                return half4(col * _BakSkyExposure, 1.0);
+                return half4(col, 1.0);
             }
             ENDHLSL
         }

@@ -65,7 +65,7 @@ Shader "BakAgain/ClassicHorizon" {
                 if (_BakSkyOn > 0.5) {
                     float3 v = normalize(input.positionWS - _WorldSpaceCameraPos);
                     float haze = _BakHaze.x + _BakHaze.y * (1.0 - input.uv.y);
-                    color.rgb = lerp(color.rgb, SkyRadiance(float3(v.x, max(v.y, 0.01), v.z)) * _BakSkyExposure, saturate(haze));
+                    color.rgb = lerp(color.rgb, SkyRadiance(float3(v.x, max(v.y, 0.01), v.z)), saturate(haze));
                 }
                 return color;
             }

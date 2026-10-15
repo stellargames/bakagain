@@ -123,7 +123,4 @@ public class SkyClockTests {
         Assert.True(Math.Abs(a.Temperature - b.Temperature) < 1);
     }
 
-    [Fact]
-    public void ExposureTableCoversEveryHour() =>
-        Assert.Equal(24, new SkyLayout().ExposureByHour.Length);
 }

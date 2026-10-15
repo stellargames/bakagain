@@ -89,7 +89,7 @@
 - **DI: RootLifetimeScope** (`Core/DI/`) — the *only* `LifetimeScope`; all registrations. `InputCoreInstaller.RegisterInputCore(builder)` (static) + `new CutsceneInstaller().Install(builder)` (instance) — two installer patterns. Null-guarded prefab registration for HUD/Menu/Cursor.
 - **GameSession** — live state (party/time/zone/pos); `Initialize`/`ApplyChapterStart`/**`Clear` (defined, not yet called)**. Plain singleton, no change events.
 - **GameStateLoader / Services** — SaveGame load (chapter 1 only), `PreferencesService` (**`Changed` has no subscribers yet**), `SaveGameDirectoryService`, `GlobalDiagnosticService`, `LogManager` (static; its own ILoggerFactory over Debug.Log since TASK-840).
-- **World** (`World/`): `ZoneSceneBuilder` (TBL/WLD/PAL/RMP→scene), `WorldEntityClassifier`, converters (`BakCoordinateConverter`, `TblMeshConverter`, `FogRampBuilder`, …), `WorldRenderModeService` (Classic/Enhanced, `SetMode` never called), `WorldViewport/IWorldViewport` (RE rect), `HorizonRenderer` (**dead — passed null**), `WorldExplorerController` (debug WASD poller), `BillboardSprite`, `FogController`.
+- **World** (`World/`): `ZoneSceneBuilder` (TBL/WLD/PAL/RMP→scene), `WorldEntityClassifier`, converters (`BakCoordinateConverter`, `TblMeshConverter`, `FogRampBuilder`, …), `EnhancedSky` (Enhanced sky dome, Sun light, bloom volume; driven by `WorldLightingService.Refresh`, rules in GameData `SkyClock`), `WorldViewport/IWorldViewport` (RE rect), `HorizonRenderer` (the Z##H.BMX mountain strip), `WorldExplorerController` (debug WASD poller), `BillboardSprite`, `FogController`.
 - **Arena creature animation** (`World/Encounters/`) — added 2026-09-02, and the **single owner** for
   what a combatant sprite does. `DirectionalSprite` picks the octant per frame and holds the walk
   frame (`GaitFrame`/`AdvanceGait`/`SeedGait`/`CurrentOctant`/`SetTintRung`); the per-actor state it
@@ -154,7 +154,7 @@
 | **Camera ownership** | `InGameState` creates a dedicated `WorldCamera` GameObject (pose from zone def); HUD renders it into the cutout RT; debug states make their own `"MainCamera"`; `BillboardSprite` still uses `Camera.main` | Production travel camera is owned by `InGameState`; debug states + `BillboardSprite` remain on `Camera.main` — no global ownership model. |
 | **Two viewport interfaces** | `IWorldViewport` (RE rect math) vs `IGameViewport`/`GameViewportRegistry` (overlay rect) | Bridged only by real `InGameHud`. |
 
-**Known dead / stub / unfinished (don't build *on* these assuming they work):** `InputContext.Switch` (no caller, Player map dead), `HorizonRenderer` (null texture), `CursorMap.cs` (unused), `ScreenBuffer.cs` (vestigial), `UiImage`/`AddressableBinding` (TODO-remove / orphaned), `GameSession.Clear` (uncalled), `PreferencesService.Changed` (no subscribers), `WorldRenderModeService.SetMode` (uncalled), `LoadFontResource`/`SelectFontSlot` (throw), `Platform/*` (empty), `ModelDebugState` writes `debug.json` to CWD on every zone load, `ResourceCache`/cutscene handles never released.
+**Known dead / stub / unfinished (don't build *on* these assuming they work):** `InputContext.Switch` (no caller, Player map dead), `CursorMap.cs` (unused), `ScreenBuffer.cs` (vestigial), `UiImage`/`AddressableBinding` (TODO-remove / orphaned), `GameSession.Clear` (uncalled), `PreferencesService.Changed` (no subscribers), `LoadFontResource`/`SelectFontSlot` (throw), `Platform/*` (empty), `ModelDebugState` writes `debug.json` to CWD on every zone load, `ResourceCache`/cutscene handles never released.
 
 ---
 

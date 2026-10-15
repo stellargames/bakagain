@@ -9,11 +9,13 @@ public sealed record MoonLayout(string Name, double SizeDegrees, double PeriodDa
 /// <summary>A zone's typical sky: mean cloud cover 0..1 and how far a day may stray from it.</summary>
 public sealed record CloudClimate(double Mean, double Spread);
 
-/// <summary>One time-of-day colour grade. Colours are linear RGB 0..1; Temperature/Tint in URP's
-/// White Balance units (-100..100); Contrast in Color Adjustments units; Bloom is the intensity.</summary>
+/// <summary>One time-of-day colour grade, applied as colour shifts that keep each pixel's luminance (the
+/// brightness stays the original's). Temperature/Tint in white-balance units (-100..100, warm/magenta
+/// positive); Shadows/Highlights are split-toning colours, 0.5 grey = neutral; Saturation in percent
+/// (0 = unchanged); Bloom is the sun's and moons' bloom intensity.</summary>
 public sealed record GradingKey(double Hour, double Temperature, double Tint,
     (double R, double G, double B) Shadows, (double R, double G, double B) Highlights,
-    double Contrast, double Saturation, double Bloom);
+    double Saturation, double Bloom);
 
 /// <summary>
 /// Tuning for the Enhanced sky and lighting (spec 2026-10-15-enhanced-sky-design). Invented for
@@ -66,24 +68,17 @@ public sealed class SkyLayout {
 
     /// <summary>Time-of-day grades, sorted by hour; interpolated, wrapping midnight.</summary>
     public GradingKey[] Grading { get; set; } = {
-        new(0.0, -25, 5, (0.30, 0.38, 0.60), (0.55, 0.60, 0.80), 10, -15, 0.20),
-        new(5.0, -20, 5, (0.35, 0.35, 0.60), (0.80, 0.60, 0.55), 10, -10, 0.25),
-        new(6.5, 20, 0, (0.45, 0.35, 0.40), (1.00, 0.75, 0.45), 15, 5, 0.60),
-        new(9.0, 5, 0, (0.50, 0.50, 0.50), (0.55, 0.53, 0.50), 8, 5, 0.35),
-        new(12.25, 0, 0, (0.50, 0.50, 0.50), (0.50, 0.50, 0.50), 8, 5, 0.30),
-        new(16.0, 8, 0, (0.50, 0.48, 0.48), (0.60, 0.55, 0.48), 10, 5, 0.35),
-        new(18.5, 30, 5, (0.40, 0.30, 0.45), (1.00, 0.65, 0.35), 18, 10, 0.70),
-        new(20.0, -15, 8, (0.30, 0.32, 0.55), (0.70, 0.55, 0.65), 12, -5, 0.30),
+        new(0.0, -25, 5, (0.30, 0.38, 0.60), (0.55, 0.60, 0.80), -15, 0.20),
+        new(5.0, -20, 5, (0.35, 0.35, 0.60), (0.80, 0.60, 0.55), -10, 0.25),
+        new(6.5, 20, 0, (0.45, 0.35, 0.40), (1.00, 0.75, 0.45), 5, 0.60),
+        new(9.0, 5, 0, (0.50, 0.50, 0.50), (0.55, 0.53, 0.50), 5, 0.35),
+        new(12.25, 0, 0, (0.50, 0.50, 0.50), (0.50, 0.50, 0.50), 5, 0.30),
+        new(16.0, 8, 0, (0.50, 0.48, 0.48), (0.60, 0.55, 0.48), 5, 0.35),
+        new(18.5, 30, 5, (0.40, 0.30, 0.45), (1.00, 0.65, 0.35), 10, 0.70),
+        new(20.0, -15, 8, (0.30, 0.32, 0.55), (0.70, 0.55, 0.65), -5, 0.30),
     };
 
-    /// <summary>Post-exposure (EV) per hour that holds the frame's mean luminance to Faithful's with
-    /// Lighting on — ACES crushes the darks, so the night needs the most. Calibrated 2026-10-15 by
-    /// EnhancedLightingBrightnessTests.Calibrate on the terrain of a real noon frame; re-run it after
-    /// changing <see cref="Grading"/>.</summary>
-    public double[] ExposureByHour { get; set; } = {
-        2.962, 2.982, 3.070, 3.073, 3.076, 2.619, 2.221, 1.846, 1.500, 1.453, 1.453, 1.453,
-        1.459, 1.465, 1.471, 1.471, 1.500, 1.594, 2.086, 2.707, 3.270, 3.158, 3.152, 3.111,
-    };
+
 
     public CloudClimate ClimateFor(int zone) =>
         Climate.TryGetValue(zone, out CloudClimate c) ? c : DefaultClimate;

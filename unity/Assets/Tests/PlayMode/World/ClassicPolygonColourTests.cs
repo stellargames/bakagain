@@ -141,6 +141,7 @@ namespace BakAgain.Tests.PlayMode.World {
                 Found = $"found _MapMode={Shader.GetGlobalFloat("_MapMode")} _BakLightDarken={Shader.GetGlobalVector("_BakLightDarken")} fog={RenderSettings.fog}";
                 Shader.SetGlobalVector("_BakLightDarken", new Vector4(0, 0, 0, darken));
                 Shader.SetGlobalVector("_BakSunTint", sunTint ?? Vector4.zero);
+                Shader.SetGlobalVector("_BakShadeTint", sunTint is Vector4 st ? new Vector4(st.x, st.y, st.z, 1f) : Vector4.zero);
                 mesh.colors32 = new[] { c, c, c, c };
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;
                 Shader.SetGlobalFloat("_MapMode", mapColor.HasValue ? 1f : 0f);
@@ -176,6 +177,7 @@ namespace BakAgain.Tests.PlayMode.World {
             } finally {
                 Shader.SetGlobalVector("_BakLightDarken", Vector4.zero);
                 Shader.SetGlobalVector("_BakSunTint", Vector4.zero);
+                Shader.SetGlobalVector("_BakShadeTint", Vector4.zero);
                 Shader.SetGlobalFloat("_MapMode", 0f);
                 RenderTexture.active = null;
                 Object.DestroyImmediate(go);

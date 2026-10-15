@@ -108,14 +108,6 @@ public sealed class SkyClock {
             (L(x.R, y.R, t), L(x.G, y.G, t), L(x.B, y.B, t));
         return new GradingKey(hour, L(a.Temperature, b.Temperature, t), L(a.Tint, b.Tint, t),
             C(a.Shadows, b.Shadows, t), C(a.Highlights, b.Highlights, t),
-            L(a.Contrast, b.Contrast, t), L(a.Saturation, b.Saturation, t), L(a.Bloom, b.Bloom, t));
-    }
-
-    /// <summary>The calibrated post-exposure, interpolated between whole hours.</summary>
-    public double ExposureAt(long ticks) {
-        double hour = HourOf(ticks);
-        int h = (int)Math.Floor(hour);
-        double[] e = _layout.ExposureByHour;
-        return e[h] + ((e[(h + 1) % 24] - e[h]) * (hour - h));
+            L(a.Saturation, b.Saturation, t), L(a.Bloom, b.Bloom, t));
     }
 }

@@ -3,15 +3,18 @@ namespace BakAgain.Tests.PlayMode.World {
     using System.Globalization;
     using BakAgain.Core;
     using BakAgain.World;
+    using GameData.Resources.Dialog.Actions;
     using GameData.Resources.GameState;
+    using GameData.Resources.World;
     using NUnit.Framework;
     using UnityEngine;
 
     /// <summary>
     /// <b>The brightness rule holds under Enhanced Lighting</b> (spec 2026-10-15-enhanced-sky-design): at
-    /// every hour the frame's mean luminance with Lighting on is within 3 % of Faithful's. The grading
-    /// (white balance, split toning, ACES, contrast) changes colour and contrast; the per-hour exposure in
-    /// <see cref="GameData.Resources.World.SkyLayout.ExposureByHour"/> puts the brightness back.
+    /// every hour, between hours on the dawn and dusk ramps, and with a light source lit, the terrain's
+    /// mean luminance with Lighting on is within 3 % of Faithful's. The grade keeps each pixel's
+    /// luminance (ApplyBakLighting), so this holds without any calibration; a post-processing grade
+    /// with ACES and per-hour exposure tables could not hold it once a light source was lit.
     /// </summary>
     /// <remarks>
     /// A real zone needs the game's data, which a test cannot load, so the scene is a grid of world-like
@@ -45,6 +48,7 @@ namespace BakAgain.Tests.PlayMode.World {
         private Camera _camera;
         private RenderTexture _rt;
         private GameSession _session;
+        private BakAgain.Core.Services.GameClock _clock;
         private WorldLightingService _lighting;
         private Texture2D _read;
         private bool _fog;
@@ -95,7 +99,8 @@ namespace BakAgain.Tests.PlayMode.World {
             _read = new Texture2D(_rt.width, _rt.height, TextureFormat.RGBA32, false);
 
             _session = new GameSession();
-            _lighting = new WorldLightingService(_session, null);
+            _clock = new BakAgain.Core.Services.GameClock(_session);
+            _lighting = new WorldLightingService(_session, _clock);
             _lighting.BindSky(_camera, env, 1, false);
         }
 
@@ -113,10 +118,17 @@ namespace BakAgain.Tests.PlayMode.World {
             _stash.Restore();
         }
 
-        /// <summary>Mean luminance of the frame, 0..1, in display (sRGB) space.</summary>
-        private float MeanLuminance(int hour, bool lighting) {
+        /// <summary>Mean luminance of the terrain, 0..1, in display (sRGB) space.</summary>
+        /// <param name="lightMinutes">Minutes left on a light source (<paramref name="source"/>); 0 = none.</param>
+        private float MeanLuminance(int hour, bool lighting, int minute = 0, int lightMinutes = 0,
+            LightSourceDecay.Source source = LightSourceDecay.Source.Item) {
             GameOptions.SetFeature(EnhancedFeature.Lighting, lighting);
-            _session.GameTimeIn2Seconds = (3L * GameTime.UnitsPerDay) + (hour * (long)GameTime.UnitsPerHour);
+            _session.GameTimeIn2Seconds = (3L * GameTime.UnitsPerDay) + (hour * (long)GameTime.UnitsPerHour)
+                + (minute * (long)GameTime.UnitsPerHour / 60);
+            foreach (LightSourceDecay.Source s in new[] { LightSourceDecay.Source.Item, LightSourceDecay.Source.Stardusk }) {
+                _clock.ScheduleTimer(TimerType.Light, (int)s,
+                    s == source ? lightMinutes * (GameTime.UnitsPerHour / 60) : 0, replaceExisting: true);
+            }
             _lighting.Refresh();
             _camera.Render();
             RenderTexture.active = _rt;
@@ -142,35 +154,33 @@ namespace BakAgain.Tests.PlayMode.World {
             for (int h = 0; h < 24; h++) yield return h;
         }
 
-        [Test]
-        public void LightingHoldsFaithfulBrightness([ValueSource(nameof(Hours))] int hour) {
-            float faithful = MeanLuminance(hour, lighting: false);
-            float lit = MeanLuminance(hour, lighting: true);
+        private void AssertHolds(int hour, int minute = 0, int lightMinutes = 0,
+            LightSourceDecay.Source source = LightSourceDecay.Source.Item) {
+            float faithful = MeanLuminance(hour, false, minute, lightMinutes, source);
+            float lit = MeanLuminance(hour, true, minute, lightMinutes, source);
             Assert.That(Mathf.Abs(lit - faithful) / faithful, Is.LessThanOrEqualTo(Tolerance),
-                $"{hour:00}:00 faithful {faithful:F4} lighting {lit:F4}");
+                $"{hour:00}:{minute:00} {source} {lightMinutes} min (level {_lighting.Current.Light}): faithful {faithful:F4} lighting {lit:F4}");
         }
 
+        [Test]
+        public void LightingHoldsFaithfulBrightness([ValueSource(nameof(Hours))] int hour) => AssertHolds(hour);
+
+        /// <summary>Between the calibrated half hours, where the daylight ramps and the grades move fastest.</summary>
+        [Test]
+        public void LightingHoldsFaithfulBrightnessOnTheRamps(
+            [Values(4, 5, 6, 7, 17, 18, 19, 20)] int hour, [Values(15, 45)] int minute) =>
+            AssertHolds(hour, minute);
+
         /// <summary>
-        /// Finds each hour's post-exposure by bisection and logs the table for
-        /// <c>SkyLayout.ExposureByHour</c>. Run by hand after changing the grading keys.
+        /// A light source raises the world's level above the clock's (daylight + stardusk + item), so a lit
+        /// night must not keep the night's exposure boost (review finding, 2026-10-15).
         /// </summary>
-        [Test, Explicit("calibration tool: prints SkyLayout.ExposureByHour")]
-        public void Calibrate() {
-            double[] table = EnhancedSky.Layout.ExposureByHour;
-            var line = new System.Text.StringBuilder("ExposureByHour = { ");
-            for (int h = 0; h < 24; h++) {
-                float target = MeanLuminance(h, lighting: false);
-                double lo = -6, hi = 6;
-                for (int step = 0; step < 24; step++) {
-                    table[h] = (lo + hi) / 2;   // read at :00 exactly, so the next hour's value plays no part
-                    float got = MeanLuminance(h, lighting: true);
-                    if (got < target) lo = table[h]; else hi = table[h];
-                    if (Mathf.Abs(got - target) / target < 0.002f) break;
-                }
-                line.Append(table[h].ToString("F3", CultureInfo.InvariantCulture)).Append(h < 23 ? ", " : " }");
-            }
-            Debug.Log(line.ToString());
-            Assert.Pass(line.ToString());
-        }
+        [Test]
+        public void LightingHoldsFaithfulBrightnessWithALight([Values(0, 22)] int hour, [Values(2, 4, 6, 8)] int itemMinutes) =>
+            AssertHolds(hour, lightMinutes: itemMinutes);
+
+        [Test]
+        public void LightingHoldsFaithfulBrightnessUnderStardusk([Values(0, 5)] int hour) =>
+            AssertHolds(hour, lightMinutes: 8, source: LightSourceDecay.Source.Stardusk);
     }
 }

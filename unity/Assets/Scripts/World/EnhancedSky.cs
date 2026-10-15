@@ -7,14 +7,16 @@ namespace BakAgain.World {
 
     /// <summary>
     /// The Enhanced sky and lighting for one zone (spec 2026-10-15-enhanced-sky-design): the dome, the
-    /// <c>Sun</c> light and the grading volume, all children of the zone root so they die with it.
+    /// <c>Sun</c> light and the bloom volume, all children of the zone root so they die with it.
     /// </summary>
     /// <remarks>
     /// <b>Invented for Enhanced; the original has no sky object.</b> Its sky is one palette pen
     /// (<c>drawHorizonSkyAndGround</c>, ovr138 @0x460c7). Every time and position rule is in
     /// <see cref="SkyClock"/>; this only draws them and hands them to the shaders as globals. The
-    /// world's brightness stays <see cref="DaylightLevel"/>'s: the tint keeps each pixel's luminance
-    /// and the grading's exposure is calibrated per hour against Faithful.
+    /// world's brightness stays <see cref="DaylightLevel"/>'s: the grade is done in ApplyBakLighting as
+    /// colour shifts that keep each pixel's luminance, so it holds at every hour, light level and tint.
+    /// A post-processing grade (ACES, contrast, per-hour exposure) could not: a lit night came out twice
+    /// as bright as Faithful. Post-processing is used for bloom only, on desktop.
     /// <para>Driven by <see cref="WorldLightingService"/>'s per-frame refresh; nothing else calls
     /// <see cref="Apply"/>.</para>
     /// </remarks>
@@ -23,6 +25,7 @@ namespace BakAgain.World {
         private static readonly SkyClock Clock = new(Layout);
 
         private static readonly int SunTintId = Shader.PropertyToID("_BakSunTint");
+        private static readonly int ShadeTintId = Shader.PropertyToID("_BakShadeTint");
         private static readonly int SkyOnId = Shader.PropertyToID("_BakSkyOn");
         private static readonly int HazeId = Shader.PropertyToID("_BakHaze");
         private static readonly int SunDirId = Shader.PropertyToID("_BakSkySunDir");
@@ -36,12 +39,11 @@ namespace BakAgain.World {
         private static readonly int MoonBrightId = Shader.PropertyToID("_BakSkyMoonBright");
         private static readonly int CloudId = Shader.PropertyToID("_BakSkyCloud");
         private static readonly int StarRotId = Shader.PropertyToID("_BakSkyStarRot");
-        private static readonly int SkyExposureId = Shader.PropertyToID("_BakSkyExposure");
 
         /// <summary>The Large Moon's light when it stands in for the sun at night.</summary>
         private static readonly Color MoonLight = new(0.55f, 0.65f, 1f);
 
-        /// <summary>Tint strength by day and by night (a colour shift; luminance is kept).</summary>
+        /// <summary>How much of the sun's or the moon's colour the grade takes, by day and by night.</summary>
         private const float DayTint = 0.25f;
         private const float NightTint = 0.35f;
 
@@ -59,9 +61,6 @@ namespace BakAgain.World {
         private Light _sun;
         private Volume _volume;
         private VolumeProfile _profile;
-        private WhiteBalance _whiteBalance;
-        private SplitToning _splitToning;
-        private ColorAdjustments _colorAdjustments;
         private Bloom _bloom;
 
         // The last Apply, so the map switch can be re-applied without the lighting refresh.
@@ -94,17 +93,15 @@ namespace BakAgain.World {
             }
             SetDome(sky);
             SetSun(sky || lit, ticks, sun, daylight);
-            SetGrading(lit, ticks);
-            Shader.SetGlobalVector(SunTintId, lit ? TintAt(ticks, sun) : Vector4.zero);
+            SetGrade(lit, ticks, sun);
+            SetBloom(lit && !Application.isMobilePlatform, ticks);
             Shader.SetGlobalFloat(SkyOnId, sky ? 1f : 0f);
-            // The grading's exposure holds the WORLD at Faithful's brightness; the sky has its own,
-            // so it is divided by the same amount and shows as designed.
-            Shader.SetGlobalFloat(SkyExposureId, lit ? Mathf.Pow(2f, -(float)Clock.ExposureAt(ticks)) : 1f);
         }
 
         /// <summary>No live sky (none bound, or the zone was torn down): leave nothing global behind.</summary>
         public static void Reset(Camera camera) {
             Shader.SetGlobalVector(SunTintId, Vector4.zero);
+            Shader.SetGlobalVector(ShadeTintId, Vector4.zero);
             Shader.SetGlobalFloat(SkyOnId, 0f);
             if (camera != null) {
                 SetCameraPostProcessing(camera, false);
@@ -134,7 +131,10 @@ namespace BakAgain.World {
         private void OnDestroy() {
             if (_domeMaterial != null) Destroy(_domeMaterial);
             if (_domeMesh != null) Destroy(_domeMesh);
-            if (_profile != null) Destroy(_profile);
+            if (_profile != null) {
+                foreach (VolumeComponent c in _profile.components) Destroy(c);
+                Destroy(_profile);
+            }
         }
 
         /// <summary>The world is +X east, +Y up, +Z north (BakCoordinateConverter: BaK X→X, Y→Z).</summary>
@@ -224,23 +224,56 @@ namespace BakAgain.World {
 
         private static float MoonFullness(long ticks) => 1f - (Mathf.Abs((float)Clock.MoonPhase(0, ticks) - 0.5f) * 2f);
 
-        /// <summary>rgb = the light's colour scaled to luminance 1 (so the shift keeps brightness), a = strength.</summary>
-        private static Vector4 TintAt(long ticks, SkyDirection sun) {
-            Color c;
+        /// <summary>
+        /// The grade for ApplyBakLighting: white balance, the sun's (or the Large Moon's) colour and split
+        /// toning, as a tint for bright pixels and one for dark ones, each scaled to luminance 1 so the
+        /// shader only moves hue; plus saturation, which turns about the same luminance.
+        /// </summary>
+        private static void SetGrade(bool on, long ticks, SkyDirection sun) {
+            if (!on) {
+                Shader.SetGlobalVector(SunTintId, Vector4.zero);
+                Shader.SetGlobalVector(ShadeTintId, Vector4.zero);
+                return;
+            }
+            GradingKey k = Clock.GradingAt(ticks);
+            Color light;
             float strength;
             if (sun.Up > -0.05) {
                 (double r, double g, double b) = Clock.SunColor(Math.Max(0, sun.ElevationDegrees));
-                c = new Color((float)r, (float)g, (float)b);
+                light = new Color((float)r, (float)g, (float)b);
                 strength = DayTint;
             } else {
-                c = MoonLight;
+                light = MoonLight;
                 strength = NightTint * Mathf.Lerp(0.6f, 1f, MoonFullness(ticks));
             }
-            float luminance = Mathf.Max((0.2126f * c.r) + (0.7152f * c.g) + (0.0722f * c.b), 1e-4f);
-            return new Vector4(c.r / luminance, c.g / luminance, c.b / luminance, strength);
+            Color common = WhiteBalance(k.Temperature, k.Tint) * Color.Lerp(Color.white, ToLuminanceOne(light), strength);
+            Color highlights = ToLuminanceOne(common * Toning(k.Highlights));
+            Color shadows = ToLuminanceOne(common * Toning(k.Shadows));
+            Shader.SetGlobalVector(SunTintId, new Vector4(highlights.r, highlights.g, highlights.b, 1f));
+            Shader.SetGlobalVector(ShadeTintId, new Vector4(shadows.r, shadows.g, shadows.b, 1f + ((float)k.Saturation / 100f)));
         }
 
-        private void SetGrading(bool on, long ticks) {
+        /// <summary>Warm (positive temperature) is more red, less blue; positive tint is less green.</summary>
+        private static Color WhiteBalance(double temperature, double tint) => new(
+            Mathf.Max(0.1f, 1f + (0.003f * (float)temperature)),
+            Mathf.Max(0.1f, 1f - (0.002f * (float)tint)),
+            Mathf.Max(0.1f, 1f - (0.004f * (float)temperature)));
+
+        /// <summary>A split-toning colour as a multiplier: 0.5 grey is neutral.</summary>
+        private static Color Toning((double R, double G, double B) c) =>
+            new((float)c.R * 2f, (float)c.G * 2f, (float)c.B * 2f);
+
+        private static Color ToLuminanceOne(Color c) {
+            float l = Mathf.Max((0.2126f * c.r) + (0.7152f * c.g) + (0.0722f * c.b), 1e-4f);
+            return new Color(c.r / l, c.g / l, c.b / l, 1f);
+        }
+
+        /// <summary>
+        /// Bloom on the sun and the moons: the only post effect, on desktop. The threshold sits above
+        /// anything the world draws (its palette colours stay at or under 1), so the world's brightness
+        /// is untouched.
+        /// </summary>
+        private void SetBloom(bool on, long ticks) {
             if (_camera != null) {
                 SetCameraPostProcessing(_camera, on);
             }
@@ -249,32 +282,25 @@ namespace BakAgain.World {
                 return;
             }
             if (_volume == null) {
-                var go = new GameObject("EnhancedGrading");
+                var go = new GameObject("EnhancedBloom");
                 go.transform.SetParent(transform, false);
                 _volume = go.AddComponent<Volume>();
                 _volume.isGlobal = true;
                 _volume.priority = 10;
                 _profile = ScriptableObject.CreateInstance<VolumeProfile>();
-                _whiteBalance = _profile.Add<WhiteBalance>(true);
-                _splitToning = _profile.Add<SplitToning>(true);
-                _colorAdjustments = _profile.Add<ColorAdjustments>(true);
-                _profile.Add<Tonemapping>(true).mode.Override(TonemappingMode.ACES);
                 _bloom = _profile.Add<Bloom>(true);
-                _bloom.threshold.Override(1f);
-                _bloom.active = !Application.isMobilePlatform;
+                _bloom.threshold.Override(1.5f);
+                // *** POST-PROCESSING ALSO APPLIES THE PROJECT'S DEFAULT PROFILE. *** It carries a
+                // vignette, camera motion blur, a lens flare and Neutral tonemapping
+                // (DefaultVolumeProfile.asset), each of which would change the world: all are off here.
+                _profile.Add<Tonemapping>(true).mode.Override(TonemappingMode.None);
+                _profile.Add<Vignette>(true).intensity.Override(0f);
+                _profile.Add<MotionBlur>(true).intensity.Override(0f);
+                _profile.Add<ScreenSpaceLensFlare>(true).intensity.Override(0f);
                 _volume.sharedProfile = _profile;
             }
             _volume.gameObject.SetActive(true);
-
-            GradingKey k = Clock.GradingAt(ticks);
-            _whiteBalance.temperature.Override((float)k.Temperature);
-            _whiteBalance.tint.Override((float)k.Tint);
-            _splitToning.shadows.Override(new Color((float)k.Shadows.R, (float)k.Shadows.G, (float)k.Shadows.B));
-            _splitToning.highlights.Override(new Color((float)k.Highlights.R, (float)k.Highlights.G, (float)k.Highlights.B));
-            _colorAdjustments.contrast.Override((float)k.Contrast);
-            _colorAdjustments.saturation.Override((float)k.Saturation);
-            _colorAdjustments.postExposure.Override((float)Clock.ExposureAt(ticks));
-            _bloom.intensity.Override((float)k.Bloom);
+            _bloom.intensity.Override((float)Clock.GradingAt(ticks).Bloom);
         }
 
         /// <summary>A UV sphere; seen from inside (the shader culls front faces).</summary>

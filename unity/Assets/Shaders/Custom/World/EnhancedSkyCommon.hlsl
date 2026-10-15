@@ -11,7 +11,6 @@ float4 _BakSkySunDir;     // xyz = unit vector toward the sun
 float4 _BakSkySunColor;   // rgb = the sun's light colour (SkyClock.SunColor), linear
 float4 _BakSkyZoneColor;  // rgb = the zone's resolved sky pen, linear
 float  _BakSkyAnchor;     // how far the horizon's hue is pulled to the zone's (0..1, already x noon factor)
-float  _BakSkyExposure;   // 2^-EV of Lighting's grading exposure, 1 without it: undoes it for the sky
 
 static const float3 BAK_RAYLEIGH = float3(5.8e-3, 13.5e-3, 33.1e-3);
 static const float  BAK_MIE = 2.1e-3;
