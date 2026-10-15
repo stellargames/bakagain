@@ -120,19 +120,33 @@ namespace BakAgain.World {
         /// <summary>
         /// One free-look drag delta: turn the real heading by <paramref name="yawDegrees"/> (positive
         /// turns right) through <see cref="LookTo"/>, and pitch the view by
-        /// <paramref name="pitchDegrees"/> (positive looks up), held within ±<paramref name="pitchLimitDegrees"/>.
-        /// Both are scaled by the turn size, relative to Medium.
+        /// <paramref name="pitchDegrees"/> (positive looks up), easing towards ±<paramref name="pitchMaxDegrees"/>
+        /// (<see cref="EasePitch"/>). Both are scaled by the turn size, relative to Medium.
         /// </summary>
-        public void ApplyLook(float yawDegrees, float pitchDegrees, float pitchLimitDegrees) {
+        public void ApplyLook(float yawDegrees, float pitchDegrees, float pitchMaxDegrees) {
             // The Preferences turn size is the look's sensitivity too: Small halves it, Large doubles it.
             float scale = _movement.TurnAngleFor(_preferences.Current.TurnSize) / (float)_movement.TurnAngleFor(TurnSize.Medium);
             yawDegrees *= scale;
             pitchDegrees *= scale;
             int yaw = (ushort)_session.Rotation - Mathf.RoundToInt(yawDegrees * AngleUnitsPerDegree);
             LookTo(unchecked((ushort)yaw));
-            float limit = pitchLimitDegrees * AngleUnitsPerDegree;
-            LookPitch = (short)Mathf.Clamp(LookPitch + pitchDegrees * AngleUnitsPerDegree, -limit, limit);
+            // The zone's own camera tilt counts towards the max, so the sum never passes straight up/down.
+            float max = Mathf.Max(1f, pitchMaxDegrees - Mathf.Abs(unchecked((short)_cameraPitch)) / AngleUnitsPerDegree);
+            LookPitch = (short)Mathf.RoundToInt(EasePitch(LookPitch / AngleUnitsPerDegree, pitchDegrees, max)
+                * AngleUnitsPerDegree);
             SyncToCamera();
+        }
+
+        /// <summary>
+        /// The pitch after a drag of <paramref name="dragDegrees"/> from <paramref name="pitchDegrees"/>:
+        /// the drag moves along <c>max * tanh(u / max)</c>, so near level it pitches one for one and
+        /// the view slows the further up or down it looks, never reaching <paramref name="maxDegrees"/>.
+        /// Undoing a drag returns to the same pitch.
+        /// </summary>
+        public static float EasePitch(float pitchDegrees, float dragDegrees, float maxDegrees) {
+            float p = Mathf.Clamp(pitchDegrees / maxDegrees, -0.9999f, 0.9999f);
+            float u = 0.5f * Mathf.Log((1f + p) / (1f - p)) * maxDegrees;   // atanh, in drag degrees
+            return maxDegrees * Mathf.Clamp((float)System.Math.Tanh((u + dragDegrees) / maxDegrees), -0.9999f, 0.9999f);
         }
 
         /// <summary>

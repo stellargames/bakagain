@@ -16,8 +16,11 @@ public sealed class EnhancedTravelLayout
     /// <summary>Pitch's share of <see cref="DegreesPerPixel"/>: looking up and down is slower than turning.</summary>
     public float PitchFraction { get; set; } = 0.5f;
 
-    /// <summary>How far mouse/touch look may pitch the camera either way.</summary>
-    public float PitchLimitDegrees { get; set; } = 30f;
+    /// <summary>
+    /// The pitch mouse/touch look approaches but never reaches, either way. There is no hard stop:
+    /// near level a drag pitches at full rate, and each further degree takes more drag than the last.
+    /// </summary>
+    public float PitchMaxDegrees { get; set; } = 89f;
 
     /// <summary>Vertical centre of the touch movement pads, as a fraction of the window height.</summary>
     public float TouchPadCentreY { get; set; } = 0.9f;

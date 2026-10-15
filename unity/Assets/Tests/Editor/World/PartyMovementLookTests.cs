@@ -51,14 +51,30 @@ namespace BakAgain.Tests.Editor.World {
         private const float Units = 65536f / 360f;
 
         [Test]
-        public void ApplyLookClampsThePitchBothWays() {
+        public void ThePitchSlowsTheFurtherItLooksAndNeverReachesTheMax() {
+            float a = PartyMovement.EasePitch(0f, 10f, 89f);
+            Assert.AreEqual(10f, a, 0.5f, "near level a drag pitches about one for one");
+            float b = PartyMovement.EasePitch(60f, 10f, 89f) - 60f;
+            Assert.Less(b, 6f, "at 60 degrees the same drag pitches much less");
+            Assert.Greater(b, 0f);
+            Assert.Less(PartyMovement.EasePitch(0f, 10000f, 89f), 89f, "no drag reaches the max");
+            Assert.Greater(PartyMovement.EasePitch(0f, -10000f, 89f), -89f, "either way");
+            Assert.AreEqual(25f, PartyMovement.EasePitch(PartyMovement.EasePitch(25f, 70f, 89f), -70f, 89f), 0.01f,
+                "dragging back undoes it");
+        }
+
+        [Test]
+        public void ApplyLookHasNoHardStop() {
             var (movement, _, _) = Build();
-            movement.ApplyLook(0f, 50f, 30f);
-            Assert.AreEqual((short)(30f * Units), movement.LookPitch, "held at +limit");
-            movement.ApplyLook(0f, -10f, 30f);
-            Assert.AreEqual((short)(20f * Units), movement.LookPitch, "and comes back from it");
-            movement.ApplyLook(0f, -500f, 30f);
-            Assert.AreEqual((short)(-30f * Units), movement.LookPitch, "held at -limit");
+            movement.ApplyLook(0f, 50f, 89f);
+            short first = movement.LookPitch;
+            Assert.Greater(first, (short)(30f * Units), "past the old 30 degree stop");
+            movement.ApplyLook(0f, 50f, 89f);
+            Assert.Greater(movement.LookPitch, first, "a further drag still looks further up");
+            Assert.Less(movement.LookPitch - first, first, "but by less than the first");
+            movement.ApplyLook(0f, -500f, 89f);
+            Assert.Less(movement.LookPitch, 0);
+            Assert.Greater(movement.LookPitch, (short)(-89f * Units));
         }
 
         [Test]
@@ -78,9 +94,9 @@ namespace BakAgain.Tests.Editor.World {
         public void TheTurnSizePreferenceScalesTheLook(TurnSize turnSize, float scale) {
             var (movement, session, _) = Build(turnSize);
             session.Rotation = 0x4000;
-            movement.ApplyLook(10f, 4f, 30f);
+            movement.ApplyLook(10f, 4f, 89f);
             Assert.AreEqual(unchecked((ushort)(0x4000 - Mathf.RoundToInt(10f * scale * Units))), (ushort)session.Rotation);
-            Assert.AreEqual((short)(4f * scale * Units), movement.LookPitch);
+            Assert.AreEqual(PartyMovement.EasePitch(0f, 4f * scale, 89f) * Units, movement.LookPitch, 1f);
         }
 
         [Test]

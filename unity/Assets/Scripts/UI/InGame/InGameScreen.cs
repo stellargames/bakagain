@@ -1548,7 +1548,7 @@ namespace BakAgain.UI.InGame {
                 && GameOptions.IsOn(EnhancedFeature.MouseLook);
             Vector2 look = _look?.Tick(lookOn, StartsOnWorld) ?? Vector2.zero;
             if (look != Vector2.zero) {
-                _movement.ApplyLook(look.x, look.y, _enhancedLayout.PitchLimitDegrees);
+                _movement.ApplyLook(look.x, look.y, _enhancedLayout.PitchMaxDegrees);
             }
             SetLookCursor(_look != null && _look.Dragging);
             // The battle camera is level in the original, and look switched off is the faithful view.
