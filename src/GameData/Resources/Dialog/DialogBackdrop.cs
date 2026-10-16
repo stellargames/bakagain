@@ -121,22 +121,4 @@ public static class DialogBackdrop {
     /// border drawn over its edge.
     /// </remarks>
     public const int ViewportOutlineInset = 1;
-
-    /// <summary>The travel screen's frame art, drawn around a dialog over Enhanced full-screen travel.</summary>
-    public const string TravelFrameResource = "FRAME.SCX";
-
-    /// <summary>
-    /// How far the travel frame's wood reaches beyond the viewport on each side, in original screen
-    /// px: FRAME.SCX's viewport is (13,11)-(307,112) and its wooden border runs from (3,1) to
-    /// (317,120) around it.
-    /// </summary>
-    /// <remarks>Enhanced full-screen travel hides the frame (the world fills the window); a dialog
-    /// over it gets this much of the frame back around the viewport (TASK-867, owner 2026-10-15).</remarks>
-    public static readonly (int Left, int Top, int Right, int Bottom) TravelFrameBorder = (10, 10, 10, 8);
-
-    /// <summary>
-    /// The compass diamond's tip reaches into FRAME.SCX's bottom bar (original x 131..191); with no
-    /// compass beneath, that stretch of the bar is drawn from plain wood further left (x 51..111).
-    /// </summary>
-    public static readonly (int X, int Width, int FromX) TravelFrameCompassPatch = (131, 60, 51);
 }

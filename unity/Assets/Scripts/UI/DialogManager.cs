@@ -463,54 +463,6 @@ namespace BakAgain.UI {
         }
 
         /// <summary>
-        /// The travel frame's wood around the viewport, under a dialog over Enhanced full-screen
-        /// travel (TASK-867): the dialog sits in the frame as it does on the faithful screen.
-        /// </summary>
-        /// <remarks>
-        /// Four strips around the viewport, so the world still shows through behind a dialog smaller
-        /// than it. Shown only while the world view is wider than the frame — full-screen travel;
-        /// the faithful screen and a fight already draw their own frame there. Checked every frame,
-        /// so a fight starting under the dialog hides it.
-        /// </remarks>
-        private async UniTask AddTravelFrameAsync(VisualElement stage) {
-            if (stage == null || !GameOptions.IsOn(EnhancedFeature.FullScreenTravel)
-                || WorldViewportHole() is not Rect v
-                || !CanonicalStage.TryGetFrame(stage, out DesignFrame frame, out _)) {
-                return;
-            }
-            Sprite art = await _resources.GetSpriteAsync(DialogBackdrop.TravelFrameResource);
-            if (art == null) {
-                return;
-            }
-            var border = DialogBackdrop.TravelFrameBorder;
-            float px = OriginalPixel.Width, py = OriginalPixel.Height;
-            var o = Rect.MinMaxRect(v.xMin - (border.Left * px), v.yMin - (border.Top * py),
-                v.xMax + (border.Right * px), v.yMax + (border.Bottom * py));
-            var holder = new VisualElement {
-                name = "BakDialogTravelFrame",
-                pickingMode = PickingMode.Ignore,
-                style = { position = Position.Absolute, left = 0, top = 0, right = 0, bottom = 0, display = DisplayStyle.None },
-            };
-            Background image = Background.FromSprite(art);
-            float w = frame.Width, h = frame.Height;
-            AddBackdropWindow(holder, image, o.xMin, o.yMin, o.width, v.yMin - o.yMin, -o.xMin, -o.yMin, w, h);
-            AddBackdropWindow(holder, image, o.xMin, v.yMax, o.width, o.yMax - v.yMax, -o.xMin, -v.yMax, w, h);
-            AddBackdropWindow(holder, image, o.xMin, v.yMin, v.xMin - o.xMin, v.height, -o.xMin, -v.yMin, w, h);
-            AddBackdropWindow(holder, image, v.xMax, v.yMin, o.xMax - v.xMax, v.height, -v.xMax, -v.yMin, w, h);
-            var patch = DialogBackdrop.TravelFrameCompassPatch;
-            AddBackdropWindow(holder, image, patch.X * px, v.yMax, patch.Width * px, o.yMax - v.yMax,
-                -patch.FromX * px, -v.yMax, w, h);
-            stage.Insert(0, holder);
-            _backdrop = holder;
-            holder.schedule.Execute(() => {
-                VisualElement world = holder.panel?.visualTree.Q(name: "WorldViewport");
-                Rect wood = holder.LocalToWorld(o);
-                holder.style.display = world != null && world.worldBound.width > wood.width + 1f
-                    ? DisplayStyle.Flex : DisplayStyle.None;
-            }).Every(0);
-        }
-
-        /// <summary>
         /// The rect the world view occupies, or null when there is no world on screen.
         /// </summary>
         /// <remarks>
@@ -2332,9 +2284,6 @@ namespace BakAgain.UI {
                 VisualElement previousBackdrop = _backdrop;
                 _backdrop = _pageBackdrop = null;
                 await AddFullScreenBackdropAsync(stage, entry, palette);
-                if (_backdrop == null) {
-                    await AddTravelFrameAsync(stage);
-                }
                 previousBackdrop?.RemoveFromHierarchy();
                 TurnCameraForBackdrop(entry);
                 ShowSpeakerFace(stage, entry);
