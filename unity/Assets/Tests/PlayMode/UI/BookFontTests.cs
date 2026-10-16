@@ -3,6 +3,7 @@ namespace BakAgain.Tests.PlayMode.UI {
     using BakAgain.Tests.TestSupport;
     using System.Collections;
     using System.Collections.Generic;
+    using System.Linq;
     using BakAgain.UI;
     using NUnit.Framework;
     using UnityEngine;
@@ -48,6 +49,53 @@ namespace BakAgain.Tests.PlayMode.UI {
             Assert.AreNotEqual("Alegreya-Medium", GameFonts.Game.sourceFontFile.name);
             GameData.Resources.Font.FontResource font = GameFonts.GameFont;
             Assert.AreEqual((float)((font.Height + 1) * font.PixelWidth), GameFontText.FontSizePx, 0.001f);
+        }
+
+        [Test]
+        public void On_TheBookIsBookHand_WithBookFntBehindIt() {
+            GameFonts.Build(bookFont: true);
+
+            Assert.AreEqual("BookHand-Regular", GameFonts.Book.sourceFontFile.name);
+            CollectionAssert.IsNotEmpty(GameFonts.Book.fallbackFontAssetTable, "a letter Book Hand lacks draws in BOOK.FNT");
+        }
+
+        [Test]
+        public void Off_TheBookIsBookFnt() {
+            GameFonts.Build(bookFont: false);
+
+            Assert.AreNotEqual("BookHand-Regular", GameFonts.Book.sourceFontFile.name);
+        }
+
+        /// <summary>
+        /// The book wraps on BOOK.FNT's widths, so Book Hand must advance exactly as far for every
+        /// character, the language packs' letters included: TMP wraps a justified line that comes out
+        /// wider than its box.
+        /// </summary>
+        [Test]
+        public void BookHandAdvancesEqualBookFntWidths_PackLettersIncluded() {
+            GameFonts.Build(bookFont: true);
+            GameData.Resources.Font.FontResource fnt = GameFonts.BookFont;
+            var before = new HashSet<int>(fnt.ExtraGlyphs.Keys);
+            try {
+                GameData.Resources.Font.GlyphSynthesis.AddComposed(fnt, "ÄÖÜßäöüëèéï".Select(c => (int)c));
+                TMPro.TMP_FontAsset hand = GameFonts.Book;
+                // An em is BOOK.FNT's Height + 1 columns, in both fonts (FntTrueType).
+                float columnsPerEm = fnt.Height + 1;
+                foreach (var (code, glyph) in fnt.AllGlyphs()) {
+                    if (code < 0x20 || code == 0x7F) {
+                        continue;
+                    }
+                    char c = (char)code;
+                    Assert.IsTrue(hand.HasCharacter(c, false, true), $"'{c}' is missing");
+                    float columns = hand.characterLookupTable[c].glyph.metrics.horizontalAdvance
+                        / hand.faceInfo.pointSize * columnsPerEm;
+                    Assert.AreEqual(glyph.Width, columns, 0.1f, $"'{c}'");
+                }
+            } finally {
+                foreach (int added in fnt.ExtraGlyphs.Keys.Where(k => !before.Contains(k)).ToList()) {
+                    fnt.ExtraGlyphs.Remove(added);
+                }
+            }
         }
         // The survey's tightest real lines (TASK: Enhanced font report): all-caps German, a long
         // German narration, slurred English, and the Gorath narration everyone looks at first.

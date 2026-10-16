@@ -44,7 +44,11 @@ namespace BakAgain.UI {
 
         private static FontResource _bookFont;
 
-        /// <summary>BOOK.FNT for the TextMesh Pro book view. Null until installed.</summary>
+        /// <summary>
+        /// The TextMesh Pro book view's font: BOOK.FNT, or with Enhanced's book font Book Hand — an
+        /// original pen-drawn font on BOOK.FNT's advances (tools/bookhand), so pages break as before.
+        /// Null until installed.
+        /// </summary>
         public static TMP_FontAsset Book { get; private set; }
 
         /// <summary>
@@ -106,10 +110,22 @@ namespace BakAgain.UI {
             }
             Game = IsBookFont ? _alegreya : _gameFntAsset;
             _bookFont = Addressables.LoadAssetAsync<FontResource>("BOOK.FNT").WaitForCompletion();
-            Book ??= TMP_FontAsset.CreateFontAsset(TrueType(dir, _bookFont, "Book"), 90, 9,
+            _bookFntAsset ??= TMP_FontAsset.CreateFontAsset(TrueType(dir, _bookFont, "Book"), 90, 9,
                 GlyphRenderMode.SDFAA, 1024, 1024, TMPro.AtlasPopulationMode.Dynamic, true);
+            if (bookFont && _bookHand == null) {
+                Font hand = Resources.Load<Font>("Fonts/BookHand/BookHand-Regular");
+                if (hand != null) {
+                    _bookHand = TMP_FontAsset.CreateFontAsset(hand, 90, 9, GlyphRenderMode.SDFAA, 1024, 1024,
+                        TMPro.AtlasPopulationMode.Dynamic, true);
+                    _bookHand.fallbackFontAssetTable = new System.Collections.Generic.List<TMP_FontAsset> { _bookFntAsset };
+                }
+            }
+            // A missing bundled font is a broken build, not a reason to draw nothing: BOOK.FNT then.
+            Book = bookFont && _bookHand != null ? _bookHand : _bookFntAsset;
         }
 
+        private static TMP_FontAsset _bookFntAsset;
+        private static TMP_FontAsset _bookHand;
         private static FontAsset _gameFntAsset;
         private static FontAsset _alegreya;
 
