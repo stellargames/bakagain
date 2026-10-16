@@ -4,3 +4,4 @@
 /unity/Assets/Plugins/netstandard2.1/Karambolo.*
 /unity/Assets/Plugins/netstandard2.1/Jeffijoe.MessageFormat.*
 !/unity/Assets/Plugins/netstandard2.1/*.meta
+__pycache__/

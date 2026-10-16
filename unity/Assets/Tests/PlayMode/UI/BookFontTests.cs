@@ -67,6 +67,32 @@ namespace BakAgain.Tests.PlayMode.UI {
         }
 
         /// <summary>
+        /// A language pack's own BOOK font can redraw a letter at its own width (the German pack's ß
+        /// is 8 columns, Book Hand's 10). The wrap measures the merged font, so Book Hand follows it.
+        /// </summary>
+        [Test]
+        public void APackFontsWidthWins_OverBookHandsOwnAdvance() {
+            GameData.Resources.Font.FontResource fnt = GameFonts.BookFont;
+            bool had = fnt.ExtraGlyphs.TryGetValue('ß', out GameData.Resources.Font.FontGlyph previous);
+            fnt.ExtraGlyphs['ß'] = new GameData.Resources.Font.FontGlyph { Width = 8 };
+            try {
+                GameFonts.Build(bookFont: true);
+                TMPro.TMP_FontAsset hand = GameFonts.Book;
+                Assert.IsTrue(hand.HasCharacter('ß', false, true));
+                float columns = hand.characterLookupTable['ß'].glyph.metrics.horizontalAdvance
+                    / hand.faceInfo.pointSize * (fnt.Height + 1);
+                Assert.AreEqual(8f, columns, 0.1f);
+            } finally {
+                if (had) {
+                    fnt.ExtraGlyphs['ß'] = previous;
+                } else {
+                    fnt.ExtraGlyphs.Remove('ß');
+                }
+                GameFonts.Build(bookFont: true);
+            }
+        }
+
+        /// <summary>
         /// The book wraps on BOOK.FNT's widths, so Book Hand must advance exactly as far for every
         /// character, the language packs' letters included: TMP wraps a justified line that comes out
         /// wider than its box.
@@ -77,7 +103,9 @@ namespace BakAgain.Tests.PlayMode.UI {
             GameData.Resources.Font.FontResource fnt = GameFonts.BookFont;
             var before = new HashSet<int>(fnt.ExtraGlyphs.Keys);
             try {
+                // Composed before the build, as LanguagePacks.MergeFont runs before GameFonts.Build.
                 GameData.Resources.Font.GlyphSynthesis.AddComposed(fnt, "ÄÖÜßäöüëèéï".Select(c => (int)c));
+                GameFonts.Build(bookFont: true);
                 TMPro.TMP_FontAsset hand = GameFonts.Book;
                 // An em is BOOK.FNT's Height + 1 columns, in both fonts (FntTrueType).
                 float columnsPerEm = fnt.Height + 1;
@@ -95,6 +123,7 @@ namespace BakAgain.Tests.PlayMode.UI {
                 foreach (int added in fnt.ExtraGlyphs.Keys.Where(k => !before.Contains(k)).ToList()) {
                     fnt.ExtraGlyphs.Remove(added);
                 }
+                GameFonts.Build(bookFont: true);
             }
         }
         // The survey's tightest real lines (TASK: Enhanced font report): all-caps German, a long

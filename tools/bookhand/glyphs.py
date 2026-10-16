@@ -191,8 +191,9 @@ STROKES.update({
     'ï': STROKES['i'],
     'è': STROKES['e'] + [[(2.4, 10.6), (3.4, 8.6)]],
     'é': STROKES['e'] + [[(3.0, 8.6), (4.0, 10.6)]],
-    'ß': [[(1.6, 0.0), (1.6, 6.0), (1.9, 9.0), (3.4, 11.0), (5.4, 10.6), (6.2, 9.0), (5.0, 7.4), (3.6, 6.8)],
-          [(3.6, 6.8), (6.0, 5.8), (7.0, 3.4), (6.2, 1.0), (4.2, 0.0), (2.8, 0.4)]],
+    # drawn for the German pack's 8 columns (its own BOOK font's width, which the wrap measures)
+    'ß': scaled([[(1.6, 0.0), (1.6, 6.0), (1.9, 9.0), (3.4, 11.0), (5.4, 10.6), (6.2, 9.0), (5.0, 7.4), (3.6, 6.8)],
+                 [(3.6, 6.8), (6.0, 5.8), (7.0, 3.4), (6.2, 1.0), (4.2, 0.0), (2.8, 0.4)]], sx=0.76, dx=0.3),
     '·': [],
 })
 
@@ -304,7 +305,9 @@ ADVANCES = {
     '|': 2,
     '}': 6,
     '~': 1,
-    # the language packs' letters: BOOK.FNT's widths for them as GlyphSynthesis builds them
-    # (an accented letter keeps its base letter's width; ß is reshaped from B)
-    'ä': 10, 'ö': 8, 'ü': 11, 'ë': 8, 'è': 8, 'é': 8, 'ï': 7, 'Ä': 14, 'Ö': 9, 'Ü': 12, 'ß': 10, '·': 3,
+    # the language packs' letters, at the widths the wrap measures for them: a pack's own BOOK font
+    # where it ships one (de: ß is 8), else GlyphSynthesis (an accented letter keeps its base letter's
+    # width). The game sets each advance to the merged font's anyway (GameFonts.FollowBookFntWidths);
+    # these keep the drawing inside it. '·' has no BOOK.FNT width: no book uses it.
+    'ä': 10, 'ö': 8, 'ü': 11, 'ë': 8, 'è': 8, 'é': 8, 'ï': 7, 'Ä': 14, 'Ö': 9, 'Ü': 12, 'ß': 8, '·': 3,
 }

@@ -122,6 +122,32 @@ namespace BakAgain.UI {
             }
             // A missing bundled font is a broken build, not a reason to draw nothing: BOOK.FNT then.
             Book = bookFont && _bookHand != null ? _bookHand : _bookFntAsset;
+            if (Book == _bookHand) {
+                FollowBookFntWidths(_bookHand, _bookFont);
+            }
+        }
+
+        /// <summary>
+        /// Book Hand is drawn on BOOK.FNT's advances, but a language pack's own BOOK font (or a mod's)
+        /// can redraw a letter at another width — the German pack's ß is 8 columns — and the book
+        /// wraps on the merged font. So each character advances exactly as far as the wrap measured.
+        /// </summary>
+        private static void FollowBookFntWidths(TMP_FontAsset hand, FontResource fnt) {
+            var characters = new System.Text.StringBuilder();
+            foreach (var (code, _) in fnt.AllGlyphs()) {
+                if (code >= 0x20 && code <= 0xFFFF) {
+                    characters.Append((char)code);
+                }
+            }
+            hand.TryAddCharacters(characters.ToString(), out string _);
+            float perColumn = hand.faceInfo.pointSize / (fnt.Height + 1); // an em is Height + 1 columns
+            foreach (var (code, glyph) in fnt.AllGlyphs()) {
+                if (hand.characterLookupTable.TryGetValue((uint)code, out TMP_Character character)) {
+                    UnityEngine.TextCore.GlyphMetrics metrics = character.glyph.metrics;
+                    metrics.horizontalAdvance = glyph.Width * perColumn;
+                    character.glyph.metrics = metrics;
+                }
+            }
         }
 
         private static TMP_FontAsset _bookFntAsset;
