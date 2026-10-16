@@ -65,7 +65,8 @@ Shader "BakAgain/ClassicHorizon" {
                 if (_BakSkyOn > 0.5) {
                     float3 v = normalize(input.positionWS - _WorldSpaceCameraPos);
                     float haze = _BakHaze.x + _BakHaze.y * (1.0 - input.uv.y);
-                    color.rgb = lerp(color.rgb, SkyRadiance(float3(v.x, max(v.y, 0.01), v.z)), saturate(haze));
+                    // Toward the sky the dome shows, which is darkened as the pen is.
+                    color.rgb = lerp(color.rgb, ApplyBakLighting(SkyRadiance(float3(v.x, max(v.y, 0.01), v.z)), 0.0), saturate(haze));
                 }
                 return color;
             }

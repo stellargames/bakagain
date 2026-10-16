@@ -26,6 +26,7 @@ Shader "BakAgain/EnhancedSky" {
             #pragma target 3.5
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Assets/Shaders/Custom/World/EnhancedSkyCommon.hlsl"
+            #include "Assets/Shaders/Custom/World/BakLighting.hlsl"
 
             TEXTURE2D(_CloudsA); SAMPLER(sampler_CloudsA);
             TEXTURE2D(_CloudsB); SAMPLER(sampler_CloudsB);
@@ -152,7 +153,9 @@ Shader "BakAgain/EnhancedSky" {
                     col = lerp(col, cloudCol, alpha);
                 }
 
-                return half4(col, 1.0);
+                // The dome stands in for the sky pen, so it takes the pen's lighting: dark at night,
+                // moons and stars included, as the original darkens every palette entry.
+                return half4(ApplyBakLighting(col, 0.0), 1.0);
             }
             ENDHLSL
         }

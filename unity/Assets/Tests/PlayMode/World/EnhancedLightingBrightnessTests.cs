@@ -179,6 +179,35 @@ namespace BakAgain.Tests.PlayMode.World {
         public void LightingHoldsFaithfulBrightnessWithALight([Values(0, 22)] int hour, [Values(2, 4, 6, 8)] int itemMinutes) =>
             AssertHolds(hour, lightMinutes: itemMinutes);
 
+        /// <summary>
+        /// The dome replaces the sky pen, so it takes the pen's night darkening too: at night the
+        /// Enhanced sky, clouds and moons included, is no brighter than Faithful's darkened pen
+        /// (owner, 2026-10-16: "I was expecting black. Even with a full moon").
+        /// </summary>
+        [Test]
+        public void TheNightSkyIsNoBrighterThanFaithfuls([Values(22, 0, 2)] int hour, [Values(1, 4, 9, 15)] int day) {
+            _camera.orthographic = false;
+            _camera.fieldOfView = 60f;
+            _camera.transform.rotation = Quaternion.Euler(-50f, 0f, 0f);   // looking up, above the quads
+            float SkyLuminance(bool sky) {
+                GameOptions.SetFeature(EnhancedFeature.Sky, sky);
+                _session.GameTimeIn2Seconds = (day * (long)GameTime.UnitsPerDay) + (hour * (long)GameTime.UnitsPerHour);
+                _lighting.Refresh();
+                _camera.Render();
+                RenderTexture.active = _rt;
+                _read.ReadPixels(new Rect(0, 0, _rt.width, _rt.height), 0, 0);
+                RenderTexture.active = null;
+                double sum = 0;
+                Color32[] px = _read.GetPixels32();
+                foreach (Color32 p in px) sum += (0.2126 * p.r) + (0.7152 * p.g) + (0.0722 * p.b);
+                return (float)(sum / px.Length / 255.0);
+            }
+            float faithful = SkyLuminance(false);
+            float enhanced = SkyLuminance(true);
+            Assert.That(enhanced, Is.LessThanOrEqualTo(faithful * (1f + Tolerance)),
+                $"day {day} {hour:00}:00: faithful {faithful:F4} sky {enhanced:F4}");
+        }
+
         [Test]
         public void LightingHoldsFaithfulBrightnessUnderStardusk([Values(0, 5)] int hour) =>
             AssertHolds(hour, lightMinutes: 8, source: LightSourceDecay.Source.Stardusk);

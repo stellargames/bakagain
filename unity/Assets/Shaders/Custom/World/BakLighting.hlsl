@@ -34,7 +34,9 @@ float4 _BakShadeTint;
 // display space, and the targets arrive as raw sRGB vectors. So in Linear colour space the blend is
 // done on the sRGB value and converted back; blending linear values left night far too bright
 // (half darkness gave 70% of the palette value instead of 50%, TASK-748).
-half3 ApplyBakLighting(half3 color) {
+// grade = 0 leaves out Enhanced Lighting's grade: the Enhanced sky takes the chain the sky pen
+// gets (its clear colour is never graded), so it darkens at night exactly as the pen does.
+half3 ApplyBakLighting(half3 color, float grade) {
 #if !defined(UNITY_COLORSPACE_GAMMA)
     color = LinearToSRGB(color);
 #endif
@@ -47,7 +49,7 @@ half3 ApplyBakLighting(half3 color) {
     float3 graded = color * lerp(_BakShadeTint.rgb, _BakSunTint.rgb, smoothstep(0.05, 0.6, lum));
     graded *= lum / max(dot(graded, luma), 1e-4);
     graded = max(lum + (graded - lum) * _BakShadeTint.a, 0.0);   // saturation about the same luminance
-    color = lerp(color, graded, _BakSunTint.a);
+    color = lerp(color, graded, _BakSunTint.a * grade);
     color = lerp(color, _BakFlash.rgb, _BakFlash.a);
 #if !defined(UNITY_COLORSPACE_GAMMA)
     color = SRGBToLinear(color);
@@ -55,5 +57,7 @@ half3 ApplyBakLighting(half3 color) {
 
     return color;
 }
+
+half3 ApplyBakLighting(half3 color) { return ApplyBakLighting(color, 1.0); }
 
 #endif
