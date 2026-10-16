@@ -62,13 +62,12 @@ public sealed class SkyClock {
     /// cross-faded to the next day's between CloudFadeStartHour and CloudFadeEndHour.
     /// </summary>
     public double CloudCover(int zone, long ticks) {
-        long day = GameTime.DayOf(ticks);
-        double hour = HourOf(ticks);
+        // A day's sky runs from one fade's end to the next's, so it is the day on which the last fade ended
+        // (whether or not the fade spans midnight), and the fade leads into the following day's.
+        long from = GameTime.DayOf(ticks - (long)(_layout.CloudFadeEndHour * GameTime.UnitsPerHour));
         double fadeLength = Wrap(_layout.CloudFadeEndHour - _layout.CloudFadeStartHour);
-        double intoFade = Wrap(hour - _layout.CloudFadeStartHour);
-        if (intoFade >= fadeLength) return DayCover(zone, day);
-        // Before midnight the fade runs from today into tomorrow; after it, from yesterday into today.
-        long from = hour >= _layout.CloudFadeStartHour ? day : day - 1;
+        double intoFade = Wrap(HourOf(ticks) - _layout.CloudFadeStartHour);
+        if (intoFade >= fadeLength) return DayCover(zone, from);
         double t = intoFade / fadeLength;
         t = t * t * (3 - (2 * t));
         return DayCover(zone, from) + ((DayCover(zone, from + 1) - DayCover(zone, from)) * t);
@@ -98,7 +97,9 @@ public sealed class SkyClock {
     public GradingKey GradingAt(long ticks) {
         double hour = HourOf(ticks);
         GradingKey[] keys = _layout.Grading;
-        int next = Array.FindIndex(keys, k => k.Hour > hour);
+        int next = 0;   // a plain loop: this runs every frame, and a lambda would allocate its closure
+        while (next < keys.Length && keys[next].Hour <= hour) next++;
+        if (next == keys.Length) next = -1;
         GradingKey b = next < 0 ? keys[0] : keys[next];
         GradingKey a = next <= 0 ? keys[^1] : keys[next - 1];
         double span = Wrap(b.Hour - a.Hour);

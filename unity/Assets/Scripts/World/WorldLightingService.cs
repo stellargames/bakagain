@@ -170,8 +170,17 @@ namespace BakAgain.World {
 
             // Unity's null: a torn-down zone takes its sky with it, and then nothing may linger.
             if (_sky != null) {
-                _sky.Apply(_session?.GameTimeIn2Seconds ?? 0, _daylight,
-                    GameOptions.IsOn(EnhancedFeature.Sky), GameOptions.IsOn(EnhancedFeature.Lighting));
+                // Cosmetic, and called from the travel screen's Update: a throw here would stop movement
+                // and the HUD every frame. Log it once and drop the sky for the rest of the zone.
+                try {
+                    _sky.Apply(_session?.GameTimeIn2Seconds ?? 0, _daylight,
+                        GameOptions.IsOn(EnhancedFeature.Sky), GameOptions.IsOn(EnhancedFeature.Lighting));
+                } catch (System.Exception e) {
+                    Debug.LogException(e);
+                    UnityEngine.Object.Destroy(_sky);
+                    _sky = null;
+                    EnhancedSky.Reset(_skyCamera);
+                }
             } else {
                 EnhancedSky.Reset(_skyCamera);
             }

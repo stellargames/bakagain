@@ -100,6 +100,16 @@ public class SkyClockTests {
     public void CloudCoverIsContinuousAcrossMidnight() =>
         Assert.True(Math.Abs(Clock.CloudCover(2, At(4, 23, 59)) - Clock.CloudCover(2, At(5, 0))) < 0.01);
 
+    /// <summary>A mod's fade that does not span midnight (TASK-885): no jump at its end or at midnight.</summary>
+    [Fact]
+    public void CloudCoverIsContinuousForAFadeAfterMidnight() {
+        var clock = new SkyClock(new SkyLayout { CloudFadeStartHour = 1, CloudFadeEndHour = 5 });
+        for (int zone = 1; zone <= 12; zone++) {
+            Assert.True(Math.Abs(clock.CloudCover(zone, At(5, 4, 59)) - clock.CloudCover(zone, At(5, 5))) < 0.01, $"zone {zone} at 05:00");
+            Assert.True(Math.Abs(clock.CloudCover(zone, At(4, 23, 59)) - clock.CloudCover(zone, At(5, 0))) < 0.01, $"zone {zone} at midnight");
+        }
+    }
+
     [Fact]
     public void AnUnknownZoneUsesTheDefaultClimate() {
         var layout = new SkyLayout();

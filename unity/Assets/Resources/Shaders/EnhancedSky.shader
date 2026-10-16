@@ -88,7 +88,8 @@ Shader "BakAgain/EnhancedSky" {
                 float3 right = normalize(abs(m.y) > 0.99 ? float3(1, 0, 0) : cross(float3(0, 1, 0), m));
                 float3 up = cross(m, right);
                 float2 uv = float2(dot(v, right), dot(v, up)) / sin(r);
-                float4 t = SAMPLE_TEXTURE2D(tex, samp, uv * 0.5 + 0.5);
+                // Mip 0: inside this branch the screen-space derivatives are undefined at the disc's edge.
+                float4 t = SAMPLE_TEXTURE2D_LOD(tex, samp, uv * 0.5 + 0.5, 0);
                 float3 n = float3(uv, sqrt(saturate(1.0 - dot(uv, uv))));
                 float a = 6.2831853 * phase;
                 float lit = saturate(dot(n, float3(sin(a), 0.0, -cos(a)))) + 0.03;   // + earthshine
@@ -109,9 +110,20 @@ Shader "BakAgain/EnhancedSky" {
                 // Stars: a hash per cell of a field turned about a pole 40 degrees up in the north.
                 float3 pole = float3(0.0, 0.6427876, 0.7660444);
                 float3 rv = Rotate(v, pole, _BakSkyStarRot);
-                float h = Hash31(floor(rv * 300.0));
-                float star = step(0.9985, h) * pow(frac(h * 71.3), 4.0) * 3.0;
-                col += star * night * saturate(v.y * 8.0);
+                float3 cell = rv * 300.0;
+                float h = Hash31(floor(cell));
+                // A soft point at the cell's centre, not the whole cell: the cells are ~10 px at travel FOV.
+                // Distance across the view, not in 3D: a cell's centre is rarely on the sphere itself.
+                float3 o = frac(cell) - 0.5;
+                float spot = saturate(1.0 - length(o - dot(o, rv) * rv) * 2.5);
+                // Brightness from a second hash: frac(h * k) of an h this close to 1 spans only a sliver.
+                float star = step(0.9985, h) * pow(Hash31(floor(cell) + 17.13), 3.0) * spot * spot;
+                // Added after the night darkening (below): points of light on the black sky, which the
+                // darkened pen alone would hide entirely. Hidden behind the moons and the clouds.
+                float3 starLight = star * 0.8 * night * saturate(v.y * 8.0)
+                    * step(dot(v, normalize(_BakSkyMoonDir0.xyz)), cos(_BakSkyMoonDir0.w))
+                    * step(dot(v, normalize(_BakSkyMoonDir1.xyz)), cos(_BakSkyMoonDir1.w))
+                    * step(dot(v, normalize(_BakSkyMoonDir2.xyz)), cos(_BakSkyMoonDir2.w));
 
                 // The sun: an HDR disc so Lighting's bloom catches it, plus a tight glow.
                 float d = acos(clamp(dot(v, s), -1.0, 1.0));
@@ -130,6 +142,7 @@ Shader "BakAgain/EnhancedSky" {
 
                 // Clouds, projected on a flat layer overhead; they drift in real time (wind), while
                 // the cover follows the game day (SkyClock.CloudCover).
+                float alpha = 0.0;
                 if (v.y > 0.02) {
                     float2 uv = v.xz / (v.y + 0.08);
                     float t = _Time.y;
@@ -149,13 +162,13 @@ Shader "BakAgain/EnhancedSky" {
                     float3 ambient = SkyRadiance(normalize(float3(v.x, 0.15, v.z))) * 0.6;
                     float3 sunlit = _BakSkySunColor.rgb * sunUp * (0.5 + 0.5 * pow(saturate(mu), 4.0)) * (1.0 - 0.5 * thick);
                     float3 cloudCol = ambient + sunlit * 0.8 + float3(0.02, 0.025, 0.04) * night;
-                    float alpha = saturate(density) * smoothstep(0.02, 0.12, v.y);
+                    alpha = saturate(density) * smoothstep(0.02, 0.12, v.y);
                     col = lerp(col, cloudCol, alpha);
                 }
 
                 // The dome stands in for the sky pen, so it takes the pen's lighting: dark at night,
-                // moons and stars included, as the original darkens every palette entry.
-                return half4(ApplyBakLighting(col, 0.0), 1.0);
+                // moons and clouds included, as the original darkens every palette entry.
+                return half4(ApplyBakLighting(col, 0.0) + starLight * (1.0 - alpha), 1.0);
             }
             ENDHLSL
         }

@@ -155,6 +155,32 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.IsFalse(Active("EnhancedBloom"));
         }
 
+        /// <summary>
+        /// The sky is cosmetic and runs inside the travel screen's Update: a throw in it must not stop
+        /// movement and the HUD every frame. It is logged once and the sky is switched off (TASK-885).
+        /// </summary>
+        [Test]
+        public void AFailingSkyIsLoggedOnceAndSwitchedOff() {
+            GameOptions.Enhanced = true;
+            GameOptions.SetFeature(EnhancedFeature.Lighting, true);
+            var session = new GameSession { GameTimeIn2Seconds = At(7) };
+            var lighting = new WorldLightingService(session, null);
+            Object.DestroyImmediate(_sky);
+            lighting.BindSky(_camera, _env, 1, false);
+            GameData.Resources.World.GradingKey[] grading = EnhancedSky.Layout.Grading;
+            EnhancedSky.Layout.Grading = System.Array.Empty<GameData.Resources.World.GradingKey>();
+            try {
+                LogAssert.Expect(LogType.Exception, new System.Text.RegularExpressions.Regex("IndexOutOfRange"));
+                Assert.DoesNotThrow(() => lighting.Refresh());
+                Assert.DoesNotThrow(() => lighting.Refresh());
+            } finally {
+                EnhancedSky.Layout.Grading = grading;
+            }
+            LogAssert.NoUnexpectedReceived();
+            Assert.IsFalse(PostOn, "switched off");
+            Assert.AreEqual(0f, Shader.GetGlobalVector(SunTintId).w);
+        }
+
         [Test]
         public void ATornDownZoneLeavesNoTintAndNoPost() {
             GameOptions.Enhanced = true;

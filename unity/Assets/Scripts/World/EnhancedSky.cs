@@ -93,8 +93,9 @@ namespace BakAgain.World {
             }
             SetDome(sky);
             SetSun(sky || lit, ticks, sun, daylight);
-            SetGrade(lit, ticks, sun);
-            SetBloom(lit && !Application.isMobilePlatform, ticks);
+            GradingKey grading = lit ? Clock.GradingAt(ticks) : null;
+            SetGrade(grading, ticks, sun);
+            SetBloom(lit && !Application.isMobilePlatform, grading);
             Shader.SetGlobalFloat(SkyOnId, sky ? 1f : 0f);
         }
 
@@ -229,13 +230,12 @@ namespace BakAgain.World {
         /// toning, as a tint for bright pixels and one for dark ones, each scaled to luminance 1 so the
         /// shader only moves hue; plus saturation, which turns about the same luminance.
         /// </summary>
-        private static void SetGrade(bool on, long ticks, SkyDirection sun) {
-            if (!on) {
+        private static void SetGrade(GradingKey k, long ticks, SkyDirection sun) {
+            if (k == null) {
                 Shader.SetGlobalVector(SunTintId, Vector4.zero);
                 Shader.SetGlobalVector(ShadeTintId, Vector4.zero);
                 return;
             }
-            GradingKey k = Clock.GradingAt(ticks);
             Color light;
             float strength;
             if (sun.Up > -0.05) {
@@ -273,7 +273,7 @@ namespace BakAgain.World {
         /// anything the world draws (its palette colours stay at or under 1), so the world's brightness
         /// is untouched.
         /// </summary>
-        private void SetBloom(bool on, long ticks) {
+        private void SetBloom(bool on, GradingKey grading) {
             if (_camera != null) {
                 SetCameraPostProcessing(_camera, on);
             }
@@ -300,7 +300,7 @@ namespace BakAgain.World {
                 _volume.sharedProfile = _profile;
             }
             _volume.gameObject.SetActive(true);
-            _bloom.intensity.Override((float)Clock.GradingAt(ticks).Bloom);
+            _bloom.intensity.Override((float)grading.Bloom);
         }
 
         /// <summary>A UV sphere; seen from inside (the shader culls front faces).</summary>
