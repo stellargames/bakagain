@@ -102,10 +102,15 @@ public sealed class CombatEncounter {
     }
 
     /// <summary>Living combatants on the opposing side.</summary>
+    /// <remarks>
+    /// <b>A deliberate deviation (TASK-618, owner 2026-10-17):</b> an enemy at 0 health counts as
+    /// gone even without the Dead flag. The original tests only CAF_DEAD, and five shipped encounters
+    /// (315, 426, 558, 631, 643) field a 0/0 roster slot loaded ready, which made them unwinnable.
+    /// </remarks>
     public int EnemiesAlive() {
         var n = 0;
         foreach (Combatant c in Enemies) {
-            if (!c.IsDead) {
+            if (!c.IsDead && c.Health > 0) {
                 n++;
             }
         }
