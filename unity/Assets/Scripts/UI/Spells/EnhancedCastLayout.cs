@@ -325,12 +325,38 @@ namespace BakAgain.UI.Spells {
         /// <summary>The canonical surface the active-spell strip is drawn on while applied.</summary>
         public VisualElement SpellSheet { get; private set; }
 
+        /// <summary>
+        /// FRAME.SCX's frame: four bars of light stone laid on the marble around <paramref name="inner"/>,
+        /// square-ended, the top and bottom bars running the full width and the sides between them,
+        /// with the soft shadow they throw (light from the top-left). The straps are placed later, from
+        /// the frame's resolved box.
+        /// </summary>
         private static VisualElement Frame(VisualElement inner) {
             VisualElement frame = MovedElements.Box("enhanced-cast__frame");
-            frame.style.backgroundImage = Art("slab");
             frame.Add(inner);
+            VisualElement shadow = MovedElements.Box("enhanced-cast__frame-shadow");
+            shadow.style.backgroundImage = Art("frame-shadow");
+            shadow.style.unitySliceLeft = shadow.style.unitySliceRight =
+                shadow.style.unitySliceTop = shadow.style.unitySliceBottom = ShadowSlice;
+            shadow.style.unitySliceScale = ShadowSliceScale;
+            frame.Add(shadow);
+            foreach (string side in new[] { "top", "bottom", "left", "right" }) {
+                VisualElement b = MovedElements.Box("enhanced-cast__bar-" + side);
+                b.AddToClassList("enhanced-cast__frame-bar");
+                b.style.backgroundImage = Art(side is "top" or "bottom" ? "bar-h" : "bar-v");
+                frame.Add(b);
+            }
             return frame;
         }
+
+        /// <summary>The shadow texture's nine-slice: its 48-texel band sits within these 80 texels of
+        /// each edge; scaled so the band is as wide as a bar (theme: 40 px).</summary>
+        private const int ShadowSlice = 80;
+        private const float ShadowSliceScale = 40f / 48f;
+
+        /// <summary>How far a strap runs past a bar's outer edge, onto the marble.</summary>
+        private const float StrapOverhang = 24f;
+        private const float StrapThickness = 22f;
 
         /// <summary>
         /// The active-spell strip: the original's plaque and runes, drawn by
@@ -592,13 +618,28 @@ namespace BakAgain.UI.Spells {
         private void PlaceStraps() {
             Rect well = Box(_wellFrame), parch = Box(_parchFrame);
             if (well.width <= 0f || parch.width <= 0f) return;
-            var spots = new List<(float X, float Y, bool Across)>();
-            void Vertical(Rect a, Rect b, Rect span) {      // a gap between a (left) and b (right)
-                float x = (a.xMax + b.xMin) / 2f;
-                spots.Add((x, span.yMin + span.height * 0.15f, true));
-                spots.Add((x, span.yMax - span.height * 0.15f, true));
+            float bar = _wellFrame.resolvedStyle.paddingLeft;
+            // (centre x, centre y, length, runs vertically)
+            var spots = new List<(float X, float Y, float Length, bool Vertical)>();
+            float len = bar + StrapOverhang, outward = StrapOverhang / 2f;
+            void Top(Rect r) {
+                foreach (float f in new[] { 0.14f, 0.86f }) spots.Add((r.x + r.width * f, r.y + bar / 2f - outward, len, true));
             }
-            Vertical(well, parch, parch);
+            void Bottom(Rect r) {
+                foreach (float f in new[] { 0.14f, 0.86f }) spots.Add((r.x + r.width * f, r.yMax - bar / 2f + outward, len, true));
+            }
+            void Side(Rect r, bool left) {
+                float x = left ? r.x + bar / 2f - outward : r.xMax - bar / 2f + outward;
+                foreach (float f in new[] { 0.14f, 0.86f }) spots.Add((x, r.y + r.height * f, len, false));
+            }
+            // Each frame is strapped down to the marble across its outer bars; across the gap between
+            // the two, one strap spans both bars.
+            Top(well); Bottom(well); Side(well, left: true);
+            Top(parch); Bottom(parch); Side(parch, left: false);
+            float gapX = (well.xMax + parch.xMin) / 2f, span = parch.xMin - well.xMax + 1.6f * bar;
+            float top = Mathf.Max(well.y, parch.y), height = Mathf.Min(well.yMax, parch.yMax) - top;
+            foreach (float f in new[] { 0.14f, 0.86f }) spots.Add((gapX, top + height * f, span, false));
+
             while (_straps.Count < spots.Count) {
                 var strap = new VisualElement { pickingMode = PickingMode.Ignore };
                 strap.AddToClassList("enhanced-cast__strap");
@@ -608,13 +649,14 @@ namespace BakAgain.UI.Spells {
             for (int i = 0; i < _straps.Count; i++) {
                 VisualElement strap = _straps[i];
                 if (i >= spots.Count) { strap.style.display = DisplayStyle.None; continue; }
-                (float x, float y, bool across) = spots[i];
+                (float x, float y, float length, bool vertical) = spots[i];
+                float w = vertical ? StrapThickness : length, h = vertical ? length : StrapThickness;
                 strap.style.display = DisplayStyle.Flex;
-                strap.EnableInClassList("enhanced-cast__strap--h", across);
-                strap.EnableInClassList("enhanced-cast__strap--v", !across);
-                strap.style.backgroundImage = Art(across ? "strap-h" : "strap-v");
-                strap.style.left = x;
-                strap.style.top = y;
+                strap.style.backgroundImage = Art(vertical ? "strap-v" : "strap-h");
+                strap.style.left = x - w / 2f;
+                strap.style.top = y - h / 2f;
+                strap.style.width = w;
+                strap.style.height = h;
             }
         }
 
