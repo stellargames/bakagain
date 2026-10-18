@@ -22,7 +22,6 @@ namespace BakAgain.UI.Spells {
     /// (<c>.enhanced-cast*</c>); the only geometry here is fitting the two sheets.</para>
     /// </remarks>
     public sealed class EnhancedCastLayout {
-        public const string ArtFolder = "Enhanced/Cast/";
         public const string CasterClass = "enhanced-cast__portrait--caster";
         public const string ShownClass = "enhanced-cast__school--shown";
         public const string OffClass = "enhanced-cast__school--off";
@@ -37,12 +36,10 @@ namespace BakAgain.UI.Spells {
         private const float BenchMargin = 1.04f;
 
         private const string ExitName = "imagebutton_1";
-        private const string FigureName = "enhanced-cast-figure";
 
         private readonly VisualElement _root;
         private readonly GameSession _session;
         private readonly MovedElements _moved = new();
-        private readonly List<VisualElement> _added = new();
         private VisualElement _layout, _left, _well, _parch, _reqStage;
         private readonly VisualElement[] _portraits = new VisualElement[3];
         private readonly Label[] _names = new Label[3];
@@ -101,10 +98,10 @@ namespace BakAgain.UI.Spells {
 
             _layout = MovedElements.Box("enhanced-cast");
             _layout.name = "enhanced-cast";
-            _layout.style.backgroundImage = Art("marble"); // dark stone, edge to edge
+            _layout.style.backgroundImage = EnhancedArt.Load("marble"); // dark stone, edge to edge
             _left = MovedElements.Box("enhanced-cast__left");
             _well = MovedElements.Box("enhanced-cast__well");
-            _well.style.backgroundImage = Art("marble");
+            _well.style.backgroundImage = EnhancedArt.Load("marble");
             RingSheet = Sheet("enhanced-cast-ring");
             _well.Add(RingSheet);
             VisualElement schools = MovedElements.Box("enhanced-cast__schools");
@@ -117,7 +114,7 @@ namespace BakAgain.UI.Spells {
             VisualElement right = MovedElements.Box("enhanced-cast__right");
             VisualElement top = MovedElements.Box("enhanced-cast__top");
             _parch = MovedElements.Box("enhanced-cast__parch");
-            _parch.style.backgroundImage = Art("parchment");
+            _parch.style.backgroundImage = EnhancedArt.Load("parchment");
             InfoSheet = Sheet("enhanced-cast-info");
             _parch.Add(InfoSheet);
             VisualElement column = MovedElements.Box("enhanced-cast__portraits");
@@ -152,7 +149,7 @@ namespace BakAgain.UI.Spells {
             _combat = combat;
             for (int i = 0; i < 3; i++) {
                 VisualElement wrap = MovedElements.Box("enhanced-cast__portrait");
-                wrap.style.backgroundImage = Art("socket");
+                wrap.style.backgroundImage = EnhancedArt.Load("socket");
                 column.Add(wrap);
                 _portraits[i] = wrap;
                 VisualElement head = _root.Q(PortraitName(i));
@@ -208,27 +205,25 @@ namespace BakAgain.UI.Spells {
             if (!Applied) {
                 return;
             }
-            foreach (VisualElement e in _added) e.RemoveFromHierarchy();
-            _added.Clear();
             for (int i = 0; i < 3; i++) {
                 VisualElement head = _root.Q(PortraitName(i));
                 if (head != null) head.pickingMode = PickingMode.Position;
             }
             foreach (VisualElement s in _schools) {
                 if (s == null) continue;
-                s.style.unityBackgroundImageTintColor = StyleKeyword.Null;
+                StoneButton.Undress(s);
                 s.RemoveFromClassList(OffClass);
                 s.RemoveFromClassList(ShownClass);
             }
             VisualElement exit = _root.Q(ExitName);
-            if (exit != null) exit.style.unityBackgroundImageTintColor = StyleKeyword.Null;
+            StoneButton.Undress(exit);
             _moved.RestoreAll();
             if (_reqStage != null) {
                 _reqStage.style.visibility = StyleKeyword.Null;
             }
             ReleaseBench();
-            _straps.Clear();
-            ReleaseFrame();
+            _frame?.Release();
+            _frame = null;
             _layout.RemoveFromHierarchy();
             _layout = _left = _well = _parch = _reqStage = null;
             _wellFrame = _parchFrame = _strip = null;
@@ -247,7 +242,7 @@ namespace BakAgain.UI.Spells {
         public void ShowSchool(int school) {
             for (int i = 0; i < _schools.Length; i++) {
                 _schools[i]?.EnableInClassList(ShownClass, i == school);
-                _schools[i]?.Q(FigureName)?.MarkDirtyRepaint();
+                _schools[i]?.Q(StoneButton.DiscName)?.MarkDirtyRepaint();
             }
         }
 
@@ -316,7 +311,7 @@ namespace BakAgain.UI.Spells {
             var tablet = new VisualElement { pickingMode = PickingMode.Position, focusable = true };
             tablet.AddToClassList("enhanced-cast__tablet");
             if (cls != null) tablet.AddToClassList(cls);
-            tablet.style.backgroundImage = Art("parchment");
+            tablet.style.backgroundImage = EnhancedArt.Load("parchment");
             var word = new Label(UiTemplates.Format(key)) { pickingMode = PickingMode.Ignore };
             word.AddToClassList("enhanced-cast__tablet-word");
             tablet.Add(word);
@@ -341,7 +336,7 @@ namespace BakAgain.UI.Spells {
         /// <summary>The canonical surface the active-spell strip is drawn on while applied.</summary>
         public VisualElement SpellSheet { get; private set; }
 
-        /// <summary>A frame's box: its padding is the stone band, drawn by <see cref="DrawFrame"/>.</summary>
+        /// <summary>A frame's box: its padding is the stone band, drawn by <see cref="StoneFrame"/>.</summary>
         private static VisualElement Frame(VisualElement inner) {
             VisualElement frame = MovedElements.Box("enhanced-cast__frame");
             frame.Add(inner);
@@ -351,66 +346,7 @@ namespace BakAgain.UI.Spells {
         /// <summary>The most of the screen's width the bench may take.</summary>
         private const float MaxBenchShare = 0.5f;
 
-        /// <summary>How far a strap runs past each edge of the bar it straddles.</summary>
-        private const float StrapOverhang = 16f;
-        private const float StrapThickness = 20f;
-
-        /// <summary>Room round the frame for the shadow it throws.</summary>
-        private const float ShadowMargin = 32f;
-
-        private VisualElement _frameArt;
-        private RenderTexture _frameTexture;
-        private Material _frameMaterial;
-        private Vector2Int _frameTexels;
-
-        /// <summary>
-        /// The stone frame as ONE piece (FRAME.SCX's): a band round the bench and the parchment
-        /// together and a bar down the middle where they meet — the two frame boxes overlap by one band,
-        /// so their shared side is that bar. Drawn by a shader at the size it is shown, with its shadow.
-        /// </summary>
-        private void DrawFrame(Rect outer, float band, float middleX) {
-            if (_frameArt == null) {
-                _frameArt = new VisualElement { name = "enhanced_cast_frame", pickingMode = PickingMode.Ignore };
-                _frameArt.style.position = Position.Absolute;
-                _layout.Insert(_layout.IndexOf(_left) + 2, _frameArt); // over both panels, under the straps
-            }
-            Rect r = new(outer.x - ShadowMargin, outer.y - ShadowMargin, outer.width + 2f * ShadowMargin, outer.height + 2f * ShadowMargin);
-            _frameArt.style.left = r.x;
-            _frameArt.style.top = r.y;
-            _frameArt.style.width = r.width;
-            _frameArt.style.height = r.height;
-            float k = Mathf.Clamp(Screen.height / Mathf.Max(1f, _layout.panel?.visualTree.layout.height ?? 1200f), 0.5f, 3f);
-            var texels = new Vector2Int(Mathf.Clamp(Mathf.RoundToInt(r.width * k), 16, 4096), Mathf.Clamp(Mathf.RoundToInt(r.height * k), 16, 4096));
-            if (_frameMaterial == null) {
-                Shader shader = Shader.Find("BakAgain/CastFrame");
-                if (shader == null) return;
-                _frameMaterial = new Material(shader);
-            }
-            if (_frameTexture == null || texels != _frameTexels) {
-                if (_frameTexture != null) { _frameTexture.Release(); Object.Destroy(_frameTexture); }
-                _frameTexture = new RenderTexture(texels.x, texels.y, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
-                _frameTexels = texels;
-                _frameArt.style.backgroundImage = Background.FromRenderTexture(_frameTexture);
-            }
-            float sx = texels.x / r.width, sy = texels.y / r.height;
-            _frameMaterial.SetVector("_Size", new Vector4(texels.x, texels.y, 0f, 0f));
-            _frameMaterial.SetVector("_Outer", new Vector4(ShadowMargin * sx, ShadowMargin * sy, (ShadowMargin + outer.width) * sx, (ShadowMargin + outer.height) * sy));
-            _frameMaterial.SetVector("_Bar", new Vector4(band * sx, (middleX - r.x) * sx, 0f, 0f));
-            _frameMaterial.SetVector("_Tile", new Vector4(720f * sx, 480f * sy, 0f, 0f)); // the slab at the theme's tile size
-            _frameMaterial.SetVector("_Shadow", new Vector4(8f * sx, 10f * sy, 14f * sx, 0.7f));
-            Texture2D stone = Resources.Load<Texture2D>(ArtFolder + "slab");
-            Graphics.Blit(stone, _frameTexture, _frameMaterial);
-            _frameArt.MarkDirtyRepaint();
-        }
-
-        private void ReleaseFrame() {
-            if (_frameTexture != null) { _frameTexture.Release(); Object.Destroy(_frameTexture); }
-            if (_frameMaterial != null) Object.Destroy(_frameMaterial);
-            _frameTexture = null;
-            _frameMaterial = null;
-            _frameArt = null;
-            _frameTexels = default;
-        }
+        private StoneFrame _frame;
 
         /// <summary>
         /// The active-spell strip: the original's plaque and runes, drawn by
@@ -431,7 +367,6 @@ namespace BakAgain.UI.Spells {
 
         /// <summary>Re-fits the strip once its plaque has loaded.</summary>
         public void StripBuilt() => FitStrip();
-        private readonly List<VisualElement> _straps = new();
         private bool _combat;
         private int _casterSlot = -1;
         private Label _hint, _readoutPower, _readoutOf;
@@ -463,7 +398,7 @@ namespace BakAgain.UI.Spells {
                     top = _ringCentre.y - size / 2f,
                     width = size,
                     height = size,
-                    backgroundImage = Art("ring"),
+                    backgroundImage = EnhancedArt.Load("ring"),
                 },
             };
             return art;
@@ -520,9 +455,9 @@ namespace BakAgain.UI.Spells {
             if (_bench == null) return;
             if (_benchMaterial == null) {
                 Shader shader = Shader.Find("BakAgain/CastBenchLight");
-                _marble = Resources.Load<Texture2D>(ArtFolder + "marble");
+                _marble = EnhancedArt.Texture("marble");
                 if (shader == null || _marble == null) {
-                    _bench.style.backgroundImage = Art("marble"); // unlit, but still the bench
+                    _bench.style.backgroundImage = EnhancedArt.Load("marble"); // unlit, but still the bench
                     return;
                 }
                 _benchMaterial = new Material(shader);
@@ -567,11 +502,6 @@ namespace BakAgain.UI.Spells {
             return new Rect(_ringCentre.x - reach, _ringCentre.y - reach, 2f * reach, 2f * reach);
         }
 
-        public static StyleBackground Art(string name) {
-            Texture2D t = Resources.Load<Texture2D>(ArtFolder + name);
-            return t != null ? new StyleBackground(t) : new StyleBackground(StyleKeyword.None);
-        }
-
         private static string SchoolName(int school) => $"imagebutton_{CastMenuSelection.FirstSchoolActionId + school}";
 
         private static string PortraitName(int slot) => $"hotspot_{CastMenuSelection.FirstPartySlotActionId + slot}";
@@ -582,24 +512,14 @@ namespace BakAgain.UI.Spells {
             return sheet;
         }
 
-        /// <summary>The faithful face hidden (its icon loader keeps re-applying it, so it is tinted
-        /// out, not replaced) and a stone disc with the school's figure — or the Exit word — over it.</summary>
+        /// <summary>A stone disc over the button: the school's figure engraved in it, or the Exit word.</summary>
         private void Stone(VisualElement button, int school) {
-            button.style.unityBackgroundImageTintColor = Color.clear;
-            var stone = new VisualElement { name = FigureName, pickingMode = PickingMode.Ignore };
-            stone.AddToClassList("enhanced-cast__stone");
-            stone.style.backgroundImage = Art("disc");
-            if (school >= 0) {
-                stone.generateVisualContent += ctx => DrawFigure(ctx, stone, school, button.ClassListContains(ShownClass));
-            } else {
-                var word = new Label(GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedCastExit)) {
-                    pickingMode = PickingMode.Ignore,
-                };
-                word.AddToClassList("enhanced-cast__exit-word");
-                stone.Add(word);
+            if (school < 0) {
+                StoneButton.Dress(button, GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedCastExit));
+                return;
             }
-            button.Add(stone);
-            _added.Add(stone);
+            VisualElement disc = StoneButton.Dress(button);
+            disc.generateVisualContent += ctx => DrawFigure(ctx, disc, school, button.ClassListContains(ShownClass));
         }
 
         /// <summary>The school's ring figure, engraved in the stone; lit copper while it is the one shown.</summary>
@@ -679,43 +599,14 @@ namespace BakAgain.UI.Spells {
             float band = _wellFrame.resolvedStyle.paddingLeft;
             Rect outer = Rect.MinMaxRect(well.xMin, Mathf.Min(well.yMin, parch.yMin), parch.xMax, Mathf.Max(well.yMax, parch.yMax));
             float middle = well.xMax - band / 2f;
-            DrawFrame(outer, band, middle);
-
-            // Each strap straddles the bar it holds down: across it, past both edges.
-            float len = band + 2f * StrapOverhang;
+            _frame ??= new StoneFrame(_layout);
+            _frame.Draw(outer, band, middle);
+            // Each strap straddles the bar it holds down; the middle bar gets its own pair.
             var spots = new List<(float X, float Y, bool Vertical)>();
-            foreach (Rect part in new[] { Rect.MinMaxRect(well.xMin, outer.yMin, middle, outer.yMax), Rect.MinMaxRect(middle, outer.yMin, parch.xMax, outer.yMax) }) {
-                foreach (float f in new[] { 0.15f, 0.85f }) {
-                    float x = Mathf.Lerp(part.xMin, part.xMax, f);
-                    spots.Add((x, outer.yMin + band / 2f, true));
-                    spots.Add((x, outer.yMax - band / 2f, true));
-                }
-            }
-            foreach (float f in new[] { 0.15f, 0.85f }) {
-                float y = Mathf.Lerp(outer.yMin, outer.yMax, f);
-                spots.Add((outer.xMin + band / 2f, y, false));
-                spots.Add((middle, y, false));
-                spots.Add((outer.xMax - band / 2f, y, false));
-            }
-
-            while (_straps.Count < spots.Count) {
-                var strap = new VisualElement { pickingMode = PickingMode.Ignore };
-                strap.AddToClassList("enhanced-cast__strap");
-                _layout.Add(strap);
-                _straps.Add(strap);
-            }
-            for (int i = 0; i < _straps.Count; i++) {
-                VisualElement strap = _straps[i];
-                if (i >= spots.Count) { strap.style.display = DisplayStyle.None; continue; }
-                (float x, float y, bool vertical) = spots[i];
-                float w = vertical ? StrapThickness : len, h = vertical ? len : StrapThickness;
-                strap.style.display = DisplayStyle.Flex;
-                strap.style.backgroundImage = Art(vertical ? "strap-v" : "strap-h");
-                strap.style.left = x - w / 2f;
-                strap.style.top = y - h / 2f;
-                strap.style.width = w;
-                strap.style.height = h;
-            }
+            StoneFrame.AddSides(spots, Rect.MinMaxRect(outer.xMin, outer.yMin, middle, outer.yMax), band, right: false);
+            StoneFrame.AddSides(spots, Rect.MinMaxRect(middle, outer.yMin, outer.xMax, outer.yMax), band, left: false);
+            foreach (float f in new[] { 0.15f, 0.85f }) spots.Add((middle, Mathf.Lerp(outer.yMin, outer.yMax, f), false));
+            _frame.Strap(spots, band);
         }
 
         private Rect Box(VisualElement e) {

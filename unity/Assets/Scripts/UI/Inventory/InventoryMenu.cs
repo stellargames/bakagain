@@ -874,6 +874,7 @@ namespace BakAgain.UI.Inventory {
                     GameData.Money.CurrencyStyle.Abbreviated));
                 _enhanced.RefreshNames();
                 _enhanced.RefreshRings();
+                _enhanced.RefreshFrame();
             } else {
                 _money.Render(_stage, _gameSession.PartyGold, Layout);
             }
@@ -3270,11 +3271,15 @@ namespace BakAgain.UI.Inventory {
         /// singleton, so a shop left paging would otherwise hand its arrow to the next inventory
         /// that opens.</para>
         /// </remarks>
-        private void SyncShopPageButton() =>
+        private void SyncShopPageButton() {
             _ui?.SetEntryIcon(ButtonUse,
                 UsesUseButton ? (int?)null
                 : ShelfPages ? ShopPageIcon
                 : NoIcon);
+            _enhanced?.SetUseWord(UsesUseButton ? GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedInvUse)
+                : ShelfPages ? GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedInvNextPage)
+                : null);
+        }
 
         /// <summary>
         /// Whether "Use" applies at all — only over a party member's own belongings.

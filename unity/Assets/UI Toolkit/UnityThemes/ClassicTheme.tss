@@ -318,24 +318,24 @@
 /* Enhanced inventory (spec 2026-10-13, EnhancedInventoryLayout). The panel is 1200 units high at every
    aspect, so vertical px and percentages are of the window height. The REQ elements moved in here
    carry .req-hitbox, hence the two-class selectors. 55px is the game font's own size (.req-label). */
-.enhanced-inv { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background-color: rgb(43, 26, 14); background-repeat: repeat-x; background-size: auto 100%; }
-.enhanced-inv .enhanced-inv__frame { position: absolute; left: 2.5%; top: 3%; right: 20%; bottom: 20.5%; padding: 10px; border-radius: 8px; border-width: 2px; border-color: rgb(122, 82, 40); background-color: rgb(74, 48, 24); }
+.enhanced-inv { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background-color: rgb(29, 23, 13); background-repeat: repeat; background-size: 720px 480px; }
+.enhanced-inv .enhanced-inv__frame { position: absolute; left: 2.5%; top: 3%; right: 20%; bottom: 20.5%; padding: 40px; }
 .enhanced-inv .enhanced-inv__field { flex-grow: 1; overflow: visible; }
 .enhanced-inv .enhanced-inv__sheet { position: absolute; left: 0; top: 0; width: 1600px; height: 1200px; transform-origin: 0 0; }
 .enhanced-inv .enhanced-inv__portraits { position: absolute; right: 1.5%; top: 3%; bottom: 20.5%; width: 17%; flex-direction: column; justify-content: space-between; align-items: center; }
-.enhanced-inv .enhanced-inv__portrait { align-items: center; }
-.enhanced-inv .enhanced-inv__head { position: relative; width: 205px; height: 205px; }
-.enhanced-inv .enhanced-inv__name { margin-top: 4px; font-size: 55px; white-space: nowrap; color: rgb(232, 216, 176); -unity-text-align: middle-center; }
+.enhanced-inv .enhanced-inv__portrait { width: 250px; height: 250px; align-items: center; justify-content: center; background-size: 100% 100%; }
+.enhanced-inv .enhanced-inv__head { position: relative; width: 190px; height: 190px; }
+.enhanced-inv .enhanced-inv__name { position: absolute; bottom: -34px; font-size: 44px; white-space: nowrap; color: rgb(236, 217, 176); -unity-text-align: middle-center; }
 .enhanced-inv .enhanced-inv__portrait--target .enhanced-inv__head { scale: 1.06 1.06; }
 .enhanced-inv .enhanced-inv__portrait--target .enhanced-inv__name { color: rgb(255, 246, 220); }
 .enhanced-inv .enhanced-inv__portrait--hover .enhanced-inv__head { scale: 1.12 1.12; }
 .enhanced-inv .enhanced-inv__portrait--holder { opacity: 0.45; }
 .enhanced-inv .enhanced-inv__shade { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.9); }
 .enhanced-inv .enhanced-inv__head .enhanced-inv__shade { border-radius: 50%; }
-.enhanced-inv .enhanced-inv__bar { position: absolute; left: 2.5%; right: 1.5%; bottom: 2.5%; height: 16%; flex-direction: row; align-items: center; padding: 0 18px; border-radius: 8px; border-width: 2px; border-color: rgb(122, 82, 40); background-color: rgba(42, 29, 18, 0.92); }
+.enhanced-inv .enhanced-inv__bar { position: absolute; left: 2.5%; right: 1.5%; bottom: 2.5%; height: 16%; flex-direction: row; align-items: center; padding: 0 18px; }
 .enhanced-inv .enhanced-inv__window { position: relative; flex-shrink: 0; margin-right: 18px; }
-.enhanced-inv .enhanced-inv__purse { position: relative; flex-shrink: 0; margin-right: 18px; justify-content: center; align-items: center; border-radius: 8px; background-color: rgb(0, 0, 0); }
-.enhanced-inv .enhanced-inv__purse-text { font-size: 55px; white-space: nowrap; color: rgb(232, 216, 176); }
+.enhanced-inv .enhanced-inv__purse { position: relative; flex-shrink: 0; margin-right: 18px; justify-content: center; align-items: center; border-radius: 4px; background-size: cover; border-width: 3px; border-color: rgb(181, 112, 74); }
+.enhanced-inv .enhanced-inv__purse-text { font-size: 55px; white-space: nowrap; color: rgb(46, 29, 15); }
 .enhanced-inv .enhanced-inv__hint { flex-grow: 1; flex-shrink: 1; overflow: hidden; font-size: 44px; white-space: normal; color: rgb(205, 185, 143); }
 .enhanced-inv .enhanced-inv__button { position: relative; flex-shrink: 0; margin-left: 6px; }
 .enhanced-inv .enhanced-inv__examine { position: absolute; left: 5%; right: 4%; top: 7%; bottom: 7%; flex-direction: row; }
@@ -349,10 +349,10 @@
 .enhanced-cast .enhanced-cast__schools { height: 150px; flex-shrink: 0; margin-top: 16px; flex-direction: row; justify-content: space-around; align-items: center; }
 .enhanced-cast .enhanced-cast__school { position: relative; width: 118px; height: 118px; }
 .enhanced-cast .enhanced-cast__exit { position: relative; width: 124px; height: 124px; flex-shrink: 0; margin-left: 18px; }
-.enhanced-cast .enhanced-cast__stone { position: absolute; left: 0; top: 0; right: 0; bottom: 0; border-radius: 50%; background-size: 100% 100%; }
-.enhanced-cast .enhanced-cast__school--off .enhanced-cast__stone { opacity: 0.35; }
-.enhanced-cast .enhanced-cast__school--shown .enhanced-cast__stone { border-width: 4px; border-color: rgb(224, 149, 92); }
-.enhanced-cast .enhanced-cast__exit-word { position: absolute; left: 0; top: 0; right: 0; bottom: 0; -unity-text-align: middle-center; font-size: 36px; color: rgb(28, 21, 11); }
+.enhanced-stone { position: absolute; left: 0; top: 0; right: 0; bottom: 0; border-radius: 50%; background-size: 100% 100%; }
+.enhanced-cast .enhanced-cast__school--off .enhanced-stone { opacity: 0.35; }
+.enhanced-cast .enhanced-cast__school--shown .enhanced-stone { border-width: 4px; border-color: rgb(224, 149, 92); }
+.enhanced-stone__word { position: absolute; left: 0; top: 0; right: 0; bottom: 0; -unity-text-align: middle-center; font-size: 36px; color: rgb(28, 21, 11); }
 .enhanced-cast .enhanced-cast__right { flex-grow: 1; flex-direction: column; }
 .enhanced-cast .enhanced-cast__top { flex-grow: 1; flex-direction: row; }
 .enhanced-cast .enhanced-cast__parch { flex-grow: 1; overflow: hidden; background-size: cover; }
@@ -368,7 +368,7 @@
 .enhanced-cast .enhanced-cast__gem { background-size: 100% 100%; }
 .enhanced-cast .enhanced-cast__holo--lit { scale: 1.15 1.15; }
 .enhanced-cast .enhanced-cast__holo--dim { -unity-background-image-tint-color: rgb(150, 150, 150); }
-.enhanced-cast .enhanced-cast__strap { position: absolute; background-size: 100% 100%; -unity-background-image-tint-color: rgb(168, 112, 98); }
+.enhanced-strap { position: absolute; background-size: 100% 100%; -unity-background-image-tint-color: rgb(168, 112, 98); }
 .enhanced-cast .enhanced-cast__readout { position: absolute; left: 0; top: 0; right: 0; bottom: 0; align-items: center; justify-content: center; }
 .enhanced-cast .enhanced-cast__readout-power { font-size: 150px; color: rgb(255, 243, 207); -unity-text-align: middle-center; text-shadow: 0 0 18px rgba(255, 120, 70, 0.8); }
 .enhanced-cast .enhanced-cast__readout-of { margin-top: -18px; font-size: 44px; color: rgb(236, 217, 176); -unity-text-align: middle-center; text-shadow: 2px 3px 4px rgb(0, 0, 0); }

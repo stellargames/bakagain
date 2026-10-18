@@ -79,15 +79,15 @@ namespace BakAgain.UI.Inventory {
                 }
             }
 
+            // The casting screen's materials: one slab of dark marble, the item field held in a stone
+            // frame strapped down with copper, the members in stone sockets, stone buttons.
             _layout = MovedElements.Box("enhanced-inv");
             _layout.name = "enhanced-inv";
-            Texture2D table = Resources.Load<Texture2D>("BookSpread/table");
-            if (table != null) {
-                _layout.style.backgroundImage = Background.FromTexture2D(table);
-            }
+            _layout.style.backgroundImage = EnhancedArt.Load("marble");
             VisualElement column = MovedElements.Box("enhanced-inv__portraits");
             VisualElement bar = MovedElements.Box("enhanced-inv__bar");
             VisualElement frame = MovedElements.Box("enhanced-inv__frame");
+            _frameBox = frame;
             _field = MovedElements.Box("enhanced-inv__field");
             Sheet = new VisualElement { name = "enhanced-inv-sheet", pickingMode = PickingMode.Ignore };
             Sheet.AddToClassList("enhanced-inv__sheet");
@@ -102,6 +102,7 @@ namespace BakAgain.UI.Inventory {
 
             for (int i = 0; i < 3; i++) {
                 VisualElement wrap = MovedElements.Box("enhanced-inv__portrait");
+                wrap.style.backgroundImage = EnhancedArt.Load("socket");
                 column.Add(wrap);
                 _portraits[i] = wrap;
                 _moved.Move(_root.Q(PortraitNames[i]), wrap, "enhanced-inv__head", clearSize: true);
@@ -112,6 +113,7 @@ namespace BakAgain.UI.Inventory {
             _moved.Move(_root.Q(WindowName), bar, "enhanced-inv__window", clearSize: false);
             VisualElement purse = _root.Q(PurseName);
             _moved.Move(purse, bar, "enhanced-inv__purse", clearSize: false);
+            purse.style.backgroundImage = EnhancedArt.Load("parchment");
             _purse = new Label { pickingMode = PickingMode.Ignore };
             _purse.AddToClassList("enhanced-inv__purse-text");
             purse.Add(_purse);
@@ -120,12 +122,15 @@ namespace BakAgain.UI.Inventory {
             bar.Add(_hint);
             _moved.Move(_root.Q(UseName), bar, "enhanced-inv__button", clearSize: false);
             _moved.Move(_root.Q(ExitName), bar, "enhanced-inv__button", clearSize: false);
+            StoneButton.Dress(_root.Q(ExitName), GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedCastExit));
+            SetUseWord(_useWord);
 
             _reqStage = reqStage;
             if (_reqStage != null) {
                 _reqStage.style.display = DisplayStyle.None;
             }
             _field.RegisterCallback<GeometryChangedEvent>(_ => FitSheet());
+            _layout.RegisterCallback<GeometryChangedEvent>(_ => DrawFrame());
             SyncRings();
             RefreshNames();
             return true;
@@ -138,6 +143,11 @@ namespace BakAgain.UI.Inventory {
                 return;
             }
             RemoveRings();
+            StoneButton.Undress(_root.Q(UseName));
+            StoneButton.Undress(_root.Q(ExitName));
+            _frame?.Release();
+            _frame = null;
+            _frameBox = null;
             _moved.RestoreAll();
             _purse?.RemoveFromHierarchy();
             if (_reqStage != null) {
@@ -150,6 +160,69 @@ namespace BakAgain.UI.Inventory {
             Array.Clear(_names, 0, 3);
             Array.Clear(_nameOverrides, 0, 3);
         }
+
+        /// <summary>The Use stone's word for the role the faithful button has now (Use, the next shop
+        /// page, or none), so the stone says what a click on it does.</summary>
+        public void SetUseWord(string word) {
+            _useWord = word;
+            VisualElement use = _root.Q(UseName);
+            if (!Applied || use == null) return;
+            StoneButton.Undress(use);
+            StoneButton.Dress(use, word);
+        }
+
+        private string _useWord;
+        private VisualElement _frameBox;
+        private StoneFrame _frame;
+
+        /// <summary>The stone frame round the item field, held down by straps on every side.</summary>
+        private void DrawFrame() {
+            if (_frameBox == null || _frameBox.panel == null) return;
+            Rect wb = _frameBox.worldBound;
+            if (float.IsNaN(wb.width) || wb.width <= 0f) return;
+            Vector2 o = _layout.WorldToLocal(wb.position);
+            var outer = new Rect(o.x, o.y, wb.width, wb.height);
+            float band = _frameBox.resolvedStyle.paddingLeft;
+            _frame ??= new StoneFrame(_layout);
+            // A member's pack is two panels, the paperdoll and the pack, side by side: the frame's middle
+            // bar lies over the gap between them, as the casting screen's joins its two panels.
+            float middle = MiddleBetweenPanels();
+            _frame.Draw(outer, band, middle);
+            var spots = new List<(float X, float Y, bool Vertical)>();
+            StoneFrame.AddSides(spots, outer, band);
+            if (middle >= 0f) {
+                foreach (float f in new[] { 0.15f, 0.85f }) spots.Add((middle, Mathf.Lerp(outer.yMin, outer.yMax, f), false));
+            }
+            _frame.Strap(spots, band);
+        }
+
+        /// <summary>Redraws the frame after a render: the panels it frames change with the view.</summary>
+        /// <remarks>Driven by the panels' own layout: a redraw scheduled from the render ran before the
+        /// new panels had a position, and the middle bar never appeared.</remarks>
+        public void RefreshFrame() {
+            if (Sheet == null) return;
+            foreach (VisualElement p in Sheet.Query(PanelName).ToList()) {
+                if (p.userData == this) continue;
+                p.userData = this;
+                p.RegisterCallback<GeometryChangedEvent>(_ => DrawFrame());
+            }
+            _layout?.schedule.Execute(DrawFrame);
+        }
+
+        /// <summary>The centre of the gap between exactly two side-by-side item panels, in the layout's
+        /// units; -1 when the view has one panel (a chest, a shop, the keys).</summary>
+        private float MiddleBetweenPanels() {
+            List<VisualElement> panels = Sheet?.Query(PanelName).ToList();
+            if (panels == null || panels.Count != 2) return -1f;
+            Rect a = panels[0].worldBound, b = panels[1].worldBound;
+            if (float.IsNaN(a.width) || float.IsNaN(b.width)) return -1f;
+            if (a.x > b.x) (a, b) = (b, a);
+            if (b.xMin <= a.xMax) return -1f;
+            return _layout.WorldToLocal(new Vector2((a.xMax + b.xMin) / 2f, a.center.y)).x;
+        }
+
+        /// <summary>The menu's name for a black item panel (InventoryMenu draws them on the sheet).</summary>
+        private const string PanelName = "panel_bg";
 
         public void SetPurse(string text) {
             if (_purse != null) _purse.text = text;
@@ -175,7 +248,9 @@ namespace BakAgain.UI.Inventory {
             for (int i = 0; i < 3; i++) {
                 if (_names[i] == null) continue;
                 string name = names != null && i < names.Count ? names[i] : string.Empty;
-                _names[i].text = _nameOverrides[i] ?? name;
+                // No names under the faces — the faces say who — only what a drop would do.
+                _names[i].text = _nameOverrides[i] ?? string.Empty;
+                _names[i].style.display = _nameOverrides[i] == null ? DisplayStyle.None : DisplayStyle.Flex;
                 _portraits[i].style.display = string.IsNullOrEmpty(name) ? DisplayStyle.None : DisplayStyle.Flex;
             }
         }

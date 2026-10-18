@@ -114,6 +114,11 @@ public static class UiTemplates {
     /// <summary>The Enhanced cast screen's Exit stone; the faithful button carries the word in its image.</summary>
     public const string EnhancedCastExit = "port:template:enhanced_cast_exit";
 
+    /// <summary>The Enhanced inventory's Use stone, in its two worded roles: Use on a member's pack, the
+    /// next page on a long shop shelf (blank otherwise, as the faithful disc is).</summary>
+    public const string EnhancedInvUse = "port:template:enhanced_inv_use";
+    public const string EnhancedInvNextPage = "port:template:enhanced_inv_next_page";
+
     /// <summary>The Enhanced cast screen's hint line, for picking a spell and for choosing its power,
     /// by mouse and by finger; and the "of {max}" under the power readout in the ring.</summary>
     public const string EnhancedCastHintPick = "port:template:enhanced_cast_hint_pick";
@@ -213,6 +218,8 @@ public static class UiTemplates {
         (EnhancedSave, _ => "Save"),
         (EnhancedCancel, _ => "Cancel"),
         (EnhancedCastExit, _ => "Exit"),
+        (EnhancedInvUse, _ => "Use"),
+        (EnhancedInvNextPage, _ => "More"),
         (EnhancedCastHintPick, _ => "Point at a symbol to read it; click it to cast."),
         (EnhancedCastHintPickTouch, _ => "Touch a symbol to read it; lift your finger on it to cast."),
         (EnhancedCastHintPower, _ => "Point at a lit gem for the power, then click it or Cast. Back returns to the spells."),

@@ -167,7 +167,7 @@ namespace BakAgain.UI.Spells {
             string name = GemFor(IconAt(index), index, _sliderSpell >= 0 || _fillFrame >= 0);
             if (gem.userData as string == name) return;
             gem.userData = name;
-            gem.style.backgroundImage = EnhancedCastLayout.Art(name);
+            gem.style.backgroundImage = EnhancedArt.Load(name);
         }
 
         /// <summary>

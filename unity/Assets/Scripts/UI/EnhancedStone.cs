@@ -1,0 +1,157 @@
+namespace BakAgain.UI {
+    using System.Collections.Generic;
+    using UnityEngine;
+    using UnityEngine.UIElements;
+
+    /// <summary>The Enhanced screens' shared art: the HD stone, marble, copper and parchment in
+    /// <c>Resources/Enhanced/Stone</c> (see <c>docs/asset-origins.md</c>).</summary>
+    public static class EnhancedArt {
+        public const string Folder = "Enhanced/Stone/";
+
+        public static Texture2D Texture(string name) => Resources.Load<Texture2D>(Folder + name);
+
+        public static StyleBackground Load(string name) {
+            Texture2D t = Texture(name);
+            return t != null ? new StyleBackground(t) : new StyleBackground(StyleKeyword.None);
+        }
+    }
+
+    /// <summary>
+    /// FRAME.SCX's frame for an Enhanced screen, as ONE piece of stone: a band round a box and,
+    /// optionally, a bar down its middle where two panels meet — mitred, worn round along its length,
+    /// lit from the top-left, with its shadow — drawn by the CastFrame shader at the size it is shown;
+    /// and the copper straps holding it down, each straddling its bar. Owned by a layout, drawn into its
+    /// host (in the host's local units) whenever the layout is fitted.
+    /// </summary>
+    public sealed class StoneFrame {
+        /// <summary>How far a strap runs past each edge of the bar it straddles.</summary>
+        public const float StrapOverhang = 16f;
+        public const float StrapThickness = 20f;
+
+        /// <summary>Room round the frame for the shadow it throws.</summary>
+        private const float ShadowMargin = 32f;
+
+        private readonly VisualElement _host;
+        private readonly List<VisualElement> _straps = new();
+        private VisualElement _art;
+        private RenderTexture _texture;
+        private Material _material;
+        private Vector2Int _texels;
+
+        public StoneFrame(VisualElement host) {
+            _host = host;
+        }
+
+        /// <summary>Draws the frame: <paramref name="outer"/> is its outside edge, <paramref name="band"/>
+        /// its width, <paramref name="middleX"/> the centre of a middle bar (none when negative).</summary>
+        public void Draw(Rect outer, float band, float middleX = -1f) {
+            if (_art == null) {
+                _art = new VisualElement { name = "enhanced_stone_frame", pickingMode = PickingMode.Ignore };
+                _art.style.position = Position.Absolute;
+                _host.Add(_art); // over the panels it frames, under the straps that follow it
+            }
+            Rect r = new(outer.x - ShadowMargin, outer.y - ShadowMargin, outer.width + 2f * ShadowMargin, outer.height + 2f * ShadowMargin);
+            _art.style.left = r.x;
+            _art.style.top = r.y;
+            _art.style.width = r.width;
+            _art.style.height = r.height;
+            float k = Mathf.Clamp(Screen.height / Mathf.Max(1f, _host.panel?.visualTree.layout.height ?? 1200f), 0.5f, 3f);
+            var texels = new Vector2Int(Mathf.Clamp(Mathf.RoundToInt(r.width * k), 16, 4096), Mathf.Clamp(Mathf.RoundToInt(r.height * k), 16, 4096));
+            if (_material == null) {
+                Shader shader = Shader.Find("BakAgain/CastFrame");
+                if (shader == null) return;
+                _material = new Material(shader);
+            }
+            if (_texture == null || texels != _texels) {
+                if (_texture != null) { _texture.Release(); Object.Destroy(_texture); }
+                _texture = new RenderTexture(texels.x, texels.y, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
+                _texels = texels;
+                _art.style.backgroundImage = Background.FromRenderTexture(_texture);
+            }
+            float sx = texels.x / r.width, sy = texels.y / r.height;
+            _material.SetVector("_Size", new Vector4(texels.x, texels.y, 0f, 0f));
+            _material.SetVector("_Outer", new Vector4(ShadowMargin * sx, ShadowMargin * sy, (ShadowMargin + outer.width) * sx, (ShadowMargin + outer.height) * sy));
+            _material.SetVector("_Bar", new Vector4(band * sx, middleX < 0f ? -1f : (middleX - r.x) * sx, 0f, 0f));
+            _material.SetVector("_Tile", new Vector4(720f * sx, 480f * sy, 0f, 0f)); // the slab at the theme's tile size
+            _material.SetVector("_Shadow", new Vector4(8f * sx, 10f * sy, 14f * sx, 0.7f));
+            Graphics.Blit(EnhancedArt.Texture("slab"), _texture, _material);
+            _art.MarkDirtyRepaint();
+        }
+
+        /// <summary>Places straps straddling the bars at these centres (vertical = across a horizontal bar).</summary>
+        public void Strap(IReadOnlyList<(float X, float Y, bool Vertical)> spots, float band) {
+            float len = band + 2f * StrapOverhang;
+            while (_straps.Count < spots.Count) {
+                var strap = new VisualElement { pickingMode = PickingMode.Ignore };
+                strap.AddToClassList("enhanced-strap");
+                _host.Add(strap);
+                _straps.Add(strap);
+            }
+            for (int i = 0; i < _straps.Count; i++) {
+                VisualElement strap = _straps[i];
+                if (i >= spots.Count) { strap.style.display = DisplayStyle.None; continue; }
+                (float x, float y, bool vertical) = spots[i];
+                float w = vertical ? StrapThickness : len, h = vertical ? len : StrapThickness;
+                strap.style.display = DisplayStyle.Flex;
+                strap.style.backgroundImage = EnhancedArt.Load(vertical ? "strap-v" : "strap-h");
+                strap.style.left = x - w / 2f;
+                strap.style.top = y - h / 2f;
+                strap.style.width = w;
+                strap.style.height = h;
+            }
+        }
+
+        /// <summary>Two straps across each side of a frame's outer edge, at 15% and 85% along it.</summary>
+        public static void AddSides(List<(float X, float Y, bool Vertical)> spots, Rect outer, float band, bool top = true,
+            bool bottom = true, bool left = true, bool right = true) {
+            foreach (float f in new[] { 0.15f, 0.85f }) {
+                float x = Mathf.Lerp(outer.xMin, outer.xMax, f), y = Mathf.Lerp(outer.yMin, outer.yMax, f);
+                if (top) spots.Add((x, outer.yMin + band / 2f, true));
+                if (bottom) spots.Add((x, outer.yMax - band / 2f, true));
+                if (left) spots.Add((outer.xMin + band / 2f, y, false));
+                if (right) spots.Add((outer.xMax - band / 2f, y, false));
+            }
+        }
+
+        public void Release() {
+            if (_texture != null) { _texture.Release(); Object.Destroy(_texture); }
+            if (_material != null) Object.Destroy(_material);
+            _art?.RemoveFromHierarchy();
+            foreach (VisualElement s in _straps) s.RemoveFromHierarchy();
+            _straps.Clear();
+            _texture = null;
+            _material = null;
+            _art = null;
+            _texels = default;
+        }
+    }
+
+    /// <summary>
+    /// A REQ button dressed as an HD stone disc: its faithful face is tinted out (its icon loader keeps
+    /// re-applying the face, so it cannot be replaced) and a disc with an engraved word, or a drawn
+    /// figure, is laid over it. Returns the disc so the layout can take it off again.
+    /// </summary>
+    public static class StoneButton {
+        public const string DiscName = "enhanced-stone-disc";
+
+        public static VisualElement Dress(VisualElement button, string word = null) {
+            button.style.unityBackgroundImageTintColor = Color.clear;
+            var disc = new VisualElement { name = DiscName, pickingMode = PickingMode.Ignore };
+            disc.AddToClassList("enhanced-stone");
+            disc.style.backgroundImage = EnhancedArt.Load("disc");
+            if (word != null) {
+                var label = new Label(word) { pickingMode = PickingMode.Ignore };
+                label.AddToClassList("enhanced-stone__word");
+                disc.Add(label);
+            }
+            button.Add(disc);
+            return disc;
+        }
+
+        public static void Undress(VisualElement button) {
+            if (button == null) return;
+            button.style.unityBackgroundImageTintColor = StyleKeyword.Null;
+            button.Q(DiscName)?.RemoveFromHierarchy();
+        }
+    }
+}
