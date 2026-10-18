@@ -29,6 +29,9 @@ namespace BakAgain.UI.Spells {
         /// <summary>The ring art's gem channel radius, as a fraction of its width (pack_cast.py: r 425 of 1100).</summary>
         public const float ArtChannelRadius = 425f / 1100f;
 
+        /// <summary>The ring art's inner edge, as a fraction of its width (its disc is cut at r 341.5).</summary>
+        public const float ArtInnerRadius = 341.5f / 1100f;
+
         /// <summary>A little bench beyond the ring art's own square (which holds the ring and its shadow).</summary>
         private const float BenchMargin = 1.04f;
 
@@ -186,6 +189,7 @@ namespace BakAgain.UI.Spells {
             if (_reqStage != null) {
                 _reqStage.style.display = StyleKeyword.Null;
             }
+            ReleaseBench();
             _layout.RemoveFromHierarchy();
             _layout = _left = _well = _parch = _reqStage = null;
             RingSheet = InfoSheet = null;
@@ -238,21 +242,98 @@ namespace BakAgain.UI.Spells {
             return art;
         }
 
-        /// <summary>A light pool on the bench: the glow disc, tinted by the theme class.</summary>
-        public static VisualElement Glow(float x, float y, float size, string cls) {
-            var glow = new VisualElement {
+        /// <summary>A light over the bench, in the ring sheet's canonical units.</summary>
+        public readonly struct Light {
+            public readonly Vector2 Position;
+            public readonly float Radius, Strength;
+            public Light(Vector2 position, float radius, float strength) { Position = position; Radius = radius; Strength = strength; }
+        }
+
+        /// <summary>The colour the spell symbols' light has: their own red, warmed.</summary>
+        private static readonly Color SymbolLight = new(1f, 0.42f, 0.22f);
+
+        /// <summary>How far a full-strength light lifts the marble's colour (linear).</summary>
+        private const float LightGain = 5f;
+
+        private const int BenchTexels = 768;
+        private const int MaxLights = 16;
+
+        /// <summary>The marble under the ring, lit; it covers the part of the sheet the bench shows.</summary>
+        public VisualElement Bench() {
+            Rect r = BenchRegion();
+            _bench = new VisualElement {
+                name = "enhanced_cast_bench",
                 pickingMode = PickingMode.Ignore,
-                style = {
-                    position = Position.Absolute,
-                    left = x - size / 2f,
-                    top = y - size / 2f,
-                    width = size,
-                    height = size,
-                    backgroundImage = Art("glow"),
-                },
+                style = { position = Position.Absolute, left = r.x, top = r.y, width = r.width, height = r.height },
             };
-            glow.AddToClassList(cls);
-            return glow;
+            Relight();
+            return _bench;
+        }
+
+        /// <summary>Re-lights the bench for these lights; kept for when the bench is re-fitted.</summary>
+        public void LightBench(IReadOnlyList<Light> lights) {
+            _lights.Clear();
+            for (int i = 0; i < lights.Count && i < MaxLights; i++) _lights.Add(lights[i]);
+            Relight();
+        }
+
+        private readonly List<Light> _lights = new();
+        private readonly Vector4[] _lightPos = new Vector4[MaxLights];
+        private readonly Vector4[] _lightColor = new Vector4[MaxLights];
+        private VisualElement _bench;
+        private RenderTexture _benchTexture;
+        private Material _benchMaterial;
+        private Texture2D _marble;
+
+        private void Relight() {
+            if (_bench == null) return;
+            if (_benchMaterial == null) {
+                Shader shader = Shader.Find("BakAgain/CastBenchLight");
+                _marble = Resources.Load<Texture2D>(ArtFolder + "marble");
+                if (shader == null || _marble == null) {
+                    _bench.style.backgroundImage = Art("marble"); // unlit, but still the bench
+                    return;
+                }
+                _benchMaterial = new Material(shader);
+                _benchTexture = new RenderTexture(BenchTexels, BenchTexels, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
+                _bench.style.backgroundImage = Background.FromRenderTexture(_benchTexture);
+            }
+            Rect r = BenchRegion();
+            // The marble at the well's own scale (the theme tiles it 720x480 panel units), so the lit
+            // bench and the well around it are one surface.
+            float scale = RingSheet != null ? RingSheet.resolvedStyle.scale.value.x : 1f;
+            if (scale <= 0f || float.IsNaN(scale)) scale = 1f;
+            _benchMaterial.SetVector("_Tile", new Vector4(r.width * scale / 720f, r.height * scale / 480f, 0f, 0f));
+            _benchMaterial.SetFloat("_Gain", LightGain);
+            Color c = SymbolLight.linear;
+            for (int i = 0; i < _lights.Count; i++) {
+                Light l = _lights[i];
+                _lightPos[i] = new Vector4((l.Position.x - r.x) / r.width, (l.Position.y - r.y) / r.height, l.Radius / r.width, l.Strength);
+                _lightColor[i] = new Vector4(c.r, c.g, c.b, 1f);
+            }
+            float art = _ringRadius / ArtChannelRadius;
+            _benchMaterial.SetVector("_Ring", new Vector4((_ringCentre.x - r.x) / r.width, (_ringCentre.y - r.y) / r.height,
+                art * ArtInnerRadius / r.width, art * (ArtInnerRadius + 0.03f) / r.width));
+            _benchMaterial.SetInt("_LightCount", _lights.Count);
+            _benchMaterial.SetVectorArray("_LightPos", _lightPos);
+            _benchMaterial.SetVectorArray("_LightColor", _lightColor);
+            Graphics.Blit(_marble, _benchTexture, _benchMaterial);
+            _bench.MarkDirtyRepaint();
+        }
+
+        private void ReleaseBench() {
+            if (_benchTexture != null) { _benchTexture.Release(); Object.Destroy(_benchTexture); }
+            if (_benchMaterial != null) Object.Destroy(_benchMaterial);
+            _benchTexture = null;
+            _benchMaterial = null;
+            _bench = null;
+            _lights.Clear();
+        }
+
+        /// <summary>The square of the ring sheet the well shows: the ring art's square and a little more.</summary>
+        private Rect BenchRegion() {
+            float reach = _ringRadius / ArtChannelRadius / 2f * BenchMargin;
+            return new Rect(_ringCentre.x - reach, _ringCentre.y - reach, 2f * reach, 2f * reach);
         }
 
         public static StyleBackground Art(string name) {
@@ -345,9 +426,8 @@ namespace BakAgain.UI.Spells {
             if (!float.IsNaN(h) && h > 0f && Mathf.Abs(_left.resolvedStyle.width - h) > 0.5f) {
                 _left.style.width = h;
             }
-            float reach = _ringRadius / ArtChannelRadius / 2f * BenchMargin;
-            FitSheet(RingSheet, _well.contentRect,
-                new Rect(_ringCentre.x - reach, _ringCentre.y - reach, 2f * reach, 2f * reach));
+            FitSheet(RingSheet, _well.contentRect, BenchRegion());
+            Relight(); // the marble's scale follows the fit
             FitSheet(InfoSheet, _parch.contentRect, InfoRect());
         }
 

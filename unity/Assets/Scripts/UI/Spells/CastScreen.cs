@@ -1104,9 +1104,6 @@ namespace BakAgain.UI.Spells {
                 };
                 element.AddToClassList(SymbolClass);
                 stage.Add(element);
-                if (EnhancedApplied) {
-                    AddHologram(stage, element, node.X, node.Y, node.SpellId);
-                }
             }
             SyncHolograms();
         }

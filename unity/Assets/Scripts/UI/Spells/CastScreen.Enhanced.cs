@@ -20,8 +20,6 @@ namespace BakAgain.UI.Spells {
         private bool EnhancedApplied => _enhanced?.Applied == true;
 
         private const string GemClass = "enhanced-cast__gem";
-        private const string PoolClass = "enhanced-cast__pool";
-        private const string HoloClass = "enhanced-cast__holo";
         private const string HoloLitClass = "enhanced-cast__holo--lit";
         private const string HoloDimClass = "enhanced-cast__holo--dim";
 
@@ -50,33 +48,16 @@ namespace BakAgain.UI.Spells {
             }
         }
 
-        /// <summary>Under the ring: the light the figure throws on the bench, the pools under the
-        /// symbols go in the same layer as they are drawn. Then the ring art itself.</summary>
+        /// <summary>Under the ring: the lit bench, then the ring art itself.</summary>
         private void DrawEnhancedBench(VisualElement stage) {
             Clear(stage, ChromeClass);
-            // The light each line of the figure throws on the bench: soft glow discs strung along it.
-            if (CastRingSigil.Has(_school)) {
-                int[] xs = CastRingSigil.VertexX[_school], ys = CastRingSigil.VertexY[_school];
-                foreach (int[] edge in CastRingSigil.Edges) {
-                    (float x0, float y0) = CastRingSigil.ToCanonical(xs[edge[0]], ys[edge[0]]);
-                    (float x1, float y1) = CastRingSigil.ToCanonical(xs[edge[1]], ys[edge[1]]);
-                    int steps = Mathf.Max(1, Mathf.CeilToInt(Vector2.Distance(new Vector2(x0, y0), new Vector2(x1, y1)) / LineLightSpacing));
-                    for (int i = 0; i <= steps; i++) {
-                        float t = i / (float)steps;
-                        VisualElement glow = EnhancedCastLayout.Glow(Mathf.Lerp(x0, x1, t), Mathf.Lerp(y0, y1, t), LineLightSize, LineLightClass);
-                        glow.AddToClassList(ChromeClass);
-                        stage.Insert(0, glow);
-                    }
-                }
-            }
+            VisualElement bench = _enhanced.Bench();
+            bench.AddToClassList(ChromeClass);
+            stage.Insert(0, bench);
             VisualElement art = _enhanced.RingArt();
             art.AddToClassList(ChromeClass);
-            stage.Insert(stage.Query(className: LineLightClass).ToList().Count, art);
+            stage.Insert(1, art);
         }
-
-        private const string LineLightClass = "enhanced-cast__line-light";
-        private const float LineLightSpacing = 34f;
-        private const float LineLightSize = 120f;
 
         /// <summary>The figure as a laser: a soft halo of stacked strokes and a thin bright core.</summary>
         private static void StrokeLaser(MeshGenerationContext context, int[] xs, int[] ys, Color ink) {
@@ -120,29 +101,29 @@ namespace BakAgain.UI.Spells {
             gem.style.backgroundImage = EnhancedCastLayout.Art(name);
         }
 
-        /// <summary>A symbol as a hologram over the bench, with the pool of light it throws.</summary>
-        private void AddHologram(VisualElement stage, VisualElement symbol, int x, int y, int spellId) {
-            symbol.AddToClassList(HoloClass);
-            VisualElement pool = EnhancedCastLayout.Glow(x, y, 150f, PoolClass);
-            pool.name = $"enhanced_pool_{spellId}";
-            pool.AddToClassList(SymbolClass); // cleared with the symbols
-            stage.Insert(Mathf.Max(0, stage.IndexOf(stage.Q("enhanced_cast_ring_art"))), pool); // on the bench, under the ring art
-        }
-
-        /// <summary>The spell under the pointer, or the one being cast, glows; the others dim.</summary>
+        /// <summary>
+        /// Every castable symbol is a light over the bench; the one under the pointer, or being cast,
+        /// burns brighter and the others dim. The symbols themselves stay solid.
+        /// </summary>
         private void SyncHolograms() {
             if (!EnhancedApplied) return;
             VisualElement stage = Stage();
             int lit = _sliderSpell >= 0 ? _sliderSpell : _hoveredSpell;
-            foreach ((int _, int _, int spellId) in _drawnSymbols) {
+            _lights.Clear();
+            foreach ((int x, int y, int spellId) in _drawnSymbols) {
                 bool on = spellId == lit;
+                bool dim = lit >= 0 && !on;
                 VisualElement symbol = stage.Q($"spell_symbol_{spellId}");
                 symbol?.EnableInClassList(HoloLitClass, on);
-                symbol?.EnableInClassList(HoloDimClass, lit >= 0 && !on);
-                VisualElement pool = stage.Q($"enhanced_pool_{spellId}");
-                pool?.EnableInClassList(HoloLitClass, on);
-                pool?.EnableInClassList(HoloDimClass, lit >= 0 && !on);
+                symbol?.EnableInClassList(HoloDimClass, dim);
+                _lights.Add(new EnhancedCastLayout.Light(new Vector2(x, y),
+                    on ? SymbolLitRadius : SymbolRadius, on ? SymbolLitStrength : dim ? SymbolDimStrength : SymbolStrength));
             }
+            _enhanced.LightBench(_lights);
         }
+
+        private readonly List<EnhancedCastLayout.Light> _lights = new();
+        private const float SymbolRadius = 120f, SymbolLitRadius = 160f;
+        private const float SymbolStrength = 0.55f, SymbolLitStrength = 1.1f, SymbolDimStrength = 0.25f;
     }
 }

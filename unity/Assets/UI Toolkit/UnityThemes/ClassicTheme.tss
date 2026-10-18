@@ -373,10 +373,5 @@
 .enhanced-cast .enhanced-cast__bar { height: 150px; flex-shrink: 0; margin-top: 22px; flex-direction: row; align-items: center; padding: 0 22px; border-radius: 4px; border-width: 3px; border-color: rgb(42, 29, 14); background-color: rgb(5, 4, 3); }
 .enhanced-cast .enhanced-cast__hint { flex-grow: 1; flex-shrink: 1; font-size: 40px; white-space: normal; color: rgb(205, 185, 143); }
 .enhanced-cast .enhanced-cast__gem { background-size: 100% 100%; }
-.enhanced-cast .enhanced-cast__holo { -unity-background-image-tint-color: rgba(255, 190, 170, 0.62); }
-.enhanced-cast .enhanced-cast__holo.enhanced-cast__holo--dim { -unity-background-image-tint-color: rgba(255, 190, 170, 0.3); }
-.enhanced-cast .enhanced-cast__holo.enhanced-cast__holo--lit { -unity-background-image-tint-color: rgb(255, 255, 255); scale: 1.15 1.15; }
-.enhanced-cast .enhanced-cast__pool { -unity-background-image-tint-color: rgba(230, 70, 40, 0.35); }
-.enhanced-cast .enhanced-cast__pool.enhanced-cast__holo--dim { -unity-background-image-tint-color: rgba(230, 70, 40, 0.14); }
-.enhanced-cast .enhanced-cast__pool.enhanced-cast__holo--lit { -unity-background-image-tint-color: rgba(255, 120, 70, 0.8); scale: 1.35 1.35; }
-.enhanced-cast .enhanced-cast__line-light { -unity-background-image-tint-color: rgba(220, 60, 36, 0.05); }
+.enhanced-cast .enhanced-cast__holo--lit { scale: 1.15 1.15; }
+.enhanced-cast .enhanced-cast__holo--dim { -unity-background-image-tint-color: rgb(150, 150, 150); }
