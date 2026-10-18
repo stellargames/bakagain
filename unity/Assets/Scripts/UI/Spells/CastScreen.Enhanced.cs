@@ -146,8 +146,13 @@ namespace BakAgain.UI.Spells {
                 _enhanced.SetReadout(null, null);
                 return;
             }
+            // Only while the pointer is on an affordable gem: off the ring there is no power to show.
             int power = CastRingLayout.PreviewPower(_hoveredPosition);
-            _enhanced.SetReadout(power > 0 ? power.ToString() : string.Empty, UiTemplates.Format(UiTemplates.EnhancedCastPowerOf, ("max", _maximumPower)));
+            if (power <= 0) {
+                _enhanced.SetReadout(null, null);
+                return;
+            }
+            _enhanced.SetReadout(power.ToString(), UiTemplates.Format(UiTemplates.EnhancedCastPowerOf, ("max", _maximumPower)));
         }
 
         private readonly List<EnhancedCastLayout.Light> _lights = new();
