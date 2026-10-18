@@ -273,6 +273,21 @@ namespace BakAgain.UI.Spells {
             if (CastTablet == null) return;
             CastTablet.style.display = BackTablet.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
             CastTablet.EnableInClassList("enhanced-cast__tablet--off", !castReady);
+            _tabletsShown = shown;
+            FitHint();
+        }
+
+        private bool _tabletsShown;
+
+        /// <summary>Below this bar width the tablets need the hint's room (a 4:3 window); the gems and the
+        /// readout still say what to do.</summary>
+        private const float HintRoomWithTablets = 1000f;
+
+        private void FitHint() {
+            if (_hint == null || _bar == null) return;
+            float w = _bar.contentRect.width;
+            bool crowded = _tabletsShown && !float.IsNaN(w) && w < HintRoomWithTablets;
+            _hint.style.display = crowded ? DisplayStyle.None : DisplayStyle.Flex;
         }
 
         /// <summary>The caster's health and stamina under their portrait; the others show none.</summary>
@@ -332,6 +347,9 @@ namespace BakAgain.UI.Spells {
             frame.Add(inner);
             return frame;
         }
+
+        /// <summary>The most of the screen's width the bench may take.</summary>
+        private const float MaxBenchShare = 0.5f;
 
         /// <summary>How far a strap runs past each edge of the bar it straddles.</summary>
         private const float StrapOverhang = 16f;
@@ -635,13 +653,17 @@ namespace BakAgain.UI.Spells {
         private void Fit() {
             if (_layout == null) return;
             PlaceStraps();
-            // The bench is square: the left column is as wide as the well is tall, plus its frame.
+            // The bench is square — the left column as wide as the well is tall, plus its frame — but
+            // never more than half the screen, or a 4:3 window leaves the parchment a sliver.
             float h = _well.layout.height;
             float frame = _wellFrame.layout.width - _well.layout.width;
-            if (!float.IsNaN(h) && h > 0f && !float.IsNaN(frame) && Mathf.Abs(_left.resolvedStyle.width - (h + frame)) > 0.5f) {
-                _left.style.width = h + frame;
+            float room = _layout.contentRect.width * MaxBenchShare;
+            if (!float.IsNaN(h) && h > 0f && !float.IsNaN(frame) && !float.IsNaN(room)) {
+                float want = Mathf.Min(h + frame, room);
+                if (Mathf.Abs(_left.resolvedStyle.width - want) > 0.5f) _left.style.width = want;
             }
             FitStrip();
+            FitHint();
             FitSheet(RingSheet, _well.contentRect, BenchRegion());
             Relight(); // the marble's scale follows the fit
             FitSheet(InfoSheet, _parch.contentRect, InfoRect());
