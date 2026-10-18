@@ -24,6 +24,57 @@ namespace BakAgain.UI.Inventory {
         private GiveVerb CurrentVerb =>
             VerbFor(ShowingShopShelf, _displayed?.ContainerType == SaveGameContainerType.Inventory);
 
+        // The Enhanced shop shelf scrolls instead of paging (TASK-890).
+        private ShelfScroller _shelf;
+        private float _shelfOffset;   // kept across re-renders (a buy redraws the shelf)
+        private bool _shelfDrag;
+
+        /// <summary>After a render: drives the scrolling shelf the renderer built, if it built one.</summary>
+        private void AttachShelfScroller() {
+            _shelf?.StopCoast();
+            _shelf = null;
+            _shelfDrag = false;
+            if (_renderer.ShelfViewport == null) {
+                return;
+            }
+            _shelf = new ShelfScroller(_renderer.ShelfViewport, _renderer.ShelfContent,
+                _renderer.ShelfRows, _renderer.ShelfVisibleRows, _shelfOffset);
+            ShelfScroller shelf = _shelf;
+            foreach (VisualElement cell in _renderer.ShelfContent.Children()) {
+                // Keyboard and gamepad focus walks every item; one out of view scrolls in.
+                cell.RegisterCallback<FocusInEvent>(_ => shelf.Reveal(cell));
+            }
+        }
+
+        /// <summary>
+        /// A drag that starts on the shelf and moves mostly up or down scrolls it; mostly sideways —
+        /// towards the portraits — it is the faithful drag that buys.
+        /// </summary>
+        private bool BeginShelfDrag(Vector2 stageLocal) {
+            if (_shelf == null || !_shelf.Scrolls || _pickerOpen
+                || !_shelf.Contains(_stage.LocalToWorld(_pressPos))) {
+                return false;
+            }
+            Vector2 moved = stageLocal - _pressPos;
+            if (Mathf.Abs(moved.y) <= Mathf.Abs(moved.x)) {
+                return false;
+            }
+            _shelfDrag = true;
+            _shelf.BeginDrag(_stage.LocalToWorld(_pressPos).y);
+            _shelf.DragTo(_stage.LocalToWorld(stageLocal).y);
+            return true;
+        }
+
+        private const float WheelNotch = 120f; // world units per wheel step: about a third of a row
+
+        private void OnShelfWheel(WheelEvent evt) {
+            if (_shelf == null || !_shelf.Scrolls || !_shelf.Contains(evt.mousePosition)) {
+                return;
+            }
+            _shelf.Wheel(Mathf.Sign(evt.delta.y) * WheelNotch);
+            evt.StopPropagation();
+        }
+
         /// <summary>The bar's hint: how to get back while an item is examined.</summary>
         private void SyncEnhancedChrome() {
             if (EnhancedApplied) {

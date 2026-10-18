@@ -83,6 +83,18 @@ namespace BakAgain.UI.Inventory {
         /// <summary>Element name of the host holding the general item grid.</summary>
         internal const string GridHostName = "item_grid";
 
+        /// <summary>The strip of shelf cells inside the clipping grid host, when the shelf scrolls
+        /// (the Enhanced shop, TASK-890) instead of paging.</summary>
+        internal const string ShelfContentName = "item_shelf_strip";
+
+        /// <summary>A scrolling shelf's clipping host and its strip of cells; null otherwise.</summary>
+        public VisualElement ShelfViewport { get; private set; }
+        public VisualElement ShelfContent { get; private set; }
+
+        /// <summary>Rows the scrolling shelf holds, and rows its viewport shows whole.</summary>
+        public int ShelfRows { get; private set; }
+        public int ShelfVisibleRows { get; private set; }
+
         /// <summary>Element name of the host holding the member paperdoll's equipped cells.</summary>
         internal const string PaperdollHostName = "item_paperdoll";
 
@@ -285,7 +297,7 @@ namespace BakAgain.UI.Inventory {
             IList<BakAgain.UI.InputCore.NavWidget> navWidgets = null,
             Action<int> onSlotActivated = null,
             Func<RuntimeItem, ObjectInfo, ShopCellText?> shopCellText = null,
-            int firstItem = 0, int shopChapter = int.MaxValue) {
+            int firstItem = 0, int shopChapter = int.MaxValue, bool shelfScrolls = false) {
             _shopCellText = shopCellText;
             Clear();
             navWidgets?.Clear();
@@ -325,7 +337,8 @@ namespace BakAgain.UI.Inventory {
             }
             int gen = _generation;
 
-            List<Placement> placements = Pack(container, objects, mode, grid, firstItem, shopChapter);
+            shelfScrolls &= mode == InventoryLayoutMode.Shop;
+            List<Placement> placements = Pack(container, objects, mode, grid, firstItem, shopChapter, shelfScrolls);
             if (placements.Count == 0) {
                 return;
             }
@@ -348,6 +361,17 @@ namespace BakAgain.UI.Inventory {
                 } else {
                     host = generalHost ?? (generalHost =
                         CreateGridHost(root, GridHostName, generalOrigin, grid, area));
+                    if (shelfScrolls) {
+                        // The host clips; the cells go on a strip inside it that ShelfScroller moves.
+                        if (ShelfContent == null) {
+                            ShelfContent = new VisualElement { name = ShelfContentName, pickingMode = PickingMode.Ignore };
+                            generalHost.Add(ShelfContent);
+                            ShelfViewport = generalHost;
+                            ShelfVisibleRows = grid.Rows;
+                        }
+                        host = ShelfContent;
+                        ShelfRows = Mathf.Max(ShelfRows, pl.Cell.Row + 1);
+                    }
                 }
 
                 if (pl.Equipped) {
@@ -902,7 +926,7 @@ namespace BakAgain.UI.Inventory {
         // mode first places equipped items on the paperdoll and reserves the leading columns.
         // Placements are GRID-RELATIVE — where the grid itself sits is ResolveGridOrigin's job.
         private static List<Placement> Pack(RuntimeContainer container, ObjectInfoSet objects,
-            InventoryLayoutMode mode, LayoutGrid grid, int firstItem, int shopChapter) {
+            InventoryLayoutMode mode, LayoutGrid grid, int firstItem, int shopChapter, bool shelfScrolls = false) {
             var placements = new List<Placement>();
             int columns = grid.Columns;
             int rows = grid.Rows;
@@ -968,7 +992,7 @@ namespace BakAgain.UI.Inventory {
                     if (shelfSlot < 0) {
                         continue;   // on an earlier page
                     }
-                    if (shelfSlot >= columns * rows) {
+                    if (shelfSlot >= columns * rows && !shelfScrolls) {
                         break;      // on a later one — the builder's numberOfItems <= slot+page stop
                     }
                     // *** THE SHELF IS GATED PER ITEM, AND THE SLOT IS LEFT EMPTY. *** The builder
@@ -1150,6 +1174,8 @@ namespace BakAgain.UI.Inventory {
         /// session-cached until <see cref="ReleaseAll"/>.</summary>
         public void Clear() {
             _generation++; // invalidate any in-flight LoadIconAsync
+            ShelfViewport = ShelfContent = null;
+            ShelfRows = ShelfVisibleRows = 0;
             ClearDeferredReposition();
             foreach (VisualElement built in _built) {
                 built.RemoveFromHierarchy();

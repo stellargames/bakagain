@@ -322,6 +322,7 @@ namespace BakAgain.UI.Inventory {
             _shopData = _shop?.Shop;
             _shopPrices.Clear();  // a haggled price belongs to the visit, not to the shop
             _shopPage = 0;
+            _shelfOffset = 0f;
             _container = container;
             _displayed = container;
             NoteKeeperKind();
@@ -526,6 +527,7 @@ namespace BakAgain.UI.Inventory {
             _lockScratch = null;   // see SetContainer
             _shopPrices.Clear();    // a haggled price belongs to the visit, not to the shop
             _shopPage = 0;
+            _shelfOffset = 0f;
             _shop = shop;
             _container = shop;
             _displayed = shop;
@@ -893,17 +895,21 @@ namespace BakAgain.UI.Inventory {
             // faithful defaults, and the Built event re-renders with the real data. Reading
             // _ui?.Inventory again here would be a second, silently divergable answer to the same
             // question.
+            bool shelfScrolls = EnhancedApplied && ShowingShopShelf;
+            if (_shelf != null) _shelfOffset = _shelf.Offset;
             _renderer.Render(_stage, _displayed, _gameSession.ObjectInfo, _resources, onSlotPicked: null,
                 ShowingShopShelf ? InventoryLayoutMode.Shop
                     : lootMode ? InventoryLayoutMode.Loot : InventoryLayoutMode.Member,
                 Layout, _ui?.Frame, _gridNavWidgets, onSlotActivated: ActivateSlot,
                 shopCellText: ShowingShopShelf ? ShopCellTextFor : (System.Func<RuntimeItem,
                     GameData.Resources.Object.ObjectInfo, ItemGridRenderer.ShopCellText?>)null,
-                firstItem: ShowingShopShelf
+                firstItem: ShowingShopShelf && !shelfScrolls
                     ? GameData.Resources.Shop.ShopPaging.FirstItem(_shopPage)
                     : 0,
                 // Only a shelf is chapter-gated; every other grid shows what it holds.
-                shopChapter: ShowingShopShelf ? _gameSession.Chapter : int.MaxValue);
+                shopChapter: ShowingShopShelf ? _gameSession.Chapter : int.MaxValue,
+                shelfScrolls: shelfScrolls);
+            AttachShelfScroller();
             SyncShopPageButton();
             EnsureStageInput();
             EnsurePartyHeads();
@@ -1548,6 +1554,7 @@ namespace BakAgain.UI.Inventory {
             _gesture.Dragged += OnDragged;
             _gesture.Released += OnReleased;
             _stage.AddManipulator(_gesture);
+            _stage.RegisterCallback<WheelEvent>(OnShelfWheel);
             // The pulse is an animation, not input, so it rides UI Toolkit's scheduler — the same
             // mechanism ItemInspectPanel's icon flight uses — instead of needing an Update() pump.
             // Only reached on the first wire (the branch above returns otherwise); the null check
@@ -1578,6 +1585,7 @@ namespace BakAgain.UI.Inventory {
 
         private void TeardownStageInput() {
             if (_gesture != null) {
+                _gesture.target?.UnregisterCallback<WheelEvent>(OnShelfWheel);
                 _gesture.target?.RemoveManipulator(_gesture);
                 _gesture = null;
             }
@@ -1614,6 +1622,7 @@ namespace BakAgain.UI.Inventory {
                 }
                 return;
             }
+            _shelf?.StopCoast(); // a touch stops a coasting shelf, as on a phone
             _pressSlot = SlotAt(stageLocal); // -1 if not on an item (buttons handle themselves)
             _pressPos = stageLocal;
             _pressClickCount = clickCount;
@@ -1661,6 +1670,9 @@ namespace BakAgain.UI.Inventory {
         }
 
         private void OnDragStarted(Vector2 stageLocal) {
+            if (BeginShelfDrag(stageLocal)) {
+                return;
+            }
             if (_pressSlot >= 0) {
                 StartDrag(_pressSlot);
                 ShowDragFeedback(_pressSlot);
@@ -1668,6 +1680,10 @@ namespace BakAgain.UI.Inventory {
         }
 
         private void OnDragged(Vector2 stageLocal) {
+            if (_shelfDrag) {
+                _shelf?.DragTo(_stage.LocalToWorld(stageLocal).y);
+                return;
+            }
             if (_dragSlot < 0) {
                 return;
             }
@@ -1694,6 +1710,12 @@ namespace BakAgain.UI.Inventory {
         }
 
         internal void OnReleased(Vector2 stageLocal, bool wasDrag) {
+            if (_shelfDrag) {
+                _shelfDrag = false;
+                _shelf?.EndDrag();
+                _pressSlot = -1; // a scroll, not a click on the item it started on
+                return;
+            }
             if (_pressSlot < 0 || _pickerOpen) {
                 return; // the press didn't start on an item (or the picker owns input)
             }
@@ -1993,7 +2015,12 @@ namespace BakAgain.UI.Inventory {
                 return -1;
             }
             const string prefix = "item_slot_";
-            for (VisualElement el = panel.Pick(_stage.LocalToWorld(stageLocal)); el != null; el = el.parent) {
+            Vector2 world = _stage.LocalToWorld(stageLocal);
+            VisualElement picked = panel.Pick(world);
+            if (_shelf != null && picked != null && _renderer.ShelfContent?.Contains(picked) == true && !_shelf.Contains(world)) {
+                return -1; // a shelf cell scrolled out of the viewport
+            }
+            for (VisualElement el = picked; el != null; el = el.parent) {
                 string n = el.name;
                 if (!string.IsNullOrEmpty(n) && n.StartsWith(prefix)
                     && int.TryParse(n.Substring(prefix.Length), out int slot)) {
@@ -3203,7 +3230,9 @@ namespace BakAgain.UI.Inventory {
                     // rather than in a second handler. On anything else the original clears the
                     // element's active flag, so the click does nothing at all: a chest's contents
                     // are not "usable" from the loot window.
-                    if (ShelfPages) {
+                    if (ShelfPages && _shelf != null) {
+                        _shelf.Page(); // Enhanced: the scrolling shelf moves down a screen instead
+                    } else if (ShelfPages) {
                         TurnShelfPage();
                     } else if (UsesUseButton) {
                         UseSelectedItem();
