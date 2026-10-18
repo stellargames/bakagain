@@ -279,6 +279,9 @@ namespace BakAgain.ResourceManagement.Loaders {
         // play the gated select cue (Task 2), then dispatch the action and resync toggle icons (the
         // keyboard path already did the latter; doing it for every select is harmless + consistent).
         private void Select(UiElement entry) {
+            if (!TakesClicks(entry)) {
+                return;
+            }
             // Touch aids (spec 2026-09-29-android-touch-aids-design.md): the release of a finger whose
             // long-press already fired the right-click, or of a held compass arrow that already
             // repeated, is eaten. Null on desktop and in tests: a plain primary.
@@ -465,6 +468,25 @@ namespace BakAgain.ResourceManagement.Loaders {
         }
 
         private readonly System.Collections.Generic.Dictionary<int, int> _iconOverrides = new();
+
+        /// <summary>
+        /// Whether a click on the entry reaches the screen: the enable gate, which the original applies
+        /// to the mouse as well as to navigation (menupage's hit-test skips a gated entry). The data's
+        /// <c>Disabled</c> unless the screen overrode it (<see cref="SetEntryState"/>), and never while
+        /// gated (<see cref="SetEntryGate"/>).
+        /// </summary>
+        /// <remarks>
+        /// Only the runtime override used to stop the mouse; an entry the DATA ships disabled still
+        /// took clicks. The field cast screen's four combat school stones (REQ_CAST disables them) then
+        /// switched the ring to a combat school outside a fight, which the original cannot do
+        /// (CSPELL.C:2236-2276 only sees actions the page hit-tests).
+        /// </remarks>
+        private bool TakesClicks(UiElement entry) =>
+            TakesClicks(entry, _gated.Contains(entry.ActionId),
+                _navigableOverrides.TryGetValue(entry.ActionId, out bool over) ? over : (bool?)null);
+
+        internal static bool TakesClicks(UiElement entry, bool gated, bool? navigableOverride) =>
+            !gated && (navigableOverride ?? entry.Disabled == 0);
 
         /// <summary>Action ids the screen has switched off at runtime.</summary>
         /// <remarks>
@@ -1023,7 +1045,7 @@ namespace BakAgain.ResourceManagement.Loaders {
             }
 
             void RightClick() {
-                _ = _actionHandler?.SecondaryAction(menuEntry.ActionId);
+                if (TakesClicks(menuEntry)) _ = _actionHandler?.SecondaryAction(menuEntry.ActionId);
             }
         }
 
@@ -1116,7 +1138,7 @@ namespace BakAgain.ResourceManagement.Loaders {
             RegisterCursorHover(button, menuEntry);
             button.AddManipulator(new Clickable(() => Select(menuEntry)));
             button.AddManipulator(new Clickable(() => {
-                _ = _actionHandler?.SecondaryAction(menuEntry.ActionId);
+                if (TakesClicks(menuEntry)) _ = _actionHandler?.SecondaryAction(menuEntry.ActionId);
             }) {
                 activators = {new ManipulatorActivationFilter {button = MouseButton.RightMouse}}
             });
@@ -1142,7 +1164,7 @@ namespace BakAgain.ResourceManagement.Loaders {
             hotspot.AddToClassList("req-hitbox");
             hotspot.AddManipulator(new Clickable(() => Select(menuEntry)));
             hotspot.AddManipulator(new Clickable(() => {
-                _ = _actionHandler?.SecondaryAction(menuEntry.ActionId);
+                if (TakesClicks(menuEntry)) _ = _actionHandler?.SecondaryAction(menuEntry.ActionId);
             }) {
                 activators = {new ManipulatorActivationFilter {button = MouseButton.RightMouse}}
             });
@@ -1152,7 +1174,7 @@ namespace BakAgain.ResourceManagement.Loaders {
                 if (BakAgain.UI.InputCore.TouchInputState.Instance != null) {
                     BakAgain.UI.InputCore.TouchInputState.Instance.SuppressSelectFor = menuEntry.ActionId;
                 }
-                _ = _actionHandler?.SecondaryAction(menuEntry.ActionId);
+                if (TakesClicks(menuEntry)) _ = _actionHandler?.SecondaryAction(menuEntry.ActionId);
             });
             root.Add(hotspot);
             RegisterNav(hotspot, menuEntry);
@@ -1218,7 +1240,7 @@ namespace BakAgain.ResourceManagement.Loaders {
             // Left click toggles/selects; right click asks the handler for help.
             icon.AddManipulator(new Clickable(() => Select(menuEntry)));
             icon.AddManipulator(new Clickable(() => {
-                _ = _actionHandler?.SecondaryAction(menuEntry.ActionId);
+                if (TakesClicks(menuEntry)) _ = _actionHandler?.SecondaryAction(menuEntry.ActionId);
             }) {
                 activators = {new ManipulatorActivationFilter {button = MouseButton.RightMouse}}
             });

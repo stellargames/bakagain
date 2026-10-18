@@ -45,5 +45,25 @@ namespace BakAgain.Tests.PlayMode.UI.Navigation {
             var padding = new UiElement { Visible = false, Disabled = 0, ActionId = -1 };
             Assert.IsFalse(UserInterfaceLoader.IsNavigable(padding));
         }
+
+        // The same gate stops the mouse: menupage's hit-test skips a gated entry too. An entry the
+        // DATA ships disabled used to take clicks anyway -- the field cast screen's combat school
+        // stones (REQ_CAST disables them) then switched the ring to a combat school outside a fight.
+        [Test]
+        public void ADisabledEntry_TakesNoClick() {
+            Assert.IsFalse(UserInterfaceLoader.TakesClicks(Entry(visible: true, disabled: 1), gated: false, navigableOverride: null));
+        }
+
+        [Test]
+        public void AnEnabledEntry_TakesClicks_UnlessGated() {
+            Assert.IsTrue(UserInterfaceLoader.TakesClicks(Entry(visible: true, disabled: 0), gated: false, navigableOverride: null));
+            Assert.IsFalse(UserInterfaceLoader.TakesClicks(Entry(visible: true, disabled: 0), gated: true, navigableOverride: null));
+        }
+
+        [Test]
+        public void AScreensOverride_DecidesOverTheData() {
+            Assert.IsTrue(UserInterfaceLoader.TakesClicks(Entry(visible: true, disabled: 1), gated: false, navigableOverride: true));
+            Assert.IsFalse(UserInterfaceLoader.TakesClicks(Entry(visible: true, disabled: 0), gated: false, navigableOverride: false));
+        }
     }
 }
