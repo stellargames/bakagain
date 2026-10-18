@@ -8,7 +8,7 @@ namespace BakAgain.Tests.Editor.UI {
     public class EnhancedPanelRowsTests {
         [Test]
         public void EveryFeatureHasARow() {
-            var rows = PreferencesMenu.FeatureRows.Select(r => r.Feature).ToList();
+            var rows = EnhancedSettingsScreen.FeatureRows.Select(r => r.Feature).ToList();
             foreach (EnhancedFeature f in System.Enum.GetValues(typeof(EnhancedFeature))) {
                 Assert.That(rows, Has.Exactly(1).EqualTo(f), $"{f} needs exactly one row");
             }

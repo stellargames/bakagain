@@ -31,16 +31,16 @@ namespace BakAgain.Tests.Editor.UI {
         public void TheHealthRingsRowNeedsFullScreenTravel() {
             var draft = new EnhancedOptionsDraft { Master = true };
             foreach (EnhancedFeature f in System.Enum.GetValues(typeof(EnhancedFeature))) draft[f] = true;
-            Assert.IsTrue(PreferencesMenu.EnhancedRowEnabled(draft, EnhancedFeature.PortraitRings));
+            Assert.IsTrue(EnhancedSettingsScreen.EnhancedRowEnabled(draft, EnhancedFeature.PortraitRings));
 
             draft[EnhancedFeature.FullScreenTravel] = false;
-            Assert.IsFalse(PreferencesMenu.EnhancedRowEnabled(draft, EnhancedFeature.PortraitRings), "rings only draw full-screen");
-            Assert.IsTrue(PreferencesMenu.EnhancedRowEnabled(draft, EnhancedFeature.MouseLook), "the others do not care");
-            Assert.IsTrue(PreferencesMenu.EnhancedRowEnabled(draft, EnhancedFeature.FullScreenTravel));
+            Assert.IsFalse(EnhancedSettingsScreen.EnhancedRowEnabled(draft, EnhancedFeature.PortraitRings), "rings only draw full-screen");
+            Assert.IsTrue(EnhancedSettingsScreen.EnhancedRowEnabled(draft, EnhancedFeature.MouseLook), "the others do not care");
+            Assert.IsTrue(EnhancedSettingsScreen.EnhancedRowEnabled(draft, EnhancedFeature.FullScreenTravel));
 
             draft.Master = false;
             draft[EnhancedFeature.FullScreenTravel] = true;
-            Assert.IsFalse(PreferencesMenu.EnhancedRowEnabled(draft, EnhancedFeature.FullScreenTravel), "the master gates all");
+            Assert.IsFalse(EnhancedSettingsScreen.EnhancedRowEnabled(draft, EnhancedFeature.FullScreenTravel), "the master gates all");
         }
 
         [Test]
@@ -48,14 +48,14 @@ namespace BakAgain.Tests.Editor.UI {
             Assume.That(GameFonts.IsBookFont, Is.False, "the run loads GAME.FNT");
             var draft = new EnhancedOptionsDraft { Master = true };
             foreach (EnhancedFeature f in System.Enum.GetValues(typeof(EnhancedFeature))) draft[f] = true;
-            Assert.IsTrue(PreferencesMenu.FontChangePending(draft), "OK would load the book font at the next start");
+            Assert.IsTrue(EnhancedSettingsScreen.FontChangePending(draft), "OK would load the book font at the next start");
 
             draft.Master = false;
-            Assert.IsFalse(PreferencesMenu.FontChangePending(draft), "master off: GAME.FNT, as loaded");
+            Assert.IsFalse(EnhancedSettingsScreen.FontChangePending(draft), "master off: GAME.FNT, as loaded");
 
             draft.Master = true;
             draft[EnhancedFeature.BookFont] = false;
-            Assert.IsFalse(PreferencesMenu.FontChangePending(draft));
+            Assert.IsFalse(EnhancedSettingsScreen.FontChangePending(draft));
         }
     }
 }

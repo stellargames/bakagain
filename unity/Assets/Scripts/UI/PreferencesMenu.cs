@@ -55,7 +55,6 @@ namespace BakAgain.UI {
         private UserInterfaceLoader _loader;
 
         private Preferences _working;
-        private EnhancedOptionsDraft _enhancedDraft;
 
         private void Awake() {
             _logger = LogManager.LoggerFactory.CreateLogger<PreferencesMenu>();
@@ -64,11 +63,14 @@ namespace BakAgain.UI {
 
         [Inject]
         public void Construct(IPreferencesService preferences, IDialogManager dialogManager,
-            BakAgain.UI.Navigation.IScreenNavigator navigator) {
+            BakAgain.UI.Navigation.IScreenNavigator navigator, EnhancedSettingsScreen enhancedScreen) {
             _preferences = preferences;
             _dialogManager = dialogManager;
             _navigator = navigator;
+            _enhancedScreen = enhancedScreen;
         }
+
+        private EnhancedSettingsScreen _enhancedScreen;
 
         // Copy-on-entry working set (mirrors the stack copy of pConfiguration). Runs BEFORE the
         // GameObject activates: activation triggers UserInterfaceLoader.OnEnable, which reads our
@@ -76,7 +78,6 @@ namespace BakAgain.UI {
         protected override async UniTask OnBeforeShowAsync() {
             await _preferences.EnsureLoadedAsync();
             _working = _preferences.Current.Clone();
-            _enhancedDraft = EnhancedOptionsDraft.Load();
         }
 
         // Which build and where its log is, for bug reports. Re-added on every show: the
@@ -148,11 +149,10 @@ namespace BakAgain.UI {
         }
 
         private const string EnhancedChoiceName = "enhanced-choice";
-        private const string EnhancedPanelName = "enhanced-panel";
 
         /// <summary>
         /// The Enhanced button (opt-in extras, not in the original): sits in the free space below
-        /// Turn Size in the left column, placed from the REQ rects. Opens the options panel; nothing is saved until OK.
+        /// Turn Size in the left column, placed from the REQ rects. Opens the Enhanced settings screen, which saves its own.
         /// </summary>
         private void AddEnhancedChoice(VisualElement root) {
             if (root.Q<Button>(EnhancedChoiceName) != null) {
@@ -176,134 +176,18 @@ namespace BakAgain.UI {
             button.style.width = rect.width;
             button.style.height = rect.height;
             GameFontText.Caption(button, string.Empty);
-            button.clicked += () => OpenEnhancedPanel(root);
+            button.clicked += () => _navigator.Push(_enhancedScreen).Forget();
             CanonicalStage.GetOrCreate(root, _loader.Frame).Add(button);
             RefreshEnhancedCaption(root);
         }
 
         private void RefreshEnhancedCaption(VisualElement root) {
             Label caption = root.Q<Button>(EnhancedChoiceName)?.Q<Label>("caption");
-            if (caption == null || _enhancedDraft == null) {
+            if (caption == null) {
                 return;
             }
-            caption.text = BoxText(GameData.Resources.Text.UiTemplates.EnhancedButtonKey, _enhancedDraft.Master,
-                state: true, pending: FontChangePending(_enhancedDraft));
-        }
-
-        /// <summary>
-        /// Whether OK would change the font from the one loaded. The fonts are bound when the game
-        /// starts (<see cref="GameFonts.Build()"/>), so the master and the Book font row say "(restart)"
-        /// while the choice differs from what is drawn — the language button's pattern.
-        /// </summary>
-        internal static bool FontChangePending(EnhancedOptionsDraft draft) =>
-            (draft.Master && draft[EnhancedFeature.BookFont]) != GameFonts.IsBookFont;
-
-        /// <summary>
-        /// The options panel over the left columns (Step Size's first radio down to Detail's last),
-        /// read from the REQ. One button per row reading "[x] caption": a UI Toolkit Toggle's label
-        /// cannot wear the game-font caption.
-        /// </summary>
-        private void OpenEnhancedPanel(VisualElement root) {
-            if (root.Q<VisualElement>(EnhancedPanelName) != null || _enhancedDraft == null
-                || !_loader.TryGetElementRect(StepSizeBase, out Rect top)
-                || !_loader.TryGetElementRect(DetailBase + 3, out Rect bottom)
-                || !_loader.TryGetElementRect(ToggleSound, out Rect rightColumn)
-                || !_loader.TryGetElementRect(ButtonOk, out Rect ok)) {
-                return;
-            }
-            var panel = new VisualElement { name = EnhancedPanelName };
-            panel.AddToClassList("enhanced-panel");
-            panel.style.position = Position.Absolute;
-            panel.style.left = top.x;
-            panel.style.top = top.y;
-            panel.style.width = rightColumn.x - ok.height * 0.1f - top.x;
-            panel.style.height = bottom.yMax - top.y;
-
-            var features = new System.Collections.Generic.List<(VisualElement Row, EnhancedFeature Feature)>();
-            // The master and Done stay in view; the feature rows between them scroll once there are
-            // more than the panel holds (it fits eight rows at the REQ's own button height).
-            var featureList = new ScrollView(ScrollViewMode.Vertical) {
-                name = "enhanced-feature-list",
-                verticalScrollerVisibility = ScrollerVisibility.Hidden,
-                horizontalScrollerVisibility = ScrollerVisibility.Hidden,
-            };
-            Button Row(Action onClick, VisualElement parent = null) {
-                var row = new Button();
-                row.AddToClassList("text-button");
-                row.style.height = ok.height;
-                row.style.flexShrink = 0;
-                GameFontText.Caption(row, string.Empty);
-                row.clicked += onClick;
-                (parent ?? panel).Add(row);
-                return row;
-            }
-
-            var captions = new System.Collections.Generic.List<Action>();
-            void Refresh() {
-                foreach ((VisualElement row, EnhancedFeature feature) in features) {
-                    row.SetEnabled(EnhancedRowEnabled(_enhancedDraft, feature));
-                }
-                foreach (Action caption in captions) {
-                    caption();
-                }
-                RefreshEnhancedCaption(root);
-            }
-
-            Button master = Row(null);
-            captions.Add(() => master.Q<Label>("caption").text = BoxText(GameData.Resources.Text.UiTemplates.EnhancedButtonKey,
-                _enhancedDraft.Master, state: true, pending: FontChangePending(_enhancedDraft)));
-            master.clicked += () => { _enhancedDraft.Master = !_enhancedDraft.Master; Refresh(); };
-
-            panel.Add(featureList);
-            foreach ((string key, EnhancedFeature feature) in FeatureRows) {
-                AddFeatureRow(key, feature);
-            }
-
-            Button done = Row(() => panel.RemoveFromHierarchy());
-            done.Q<Label>("caption").text = GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedDone);
-
-            CanonicalStage.GetOrCreate(root, _loader.Frame).Add(panel);
-            Refresh();
-
-            void AddFeatureRow(string key, EnhancedFeature feature) {
-                Button row = Row(() => { _enhancedDraft[feature] = !_enhancedDraft[feature]; Refresh(); }, featureList);
-                captions.Add(() => row.Q<Label>("caption").text = BoxText(key, _enhancedDraft[feature],
-                    pending: feature == EnhancedFeature.BookFont && FontChangePending(_enhancedDraft)));
-                features.Add((row, feature));
-            }
-        }
-
-        /// <summary>The Enhanced panel's feature rows, top to bottom: every <see cref="EnhancedFeature"/> once.</summary>
-        internal static readonly (string Key, EnhancedFeature Feature)[] FeatureRows = {
-            (GameData.Resources.Text.UiTemplates.EnhancedFeatureFullScreen, EnhancedFeature.FullScreenTravel),
-            (GameData.Resources.Text.UiTemplates.EnhancedFeatureMouseLook, EnhancedFeature.MouseLook),
-            (GameData.Resources.Text.UiTemplates.EnhancedFeatureRings, EnhancedFeature.PortraitRings),
-            (GameData.Resources.Text.UiTemplates.EnhancedFeatureBookFont, EnhancedFeature.BookFont),
-            (GameData.Resources.Text.UiTemplates.EnhancedFeaturePageTurn, EnhancedFeature.PageTurn),
-            (GameData.Resources.Text.UiTemplates.EnhancedFeatureInventory, EnhancedFeature.Inventory),
-            (GameData.Resources.Text.UiTemplates.EnhancedFeatureSky, EnhancedFeature.Sky),
-            (GameData.Resources.Text.UiTemplates.EnhancedFeatureLighting, EnhancedFeature.Lighting),
-            (GameData.Resources.Text.UiTemplates.EnhancedFeatureCasting, EnhancedFeature.Casting),
-        };
-
-        /// <summary>
-        /// Whether a feature row can be toggled: every feature needs the master, and the health rings
-        /// only draw on the full-screen HUD.
-        /// </summary>
-        internal static bool EnhancedRowEnabled(EnhancedOptionsDraft draft, EnhancedFeature feature) =>
-            draft.Master && (feature != EnhancedFeature.PortraitRings || draft[EnhancedFeature.FullScreenTravel]);
-
-        /// <summary>A panel row's caption: "[x] Full-screen travel", or for the master "Enhanced: On";
-        /// "(restart)" appended while the choice waits for the next start.</summary>
-        private static string BoxText(string key, bool on, bool state = false, bool pending = false) {
-            string text = state
-                ? GameData.Resources.Text.UiTemplates.Format(key, ("state", GameData.Resources.Text.UiTemplates.Format(on
-                    ? GameData.Resources.Text.UiTemplates.EnhancedStateOn
-                    : GameData.Resources.Text.UiTemplates.EnhancedStateOff)))
-                : (on ? "[x] " : "[ ] ") + GameData.Resources.Text.UiTemplates.Format(key);
-            return pending
-                ? GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedPendingKey, ("text", text))
-                : text;
+            caption.text = EnhancedSettingsScreen.BoxText(GameData.Resources.Text.UiTemplates.EnhancedButtonKey, GameOptions.Enhanced,
+                state: true, pending: EnhancedSettingsScreen.FontChangePending(EnhancedOptionsDraft.Load()));
         }
 
         private void RefreshLanguageCaption(VisualElement root) {
@@ -369,7 +253,6 @@ namespace BakAgain.UI {
                     break;
                 case ButtonOk:
                     _preferences.Apply(_working);
-                    _enhancedDraft?.Commit();
                     if (!string.IsNullOrEmpty(_pendingLanguage) && _pendingLanguage != LanguagePacks.Current.Locale) {
                         BakResourceSettings.Language = _pendingLanguage;
                     }

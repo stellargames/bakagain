@@ -97,6 +97,20 @@ public static class UiTemplates {
     public const string EnhancedFeatureLighting = "port:template:enhanced_feature_lighting";
     public const string EnhancedFeatureCasting = "port:template:enhanced_feature_casting";
 
+    /// <summary>The Enhanced settings screen: its title and headings, the game-files and mods folders
+    /// (the start-up prompt's fields, kept here too), and Save/Cancel.</summary>
+    public const string EnhancedSettingsTitle = "port:template:enhanced_settings_title";
+    public const string EnhancedFeaturesHeading = "port:template:enhanced_features_heading";
+    public const string EnhancedFoldersHeading = "port:template:enhanced_folders_heading";
+    public const string EnhancedGameFolder = "port:template:enhanced_game_folder";
+    public const string EnhancedMods = "port:template:enhanced_mods";
+    public const string EnhancedModsFolder = "port:template:enhanced_mods_folder";
+    public const string EnhancedBrowse = "port:template:enhanced_browse";
+    public const string EnhancedNotSet = "port:template:enhanced_not_set";
+    public const string EnhancedBadGameFolder = "port:template:enhanced_bad_game_folder";
+    public const string EnhancedSave = "port:template:enhanced_save";
+    public const string EnhancedCancel = "port:template:enhanced_cancel";
+
     /// <summary>The Enhanced cast screen's Exit stone; the faithful button carries the word in its image.</summary>
     public const string EnhancedCastExit = "port:template:enhanced_cast_exit";
 
@@ -126,7 +140,6 @@ public static class UiTemplates {
     /// <summary>An Enhanced caption whose choice waits for the next start (the font is bound at
     /// start): "<c>{text}</c> (restart)", as <see cref="LanguageChoicePendingKey"/>.</summary>
     public const string EnhancedPendingKey = "port:template:enhanced_pending";
-    public const string EnhancedDone = "port:template:enhanced_done";
 
     /// <summary>The Enhanced travel HUD's status line: "Day <c>{day}</c> · <c>{hour}</c>:00".</summary>
     public const string EnhancedStatusKey = "port:template:enhanced_status";
@@ -188,6 +201,17 @@ public static class UiTemplates {
         (EnhancedFeatureSky, _ => "Sky"),
         (EnhancedFeatureLighting, _ => "Lighting"),
         (EnhancedFeatureCasting, _ => "Casting"),
+        (EnhancedSettingsTitle, _ => "Enhanced"),
+        (EnhancedFeaturesHeading, _ => "Features"),
+        (EnhancedFoldersHeading, _ => "Game files and mods"),
+        (EnhancedGameFolder, _ => "Game files"),
+        (EnhancedMods, _ => "Mods"),
+        (EnhancedModsFolder, _ => "Mods folder"),
+        (EnhancedBrowse, _ => "Browse"),
+        (EnhancedNotSet, _ => "not set"),
+        (EnhancedBadGameFolder, _ => "That folder does not hold the game's files."),
+        (EnhancedSave, _ => "Save"),
+        (EnhancedCancel, _ => "Cancel"),
         (EnhancedCastExit, _ => "Exit"),
         (EnhancedCastHintPick, _ => "Point at a symbol to read it; click it to cast."),
         (EnhancedCastHintPickTouch, _ => "Touch a symbol to read it; lift your finger on it to cast."),
@@ -204,7 +228,6 @@ public static class UiTemplates {
         (EnhancedInvHasIt, _ => "Has it"),
         (EnhancedInvBack, _ => "Back to the pack"),
         (EnhancedPendingKey, _ => "{text} (restart)"),
-        (EnhancedDone, _ => "Done"),
         (EnhancedStatusKey, _ => "Day {day} · {hour}:00"),
         (PercentKey, _ => EnglishPercent),
         (TouchMove, _ => "Move"),

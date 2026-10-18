@@ -272,27 +272,20 @@
     border-color: rgb(236, 210, 140);
 }
 
-.enhanced-panel {
-    background-color: rgb(150, 112, 62);
-    border-width: 3px;
-    border-color: rgb(58, 40, 22);
-    padding: 2%;
-    justify-content: space-around;
-}
-
-.enhanced-panel .text-button:disabled {
-    opacity: 0.45;
-}
-
-/* The feature rows scroll between the master and Done (the panel fits eight rows). This theme does
-   not import Unity's defaults, so the ScrollView's clipping is spelled out here; no scrollbar —
-   the wheel and a drag scroll it, and the cut-off row below says there is more. */
-.enhanced-panel #enhanced-feature-list,
-.enhanced-panel #enhanced-feature-list #unity-content-viewport {
-    flex-grow: 1;
-    flex-shrink: 1;
-    overflow: hidden;
-}
+/* The Enhanced settings screen (EnhancedSettingsScreen): over OPTIONS2.SCX in the canonical frame,
+   the feature rows on the left and the game-files and mods folders on the right, Save/Cancel below. */
+.enhanced-settings { position: absolute; left: 6%; right: 6%; top: 5%; bottom: 5%; padding: 2%; flex-direction: column; background-color: rgb(150, 112, 62); border-width: 3px; border-color: rgb(58, 40, 22); }
+.enhanced-settings__title { height: 80px; flex-shrink: 0; -unity-text-align: middle-center; }
+.enhanced-settings__columns { flex-grow: 1; flex-direction: row; }
+.enhanced-settings__column { flex-grow: 1; flex-basis: 0; margin: 0 1%; }
+.enhanced-settings__heading { height: 64px; flex-shrink: 0; -unity-text-align: middle-left; }
+.enhanced-settings__row { height: 66px; flex-shrink: 0; margin-bottom: 6px; }
+.enhanced-settings__row:disabled { opacity: 0.45; }
+.enhanced-settings__path { height: 60px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -unity-text-overflow-position: start; -unity-text-align: middle-left; }
+.enhanced-settings__label { height: 56px; flex-shrink: 0; margin-top: 10px; -unity-text-align: lower-left; }
+.enhanced-settings__error { flex-shrink: 0; white-space: normal; color: rgb(120, 24, 12); }
+.enhanced-settings__buttons { height: 80px; flex-shrink: 0; flex-direction: row; justify-content: center; }
+.enhanced-settings__buttons .enhanced-settings__row { width: 30%; margin: 0 2%; }
 
 /* Enhanced full-screen travel HUD (spec 2026-10-08 §3, EnhancedHudLayout). The REQ_MAIN elements
    are moved in here; the panel is 1200 units high at every aspect, so vertical percentages are of

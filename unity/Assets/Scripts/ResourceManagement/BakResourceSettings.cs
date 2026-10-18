@@ -33,6 +33,13 @@ namespace BakAgain.ResourceManagement {
             }
         }
 
+        /// <summary>The folders the running game was started with: resources are loaded from these at
+        /// start, so a setting changed since then waits for the next start.</summary>
+        public static (string GamePath, bool OverrideEnabled, string OverridePath) InUse { get; private set; }
+
+        /// <summary>Records the folders resource loading starts with (ResourceManagementInitializer).</summary>
+        public static void MarkInUse() => InUse = (GamePath, OverrideEnabled, OverridePath);
+
         private static GameData.Resources.Config.ResourceConfig _resourceConfig;
 
         /// <summary>

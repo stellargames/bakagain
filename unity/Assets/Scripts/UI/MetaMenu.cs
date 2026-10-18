@@ -16,7 +16,7 @@ namespace BakAgain.UI {
 
     [RequireComponent(typeof(UIDocument))]
     public class MetaMenu : MonoBehaviour {
-        private const string ResourceArchiveFilename = "KRONDOR.001";
+        internal const string ResourceArchiveFilename = "KRONDOR.001";
         private readonly AwaitableCompletionSource _completionSource = new();
         private Button _continueButton;
         private TextField _gameFileTextField;
@@ -27,7 +27,7 @@ namespace BakAgain.UI {
 
         private static readonly ILogger Logger = LogManager.LoggerFactory.CreateLogger<MetaMenu>();
 
-        private static string DefaultOverridePath => Path.Join(Application.persistentDataPath, "overrides");
+        internal static string DefaultOverridePath => Path.Join(Application.persistentDataPath, "overrides");
 
         private static string DefaultGameFilePath {
             get {
@@ -45,7 +45,7 @@ namespace BakAgain.UI {
 
         private Label _gamePathError;
 
-        private static readonly HashSet<string> RequiredGameFileNames = new(StringComparer.OrdinalIgnoreCase) {
+        internal static readonly HashSet<string> RequiredGameFileNames = new(StringComparer.OrdinalIgnoreCase) {
             "KRONDOR.001", "FRP.SX", "RESOURCE.CFG", "STARTUP.GAM"
         };
 
@@ -238,11 +238,11 @@ namespace BakAgain.UI {
             }
         }
 
-        private static bool FilterGameFiles(FileSystemEntry entry) {
+        internal static bool FilterGameFiles(FileSystemEntry entry) {
             return entry.IsDirectory || string.Equals(entry.Name, ResourceArchiveFilename, StringComparison.CurrentCultureIgnoreCase);
         }
 
-        private static bool AreRequiredGameFilesPresentIn(string directoryPath) {
+        internal static bool AreRequiredGameFilesPresentIn(string directoryPath) {
             if (string.IsNullOrEmpty(directoryPath)) {
                 return false;
             }
@@ -341,7 +341,7 @@ namespace BakAgain.UI {
             }, pickMode: FileBrowser.PickMode.Folders, allowMultiSelection: false, initialPath: _overrideTextField.value, initialFilename: null, title: "Select Override Path");
         }
 
-        private static bool FilterDirectoriesOnly(FileSystemEntry entry) {
+        internal static bool FilterDirectoriesOnly(FileSystemEntry entry) {
             return entry.IsDirectory;
         }
     }

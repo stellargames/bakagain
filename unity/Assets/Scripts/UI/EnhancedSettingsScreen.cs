@@ -1,0 +1,257 @@
+namespace BakAgain.UI {
+    using System;
+    using System.Collections.Generic;
+    using BakAgain.Core;
+    using BakAgain.ResourceManagement;
+    using BakAgain.UI.Cursor;
+    using BakAgain.UI.InputCore;
+    using Cysharp.Threading.Tasks;
+    using SimpleFileBrowser;
+    using UnityEngine;
+    using UnityEngine.UIElements;
+    using VContainer;
+    using Templates = GameData.Resources.Text.UiTemplates;
+
+    /// <summary>
+    /// The Enhanced settings, on a screen of their own (opened from Preferences): the master switch and
+    /// every <see cref="EnhancedFeature"/>, and the start-up prompt's fields — the game-files folder and
+    /// the mods switch and folder — so they can be changed without clearing the game path. In the
+    /// Preferences look: OPTIONS2.SCX behind, the game font, "[x]" rows. Nothing is saved until Save;
+    /// a folder or a font change takes effect at the next start and says so.
+    /// </summary>
+    public sealed class EnhancedSettingsScreen : Navigation.ScreenBase {
+        private Navigation.IScreenNavigator _navigator;
+        private InputLayerStack _stack;
+        private ICursorManager _cursor;
+        private NavigableLayer _layer;
+        private VisualElement _panel;
+        private EnhancedOptionsDraft _draft;
+        private string _gamePath, _modsPath;
+        private bool _modsOn;
+        private Label _folderError;
+        private readonly List<(Button Row, Func<string> Caption, Func<bool> Enabled)> _rows = new();
+
+        [Inject]
+        public void Construct(Navigation.IScreenNavigator navigator, InputLayerStack stack, ICursorManager cursor) {
+            _navigator = navigator;
+            _stack = stack;
+            _cursor = cursor;
+        }
+
+        /// <summary>The feature rows, top to bottom: every <see cref="EnhancedFeature"/> once.</summary>
+        internal static readonly (string Key, EnhancedFeature Feature)[] FeatureRows = {
+            (Templates.EnhancedFeatureFullScreen, EnhancedFeature.FullScreenTravel),
+            (Templates.EnhancedFeatureMouseLook, EnhancedFeature.MouseLook),
+            (Templates.EnhancedFeatureRings, EnhancedFeature.PortraitRings),
+            (Templates.EnhancedFeatureBookFont, EnhancedFeature.BookFont),
+            (Templates.EnhancedFeaturePageTurn, EnhancedFeature.PageTurn),
+            (Templates.EnhancedFeatureInventory, EnhancedFeature.Inventory),
+            (Templates.EnhancedFeatureSky, EnhancedFeature.Sky),
+            (Templates.EnhancedFeatureLighting, EnhancedFeature.Lighting),
+            (Templates.EnhancedFeatureCasting, EnhancedFeature.Casting),
+        };
+
+        /// <summary>Whether a feature row can be toggled: every feature needs the master, and the health
+        /// rings only draw on the full-screen HUD.</summary>
+        internal static bool EnhancedRowEnabled(EnhancedOptionsDraft draft, EnhancedFeature feature) =>
+            draft.Master && (feature != EnhancedFeature.PortraitRings || draft[EnhancedFeature.FullScreenTravel]);
+
+        /// <summary>Whether Save would change the font from the one loaded. The fonts are bound when the
+        /// game starts (<see cref="GameFonts.Build()"/>), so the change waits for a restart.</summary>
+        internal static bool FontChangePending(EnhancedOptionsDraft draft) =>
+            (draft.Master && draft[EnhancedFeature.BookFont]) != GameFonts.IsBookFont;
+
+        /// <summary>A row's caption: "[x] Sky", or for the master "Enhanced: On"; "(restart)" appended
+        /// while the choice waits for the next start.</summary>
+        internal static string BoxText(string key, bool on, bool state = false, bool pending = false) {
+            string text = state
+                ? Templates.Format(key, ("state", Templates.Format(on ? Templates.EnhancedStateOn : Templates.EnhancedStateOff)))
+                : (on ? "[x] " : "[ ] ") + Templates.Format(key);
+            return pending ? Templates.Format(Templates.EnhancedPendingKey, ("text", text)) : text;
+        }
+
+        // Here, not in OnBeforeShowAsync: the document has no root until the screen is active.
+        protected override UniTask BuildWhileHiddenAsync() {
+            VisualElement root = GetComponent<UIDocument>()?.rootVisualElement;
+            if (root == null) {
+                return UniTask.CompletedTask;
+            }
+            _draft = EnhancedOptionsDraft.Load();
+            _gamePath = BakResourceSettings.GamePath;
+            _modsOn = BakResourceSettings.OverrideEnabled;
+            _modsPath = string.IsNullOrWhiteSpace(BakResourceSettings.OverridePath)
+                ? MetaMenu.DefaultOverridePath : BakResourceSettings.OverridePath;
+            Build(CanonicalStage.GetOrCreate(root, null));
+            return UniTask.CompletedTask;
+        }
+
+        protected override void OnAfterShow() {
+            var widgets = new List<NavWidget>();
+            foreach ((Button row, Func<string> _, Func<bool> _) in _rows) {
+                Button b = row;
+                widgets.Add(new NavWidget(b, b.Q<Label>("caption")?.text ?? string.Empty, () => CanonicalRect(b),
+                    () => { if (b.enabledSelf) ClickOf(b)?.Invoke(); }, null));
+            }
+            _layer = new NavigableLayer("enhanced-settings", CaptureMode.Exclusive, widgets, Cancel, _cursor);
+            _stack?.Push(_layer);
+        }
+
+        protected override void OnBeforeHide() {
+            if (_layer != null) {
+                _stack?.Remove(_layer);
+                _layer = null;
+            }
+            _panel?.RemoveFromHierarchy();
+            _panel = null;
+            _rows.Clear();
+        }
+
+        private readonly Dictionary<Button, Action> _clicks = new();
+
+        private Action ClickOf(Button b) => _clicks.TryGetValue(b, out Action a) ? a : null;
+
+        private Rect CanonicalRect(VisualElement e) {
+            VisualElement stage = CanonicalStage.Find(GetComponent<UIDocument>()?.rootVisualElement);
+            Rect wb = e.worldBound;
+            if (stage == null || float.IsNaN(wb.x) || wb.width <= 0f) return Rect.zero;
+            Vector2 min = stage.WorldToLocal(wb.min), max = stage.WorldToLocal(wb.max);
+            return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
+        }
+
+        private void Build(VisualElement stage) {
+            _panel?.RemoveFromHierarchy();
+            _rows.Clear();
+            _clicks.Clear();
+            _paths.Clear();
+            _panel = MovedElements.Box("enhanced-settings");
+            _panel.Add(Text(Templates.Format(Templates.EnhancedSettingsTitle), "enhanced-settings__title"));
+
+            VisualElement columns = MovedElements.Box("enhanced-settings__columns");
+            VisualElement features = MovedElements.Box("enhanced-settings__column");
+            VisualElement folders = MovedElements.Box("enhanced-settings__column");
+            columns.Add(features);
+            columns.Add(folders);
+            _panel.Add(columns);
+
+            features.Add(Text(Templates.Format(Templates.EnhancedFeaturesHeading), "enhanced-settings__heading"));
+            Row(features, () => BoxText(Templates.EnhancedButtonKey, _draft.Master, state: true, pending: FontChangePending(_draft)),
+                () => true, () => _draft.Master = !_draft.Master);
+            foreach ((string key, EnhancedFeature feature) in FeatureRows) {
+                Row(features, () => BoxText(key, _draft[feature], pending: feature == EnhancedFeature.BookFont && FontChangePending(_draft)),
+                    () => EnhancedRowEnabled(_draft, feature), () => _draft[feature] = !_draft[feature]);
+            }
+
+            folders.Add(Text(Templates.Format(Templates.EnhancedFoldersHeading), "enhanced-settings__heading"));
+            folders.Add(Text(Templates.Format(Templates.EnhancedGameFolder), "enhanced-settings__label"));
+            folders.Add(PathLine(() => Shown(_gamePath), () => _gamePath != BakResourceSettings.InUse.GamePath));
+            Row(folders, () => Templates.Format(Templates.EnhancedBrowse), () => true, BrowseGameFolder);
+            _folderError = Text(string.Empty, "enhanced-settings__error");
+            folders.Add(_folderError);
+            Row(folders, () => BoxText(Templates.EnhancedMods, _modsOn, pending: _modsOn != BakResourceSettings.InUse.OverrideEnabled),
+                () => true, () => _modsOn = !_modsOn);
+            folders.Add(Text(Templates.Format(Templates.EnhancedModsFolder), "enhanced-settings__label"));
+            folders.Add(PathLine(() => Shown(_modsPath), () => _modsOn && _modsPath != BakResourceSettings.InUse.OverridePath));
+            Row(folders, () => Templates.Format(Templates.EnhancedBrowse), () => _modsOn, BrowseModsFolder);
+
+            VisualElement buttons = MovedElements.Box("enhanced-settings__buttons");
+            Row(buttons, () => Templates.Format(Templates.EnhancedSave), () => true, Save);
+            Row(buttons, () => Templates.Format(Templates.EnhancedCancel), () => true, Cancel);
+            _panel.Add(buttons);
+
+            stage.Add(_panel);
+            Refresh();
+        }
+
+        private static string Shown(string path) =>
+            string.IsNullOrWhiteSpace(path) ? Templates.Format(Templates.EnhancedNotSet) : path;
+
+        private readonly List<(Label Line, Func<string> Text, Func<bool> Pending)> _paths = new();
+
+        private Label PathLine(Func<string> text, Func<bool> pending) {
+            Label line = Text(string.Empty, "enhanced-settings__path");
+            // One line, cut from the left: the folder's own name is the part worth reading. Inline,
+            // because the game-font helper sets wrapping inline and that beats the theme.
+            line.style.whiteSpace = WhiteSpace.NoWrap;
+            line.style.overflow = Overflow.Hidden;
+            line.style.textOverflow = TextOverflow.Ellipsis;
+            line.style.unityTextOverflowPosition = TextOverflowPosition.Start;
+            _paths.Add((line, text, pending));
+            return line;
+        }
+
+        private void Row(VisualElement parent, Func<string> caption, Func<bool> enabled, Action toggle) {
+            var row = new Button();
+            row.AddToClassList("text-button");
+            row.AddToClassList("enhanced-settings__row");
+            GameFontText.Caption(row, string.Empty);
+            Action click = () => { toggle(); Refresh(); };
+            row.clicked += click;
+            _clicks[row] = click;
+            parent.Add(row);
+            _rows.Add((row, caption, enabled));
+        }
+
+        private void Refresh() {
+            foreach ((Button row, Func<string> caption, Func<bool> enabled) in _rows) {
+                Label label = row.Q<Label>("caption");
+                if (label != null) label.text = caption();
+                row.SetEnabled(enabled());
+            }
+            foreach ((Label line, Func<string> text, Func<bool> pending) in _paths) {
+                string t = text();
+                line.text = pending() ? Templates.Format(Templates.EnhancedPendingKey, ("text", t)) : t;
+            }
+        }
+
+        private void BrowseGameFolder() {
+            string initial = string.IsNullOrEmpty(_gamePath) ? Application.persistentDataPath : _gamePath;
+#if UNITY_ANDROID && !UNITY_EDITOR
+            // A picked Android folder is a document URI; the start-up prompt copies the files in at the
+            // next start (it opens because the saved path is not a directory yet), as on first run.
+            FileBrowser.ShowLoadDialog(paths => Picked(paths[0]), null, FileBrowser.PickMode.Folders,
+                false, initial, null, Templates.Format(Templates.EnhancedBrowse));
+#else
+            FileBrowser.DisplayedEntriesFilter += MetaMenu.FilterGameFiles;
+            FileBrowser.ShowLoadDialog(paths => {
+                    FileBrowser.DisplayedEntriesFilter -= MetaMenu.FilterGameFiles;
+                    Picked(FileBrowserHelpers.GetDirectoryName(paths[0]));
+                }, () => FileBrowser.DisplayedEntriesFilter -= MetaMenu.FilterGameFiles,
+                FileBrowser.PickMode.Files, false, initial, MetaMenu.ResourceArchiveFilename,
+                Templates.Format(Templates.EnhancedBrowse));
+#endif
+            void Picked(string folder) {
+                bool ok = MetaMenu.AreRequiredGameFilesPresentIn(folder);
+                _folderError.text = ok ? string.Empty : Templates.Format(Templates.EnhancedBadGameFolder);
+                if (ok) _gamePath = folder;
+                Refresh();
+            }
+        }
+
+        private void BrowseModsFolder() {
+            FileBrowser.DisplayedEntriesFilter += MetaMenu.FilterDirectoriesOnly;
+            FileBrowser.ShowLoadDialog(paths => {
+                    FileBrowser.DisplayedEntriesFilter -= MetaMenu.FilterDirectoriesOnly;
+                    _modsPath = paths[0];
+                    Refresh();
+                }, () => FileBrowser.DisplayedEntriesFilter -= MetaMenu.FilterDirectoriesOnly,
+                FileBrowser.PickMode.Folders, false, _modsPath, null, Templates.Format(Templates.EnhancedBrowse));
+        }
+
+        private void Save() {
+            _draft.Commit();
+            if (_gamePath != BakResourceSettings.GamePath) BakResourceSettings.GamePath = _gamePath;
+            if (_modsOn != BakResourceSettings.OverrideEnabled) BakResourceSettings.OverrideEnabled = _modsOn;
+            if (_modsPath != BakResourceSettings.OverridePath) BakResourceSettings.OverridePath = _modsPath;
+            _navigator.Pop().Forget();
+        }
+
+        private void Cancel() => _navigator.Pop().Forget();
+
+        private static Label Text(string text, string cls) {
+            var label = new Label(text) { pickingMode = PickingMode.Ignore };
+            label.AddToClassList(cls);
+            GameFontText.Apply(label);
+            return label;
+        }
+    }
+}
