@@ -769,6 +769,14 @@ namespace BakAgain.UI.Inventory {
             TeardownStageInput();
             ResetGesture();
             _selectedSlot = -1;
+            // Exit or Escape with an item examined ends the examine with the screen: left open, the
+            // next pack showed the bag for the key ring and the Enhanced "back" hint.
+            _inspectOpen = false;
+            _inspectSlot = -1;
+            _inspectStatSlot = -1;
+            _statsBox?.RemoveFromHierarchy();
+            _statsBox = null;
+            _inspect?.Clear();
             // Session end (invui_inspect_image_cleanup): drop the icon/chrome sprite caches and
             // release their owners — the only place these handles are released.
             _renderer.ReleaseAll();
@@ -2739,6 +2747,11 @@ namespace BakAgain.UI.Inventory {
         // render so a portrait switch moves it; hidden in loot mode, where there is no active member.
         private void UpdateActiveMemberCircle() {
             int slot = ActivePortraitSlot();
+            if (EnhancedApplied) {
+                for (int i = 0; i < 3; i++) {
+                    _enhanced.Portrait(i)?.EnableInClassList(EnhancedInventoryLayout.ActiveClass, i == slot);
+                }
+            }
             VisualElement host = slot < 0 ? null : Root?.Q($"hotspot_{slot + PortraitSlot1}");
             if (host == null) {
                 _activeCircle?.RemoveFromHierarchy();

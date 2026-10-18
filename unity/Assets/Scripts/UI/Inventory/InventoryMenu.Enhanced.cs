@@ -150,6 +150,10 @@ namespace BakAgain.UI.Inventory {
                 return;
             }
             _statsBox = box; // CloseInspect tears it down
+            // The casting screen's parchment, not the faithful box's shadow, bevel and flat fill.
+            foreach (VisualElement chromePart in box.Children()) chromePart.style.display = DisplayStyle.None;
+            box.style.backgroundImage = EnhancedArt.Load("parchment");
+            box.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Cover);
             var body = new VisualElement { pickingMode = PickingMode.Ignore };
             body.AddToClassList("enhanced-inv__examine");
             // The same text a shown description draws: variables filled, then the inline codes and
@@ -162,6 +166,13 @@ namespace BakAgain.UI.Inventory {
             };
             description.AddToClassList("enhanced-inv__description");
             body.Add(description);
+            // A long description beside the stats outgrows the parchment: step the type down until it fits.
+            description.RegisterCallback<GeometryChangedEvent>(_ => {
+                float size = description.resolvedStyle.fontSize;
+                if (description.layout.height > body.contentRect.height && size > MinDescriptionFontSize) {
+                    description.style.fontSize = size - 2f;
+                }
+            });
             box.Add(body);
 
             if (_displayed?.IsShop == true || !ItemInspectText.HasMoreInfo(item, obj)) {
@@ -184,6 +195,11 @@ namespace BakAgain.UI.Inventory {
             lineRoot.RegisterCallback<GeometryChangedEvent>(_ => FitStats(holder, lineRoot));
         }
 
+        private const float MinDescriptionFontSize = 28f;
+
+        /// <summary>The faithful stat lines are small; they may grow this much into the room they get.</summary>
+        private const float MaxStatsScale = 1.6f;
+
         private static void FitStats(VisualElement holder, VisualElement lineRoot) {
             Rect extent = Rect.zero;
             bool any = false;
@@ -198,7 +214,7 @@ namespace BakAgain.UI.Inventory {
             if (!any || room.width <= 0f || room.height <= 0f) {
                 return;
             }
-            float scale = Mathf.Min(1f, room.width / extent.width, room.height / extent.height);
+            float scale = Mathf.Min(MaxStatsScale, room.width / extent.width, room.height / extent.height);
             lineRoot.style.scale = new Scale(new Vector2(scale, scale));
             lineRoot.style.translate = new Translate(-extent.x * scale, -extent.y * scale);
         }

@@ -130,6 +130,25 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             CollectionAssert.Contains(bags.Despawned, bag, "its world entity must be removed");
         }
 
+        /// <summary>Exit or Escape with an item still examined ends the examine too. It used to stay
+        /// open across the close, so the pack reopened with the bag for the key ring and, in the
+        /// Enhanced layout, "Back to the pack" under a pack already shown.</summary>
+        [UnityTest]
+        public IEnumerator LeavingTheScreen_EndsAnOpenExamine() {
+            GameSession session = SessionWith(FreeSlot());
+            InventoryMenu menu = BuildMenu(session, new RecordingBagSpawner());
+            var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+            System.Reflection.FieldInfo open = typeof(InventoryMenu).GetField("_inspectOpen", flags);
+            System.Reflection.FieldInfo slot = typeof(InventoryMenu).GetField("_inspectSlot", flags);
+            open.SetValue(menu, true); // as ShowItemDescriptionAsync leaves it while the examine is up
+            slot.SetValue(menu, 2);
+
+            yield return menu.HideAsync().ToCoroutine();
+
+            Assert.IsFalse((bool)open.GetValue(menu), "the examine must not outlive the screen");
+            Assert.AreEqual(-1, (int)slot.GetValue(menu));
+        }
+
         /// <summary>A bag you only partly emptied is still a pile: it stays claimed and on screen.</summary>
         [UnityTest]
         public IEnumerator LeavingTheScreen_KeepsABagThatStillHoldsSomething() {

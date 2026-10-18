@@ -23,6 +23,9 @@ namespace BakAgain.UI.Inventory {
         public const string TargetClass = "enhanced-inv__portrait--target";
         public const string HolderClass = "enhanced-inv__portrait--holder";
         public const string HoverClass = "enhanced-inv__portrait--hover";
+        /// <summary>Whose pack or paperdoll is shown: a bright ring at the socket's rim, outside the
+        /// health and stamina rings that cover the original's ring on the face.</summary>
+        public const string ActiveClass = "enhanced-inv__portrait--active";
         public const string ShadeClass = "enhanced-inv__shade";
 
         private static readonly string[] PortraitNames = { "hotspot_2", "hotspot_3", "hotspot_4" };
@@ -180,9 +183,15 @@ namespace BakAgain.UI.Inventory {
             if (_frameBox == null || _frameBox.panel == null) return;
             Rect wb = _frameBox.worldBound;
             if (float.IsNaN(wb.width) || wb.width <= 0f) return;
+            float band = _frameBox.resolvedStyle.paddingLeft;
+            // Hug the panels: the sheet keeps its shape inside the field, so on a screen wider than
+            // 16:9 the field's own box would leave marble between the frame and the panels.
+            Rect panels = PanelsBound();
+            if (panels.width > 0f) {
+                wb = Rect.MinMaxRect(panels.xMin - band, panels.yMin - band, panels.xMax + band, panels.yMax + band);
+            }
             Vector2 o = _layout.WorldToLocal(wb.position);
             var outer = new Rect(o.x, o.y, wb.width, wb.height);
-            float band = _frameBox.resolvedStyle.paddingLeft;
             _frame ??= new StoneFrame(_layout);
             // A member's pack is two panels, the paperdoll and the pack, side by side: the frame's middle
             // bar lies over the gap between them, as the casting screen's joins its two panels.
@@ -219,6 +228,19 @@ namespace BakAgain.UI.Inventory {
             if (a.x > b.x) (a, b) = (b, a);
             if (b.xMin <= a.xMax) return -1f;
             return _layout.WorldToLocal(new Vector2((a.xMax + b.xMin) / 2f, a.center.y)).x;
+        }
+
+        /// <summary>The world rect round every item panel; empty when none has a layout yet.</summary>
+        private Rect PanelsBound() {
+            Rect bound = Rect.zero;
+            if (Sheet == null) return bound;
+            foreach (VisualElement p in Sheet.Query(PanelName).ToList()) {
+                Rect r = p.worldBound;
+                if (float.IsNaN(r.width) || r.width <= 0f) continue;
+                bound = bound.width > 0f ? Rect.MinMaxRect(Mathf.Min(bound.xMin, r.xMin), Mathf.Min(bound.yMin, r.yMin),
+                    Mathf.Max(bound.xMax, r.xMax), Mathf.Max(bound.yMax, r.yMax)) : r;
+            }
+            return bound;
         }
 
         /// <summary>The menu's name for a black item panel (InventoryMenu draws them on the sheet).</summary>

@@ -330,6 +330,7 @@
 .enhanced-inv .enhanced-inv__portrait--target .enhanced-inv__name { color: rgb(255, 246, 220); }
 .enhanced-inv .enhanced-inv__portrait--hover .enhanced-inv__head { scale: 1.12 1.12; }
 .enhanced-inv .enhanced-inv__portrait--holder { opacity: 0.45; }
+.enhanced-inv .enhanced-inv__portrait--active { border-width: 8px; border-radius: 50%; border-color: rgb(176, 218, 255); }
 .enhanced-inv .enhanced-inv__shade { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.9); }
 .enhanced-inv .enhanced-inv__head .enhanced-inv__shade { border-radius: 50%; }
 .enhanced-inv .enhanced-inv__bar { position: absolute; left: 2.5%; right: 1.5%; bottom: 2.5%; height: 16%; flex-direction: row; align-items: center; padding: 0 18px; }
@@ -339,8 +340,8 @@
 .enhanced-inv .enhanced-inv__hint { flex-grow: 1; flex-shrink: 1; overflow: hidden; font-size: 44px; white-space: normal; color: rgb(205, 185, 143); }
 .enhanced-inv .enhanced-inv__button { position: relative; flex-shrink: 0; margin-left: 6px; }
 .enhanced-inv .enhanced-inv__examine { position: absolute; left: 5%; right: 4%; top: 7%; bottom: 7%; flex-direction: row; }
-.enhanced-inv .enhanced-inv__description { flex-grow: 1; flex-basis: 0; font-size: 44px; white-space: normal; color: var(--ui-ink); }
-.enhanced-inv .enhanced-inv__stats { flex-grow: 1; flex-basis: 0; overflow: hidden; margin-left: 24px; padding-left: 24px; border-left-width: 2px; border-color: rgba(58, 36, 16, 0.4); }
+.enhanced-inv .enhanced-inv__description { flex-grow: 3; flex-basis: 0; align-self: flex-start; font-size: 44px; white-space: normal; color: var(--ui-ink); }
+.enhanced-inv .enhanced-inv__stats { flex-grow: 2; flex-basis: 0; align-self: stretch; overflow: hidden; margin-left: 24px; padding-left: 24px; border-left-width: 2px; border-color: rgba(58, 36, 16, 0.4); }
 .enhanced-inv .enhanced-inv__stat-lines { position: absolute; left: 24px; top: 0; transform-origin: 0 0; }
 .enhanced-cast { position: absolute; left: 0; top: 0; right: 0; bottom: 0; flex-direction: row; padding: 28px; background-color: rgb(29, 23, 13); background-repeat: repeat; background-size: 720px 480px; }
 .enhanced-cast .enhanced-cast__left { flex-shrink: 0; flex-direction: column; margin-right: -40px; width: 840px; }
