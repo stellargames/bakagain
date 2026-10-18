@@ -101,14 +101,17 @@ namespace BakAgain.UI.Spells {
 
             _layout = MovedElements.Box("enhanced-cast");
             _layout.name = "enhanced-cast";
-            _layout.style.backgroundImage = Art("slab");
+            _layout.style.backgroundImage = Art("marble"); // dark stone, edge to edge
             _left = MovedElements.Box("enhanced-cast__left");
             _well = MovedElements.Box("enhanced-cast__well");
             _well.style.backgroundImage = Art("marble");
             RingSheet = Sheet("enhanced-cast-ring");
             _well.Add(RingSheet);
             VisualElement schools = MovedElements.Box("enhanced-cast__schools");
-            _left.Add(_well);
+            // The bench and the parchment are each set in a rounded slab of light stone; the rest of
+            // the screen is the dark stone they are strapped onto.
+            _wellFrame = Frame(_well);
+            _left.Add(_wellFrame);
             _left.Add(schools);
 
             VisualElement right = MovedElements.Box("enhanced-cast__right");
@@ -118,7 +121,13 @@ namespace BakAgain.UI.Spells {
             InfoSheet = Sheet("enhanced-cast-info");
             _parch.Add(InfoSheet);
             VisualElement column = MovedElements.Box("enhanced-cast__portraits");
-            top.Add(_parch);
+            _parchFrame = Frame(_parch);
+            top.Add(_parchFrame);
+            // The running spells head the parchment, set into its frame.
+            _strip = MovedElements.Box("enhanced-cast__strip");
+            SpellSheet = Sheet("enhanced-cast-spells");
+            _strip.Add(SpellSheet);
+            _parchFrame.Insert(0, _strip);
             top.Add(column);
             VisualElement bar = MovedElements.Box("enhanced-cast__bar");
             _schoolsBar = schools;
@@ -188,6 +197,7 @@ namespace BakAgain.UI.Spells {
             _well.RegisterCallback<GeometryChangedEvent>(_ => Fit());
             _parch.RegisterCallback<GeometryChangedEvent>(_ => Fit());
             _column.RegisterCallback<GeometryChangedEvent>(_ => Fit());
+            _strip.RegisterCallback<GeometryChangedEvent>(_ => Fit());
             RefreshNames();
             return true;
         }
@@ -220,6 +230,8 @@ namespace BakAgain.UI.Spells {
             _straps.Clear();
             _layout.RemoveFromHierarchy();
             _layout = _left = _well = _parch = _reqStage = null;
+            _wellFrame = _parchFrame = _strip = null;
+            SpellSheet = null;
             RingSheet = InfoSheet = null;
             _hint = _readoutPower = _readoutOf = null;
             CastTablet = BackTablet = null;
@@ -308,7 +320,37 @@ namespace BakAgain.UI.Spells {
             _readoutOf.text = of ?? string.Empty;
         }
 
-        private VisualElement _schoolsBar, _column, _bar;
+        private VisualElement _schoolsBar, _column, _bar, _wellFrame, _parchFrame, _strip;
+
+        /// <summary>The canonical surface the active-spell strip is drawn on while applied.</summary>
+        public VisualElement SpellSheet { get; private set; }
+
+        private static VisualElement Frame(VisualElement inner) {
+            VisualElement frame = MovedElements.Box("enhanced-cast__frame");
+            frame.style.backgroundImage = Art("slab");
+            frame.Add(inner);
+            return frame;
+        }
+
+        /// <summary>
+        /// The active-spell strip: the original's plaque and runes, drawn by
+        /// <see cref="BakAgain.UI.InGame.SpellEffectCaptionView"/> at their canonical place on
+        /// <see cref="SpellSheet"/>, which is fitted so the plaque fills the strip's height.
+        /// </summary>
+        private void FitStrip() {
+            VisualElement plaque = SpellSheet?.Q(BakAgain.UI.InGame.SpellEffectCaptionView.PlaqueName);
+            if (plaque == null) return;
+            // Only the runes: the original's plaque is a 64-pixel strip of its own frame, which the
+            // stone already provides here. It stays as the box the runes are fitted by.
+            plaque.style.unityBackgroundImageTintColor = Color.clear;
+            float w = plaque.resolvedStyle.width, h = plaque.resolvedStyle.height;
+            if (float.IsNaN(w) || w <= 0f) return;
+            FitSheet(SpellSheet, _strip.contentRect,
+                new Rect(SpellEffectCaption.PlaqueX, SpellEffectCaption.PlaqueY, w, h));
+        }
+
+        /// <summary>Re-fits the strip once its plaque has loaded.</summary>
+        public void StripBuilt() => FitStrip();
         private readonly List<VisualElement> _straps = new();
         private bool _combat;
         private int _casterSlot = -1;
@@ -531,11 +573,13 @@ namespace BakAgain.UI.Spells {
         private void Fit() {
             if (_layout == null) return;
             PlaceStraps();
-            // The bench is square: the left column is as wide as the well is tall.
+            // The bench is square: the left column is as wide as the well is tall, plus its frame.
             float h = _well.layout.height;
-            if (!float.IsNaN(h) && h > 0f && Mathf.Abs(_left.resolvedStyle.width - h) > 0.5f) {
-                _left.style.width = h;
+            float frame = _wellFrame.layout.width - _well.layout.width;
+            if (!float.IsNaN(h) && h > 0f && !float.IsNaN(frame) && Mathf.Abs(_left.resolvedStyle.width - (h + frame)) > 0.5f) {
+                _left.style.width = h + frame;
             }
+            FitStrip();
             FitSheet(RingSheet, _well.contentRect, BenchRegion());
             Relight(); // the marble's scale follows the fit
             FitSheet(InfoSheet, _parch.contentRect, InfoRect());
@@ -546,7 +590,7 @@ namespace BakAgain.UI.Spells {
         /// its slabs. Placed from the panels' own resolved boxes, so they follow any window shape.
         /// </summary>
         private void PlaceStraps() {
-            Rect well = Box(_well), schools = Box(_schoolsBar), parch = Box(_parch), column = Box(_column), bar = Box(_bar);
+            Rect well = Box(_wellFrame), parch = Box(_parchFrame);
             if (well.width <= 0f || parch.width <= 0f) return;
             var spots = new List<(float X, float Y, bool Across)>();
             void Vertical(Rect a, Rect b, Rect span) {      // a gap between a (left) and b (right)
@@ -554,15 +598,7 @@ namespace BakAgain.UI.Spells {
                 spots.Add((x, span.yMin + span.height * 0.15f, true));
                 spots.Add((x, span.yMax - span.height * 0.15f, true));
             }
-            void Horizontal(Rect a, Rect b, Rect span) {    // a gap between a (above) and b (below)
-                float y = (a.yMax + b.yMin) / 2f;
-                spots.Add((span.xMin + span.width * 0.15f, y, false));
-                spots.Add((span.xMax - span.width * 0.15f, y, false));
-            }
             Vertical(well, parch, parch);
-            if (column.width > 0f) Vertical(parch, column, parch);
-            Horizontal(well, schools, well);
-            Horizontal(parch, bar, parch);
             while (_straps.Count < spots.Count) {
                 var strap = new VisualElement { pickingMode = PickingMode.Ignore };
                 strap.AddToClassList("enhanced-cast__strap");

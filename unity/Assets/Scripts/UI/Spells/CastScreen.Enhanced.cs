@@ -54,7 +54,17 @@ namespace BakAgain.UI.Spells {
             }
             _wipeCover?.BringToFront(); // the layout arrives under the opening wipe, not before it
             RefreshEnhancedNav();
+            // The running spell effects, as the travel HUD's strip shows them: whether a spell is
+            // already up is what decides whether to cast it again.
+            _effectStrip?.Dispose();
+            if (_providers != null) {
+                _effectStrip = new BakAgain.UI.InGame.SpellEffectCaptionView(_session, _providers, _logger);
+                await _effectStrip.BuildAsync(_enhanced.SpellSheet, this);
+                _enhanced?.StripBuilt();
+            }
         }
+
+        private BakAgain.UI.InGame.SpellEffectCaptionView _effectStrip;
 
         /// <summary>
         /// Keyboard and gamepad focus over the moved buttons where they now stand (and the tablets

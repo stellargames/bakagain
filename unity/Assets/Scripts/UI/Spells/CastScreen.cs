@@ -205,6 +205,8 @@ namespace BakAgain.UI.Spells {
             _enhanced = null;
             _tabletsShown = false;
             _navApplied = false;
+            _effectStrip?.Dispose();
+            _effectStrip = null;
             // Nulled before disposing so an in-flight AttachCombatPanelAsync sees it has been
             // superseded and does not draw into a torn-down panel.
             BakAgain.UI.Combat.HudParchmentPanelView panel = _combatPanel;
@@ -1263,6 +1265,7 @@ namespace BakAgain.UI.Spells {
             if (EnhancedApplied && !_navApplied) {
                 RefreshEnhancedNav();
             }
+            _effectStrip?.Refresh();
 
             if (_pointer == null || _ring?.Positions == null || !Tracks(_pointer) || _fillFrame >= 0) {
                 return;
