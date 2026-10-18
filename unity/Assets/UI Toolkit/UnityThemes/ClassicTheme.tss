@@ -350,7 +350,7 @@
 .enhanced-inv .enhanced-inv__stats { flex-grow: 1; flex-basis: 0; overflow: hidden; margin-left: 24px; padding-left: 24px; border-left-width: 2px; border-color: rgba(58, 36, 16, 0.4); }
 .enhanced-inv .enhanced-inv__stat-lines { position: absolute; left: 24px; top: 0; transform-origin: 0 0; }
 .enhanced-cast { position: absolute; left: 0; top: 0; right: 0; bottom: 0; flex-direction: row; padding: 28px; background-color: rgb(29, 23, 13); background-repeat: repeat; background-size: 720px 480px; }
-.enhanced-cast .enhanced-cast__left { flex-shrink: 0; flex-direction: column; margin-right: 26px; width: 840px; }
+.enhanced-cast .enhanced-cast__left { flex-shrink: 0; flex-direction: column; margin-right: -40px; width: 840px; }
 .enhanced-cast .enhanced-cast__well { flex-grow: 1; overflow: hidden; }
 .enhanced-cast .enhanced-cast__sheet { position: absolute; left: 0; top: 0; width: 1600px; height: 1200px; transform-origin: 0 0; }
 .enhanced-cast .enhanced-cast__schools { height: 150px; flex-shrink: 0; margin-top: 16px; flex-direction: row; justify-content: space-around; align-items: center; }
@@ -370,12 +370,12 @@
 .enhanced-cast .enhanced-cast__portrait--caster .enhanced-cast__head { border-width: 5px; border-color: rgb(156, 184, 220); }
 .enhanced-cast .enhanced-cast__name { display: none; }
 .enhanced-cast .enhanced-cast__portrait--caster .enhanced-cast__name { color: rgb(233, 183, 127); }
-.enhanced-cast .enhanced-cast__bar { height: 150px; flex-shrink: 0; margin-top: 16px; flex-direction: row; align-items: center; padding: 0 22px; }
+.enhanced-cast .enhanced-cast__bar { height: 150px; flex-shrink: 0; margin-top: 16px; flex-direction: row; align-items: center; padding: 0 22px 0 66px; }
 .enhanced-cast .enhanced-cast__hint { flex-grow: 1; flex-shrink: 1; font-size: 36px; white-space: normal; color: rgb(205, 185, 143); }
 .enhanced-cast .enhanced-cast__gem { background-size: 100% 100%; }
 .enhanced-cast .enhanced-cast__holo--lit { scale: 1.15 1.15; }
 .enhanced-cast .enhanced-cast__holo--dim { -unity-background-image-tint-color: rgb(150, 150, 150); }
-.enhanced-cast .enhanced-cast__strap { position: absolute; background-size: 100% 100%; }
+.enhanced-cast .enhanced-cast__strap { position: absolute; background-size: 100% 100%; -unity-background-image-tint-color: rgb(168, 112, 98); }
 .enhanced-cast .enhanced-cast__readout { position: absolute; left: 0; top: 0; right: 0; bottom: 0; align-items: center; justify-content: center; }
 .enhanced-cast .enhanced-cast__readout-power { font-size: 150px; color: rgb(255, 243, 207); -unity-text-align: middle-center; text-shadow: 0 0 18px rgba(255, 120, 70, 0.8); }
 .enhanced-cast .enhanced-cast__readout-of { margin-top: -18px; font-size: 44px; color: rgb(236, 217, 176); -unity-text-align: middle-center; text-shadow: 2px 3px 4px rgb(0, 0, 0); }
@@ -387,12 +387,6 @@
 .enhanced-cast .enhanced-cast__tablet-word { font-size: 46px; color: rgb(42, 29, 14); -unity-text-align: middle-center; }
 .enhanced-cast .enhanced-cast__tablet--cast .enhanced-cast__tablet-word { color: rgb(110, 31, 22); }
 .enhanced-cast .enhanced-cast__stats { position: absolute; top: 218px; font-size: 32px; white-space: nowrap; color: rgb(236, 217, 176); -unity-text-align: upper-center; }
-.enhanced-cast .enhanced-cast__top .enhanced-cast__frame { margin-right: 26px; }
 .enhanced-cast .enhanced-cast__strip { height: 72px; flex-shrink: 0; margin: -8px 0 12px 0; overflow: hidden; }
 .enhanced-cast .enhanced-cast__frame { position: relative; flex-grow: 1; flex-direction: column; padding: 40px; }
-.enhanced-cast .enhanced-cast__frame-shadow { position: absolute; left: -4px; top: -2px; right: -21px; bottom: -23px; }
-.enhanced-cast .enhanced-cast__frame-bar { position: absolute; background-repeat: repeat; }
-.enhanced-cast .enhanced-cast__bar-top { left: 0; right: 0; top: 0; height: 40px; background-size: 514px 40px; }
-.enhanced-cast .enhanced-cast__bar-bottom { left: 0; right: 0; bottom: 0; height: 40px; background-size: 514px 40px; }
-.enhanced-cast .enhanced-cast__bar-left { left: 0; top: 40px; bottom: 40px; width: 40px; background-size: 40px 514px; }
-.enhanced-cast .enhanced-cast__bar-right { right: 0; top: 40px; bottom: 40px; width: 40px; background-size: 40px 514px; }
+.enhanced-cast .enhanced-cast__portraits { margin-left: 26px; }

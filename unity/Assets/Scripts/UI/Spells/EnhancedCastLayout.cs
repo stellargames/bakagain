@@ -228,6 +228,7 @@ namespace BakAgain.UI.Spells {
             }
             ReleaseBench();
             _straps.Clear();
+            ReleaseFrame();
             _layout.RemoveFromHierarchy();
             _layout = _left = _well = _parch = _reqStage = null;
             _wellFrame = _parchFrame = _strip = null;
@@ -325,38 +326,73 @@ namespace BakAgain.UI.Spells {
         /// <summary>The canonical surface the active-spell strip is drawn on while applied.</summary>
         public VisualElement SpellSheet { get; private set; }
 
-        /// <summary>
-        /// FRAME.SCX's frame: four bars of light stone laid on the marble around <paramref name="inner"/>,
-        /// square-ended, the top and bottom bars running the full width and the sides between them,
-        /// with the soft shadow they throw (light from the top-left). The straps are placed later, from
-        /// the frame's resolved box.
-        /// </summary>
+        /// <summary>A frame's box: its padding is the stone band, drawn by <see cref="DrawFrame"/>.</summary>
         private static VisualElement Frame(VisualElement inner) {
             VisualElement frame = MovedElements.Box("enhanced-cast__frame");
             frame.Add(inner);
-            VisualElement shadow = MovedElements.Box("enhanced-cast__frame-shadow");
-            shadow.style.backgroundImage = Art("frame-shadow");
-            shadow.style.unitySliceLeft = shadow.style.unitySliceRight =
-                shadow.style.unitySliceTop = shadow.style.unitySliceBottom = ShadowSlice;
-            shadow.style.unitySliceScale = ShadowSliceScale;
-            frame.Add(shadow);
-            foreach (string side in new[] { "top", "bottom", "left", "right" }) {
-                VisualElement b = MovedElements.Box("enhanced-cast__bar-" + side);
-                b.AddToClassList("enhanced-cast__frame-bar");
-                b.style.backgroundImage = Art(side is "top" or "bottom" ? "bar-h" : "bar-v");
-                frame.Add(b);
-            }
             return frame;
         }
 
-        /// <summary>The shadow texture's nine-slice: its 48-texel band sits within these 80 texels of
-        /// each edge; scaled so the band is as wide as a bar (theme: 40 px).</summary>
-        private const int ShadowSlice = 80;
-        private const float ShadowSliceScale = 40f / 48f;
+        /// <summary>How far a strap runs past each edge of the bar it straddles.</summary>
+        private const float StrapOverhang = 16f;
+        private const float StrapThickness = 20f;
 
-        /// <summary>How far a strap runs past a bar's outer edge, onto the marble.</summary>
-        private const float StrapOverhang = 24f;
-        private const float StrapThickness = 22f;
+        /// <summary>Room round the frame for the shadow it throws.</summary>
+        private const float ShadowMargin = 32f;
+
+        private VisualElement _frameArt;
+        private RenderTexture _frameTexture;
+        private Material _frameMaterial;
+        private Vector2Int _frameTexels;
+
+        /// <summary>
+        /// The stone frame as ONE piece (FRAME.SCX's): a band round the bench and the parchment
+        /// together and a bar down the middle where they meet — the two frame boxes overlap by one band,
+        /// so their shared side is that bar. Drawn by a shader at the size it is shown, with its shadow.
+        /// </summary>
+        private void DrawFrame(Rect outer, float band, float middleX) {
+            if (_frameArt == null) {
+                _frameArt = new VisualElement { name = "enhanced_cast_frame", pickingMode = PickingMode.Ignore };
+                _frameArt.style.position = Position.Absolute;
+                _layout.Insert(_layout.IndexOf(_left) + 2, _frameArt); // over both panels, under the straps
+            }
+            Rect r = new(outer.x - ShadowMargin, outer.y - ShadowMargin, outer.width + 2f * ShadowMargin, outer.height + 2f * ShadowMargin);
+            _frameArt.style.left = r.x;
+            _frameArt.style.top = r.y;
+            _frameArt.style.width = r.width;
+            _frameArt.style.height = r.height;
+            float k = Mathf.Clamp(Screen.height / Mathf.Max(1f, _layout.panel?.visualTree.layout.height ?? 1200f), 0.5f, 3f);
+            var texels = new Vector2Int(Mathf.Clamp(Mathf.RoundToInt(r.width * k), 16, 4096), Mathf.Clamp(Mathf.RoundToInt(r.height * k), 16, 4096));
+            if (_frameMaterial == null) {
+                Shader shader = Shader.Find("BakAgain/CastFrame");
+                if (shader == null) return;
+                _frameMaterial = new Material(shader);
+            }
+            if (_frameTexture == null || texels != _frameTexels) {
+                if (_frameTexture != null) { _frameTexture.Release(); Object.Destroy(_frameTexture); }
+                _frameTexture = new RenderTexture(texels.x, texels.y, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
+                _frameTexels = texels;
+                _frameArt.style.backgroundImage = Background.FromRenderTexture(_frameTexture);
+            }
+            float sx = texels.x / r.width, sy = texels.y / r.height;
+            _frameMaterial.SetVector("_Size", new Vector4(texels.x, texels.y, 0f, 0f));
+            _frameMaterial.SetVector("_Outer", new Vector4(ShadowMargin * sx, ShadowMargin * sy, (ShadowMargin + outer.width) * sx, (ShadowMargin + outer.height) * sy));
+            _frameMaterial.SetVector("_Bar", new Vector4(band * sx, (middleX - r.x) * sx, 0f, 0f));
+            _frameMaterial.SetVector("_Tile", new Vector4(720f * sx, 480f * sy, 0f, 0f)); // the slab at the theme's tile size
+            _frameMaterial.SetVector("_Shadow", new Vector4(8f * sx, 10f * sy, 14f * sx, 0.7f));
+            Texture2D stone = Resources.Load<Texture2D>(ArtFolder + "slab");
+            Graphics.Blit(stone, _frameTexture, _frameMaterial);
+            _frameArt.MarkDirtyRepaint();
+        }
+
+        private void ReleaseFrame() {
+            if (_frameTexture != null) { _frameTexture.Release(); Object.Destroy(_frameTexture); }
+            if (_frameMaterial != null) Object.Destroy(_frameMaterial);
+            _frameTexture = null;
+            _frameMaterial = null;
+            _frameArt = null;
+            _frameTexels = default;
+        }
 
         /// <summary>
         /// The active-spell strip: the original's plaque and runes, drawn by
@@ -618,27 +654,27 @@ namespace BakAgain.UI.Spells {
         private void PlaceStraps() {
             Rect well = Box(_wellFrame), parch = Box(_parchFrame);
             if (well.width <= 0f || parch.width <= 0f) return;
-            float bar = _wellFrame.resolvedStyle.paddingLeft;
-            // (centre x, centre y, length, runs vertically)
-            var spots = new List<(float X, float Y, float Length, bool Vertical)>();
-            float len = bar + StrapOverhang, outward = StrapOverhang / 2f;
-            void Top(Rect r) {
-                foreach (float f in new[] { 0.14f, 0.86f }) spots.Add((r.x + r.width * f, r.y + bar / 2f - outward, len, true));
+            float band = _wellFrame.resolvedStyle.paddingLeft;
+            Rect outer = Rect.MinMaxRect(well.xMin, Mathf.Min(well.yMin, parch.yMin), parch.xMax, Mathf.Max(well.yMax, parch.yMax));
+            float middle = well.xMax - band / 2f;
+            DrawFrame(outer, band, middle);
+
+            // Each strap straddles the bar it holds down: across it, past both edges.
+            float len = band + 2f * StrapOverhang;
+            var spots = new List<(float X, float Y, bool Vertical)>();
+            foreach (Rect part in new[] { Rect.MinMaxRect(well.xMin, outer.yMin, middle, outer.yMax), Rect.MinMaxRect(middle, outer.yMin, parch.xMax, outer.yMax) }) {
+                foreach (float f in new[] { 0.15f, 0.85f }) {
+                    float x = Mathf.Lerp(part.xMin, part.xMax, f);
+                    spots.Add((x, outer.yMin + band / 2f, true));
+                    spots.Add((x, outer.yMax - band / 2f, true));
+                }
             }
-            void Bottom(Rect r) {
-                foreach (float f in new[] { 0.14f, 0.86f }) spots.Add((r.x + r.width * f, r.yMax - bar / 2f + outward, len, true));
+            foreach (float f in new[] { 0.15f, 0.85f }) {
+                float y = Mathf.Lerp(outer.yMin, outer.yMax, f);
+                spots.Add((outer.xMin + band / 2f, y, false));
+                spots.Add((middle, y, false));
+                spots.Add((outer.xMax - band / 2f, y, false));
             }
-            void Side(Rect r, bool left) {
-                float x = left ? r.x + bar / 2f - outward : r.xMax - bar / 2f + outward;
-                foreach (float f in new[] { 0.14f, 0.86f }) spots.Add((x, r.y + r.height * f, len, false));
-            }
-            // Each frame is strapped down to the marble across its outer bars; across the gap between
-            // the two, one strap spans both bars.
-            Top(well); Bottom(well); Side(well, left: true);
-            Top(parch); Bottom(parch); Side(parch, left: false);
-            float gapX = (well.xMax + parch.xMin) / 2f, span = parch.xMin - well.xMax + 1.6f * bar;
-            float top = Mathf.Max(well.y, parch.y), height = Mathf.Min(well.yMax, parch.yMax) - top;
-            foreach (float f in new[] { 0.14f, 0.86f }) spots.Add((gapX, top + height * f, span, false));
 
             while (_straps.Count < spots.Count) {
                 var strap = new VisualElement { pickingMode = PickingMode.Ignore };
@@ -649,8 +685,8 @@ namespace BakAgain.UI.Spells {
             for (int i = 0; i < _straps.Count; i++) {
                 VisualElement strap = _straps[i];
                 if (i >= spots.Count) { strap.style.display = DisplayStyle.None; continue; }
-                (float x, float y, float length, bool vertical) = spots[i];
-                float w = vertical ? StrapThickness : length, h = vertical ? length : StrapThickness;
+                (float x, float y, bool vertical) = spots[i];
+                float w = vertical ? StrapThickness : len, h = vertical ? len : StrapThickness;
                 strap.style.display = DisplayStyle.Flex;
                 strap.style.backgroundImage = Art(vertical ? "strap-v" : "strap-h");
                 strap.style.left = x - w / 2f;
