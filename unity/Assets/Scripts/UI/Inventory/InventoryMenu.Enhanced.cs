@@ -77,6 +77,7 @@ namespace BakAgain.UI.Inventory {
 
         /// <summary>The bar's hint: how to get back while an item is examined.</summary>
         private void SyncEnhancedChrome() {
+            SyncLootHalvesForExamine();
             if (EnhancedApplied) {
                 _enhanced.SetHint(_inspectOpen ? Templates.Format(Templates.EnhancedInvBack) : null);
             }

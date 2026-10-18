@@ -81,6 +81,11 @@ namespace BakAgain.UI.Inventory {
     /// </summary>
     public sealed class ItemGridRenderer {
         /// <summary>Element name of the host holding the general item grid.</summary>
+        /// <summary>The prefix of every cell's name. A second renderer drawing a passive companion
+        /// panel on the same stage (the Enhanced side-by-side loot) takes its own, so the screen's
+        /// <c>item_slot_N</c> lookups only ever find the live panel's cells.</summary>
+        public string SlotPrefix { get; set; } = "item_slot_";
+
         internal const string GridHostName = "item_grid";
 
         /// <summary>The strip of shelf cells inside the clipping grid host, when the shelf scrolls
@@ -380,7 +385,7 @@ namespace BakAgain.UI.Inventory {
                     // and the cell's own background stays free for the icon sprite. This is what
                     // hides the empty-slot placeholder sprite when something is equipped.
                     var underlay = new VisualElement {
-                        name = $"item_slot_{slot}_equipbg",
+                        name = $"{SlotPrefix}{slot}_equipbg",
                         pickingMode = PickingMode.Ignore,
                         style = { backgroundColor = Color.black },
                     };
@@ -388,7 +393,7 @@ namespace BakAgain.UI.Inventory {
                     host.Add(underlay);
                     _built.Add(underlay);
                 }
-                var cell = new VisualElement { name = $"item_slot_{slot}" };
+                var cell = new VisualElement { name = $"{SlotPrefix}{slot}" };
                 LayoutApplier.ApplyGridPlacement(cell, grid, pl.Cell);
                 // Optional convenience click hook (used by unit tests). The loot controller passes
                 // null and drives its own pointer down/move/up so its drag-capture isn't fought by a
@@ -461,7 +466,7 @@ namespace BakAgain.UI.Inventory {
                 }
                 if (qtyText != null) {
                     var qty = new Label(qtyText) {
-                        name = $"item_slot_{slot}_qty",
+                        name = $"{SlotPrefix}{slot}_qty",
                         pickingMode = PickingMode.Ignore,
                         style = {
                             position = Position.Absolute,

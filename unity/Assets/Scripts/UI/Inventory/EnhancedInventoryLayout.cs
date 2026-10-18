@@ -192,7 +192,7 @@ namespace BakAgain.UI.Inventory {
             }
             Vector2 o = _layout.WorldToLocal(wb.position);
             var outer = new Rect(o.x, o.y, wb.width, wb.height);
-            _frame ??= new StoneFrame(_layout);
+            _frame ??= new StoneFrame(_layout, under: _frameBox); // the sheet's picker and drag stay on top
             // A member's pack is two panels, the paperdoll and the pack, side by side: the frame's middle
             // bar lies over the gap between them, as the casting screen's joins its two panels.
             float middle = MiddleBetweenPanels();
@@ -221,7 +221,7 @@ namespace BakAgain.UI.Inventory {
         /// <summary>The centre of the gap between exactly two side-by-side item panels, in the layout's
         /// units; -1 when the view has one panel (a chest, a shop, the keys).</summary>
         private float MiddleBetweenPanels() {
-            List<VisualElement> panels = Sheet?.Query(PanelName).ToList();
+            List<VisualElement> panels = Sheet?.Query(PanelName).Where(p => p.resolvedStyle.display != DisplayStyle.None).ToList();
             if (panels == null || panels.Count != 2) return -1f;
             Rect a = panels[0].worldBound, b = panels[1].worldBound;
             if (float.IsNaN(a.width) || float.IsNaN(b.width)) return -1f;
@@ -234,7 +234,7 @@ namespace BakAgain.UI.Inventory {
         private Rect PanelsBound() {
             Rect bound = Rect.zero;
             if (Sheet == null) return bound;
-            foreach (VisualElement p in Sheet.Query(PanelName).ToList()) {
+            foreach (VisualElement p in Sheet.Query(PanelName).Where(e => e.resolvedStyle.display != DisplayStyle.None).ToList()) {
                 Rect r = p.worldBound;
                 if (float.IsNaN(r.width) || r.width <= 0f) continue;
                 bound = bound.width > 0f ? Rect.MinMaxRect(Mathf.Min(bound.xMin, r.xMin), Mathf.Min(bound.yMin, r.yMin),

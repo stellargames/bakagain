@@ -323,6 +323,7 @@ namespace BakAgain.UI.Inventory {
             _shopPrices.Clear();  // a haggled price belongs to the visit, not to the shop
             _shopPage = 0;
             _shelfOffset = 0f;
+            _lootMember = 0;
             _container = container;
             _displayed = container;
             NoteKeeperKind();
@@ -782,6 +783,8 @@ namespace BakAgain.UI.Inventory {
             // Session end (invui_inspect_image_cleanup): drop the icon/chrome sprite caches and
             // release their owners — the only place these handles are released.
             _renderer.ReleaseAll();
+            RemoveHalves();
+            _peer.ReleaseAll();
             _chromeSprites.Clear();
             _partyHeads?.Dispose();
             _partyHeads = null;
@@ -897,7 +900,7 @@ namespace BakAgain.UI.Inventory {
             // question.
             bool shelfScrolls = EnhancedApplied && ShowingShopShelf;
             if (_shelf != null) _shelfOffset = _shelf.Offset;
-            _renderer.Render(_stage, _displayed, _gameSession.ObjectInfo, _resources, onSlotPicked: null,
+            _renderer.Render(LiveRenderRoot(), _displayed, _gameSession.ObjectInfo, _resources, onSlotPicked: null,
                 ShowingShopShelf ? InventoryLayoutMode.Shop
                     : lootMode ? InventoryLayoutMode.Loot : InventoryLayoutMode.Member,
                 Layout, _ui?.Frame, _gridNavWidgets, onSlotActivated: ActivateSlot,
@@ -910,6 +913,7 @@ namespace BakAgain.UI.Inventory {
                 shopChapter: ShowingShopShelf ? _gameSession.Chapter : int.MaxValue,
                 shelfScrolls: shelfScrolls);
             AttachShelfScroller();
+            RenderLootPeer();
             SyncShopPageButton();
             EnsureStageInput();
             EnsurePartyHeads();
@@ -1622,6 +1626,9 @@ namespace BakAgain.UI.Inventory {
                 }
                 return;
             }
+            if (PressOnLootPeer(stageLocal, clickCount)) {
+                return; // the other side of the Enhanced loot became the live one
+            }
             _shelf?.StopCoast(); // a touch stops a coasting shelf, as on a phone
             _pressSlot = SlotAt(stageLocal); // -1 if not on an item (buttons handle themselves)
             _pressPos = stageLocal;
@@ -1662,6 +1669,9 @@ namespace BakAgain.UI.Inventory {
             // the ghost and the dimmed origin cell.
             if (_gesture != null && _gesture.IsPressed) {
                 return;
+            }
+            if (ExamineOnLootPeer(stageLocal)) {
+                return; // Enhanced loot: the other panel's item, once that side is live
             }
             int slot = SlotAt(stageLocal);
             if (slot >= 0) {
@@ -2009,12 +2019,11 @@ namespace BakAgain.UI.Inventory {
 
         // The item-slot index under a STAGE-LOCAL point (walk up from the picked element to
         // item_slot_{n}). -1 if the point isn't over an item cell.
-        private int SlotAt(Vector2 stageLocal) {
+        private int SlotAt(Vector2 stageLocal, string prefix = "item_slot_") {
             IPanel panel = _stage?.panel;
             if (panel == null) {
                 return -1;
             }
-            const string prefix = "item_slot_";
             Vector2 world = _stage.LocalToWorld(stageLocal);
             VisualElement picked = panel.Pick(world);
             if (_shelf != null && picked != null && _renderer.ShelfContent?.Contains(picked) == true && !_shelf.Contains(world)) {
@@ -2773,7 +2782,7 @@ namespace BakAgain.UI.Inventory {
         // portrait — the original draws it on every repaint, drag or not (0x5632D). Re-run after each
         // render so a portrait switch moves it; hidden in loot mode, where there is no active member.
         private void UpdateActiveMemberCircle() {
-            int slot = ActivePortraitSlot();
+            int slot = SideBySide ? _lootMember : ActivePortraitSlot();
             if (EnhancedApplied) {
                 for (int i = 0; i < 3; i++) {
                     _enhanced.Portrait(i)?.EnableInClassList(EnhancedInventoryLayout.ActiveClass, i == slot);
@@ -2876,7 +2885,8 @@ namespace BakAgain.UI.Inventory {
         /// 32), so this is a plain hit test on that hotspot's rect, not a Pick.
         /// </summary>
         private bool IsOverContainerWindow(Vector2 stageLocal) =>
-            TryGetChromeRect(WindowContainerImage, out Rect rect) && rect.Contains(stageLocal);
+            (TryGetChromeRect(WindowContainerImage, out Rect rect) && rect.Contains(stageLocal))
+            || OverLootFromPack(stageLocal); // Enhanced: the loot's own panel takes the same drop
 
         /// <summary>
         /// Show or hide the container window's drag-time border. Faithful to the two call sites of
@@ -3505,6 +3515,9 @@ namespace BakAgain.UI.Inventory {
         /// RenderCurrent keys the layout the same way).</para>
         /// </summary>
         private bool EquipOnPaperdollDrop(int slot, Vector2 stageLocal) {
+            if (SideBySide) {
+                return false; // the Enhanced loot shows the pack only; its paperdoll box is hidden
+            }
             if (!IsEquipDropTarget(slot, stageLocal)) {
                 return false; // pulse gate never armed in the original — silent snap-back
             }
@@ -4899,7 +4912,7 @@ namespace BakAgain.UI.Inventory {
                     return slot;
                 }
             }
-            return -1;
+            return LootPackPortraitUnder(stageLocal); // Enhanced: the pack's panel is its member's portrait
         }
 
         private void ResetGesture() {

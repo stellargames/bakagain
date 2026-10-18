@@ -32,14 +32,20 @@ namespace BakAgain.UI {
         private const float ShadowMargin = 32f;
 
         private readonly VisualElement _host;
+        private readonly VisualElement _under;
         private readonly List<VisualElement> _straps = new();
         private VisualElement _art;
         private RenderTexture _texture;
         private Material _material;
         private Vector2Int _texels;
 
-        public StoneFrame(VisualElement host) {
+        /// <param name="host">Where the frame is drawn, in its local units.</param>
+        /// <param name="under">Draw the stone just beneath this child of the host instead of over
+        /// everything: what the screen draws inside the frame (a dragged item, a quantity picker)
+        /// then stays above it.</param>
+        public StoneFrame(VisualElement host, VisualElement under = null) {
             _host = host;
+            _under = under;
         }
 
         /// <summary>Draws the frame: <paramref name="outer"/> is its outside edge, <paramref name="band"/>
@@ -48,7 +54,11 @@ namespace BakAgain.UI {
             if (_art == null) {
                 _art = new VisualElement { name = "enhanced_stone_frame", pickingMode = PickingMode.Ignore };
                 _art.style.position = Position.Absolute;
-                _host.Add(_art); // over the panels it frames, under the straps that follow it
+                if (_under != null && _under.parent == _host) {
+                    _host.Insert(_host.IndexOf(_under), _art);
+                } else {
+                    _host.Add(_art); // over the panels it frames, under the straps that follow it
+                }
             }
             Rect r = new(outer.x - ShadowMargin, outer.y - ShadowMargin, outer.width + 2f * ShadowMargin, outer.height + 2f * ShadowMargin);
             _art.style.left = r.x;
