@@ -59,11 +59,20 @@ namespace BakAgain.UI.Spells {
             stage.Insert(1, art);
         }
 
-        /// <summary>The figure as a laser: a soft halo of stacked strokes and a thin bright core.</summary>
+        /// <summary>The figure as a red laser: a soft halo of stacked strokes and a thin bright core.</summary>
         private static void StrokeLaser(MeshGenerationContext context, int[] xs, int[] ys, Color ink) {
-            StrokeFigure(context, xs, ys, new Color(1f, 0.3f, 0.18f, 0.16f * ink.a), 9f);
-            StrokeFigure(context, xs, ys, new Color(1f, 0.36f, 0.24f, 0.3f * ink.a), 5f);
-            StrokeFigure(context, xs, ys, new Color(1f, 0.62f, 0.5f, 0.85f * ink.a), 2.6f);
+            StrokeFigure(context, xs, ys, new Color(0.85f, 0.02f, 0.0f, 0.2f * ink.a), 9f);
+            StrokeFigure(context, xs, ys, new Color(1f, 0.06f, 0.02f, 0.4f * ink.a), 5f);
+            StrokeFigure(context, xs, ys, new Color(1f, 0.24f, 0.14f, 0.95f * ink.a), 2.6f);
+        }
+
+        /// <summary>Drops the power choice and goes back to picking a spell, with the screen kept up and
+        /// nothing reported: no spell was cast, as if it had never been picked.</summary>
+        private void AbandonPowerSelection() {
+            _sliderSpell = -1;
+            _hoveredPosition = -1;
+            _hoveredSpell = -1;
+            _fillFrame = -1;
         }
 
         /// <summary>The gem a ring position shows for the icon the faithful ring would draw there.</summary>

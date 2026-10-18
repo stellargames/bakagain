@@ -259,13 +259,17 @@ namespace BakAgain.UI.Spells {
         private const int MaxLights = 16;
 
         /// <summary>The marble under the ring, lit; it covers the part of the sheet the bench shows.</summary>
+        /// <remarks>One element for the layout's life: the ring is redrawn on every hover and school
+        /// change, and a fresh element each time came up without the lit texture (the glow was lost
+        /// after the first redraw).</remarks>
         public VisualElement Bench() {
             Rect r = BenchRegion();
-            _bench = new VisualElement {
-                name = "enhanced_cast_bench",
-                pickingMode = PickingMode.Ignore,
-                style = { position = Position.Absolute, left = r.x, top = r.y, width = r.width, height = r.height },
-            };
+            _bench ??= new VisualElement { name = "enhanced_cast_bench", pickingMode = PickingMode.Ignore };
+            _bench.style.position = Position.Absolute;
+            _bench.style.left = r.x;
+            _bench.style.top = r.y;
+            _bench.style.width = r.width;
+            _bench.style.height = r.height;
             Relight();
             return _bench;
         }
@@ -296,8 +300,8 @@ namespace BakAgain.UI.Spells {
                 }
                 _benchMaterial = new Material(shader);
                 _benchTexture = new RenderTexture(BenchTexels, BenchTexels, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
-                _bench.style.backgroundImage = Background.FromRenderTexture(_benchTexture);
             }
+            _bench.style.backgroundImage = Background.FromRenderTexture(_benchTexture);
             Rect r = BenchRegion();
             // The marble at the well's own scale (the theme tiles it 720x480 panel units), so the lit
             // bench and the well around it are one surface.

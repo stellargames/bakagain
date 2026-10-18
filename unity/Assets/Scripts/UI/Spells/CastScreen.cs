@@ -1952,6 +1952,19 @@ namespace BakAgain.UI.Spells {
         /// showing is a no-op.
         /// </remarks>
         public void SelectSchool(int school) {
+            // *** WHILE A POWER IS BEING CHOSEN. *** The original's power loop reads only the ring and
+            // Escape (cspell_select_power, CSPELL.C:2056-2083), so a school button does nothing there.
+            // The Enhanced screen lets the click cancel the cast and switch school (owner, 2026-10-18).
+            if (_sliderSpell >= 0) {
+                if (!EnhancedApplied) {
+                    return;
+                }
+                AbandonPowerSelection();
+                if (school == _school) {
+                    DrawRingAndNamesAsync().Forget();
+                    return;
+                }
+            }
             if (school == _school) {
                 return;
             }
