@@ -19,5 +19,9 @@ namespace BakAgain.Core {
 
         /// <summary>The sun light, its tint on the world and the time-of-day grading; brightness stays the original's.</summary>
         Lighting,
+
+        /// <summary>The cast screen full-window in the original's materials: the ring a stone on a marble
+        /// bench, the school figure a dim laser, the known spells holograms in it (TASK-878).</summary>
+        Casting,
     }
 }

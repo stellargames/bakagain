@@ -78,5 +78,44 @@ namespace BakAgain.Tests.Editor.Graphics {
                 Object.DestroyImmediate(settings);
             }
         }
+
+        // An Enhanced layout draws on a canonical sheet it scales and moves into a field (the cast
+        // screen's ring on its bench). The faithful hit tests then convert the pointer against that
+        // sheet, so the conversion has to undo the scale too, not only the offset.
+        [UnityTest]
+        public IEnumerator ScreenToCanonical_ThroughAScaledSheet_LandsInSheetUnits() {
+            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            var host = new GameObject("CanonicalConversionScaledHost");
+            try {
+                UIDocument document = host.AddComponent<UIDocument>();
+                document.panelSettings = settings;
+                VisualElement root = document.rootVisualElement;
+                var sheet = new VisualElement {
+                    style = {
+                        position = Position.Absolute, left = 0, top = 0, width = 1600, height = 1200,
+                        transformOrigin = new TransformOrigin(0, 0),
+                        translate = new Translate(40, 30),
+                        scale = new Scale(new Vector2(0.5f, 0.5f)),
+                    },
+                };
+                root.Add(sheet);
+
+                yield return null;
+                yield return null;
+
+                Vector2 screenSize = new Vector2(Screen.width, Screen.height);
+                var screenPos = new Vector2(200f, screenSize.y - 150f);
+                Vector2 panelPos = RuntimePanelUtils.ScreenToPanel(root.panel, new Vector2(screenPos.x, screenSize.y - screenPos.y));
+                Vector2 expected = (panelPos - sheet.worldBound.position) / 0.5f;
+
+                Vector2 actual = CanonicalConversion.ScreenToCanonical(screenPos, screenSize, sheet);
+
+                Assert.AreEqual(expected.x, actual.x, 0.5f);
+                Assert.AreEqual(expected.y, actual.y, 0.5f);
+            } finally {
+                Object.DestroyImmediate(host);
+                Object.DestroyImmediate(settings);
+            }
+        }
     }
 }

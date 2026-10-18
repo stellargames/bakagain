@@ -22,7 +22,7 @@ namespace BakAgain.UI.Spells {
     /// halves of this screen are drawn from different kinds of resource, which is worth remembering
     /// when the symbol half lands.</para>
     /// </summary>
-    public class CastScreen : BakAgain.UI.Navigation.ScreenBase, IActionHandler,
+    public partial class CastScreen : BakAgain.UI.Navigation.ScreenBase, IActionHandler,
         BakAgain.UI.InputCore.IUnmatchedScancodeHandler {
         /// <summary>M (0x32) ends the cast screen outright (CSPELL.C:2285) — TASK-809.</summary>
         public bool OnUnmatchedScancode(int scancode) {
@@ -201,6 +201,8 @@ namespace BakAgain.UI.Spells {
             _heads?.Dispose();
             _heads = null;
             _compass = null;
+            _enhanced?.Revert();
+            _enhanced = null;
             // Nulled before disposing so an in-flight AttachCombatPanelAsync sees it has been
             // superseded and does not draw into a torn-down panel.
             BakAgain.UI.Combat.HudParchmentPanelView panel = _combatPanel;
@@ -244,11 +246,13 @@ namespace BakAgain.UI.Spells {
             // The chrome itself stays drawn in BOTH cases. FRAME.SCR comes from this screen, because
             // the navigator deactivates InGameScreen when the cast screen is pushed — gating it out
             // as well is what turned the whole strip black on the first attempt at this.
+            // The Enhanced layout has no HUD strip: its casters sit in the portrait column.
+            bool enhanced = Core.GameOptions.IsOn(Core.EnhancedFeature.Casting);
             if (CombatCaster != null) {
-                AttachCombatPanel();
+                if (!enhanced) AttachCombatPanel();
             } else {
                 AttachPartyHeads();
-                AttachCompass();
+                if (!enhanced) AttachCompass();
             }
         }
 
@@ -327,6 +331,7 @@ namespace BakAgain.UI.Spells {
         /// particular caster, so the caster has to be resolved before either runs.
         /// </remarks>
         private async UniTask OpenAsync() {
+            await ApplyEnhancedAsync();
             await ApplyInitialSelectionAsync();
             await DrawRingAndNamesAsync();
         }
@@ -356,6 +361,10 @@ namespace BakAgain.UI.Spells {
         public async UniTask PushAsync(BakAgain.UI.Navigation.IScreenNavigator navigator) {
             await Awaitable.EndOfFrameAsync();
             DestroySnapshot();
+            if (Core.GameOptions.IsOn(Core.EnhancedFeature.Casting)) {
+                await navigator.PushUnfaded(this); // the full-window screen has no world-view rect to wipe over
+                return;
+            }
             // The screen's alpha is not coverage — the panel leaves it at zero — so the capture is
             // copied into an opaque texture, or the cover draws as a hole.
             // Fixed in place rather than copied: a phone-sized screen is millions of pixels, and a
@@ -673,6 +682,10 @@ namespace BakAgain.UI.Spells {
 
             for (var i = 0; i < _ring.Positions.Count; i++) {
                 RingPosition position = _ring.Positions[i];
+                if (EnhancedApplied) {
+                    stage.Add(GemElement(position, i));
+                    continue;
+                }
                 int icon = IconAt(i);
                 var sprite = await _resources.GetOrLoadAsync<Sprite>($"{CastRingLayout.IconSet}#{icon}");
                 if (sprite == null) {
@@ -717,6 +730,10 @@ namespace BakAgain.UI.Spells {
             }
 
             int slot = CasterSlot();
+            if (EnhancedApplied) {
+                _enhanced.ShowCaster(slot);
+                return;
+            }
             if (slot < 0) {
                 return;
             }
@@ -786,6 +803,9 @@ namespace BakAgain.UI.Spells {
         /// </remarks>
         private async UniTask DrawSigilAsync(VisualElement stage) {
             Clear(stage, SigilClass);
+            if (EnhancedApplied) {
+                _enhanced.ShowSchool(_school);
+            }
             if (_school < 0 || _ring?.Positions == null || _ring.Positions.Count == 0) {
                 return;
             }
@@ -816,7 +836,14 @@ namespace BakAgain.UI.Spells {
                     height = Canonical.Height,
                 },
             };
-            element.generateVisualContent += context => StrokeSigil(context, school, ink);
+            bool laser = EnhancedApplied;
+            element.generateVisualContent += context => {
+                if (laser) {
+                    StrokeLaser(context, CastRingSigil.VertexX[school], CastRingSigil.VertexY[school], Color.white);
+                } else {
+                    StrokeSigil(context, school, ink);
+                }
+            };
             element.AddToClassList(SigilClass);
             stage.Add(element);
 
@@ -849,9 +876,14 @@ namespace BakAgain.UI.Spells {
                 style = { position = Position.Absolute, left = 0, top = 0,
                     width = Canonical.Width, height = Canonical.Height },
             };
+            bool laser = EnhancedApplied;
             trail.generateVisualContent += context => {
                 for (var i = 0; frame != null && i < frame.Length; i++) {
-                    StrokeFigure(context, frame[i].X, frame[i].Y, pens[i]);
+                    if (laser) {
+                        StrokeLaser(context, frame[i].X, frame[i].Y, new Color(1f, 1f, 1f, (i + 1f) / frame.Length));
+                    } else {
+                        StrokeFigure(context, frame[i].X, frame[i].Y, pens[i]);
+                    }
                 }
             };
             trail.AddToClassList(SigilClass);
@@ -904,10 +936,12 @@ namespace BakAgain.UI.Spells {
             StrokeFigure(context, GameData.Resources.Spells.CastRingSigil.VertexX[school],
                 GameData.Resources.Spells.CastRingSigil.VertexY[school], ink);
 
-        private static void StrokeFigure(MeshGenerationContext context, int[] xs, int[] ys, Color ink) {
+        private static void StrokeFigure(MeshGenerationContext context, int[] xs, int[] ys, Color ink,
+            float width = GameData.Resources.Spells.CastRingSigil.StrokeWidth) {
             Painter2D painter = context.painter2D;
             painter.strokeColor = ink;
-            painter.lineWidth = GameData.Resources.Spells.CastRingSigil.StrokeWidth;
+            painter.lineWidth = width;
+            painter.lineCap = LineCap.Round;
             foreach (int[] edge in GameData.Resources.Spells.CastRingSigil.Edges) {
                 (float x0, float y0) = GameData.Resources.Spells.CastRingSigil.ToCanonical(xs[edge[0]], ys[edge[0]]);
                 (float x1, float y1) = GameData.Resources.Spells.CastRingSigil.ToCanonical(xs[edge[1]], ys[edge[1]]);
@@ -945,6 +979,10 @@ namespace BakAgain.UI.Spells {
         /// about the assets, not a setting.</para>
         /// </remarks>
         private async UniTask DrawChromeAsync(VisualElement stage) {
+            if (EnhancedApplied) {
+                DrawEnhancedBench(stage);
+                return;
+            }
             Clear(stage, ChromeClass);
             // In a fight what lies under the cast panel is the arena's frame, cframe.scx
             // (COMBAT.C:879), which has no compass diamond; FRAME.SCR there brought it back.
@@ -1066,7 +1104,11 @@ namespace BakAgain.UI.Spells {
                 };
                 element.AddToClassList(SymbolClass);
                 stage.Add(element);
+                if (EnhancedApplied) {
+                    AddHologram(stage, element, node.X, node.Y, node.SpellId);
+                }
             }
+            SyncHolograms();
         }
 
         /// <summary>
@@ -1287,6 +1329,7 @@ namespace BakAgain.UI.Spells {
 
             if (spell != _hoveredSpell) {
                 _hoveredSpell = spell;
+                SyncHolograms();
                 ShowHoveredSpellAsync().Forget();
             }
 
@@ -1371,7 +1414,7 @@ namespace BakAgain.UI.Spells {
         /// "Fetters of Rime" and "Bane of the Black Slayers".</para>
         /// </remarks>
         public async UniTask ShowSpellNamesAsync() {
-            VisualElement stage = Stage();
+            VisualElement stage = InfoStage();
             // *** THE SAME GUARD DrawRingAsync HAS, AND IT WAS MISSING HERE. *** A screen opened
             // without its collaborators — which is what a reachability probe does — reached the
             // catalogue load and threw a NullReferenceException into a fire-and-forget task. That
@@ -1495,6 +1538,10 @@ namespace BakAgain.UI.Spells {
                 if (element == null) {
                     continue;
                 }
+                if (EnhancedApplied) {
+                    PaintGem(element, i);
+                    continue;
+                }
                 var sprite = await _resources.GetOrLoadAsync<Sprite>($"{CastRingLayout.IconSet}#{IconAt(i)}");
                 if (sprite != null) {
                     element.style.backgroundImage = new StyleBackground(sprite);
@@ -1604,7 +1651,7 @@ namespace BakAgain.UI.Spells {
                 return;
             }
 
-            VisualElement stage = Stage();
+            VisualElement stage = InfoStage();
             if (stage == null) {
                 return;
             }
@@ -1686,6 +1733,9 @@ namespace BakAgain.UI.Spells {
 
         private const int TitleBoxWidth = 900;
 
+        /// <summary>The title's centred box, for the Enhanced layout's fit of the panel's text.</summary>
+        internal const int InfoTitleBoxWidth = TitleBoxWidth;
+
         private static VisualElement BodyElement(string text, int y) {
             var label = new Label(text) {
                 pickingMode = PickingMode.Ignore,
@@ -1705,10 +1755,16 @@ namespace BakAgain.UI.Spells {
         private const string InfoLineClass = "cast-info-body";
 
         private VisualElement Stage() {
+            if (EnhancedApplied) {
+                return _enhanced.RingSheet;
+            }
             var document = GetComponent<UIDocument>();
             VisualElement root = document != null ? document.rootVisualElement : null;
             return root == null ? null : CanonicalStage.GetOrCreate(root, _ui.Frame);
         }
+
+        /// <summary>Where the info panel's lines go: the stage, or the Enhanced layout's parchment.</summary>
+        private VisualElement InfoStage() => EnhancedApplied ? _enhanced.InfoSheet : Stage();
 
         private static void Clear(VisualElement stage, string className) {
             foreach (VisualElement stale in stage.Query<VisualElement>(className: className).ToList()) {

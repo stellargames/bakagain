@@ -283,6 +283,7 @@ namespace BakAgain.UI {
             (GameData.Resources.Text.UiTemplates.EnhancedFeatureInventory, EnhancedFeature.Inventory),
             (GameData.Resources.Text.UiTemplates.EnhancedFeatureSky, EnhancedFeature.Sky),
             (GameData.Resources.Text.UiTemplates.EnhancedFeatureLighting, EnhancedFeature.Lighting),
+            (GameData.Resources.Text.UiTemplates.EnhancedFeatureCasting, EnhancedFeature.Casting),
         };
 
         /// <summary>

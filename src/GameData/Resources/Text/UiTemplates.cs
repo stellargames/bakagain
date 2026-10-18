@@ -95,6 +95,10 @@ public static class UiTemplates {
     public const string EnhancedFeatureInventory = "port:template:enhanced_feature_inventory";
     public const string EnhancedFeatureSky = "port:template:enhanced_feature_sky";
     public const string EnhancedFeatureLighting = "port:template:enhanced_feature_lighting";
+    public const string EnhancedFeatureCasting = "port:template:enhanced_feature_casting";
+
+    /// <summary>The Enhanced cast screen's Exit stone; the faithful button carries the word in its image.</summary>
+    public const string EnhancedCastExit = "port:template:enhanced_cast_exit";
 
     /// <summary>The Enhanced inventory's buttons and labels. Labels name people, never items: a name
     /// is what examining an item reveals.</summary>
@@ -168,6 +172,8 @@ public static class UiTemplates {
         (EnhancedFeatureInventory, _ => "Inventory"),
         (EnhancedFeatureSky, _ => "Sky"),
         (EnhancedFeatureLighting, _ => "Lighting"),
+        (EnhancedFeatureCasting, _ => "Casting"),
+        (EnhancedCastExit, _ => "Exit"),
         (EnhancedInvGiveTo, _ => "Give to {name}"),
         (EnhancedInvTakes, _ => "{name} takes it"),
         (EnhancedInvBuyFor, _ => "Buy for {name}"),

@@ -32,9 +32,12 @@ namespace BakAgain.Graphics {
             Vector2 panelPos = RuntimePanelUtils.ScreenToPanel(panel, topLeftScreenPos);
             Vector2 origin = stage.worldBound.position;
             if (float.IsNaN(origin.x) || float.IsNaN(origin.y)) {
-                origin = Vector2.zero; // layout not resolved yet
+                return panelPos; // layout not resolved yet
             }
-            return panelPos - origin;
+            // Through the stage's own transform (and its parents'), not just its offset: an Enhanced
+            // layout draws on a canonical sheet it scales into a field, and the faithful hit tests
+            // must still land in canonical units. An untransformed stage gives panelPos - origin.
+            return stage.WorldToLocal(panelPos);
         }
     }
 }
