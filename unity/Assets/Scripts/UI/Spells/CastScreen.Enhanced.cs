@@ -40,13 +40,62 @@ namespace BakAgain.UI.Spells {
                 return;
             }
             _ring ??= await _resources.GetOrLoadAsync<CastRing>("RING.DAT");
-            _enhanced ??= new EnhancedCastLayout(root, _session);
+            if (_enhanced == null) {
+                _enhanced = new EnhancedCastLayout(root, _session);
+                _enhanced.CastPressed += CastChosenPower;
+                _enhanced.BackPressed += BackToSpells;
+            }
             var enabled = new HashSet<int>();
             foreach (BakAgain.UI.InputCore.NavWidget w in _ui.CurrentNavWidgets) enabled.Add(w.ActionId);
             VisualElement reqStage = CanonicalStage.GetOrCreate(root, _ui.Frame);
             if (!_enhanced.Apply(reqStage, _ring?.Positions, enabled, CombatCaster != null)) {
                 _enhanced = null;
+                return;
             }
+            _wipeCover?.BringToFront(); // the layout arrives under the opening wipe, not before it
+            RefreshEnhancedNav();
+        }
+
+        /// <summary>
+        /// Keyboard and gamepad focus over the moved buttons where they now stand (and the tablets
+        /// while they show): the REQ's own rects point at where the buttons were before the move.
+        /// </summary>
+        private void RefreshEnhancedNav() {
+            BakAgain.UI.InputCore.MenuLayerHost host = GetComponent<BakAgain.UI.InputCore.MenuLayerHost>();
+            if (host == null || _ui == null || !EnhancedApplied) return;
+            _navApplied = false;
+            var widgets = new List<BakAgain.UI.InputCore.NavWidget>();
+            foreach (BakAgain.UI.InputCore.NavWidget w in _ui.CurrentNavWidgets) {
+                VisualElement element = w.Element;
+                widgets.Add(new BakAgain.UI.InputCore.NavWidget(element, w.Label, () => _enhanced?.CanonicalRectOf(element) ?? Rect.zero,
+                    w.Primary, w.Secondary, w.ActionId));
+            }
+            if (_tabletsShown) {
+                VisualElement back = _enhanced.BackTablet, cast = _enhanced.CastTablet;
+                widgets.Add(new BakAgain.UI.InputCore.NavWidget(back, UiTemplates.Format(UiTemplates.EnhancedCastBack),
+                    () => _enhanced?.CanonicalRectOf(back) ?? Rect.zero, BackToSpells, null));
+                widgets.Add(new BakAgain.UI.InputCore.NavWidget(cast, UiTemplates.Format(UiTemplates.EnhancedCastCast),
+                    () => _enhanced?.CanonicalRectOf(cast) ?? Rect.zero, CastChosenPower, null));
+            }
+            // False until the host has pushed its layer, which can come after the layout is applied;
+            // Update keeps asking until it takes.
+            _navApplied = host.SetWidgets(widgets);
+        }
+
+        private bool _tabletsShown, _navApplied;
+
+        /// <summary>Cast: the power chosen on the ring, once one is.</summary>
+        private void CastChosenPower() {
+            if (_sliderSpell >= 0 && _hoveredPosition >= 0) {
+                CommitPowerSelection();
+            }
+        }
+
+        /// <summary>Back: drop the power choice and pick a spell again; the screen stays up.</summary>
+        private void BackToSpells() {
+            if (_sliderSpell < 0) return;
+            AbandonPowerSelection();
+            DrawRingAndNamesAsync().Forget();
         }
 
         /// <summary>Under the ring: the lit bench, then the ring art itself.</summary>
@@ -142,6 +191,12 @@ namespace BakAgain.UI.Spells {
                 ? touch ? UiTemplates.EnhancedCastHintPowerTouch : UiTemplates.EnhancedCastHintPower
                 : touch ? UiTemplates.EnhancedCastHintPickTouch : UiTemplates.EnhancedCastHintPick;
             _enhanced.SetHint(UiTemplates.Format(key));
+            _enhanced.SetCasterStats(CasterStatsText());
+            _enhanced.ShowTablets(choosing, _hoveredPosition >= 0);
+            if (choosing != _tabletsShown) {
+                _tabletsShown = choosing;
+                RefreshEnhancedNav();
+            }
             if (!choosing) {
                 _enhanced.SetReadout(null, null);
                 return;
@@ -153,6 +208,19 @@ namespace BakAgain.UI.Spells {
                 return;
             }
             _enhanced.SetReadout(power.ToString(), UiTemplates.Format(UiTemplates.EnhancedCastPowerOf, ("max", _maximumPower)));
+        }
+
+        /// <summary>The caster's health and stamina, current of max: what a cast is paid from. In a fight
+        /// the current values are the combatant's own.</summary>
+        private string CasterStatsText() {
+            GameData.Resources.Character.ActorStat[] stats = _session?.StatsOf(CasterId);
+            if (stats == null) return null;
+            int healthMax = stats[(int)GameData.ActorAttribute.Health].Max;
+            int staminaMax = stats[(int)GameData.ActorAttribute.Stamina].Max;
+            int health = CombatCaster?.Health ?? _session.PeekEffectiveStat(CasterId, GameData.ActorAttribute.Health);
+            int stamina = CombatCaster?.Stamina ?? _session.PeekEffectiveStat(CasterId, GameData.ActorAttribute.Stamina);
+            return UiTemplates.Format(UiTemplates.EnhancedCastHealth, ("current", health), ("max", healthMax)) + "\n"
+                + UiTemplates.Format(UiTemplates.EnhancedCastStamina, ("current", stamina), ("max", staminaMax));
         }
 
         private readonly List<EnhancedCastLayout.Light> _lights = new();

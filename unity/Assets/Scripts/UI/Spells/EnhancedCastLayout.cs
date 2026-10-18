@@ -2,6 +2,7 @@ namespace BakAgain.UI.Spells {
     using System.Collections.Generic;
     using BakAgain.Core;
     using GameData.Resources.Spells;
+    using UiTemplates = GameData.Resources.Text.UiTemplates;
     using UnityEngine;
     using UnityEngine.UIElements;
 
@@ -151,11 +152,19 @@ namespace BakAgain.UI.Spells {
                 _names[i] = new Label { pickingMode = PickingMode.Ignore };
                 _names[i].AddToClassList("enhanced-cast__name");
                 wrap.Add(_names[i]);
+                _stats[i] = new Label { pickingMode = PickingMode.Ignore };
+                _stats[i].AddToClassList("enhanced-cast__stats");
+                wrap.Add(_stats[i]);
             }
 
             _hint = new Label { pickingMode = PickingMode.Ignore };
             _hint.AddToClassList("enhanced-cast__hint");
             bar.Add(_hint);
+            CastTablet = Tablet(UiTemplates.EnhancedCastCast, "enhanced-cast__tablet--cast", () => CastPressed?.Invoke());
+            BackTablet = Tablet(UiTemplates.EnhancedCastBack, null, () => BackPressed?.Invoke());
+            bar.Add(BackTablet);
+            bar.Add(CastTablet);
+            ShowTablets(false, false);
             _readout = MovedElements.Box("enhanced-cast__readout");
             _readoutPower = new Label { pickingMode = PickingMode.Ignore };
             _readoutPower.AddToClassList("enhanced-cast__readout-power");
@@ -169,9 +178,11 @@ namespace BakAgain.UI.Spells {
             _moved.Move(exit, bar, "enhanced-cast__exit", clearSize: true);
             Stone(exit, -1);
 
+            // Hidden, not removed from layout: its canonical frame is what the cursor and keyboard focus
+            // map through (CanonicalRectOf), so it has to keep its place and size.
             _reqStage = reqStage;
             if (_reqStage != null) {
-                _reqStage.style.display = DisplayStyle.None;
+                _reqStage.style.visibility = Visibility.Hidden;
             }
             _layout.RegisterCallback<GeometryChangedEvent>(_ => Fit());
             _well.RegisterCallback<GeometryChangedEvent>(_ => Fit());
@@ -203,7 +214,7 @@ namespace BakAgain.UI.Spells {
             if (exit != null) exit.style.unityBackgroundImageTintColor = StyleKeyword.Null;
             _moved.RestoreAll();
             if (_reqStage != null) {
-                _reqStage.style.display = StyleKeyword.Null;
+                _reqStage.style.visibility = StyleKeyword.Null;
             }
             ReleaseBench();
             _straps.Clear();
@@ -211,6 +222,8 @@ namespace BakAgain.UI.Spells {
             _layout = _left = _well = _parch = _reqStage = null;
             RingSheet = InfoSheet = null;
             _hint = _readoutPower = _readoutOf = null;
+            CastTablet = BackTablet = null;
+            System.Array.Clear(_stats, 0, 3);
             _readout = null;
             System.Array.Clear(_portraits, 0, 3);
             System.Array.Clear(_names, 0, 3);
@@ -233,6 +246,54 @@ namespace BakAgain.UI.Spells {
                 _portraits[i]?.EnableInClassList(CasterClass, i == slot);
             }
             RefreshNames();
+            SetCasterStats(_statsText);
+        }
+
+        /// <summary>The Cast and Back tablets, shown while a power is chosen; Cast is lit once a power is.</summary>
+        public VisualElement CastTablet { get; private set; }
+
+        public VisualElement BackTablet { get; private set; }
+
+        public event System.Action CastPressed, BackPressed;
+
+        public void ShowTablets(bool shown, bool castReady) {
+            if (CastTablet == null) return;
+            CastTablet.style.display = BackTablet.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
+            CastTablet.EnableInClassList("enhanced-cast__tablet--off", !castReady);
+        }
+
+        /// <summary>The caster's health and stamina under their portrait; the others show none.</summary>
+        public void SetCasterStats(string text) {
+            _statsText = text;
+            for (int i = 0; i < 3; i++) {
+                if (_stats[i] != null) _stats[i].text = i == _casterSlot ? text ?? string.Empty : string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// An element's box in the REQ's canonical frame, wherever the layout has put it: what the
+        /// cursor warp and keyboard focus work in. The REQ's own rect would point at where the element
+        /// stood before it was moved.
+        /// </summary>
+        public Rect CanonicalRectOf(VisualElement element) {
+            if (_reqStage == null || element == null || element.panel == null) return Rect.zero;
+            Rect wb = element.worldBound;
+            if (float.IsNaN(wb.x) || wb.width <= 0f) return Rect.zero;
+            Vector2 min = _reqStage.WorldToLocal(wb.min);
+            Vector2 max = _reqStage.WorldToLocal(wb.max);
+            return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
+        }
+
+        private VisualElement Tablet(string key, string cls, System.Action pressed) {
+            var tablet = new VisualElement { pickingMode = PickingMode.Position, focusable = true };
+            tablet.AddToClassList("enhanced-cast__tablet");
+            if (cls != null) tablet.AddToClassList(cls);
+            tablet.style.backgroundImage = Art("parchment");
+            var word = new Label(UiTemplates.Format(key)) { pickingMode = PickingMode.Ignore };
+            word.AddToClassList("enhanced-cast__tablet-word");
+            tablet.Add(word);
+            tablet.AddManipulator(new Clickable(pressed));
+            return tablet;
         }
 
         public void SetHint(string text) {
@@ -252,6 +313,8 @@ namespace BakAgain.UI.Spells {
         private bool _combat;
         private int _casterSlot = -1;
         private Label _hint, _readoutPower, _readoutOf;
+        private readonly Label[] _stats = new Label[3];
+        private string _statsText;
         private VisualElement _readout;
 
         public void RefreshNames() {

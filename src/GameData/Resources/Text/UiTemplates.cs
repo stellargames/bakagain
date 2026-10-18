@@ -108,6 +108,13 @@ public static class UiTemplates {
     public const string EnhancedCastHintPowerTouch = "port:template:enhanced_cast_hint_power_touch";
     public const string EnhancedCastPowerOf = "port:template:enhanced_cast_power_of";
 
+    /// <summary>The Enhanced cast screen's Cast and Back tablets, shown while a power is chosen, and the
+    /// caster's two pools under their portrait.</summary>
+    public const string EnhancedCastCast = "port:template:enhanced_cast_cast";
+    public const string EnhancedCastBack = "port:template:enhanced_cast_back";
+    public const string EnhancedCastHealth = "port:template:enhanced_cast_health";
+    public const string EnhancedCastStamina = "port:template:enhanced_cast_stamina";
+
     /// <summary>The Enhanced inventory's buttons and labels. Labels name people, never items: a name
     /// is what examining an item reveals.</summary>
     public const string EnhancedInvGiveTo = "port:template:enhanced_inv_give_to";
@@ -184,9 +191,13 @@ public static class UiTemplates {
         (EnhancedCastExit, _ => "Exit"),
         (EnhancedCastHintPick, _ => "Point at a symbol to read it; click it to cast."),
         (EnhancedCastHintPickTouch, _ => "Touch a symbol to read it; lift your finger on it to cast."),
-        (EnhancedCastHintPower, _ => "Point at a lit gem to choose the power; click it to cast. A school stone or Escape cancels."),
-        (EnhancedCastHintPowerTouch, _ => "Slide along the lit gems to choose the power; lift to cast. A school stone cancels."),
+        (EnhancedCastHintPower, _ => "Point at a lit gem for the power, then click it or Cast. Back returns to the spells."),
+        (EnhancedCastHintPowerTouch, _ => "Slide along the lit gems for the power, then Cast. Back returns to the spells."),
         (EnhancedCastPowerOf, _ => "of {max}"),
+        (EnhancedCastCast, _ => "Cast"),
+        (EnhancedCastBack, _ => "Back"),
+        (EnhancedCastHealth, _ => "Health {current}/{max}"),
+        (EnhancedCastStamina, _ => "Stamina {current}/{max}"),
         (EnhancedInvGiveTo, _ => "Give to {name}"),
         (EnhancedInvTakes, _ => "{name} takes it"),
         (EnhancedInvBuyFor, _ => "Buy for {name}"),

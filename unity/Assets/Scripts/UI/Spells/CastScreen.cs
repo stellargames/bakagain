@@ -203,6 +203,8 @@ namespace BakAgain.UI.Spells {
             _compass = null;
             _enhanced?.Revert();
             _enhanced = null;
+            _tabletsShown = false;
+            _navApplied = false;
             // Nulled before disposing so an in-flight AttachCombatPanelAsync sees it has been
             // superseded and does not draw into a torn-down panel.
             BakAgain.UI.Combat.HudParchmentPanelView panel = _combatPanel;
@@ -365,10 +367,6 @@ namespace BakAgain.UI.Spells {
         public async UniTask PushAsync(BakAgain.UI.Navigation.IScreenNavigator navigator) {
             await Awaitable.EndOfFrameAsync();
             DestroySnapshot();
-            if (Core.GameOptions.IsOn(Core.EnhancedFeature.Casting)) {
-                await navigator.PushUnfaded(this); // the full-window screen has no world-view rect to wipe over
-                return;
-            }
             // The screen's alpha is not coverage — the panel leaves it at zero — so the capture is
             // copied into an opaque texture, or the cover draws as a hole.
             // Fixed in place rather than copied: a phone-sized screen is millions of pixels, and a
@@ -396,7 +394,9 @@ namespace BakAgain.UI.Spells {
 
         private async UniTask PlayOpenWipeAsync() {
             VisualElement root = GetComponent<UIDocument>()?.rootVisualElement;
-            VisualElement stage = Stage();
+            // The Enhanced screen covers the whole window, so its wipe reveals the whole window: the
+            // REQ stage keeps its canonical frame, and the band is scaled from the world-view rect to it.
+            VisualElement stage = EnhancedApplied ? CanonicalStage.Find(root) : Stage();
             if (_openingSnapshot == null || root == null || stage == null) {
                 EndOpenWipe();
                 return;
@@ -421,6 +421,14 @@ namespace BakAgain.UI.Spells {
             (int rx, int ry, int rw, int rh) = CastOpenWipe.CanonicalRect;
             float top = wb.y + ry * sy;
             float height = rh * sy;
+            float x0 = wb.x + rx * sx;
+            float span = rw * sx;
+            if (EnhancedApplied) {
+                top = 0f;
+                height = rootH;
+                x0 = 0f;
+                span = rootW;
+            }
 
             // The party bar and the frame outside the rect arrive at once; only the rect wipes.
             _wipeCover?.RemoveFromHierarchy();
@@ -433,8 +441,10 @@ namespace BakAgain.UI.Spells {
             float start = Time.unscaledTime;
             for (int step = 1; step < CastOpenWipe.StepCount && _openingSnapshot != null;) {
                 (int bx, int bw) = CastOpenWipe.RevealedBand(step);
-                PlaceCurtain(left, wb.x + rx * sx, top, (bx - rx) * sx, height);
-                PlaceCurtain(right, wb.x + (bx + bw) * sx, top, (rx + rw - bx - bw) * sx, height);
+                // The band as fractions of the original's rect, laid over whichever rect wipes here.
+                float b0 = (bx - rx) / (float)rw, b1 = (bx + bw - rx) / (float)rw;
+                PlaceCurtain(left, x0, top, b0 * span, height);
+                PlaceCurtain(right, x0 + b1 * span, top, (1f - b1) * span, height);
                 await UniTask.Yield();
                 step = 1 + (int)((Time.unscaledTime - start) * CastOpenWipe.TicksPerSecond);
             }
@@ -1250,6 +1260,9 @@ namespace BakAgain.UI.Spells {
         /// </remarks>
         private void Update() {
             _compass?.Refresh();
+            if (EnhancedApplied && !_navApplied) {
+                RefreshEnhancedNav();
+            }
 
             if (_pointer == null || _ring?.Positions == null || !Tracks(_pointer) || _fillFrame >= 0) {
                 return;
@@ -1282,12 +1295,16 @@ namespace BakAgain.UI.Spells {
                     CastRingLayout.PositionForPower(_maximumPower),
                     CastRingLayout.TouchReach);
 
-            if (position != _hoveredPosition) {
+            // The Enhanced screen keeps the chosen power when the pointer leaves the ring, so its Cast
+            // tablet can cast it; a finger's lift chooses there and Cast casts, where the faithful
+            // screen casts on the lift (TASK-816).
+            bool keep = EnhancedApplied && position < 0;
+            if (position != _hoveredPosition && !keep) {
                 _hoveredPosition = position;
                 RefreshHoverAsync().Forget();
             }
 
-            if (Picks(_pointer) && _hoveredPosition >= 0) {
+            if (Picks(_pointer) && position >= 0 && (!EnhancedApplied || _pointer.IsPresent)) {
                 CommitPowerSelection();
             }
         }
