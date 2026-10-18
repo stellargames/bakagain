@@ -1,0 +1,20 @@
+{
+  "game": "Betrayal at Krondor",
+  "system": "PC (DOS)",
+  "wikidata": "Q831664",
+  "type": "port",
+  "status": "playable",
+  "project": "BaK-Again",
+  "approach": "Engine rewritten in Unity from the game's reverse-engineered file formats and logic; reads the player's own copy of the game data.",
+  "notes": "Alpha. Every chapter can be played to the end. Moddable: replacement assets go in an Overrides/ folder.",
+  "help": ["playtesting", "bug reports"],
+  "maintainers": [
+    { "name": "JvE", "url": "https://github.com/JorisVanEijden" }
+  ],
+  "targets":["Windows", "Linux", "Android"],
+  "toolchain": ["Unity"],
+  "links": [
+    { "label": "Website", "url": "https://bakagain.org" },
+    { "label": "Forum", "url": "https://forum.bakagain.org" }
+  ]
+}
