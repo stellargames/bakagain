@@ -25,8 +25,8 @@ namespace BakAgain.UI {
     /// </summary>
     public sealed class StoneFrame {
         /// <summary>How far a strap runs past each edge of the bar it straddles.</summary>
-        public const float StrapOverhang = 16f;
-        public const float StrapThickness = 20f;
+        public const float StrapOverhang = 8f;
+        public const float StrapThickness = 14f;
 
         /// <summary>Room round the frame for the shadow it throws.</summary>
         private const float ShadowMargin = 32f;
