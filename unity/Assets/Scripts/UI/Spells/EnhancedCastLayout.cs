@@ -86,9 +86,7 @@ namespace BakAgain.UI.Spells {
             }
             var names = new List<string> { ExitName };
             for (int i = 0; i < CastRingLayout.CategoryCount; i++) names.Add(SchoolName(i));
-            if (!combat) {
-                for (int i = 0; i < 3; i++) names.Add(PortraitName(i));
-            }
+            for (int i = 0; i < 3; i++) names.Add(PortraitName(i));
             foreach (string n in names) {
                 if (_root.Q(n) == null) {
                     if (!_warned) {
@@ -122,6 +120,9 @@ namespace BakAgain.UI.Spells {
             top.Add(_parch);
             top.Add(column);
             VisualElement bar = MovedElements.Box("enhanced-cast__bar");
+            _schoolsBar = schools;
+            _column = column;
+            _bar = bar;
             right.Add(top);
             right.Add(bar);
             _layout.Add(_left);
@@ -136,24 +137,34 @@ namespace BakAgain.UI.Spells {
                 button.EnableInClassList(OffClass, !enabledActions.Contains(CastMenuSelection.FirstSchoolActionId + i));
             }
 
-            if (combat) {
-                column.style.display = DisplayStyle.None; // the caster is fixed in a fight; no column yet
-            } else {
-                for (int i = 0; i < 3; i++) {
-                    VisualElement wrap = MovedElements.Box("enhanced-cast__portrait");
-                    wrap.style.backgroundImage = Art("socket");
-                    column.Add(wrap);
-                    _portraits[i] = wrap;
-                    _moved.Move(_root.Q(PortraitName(i)), wrap, "enhanced-cast__head", clearSize: true);
-                    _names[i] = new Label { pickingMode = PickingMode.Ignore };
-                    _names[i].AddToClassList("enhanced-cast__name");
-                    wrap.Add(_names[i]);
-                }
+            // In a fight the caster is the combatant whose turn it is: the column shows only them, and
+            // their portrait does not take clicks (the faithful screen draws no portraits there at all).
+            _combat = combat;
+            for (int i = 0; i < 3; i++) {
+                VisualElement wrap = MovedElements.Box("enhanced-cast__portrait");
+                wrap.style.backgroundImage = Art("socket");
+                column.Add(wrap);
+                _portraits[i] = wrap;
+                VisualElement head = _root.Q(PortraitName(i));
+                _moved.Move(head, wrap, "enhanced-cast__head", clearSize: true);
+                if (combat) head.pickingMode = PickingMode.Ignore;
+                _names[i] = new Label { pickingMode = PickingMode.Ignore };
+                _names[i].AddToClassList("enhanced-cast__name");
+                wrap.Add(_names[i]);
             }
 
-            var hint = new Label { pickingMode = PickingMode.Ignore };
-            hint.AddToClassList("enhanced-cast__hint");
-            bar.Add(hint);
+            _hint = new Label { pickingMode = PickingMode.Ignore };
+            _hint.AddToClassList("enhanced-cast__hint");
+            bar.Add(_hint);
+            _readout = MovedElements.Box("enhanced-cast__readout");
+            _readoutPower = new Label { pickingMode = PickingMode.Ignore };
+            _readoutPower.AddToClassList("enhanced-cast__readout-power");
+            _readoutOf = new Label { pickingMode = PickingMode.Ignore };
+            _readoutOf.AddToClassList("enhanced-cast__readout-of");
+            _readout.Add(_readoutPower);
+            _readout.Add(_readoutOf);
+            _well.Add(_readout);
+            SetReadout(null, null);
             VisualElement exit = _root.Q(ExitName);
             _moved.Move(exit, bar, "enhanced-cast__exit", clearSize: true);
             Stone(exit, -1);
@@ -165,6 +176,7 @@ namespace BakAgain.UI.Spells {
             _layout.RegisterCallback<GeometryChangedEvent>(_ => Fit());
             _well.RegisterCallback<GeometryChangedEvent>(_ => Fit());
             _parch.RegisterCallback<GeometryChangedEvent>(_ => Fit());
+            _column.RegisterCallback<GeometryChangedEvent>(_ => Fit());
             RefreshNames();
             return true;
         }
@@ -177,6 +189,10 @@ namespace BakAgain.UI.Spells {
             }
             foreach (VisualElement e in _added) e.RemoveFromHierarchy();
             _added.Clear();
+            for (int i = 0; i < 3; i++) {
+                VisualElement head = _root.Q(PortraitName(i));
+                if (head != null) head.pickingMode = PickingMode.Position;
+            }
             foreach (VisualElement s in _schools) {
                 if (s == null) continue;
                 s.style.unityBackgroundImageTintColor = StyleKeyword.Null;
@@ -190,9 +206,12 @@ namespace BakAgain.UI.Spells {
                 _reqStage.style.display = StyleKeyword.Null;
             }
             ReleaseBench();
+            _straps.Clear();
             _layout.RemoveFromHierarchy();
             _layout = _left = _well = _parch = _reqStage = null;
             RingSheet = InfoSheet = null;
+            _hint = _readoutPower = _readoutOf = null;
+            _readout = null;
             System.Array.Clear(_portraits, 0, 3);
             System.Array.Clear(_names, 0, 3);
             System.Array.Clear(_schools, 0, _schools.Length);
@@ -206,12 +225,34 @@ namespace BakAgain.UI.Spells {
             }
         }
 
-        /// <summary>Rings the caster's portrait, as the faithful highlight does.</summary>
+        /// <summary>Rings the caster's portrait, as the faithful highlight does; in a fight the caster is
+        /// the only one shown.</summary>
         public void ShowCaster(int slot) {
+            _casterSlot = slot;
             for (int i = 0; i < 3; i++) {
                 _portraits[i]?.EnableInClassList(CasterClass, i == slot);
             }
+            RefreshNames();
         }
+
+        public void SetHint(string text) {
+            if (_hint != null) _hint.text = text ?? string.Empty;
+        }
+
+        /// <summary>The power being chosen, large in the ring's middle, with "of max" under it; null hides it.</summary>
+        public void SetReadout(string power, string of) {
+            if (_readout == null) return;
+            _readout.style.display = of == null ? DisplayStyle.None : DisplayStyle.Flex;
+            _readoutPower.text = power ?? string.Empty;
+            _readoutOf.text = of ?? string.Empty;
+        }
+
+        private VisualElement _schoolsBar, _column, _bar;
+        private readonly List<VisualElement> _straps = new();
+        private bool _combat;
+        private int _casterSlot = -1;
+        private Label _hint, _readoutPower, _readoutOf;
+        private VisualElement _readout;
 
         public void RefreshNames() {
             IReadOnlyList<string> names = _session?.ActivePartyMemberNames;
@@ -219,7 +260,8 @@ namespace BakAgain.UI.Spells {
                 if (_names[i] == null) continue;
                 string name = names != null && i < names.Count ? names[i] : string.Empty;
                 _names[i].text = name;
-                _portraits[i].style.display = string.IsNullOrEmpty(name) ? DisplayStyle.None : DisplayStyle.Flex;
+                bool shown = !string.IsNullOrEmpty(name) && (!_combat || i == _casterSlot);
+                _portraits[i].style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
             }
         }
 
@@ -425,6 +467,7 @@ namespace BakAgain.UI.Spells {
 
         private void Fit() {
             if (_layout == null) return;
+            PlaceStraps();
             // The bench is square: the left column is as wide as the well is tall.
             float h = _well.layout.height;
             if (!float.IsNaN(h) && h > 0f && Mathf.Abs(_left.resolvedStyle.width - h) > 0.5f) {
@@ -433,6 +476,54 @@ namespace BakAgain.UI.Spells {
             FitSheet(RingSheet, _well.contentRect, BenchRegion());
             Relight(); // the marble's scale follows the fit
             FitSheet(InfoSheet, _parch.contentRect, InfoRect());
+        }
+
+        /// <summary>
+        /// Copper straps across the gaps between the panels, two to a gap, as the original's frame joins
+        /// its slabs. Placed from the panels' own resolved boxes, so they follow any window shape.
+        /// </summary>
+        private void PlaceStraps() {
+            Rect well = Box(_well), schools = Box(_schoolsBar), parch = Box(_parch), column = Box(_column), bar = Box(_bar);
+            if (well.width <= 0f || parch.width <= 0f) return;
+            var spots = new List<(float X, float Y, bool Across)>();
+            void Vertical(Rect a, Rect b, Rect span) {      // a gap between a (left) and b (right)
+                float x = (a.xMax + b.xMin) / 2f;
+                spots.Add((x, span.yMin + span.height * 0.15f, true));
+                spots.Add((x, span.yMax - span.height * 0.15f, true));
+            }
+            void Horizontal(Rect a, Rect b, Rect span) {    // a gap between a (above) and b (below)
+                float y = (a.yMax + b.yMin) / 2f;
+                spots.Add((span.xMin + span.width * 0.15f, y, false));
+                spots.Add((span.xMax - span.width * 0.15f, y, false));
+            }
+            Vertical(well, parch, parch);
+            if (column.width > 0f) Vertical(parch, column, parch);
+            Horizontal(well, schools, well);
+            Horizontal(parch, bar, parch);
+            while (_straps.Count < spots.Count) {
+                var strap = new VisualElement { pickingMode = PickingMode.Ignore };
+                strap.AddToClassList("enhanced-cast__strap");
+                _layout.Add(strap);
+                _straps.Add(strap);
+            }
+            for (int i = 0; i < _straps.Count; i++) {
+                VisualElement strap = _straps[i];
+                if (i >= spots.Count) { strap.style.display = DisplayStyle.None; continue; }
+                (float x, float y, bool across) = spots[i];
+                strap.style.display = DisplayStyle.Flex;
+                strap.EnableInClassList("enhanced-cast__strap--h", across);
+                strap.EnableInClassList("enhanced-cast__strap--v", !across);
+                strap.style.backgroundImage = Art(across ? "strap-h" : "strap-v");
+                strap.style.left = x;
+                strap.style.top = y;
+            }
+        }
+
+        private Rect Box(VisualElement e) {
+            if (e == null || e.panel == null || float.IsNaN(e.worldBound.width)) return Rect.zero;
+            Rect w = e.worldBound;
+            Vector2 o = _layout.WorldToLocal(w.position);
+            return new Rect(o.x, o.y, w.width, w.height);
         }
 
         /// <summary>What the faithful panel's text covers, from the panel's own constants: the title's box

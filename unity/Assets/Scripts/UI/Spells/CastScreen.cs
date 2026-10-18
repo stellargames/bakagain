@@ -249,7 +249,11 @@ namespace BakAgain.UI.Spells {
             // The Enhanced layout has no HUD strip: its casters sit in the portrait column.
             bool enhanced = Core.GameOptions.IsOn(Core.EnhancedFeature.Casting);
             if (CombatCaster != null) {
-                if (!enhanced) AttachCombatPanel();
+                if (enhanced) {
+                    AttachPartyHeads(); // the column shows the caster's own face
+                } else {
+                    AttachCombatPanel();
+                }
             } else {
                 AttachPartyHeads();
                 if (!enhanced) AttachCompass();

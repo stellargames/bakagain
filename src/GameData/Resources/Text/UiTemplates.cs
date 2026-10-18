@@ -100,6 +100,14 @@ public static class UiTemplates {
     /// <summary>The Enhanced cast screen's Exit stone; the faithful button carries the word in its image.</summary>
     public const string EnhancedCastExit = "port:template:enhanced_cast_exit";
 
+    /// <summary>The Enhanced cast screen's hint line, for picking a spell and for choosing its power,
+    /// by mouse and by finger; and the "of {max}" under the power readout in the ring.</summary>
+    public const string EnhancedCastHintPick = "port:template:enhanced_cast_hint_pick";
+    public const string EnhancedCastHintPickTouch = "port:template:enhanced_cast_hint_pick_touch";
+    public const string EnhancedCastHintPower = "port:template:enhanced_cast_hint_power";
+    public const string EnhancedCastHintPowerTouch = "port:template:enhanced_cast_hint_power_touch";
+    public const string EnhancedCastPowerOf = "port:template:enhanced_cast_power_of";
+
     /// <summary>The Enhanced inventory's buttons and labels. Labels name people, never items: a name
     /// is what examining an item reveals.</summary>
     public const string EnhancedInvGiveTo = "port:template:enhanced_inv_give_to";
@@ -174,6 +182,11 @@ public static class UiTemplates {
         (EnhancedFeatureLighting, _ => "Lighting"),
         (EnhancedFeatureCasting, _ => "Casting"),
         (EnhancedCastExit, _ => "Exit"),
+        (EnhancedCastHintPick, _ => "Point at a symbol to read it; click it to cast."),
+        (EnhancedCastHintPickTouch, _ => "Touch a symbol to read it; lift your finger on it to cast."),
+        (EnhancedCastHintPower, _ => "Point at a lit gem to choose the power; click it to cast. A school stone or Escape cancels."),
+        (EnhancedCastHintPowerTouch, _ => "Slide along the lit gems to choose the power; lift to cast. A school stone cancels."),
+        (EnhancedCastPowerOf, _ => "of {max}"),
         (EnhancedInvGiveTo, _ => "Give to {name}"),
         (EnhancedInvTakes, _ => "{name} takes it"),
         (EnhancedInvBuyFor, _ => "Buy for {name}"),

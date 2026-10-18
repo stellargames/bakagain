@@ -4,6 +4,7 @@ namespace BakAgain.UI.Spells {
     using BakAgain.Graphics;
     using Cysharp.Threading.Tasks;
     using GameData.Resources.Spells;
+    using UiTemplates = GameData.Resources.Text.UiTemplates;
     using UnityEngine;
     using UnityEngine.UIElements;
 
@@ -129,6 +130,24 @@ namespace BakAgain.UI.Spells {
                     on ? SymbolLitRadius : SymbolRadius, on ? SymbolLitStrength : dim ? SymbolDimStrength : SymbolStrength));
             }
             _enhanced.LightBench(_lights);
+            SyncHintAndReadout();
+        }
+
+        /// <summary>The hint for what the pointer does now, and the power readout while one is chosen.</summary>
+        private void SyncHintAndReadout() {
+            // By platform, not by the pointer: IsPresent is also false before a mouse has moved.
+            bool touch = Application.isMobilePlatform;
+            bool choosing = _sliderSpell >= 0;
+            string key = choosing
+                ? touch ? UiTemplates.EnhancedCastHintPowerTouch : UiTemplates.EnhancedCastHintPower
+                : touch ? UiTemplates.EnhancedCastHintPickTouch : UiTemplates.EnhancedCastHintPick;
+            _enhanced.SetHint(UiTemplates.Format(key));
+            if (!choosing) {
+                _enhanced.SetReadout(null, null);
+                return;
+            }
+            int power = CastRingLayout.PreviewPower(_hoveredPosition);
+            _enhanced.SetReadout(power > 0 ? power.ToString() : string.Empty, UiTemplates.Format(UiTemplates.EnhancedCastPowerOf, ("max", _maximumPower)));
         }
 
         private readonly List<EnhancedCastLayout.Light> _lights = new();
