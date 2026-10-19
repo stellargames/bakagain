@@ -415,7 +415,8 @@ using GameData.Resources.Scene;
             int refIndex = 0,
             GameData.Resources.Config.StartData start = null,
             bool underground = false,
-            DefFamilyFile<DefTrapEntry> trap = null) {
+            DefFamilyFile<DefTrapEntry> trap = null,
+            DefFamilyFile<DefTownEntry> town = null) {
             _zone = zoneNumber;
             _byChunk.Clear();
             if (byChunk != null) {
@@ -431,6 +432,7 @@ using GameData.Resources.Scene;
             _start = start;
             _underground = underground;
             _trap = trap;
+            _town = town;
             _lastChunk = null;
         }
 
@@ -757,14 +759,10 @@ using GameData.Resources.Scene;
 
             ApproachBeforeLocation(trigger);
             EnterLocation(gdsSceneNumber);
+            // *** NO DONE FLAG AND NO SILENCE. *** hotspotevt_action_enter_town (HOTSPOT.C:636) writes
+            // the post key and nothing else, so the gate asks again on every step onto it. Silencing
+            // it for the tile let a party leave LaMut and walk west across its gate unasked.
             HotspotRules.ApplyOnFire(this, trigger);
-
-            if (trigger.Repeatable == 0) {
-                if (trigger.FireOnce != 0) {
-                    WriteGlobal(DoneFlagKey(hotspotIndex), 1);
-                }
-                MarkActedThisChunk(hotspotIndex);
-            }
         }
 
         /// <inheritdoc/>

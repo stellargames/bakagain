@@ -57,7 +57,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             UniTask.FromResult(false);
 
         // -1 = "nothing resolved", which every caller treats as walking away.
-        public UniTask<int> ShowChoiceIndexById(int id, System.Threading.CancellationToken ct = default) =>
+        public virtual UniTask<int> ShowChoiceIndexById(int id, System.Threading.CancellationToken ct = default) =>
             UniTask.FromResult(-1);
     }
 
