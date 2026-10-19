@@ -124,6 +124,7 @@ namespace BakAgain.Tests.PlayMode.World {
         /// vignette, motion blur and a lens flare: the grading must neutralise them (review finding).
         /// </summary>
         [Test]
+        [Category("Graphics")] // the volume stack is the render pipeline's: no graphics device, no stack
         public void TheGradingAddsNoLensEffects() {
             _sky.Bind(_camera, _env, 1, false);
             _sky.Apply(At(12), 64, false, true);

@@ -95,9 +95,12 @@ namespace BakAgain.Tests.PlayMode.World {
             _camera.orthographicSize = 3f;
             _camera.aspect = 16f / 6f;
             _camera.clearFlags = CameraClearFlags.SolidColor;
-            _rt = new RenderTexture(128, 48, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
+            // Half float, read back linear and encoded to sRGB here: an 8-bit target stores the night's
+            // near-black ground in one or two levels, and a software renderer (CI) that writes it linear
+            // leaves the rule's 3 % far below one step.
+            _rt = new RenderTexture(128, 48, 24, RenderTextureFormat.ARGBHalf, RenderTextureReadWrite.Linear);
             _camera.targetTexture = _rt;
-            _read = new Texture2D(_rt.width, _rt.height, TextureFormat.RGBA32, false);
+            _read = new Texture2D(_rt.width, _rt.height, TextureFormat.RGBAHalf, false, linear: true);
 
             _session = new GameSession();
             _clock = new BakAgain.Core.Services.GameClock(_session);
@@ -141,17 +144,22 @@ namespace BakAgain.Tests.PlayMode.World {
             // The WORLD's brightness is the rule, so only the terrain rows are measured: the band above
             // is the sky, which the Sky feature owns. (Averaging both let a lifted sky hide ground that
             // ACES had crushed: real night ground came out 14 % dark, live 2026-10-15.)
-            Color32[] px = _read.GetPixels32();
+            Color[] px = _read.GetPixels();
             double sum = 0;
             int n = 0;
             for (int y = TerrainRows.Bottom; y < TerrainRows.Top; y++) {
                 for (int x = 0; x < _rt.width; x++) {
-                    Color32 p = px[(y * _rt.width) + x];
-                    sum += (0.2126 * p.r) + (0.7152 * p.g) + (0.0722 * p.b);
+                    sum += DisplayLuminance(px[(y * _rt.width) + x]);
                     n++;
                 }
             }
-            return (float)(sum / n / 255.0);
+            return (float)(sum / n);
+        }
+
+        /// <summary>A linear pixel's luminance in display (sRGB) space, 0..1: what the screen shows.</summary>
+        private static double DisplayLuminance(Color linear) {
+            Color c = linear.gamma;
+            return (0.2126 * c.r) + (0.7152 * c.g) + (0.0722 * c.b);
         }
 
         private static IEnumerable<int> Hours() {
@@ -202,9 +210,9 @@ namespace BakAgain.Tests.PlayMode.World {
                 _read.ReadPixels(new Rect(0, 0, _rt.width, _rt.height), 0, 0);
                 RenderTexture.active = null;
                 double sum = 0;
-                Color32[] px = _read.GetPixels32();
-                foreach (Color32 p in px) sum += (0.2126 * p.r) + (0.7152 * p.g) + (0.0722 * p.b);
-                return (float)(sum / px.Length / 255.0);
+                Color[] px = _read.GetPixels();
+                foreach (Color p in px) sum += DisplayLuminance(p);
+                return (float)(sum / px.Length);
             }
             float faithful = SkyLuminance(false);
             float enhanced = SkyLuminance(true);
