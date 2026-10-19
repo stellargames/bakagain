@@ -8,13 +8,15 @@ namespace BakAgain.UI {
 
         public bool Master { get; set; }
 
+        public ShadowMode Shadows { get; set; }
+
         public bool this[EnhancedFeature feature] {
             get => _features[feature];
             set => _features[feature] = value;
         }
 
         public static EnhancedOptionsDraft Load() {
-            var draft = new EnhancedOptionsDraft { Master = GameOptions.Enhanced };
+            var draft = new EnhancedOptionsDraft { Master = GameOptions.Enhanced, Shadows = GameOptions.Shadows };
             foreach (EnhancedFeature f in System.Enum.GetValues(typeof(EnhancedFeature)))
                 draft._features[f] = GameOptions.GetFeature(f);
             return draft;
@@ -22,6 +24,7 @@ namespace BakAgain.UI {
 
         public void Commit() {
             GameOptions.Enhanced = Master;
+            GameOptions.Shadows = Shadows;
             foreach (KeyValuePair<EnhancedFeature, bool> kv in _features)
                 GameOptions.SetFeature(kv.Key, kv.Value);
         }

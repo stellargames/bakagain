@@ -13,6 +13,7 @@ namespace BakAgain.Tests {
         public static IEnumerable<string> Keys {
             get {
                 yield return "enhanced";
+                yield return "enhanced shadows";
                 foreach (EnhancedFeature f in System.Enum.GetValues(typeof(EnhancedFeature)))
                     yield return $"enhanced {f}";
             }

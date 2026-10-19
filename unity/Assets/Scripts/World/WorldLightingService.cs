@@ -175,7 +175,8 @@ namespace BakAgain.World {
                 // and the HUD every frame. Log it once and drop the sky for the rest of the zone.
                 try {
                     _sky.Apply(_session?.GameTimeIn2Seconds ?? 0, _daylight,
-                        GameOptions.IsOn(EnhancedFeature.Sky), GameOptions.IsOn(EnhancedFeature.Lighting));
+                        GameOptions.IsOn(EnhancedFeature.Sky), GameOptions.IsOn(EnhancedFeature.Lighting),
+                        GameOptions.ShadowsShown);
                 } catch (System.Exception e) {
                     Debug.LogException(e);
                     UnityEngine.Object.Destroy(_sky);

@@ -70,6 +70,16 @@ namespace BakAgain.UI {
             return pending ? Templates.Format(Templates.EnhancedPendingKey, ("text", text)) : text;
         }
 
+        /// <summary>The shadows row: "Shadows: Sun". A click steps Off, Blobs, Sun and round.</summary>
+        internal static string ShadowsText(ShadowMode mode) =>
+            Templates.Format(Templates.EnhancedShadowsKey, ("state", Templates.Format(mode switch {
+                ShadowMode.Blobs => Templates.EnhancedShadowsBlobs,
+                ShadowMode.Sun => Templates.EnhancedShadowsSun,
+                _ => Templates.EnhancedStateOff,
+            })));
+
+        internal static ShadowMode NextShadows(ShadowMode mode) => (ShadowMode)(((int)mode + 1) % 3);
+
         // Here, not in OnBeforeShowAsync: the document has no root until the screen is active.
         protected override UniTask BuildWhileHiddenAsync() {
             VisualElement root = GetComponent<UIDocument>()?.rootVisualElement;
@@ -138,6 +148,7 @@ namespace BakAgain.UI {
                 Row(features, () => BoxText(key, _draft[feature], pending: feature == EnhancedFeature.BookFont && FontChangePending(_draft)),
                     () => EnhancedRowEnabled(_draft, feature), () => _draft[feature] = !_draft[feature]);
             }
+            Row(features, () => ShadowsText(_draft.Shadows), () => _draft.Master, () => _draft.Shadows = NextShadows(_draft.Shadows));
 
             folders.Add(Text(Templates.Format(Templates.EnhancedFoldersHeading), "enhanced-settings__heading"));
             folders.Add(Text(Templates.Format(Templates.EnhancedGameFolder), "enhanced-settings__label"));

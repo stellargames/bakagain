@@ -212,9 +212,12 @@ namespace BakAgain.World {
             float reach = (CombatGroundCheck.ForwardOffset + (CombatGrid.Height + 4) * cellSize)
                 / BakCoordinateConverter.WorldScale;
             var added = new HashSet<Collider>();
+            int blobLayer = BakAgain.World.Rendering.ShadowBlobs.Layer;
             foreach (MeshFilter mesh in _zoneRoot.GetComponentsInChildren<MeshFilter>()) {
                 Renderer renderer = mesh.GetComponent<Renderer>();
+                // A blob shadow is a picture on the ground, not ground.
                 if (mesh.sharedMesh == null || renderer == null || !renderer.enabled
+                    || mesh.gameObject.layer == blobLayer
                     || renderer.bounds.SqrDistance(renderEye) > reach * reach) {
                     continue;
                 }
@@ -1252,6 +1255,9 @@ namespace BakAgain.World {
             capture.targetTexture = captureTarget;
             capture.aspect = _worldCamera.aspect;
             capture.depth = _worldCamera.depth - 1f;
+            // The still keeps no blob shadow: the combatants' are drawn live, and a zone figure's
+            // would stay where it stood when the still was taken (ruling, 2026-10-19).
+            BakAgain.World.Rendering.ShadowBlobs.Show(capture, false);
             // *** LET THE FRAME LOOP RENDER IT, AND WAIT FOR URP TO SAY SO. *** Measured
             // 2026-09-24: capture.Render() left the texture black under URP, while the same camera
             // drawn by an ordinary frame fills it; endCameraRendering is the signal, and the cap only

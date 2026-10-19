@@ -6,6 +6,9 @@
 
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 #include "Assets/Shaders/Custom/World/BakLighting.hlsl"
+#ifdef BAK_ENHANCED
+#include "Assets/Shaders/Custom/World/EnhancedShadows.hlsl"
+#endif
 
 struct Attributes {
     float4 positionOS : POSITION;
@@ -20,6 +23,9 @@ struct Varyings {
     float4 color : COLOR;
     float2 uv : TEXCOORD0;
     float fogCoord : TEXCOORD1;
+#ifdef BAK_ENHANCED
+    float3 positionWS : TEXCOORD2;
+#endif
 };
 
 CBUFFER_START(UnityPerMaterial)
@@ -53,6 +59,9 @@ Varyings vert(Attributes input) {
     output.color = input.color;
     output.uv = TRANSFORM_TEX(input.uv, _MainTex);
     output.fogCoord = ComputeFogFactor(output.positionCS.z);
+#ifdef BAK_ENHANCED
+    output.positionWS = posInputs.positionWS;
+#endif
     return output;
 }
 
@@ -63,6 +72,9 @@ half4 frag(Varyings input) : SV_Target {
     // face VgaColor is the slot INDEX, so the vertex colour is an unrelated pen; multiplying
     // by it turned chests near-black (TASK-750).
     half4 color = tex;
+#ifdef BAK_ENHANCED
+    color.rgb *= BakSunShade(input.positionWS);
+#endif
     // URP distance fog
     color.rgb = MixFog(color.rgb, input.fogCoord);
     // Lighting AFTER fog: the original darkens the whole palette, the fog pens included,
@@ -70,5 +82,25 @@ half4 frag(Varyings input) : SV_Target {
     color.rgb = ApplyBakLighting(color.rgb);
     return color;
 }
+
+#ifdef BAK_ENHANCED
+// The shadow pass, with the drawn pass's cut-out: a see-through gap lets the sun through.
+struct ShadowVaryings {
+    float4 positionCS : SV_POSITION;
+    float2 uv : TEXCOORD0;
+};
+
+ShadowVaryings shadowVert(Attributes input) {
+    ShadowVaryings output;
+    output.positionCS = BakShadowCasterClip(TransformObjectToWorld(input.positionOS.xyz), TransformObjectToWorldNormal(input.normalOS));
+    output.uv = TRANSFORM_TEX(input.uv, _MainTex);
+    return output;
+}
+
+half4 shadowFrag(ShadowVaryings input) : SV_Target {
+    clip(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv).a - _AlphaCutoff);
+    return 0;
+}
+#endif
 
 #endif

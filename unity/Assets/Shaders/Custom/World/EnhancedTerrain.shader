@@ -23,6 +23,8 @@ Shader "BakAgain/EnhancedTerrain" {
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile_fog
+            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE
+            #pragma multi_compile_fragment _ _SHADOWS_SOFT _SHADOWS_SOFT_LOW _SHADOWS_SOFT_MEDIUM _SHADOWS_SOFT_HIGH
             #define BAK_ENHANCED
             #include "Assets/Shaders/Custom/World/TerrainPass.hlsl"
             ENDHLSL

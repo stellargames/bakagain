@@ -224,5 +224,77 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.IsFalse(PostOn);
             Assert.AreEqual(0f, Shader.GetGlobalVector(SunTintId).w);
         }
+
+        private bool BlobsShown => (_camera.cullingMask & (1 << BakAgain.World.Rendering.ShadowBlobs.Layer)) != 0;
+        private Light Sun => Child("Sun")?.GetComponent<Light>();
+        private static float SunShadowWeight => Shader.GetGlobalFloat("_BakSunShadow");
+
+        [Test]
+        public void SunShadowsAreSoftAndAThirdDarkAtNoon_WithTheBlobsGivingWay() {
+            _sky.Bind(_camera, _env, 1, false);
+            _sky.Apply(At(12), 64, skyOn: false, lightingOn: false, ShadowMode.Sun);
+            Assert.IsTrue(Active("Sun"), "the sun casts even with Sky and Lighting off");
+            Assert.AreEqual(LightShadows.Soft, Sun.shadows);
+            Assert.AreEqual(EnhancedSky.SunShadowStrength, Sun.shadowStrength, 1e-4f);
+            Assert.AreEqual(1f, SunShadowWeight, 1e-4f);
+            Assert.IsTrue(BlobsShown, "blobs stay for what lies past the sun shadows' reach");
+        }
+
+        [Test]
+        public void AtNightAndUndergroundTheSunCastsNothingAndBlobsTakeOver() {
+            _sky.Bind(_camera, _env, 1, false);
+            _sky.Apply(At(0), 15, false, false, ShadowMode.Sun);
+            Assert.IsTrue(Sun == null || !Sun.gameObject.activeSelf || Sun.shadows == LightShadows.None, "no moon shadows");
+            Assert.AreEqual(0f, SunShadowWeight);
+            Assert.IsTrue(BlobsShown);
+
+            _sky.Bind(_camera, _env, 1, underground: true);
+            _sky.Apply(At(12), 64, false, false, ShadowMode.Sun);
+            Assert.IsFalse(Active("Sun"));
+            Assert.AreEqual(0f, SunShadowWeight);
+            Assert.IsTrue(BlobsShown);
+        }
+
+        [Test]
+        public void DuskCrossfadesWithoutAGap() {
+            _sky.Bind(_camera, _env, 1, false);
+            float last = 1f;
+            // Through sunset a minute at a time: the sun's weight only falls, and the blob (1 - weight)
+            // rises in step, so between them a figure is never ungrounded.
+            for (long t = At(17); t <= At(21); t += GameTime.UnitsPerHour / 60) {
+                _sky.Apply(t, 40, false, false, ShadowMode.Sun);
+                Assert.LessOrEqual(SunShadowWeight, last + 1e-4f);
+                Assert.AreEqual(EnhancedSky.SunShadowStrength * SunShadowWeight, Sun.shadowStrength, 1e-4f);
+                last = SunShadowWeight;
+            }
+            Assert.AreEqual(0f, last, "night by 21:00");
+        }
+
+        [Test]
+        public void BlobsModeRendersNoShadowMap_AndOffDrawsNoBlobs() {
+            _sky.Bind(_camera, _env, 1, false);
+            _sky.Apply(At(12), 64, false, false, ShadowMode.Blobs);
+            Assert.IsTrue(Sun == null || !Sun.gameObject.activeSelf, "no light, no shadow map");
+            Assert.AreEqual(0f, SunShadowWeight, "the blobs at full");
+            Assert.IsTrue(BlobsShown);
+
+            _sky.Apply(At(12), 64, false, false, ShadowMode.Off);
+            Assert.IsFalse(BlobsShown);
+        }
+
+        [Test]
+        public void TheMapAndATornDownZoneDrawNoBlobs() {
+            _sky.Bind(_camera, _env, 1, false);
+            _sky.Apply(At(12), 64, false, false, ShadowMode.Blobs);
+            _env.SetOverheadMapMode(_camera, true, 1000f, 600f, 9);
+            _sky.Apply(At(12), 64, false, false, ShadowMode.Blobs);
+            Assert.IsFalse(BlobsShown, "the overhead map has no shadows");
+            _env.SetOverheadMapMode(_camera, false, 1000f, 600f, 9);
+
+            _sky.Apply(At(12), 64, false, false, ShadowMode.Sun);
+            EnhancedSky.Reset(_camera);
+            Assert.IsFalse(BlobsShown);
+            Assert.AreEqual(0f, SunShadowWeight);
+        }
     }
 }

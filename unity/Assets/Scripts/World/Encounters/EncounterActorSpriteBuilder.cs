@@ -139,7 +139,10 @@ namespace BakAgain.World.Encounters {
             go.transform.SetParent(parent, false);
             go.transform.localScale = localScale;
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
-            go.AddComponent<MeshRenderer>().sharedMaterial = ctx.GetSpriteMaterial(tex);
+            MeshRenderer renderer = go.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = ctx.GetSpriteMaterial(tex);
+            // A spell's light and smoke cast no sun shadow.
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             go.AddComponent<BillboardSprite>();
             return go;
         }
@@ -334,6 +337,8 @@ namespace BakAgain.World.Encounters {
             else if (actor.Roams && GameData.Resources.World.RoamingMovement.Moves(actor.Pattern)) {
                 go.AddComponent<RoamingActor>().Bind(actor);
             }
+            // After the colliders, which are sized from the sprite's own mesh.
+            BakAgain.World.Rendering.ShadowBlobs.AttachToSprite(go);
             // A live actor in the WORLD is clickable too: the click asks about its group (TASK-795).
             if (!arena && !actor.Downed) {
                 EncounterGroupMember member = go.AddComponent<EncounterGroupMember>();

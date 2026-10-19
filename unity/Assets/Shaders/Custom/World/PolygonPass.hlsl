@@ -7,6 +7,9 @@
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 #include "Assets/Shaders/Custom/World/BakLighting.hlsl"
+#ifdef BAK_ENHANCED
+#include "Assets/Shaders/Custom/World/EnhancedShadows.hlsl"
+#endif
 
 struct Attributes {
     float4 positionOS : POSITION;
@@ -21,6 +24,9 @@ struct Varyings {
     float4 color : COLOR;
     float fogCoord : TEXCOORD0;
     float4 mapColor : TEXCOORD1;
+#ifdef BAK_ENHANCED
+    float3 positionWS : TEXCOORD2;
+#endif
 };
 
 CBUFFER_START(UnityPerMaterial)
@@ -74,6 +80,9 @@ Varyings vert(Attributes input) {
     #endif
     output.fogCoord = ComputeFogFactor(output.positionCS.z);
     output.mapColor = input.mapColor;
+#ifdef BAK_ENHANCED
+    output.positionWS = posInputs.positionWS;
+#endif
     return output;
 }
 
@@ -81,6 +90,9 @@ half4 frag(Varyings input) : SV_Target {
     // Flat-filled faces take the overhead map's pen remap the same way terrain does
     // — baked per face, switched globally. See ClassicTerrain for why it is not a lookup.
     half4 color = lerp(input.color, half4(input.mapColor.rgb, 1.0), _MapMode);
+#ifdef BAK_ENHANCED
+    color.rgb *= BakSunShade(input.positionWS);
+#endif
     // URP distance fog
     color.rgb = MixFog(color.rgb, input.fogCoord);
     // Lighting AFTER fog: the original darkens the whole palette, the fog pens included,
@@ -88,5 +100,15 @@ half4 frag(Varyings input) : SV_Target {
     color.rgb = ApplyBakLighting(color.rgb);
     return color;
 }
+
+#ifdef BAK_ENHANCED
+// The shadow pass: the model as it stands, without the paint-order nudge or the layer lift, which
+// only settle depth ties seen from the camera.
+float4 shadowVert(Attributes input) : SV_POSITION {
+    return BakShadowCasterClip(TransformObjectToWorld(input.positionOS.xyz), TransformObjectToWorldNormal(input.normalOS));
+}
+
+half4 shadowFrag() : SV_Target { return 0; }
+#endif
 
 #endif

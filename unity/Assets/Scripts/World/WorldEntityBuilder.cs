@@ -305,6 +305,8 @@ namespace BakAgain.World {
                     ctx.TrackMesh(mesh);
                     await ctx.EnsureSlotTexturesAsync(tmd.Keys);
                     var go = WorldMeshObjects.BuildTerrain(entry.Name, mesh, tmd.Keys, dat.DrawPriority, ctx, terrainParent);
+                    // Ground: it receives the sun's shadows and casts none.
+                    go.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
                     go.transform.localPosition = position;
                     go.transform.localRotation = rotation;
                     AttachWorldEntity(go, typeId, entry, false, spriteIdx, rotationZ);
@@ -325,6 +327,8 @@ namespace BakAgain.World {
                     AttachWorldEntity(go, typeId, entry, true, spriteIdx, rotationZ);
                     AddPickColliderIfInteractable(go, entry.Dat.EntityType, ctx.Detect, ctx.Underground);
                     StampDetectionRange(go.GetComponent<WorldEntity>(), entry.Dat.EntityType, ctx.Detect, ctx.Underground);
+                    // Last: the blob is a mesh too, and the pick collider is sized from the meshes.
+                    ShadowBlobs.AttachToSprite(go);
                     return go;
                 }
                 case WorldEntityKind.PolygonEntity: {
@@ -346,6 +350,7 @@ namespace BakAgain.World {
                     we.Interaction = entry.Interaction;
                     AddPickColliderIfInteractable(go, entry.Dat.EntityType, ctx.Detect, ctx.Underground);
                     StampDetectionRange(we, entry.Dat.EntityType, ctx.Detect, ctx.Underground);
+                    ShadowBlobs.AttachToModel(go, ComputeLocalBounds(go));
                     return go;
                 }
                 default:
@@ -378,7 +383,8 @@ namespace BakAgain.World {
             filter.sharedMesh = quad;
             var renderer = go.AddComponent<MeshRenderer>();
             renderer.sharedMaterial = material;
-            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            // Cast only by the Enhanced shader's shadow pass, and only while the sun's shadows are on.
+            renderer.shadowCastingMode = ShadowCastingMode.On;
 
             go.AddComponent<BillboardSprite>();
 

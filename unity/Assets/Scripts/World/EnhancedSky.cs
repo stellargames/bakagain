@@ -1,5 +1,7 @@
 namespace BakAgain.World {
     using System;
+    using BakAgain.Core;
+    using BakAgain.World.Rendering;
     using GameData.Resources.World;
     using UnityEngine;
     using UnityEngine.Rendering;
@@ -40,6 +42,10 @@ namespace BakAgain.World {
         private static readonly int CloudId = Shader.PropertyToID("_BakSkyCloud");
         private static readonly int StarRotId = Shader.PropertyToID("_BakSkyStarRot");
         private static readonly int MoonLightId = Shader.PropertyToID("_BakSkyMoonLight");
+        private static readonly int SunShadowId = Shader.PropertyToID("_BakSunShadow");
+
+        /// <summary>How much the sun's shadow darkens at noon (spec Q5: soft, about 35 %).</summary>
+        public const float SunShadowStrength = 0.35f;
 
         /// <summary>The Large Moon's light when it stands in for the sun at night.</summary>
         private static readonly Color MoonLight = new(0.55f, 0.65f, 1f);
@@ -67,7 +73,7 @@ namespace BakAgain.World {
         // The last Apply, so the map switch can be re-applied without the lighting refresh.
         private bool _applied;
         private bool _appliedMap;
-        private (long Ticks, int Daylight, bool SkyOn, bool LightingOn) _last;
+        private (long Ticks, int Daylight, bool SkyOn, bool LightingOn, ShadowMode Shadows) _last;
 
         public void Bind(Camera camera, ZoneEnvironment env, int zone, bool underground) {
             _camera = camera;
@@ -77,18 +83,19 @@ namespace BakAgain.World {
             _applied = false; // a new binding is drawn afresh, whatever the clock says
         }
 
-        /// <summary>One frame of the sky and the light, from the game clock and the two switches.</summary>
+        /// <summary>One frame of the sky, the light and the shadows, from the game clock and the switches.</summary>
         /// <param name="ticks">The game clock, in its two-second unit.</param>
         /// <param name="daylight">The original's daylight level now (15 night .. 64 day).</param>
-        public void Apply(long ticks, int daylight, bool skyOn, bool lightingOn) {
+        /// <param name="shadows">The shadows shown (<see cref="GameOptions.ShadowsShown"/>).</param>
+        public void Apply(long ticks, int daylight, bool skyOn, bool lightingOn, ShadowMode shadows = ShadowMode.Off) {
             bool map = _env != null && _env.MapModeOn;
             // The clock moves in 2-second ticks and stands still between steps: nothing to redo.
-            if (_applied && map == _appliedMap && _last == (ticks, daylight, skyOn, lightingOn)) {
+            if (_applied && map == _appliedMap && _last == (ticks, daylight, skyOn, lightingOn, shadows)) {
                 return;
             }
             _applied = true;
             _appliedMap = map;
-            _last = (ticks, daylight, skyOn, lightingOn);
+            _last = (ticks, daylight, skyOn, lightingOn, shadows);
             bool live = _camera != null && !_underground && !map;
             bool sky = skyOn && live;
             bool lit = lightingOn && live;
@@ -100,7 +107,10 @@ namespace BakAgain.World {
                 PublishSkyGlobals(ticks, sun, sunColor);
             }
             SetDome(sky);
-            SetSun(sky || lit, ticks, sun, sunColor, daylight);
+            bool sunShadows = shadows == ShadowMode.Sun && live;
+            SetSun(sky || lit || sunShadows, ticks, sun, sunColor, daylight, sunShadows);
+            // Blobs wherever the sun casts nothing: underground and at night too; never on the map.
+            ShadowBlobs.Show(_camera, shadows != ShadowMode.Off && !map);
             GradingKey grading = lit ? Clock.GradingAt(ticks) : null;
             SetGrade(grading, ticks, sun, sunColor);
             SetBloom(lit && !Application.isMobilePlatform, grading);
@@ -112,8 +122,10 @@ namespace BakAgain.World {
             Shader.SetGlobalVector(SunTintId, Vector4.zero);
             Shader.SetGlobalVector(ShadeTintId, Vector4.zero);
             Shader.SetGlobalFloat(SkyOnId, 0f);
+            Shader.SetGlobalFloat(SunShadowId, 0f);
             if (camera != null) {
                 SetCameraPostProcessing(camera, false);
+                ShadowBlobs.Show(camera, false);
             }
         }
 
@@ -130,7 +142,7 @@ namespace BakAgain.World {
             // lighting, so nothing calls Apply: notice the switch here, or the map is graded, tinted
             // and has the dome drawn under it (found live at 19:00).
             if (_applied && _env != null && _env.MapModeOn != _appliedMap) {
-                Apply(_last.Ticks, _last.Daylight, _last.SkyOn, _last.LightingOn);
+                Apply(_last.Ticks, _last.Daylight, _last.SkyOn, _last.LightingOn, _last.Shadows);
             }
             if (_dome != null && _dome.activeSelf && _camera != null) {
                 _dome.transform.SetPositionAndRotation(_camera.transform.position, Quaternion.identity);
@@ -208,9 +220,10 @@ namespace BakAgain.World {
             }
         }
 
-        private void SetSun(bool on, long ticks, SkyDirection sun, Color sunColor, int daylight) {
+        private void SetSun(bool on, long ticks, SkyDirection sun, Color sunColor, int daylight, bool castShadows) {
             if (!on) {
                 if (_sun != null) _sun.gameObject.SetActive(false);
+                Shader.SetGlobalFloat(SunShadowId, 0f);
                 return;
             }
             if (_sun == null) {
@@ -218,7 +231,9 @@ namespace BakAgain.World {
                 go.transform.SetParent(transform, false);
                 _sun = go.AddComponent<Light>();
                 _sun.type = LightType.Directional;
-                _sun.shadows = LightShadows.None;   // TASK-882 turns them on
+                _sun.shadows = LightShadows.None;
+                // URP's main light is the sun when one is set; it is the only light the world has.
+                RenderSettings.sun = _sun;
             }
             _sun.gameObject.SetActive(true);
 
@@ -233,6 +248,13 @@ namespace BakAgain.World {
                 _sun.color = sunColor;
                 _sun.intensity = daylight / (float)DaylightLevel.Day;
             }
+
+            // The sun's shadows (TASK-882): none from the moon; from the sun, rising from nothing at the
+            // horizon to full strength by about 12 degrees up, so dawn and dusk hand over to the blobs.
+            float weight = castShadows && !moonLight ? Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0f, 0.2f, (float)sun.Up)) : 0f;
+            _sun.shadows = weight > 0f ? LightShadows.Soft : LightShadows.None;
+            _sun.shadowStrength = SunShadowStrength * weight;
+            Shader.SetGlobalFloat(SunShadowId, weight);
         }
 
         /// <summary>

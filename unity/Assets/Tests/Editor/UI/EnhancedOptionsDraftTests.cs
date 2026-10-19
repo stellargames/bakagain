@@ -28,6 +28,25 @@ namespace BakAgain.Tests.Editor.UI {
         }
 
         [Test]
+        public void ShadowsDefaultByPlatformAndSaveOnCommit() {
+            Assert.AreEqual(ShadowMode.Sun, GameOptions.Shadows, "desktop: the sun's shadows until the player chooses");
+            Assert.AreEqual(ShadowMode.Off, GameOptions.ShadowsShown, "the faithful game has none");
+
+            EnhancedOptionsDraft draft = EnhancedOptionsDraft.Load();
+            draft.Shadows = EnhancedSettingsScreen.NextShadows(draft.Shadows);
+            Assert.AreEqual(ShadowMode.Off, draft.Shadows, "Sun steps round to Off");
+            draft.Shadows = EnhancedSettingsScreen.NextShadows(draft.Shadows);
+            Assert.AreEqual(ShadowMode.Sun, GameOptions.Shadows, "not saved before Save");
+
+            draft.Master = true;
+            draft.Commit();
+
+            Assert.AreEqual(ShadowMode.Blobs, GameOptions.ShadowsShown);
+            Assert.AreEqual("Shadows: Blobs", EnhancedSettingsScreen.ShadowsText(ShadowMode.Blobs));
+            Assert.AreEqual("Shadows: Off", EnhancedSettingsScreen.ShadowsText(ShadowMode.Off));
+        }
+
+        [Test]
         public void TheHealthRingsRowNeedsFullScreenTravel() {
             var draft = new EnhancedOptionsDraft { Master = true };
             foreach (EnhancedFeature f in System.Enum.GetValues(typeof(EnhancedFeature))) draft[f] = true;

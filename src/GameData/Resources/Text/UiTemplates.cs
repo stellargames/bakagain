@@ -97,6 +97,12 @@ public static class UiTemplates {
     public const string EnhancedFeatureLighting = "port:template:enhanced_feature_lighting";
     public const string EnhancedFeatureCasting = "port:template:enhanced_feature_casting";
 
+    /// <summary>The Enhanced settings' shadows row: "Shadows: <c>{state}</c>", Off (the On/Off "Off"),
+    /// Blobs or Sun.</summary>
+    public const string EnhancedShadowsKey = "port:template:enhanced_shadows";
+    public const string EnhancedShadowsBlobs = "port:template:enhanced_shadows_blobs";
+    public const string EnhancedShadowsSun = "port:template:enhanced_shadows_sun";
+
     /// <summary>The Enhanced settings screen: its title and headings, the game-files and mods folders
     /// (the start-up prompt's fields, kept here too), and Save/Cancel.</summary>
     public const string EnhancedSettingsTitle = "port:template:enhanced_settings_title";
@@ -212,6 +218,9 @@ public static class UiTemplates {
         (EnhancedFeatureSky, _ => "Sky"),
         (EnhancedFeatureLighting, _ => "Lighting"),
         (EnhancedFeatureCasting, _ => "Casting"),
+        (EnhancedShadowsKey, _ => "Shadows: {state}"),
+        (EnhancedShadowsBlobs, _ => "Blobs"),
+        (EnhancedShadowsSun, _ => "Sun"),
         (EnhancedSettingsTitle, _ => "Enhanced"),
         (EnhancedFeaturesHeading, _ => "Features"),
         (EnhancedFoldersHeading, _ => "Game files and mods"),

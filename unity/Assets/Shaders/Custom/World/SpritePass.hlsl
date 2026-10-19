@@ -6,6 +6,9 @@
 
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 #include "Assets/Shaders/Custom/World/BakLighting.hlsl"
+#ifdef BAK_ENHANCED
+#include "Assets/Shaders/Custom/World/EnhancedShadows.hlsl"
+#endif
 
 struct Attributes {
     float4 positionOS : POSITION;
@@ -18,6 +21,10 @@ struct Varyings {
     float fogCoord : TEXCOORD1;
     float spriteFog : TEXCOORD2;
     float nearFade : TEXCOORD3;
+#ifdef BAK_ENHANCED
+    // The sun shadow at the entity's foot, sampled once in the vertex stage (spec Q3).
+    half sunShade : TEXCOORD4;
+#endif
 };
 
 CBUFFER_START(UnityPerMaterial)
@@ -40,6 +47,27 @@ float _BakSpriteFogEnd;
 float _BakSpriteNearHide;
 float _BakSpriteNearShow;
 
+// The quad's world position: about the pivot, along `right` and world up, honouring the transform's
+// scale and mirror.
+float3 BillboardWorldPos(float3 worldPos, float3 right, float2 positionOS) {
+    // Object-to-world lossy scale (columns of M are scaled basis vectors)
+    float scaleX = length(float3(UNITY_MATRIX_M._m00, UNITY_MATRIX_M._m10, UNITY_MATRIX_M._m20));
+    float scaleY = length(float3(UNITY_MATRIX_M._m01, UNITY_MATRIX_M._m11, UNITY_MATRIX_M._m21));
+    // A length has no sign, so a mirrored sprite (negative x scale: the left-facing
+    // octants, TASK-694) drew unmirrored. The matrix's handedness carries the flip.
+    if (determinant((float3x3)UNITY_MATRIX_M) < 0) scaleX = -scaleX;
+    return worldPos + right * positionOS.x * scaleX + float3(0, 1, 0) * positionOS.y * scaleY;
+}
+
+float3 CameraRightFlat() {
+    float3 camRight = UNITY_MATRIX_V[0].xyz;
+    camRight.y = 0;
+    // Degenerate only if the camera is rolled onto its side, which the game never
+    // does; fall back to world X rather than hand normalize() a zero vector.
+    float rightLen = length(camRight);
+    return rightLen > 1e-4 ? camRight / rightLen : float3(1, 0, 0);
+}
+
 Varyings vert(Attributes input) {
     Varyings output;
 
@@ -55,25 +83,7 @@ Varyings vert(Attributes input) {
     // two paths render the same entities and disagreed; world up is the one that
     // matches the original, so the shader moves to it.
     float3 worldPos = TransformObjectToWorld(float3(0, 0, 0)); // pivot
-    float3 camRight = UNITY_MATRIX_V[0].xyz;
-    camRight.y = 0;
-    // Degenerate only if the camera is rolled onto its side, which the game never
-    // does; fall back to world X rather than hand normalize() a zero vector.
-    float rightLen = length(camRight);
-    camRight = rightLen > 1e-4 ? camRight / rightLen : float3(1, 0, 0);
-    float3 camUp = float3(0, 1, 0);
-
-    // Object-to-world lossy scale (columns of M are scaled basis vectors)
-    float scaleX = length(float3(UNITY_MATRIX_M._m00, UNITY_MATRIX_M._m10, UNITY_MATRIX_M._m20));
-    float scaleY = length(float3(UNITY_MATRIX_M._m01, UNITY_MATRIX_M._m11, UNITY_MATRIX_M._m21));
-    // A length has no sign, so a mirrored sprite (negative x scale: the left-facing
-    // octants, TASK-694) drew unmirrored. The matrix's handedness carries the flip.
-    if (determinant((float3x3)UNITY_MATRIX_M) < 0) scaleX = -scaleX;
-
-    // Offset vertex from pivot along camera plane, honoring transform scale
-    float3 billboardPos = worldPos
-        + camRight * input.positionOS.x * scaleX
-        + camUp * input.positionOS.y * scaleY;
+    float3 billboardPos = BillboardWorldPos(worldPos, CameraRightFlat(), input.positionOS.xy);
 
     output.positionCS = TransformWorldToHClip(billboardPos);
     output.uv = input.uv;
@@ -86,6 +96,13 @@ Varyings vert(Attributes input) {
     output.nearFade = _BakSpriteNearShow > _BakSpriteNearHide
         ? saturate((spriteDistance - _BakSpriteNearHide) / (_BakSpriteNearShow - _BakSpriteNearHide))
         : 1;
+#ifdef BAK_ENHANCED
+    // Sampled a little toward the light from the foot and above the ground, clear of where the
+    // sprite's own shadow begins: at the foot itself only the shadow bias keeps it lit.
+    float3 toLight = normalize(float3(_MainLightPosition.x, 0, _MainLightPosition.z) + float3(1e-4, 0, 0));
+    float height = length(float3(UNITY_MATRIX_M._m01, UNITY_MATRIX_M._m11, UNITY_MATRIX_M._m21));
+    output.sunShade = BakSunShade(worldPos + (toLight + float3(0, 0.5, 0)) * 0.1 * height);
+#endif
     return output;
 }
 
@@ -99,6 +116,9 @@ half4 frag(Varyings input) : SV_Target {
         clip(input.nearFade - (bayer[px.y * 4 + px.x] + 0.5) / 16.0);
     }
     color.rgb = lerp(color.rgb, _FlashColor.rgb, _FlashColor.a);
+#ifdef BAK_ENHANCED
+    color.rgb *= input.sunShade;
+#endif
     // The sprite haze when a range is set, else URP distance fog.
     color.rgb = input.spriteFog >= 0
         ? lerp(color.rgb, unity_FogColor.rgb, input.spriteFog)
@@ -108,5 +128,30 @@ half4 frag(Varyings input) : SV_Target {
     color.rgb = ApplyBakLighting(color.rgb);
     return color;
 }
+
+#ifdef BAK_ENHANCED
+// The shadow pass: the same quad turned to face the sun (spec: a billboard turns to the sun in its
+// shadow pass), with the drawn pass's alpha cut-out.
+struct ShadowVaryings {
+    float4 positionCS : SV_POSITION;
+    float2 uv : TEXCOORD0;
+};
+
+ShadowVaryings shadowVert(Attributes input) {
+    ShadowVaryings output;
+    float3 worldPos = TransformObjectToWorld(float3(0, 0, 0));
+    float3 right = BakBillboardRightToLight(CameraRightFlat());
+    float3 positionWS = BillboardWorldPos(worldPos, right, input.positionOS.xy);
+    float3 normalWS = normalize(cross(right, float3(0, 1, 0)));
+    output.positionCS = BakShadowCasterClip(positionWS, normalWS);
+    output.uv = input.uv;
+    return output;
+}
+
+half4 shadowFrag(ShadowVaryings input) : SV_Target {
+    clip(SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv).a - _AlphaCutoff);
+    return 0;
+}
+#endif
 
 #endif

@@ -6,6 +6,9 @@
 
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 #include "Assets/Shaders/Custom/World/BakLighting.hlsl"
+#ifdef BAK_ENHANCED
+#include "Assets/Shaders/Custom/World/EnhancedShadows.hlsl"
+#endif
 
 struct Attributes {
     float4 positionOS : POSITION;
@@ -100,6 +103,9 @@ half4 frag(Varyings input) : SV_Target {
     // every zone palette. Texture drops out entirely: the map draws flat fills.
     color = lerp(color, half4(input.mapColor.rgb, 1.0), _MapMode);
     color.a = 1.0;
+#ifdef BAK_ENHANCED
+    color.rgb *= BakSunShade(input.worldPos);
+#endif
 
     // URP distance fog
     color.rgb = MixFog(color.rgb, input.fogCoord);

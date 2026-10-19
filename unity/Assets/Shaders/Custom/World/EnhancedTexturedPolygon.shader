@@ -21,6 +21,24 @@ Shader "BakAgain/EnhancedTexturedPolygon" {
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile_fog
+            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE
+            #pragma multi_compile_fragment _ _SHADOWS_SOFT _SHADOWS_SOFT_LOW _SHADOWS_SOFT_MEDIUM _SHADOWS_SOFT_HIGH
+            #define BAK_ENHANCED
+            #include "Assets/Shaders/Custom/World/TexturedPolygonPass.hlsl"
+            ENDHLSL
+        }
+        // The sun's shadow map (TASK-882): the same pass file's shadowVert/shadowFrag.
+        Pass {
+            Name "ShadowCaster"
+            Tags { "LightMode"="ShadowCaster" }
+            ZWrite On
+            ZTest LEqual
+            ColorMask 0
+            Cull Off
+
+            HLSLPROGRAM
+            #pragma vertex shadowVert
+            #pragma fragment shadowFrag
             #define BAK_ENHANCED
             #include "Assets/Shaders/Custom/World/TexturedPolygonPass.hlsl"
             ENDHLSL

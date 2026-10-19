@@ -63,6 +63,26 @@ namespace BakAgain.Core {
 
         private static string FeatureKey(EnhancedFeature feature) => FeatureKeys[(int)feature];
 
+        private const string ShadowsKey = "enhanced shadows";
+
+        /// <summary>The player's shadow choice; until one is made, Sun on desktop and Blobs on phones,
+        /// where a shadow map costs too much.</summary>
+        public static ShadowMode Shadows {
+            get {
+                int v = PlayerPrefs.GetInt(ShadowsKey, -1);
+                return v is >= (int)ShadowMode.Off and <= (int)ShadowMode.Sun ? (ShadowMode)v : DefaultShadows;
+            }
+            set {
+                PlayerPrefs.SetInt(ShadowsKey, (int)value);
+                PlayerPrefs.Save();
+            }
+        }
+
+        public static ShadowMode DefaultShadows => Application.isMobilePlatform ? ShadowMode.Blobs : ShadowMode.Sun;
+
+        /// <summary>The shadows to draw: the choice under the master switch, Off in the faithful game.</summary>
+        public static ShadowMode ShadowsShown => Enhanced ? Shadows : ShadowMode.Off;
+
         private static void Store(string key, bool value) {
             PlayerPrefs.SetInt(key, value ? 1 : 0);
             PlayerPrefs.Save();
