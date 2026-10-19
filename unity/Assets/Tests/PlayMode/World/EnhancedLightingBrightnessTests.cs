@@ -137,6 +137,11 @@ namespace BakAgain.Tests.PlayMode.World {
                     s == source ? lightMinutes * (GameTime.UnitsPerHour / 60) : 0, replaceExisting: true);
             }
             _lighting.Refresh();
+            // The grade is the rule under test. Lighting also turns the camera's post-processing on for
+            // bloom, whose threshold (1.5) no world colour reaches; but post-processing runs every
+            // frame through URP's colour LUT, which a software renderer (CI) quantises near black by
+            // several per cent, so the lit frame would be measured through a different pipe.
+            EnhancedSky.SetCameraPostProcessing(_camera, false);
             _camera.Render();
             RenderTexture.active = _rt;
             _read.ReadPixels(new Rect(0, 0, _rt.width, _rt.height), 0, 0);
