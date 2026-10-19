@@ -32,8 +32,8 @@ namespace BakAgain.World {
     ///
     /// <para><b>What remains is not a distance rule and must stay.</b> Two exclusions in
     /// <see cref="ProximityScan.JoinsVisibleList"/> are about WHAT a thing is, not how far off it
-    /// is: <see cref="ProximityScan.NeverRenderedKind"/> (the <c>db1..db8</c> records, which have no
-    /// art and are dropped outright) and a FILTER.DAT threshold of
+    /// is: <see cref="ProximityScan.NeverRenderedKind"/> (the <c>db1..db8</c> records, kept out of the
+    /// travel view; they are drawn on the overhead map, see <see cref="ShowMapOnly"/>) and a FILTER.DAT threshold of
     /// <see cref="ProximityScan.DisabledThreshold"/> (the kind is switched off at this detail
     /// level). Dropping those along with the distance test would have drawn the scan's own
     /// bookkeeping records into the world. The shipped table has no -1 at any level, so that arm is
@@ -73,6 +73,7 @@ namespace BakAgain.World {
 
                 foreach (Renderer r in entity.GetComponentsInChildren<Renderer>(true)) {
                     r.enabled = false;
+                    if (kind == ProximityScan.NeverRenderedKind) _mapOnly.Add(r);
                 }
                 foreach (Collider c in entity.GetComponentsInChildren<Collider>(true)) {
                     c.enabled = false;
@@ -80,6 +81,21 @@ namespace BakAgain.World {
                 hidden++;
             }
             return hidden;
+        }
+
+        private readonly System.Collections.Generic.List<Renderer> _mapOnly = new();
+
+        /// <summary>
+        /// Draws the kind-7 records while the overhead map is up, and hides them again after: the
+        /// travel scan skips kind 7 (<c>proxscan_run</c>, PROXSCAN.C:90), the map's full frame
+        /// (<c>world_render_frame_full</c>, WORLDHIT.C:192) draws from
+        /// <c>proxscan_encounter_records</c>, which admits it (PROXSCAN.C:220). LaMut's buildings on
+        /// the map are these. Their colliders stay off: the map is not clicked through.
+        /// </summary>
+        public void ShowMapOnly(bool on) {
+            foreach (Renderer r in _mapOnly) {
+                if (r != null) r.enabled = on;
+            }
         }
     }
 }

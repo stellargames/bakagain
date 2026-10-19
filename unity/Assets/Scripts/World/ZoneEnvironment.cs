@@ -90,6 +90,7 @@ namespace BakAgain.World {
             }
 
             MapModeOn = on;
+            GetComponent<WorldEntityVisibility>()?.ShowMapOnly(on);
             if (Horizon != null) {
                 Horizon.gameObject.SetActive(!on);
             }
