@@ -1,5 +1,6 @@
 /* BaK-Again site. Dusk header (the painting behind the title), parchment page.
-   No external fonts or scripts: nothing on this page calls a third party. */
+   No external fonts or scripts: nothing on this page calls a third party (one inline script
+   drives the Classic/Enhanced sliders). */
 :root {
   --night: #0e1420;
   --dusk: #1b2536;
@@ -146,3 +147,36 @@ footer p { margin: 0; padding: 1rem 0; border-top: 2px solid var(--paper-edge); 
 .downloads small { font-weight: 400; }
 h3 { color: var(--accent); font-size: 1.15rem; margin-bottom: 0.3rem; }
 footer p + p { border-top: 0; padding-top: 0; }
+
+/* Classic or Enhanced */
+.enhanced-intro { display: grid; grid-template-columns: 1fr 12rem; gap: 1.25rem; align-items: start; }
+.enhanced-intro ul { padding-left: 1.2rem; }
+.enhanced-intro li { margin-bottom: 0.35rem; }
+.settings-shot { margin: 0.5rem 0 0; }
+.settings-shot img, .clip video { display: block; width: 100%; height: auto; border: 2px solid var(--paper-edge); border-radius: 3px; }
+.settings-shot figcaption, .compare figcaption, .clip figcaption { font-size: 0.88rem; color: var(--muted); margin-top: 0.3rem; line-height: 1.35; }
+.hint { font-size: 0.92rem; color: var(--muted); }
+.compares { display: grid; gap: 1.25rem; }
+.compare { margin: 0; --pos: 50%; }
+.compare-frame { position: relative; border: 2px solid var(--paper-edge); border-radius: 3px; overflow: hidden; line-height: 0; }
+.compare-frame img { display: block; width: 100%; height: auto; }
+.compare-frame .after { position: absolute; inset: 0; clip-path: inset(0 0 0 var(--pos)); }
+.compare-frame::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: var(--pos); width: 2px; margin-left: -1px;
+  background: var(--gold); box-shadow: 0 0 6px rgba(0, 0, 0, 0.6); pointer-events: none;
+}
+.compare-frame input {
+  position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: ew-resize;
+}
+.compare-frame:focus-within { outline: 3px solid var(--gold-deep); outline-offset: 2px; }
+.tag {
+  position: absolute; bottom: 0.5rem; padding: 0.1rem 0.5rem; line-height: 1.5; font-size: 0.85rem; font-weight: 700;
+  color: var(--on-dark); background: rgba(8, 10, 16, 0.7); border-radius: 3px; pointer-events: none;
+}
+.tag-classic { left: 0.5rem; }
+.tag-enhanced { right: 0.5rem; }
+.clip { margin: 1.5rem 0 0; }
+@media (max-width: 40rem) {
+  .enhanced-intro { grid-template-columns: 1fr; }
+  .settings-shot { max-width: 14rem; }
+}

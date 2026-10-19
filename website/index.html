@@ -22,12 +22,13 @@
     <h1>BaK-Again</h1>
     <p class="tagline">A modern, moddable remake of <cite>Betrayal at Krondor</cite> (1993)</p>
     <p class="cta">
-      <a class="button primary" href="#download">Download the alpha</a>
+      <a class="button primary" href="#download">Download the beta</a>
       <a class="button" href="https://forum.bakagain.org">Visit the forum</a>
     </p>
   </div>
   <nav aria-label="Site">
     <a href="#screenshots">Screenshots</a>
+    <a href="#enhanced">Classic or Enhanced</a>
     <a href="#download">Download</a>
     <a href="#setup">Getting started</a>
     <a href="#modding">Modding</a>
@@ -81,11 +82,84 @@
   </div>
 </section>
 
+<section id="enhanced">
+  <h2>Classic or Enhanced: your choice</h2>
+  <div class="enhanced-intro">
+    <div>
+      <p>BaK-Again starts as the game you remember: the 1993 screens, frames and colours, at any
+      window size. If you would like more, press <strong>Enhanced</strong> in Preferences and pick
+      the modern touches you want. Each one has its own switch, and none of them changes the rules:
+      fights, spells, prices and the story play exactly the same.</p>
+      <ul>
+        <li><strong>Full-screen travel</strong>: the world fills the window, the controls float at its edges.</li>
+        <li><strong>Mouse and touch look</strong>: look up, down and around while you travel.</li>
+        <li><strong>Health rings</strong>: each portrait shows health and stamina at a glance.</li>
+        <li><strong>Sky and Lighting</strong>: a sun, three moons, stars and drifting clouds, and light that
+          changes colour through the day, while the world stays as bright as in the original.</li>
+        <li><strong>Inventory</strong>: the whole window, items examined with their stats, and loot shown
+          side by side with a pack.</li>
+        <li><strong>Casting</strong>: the spell ring as a stone on a marble bench, with the caster's health
+          and stamina in view.</li>
+        <li><strong>Book font and turning pages</strong>: a readable hand for books, and pages that turn.</li>
+      </ul>
+    </div>
+    <figure class="settings-shot">
+      <img src="/shots/compare/enhanced-settings.jpg" width="605" height="712" loading="lazy" alt="The Enhanced settings: a switch for each feature">
+      <figcaption>One switch for each feature</figcaption>
+    </figure>
+  </div>
+  <figure class="clip">
+    <video controls muted loop playsinline preload="none" width="1280" height="720" poster="/shots/compare/free-look.jpg">
+      <source src="/shots/compare/free-look.mp4" type="video/mp4">
+    </video>
+    <figcaption>Free look: walk and look around at the same time, steering with the mouse or a finger</figcaption>
+  </figure>
+  <p class="hint">Drag across a picture (or use the arrow keys) to compare.</p>
+  <div class="compares">
+    <figure class="compare">
+      <div class="compare-frame">
+        <img src="/shots/compare/inventory-classic.jpg" width="1280" height="720" loading="lazy" alt="Classic: the original screen">
+        <img class="after" src="/shots/compare/inventory-enhanced.jpg" width="1280" height="720" loading="lazy" alt="Enhanced: the same pack, larger, in the original's stone and copper">
+        <span class="tag tag-classic" aria-hidden="true">Classic</span>
+        <span class="tag tag-enhanced" aria-hidden="true">Enhanced</span>
+        <input type="range" min="0" max="100" value="50" aria-label="A party member's pack: slide between Classic and Enhanced">
+      </div>
+      <figcaption>A party member's pack</figcaption>
+    </figure>
+    <figure class="compare">
+      <div class="compare-frame">
+        <img src="/shots/compare/loot-classic.jpg" width="1280" height="720" loading="lazy" alt="Classic: the chest on its own">
+        <img class="after" src="/shots/compare/loot-enhanced.jpg" width="1280" height="720" loading="lazy" alt="Enhanced: the chest beside a member's pack: drag between them">
+        <span class="tag tag-classic" aria-hidden="true">Classic</span>
+        <span class="tag tag-enhanced" aria-hidden="true">Enhanced</span>
+        <input type="range" min="0" max="100" value="50" aria-label="Looting a chest: slide between Classic and Enhanced">
+      </div>
+      <figcaption>Looting a chest</figcaption>
+    </figure>
+    <figure class="compare">
+      <div class="compare-frame">
+        <img src="/shots/compare/casting-classic.jpg" width="1280" height="720" loading="lazy" alt="Classic: the original ring">
+        <img class="after" src="/shots/compare/casting-enhanced.jpg" width="1280" height="720" loading="lazy" alt="Enhanced: the ring in stone, the school's figure in light">
+        <span class="tag tag-classic" aria-hidden="true">Classic</span>
+        <span class="tag tag-enhanced" aria-hidden="true">Enhanced</span>
+        <input type="range" min="0" max="100" value="50" aria-label="Choosing a spell: slide between Classic and Enhanced">
+      </div>
+      <figcaption>Choosing a spell</figcaption>
+    </figure>
+  </div>
+  <figure class="clip">
+    <video controls muted loop playsinline preload="none" width="1920" height="540" poster="/shots/compare/classic-vs-enhanced-day.jpg">
+      <source src="/shots/compare/classic-vs-enhanced-day.mp4" type="video/mp4">
+    </video>
+    <figcaption>An afternoon passing into night, Classic and Enhanced side by side</figcaption>
+  </figure>
+</section>
+
 <section id="status">
-  <h2>Status: alpha</h2>
-  <p>All nine chapters can be played from the first scene to the ending. Plenty is still rough,
-  and some fights may turn out harder than in the original. That is what the alpha is for: play it, and
-  tell us where it goes wrong.</p>
+  <h2>Status: beta</h2>
+  <p>The whole game is in: all nine chapters can be played from the first scene to the ending.
+  What a beta needs now is players. Some fights may still turn out harder than in the original, and
+  some things are only found by playing, so play it through and tell us where it goes wrong.</p>
 </section>
 
 <section id="download">
@@ -154,7 +228,8 @@
       or file manager to install unknown apps when asked; if Play Protect shows a warning, choose
       <em>More details</em>, then <em>Install anyway</em>.</dd>
     <dt>Is it finished?</dt>
-    <dd>Not yet. It is an alpha: the whole game can be played through, but expect bugs.</dd>
+    <dd>Nearly. The whole game is in and can be played to the end. This beta is for finding what still
+      goes wrong before a 1.0.</dd>
     <dt>I found a bug. Where do I report it?</dt>
     <dd>On the <a href="https://forum.bakagain.org">forum</a>, in <em>Bug Reports</em>. Please
       include the version and log path shown at the bottom of the Preferences screen.</dd>
@@ -174,5 +249,12 @@
   respective rights holders; BaK-Again is an unofficial fan project and is not affiliated with or
   endorsed by them.</p>
 </footer>
+<script>
+// Classic/Enhanced sliders: the range input sets how much of the Enhanced picture shows.
+for (const f of document.querySelectorAll('.compare')) {
+  const r = f.querySelector('input');
+  r.addEventListener('input', () => f.style.setProperty('--pos', r.value + '%'));
+}
+</script>
 </body>
 </html>

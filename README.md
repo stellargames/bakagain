@@ -4,8 +4,8 @@ A modern, moddable remake of the 1993 role-playing game *Betrayal at Krondor*, b
 runs the original game's story, world, rules and art from **your own copy** of the game, and plays
 on Windows, Linux and Android.
 
-> **Alpha.** Every chapter can be played to the end, and plenty is still rough. Bug reports are
-> welcome on the [forum](https://forum.bakagain.org).
+> **Beta.** The whole game is in: every chapter can be played to the end. What it needs now is
+> players. Bug reports are welcome on the [forum](https://forum.bakagain.org).
 
 ## You need the original game
 
