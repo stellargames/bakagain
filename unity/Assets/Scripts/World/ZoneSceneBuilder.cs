@@ -101,7 +101,7 @@ namespace BakAgain.World {
                 var tbl = await LoadTblAsync(zoneId, root);
                 var palette = await LoadPaletteAsync(zoneId, root);
                 var unityPalette = palette.Colors.ToUnity();
-                var profile = new ClassicRenderProfile();
+                var profile = new WorldRenderProfile();
 
                 // Build fog data from RMP
                 var fogData = await LoadAndBuildFogAsync(zoneId, unityPalette, root);

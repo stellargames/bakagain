@@ -14,7 +14,7 @@ namespace BakAgain.Tests.Editor.World {
     /// </summary>
     public class LayeredTerrainMaterialTests {
         private static WorldEntityRenderContext NewContext() =>
-            WorldEntityRenderContext.Create(new Color[256], new ClassicRenderProfile());
+            WorldEntityRenderContext.Create(new Color[256], new WorldRenderProfile());
 
         private static Material MatFor(WorldEntityRenderContext ctx, byte drawPriority) =>
             WorldMeshObjects.GetLayeredTerrainMaterial(TerrainPen.Ground, drawPriority, ctx);

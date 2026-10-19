@@ -20,7 +20,7 @@ namespace BakAgain.Tests.Editor.World {
 
             // Same context as the depth-sorted test — the per-pen branch (EntityFlags 0x00) exercises
             // TblMeshConverter.ConvertTerrainEntity → WorldMeshObjects.BuildTerrain.
-            var ctx = WorldEntityRenderContext.Create(new Color[256], new ClassicRenderProfile());
+            var ctx = WorldEntityRenderContext.Create(new Color[256], new WorldRenderProfile());
 
             _visual = TblModelConverter.BuildVisualAsync(entry, ctx).GetAwaiter().GetResult();
 
@@ -36,7 +36,7 @@ namespace BakAgain.Tests.Editor.World {
             var entry = SyntheticEntity.DepthSortedQuad("test");
 
             // Minimal render context: a vertex-color polygon material is enough for a depth-sorted model.
-            var ctx = WorldEntityRenderContext.Create(new Color[256], new ClassicRenderProfile());
+            var ctx = WorldEntityRenderContext.Create(new Color[256], new WorldRenderProfile());
 
             _visual = TblModelConverter.BuildVisualAsync(entry, ctx).GetAwaiter().GetResult();
 

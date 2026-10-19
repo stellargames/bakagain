@@ -73,6 +73,7 @@ namespace BakAgain.World {
         /// and it is the only source that reaches the top of the scale.</para>
         /// </remarks>
         public void Refresh() {
+            BakAgain.World.Rendering.WorldShaders.Follow(GameOptions.Enhanced);
             int candle = LevelOf(LightSourceDecay.Source.CandleGlow);
             int stardusk = LevelOf(LightSourceDecay.Source.Stardusk);
             int item = LevelOf(LightSourceDecay.Source.Item);

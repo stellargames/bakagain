@@ -135,7 +135,7 @@ namespace BakAgain.ResourceManagement.Converters {
             if (ctx.LayeredTerrainCache.TryGetValue(key, out var mat)) return mat;
             if (!ctx.TerrainMaterials.TryGetValue(pen, out var baseMat))
                 ctx.TerrainMaterials.TryGetValue(TerrainPen.FlatFill, out baseMat);
-            mat = new Material(baseMat);
+            mat = BakAgain.World.Rendering.WorldShaders.Track(new Material(baseMat));
             int layer = PaintLayer(drawPriority);
             mat.renderQueue = (int)RenderQueue.Geometry + layer;
             if (layer > 0) { // overlays bias toward camera to win the coplanar depth test

@@ -20,9 +20,14 @@ namespace BakAgain.Tests.PlayMode.World {
         private GameObject _camGo;
         private RenderTexture _rt;
         private readonly System.Collections.Generic.List<Texture2D> _textures = new();
+        private BakAgain.Tests.EnhancedPrefsStash _stash;
+
+        [SetUp]
+        public void SetUp() => _stash = BakAgain.Tests.EnhancedPrefsStash.Take();
 
         [TearDown]
         public void TearDown() {
+            _stash.Restore();
             Shader.SetGlobalFloat("_BakSkyOn", 0f);
             RenderTexture.active = null;
             Object.DestroyImmediate(_go);
@@ -45,7 +50,10 @@ namespace BakAgain.Tests.PlayMode.World {
             return tex;
         }
 
-        private IEnumerator Render(bool skyOn, System.Action<Color[]> read) {
+        /// <param name="enhanced">The Enhanced master switch, which picks the horizon's shader; the sky
+        /// can only be on in Enhanced.</param>
+        private IEnumerator Render(bool skyOn, System.Action<Color[]> read, bool? enhanced = null) {
+            BakAgain.Core.GameOptions.Enhanced = enhanced ?? skyOn;
             foreach (string id in new[] { "_BakLightDragonsBreath", "_BakLightTint", "_BakLightDarken", "_BakFlash" }) {
                 Shader.SetGlobalVector(id, Vector4.zero);
             }
@@ -98,6 +106,15 @@ namespace BakAgain.Tests.PlayMode.World {
             yield return Render(true, p => px = p);
             Assert.AreEqual(0, Count(px, Key), "no sky-pen pixel survives");
             Assert.Greater(Count(px, Hill), 0, "the hills are still drawn");
+        }
+
+        [UnityTest]
+        public IEnumerator TheClassicHorizonHasNoSkyKey() {
+            // The sky's globals left on (as a toggle back to Classic mid-zone could leave them for a
+            // frame) reach no Classic shader: the faithful horizon compiles none of the Enhanced code.
+            Color[] px = null;
+            yield return Render(true, p => px = p, enhanced: false);
+            Assert.Greater(Count(px, Key), 0, "the strip's sky pen is drawn");
         }
     }
 }

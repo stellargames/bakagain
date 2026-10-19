@@ -4,7 +4,9 @@ namespace BakAgain.World.Rendering {
     using UnityEngine;
     using UnityEngine.Rendering;
 
-    public class ClassicRenderProfile : IWorldRenderProfile {
+    /// <summary>The world's materials, fog and lighting setup, for both modes: the shaders come from
+    /// <see cref="WorldShaders"/>, which follows the Enhanced switch live.</summary>
+    public class WorldRenderProfile : IWorldRenderProfile {
         private static readonly int MainTexId = Shader.PropertyToID("_MainTex");
         private static readonly int TexScaleId = Shader.PropertyToID("_TexScale");
         private static readonly int ColorBlendId = Shader.PropertyToID("_ColorBlend");
@@ -20,18 +22,6 @@ namespace BakAgain.World.Rendering {
         /// ~30 u — acceptable; desktop targets use D32F.)</summary>
         public const float CoplanarPaintBias = 5e-5f;
 
-        private readonly Shader _terrainShader;
-        private readonly Shader _polygonShader;
-        private readonly Shader _spriteShader;
-        private readonly Shader _slotShader;
-
-        public ClassicRenderProfile() {
-            _terrainShader = Shader.Find("BakAgain/ClassicTerrain");
-            _polygonShader = Shader.Find("BakAgain/ClassicPolygon");
-            _spriteShader = Shader.Find("BakAgain/ClassicSprite");
-            _slotShader = Shader.Find("BakAgain/ClassicTexturedPolygon");
-        }
-
         public Dictionary<TerrainPen, Material> CreateTerrainMaterials(
             Dictionary<TerrainPen, Texture2D> penTextures) {
             var materials = new Dictionary<TerrainPen, Material>();
@@ -40,7 +30,7 @@ namespace BakAgain.World.Rendering {
             materials[TerrainPen.FlatFill] = CreatePolygonMaterial();
 
             foreach (var kvp in penTextures) {
-                var mat = new Material(_terrainShader);
+                var mat = WorldShaders.Create(WorldShaders.Surface.Terrain);
                 mat.SetTexture(MainTexId, kvp.Value);
                 mat.SetFloat(TexScaleId, GetTexScale(kvp.Key));
                 mat.SetFloat(ColorBlendId, GetColorBlend(kvp.Key));
@@ -78,13 +68,13 @@ namespace BakAgain.World.Rendering {
         }
 
         public Material CreatePolygonMaterial() {
-            var mat = new Material(_polygonShader);
+            var mat = WorldShaders.Create(WorldShaders.Surface.Polygon);
             mat.SetFloat(PaintBiasId, CoplanarPaintBias);
             return mat;
         }
 
         public Material CreateSlotMaterial(Texture2D bitmap) {
-            var mat = new Material(_slotShader);
+            var mat = WorldShaders.Create(WorldShaders.Surface.TexturedPolygon);
             mat.SetTexture(MainTexId, bitmap);
             mat.SetFloat(PaintBiasId, CoplanarPaintBias);
             mat.name = $"SlotMat_{bitmap.name}";
@@ -92,7 +82,7 @@ namespace BakAgain.World.Rendering {
         }
 
         public Material CreateSpriteMaterial(Texture2D spriteTexture) {
-            var mat = new Material(_spriteShader);
+            var mat = WorldShaders.Create(WorldShaders.Surface.Sprite);
             mat.SetTexture(MainTexId, spriteTexture);
             return mat;
         }

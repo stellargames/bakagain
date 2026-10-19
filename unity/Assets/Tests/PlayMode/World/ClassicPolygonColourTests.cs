@@ -93,7 +93,7 @@ namespace BakAgain.Tests.PlayMode.World {
         /// </summary>
         [Test]
         public void ASpriteAtTheCameraIsFadedOut_ButOneAtTheThresholdIsWhole() {
-            BakAgain.World.Rendering.ClassicRenderProfile.ApplySpriteNearFade();
+            BakAgain.World.Rendering.WorldRenderProfile.ApplySpriteNearFade();
             Color32 near = Render(new Color32(0, 0, 0, 255), darken: 0f, shader: "BakAgain/ClassicSprite",
                 texel: new Color32(200, 100, 50, 255), perspective: true, distance: 5f);
             Color32 far = Render(new Color32(0, 0, 0, 255), darken: 0f, shader: "BakAgain/ClassicSprite",
@@ -111,9 +111,13 @@ namespace BakAgain.Tests.PlayMode.World {
         public void ASunTintShiftsHueButKeepsLuminance() {
             var warm = new Color(1.3f, 0.95f, 0.6f);
             float l = (0.2126f * warm.r) + (0.7152f * warm.g) + (0.0722f * warm.b);
-            Color32 plain = Render(new Color32(128, 128, 128, 255), darken: 0f);
-            Color32 tinted = Render(new Color32(128, 128, 128, 255), darken: 0f,
+            // The grade is Enhanced code: only the Enhanced twin compiles it.
+            Color32 plain = Render(new Color32(128, 128, 128, 255), darken: 0f, shader: "BakAgain/EnhancedPolygon");
+            Color32 tinted = Render(new Color32(128, 128, 128, 255), darken: 0f, shader: "BakAgain/EnhancedPolygon",
                 sunTint: new Vector4(warm.r / l, warm.g / l, warm.b / l, 1f));
+            Color32 classic = Render(new Color32(128, 128, 128, 255), darken: 0f,
+                sunTint: new Vector4(warm.r / l, warm.g / l, warm.b / l, 1f));
+            Assert.AreEqual(plain, classic, "ClassicPolygon has no grade to apply");
             static float Luma(Color32 c) => (0.2126f * c.r) + (0.7152f * c.g) + (0.0722f * c.b);
             Assert.That(Luma(tinted), Is.EqualTo(Luma(plain)).Within(2f), $"plain {plain} tinted {tinted}");
             Assert.That(tinted.r, Is.GreaterThan(plain.r + 20), $"warmer: {tinted}");

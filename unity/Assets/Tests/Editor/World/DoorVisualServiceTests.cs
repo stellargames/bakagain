@@ -12,8 +12,8 @@ namespace BakAgain.Tests.Editor.World {
     public class DoorVisualServiceTests {
         [Test]
         public void AStaleTeardownDoesNotRevokeTheNewZone() {
-            var oldZone = WorldEntityRenderContext.Create(new Color[256], new ClassicRenderProfile());
-            var newZone = WorldEntityRenderContext.Create(new Color[256], new ClassicRenderProfile());
+            var oldZone = WorldEntityRenderContext.Create(new Color[256], new WorldRenderProfile());
+            var newZone = WorldEntityRenderContext.Create(new Color[256], new WorldRenderProfile());
             var doors = new DoorVisualService();
 
             doors.SetZone(null, oldZone, null, null);

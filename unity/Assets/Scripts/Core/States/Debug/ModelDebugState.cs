@@ -335,7 +335,7 @@ namespace BakAgain.Core.States.Debug {
                 // centred close-up model needs no distance fog. Every model then renders through the
                 // shared WorldEntityBuilder, exactly as it appears in-world.
                 _renderContext = WorldEntityRenderContext.Create(
-                    _unityPalette, new ClassicRenderProfile());
+                    _unityPalette, new WorldRenderProfile());
 
                 // Slot-bitmap texturing: the extractor bakes each textured face's resource key
                 // directly, so the viewer's loader just needs the shared resource cache to render

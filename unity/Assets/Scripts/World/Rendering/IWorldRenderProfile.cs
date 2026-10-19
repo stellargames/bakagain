@@ -6,7 +6,7 @@ namespace BakAgain.World.Rendering {
 
     /// <summary>
     /// Provides all mode-specific rendering configuration for the world scene.
-    /// Created once at zone load based on the player's selected mode.
+    /// Created once at zone load; the Classic/Enhanced shader choice is <see cref="WorldShaders"/>'s.
     /// </summary>
     public interface IWorldRenderProfile {
         // Note: the material factories take no fog arguments. Fog is applied by URP per fragment

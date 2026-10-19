@@ -79,7 +79,7 @@ namespace BakAgain.World {
             // world geometry (the quad sits only ~Distance units ahead of the camera, so otherwise
             // anything farther would draw behind it). _BaseMap is [MainTexture]-tagged, so the
             // mainTexture / mainTextureOffset accessors drive it (and the heading UV scroll).
-            _material = new Material(Shader.Find("BakAgain/ClassicHorizon"));
+            _material = BakAgain.World.Rendering.WorldShaders.Create(BakAgain.World.Rendering.WorldShaders.Surface.Horizon);
             _material.mainTexture = stitched;
             // The pen the Enhanced sky makes see-through (ClassicHorizon's _SkyKey); unused in Faithful.
             _material.SetColor("_SkyKey", topColor);

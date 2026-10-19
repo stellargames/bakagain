@@ -13,7 +13,7 @@ namespace BakAgain.Tests.Editor.World {
     /// </summary>
     public class WorldEntityRenderContextLifetimeTests {
         private static WorldEntityRenderContext NewContext() =>
-            WorldEntityRenderContext.Create(new Color[256], new ClassicRenderProfile());
+            WorldEntityRenderContext.Create(new Color[256], new WorldRenderProfile());
 
         private static Texture2D NewTexture(string name) => new Texture2D(2, 2) { name = name };
 

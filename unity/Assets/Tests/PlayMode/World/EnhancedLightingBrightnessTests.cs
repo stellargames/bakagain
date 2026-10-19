@@ -70,7 +70,6 @@ namespace BakAgain.Tests.PlayMode.World {
             _root.transform.position = new Vector3(5000, 5000, 0);
             var env = _root.AddComponent<ZoneEnvironment>();
             env.SkyColor = SkyPen;
-            var shader = Shader.Find("BakAgain/ClassicPolygon");
             for (int i = 0; i < 16; i++) {
                 for (int row = 0; row < 3; row++) {
                     Color32 c = WorldColours[((row * 16) + i) % WorldColours.Length];
@@ -84,7 +83,7 @@ namespace BakAgain.Tests.PlayMode.World {
                         colors32 = new[] { c, c, c, c },
                     };
                     quad.AddComponent<MeshFilter>().sharedMesh = mesh;
-                    quad.AddComponent<MeshRenderer>().sharedMaterial = _material ??= new Material(shader);
+                    quad.AddComponent<MeshRenderer>().sharedMaterial = _material ??= BakAgain.World.Rendering.WorldShaders.Create(BakAgain.World.Rendering.WorldShaders.Surface.Polygon);
                 }
             }
 

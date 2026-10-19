@@ -1,0 +1,112 @@
+#ifndef BAK_TERRAIN_PASS_INCLUDED
+#define BAK_TERRAIN_PASS_INCLUDED
+
+// The terrain pass shared by ClassicTerrain.shader and EnhancedTerrain.shader. The Enhanced twin defines
+// BAK_ENHANCED before including it; the Classic one never compiles any Enhanced code.
+
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+#include "Assets/Shaders/Custom/World/BakLighting.hlsl"
+
+struct Attributes {
+    float4 positionOS : POSITION;
+    float3 normalOS   : NORMAL;
+    float4 color      : COLOR;
+    float2 uv1        : TEXCOORD1; // paint-order rank in .x (see ClassicPolygon)
+    float4 mapColor   : TEXCOORD2; // what this face is drawn as on the overhead map
+};
+
+struct Varyings {
+    float4 positionCS : SV_POSITION;
+    float4 color      : COLOR;
+    float3 worldPos   : TEXCOORD0;
+    float3 worldNormal: TEXCOORD1;
+    float  fogCoord   : TEXCOORD2;
+    float4 mapColor   : TEXCOORD3;
+};
+
+CBUFFER_START(UnityPerMaterial)
+    float _TexScale;
+    float _ColorBlend;
+    float _PaintBias;
+    float _LayerLift;
+CBUFFER_END
+
+// GLOBAL, not per-material: the overhead map is a mode the whole world enters at once,
+// and every terrain material would otherwise need setting and unsetting in step.
+// ZoneEnvironment.SetOverheadMapMode is the only writer. 0 while travelling.
+float _MapMode;
+
+TEXTURE2D(_MainTex);
+SAMPLER(sampler_point_repeat);
+
+Varyings vert(Attributes input) {
+    Varyings output;
+    VertexPositionInputs posInputs = GetVertexPositionInputs(input.positionOS.xyz);
+    // _LayerLift: see Properties. Along the view ray, so x/y do not move.
+    float3 liftedWS = posInputs.positionWS
+        + normalize(GetCameraPositionWS() - posInputs.positionWS) * _LayerLift;
+    output.positionCS = TransformWorldToHClip(liftedWS);
+    output.color = input.color;
+    output.worldPos = TransformObjectToWorld(input.positionOS.xyz);
+    output.worldNormal = TransformObjectToWorldNormal(input.normalOS);
+    // Paint-order depth bias — identical to ClassicPolygon.vert: constant eye-space
+    // nudge per rank (NDC offset = rank*_PaintBias/w², capped), signed by facing.
+    // Rationale in ClassicPolygon.shader.
+    float3 viewDirWS = GetCameraPositionWS() - posInputs.positionWS;
+    float facing = dot(output.worldNormal, viewDirWS) >= 0.0 ? 1.0 : -1.0;
+    float w = output.positionCS.w;
+    float nudgeNdc = facing * min(input.uv1.x * _PaintBias / (w * w), 2e-3);
+    float paintNudge = nudgeNdc * w;
+    #if UNITY_REVERSED_Z
+        output.positionCS.z += paintNudge;
+    #else
+        output.positionCS.z -= paintNudge;
+    #endif
+    output.fogCoord = ComputeFogFactor(output.positionCS.z);
+    // The map pen arrives as raw sRGB palette bytes; linearise it or the overhead map is
+    // washed out (TASK-749). The vertex colour is left alone: its 0.3 blend is part of the
+    // settled ground look.
+    output.mapColor = input.mapColor;
+    #if !defined(UNITY_COLORSPACE_GAMMA)
+        output.mapColor.rgb = SRGBToLinear(input.mapColor.rgb);
+    #endif
+    return output;
+}
+
+half4 frag(Varyings input) : SV_Target {
+    // Top-down (XZ) triplanar projection — terrain is mostly horizontal.
+    // For steep faces, blend in Y-axis projections weighted by normal.
+    float3 blendWeights = abs(input.worldNormal);
+    blendWeights /= (blendWeights.x + blendWeights.y + blendWeights.z + 1e-5);
+
+    float invScale = 1.0 / max(_TexScale, 0.01);
+    float2 uvXZ = input.worldPos.xz * invScale;
+    float2 uvXY = input.worldPos.xy * invScale;
+    float2 uvYZ = input.worldPos.yz * invScale;
+
+    half4 texXZ = SAMPLE_TEXTURE2D(_MainTex, sampler_point_repeat, uvXZ);
+    half4 texXY = SAMPLE_TEXTURE2D(_MainTex, sampler_point_repeat, uvXY);
+    half4 texYZ = SAMPLE_TEXTURE2D(_MainTex, sampler_point_repeat, uvYZ);
+
+    half4 texColor = texXZ * blendWeights.y + texXY * blendWeights.z + texYZ * blendWeights.x;
+
+    // Blend with vertex color to preserve palette tinting
+    half4 color = lerp(texColor, texColor * input.color, _ColorBlend);
+
+    // *** THE OVERHEAD MAP'S PEN REMAP. *** Z##.DAT redraws each terrain pen as another
+    // one, which is what gives the map its flatter palette instead of the world's. The
+    // replacement colour is baked per face (UV2) rather than looked up here, because a
+    // colour-keyed lookup cannot tell pen 0 apart — it is black, and black repeats in
+    // every zone palette. Texture drops out entirely: the map draws flat fills.
+    color = lerp(color, half4(input.mapColor.rgb, 1.0), _MapMode);
+    color.a = 1.0;
+
+    // URP distance fog
+    color.rgb = MixFog(color.rgb, input.fogCoord);
+    // Lighting AFTER fog: the original darkens the whole palette, the fog pens included,
+    // so distant fogged terrain darkens at night like everything else (TASK-761).
+    color.rgb = ApplyBakLighting(color.rgb);
+    return color;
+}
+
+#endif

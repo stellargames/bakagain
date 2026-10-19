@@ -17,7 +17,7 @@ namespace BakAgain.Tests.Editor.World {
         [Test]
         public async Task GetAsync_CachesPerTypeId() {
             var tbl = new ZoneTable("Z01") { Entries = new List<ZoneTableEntry> { SyntheticEntity.DepthSortedQuad("a"), SyntheticEntity.DepthSortedQuad("b") } };
-            var ctx = WorldEntityRenderContext.Create(new Color[256], new ClassicRenderProfile());
+            var ctx = WorldEntityRenderContext.Create(new Color[256], new WorldRenderProfile());
             _loader = new WorldModelLoader(tbl, ctx);
 
             var first = await _loader.GetAsync(0);
