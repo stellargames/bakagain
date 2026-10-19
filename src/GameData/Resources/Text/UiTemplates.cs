@@ -134,6 +134,9 @@ public static class UiTemplates {
     public const string EnhancedCastHealth = "port:template:enhanced_cast_health";
     public const string EnhancedCastStamina = "port:template:enhanced_cast_stamina";
 
+    /// <summary>The caster's two lines on one, under the portrait: <c>{health}</c> and <c>{stamina}</c> are those templates.</summary>
+    public const string EnhancedCastPool = "port:template:enhanced_cast_pool";
+
     /// <summary>The Enhanced inventory's buttons and labels. Labels name people, never items: a name
     /// is what examining an item reveals.</summary>
     public const string EnhancedInvGiveTo = "port:template:enhanced_inv_give_to";
@@ -232,6 +235,7 @@ public static class UiTemplates {
         (EnhancedCastBack, _ => "Back"),
         (EnhancedCastHealth, _ => "Health {current}/{max}"),
         (EnhancedCastStamina, _ => "Stamina {current}/{max}"),
+        (EnhancedCastPool, _ => "{health} · {stamina}"),
         (EnhancedInvGiveTo, _ => "Give to {name}"),
         (EnhancedInvTakes, _ => "{name} takes it"),
         (EnhancedInvBuyFor, _ => "Buy for {name}"),

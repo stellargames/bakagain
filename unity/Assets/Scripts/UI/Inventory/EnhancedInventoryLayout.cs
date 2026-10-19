@@ -42,7 +42,7 @@ namespace BakAgain.UI.Inventory {
         private readonly VisualElement[] _portraits = new VisualElement[3];
         private readonly Label[] _names = new Label[3];
         private readonly string[] _nameOverrides = new string[3];
-        private PortraitRingView[] _rings;
+        private PortraitRingSet _rings;
         private Label _purse, _hint;
         private bool _warned;
 
@@ -290,28 +290,17 @@ namespace BakAgain.UI.Inventory {
 
         /// <summary>Health rings while that option is on too (polled by the menu).</summary>
         public void RefreshRings() {
-            if (GameOptions.IsOn(EnhancedFeature.PortraitRings) != (_rings != null)) {
-                SyncRings();
-            }
-            if (_rings == null) return;
-            foreach (PortraitRingView r in _rings) r.Refresh();
+            if (Applied) _rings?.Refresh();
         }
 
         private void SyncRings() {
             RemoveRings();
-            if (!Applied || _session == null || !GameOptions.IsOn(EnhancedFeature.PortraitRings)) {
-                return;
-            }
-            _rings = new PortraitRingView[3];
-            for (int i = 0; i < 3; i++) {
-                _rings[i] = new PortraitRingView(_session, _root.Q(PortraitNames[i]), i);
-                _rings[i].Refresh();
-            }
+            _rings = new PortraitRingSet(_session, 3, i => _root.Q(PortraitNames[i]));
+            _rings.Refresh();
         }
 
         private void RemoveRings() {
-            if (_rings == null) return;
-            foreach (PortraitRingView r in _rings) r.Remove();
+            _rings?.Remove();
             _rings = null;
         }
 

@@ -47,7 +47,7 @@ namespace BakAgain.UI.InGame {
         private readonly Core.Services.GameClock _clock;
         private readonly float _statusFontFraction;
         private readonly System.Func<string> _place;
-        private PortraitRingView[] _rings;
+        private PortraitRingSet _rings;
         private float _pollClock;
         private VisualElement _hud;
         private Label _status;
@@ -89,21 +89,14 @@ namespace BakAgain.UI.InGame {
             }
             Shown = shown && !DialogManager.PageOverTheWorld;
             SetVisible(Shown);
-            if (GameOptions.IsOn(EnhancedFeature.PortraitRings) != (_rings != null)) {
-                SyncRings();
-                _pollClock = 0f;
-            }
             // ponytail: 4 Hz poll; switch to a party-stats change event if one appears.
             _pollClock -= Time.unscaledDeltaTime;
             if (_pollClock > 0f) {
                 return;
             }
             _pollClock = 0.25f;
-            if (_rings != null) {
-                foreach (PortraitRingView r in _rings) {
-                    r.Refresh();
-                }
-            }
+            _rings ??= new PortraitRingSet(_session, _elements.Portraits.Length, i => _root.Q(_elements.Portraits[i]));
+            _rings.Refresh();
             if (_clock != null) {
                 string status = GameData.Resources.Text.UiTemplates.Format(
                     GameData.Resources.Text.UiTemplates.EnhancedStatusKey,
@@ -114,24 +107,8 @@ namespace BakAgain.UI.InGame {
             }
         }
 
-        private void SyncRings() {
-            RemoveRings();
-            if (!GameOptions.IsOn(EnhancedFeature.PortraitRings) || _session == null) {
-                return;
-            }
-            _rings = new PortraitRingView[_elements.Portraits.Length];
-            for (int i = 0; i < _rings.Length; i++) {
-                _rings[i] = new PortraitRingView(_session, _root.Q(_elements.Portraits[i]), i);
-            }
-        }
-
         private void RemoveRings() {
-            if (_rings == null) {
-                return;
-            }
-            foreach (PortraitRingView r in _rings) {
-                r.Remove();
-            }
+            _rings?.Remove();
             _rings = null;
         }
 

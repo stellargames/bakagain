@@ -319,12 +319,12 @@
    aspect, so vertical px and percentages are of the window height. The REQ elements moved in here
    carry .req-hitbox, hence the two-class selectors. 55px is the game font's own size (.req-label). */
 .enhanced-inv { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background-color: rgb(29, 23, 13); background-repeat: repeat; background-size: 720px 480px; }
-.enhanced-inv .enhanced-inv__frame { position: absolute; left: 2.5%; top: 3%; right: 20%; bottom: 20.5%; padding: 40px; }
+.enhanced-inv .enhanced-inv__frame { position: absolute; left: 2.5%; top: 3%; right: 21.5%; bottom: 20.5%; padding: 40px; }
 .enhanced-inv .enhanced-inv__field { flex-grow: 1; overflow: visible; }
 .enhanced-inv .enhanced-inv__sheet { position: absolute; left: 0; top: 0; width: 1600px; height: 1200px; transform-origin: 0 0; }
-.enhanced-inv .enhanced-inv__portraits { position: absolute; right: 1.5%; top: 3%; bottom: 20.5%; width: 17%; flex-direction: column; justify-content: space-between; align-items: center; }
-.enhanced-inv .enhanced-inv__portrait { width: 250px; height: 250px; align-items: center; justify-content: center; background-size: 100% 100%; }
-.enhanced-inv .enhanced-inv__head { position: relative; width: 190px; height: 190px; }
+.enhanced-inv .enhanced-inv__portraits { position: absolute; right: 1%; top: 3%; bottom: 20.5%; width: 19.5%; flex-direction: column; justify-content: space-between; align-items: center; }
+.enhanced-inv .enhanced-inv__portrait { width: 300px; height: 300px; align-items: center; justify-content: center; background-size: 100% 100%; }
+.enhanced-inv .enhanced-inv__head { position: relative; width: 245px; height: 245px; }
 .enhanced-inv .enhanced-inv__name { position: absolute; bottom: -34px; font-size: 44px; white-space: nowrap; color: rgb(236, 217, 176); -unity-text-align: middle-center; }
 .enhanced-inv .enhanced-inv__portrait--target .enhanced-inv__head { scale: 1.06 1.06; }
 .enhanced-inv .enhanced-inv__portrait--target .enhanced-inv__name { color: rgb(255, 246, 220); }
@@ -358,10 +358,10 @@
 .enhanced-cast .enhanced-cast__top { flex-grow: 1; flex-direction: row; }
 .enhanced-cast .enhanced-cast__parch { flex-grow: 1; overflow: hidden; background-size: cover; }
 .enhanced-cast .enhanced-cast__parch .cast-info-line { color: rgb(46, 29, 15); }
-.enhanced-cast .enhanced-cast__portraits { width: 270px; flex-shrink: 0; flex-direction: column; justify-content: space-around; align-items: center; margin-left: 26px; }
-.enhanced-cast .enhanced-cast__portrait { width: 214px; height: 214px; align-items: center; justify-content: center; background-size: 100% 100%; }
-.enhanced-cast .enhanced-cast__head { position: relative; width: 160px; height: 160px; border-radius: 50%; overflow: hidden; }
-.enhanced-cast .enhanced-cast__portrait--caster .enhanced-cast__head { border-width: 5px; border-color: rgb(156, 184, 220); }
+.enhanced-cast .enhanced-cast__portraits { width: 296px; flex-shrink: 0; flex-direction: column; justify-content: space-around; align-items: center; margin-left: 16px; }
+.enhanced-cast .enhanced-cast__portrait { width: 280px; height: 280px; align-items: center; justify-content: center; background-size: 100% 100%; }
+.enhanced-cast .enhanced-cast__head { position: relative; width: 228px; height: 228px; }
+.enhanced-cast .enhanced-cast__portrait--caster { border-width: 8px; border-radius: 50%; border-color: rgb(176, 218, 255); }
 .enhanced-cast .enhanced-cast__bar { height: 150px; flex-shrink: 0; margin-top: 16px; flex-direction: row; align-items: center; padding: 0 22px 0 66px; }
 .enhanced-cast .enhanced-cast__hint { flex-grow: 1; flex-shrink: 1; font-size: 36px; white-space: normal; color: rgb(205, 185, 143); }
 .enhanced-cast .enhanced-cast__gem { background-size: 100% 100%; }
@@ -378,6 +378,6 @@
 .enhanced-cast .enhanced-cast__tablet:focus { border-color: rgb(255, 214, 160); }
 .enhanced-cast .enhanced-cast__tablet-word { font-size: 46px; color: rgb(42, 29, 14); -unity-text-align: middle-center; }
 .enhanced-cast .enhanced-cast__tablet--cast .enhanced-cast__tablet-word { color: rgb(110, 31, 22); }
-.enhanced-cast .enhanced-cast__stats { position: absolute; top: 218px; font-size: 32px; white-space: nowrap; color: rgb(236, 217, 176); -unity-text-align: upper-center; }
+.enhanced-cast .enhanced-cast__stats { position: absolute; top: 284px; font-size: 26px; white-space: nowrap; color: rgb(236, 217, 176); -unity-text-align: upper-center; }
 .enhanced-cast .enhanced-cast__strip { height: 72px; flex-shrink: 0; margin: -8px 0 12px 0; overflow: hidden; }
 .enhanced-cast .enhanced-cast__frame { position: relative; flex-grow: 1; flex-direction: column; padding: 40px; }

@@ -190,6 +190,8 @@ namespace BakAgain.UI.Spells {
                 e.RegisterCallback<GeometryChangedEvent>(_ => ScheduleFit());
             }
             RefreshNames();
+            _rings = new BakAgain.UI.InGame.PortraitRingSet(_session, 3, i => _root.Q(PortraitName(i)));
+            _rings.Refresh();
             return true;
         }
 
@@ -213,6 +215,8 @@ namespace BakAgain.UI.Spells {
             }
             _pendingFit?.Pause();
             _pendingFit = null;
+            _rings?.Remove();
+            _rings = null;
             ReleaseBench();
             _frame?.Release();
             _frame = null;
@@ -282,6 +286,7 @@ namespace BakAgain.UI.Spells {
         /// <summary>The caster's health and stamina under their portrait; the others show none.</summary>
         public void SetCasterStats(string text) {
             _statsText = text;
+            _rings?.Refresh(); // the same moment the numbers change: a cast was chosen or paid for
             for (int i = 0; i < 3; i++) {
                 if (_stats[i] != null) _stats[i].text = i == _casterSlot ? text ?? string.Empty : string.Empty;
             }
@@ -366,6 +371,7 @@ namespace BakAgain.UI.Spells {
         private Label _hint, _readoutPower, _readoutOf;
         private readonly Label[] _stats = new Label[3];
         private string _statsText;
+        private BakAgain.UI.InGame.PortraitRingSet _rings;   // health and stamina round each portrait, as on the HUD
         private VisualElement _readout;
 
         public void RefreshNames() {

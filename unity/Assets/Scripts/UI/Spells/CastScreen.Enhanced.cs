@@ -232,8 +232,9 @@ namespace BakAgain.UI.Spells {
             int staminaMax = stats[(int)GameData.ActorAttribute.Stamina].Max;
             int health = CombatCaster?.Health ?? _session.PeekEffectiveStat(CasterId, GameData.ActorAttribute.Health);
             int stamina = CombatCaster?.Stamina ?? _session.PeekEffectiveStat(CasterId, GameData.ActorAttribute.Stamina);
-            return UiTemplates.Format(UiTemplates.EnhancedCastHealth, ("current", health), ("max", healthMax)) + "\n"
-                + UiTemplates.Format(UiTemplates.EnhancedCastStamina, ("current", stamina), ("max", staminaMax));
+            return UiTemplates.Format(UiTemplates.EnhancedCastPool,
+                ("health", UiTemplates.Format(UiTemplates.EnhancedCastHealth, ("current", health), ("max", healthMax))),
+                ("stamina", UiTemplates.Format(UiTemplates.EnhancedCastStamina, ("current", stamina), ("max", staminaMax))));
         }
 
         private readonly List<EnhancedCastLayout.Light> _lights = new();

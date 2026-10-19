@@ -93,4 +93,44 @@ namespace BakAgain.UI.InGame {
             p.Stroke();
         }
     }
+
+    /// <summary>
+    /// The rings on one screen's portraits, following the Health rings switch: the travel HUD, the
+    /// inventory and the cast screen each hold one.
+    /// </summary>
+    public sealed class PortraitRingSet {
+        private readonly GameSession _session;
+        private readonly System.Func<int, VisualElement> _head;
+        private readonly int _count;
+        private PortraitRingView[] _rings;
+
+        /// <param name="head">The portrait element of each slot; the ring is drawn round it.</param>
+        public PortraitRingSet(GameSession session, int count, System.Func<int, VisualElement> head) {
+            _session = session;
+            _count = count;
+            _head = head;
+        }
+
+        /// <summary>Adds or takes away the rings as the switch now says, then reads the party's stats.</summary>
+        public void Refresh() {
+            bool on = _session != null && GameOptions.IsOn(EnhancedFeature.PortraitRings);
+            if (on && _rings == null) {
+                _rings = new PortraitRingView[_count];
+                for (int i = 0; i < _count; i++) {
+                    VisualElement head = _head(i);
+                    _rings[i] = head != null ? new PortraitRingView(_session, head, i) : null;
+                }
+            } else if (!on) {
+                Remove();
+            }
+            if (_rings == null) return;
+            foreach (PortraitRingView r in _rings) r?.Refresh();
+        }
+
+        public void Remove() {
+            if (_rings == null) return;
+            foreach (PortraitRingView r in _rings) r?.Remove();
+            _rings = null;
+        }
+    }
 }
