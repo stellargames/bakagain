@@ -103,7 +103,10 @@ Shader "BakAgain/EnhancedSky" {
                 float3 n = float3(uv, sqrt(saturate(1.0 - dot(uv, uv))));
                 float a = 6.2831853 * phase;
                 float lit = saturate(dot(n, float3(sin(a), 0.0, -cos(a)))) + 0.03;   // + earthshine
-                return lerp(col, t.rgb * lit * bright * (0.15 + 0.85 * night), t.a);
+                // Opaque at night; by day it only adds its light, so the unlit side is the sky's own
+                // blue (drawn opaque it was a black disc in daylight, seen 2026-10-19).
+                float3 moon = t.rgb * lit * bright * (0.15 + 0.85 * night);
+                return lerp(col, moon, t.a * night) + moon * t.a * (1.0 - night);
             }
 
             half4 frag(Varyings input) : SV_Target {
