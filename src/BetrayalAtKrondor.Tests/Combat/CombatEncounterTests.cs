@@ -137,8 +137,8 @@ public class CombatEncounterTests {
     [Fact]
     public void AnEnemyAtZeroHealthWithoutTheDeadFlagDoesNotKeepTheFightAlive() {
         // A deliberate deviation (TASK-618, owner 2026-10-17): the original tests only CAF_DEAD, and
-        // five shipped encounters (180, 315, 426, 558, 631, 643) field a 0-health slot left ready,
-        // so they could never be won.
+        // five shipped encounters (315, 426, 558, 631, 643) field a 0-health slot left ready from a
+        // new game, and 180 was found with one in a save, so they could never be won.
         Combatant killed = Enemy(5);
         killed.Flags |= CombatantFlags.Dead;
         CombatEncounter e = Encounter(new[] { Member(5) }, new[] { killed, Enemy(5, health: 0) });

@@ -4,6 +4,11 @@ Shader "BakAgain/EnhancedSky" {
     // mountain quad (Background-1) with no depth write, so everything else lands in front of it.
     // Under Resources so Shader.Find reaches it in a build. All time and position rules are in
     // SkyClock (GameData); EnhancedSky.cs hands them over as globals.
+    //
+    // On mobile (SHADER_API_MOBILE, so no variant at runtime) the clouds' cover mask is read from the
+    // cirrus texture instead of value noise, and their ambient is the gradient already computed: the
+    // dome covers most of the screen, and two scattering evaluations plus 24 hashes a pixel is more
+    // than a phone GPU should pay for it.
     Properties {
         _CloudsA ("Cumulus (R density, G thickness)", 2D) = "black" {}
         _CloudsB ("Cirrus (R density, G thickness)", 2D) = "black" {}
@@ -39,7 +44,9 @@ Shader "BakAgain/EnhancedSky" {
             float4 _BakSkyMoonDir2;
             float4 _BakSkyMoonPhase;   // xyz = phase per moon, 0 new .. 0.5 full
             float4 _BakSkyMoonBright;  // xyz = brightness per moon
-            float4 _BakSkyCloud;       // x = cover 0..1, y = game hours (unused by drift), z = layers (1|2)
+            float4 _BakSkyCloud;       // x = cover 0..1, y = layers (1|2)
+            float4 _BakSkyMoonLight;   // rgb = the Large Moon's light, a = its fullness 0..1 (SkyClock.MoonFullness)
+            float4 _Moon0_TexelSize, _Moon1_TexelSize, _Moon2_TexelSize;
             float  _BakSkyStarRot;     // radians the star field has turned with the hour
 
             struct Attributes { float4 positionOS : POSITION; };
@@ -79,7 +86,7 @@ Shader "BakAgain/EnhancedSky" {
             }
 
             // One moon: its disc over col, lit as a sphere by its phase.
-            float3 Moon(float3 col, float3 v, float4 md, float phase, float bright, float night,
+            float3 Moon(float3 col, float3 v, float4 md, float phase, float bright, float night, float texSize,
                         TEXTURE2D_PARAM(tex, samp)) {
                 float3 m = normalize(md.xyz);
                 float r = md.w;
@@ -88,8 +95,11 @@ Shader "BakAgain/EnhancedSky" {
                 float3 right = normalize(abs(m.y) > 0.99 ? float3(1, 0, 0) : cross(float3(0, 1, 0), m));
                 float3 up = cross(m, right);
                 float2 uv = float2(dot(v, right), dot(v, up)) / sin(r);
-                // Mip 0: inside this branch the screen-space derivatives are undefined at the disc's edge.
-                float4 t = SAMPLE_TEXTURE2D_LOD(tex, samp, uv * 0.5 + 0.5, 0);
+                // An explicit mip: inside this branch the screen-space derivatives are undefined at the
+                // disc's edge, so it is worked out from the disc's size on screen (radius r over a pixel's
+                // angle, 2 / (P11 * height) at the centre of the view).
+                float discPixels = max(r * abs(UNITY_MATRIX_P._m11) * _ScreenParams.y, 1.0);
+                float4 t = SAMPLE_TEXTURE2D_LOD(tex, samp, uv * 0.5 + 0.5, max(log2(texSize / discPixels), 0.0));
                 float3 n = float3(uv, sqrt(saturate(1.0 - dot(uv, uv))));
                 float a = 6.2831853 * phase;
                 float lit = saturate(dot(n, float3(sin(a), 0.0, -cos(a)))) + 0.03;   // + earthshine
@@ -106,6 +116,7 @@ Shader "BakAgain/EnhancedSky" {
                 float3 col = v.y >= 0.0
                     ? SkyRadiance(v)
                     : SkyRadiance(normalize(float3(v.x, 0.0, v.z))) * saturate(1.0 + v.y * 4.0);
+                float3 gradient = col;
 
                 // Stars: a hash per cell of a field turned about a pole 40 degrees up in the north.
                 float3 pole = float3(0.0, 0.6427876, 0.7660444);
@@ -132,13 +143,12 @@ Shader "BakAgain/EnhancedSky" {
                 col += _BakSkySunColor.rgb * 0.25 * exp(-d * 18.0) * sunUp;
 
                 // The moons, small to large so the Large Moon is drawn over the others.
-                col = Moon(col, v, _BakSkyMoonDir2, _BakSkyMoonPhase.z, _BakSkyMoonBright.z, night, TEXTURE2D_ARGS(_Moon2, sampler_Moon2));
-                col = Moon(col, v, _BakSkyMoonDir1, _BakSkyMoonPhase.y, _BakSkyMoonBright.y, night, TEXTURE2D_ARGS(_Moon1, sampler_Moon1));
-                col = Moon(col, v, _BakSkyMoonDir0, _BakSkyMoonPhase.x, _BakSkyMoonBright.x, night, TEXTURE2D_ARGS(_Moon0, sampler_Moon0));
+                col = Moon(col, v, _BakSkyMoonDir2, _BakSkyMoonPhase.z, _BakSkyMoonBright.z, night, _Moon2_TexelSize.z, TEXTURE2D_ARGS(_Moon2, sampler_Moon2));
+                col = Moon(col, v, _BakSkyMoonDir1, _BakSkyMoonPhase.y, _BakSkyMoonBright.y, night, _Moon1_TexelSize.z, TEXTURE2D_ARGS(_Moon1, sampler_Moon1));
+                col = Moon(col, v, _BakSkyMoonDir0, _BakSkyMoonPhase.x, _BakSkyMoonBright.x, night, _Moon0_TexelSize.z, TEXTURE2D_ARGS(_Moon0, sampler_Moon0));
                 float3 m0 = normalize(_BakSkyMoonDir0.xyz);
                 float dm = acos(clamp(dot(v, m0), -1.0, 1.0)) - _BakSkyMoonDir0.w;
-                float fullness = 1.0 - abs(_BakSkyMoonPhase.x - 0.5) * 2.0;
-                col += float3(0.55, 0.65, 1.0) * 0.05 * fullness * night * exp(-max(dm, 0.0) * 60.0) * step(-0.05, m0.y);
+                col += _BakSkyMoonLight.rgb * 0.05 * _BakSkyMoonLight.a * night * exp(-max(dm, 0.0) * 60.0) * step(-0.05, m0.y);
 
                 // Clouds, projected on a flat layer overhead; they drift in real time (wind), while
                 // the cover follows the game day (SkyClock.CloudCover).
@@ -147,11 +157,16 @@ Shader "BakAgain/EnhancedSky" {
                     float2 uv = v.xz / (v.y + 0.08);
                     float t = _Time.y;
                     float cover = _BakSkyCloud.x;
-                    float mask = smoothstep(1.0 - cover - 0.15, 1.0 - cover + 0.15, Fbm(uv * 0.25 + t * 0.002));
+                #if defined(SHADER_API_MOBILE)
+                    float coverNoise = SAMPLE_TEXTURE2D(_CloudsB, sampler_CloudsB, uv * 0.07 + t * 0.0006).r;
+                #else
+                    float coverNoise = Fbm(uv * 0.25 + t * 0.002);
+                #endif
+                    float mask = smoothstep(1.0 - cover - 0.15, 1.0 - cover + 0.15, coverNoise);
                     float4 a = SAMPLE_TEXTURE2D(_CloudsA, sampler_CloudsA, uv * 0.35 + float2(0.004, 0.002) * t);
                     float density = a.r * mask;
                     float thick = a.g;
-                    if (_BakSkyCloud.z > 1.5) {
+                    if (_BakSkyCloud.y > 1.5) {
                         float4 b = SAMPLE_TEXTURE2D(_CloudsB, sampler_CloudsB, uv * 0.12 + float2(0.0015, -0.001) * t);
                         float mb = smoothstep(1.0 - cover - 0.25, 1.0 - cover + 0.25, Fbm(uv * 0.11 + 7.3 + t * 0.001));
                         float db = b.r * mb * 0.6 * (1.0 - density);
@@ -159,7 +174,11 @@ Shader "BakAgain/EnhancedSky" {
                         thick = lerp(thick, b.g * 0.5, db / max(density, 1e-3));
                     }
                     float mu = dot(v, s);
+                #if defined(SHADER_API_MOBILE)
+                    float3 ambient = gradient * 0.6;
+                #else
                     float3 ambient = SkyRadiance(normalize(float3(v.x, 0.15, v.z))) * 0.6;
+                #endif
                     float3 sunlit = _BakSkySunColor.rgb * sunUp * (0.5 + 0.5 * pow(saturate(mu), 4.0)) * (1.0 - 0.5 * thick);
                     float3 cloudCol = ambient + sunlit * 0.8 + float3(0.02, 0.025, 0.04) * night;
                     alpha = saturate(density) * smoothstep(0.02, 0.12, v.y);

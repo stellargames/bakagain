@@ -105,7 +105,8 @@ public sealed class CombatEncounter {
     /// <remarks>
     /// <b>A deliberate deviation (TASK-618, owner 2026-10-17):</b> an enemy at 0 health counts as
     /// gone even without the Dead flag. The original tests only CAF_DEAD, and five shipped encounters
-    /// (315, 426, 558, 631, 643) field a 0/0 roster slot loaded ready, which made them unwinnable.
+    /// (315, 426, 558, 631, 643) field a 0/0 roster slot loaded ready, which made them unwinnable
+    /// (and 180 was found carrying one in a save; TASK-618).
     /// </remarks>
     public int EnemiesAlive() {
         var n = 0;

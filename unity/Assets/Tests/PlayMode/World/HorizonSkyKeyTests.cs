@@ -10,6 +10,7 @@ namespace BakAgain.Tests.PlayMode.World {
     /// also the strip's flat top fill) are see-through so the dome shows above the silhouettes; with it
     /// off the strip is drawn exactly as before (spec 2026-10-15-enhanced-sky-design).
     /// </summary>
+    [Category("Graphics")] // reads what the GPU drew: CI runs these in the job with graphics
     public class HorizonSkyKeyTests {
         private static readonly Color Key = new(40 / 255f, 81 / 255f, 93 / 255f);
         private static readonly Color Hill = new(0.1f, 0.6f, 0.1f);
@@ -18,6 +19,7 @@ namespace BakAgain.Tests.PlayMode.World {
         private GameObject _go;
         private GameObject _camGo;
         private RenderTexture _rt;
+        private readonly System.Collections.Generic.List<Texture2D> _textures = new();
 
         [TearDown]
         public void TearDown() {
@@ -25,10 +27,12 @@ namespace BakAgain.Tests.PlayMode.World {
             RenderTexture.active = null;
             Object.DestroyImmediate(_go);
             Object.DestroyImmediate(_camGo);
-            if (_rt != null) _rt.Release();
+            Object.DestroyImmediate(_rt);
+            foreach (Texture2D t in _textures) Object.DestroyImmediate(t);
+            _textures.Clear();
         }
 
-        private static Texture2D Panel() {
+        private Texture2D Panel() {
             const int w = 16, h = 60;
             var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
             for (int y = 0; y < h; y++) {
@@ -37,6 +41,7 @@ namespace BakAgain.Tests.PlayMode.World {
                 }
             }
             tex.Apply();
+            _textures.Add(tex);
             return tex;
         }
 
@@ -65,6 +70,7 @@ namespace BakAgain.Tests.PlayMode.World {
             cam.Render();
             RenderTexture.active = _rt;
             var tex = new Texture2D(32, 32, TextureFormat.RGBA32, false);
+            _textures.Add(tex);
             tex.ReadPixels(new Rect(0, 0, 32, 32), 0, 0);
             RenderTexture.active = null;
             read(tex.GetPixels());

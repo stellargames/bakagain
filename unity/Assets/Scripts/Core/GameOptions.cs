@@ -56,7 +56,12 @@ namespace BakAgain.Core {
         /// <summary>The one check every Enhanced call site makes.</summary>
         public static bool IsOn(EnhancedFeature feature) => Enhanced && GetFeature(feature);
 
-        private static string FeatureKey(EnhancedFeature feature) => $"{EnhancedKey} {feature}";
+        // Built once: the lighting asks for two features every frame. Values are not cached — tests and
+        // the settings screen write PlayerPrefs directly.
+        private static readonly string[] FeatureKeys = System.Array.ConvertAll(
+            (EnhancedFeature[])System.Enum.GetValues(typeof(EnhancedFeature)), f => $"{EnhancedKey} {f}");
+
+        private static string FeatureKey(EnhancedFeature feature) => FeatureKeys[(int)feature];
 
         private static void Store(string key, bool value) {
             PlayerPrefs.SetInt(key, value ? 1 : 0);

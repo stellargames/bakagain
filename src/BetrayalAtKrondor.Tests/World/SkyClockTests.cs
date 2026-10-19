@@ -96,6 +96,22 @@ public class SkyClockTests {
         Assert.Equal(nextDay, Clock.CloudCover(2, At(5, 3)), 9);
     }
 
+    /// <summary>Day 0 before 03:00 is still the night before day 0's sky, as every later night is.</summary>
+    [Fact]
+    public void CloudCoverIsContinuousAtThreeOnTheFirstNight() {
+        for (int zone = 1; zone <= 7; zone++) {
+            Assert.True(Math.Abs(Clock.CloudCover(zone, At(0, 2, 59)) - Clock.CloudCover(zone, At(0, 3))) < 0.01, $"zone {zone}");
+        }
+    }
+
+    [Fact]
+    public void AMoonIsFullHalfwayThroughItsPeriod() {
+        MoonLayout large = new SkyLayout().Moons[0];
+        long full = (long)((0.5 * large.PeriodDays - large.PhaseOffsetDays) * GameTime.UnitsPerDay);
+        Assert.Equal(1, Clock.MoonFullness(0, full), 3);
+        Assert.Equal(0, Clock.MoonFullness(0, (long)(-large.PhaseOffsetDays * GameTime.UnitsPerDay)), 3);
+    }
+
     [Fact]
     public void CloudCoverIsContinuousAcrossMidnight() =>
         Assert.True(Math.Abs(Clock.CloudCover(2, At(4, 23, 59)) - Clock.CloudCover(2, At(5, 0))) < 0.01);

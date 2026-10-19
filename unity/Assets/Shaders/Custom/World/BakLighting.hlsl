@@ -43,13 +43,15 @@ half3 ApplyBakLighting(half3 color, float grade) {
     color = lerp(color, _BakLightDragonsBreath.rgb, _BakLightDragonsBreath.a);
     color = lerp(color, _BakLightTint.rgb, _BakLightTint.a);
     color = lerp(color, _BakLightDarken.rgb, _BakLightDarken.a);
-    // Before the flash: a spell's palette flash still lands on top of everything.
-    const float3 luma = float3(0.2126, 0.7152, 0.0722);
-    float lum = dot(color, luma);
-    float3 graded = color * lerp(_BakShadeTint.rgb, _BakSunTint.rgb, smoothstep(0.05, 0.6, lum));
-    graded *= lum / max(dot(graded, luma), 1e-4);
-    graded = max(lum + (graded - lum) * _BakShadeTint.a, 0.0);   // saturation about the same luminance
-    color = lerp(color, graded, _BakSunTint.a * grade);
+    // Before the flash: a spell's palette flash still lands on top of everything. Skipped outright
+    // without Enhanced Lighting (a uniform branch), so the faithful world pays nothing for it.
+    if (_BakSunTint.a * grade > 0.0) {
+        float lum = Luminance(color);
+        float3 graded = color * lerp(_BakShadeTint.rgb, _BakSunTint.rgb, smoothstep(0.05, 0.6, lum));
+        graded *= lum / max(Luminance(graded), 1e-4);
+        graded = max(lum + (graded - lum) * _BakShadeTint.a, 0.0);   // saturation about the same luminance
+        color = lerp(color, graded, _BakSunTint.a * grade);
+    }
     color = lerp(color, _BakFlash.rgb, _BakFlash.a);
 #if !defined(UNITY_COLORSPACE_GAMMA)
     color = SRGBToLinear(color);

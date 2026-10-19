@@ -80,12 +80,12 @@ namespace BakAgain.UI.Inventory {
     /// a first-time icon pops in later.</para>
     /// </summary>
     public sealed class ItemGridRenderer {
-        /// <summary>Element name of the host holding the general item grid.</summary>
         /// <summary>The prefix of every cell's name. A second renderer drawing a passive companion
         /// panel on the same stage (the Enhanced side-by-side loot) takes its own, so the screen's
         /// <c>item_slot_N</c> lookups only ever find the live panel's cells.</summary>
         public string SlotPrefix { get; set; } = "item_slot_";
 
+        /// <summary>Element name of the host holding the general item grid.</summary>
         internal const string GridHostName = "item_grid";
 
         /// <summary>The strip of shelf cells inside the clipping grid host, when the shelf scrolls

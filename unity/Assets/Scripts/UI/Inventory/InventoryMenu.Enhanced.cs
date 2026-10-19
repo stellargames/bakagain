@@ -89,10 +89,14 @@ namespace BakAgain.UI.Inventory {
             _displayed?.ContainerType == SaveGameContainerType.Inventory && portraitSlot == ActivePortraitSlot();
 
         /// <summary>Lights the portraits that can take the dragged item (and dims its holder), or clears them.</summary>
+        private int _hoverLabelSlot = NoHoverLabel;
+        private const int NoHoverLabel = -2; // not -1: "over no portrait" is a label state too
+
         private void MarkPortraits(bool on) {
             if (!EnhancedApplied) {
                 return;
             }
+            _hoverLabelSlot = NoHoverLabel;
             for (int i = 0; i < 3; i++) {
                 VisualElement p = _enhanced.Portrait(i);
                 if (p == null) continue;
@@ -166,9 +170,10 @@ namespace BakAgain.UI.Inventory {
 
         /// <summary>The hovered portrait names what the drop will do — the member's name, never the item's.</summary>
         private void ShowHoverLabel(int portraitSlot) {
-            if (!EnhancedApplied || _dragSlot < 0) {
-                return;
+            if (!EnhancedApplied || _dragSlot < 0 || portraitSlot == _hoverLabelSlot) {
+                return; // every drag move asks; only a new portrait changes the labels
             }
+            _hoverLabelSlot = portraitSlot;
             for (int i = 0; i < 3; i++) {
                 if (IsHolder(i)) continue;
                 bool hovered = i == portraitSlot;
@@ -258,8 +263,7 @@ namespace BakAgain.UI.Inventory {
             foreach (VisualElement line in lineRoot.Children()) {
                 Rect r = line.layout;
                 if (float.IsNaN(r.width) || r.width <= 0f) continue;
-                extent = any ? Rect.MinMaxRect(Mathf.Min(extent.xMin, r.xMin), Mathf.Min(extent.yMin, r.yMin),
-                    Mathf.Max(extent.xMax, r.xMax), Mathf.Max(extent.yMax, r.yMax)) : r;
+                extent = any ? EnhancedSheet.Union(extent, r) : r;
                 any = true;
             }
             Rect room = holder.contentRect;

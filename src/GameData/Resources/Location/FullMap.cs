@@ -68,7 +68,7 @@ public class FullMapTowns : IResource {
         if (!marker.Visible) {
             return null;
         }
-        int town = TownAt((int)Math.Round(marker.XPercent * 16f), (int)Math.Round(marker.YPercent * 12f));
+        int town = TownAt((int)Math.Round(marker.XPercent / 100f * FullMapPositions.CanonicalWidth), (int)Math.Round(marker.YPercent / 100f * FullMapPositions.CanonicalHeight));
         return town < 0 ? null : Towns[town].Name;
     }
 
@@ -124,8 +124,8 @@ public class FullMapPositions : IResource {
     /// </summary>
     public const int StillFrame = 2;
 
-    private const float CanonicalWidth = 1600f;
-    private const float CanonicalHeight = 1200f;
+    internal const float CanonicalWidth = 1600f;
+    internal const float CanonicalHeight = 1200f;
     private const int TileWorldSize = World.WorldTileCache.TileWorldSize;
 
     /// <summary>

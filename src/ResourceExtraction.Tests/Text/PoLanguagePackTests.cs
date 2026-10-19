@@ -86,4 +86,12 @@ public class PoLanguagePackTests {
         Assert.Equal("nl", PoLanguagePack.HeaderField(new StringReader(po), "Language"));
         Assert.Null(PoLanguagePack.HeaderField(new StringReader(Po), "X-Status"));
     }
+
+    /// <summary>A hand-written header may put its fields on the msgstr line itself, several to a line.</summary>
+    [Fact]
+    public void AHeaderFieldOnTheMsgstrLineIsReadToo() {
+        const string po = "msgid \"\"\nmsgstr \"Language: de\\nX-Status: beta\\n\"\n\nmsgid \"a\"\nmsgstr \"b\"\n";
+        Assert.Equal("beta", PoLanguagePack.HeaderField(new StringReader(po), "X-Status"));
+        Assert.Equal("de", PoLanguagePack.HeaderField(new StringReader(po), "Language"));
+    }
 }

@@ -2,7 +2,7 @@ namespace BakAgain.UI {
     using System.Collections.Generic;
     using BakAgain.Core;
 
-    /// <summary>The Preferences screen's working copy of the Enhanced options: saved on OK only.</summary>
+    /// <summary>The Enhanced settings screen's working copy of the Enhanced options: saved on Save only.</summary>
     public sealed class EnhancedOptionsDraft {
         private readonly Dictionary<EnhancedFeature, bool> _features = new();
 

@@ -8,12 +8,39 @@ namespace BakAgain.UI {
     public static class EnhancedArt {
         public const string Folder = "Enhanced/Stone/";
 
-        public static Texture2D Texture(string name) => Resources.Load<Texture2D>(Folder + name);
+        private static readonly Dictionary<string, Texture2D> Loaded = new();
+
+        /// <summary>Loaded once: the screens ask for the same few textures on every redraw.</summary>
+        public static Texture2D Texture(string name) {
+            if (!Loaded.TryGetValue(name, out Texture2D t) || t == null) {
+                Loaded[name] = t = Resources.Load<Texture2D>(Folder + name);
+            }
+            return t;
+        }
 
         public static StyleBackground Load(string name) {
             Texture2D t = Texture(name);
             return t != null ? new StyleBackground(t) : new StyleBackground(StyleKeyword.None);
         }
+    }
+
+    /// <summary>The Enhanced screens' shared geometry.</summary>
+    public static class EnhancedSheet {
+        /// <summary>Scales and moves <paramref name="sheet"/> (laid out in canonical units) so its
+        /// <paramref name="region"/> fits <paramref name="field"/>, keeping its shape.</summary>
+        public static void Fit(VisualElement sheet, Rect field, Rect region) {
+            if (sheet == null || field.width <= 0f || field.height <= 0f || float.IsNaN(field.width)) {
+                return;
+            }
+            (float scale, float x, float y) = GameData.Resources.Layout.FieldFit.Fit(
+                region.x, region.y, region.width, region.height, field.x, field.y, field.width, field.height);
+            sheet.style.translate = new Translate(x, y);
+            sheet.style.scale = new Scale(new Vector2(scale, scale));
+        }
+
+        /// <summary>The rect round both; an empty <paramref name="a"/> is nothing yet.</summary>
+        public static Rect Union(Rect a, Rect b) => a.width <= 0f && a.height <= 0f ? b
+            : Rect.MinMaxRect(Mathf.Min(a.xMin, b.xMin), Mathf.Min(a.yMin, b.yMin), Mathf.Max(a.xMax, b.xMax), Mathf.Max(a.yMax, b.yMax));
     }
 
     /// <summary>
@@ -38,6 +65,7 @@ namespace BakAgain.UI {
         private RenderTexture _texture;
         private Material _material;
         private Vector2Int _texels;
+        private (Rect Outer, float Band, float Middle) _drawn; // what the texture holds
 
         /// <param name="host">Where the frame is drawn, in its local units.</param>
         /// <param name="under">Draw the stone just beneath this child of the host instead of over
@@ -76,8 +104,14 @@ namespace BakAgain.UI {
                 if (_texture != null) { _texture.Release(); Object.Destroy(_texture); }
                 _texture = new RenderTexture(texels.x, texels.y, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
                 _texels = texels;
+                _drawn = default;
                 _art.style.backgroundImage = Background.FromRenderTexture(_texture);
             }
+            // A layout pass refits from several elements' geometry events: draw only what changed.
+            if (_drawn == (outer, band, middleX) && _texture.IsCreated()) {
+                return;
+            }
+            _drawn = (outer, band, middleX);
             float sx = texels.x / r.width, sy = texels.y / r.height;
             _material.SetVector("_Size", new Vector4(texels.x, texels.y, 0f, 0f));
             _material.SetVector("_Outer", new Vector4(ShadowMargin * sx, ShadowMargin * sy, (ShadowMargin + outer.width) * sx, (ShadowMargin + outer.height) * sy));
@@ -123,6 +157,11 @@ namespace BakAgain.UI {
             }
         }
 
+        /// <summary>Two straps across a middle bar at <paramref name="middleX"/>, as on the sides.</summary>
+        public static void AddMiddle(List<(float X, float Y, bool Vertical)> spots, Rect outer, float middleX) {
+            foreach (float f in new[] { 0.15f, 0.85f }) spots.Add((middleX, Mathf.Lerp(outer.yMin, outer.yMax, f), false));
+        }
+
         public void Release() {
             if (_texture != null) { _texture.Release(); Object.Destroy(_texture); }
             if (_material != null) Object.Destroy(_material);
@@ -133,6 +172,7 @@ namespace BakAgain.UI {
             _material = null;
             _art = null;
             _texels = default;
+            _drawn = default;
         }
     }
 

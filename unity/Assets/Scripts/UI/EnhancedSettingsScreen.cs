@@ -77,10 +77,8 @@ namespace BakAgain.UI {
                 return UniTask.CompletedTask;
             }
             _draft = EnhancedOptionsDraft.Load();
-            _gamePath = BakResourceSettings.GamePath;
-            _modsOn = BakResourceSettings.OverrideEnabled;
-            _modsPath = string.IsNullOrWhiteSpace(BakResourceSettings.OverridePath)
-                ? MetaMenu.DefaultOverridePath : BakResourceSettings.OverridePath;
+            (_gamePath, _modsOn, _modsPath) = BakResourceSettings.NextStart;
+            if (string.IsNullOrWhiteSpace(_modsPath)) _modsPath = MetaMenu.DefaultOverridePath;
             Build(CanonicalStage.GetOrCreate(root, null));
             return UniTask.CompletedTask;
         }
@@ -90,9 +88,9 @@ namespace BakAgain.UI {
             foreach ((Button row, Func<string> _, Func<bool> _) in _rows) {
                 Button b = row;
                 widgets.Add(new NavWidget(b, b.Q<Label>("caption")?.text ?? string.Empty, () => CanonicalRect(b),
-                    () => { if (b.enabledSelf) ClickOf(b)?.Invoke(); }, null));
+                    () => { if (b.enabledSelf && !FileBrowser.IsOpen) ClickOf(b)?.Invoke(); }, null));
             }
-            _layer = new NavigableLayer("enhanced-settings", CaptureMode.Exclusive, widgets, Cancel, _cursor);
+            _layer = new NavigableLayer("enhanced-settings", CaptureMode.Exclusive, widgets, CancelOrClosePicker, _cursor);
             _stack?.Push(_layer);
         }
 
@@ -143,15 +141,15 @@ namespace BakAgain.UI {
 
             folders.Add(Text(Templates.Format(Templates.EnhancedFoldersHeading), "enhanced-settings__heading"));
             folders.Add(Text(Templates.Format(Templates.EnhancedGameFolder), "enhanced-settings__label"));
-            folders.Add(PathLine(() => Shown(_gamePath), () => _gamePath != BakResourceSettings.InUse.GamePath));
-            Row(folders, () => Templates.Format(Templates.EnhancedBrowse), () => true, BrowseGameFolder);
+            folders.Add(PathLine(() => Shown(_gamePath), () => _gamePath != BakResourceSettings.GamePath));
+            if (FoldersPickable) Row(folders, () => Templates.Format(Templates.EnhancedBrowse), () => true, BrowseGameFolder);
             _folderError = Text(string.Empty, "enhanced-settings__error");
             folders.Add(_folderError);
-            Row(folders, () => BoxText(Templates.EnhancedMods, _modsOn, pending: _modsOn != BakResourceSettings.InUse.OverrideEnabled),
+            Row(folders, () => BoxText(Templates.EnhancedMods, _modsOn, pending: _modsOn != BakResourceSettings.OverrideEnabled),
                 () => true, () => _modsOn = !_modsOn);
             folders.Add(Text(Templates.Format(Templates.EnhancedModsFolder), "enhanced-settings__label"));
-            folders.Add(PathLine(() => Shown(_modsPath), () => _modsOn && _modsPath != BakResourceSettings.InUse.OverridePath));
-            Row(folders, () => Templates.Format(Templates.EnhancedBrowse), () => _modsOn, BrowseModsFolder);
+            folders.Add(PathLine(() => Shown(_modsPath), () => _modsOn && _modsPath != BakResourceSettings.OverridePath));
+            if (FoldersPickable) Row(folders, () => Templates.Format(Templates.EnhancedBrowse), () => _modsOn, BrowseModsFolder);
 
             VisualElement buttons = MovedElements.Box("enhanced-settings__buttons");
             Row(buttons, () => Templates.Format(Templates.EnhancedSave), () => true, Save);
@@ -203,49 +201,45 @@ namespace BakAgain.UI {
             }
         }
 
+        /// <summary>
+        /// Whether the folders can be picked here. Not on Android: its picker answers a document URI,
+        /// which only the start-up prompt can use (it copies the game files in once, and a mods or
+        /// language folder has to be a real directory), so the rows would save a path that never works.
+        /// </summary>
+        internal static bool FoldersPickable => Application.platform != RuntimePlatform.Android;
+
         private void BrowseGameFolder() {
             string initial = string.IsNullOrEmpty(_gamePath) ? Application.persistentDataPath : _gamePath;
-#if UNITY_ANDROID && !UNITY_EDITOR
-            // A picked Android folder is a document URI; the start-up prompt copies the files in at the
-            // next start (it opens because the saved path is not a directory yet), as on first run.
-            FileBrowser.ShowLoadDialog(paths => Picked(paths[0]), null, FileBrowser.PickMode.Folders,
-                false, initial, null, Templates.Format(Templates.EnhancedBrowse));
-#else
-            FileBrowser.DisplayedEntriesFilter += MetaMenu.FilterGameFiles;
-            FileBrowser.ShowLoadDialog(paths => {
-                    FileBrowser.DisplayedEntriesFilter -= MetaMenu.FilterGameFiles;
-                    Picked(FileBrowserHelpers.GetDirectoryName(paths[0]));
-                }, () => FileBrowser.DisplayedEntriesFilter -= MetaMenu.FilterGameFiles,
-                FileBrowser.PickMode.Files, false, initial, MetaMenu.ResourceArchiveFilename,
-                Templates.Format(Templates.EnhancedBrowse));
-#endif
-            void Picked(string folder) {
+            MetaMenu.PickGameArchiveFolder(initial, Templates.Format(Templates.EnhancedBrowse), folder => {
                 bool ok = MetaMenu.AreRequiredGameFilesPresentIn(folder);
                 _folderError.text = ok ? string.Empty : Templates.Format(Templates.EnhancedBadGameFolder);
                 if (ok) _gamePath = folder;
                 Refresh();
-            }
+            });
         }
 
-        private void BrowseModsFolder() {
-            FileBrowser.DisplayedEntriesFilter += MetaMenu.FilterDirectoriesOnly;
-            FileBrowser.ShowLoadDialog(paths => {
-                    FileBrowser.DisplayedEntriesFilter -= MetaMenu.FilterDirectoriesOnly;
-                    _modsPath = paths[0];
-                    Refresh();
-                }, () => FileBrowser.DisplayedEntriesFilter -= MetaMenu.FilterDirectoriesOnly,
-                FileBrowser.PickMode.Folders, false, _modsPath, null, Templates.Format(Templates.EnhancedBrowse));
-        }
+        private void BrowseModsFolder() =>
+            MetaMenu.PickFolder(_modsPath, Templates.Format(Templates.EnhancedBrowse), folder => {
+                _modsPath = folder;
+                Refresh();
+            });
 
         private void Save() {
             _draft.Commit();
-            if (_gamePath != BakResourceSettings.GamePath) BakResourceSettings.GamePath = _gamePath;
-            if (_modsOn != BakResourceSettings.OverrideEnabled) BakResourceSettings.OverrideEnabled = _modsOn;
-            if (_modsPath != BakResourceSettings.OverridePath) BakResourceSettings.OverridePath = _modsPath;
+            BakResourceSettings.SetForNextStart(_gamePath, _modsOn, _modsPath);
             _navigator.Pop().Forget();
         }
 
         private void Cancel() => _navigator.Pop().Forget();
+
+        /// <summary>Escape over an open folder picker closes the picker, not the screen under it.</summary>
+        private void CancelOrClosePicker() {
+            if (FileBrowser.IsOpen) {
+                FileBrowser.HideDialog(invokeCancelCallback: true);
+                return;
+            }
+            Cancel();
+        }
 
         private static Label Text(string text, string cls) {
             var label = new Label(text) { pickingMode = PickingMode.Ignore };

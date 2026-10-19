@@ -16,7 +16,7 @@ namespace BakAgain.UI {
 
     [RequireComponent(typeof(UIDocument))]
     public class MetaMenu : MonoBehaviour {
-        internal const string ResourceArchiveFilename = "KRONDOR.001";
+        private const string ResourceArchiveFilename = "KRONDOR.001";
         private readonly AwaitableCompletionSource _completionSource = new();
         private Button _continueButton;
         private TextField _gameFileTextField;
@@ -45,7 +45,7 @@ namespace BakAgain.UI {
 
         private Label _gamePathError;
 
-        internal static readonly HashSet<string> RequiredGameFileNames = new(StringComparer.OrdinalIgnoreCase) {
+        private static readonly HashSet<string> RequiredGameFileNames = new(StringComparer.OrdinalIgnoreCase) {
             "KRONDOR.001", "FRP.SX", "RESOURCE.CFG", "STARTUP.GAM"
         };
 
@@ -216,29 +216,42 @@ namespace BakAgain.UI {
                     title: "Select Game Folder", 
                     loadButtonText: "Select Folder");
 #else
-                FileBrowser.DisplayedEntriesFilter += FilterGameFiles;
-
-                FileBrowser.ShowLoadDialog(onSuccess: paths => {
-                        // Clean up the filter
-                        FileBrowser.DisplayedEntriesFilter -= FilterGameFiles;
-                        if (paths is {Length: > 0}) {
-                            string selectedPath = FileBrowserHelpers.GetDirectoryName(paths[0]);
-                            _gameFileTextField.value = selectedPath;
-                            _continueButton.SetEnabled(AreRequiredGameFilesPresentIn(_gameFileTextField.value));
-                        }
-                    }, onCancel: () => {
-                        // Clean up the filter on cancel too
-                        FileBrowser.DisplayedEntriesFilter -= FilterGameFiles;
-                    }, pickMode: FileBrowser.PickMode.Files, allowMultiSelection: false, initialPath: initialPath,
-                    // initialFilename: ResourceArchiveFilename,
-                    title: "Select Game Resource File", loadButtonText: "Select");
+                PickGameArchiveFolder(initialPath, "Select Game Resource File", selectedPath => {
+                    _gameFileTextField.value = selectedPath;
+                    _continueButton.SetEnabled(AreRequiredGameFilesPresentIn(_gameFileTextField.value));
+                });
 #endif
             } catch (Exception ex) {
                 Logger.LogError(ex, "Error showing file browser");
             }
         }
 
-        internal static bool FilterGameFiles(FileSystemEntry entry) {
+        /// <summary>The desktop game-folder picker, shared with the Enhanced settings: the player picks
+        /// KRONDOR.001 and gets its folder. Nothing happens while a picker is already open (a second Show
+        /// would replace the first one's callbacks and leave its filter attached).</summary>
+        internal static void PickGameArchiveFolder(string initialPath, string title, Action<string> picked) =>
+            Pick(FilterGameFiles, FileBrowser.PickMode.Files, initialPath, ResourceArchiveFilename, title,
+                path => picked(FileBrowserHelpers.GetDirectoryName(path)));
+
+        /// <summary>A folder picker (the mods folder), with the same one-at-a-time rule.</summary>
+        internal static void PickFolder(string initialPath, string title, Action<string> picked) =>
+            Pick(FilterDirectoriesOnly, FileBrowser.PickMode.Folders, initialPath, null, title, picked);
+
+        private static void Pick(FileBrowser.FileSystemEntryFilter filter, FileBrowser.PickMode mode, string initialPath,
+            string initialFilename, string title, Action<string> picked) {
+            if (FileBrowser.IsOpen) {
+                return;
+            }
+            FileBrowser.DisplayedEntriesFilter -= filter; // never twice
+            FileBrowser.DisplayedEntriesFilter += filter;
+            FileBrowser.ShowLoadDialog(paths => {
+                    FileBrowser.DisplayedEntriesFilter -= filter;
+                    if (paths is { Length: > 0 }) picked(paths[0]);
+                }, () => FileBrowser.DisplayedEntriesFilter -= filter,
+                mode, false, initialPath, initialFilename, title);
+        }
+
+        private static bool FilterGameFiles(FileSystemEntry entry) {
             return entry.IsDirectory || string.Equals(entry.Name, ResourceArchiveFilename, StringComparison.CurrentCultureIgnoreCase);
         }
 
@@ -331,17 +344,10 @@ namespace BakAgain.UI {
             _overrideBrowseButton.enabledSelf = evt.newValue;
         }
 
-        private void ShowOverrideFileBrowser() {
-            FileBrowser.DisplayedEntriesFilter += FilterDirectoriesOnly;
-            FileBrowser.ShowLoadDialog(onSuccess: paths => {
-                FileBrowser.DisplayedEntriesFilter -= FilterDirectoriesOnly;
-                _overrideTextField.value = paths[0];
-            }, onCancel: () => {
-                FileBrowser.DisplayedEntriesFilter -= FilterDirectoriesOnly;
-            }, pickMode: FileBrowser.PickMode.Folders, allowMultiSelection: false, initialPath: _overrideTextField.value, initialFilename: null, title: "Select Override Path");
-        }
+        private void ShowOverrideFileBrowser() =>
+            PickFolder(_overrideTextField.value, "Select Override Path", path => _overrideTextField.value = path);
 
-        internal static bool FilterDirectoriesOnly(FileSystemEntry entry) {
+        private static bool FilterDirectoriesOnly(FileSystemEntry entry) {
             return entry.IsDirectory;
         }
     }

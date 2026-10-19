@@ -161,6 +161,9 @@ namespace BakAgain.UI.InputCore {
         /// <para>Returns false when there is nothing to set — the loader has not built yet, or this
         /// is a ScreenInputLayer screen — so a caller can invoke it unconditionally.</para>
         /// </summary>
+        /// <summary>Whether <see cref="SetWidgets"/> would take: the pushed layer is a navigable one.</summary>
+        public bool HasNavigableLayer => _layer is NavigableLayer;
+
         public bool SetWidgets(IReadOnlyList<NavWidget> widgets) {
             if (_layer is NavigableLayer navigable) {
                 navigable.SetWidgets(widgets);

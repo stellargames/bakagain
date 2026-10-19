@@ -32,6 +32,7 @@ namespace BakAgain.UI.Inventory {
         private VisualElement _packHalf, _lootHalf, _packWrap, _lootWrap;
         private Vector2 _halfSize;
         private int _lootMember; // the portrait whose pack is on the left
+        private IVisualElementScheduledItem _placeRetry;
 
         /// <summary>Looting a chest, a body or a pile with the Enhanced layout — not a shop, a lock,
         /// a temple, a mender, a fight, or the party's own packs and keys.</summary>
@@ -40,7 +41,7 @@ namespace BakAgain.UI.Inventory {
             && !IsRepairMode && !InCombat
             && _container.ContainerType != SaveGameContainerType.Inventory
             && _container.ContainerType != SaveGameContainerType.SharedKeys
-            && Layout.FullItemsBox != null && Layout.GeneralItemsBox != null;
+            && HintRect(Layout.FullItemsBox).width > 0f && HintRect(Layout.GeneralItemsBox).width > 0f;
 
         private bool ShowingLootSide => ReferenceEquals(_displayed, _container);
 
@@ -138,6 +139,8 @@ namespace BakAgain.UI.Inventory {
         }
 
         private void RemoveHalves() {
+            _placeRetry?.Pause();
+            _placeRetry = null;
             _peer.Clear();
             _packHalf?.RemoveFromHierarchy();
             _lootHalf?.RemoveFromHierarchy();
@@ -150,13 +153,15 @@ namespace BakAgain.UI.Inventory {
         /// is its cells' laid-out rects, so this waits for a layout.
         /// </summary>
         private void PlaceWraps(int retries) {
+            _placeRetry?.Pause(); // one chain at a time: every render starts its own
+            _placeRetry = null;
             if (_packWrap == null) {
                 return;
             }
             Rect pack = HintRect(Layout.GeneralItemsBox);
-            if (!TryLootExtent(out Rect loot)) {
-                if (retries > 0) {
-                    _stage?.schedule.Execute(() => PlaceWraps(retries - 1));
+            if (!TryLootExtent(out Rect loot, out bool pending)) {
+                if (pending && retries > 0) {
+                    _placeRetry = _stage?.schedule.Execute(() => PlaceWraps(retries - 1));
                 }
                 loot = new Rect(HintRect(Layout.FullItemsBox).center - pack.size / 2f, pack.size);
             }
@@ -175,9 +180,10 @@ namespace BakAgain.UI.Inventory {
 
         /// <summary>The loot's cells, padded, in stage coordinates; false until they have a layout.
         /// An empty container has no extent and answers false with nothing to wait for.</summary>
-        private bool TryLootExtent(out Rect extent) {
+        private bool TryLootExtent(out Rect extent, out bool pending) {
             extent = default;
-            bool any = false, pending = false;
+            bool any = false;
+            pending = false;
             foreach (VisualElement host in _lootWrap.Children()) {
                 foreach (VisualElement cell in host.Children()) {
                     if (cell.name == null || cell.name.EndsWith("_equipbg")
@@ -185,8 +191,7 @@ namespace BakAgain.UI.Inventory {
                     Rect c = cell.layout, h = host.layout;
                     if (float.IsNaN(c.width) || float.IsNaN(h.x) || c.width <= 0f) { pending = true; continue; }
                     var r = new Rect(h.x + c.x, h.y + c.y, c.width, c.height);
-                    extent = any ? Rect.MinMaxRect(Mathf.Min(extent.xMin, r.xMin), Mathf.Min(extent.yMin, r.yMin),
-                        Mathf.Max(extent.xMax, r.xMax), Mathf.Max(extent.yMax, r.yMax)) : r;
+                    extent = any ? EnhancedSheet.Union(extent, r) : r;
                     any = true;
                 }
             }
@@ -208,10 +213,10 @@ namespace BakAgain.UI.Inventory {
             // the same container in the same order, so the index carries over and a drag can start
             // at once (the new cells have no layout until the next frame).
             int slot = SlotAt(stageLocal, PeerSlotPrefix);
-            MakePeerLive();
+            bool switched = MakePeerLive();
             _pressPos = stageLocal;
             _pressClickCount = clickCount;
-            _pressSlot = slot;
+            _pressSlot = switched ? slot : -1; // Shift opened a character sheet: the index is not ours
             _dragSlot = -1;
             return true;
         }
@@ -226,22 +231,25 @@ namespace BakAgain.UI.Inventory {
             if (slot < 0) {
                 return true;
             }
-            MakePeerLive();
-            _stage.schedule.Execute(() => ShowItemDescriptionAsync(slot).Forget()).StartingIn(ExamineDelayMs);
+            if (MakePeerLive()) {
+                _stage.schedule.Execute(() => ShowItemDescriptionAsync(slot).Forget()).StartingIn(ExamineDelayMs);
+            }
             return true;
         }
 
         private const long ExamineDelayMs = 50; // a layout pass for the swapped cells
 
-        private void MakePeerLive() {
+        /// <summary>The picture's side becomes the live one, as its portrait or the container window
+        /// would make it; false when that click did something else (Shift: the character sheet).</summary>
+        private bool MakePeerLive() {
+            RuntimeContainer before = _displayed;
             if (ShowingLootSide) {
                 SelectMember(_lootMember);
             } else {
                 DeselectItem();
-                _displayed = _container;
-                NoteKeeperKind();
-                RenderCurrent();
+                ShowOtherInventory();
             }
+            return !ReferenceEquals(_displayed, before);
         }
 
         /// <summary>A drop on the pack while the loot is live goes to that member: the portrait drop.</summary>

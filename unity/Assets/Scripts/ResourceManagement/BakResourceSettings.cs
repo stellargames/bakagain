@@ -33,12 +33,49 @@ namespace BakAgain.ResourceManagement {
             }
         }
 
-        /// <summary>The folders the running game was started with: resources are loaded from these at
-        /// start, so a setting changed since then waits for the next start.</summary>
-        public static (string GamePath, bool OverrideEnabled, string OverridePath) InUse { get; private set; }
+        private const string PendingKey = "next start";
+        private const string PendingGamePathKey = "next start: " + OriginalGamePathKey;
+        private const string PendingEnableOverridesKey = "next start: " + EnableOverridesKey;
+        private const string PendingOverridesDirectoryKey = "next start: " + OverridesDirectoryKey;
 
-        /// <summary>Records the folders resource loading starts with (ResourceManagementInitializer).</summary>
-        public static void MarkInUse() => InUse = (GamePath, OverrideEnabled, OverridePath);
+        /// <summary>
+        /// The folders the Enhanced settings chose "for the next start". They are kept aside rather than
+        /// written over the settings: the running game read its folders at start, and a loader that
+        /// reads them again later (a restored game's mod items, a language pack's images) would
+        /// otherwise mix the old folder with the new one. <see cref="ApplyPending"/> makes them the
+        /// settings, first thing at the next start.
+        /// </summary>
+        public static void SetForNextStart(string gamePath, bool overrideEnabled, string overridePath) {
+            if (gamePath == GamePath && overrideEnabled == OverrideEnabled && overridePath == OverridePath) {
+                PlayerPrefs.DeleteKey(PendingKey); // back to what is running: nothing waits
+            } else {
+                PlayerPrefs.SetString(PendingGamePathKey, gamePath ?? string.Empty);
+                PlayerPrefs.SetInt(PendingEnableOverridesKey, overrideEnabled ? 1 : 0);
+                PlayerPrefs.SetString(PendingOverridesDirectoryKey, overridePath ?? string.Empty);
+                PlayerPrefs.SetInt(PendingKey, 1);
+            }
+            Save();
+        }
+
+        /// <summary>The folders the next start will use: the pending choice, or the settings.</summary>
+        public static (string GamePath, bool OverrideEnabled, string OverridePath) NextStart =>
+            PlayerPrefs.GetInt(PendingKey, 0) == 1
+                ? (PlayerPrefs.GetString(PendingGamePathKey), PlayerPrefs.GetInt(PendingEnableOverridesKey, 0) == 1,
+                    PlayerPrefs.GetString(PendingOverridesDirectoryKey))
+                : (GamePath, OverrideEnabled, OverridePath);
+
+        /// <summary>At start, before anything reads a folder: a pending choice becomes the settings.</summary>
+        public static void ApplyPending() {
+            if (PlayerPrefs.GetInt(PendingKey, 0) != 1) {
+                return;
+            }
+            (string game, bool modsOn, string mods) = NextStart;
+            PlayerPrefs.SetString(OriginalGamePathKey, game);
+            PlayerPrefs.SetInt(EnableOverridesKey, modsOn ? 1 : 0);
+            PlayerPrefs.SetString(OverridesDirectoryKey, mods);
+            PlayerPrefs.DeleteKey(PendingKey);
+            Save();
+        }
 
         private static GameData.Resources.Config.ResourceConfig _resourceConfig;
 

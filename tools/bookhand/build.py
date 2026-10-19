@@ -95,6 +95,8 @@ def build(out_path):
     asc, desc = round(ASCENT * UY), -round(DESCENT * UY)
     fb.setupHorizontalHeader(ascent=asc, descent=desc, lineGap=0)
     fb.setupNameTable({'familyName': 'Book Hand', 'styleName': 'Regular',
+                       'uniqueFontIdentifier': 'BaKAgain: Book Hand Regular: 2026',
+                       'fullName': 'Book Hand Regular', 'psName': 'BookHand-Regular',
                        'copyright': 'Copyright 2026 BaK Again contributors',
                        'licenseDescription': 'This Font Software is licensed under the SIL Open Font License, Version 1.1.',
                        'licenseInfoURL': 'https://openfontlicense.org'})
@@ -115,6 +117,8 @@ def check(font_path, advances):
         if not ch.isspace() and ch != '~':  # BOOK.FNT's ~ slot is empty
             assert glyf[name].numberOfContours > 0, f'{ch!r} has no outline'
     assert 'kern' not in f and 'GPOS' not in f, 'kerning would move lines off the wrap'
+    names = {r.nameID for r in f['name'].names}
+    assert {1, 2, 3, 4, 6} <= names, f'name table lacks IDs {sorted({1, 2, 3, 4, 6} - names)} (installers want them)'
     print(f'check: {len(advances)} glyphs OK')
 
 

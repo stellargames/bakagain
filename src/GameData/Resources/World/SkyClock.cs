@@ -51,6 +51,9 @@ public sealed class SkyClock {
         return p - Math.Floor(p);
     }
 
+    /// <summary>How lit a moon's face is: 0 new, 1 full.</summary>
+    public double MoonFullness(int index, long ticks) => 1 - (Math.Abs(MoonPhase(index, ticks) - 0.5) * 2);
+
     /// <summary>A moon trails the sun by its phase: new rises with the sun, full rises at sunset.</summary>
     public SkyDirection Moon(int index, long ticks) {
         double lag = MoonPhase(index, ticks) * 24;
@@ -64,7 +67,10 @@ public sealed class SkyClock {
     public double CloudCover(int zone, long ticks) {
         // A day's sky runs from one fade's end to the next's, so it is the day on which the last fade ended
         // (whether or not the fade spans midnight), and the fade leads into the following day's.
-        long from = GameTime.DayOf(ticks - (long)(_layout.CloudFadeEndHour * GameTime.UnitsPerHour));
+        // Floored, not GameTime.DayOf: that clamps the hours before the first fade's end to day 0,
+        // which is the day AFTER them (the first night would snap back at 03:00).
+        long since = ticks - (long)(_layout.CloudFadeEndHour * GameTime.UnitsPerHour);
+        long from = since >= 0 ? since / GameTime.UnitsPerDay : ((since + 1) / GameTime.UnitsPerDay) - 1;
         double fadeLength = Wrap(_layout.CloudFadeEndHour - _layout.CloudFadeStartHour);
         double intoFade = Wrap(HourOf(ticks) - _layout.CloudFadeStartHour);
         if (intoFade >= fadeLength) return DayCover(zone, from);

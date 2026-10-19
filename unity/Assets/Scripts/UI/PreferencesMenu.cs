@@ -77,7 +77,25 @@ namespace BakAgain.UI {
         // toggle states via IMenuStateProvider — so the working copy must already be set.
         protected override async UniTask OnBeforeShowAsync() {
             await _preferences.EnsureLoadedAsync();
+            // Back from the Enhanced settings, which this screen is still under: the same visit, so its
+            // edits stay (the navigator re-shows the screen beneath, which would otherwise copy afresh).
+            if (_visitingEnhanced && _working != null) {
+                return;
+            }
             _working = _preferences.Current.Clone();
+            _pendingLanguage = null;
+        }
+
+        /// <summary>True while the Enhanced settings are open over this screen.</summary>
+        private bool _visitingEnhanced;
+
+        private async UniTask VisitEnhancedAsync() {
+            _visitingEnhanced = true;
+            try {
+                await _navigator.PushAndWaitAsync(_enhancedScreen); // until this screen is back, or the stack moved on
+            } finally {
+                _visitingEnhanced = false;
+            }
         }
 
         // Which build and where its log is, for bug reports. Re-added on every show: the
@@ -114,7 +132,7 @@ namespace BakAgain.UI {
         private void AddLanguageChoice(VisualElement root) {
             // The language actually running, not the raw setting: a setting naming a pack that is not
             // installed runs English, and starting from it would show "(restart)" for good.
-            _pendingLanguage = LanguagePacks.Current.Locale;
+            _pendingLanguage ??= LanguagePacks.Current.Locale;
             // With no pack installed (and no pseudo language outside development builds) English is
             // the only choice, and a button that cycles through one entry reads as broken.
             if (root.Q<Button>(LanguageChoiceName) == null
@@ -176,7 +194,7 @@ namespace BakAgain.UI {
             button.style.width = rect.width;
             button.style.height = rect.height;
             GameFontText.Caption(button, string.Empty);
-            button.clicked += () => _navigator.Push(_enhancedScreen).Forget();
+            button.clicked += () => VisitEnhancedAsync().Forget();
             CanonicalStage.GetOrCreate(root, _loader.Frame).Add(button);
             RefreshEnhancedCaption(root);
         }

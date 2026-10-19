@@ -71,7 +71,7 @@ namespace BakAgain.UI.Inventory {
             if (box == null) {
                 return Rect.zero;
             }
-            if (IsPercent(box.Left) || IsPercent(box.Top) || IsPercent(box.Width) || IsPercent(box.Height)) {
+            if (!TryPxRect(box, out Rect px)) {
                 Debug.LogError(
                     "InventoryLayout.PaperdollBox is authored in percent (" + box.Left + ", " +
                     box.Top + ", " + box.Width + ", " + box.Height + ") and no paperdoll fill is " +
@@ -80,7 +80,18 @@ namespace BakAgain.UI.Inventory {
                     "design-frame px, or drop onto a rendered member screen.");
                 return Rect.zero;
             }
-            return new Rect(box.Left.Value, box.Top.Value, box.Width.Value, box.Height.Value);
+            return px;
+        }
+
+        /// <summary>A box hint as a design-frame px rect; false for a null hint or one authored in
+        /// percent, which nothing here can resolve (see <see cref="PaperdollDropZone(LayoutHint)"/>).</summary>
+        internal static bool TryPxRect(LayoutHint box, out Rect rect) {
+            rect = Rect.zero;
+            if (box == null || IsPercent(box.Left) || IsPercent(box.Top) || IsPercent(box.Width) || IsPercent(box.Height)) {
+                return false;
+            }
+            rect = new Rect(box.Left.Value, box.Top.Value, box.Width.Value, box.Height.Value);
+            return true;
         }
 
         private static bool IsPercent(LayoutLength length) => length.Unit == LayoutLengthUnit.Percent;

@@ -47,6 +47,7 @@ namespace BakAgain.Tests.PlayMode.World {
         private GameObject _camGo;
         private Camera _camera;
         private RenderTexture _rt;
+        private Material _material; // one for every quad: the colour is in the vertices
         private GameSession _session;
         private BakAgain.Core.Services.GameClock _clock;
         private WorldLightingService _lighting;
@@ -83,7 +84,7 @@ namespace BakAgain.Tests.PlayMode.World {
                         colors32 = new[] { c, c, c, c },
                     };
                     quad.AddComponent<MeshFilter>().sharedMesh = mesh;
-                    quad.AddComponent<MeshRenderer>().sharedMaterial = new Material(shader);
+                    quad.AddComponent<MeshRenderer>().sharedMaterial = _material ??= new Material(shader);
                 }
             }
 
@@ -106,10 +107,13 @@ namespace BakAgain.Tests.PlayMode.World {
 
         [TearDown]
         public void TearDown() {
+            foreach (MeshFilter f in _root.GetComponentsInChildren<MeshFilter>()) Object.DestroyImmediate(f.sharedMesh);
+            Object.DestroyImmediate(_material);
+            _material = null;
             Object.DestroyImmediate(_root);
             Object.DestroyImmediate(_camGo);
             Object.DestroyImmediate(_read);
-            _rt.Release();
+            Object.DestroyImmediate(_rt);
             foreach (string id in new[] { "_BakLightDragonsBreath", "_BakLightTint", "_BakLightDarken", "_BakFlash", "_BakSunTint" }) {
                 Shader.SetGlobalVector(id, Vector4.zero);
             }

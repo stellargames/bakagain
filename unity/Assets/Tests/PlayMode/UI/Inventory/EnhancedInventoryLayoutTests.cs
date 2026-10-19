@@ -101,6 +101,19 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             Assert.AreSame(_reqStage, _root.Q("hotspot_2").parent);
         }
 
+        /// <summary>An items box authored in percent (or missing) has no px rect to fit the sheet to:
+        /// the faithful screen stays, rather than a sheet fitted to a box at the origin.</summary>
+        [Test]
+        public void AnItemBoxWithNoPxRectKeepsTheFaithfulLayout() {
+            Build();
+            var layout = new EnhancedInventoryLayout(_root, new GameSession());
+
+            LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex("px item box"));
+            Assert.IsFalse(layout.Apply(_reqStage, Rect.zero));
+
+            Assert.IsNull(_root.Q("enhanced-inv"), "nothing half-moved");
+        }
+
         [Test]
         public void RevertAfterTheRootWasClearedThrowsNothing() {
             Build();

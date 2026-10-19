@@ -70,6 +70,13 @@ namespace BakAgain.UI.Inventory {
             if (Applied) {
                 return true;
             }
+            if (itemBox.width <= 0f || itemBox.height <= 0f) {
+                if (!_warned) {
+                    Debug.LogWarning("EnhancedInventory: no px item box in the layout; keeping the faithful layout.");
+                    _warned = true;
+                }
+                return false;
+            }
             _itemBox = itemBox;
             var names = new List<string>(PortraitNames) { WindowName, PurseName, UseName, ExitName };
             foreach (string n in names) {
@@ -125,7 +132,7 @@ namespace BakAgain.UI.Inventory {
             bar.Add(_hint);
             _moved.Move(_root.Q(UseName), bar, "enhanced-inv__button", clearSize: false);
             _moved.Move(_root.Q(ExitName), bar, "enhanced-inv__button", clearSize: false);
-            StoneButton.Dress(_root.Q(ExitName), GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedCastExit));
+            StoneButton.Dress(_root.Q(ExitName), GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedExit));
             SetUseWord(_useWord);
 
             _reqStage = reqStage;
@@ -167,9 +174,10 @@ namespace BakAgain.UI.Inventory {
         /// <summary>The Use stone's word for the role the faithful button has now (Use, the next shop
         /// page, or none), so the stone says what a click on it does.</summary>
         public void SetUseWord(string word) {
+            bool same = word == _useWord;
             _useWord = word;
             VisualElement use = _root.Q(UseName);
-            if (!Applied || use == null) return;
+            if (!Applied || use == null || (same && use.Q(StoneButton.DiscName) != null)) return; // every render asks
             StoneButton.Undress(use);
             StoneButton.Dress(use, word);
         }
@@ -199,9 +207,7 @@ namespace BakAgain.UI.Inventory {
             _frame.Draw(outer, band, middle);
             var spots = new List<(float X, float Y, bool Vertical)>();
             StoneFrame.AddSides(spots, outer, band);
-            if (middle >= 0f) {
-                foreach (float f in new[] { 0.15f, 0.85f }) spots.Add((middle, Mathf.Lerp(outer.yMin, outer.yMax, f), false));
-            }
+            if (middle >= 0f) StoneFrame.AddMiddle(spots, outer, middle);
             _frame.Strap(spots, band);
         }
 
@@ -237,8 +243,7 @@ namespace BakAgain.UI.Inventory {
             foreach (VisualElement p in Sheet.Query(PanelName).Where(e => e.resolvedStyle.display != DisplayStyle.None).ToList()) {
                 Rect r = p.worldBound;
                 if (float.IsNaN(r.width) || r.width <= 0f) continue;
-                bound = bound.width > 0f ? Rect.MinMaxRect(Mathf.Min(bound.xMin, r.xMin), Mathf.Min(bound.yMin, r.yMin),
-                    Mathf.Max(bound.xMax, r.xMax), Mathf.Max(bound.yMax, r.yMax)) : r;
+                bound = EnhancedSheet.Union(bound, r);
             }
             return bound;
         }
@@ -315,11 +320,7 @@ namespace BakAgain.UI.Inventory {
                 return;
             }
             Rect field = _field.contentRect;
-            (float scale, float x, float y) = GameData.Resources.Layout.FieldFit.Fit(
-                _itemBox.x, _itemBox.y, _itemBox.width, _itemBox.height,
-                0f, 0f, field.width, field.height);
-            Sheet.style.translate = new Translate(x, y);
-            Sheet.style.scale = new Scale(new Vector2(scale, scale));
+            EnhancedSheet.Fit(Sheet, new Rect(0f, 0f, field.width, field.height), _itemBox);
         }
     }
 }

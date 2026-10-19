@@ -42,7 +42,6 @@ namespace BakAgain.UI.Spells {
         private readonly MovedElements _moved = new();
         private VisualElement _layout, _left, _well, _parch, _reqStage;
         private readonly VisualElement[] _portraits = new VisualElement[3];
-        private readonly Label[] _names = new Label[3];
         private readonly VisualElement[] _schools = new VisualElement[CastRingLayout.CategoryCount];
         private Vector2 _ringCentre;
         private float _ringRadius;
@@ -127,7 +126,6 @@ namespace BakAgain.UI.Spells {
             _parchFrame.Insert(0, _strip);
             top.Add(column);
             VisualElement bar = MovedElements.Box("enhanced-cast__bar");
-            _schoolsBar = schools;
             _column = column;
             _bar = bar;
             right.Add(top);
@@ -155,9 +153,6 @@ namespace BakAgain.UI.Spells {
                 VisualElement head = _root.Q(PortraitName(i));
                 _moved.Move(head, wrap, "enhanced-cast__head", clearSize: true);
                 if (combat) head.pickingMode = PickingMode.Ignore;
-                _names[i] = new Label { pickingMode = PickingMode.Ignore };
-                _names[i].AddToClassList("enhanced-cast__name");
-                wrap.Add(_names[i]);
                 _stats[i] = new Label { pickingMode = PickingMode.Ignore };
                 _stats[i].AddToClassList("enhanced-cast__stats");
                 wrap.Add(_stats[i]);
@@ -190,11 +185,10 @@ namespace BakAgain.UI.Spells {
             if (_reqStage != null) {
                 _reqStage.style.visibility = Visibility.Hidden;
             }
-            _layout.RegisterCallback<GeometryChangedEvent>(_ => Fit());
-            _well.RegisterCallback<GeometryChangedEvent>(_ => Fit());
-            _parch.RegisterCallback<GeometryChangedEvent>(_ => Fit());
-            _column.RegisterCallback<GeometryChangedEvent>(_ => Fit());
-            _strip.RegisterCallback<GeometryChangedEvent>(_ => Fit());
+            // Five elements report one layout pass: fit once for all of them, not five times.
+            foreach (VisualElement e in new[] { _layout, _well, _parch, _column, _strip }) {
+                e.RegisterCallback<GeometryChangedEvent>(_ => ScheduleFit());
+            }
             RefreshNames();
             return true;
         }
@@ -204,10 +198,6 @@ namespace BakAgain.UI.Spells {
         public void Revert() {
             if (!Applied) {
                 return;
-            }
-            for (int i = 0; i < 3; i++) {
-                VisualElement head = _root.Q(PortraitName(i));
-                if (head != null) head.pickingMode = PickingMode.Position;
             }
             foreach (VisualElement s in _schools) {
                 if (s == null) continue;
@@ -221,6 +211,8 @@ namespace BakAgain.UI.Spells {
             if (_reqStage != null) {
                 _reqStage.style.visibility = StyleKeyword.Null;
             }
+            _pendingFit?.Pause();
+            _pendingFit = null;
             ReleaseBench();
             _frame?.Release();
             _frame = null;
@@ -234,7 +226,6 @@ namespace BakAgain.UI.Spells {
             System.Array.Clear(_stats, 0, 3);
             _readout = null;
             System.Array.Clear(_portraits, 0, 3);
-            System.Array.Clear(_names, 0, 3);
             System.Array.Clear(_schools, 0, _schools.Length);
         }
 
@@ -271,6 +262,9 @@ namespace BakAgain.UI.Spells {
             _tabletsShown = shown;
             FitHint();
         }
+
+        /// <summary>Whether Back and Cast show: the screen's keyboard focus follows them.</summary>
+        public bool TabletsShown => _tabletsShown;
 
         private bool _tabletsShown;
 
@@ -331,7 +325,7 @@ namespace BakAgain.UI.Spells {
             _readoutOf.text = of ?? string.Empty;
         }
 
-        private VisualElement _schoolsBar, _column, _bar, _wellFrame, _parchFrame, _strip;
+        private VisualElement _column, _bar, _wellFrame, _parchFrame, _strip;
 
         /// <summary>The canonical surface the active-spell strip is drawn on while applied.</summary>
         public VisualElement SpellSheet { get; private set; }
@@ -361,7 +355,7 @@ namespace BakAgain.UI.Spells {
             plaque.style.unityBackgroundImageTintColor = Color.clear;
             float w = plaque.resolvedStyle.width, h = plaque.resolvedStyle.height;
             if (float.IsNaN(w) || w <= 0f) return;
-            FitSheet(SpellSheet, _strip.contentRect,
+            EnhancedSheet.Fit(SpellSheet, _strip.contentRect,
                 new Rect(SpellEffectCaption.PlaqueX, SpellEffectCaption.PlaqueY, w, h));
         }
 
@@ -377,9 +371,8 @@ namespace BakAgain.UI.Spells {
         public void RefreshNames() {
             IReadOnlyList<string> names = _session?.ActivePartyMemberNames;
             for (int i = 0; i < 3; i++) {
-                if (_names[i] == null) continue;
+                if (_portraits[i] == null) continue;
                 string name = names != null && i < names.Count ? names[i] : string.Empty;
-                _names[i].text = name;
                 bool shown = !string.IsNullOrEmpty(name) && (!_combat || i == _casterSlot);
                 _portraits[i].style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
             }
@@ -515,7 +508,7 @@ namespace BakAgain.UI.Spells {
         /// <summary>A stone disc over the button: the school's figure engraved in it, or the Exit word.</summary>
         private void Stone(VisualElement button, int school) {
             if (school < 0) {
-                StoneButton.Dress(button, GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedCastExit));
+                StoneButton.Dress(button, GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedExit));
                 return;
             }
             VisualElement disc = StoneButton.Dress(button);
@@ -570,6 +563,16 @@ namespace BakAgain.UI.Spells {
             return (c, r / ring.Count);
         }
 
+        private IVisualElementScheduledItem _pendingFit;
+
+        private void ScheduleFit() {
+            if (_layout == null || _pendingFit != null) return;
+            _pendingFit = _layout.schedule.Execute(() => {
+                _pendingFit = null;
+                Fit();
+            });
+        }
+
         private void Fit() {
             if (_layout == null) return;
             PlaceStraps();
@@ -584,9 +587,9 @@ namespace BakAgain.UI.Spells {
             }
             FitStrip();
             FitHint();
-            FitSheet(RingSheet, _well.contentRect, BenchRegion());
+            EnhancedSheet.Fit(RingSheet, _well.contentRect, BenchRegion());
             Relight(); // the marble's scale follows the fit
-            FitSheet(InfoSheet, _parch.contentRect, InfoRect());
+            EnhancedSheet.Fit(InfoSheet, _parch.contentRect, InfoRect());
         }
 
         /// <summary>
@@ -605,7 +608,7 @@ namespace BakAgain.UI.Spells {
             var spots = new List<(float X, float Y, bool Vertical)>();
             StoneFrame.AddSides(spots, Rect.MinMaxRect(outer.xMin, outer.yMin, middle, outer.yMax), band, right: false);
             StoneFrame.AddSides(spots, Rect.MinMaxRect(middle, outer.yMin, outer.xMax, outer.yMax), band, left: false);
-            foreach (float f in new[] { 0.15f, 0.85f }) spots.Add((middle, Mathf.Lerp(outer.yMin, outer.yMax, f), false));
+            StoneFrame.AddMiddle(spots, outer, middle);
             _frame.Strap(spots, band);
         }
 
@@ -625,14 +628,5 @@ namespace BakAgain.UI.Spells {
             return Rect.MinMaxRect(left, SpellInfoPanel.TitleY, right, bottom);
         }
 
-        private static void FitSheet(VisualElement sheet, Rect field, Rect region) {
-            if (sheet == null || field.width <= 0f || field.height <= 0f || float.IsNaN(field.width)) {
-                return;
-            }
-            (float scale, float x, float y) = GameData.Resources.Layout.FieldFit.Fit(
-                region.x, region.y, region.width, region.height, field.x, field.y, field.width, field.height);
-            sheet.style.translate = new Translate(x, y);
-            sheet.style.scale = new Scale(new Vector2(scale, scale));
-        }
     }
 }

@@ -26,6 +26,11 @@ on:
       - '**/*.md'
       - 'LICENSE*'
   workflow_call:
+    # Named, not inherited: the release's Android signing secrets have no business in a test run.
+    secrets:
+      UNITY_LICENSE: { required: false }
+      UNITY_EMAIL: { required: false }
+      UNITY_PASSWORD: { required: false }
   workflow_dispatch:
 
 concurrency:
@@ -70,9 +75,9 @@ jobs:
       - uses: actions/cache@v6
         with:
           path: unity/Library
-          key: Library-tests-${{ hashFiles('unity/Packages/packages-lock.json', 'unity/ProjectSettings/ProjectVersion.txt') }}
-          restore-keys: Library-tests-
-      - uses: game-ci/unity-test-runner@v4
+          key: Library-tests-${{ matrix.name }}-${{ hashFiles('unity/Packages/packages-lock.json', 'unity/ProjectSettings/ProjectVersion.txt') }}
+          restore-keys: Library-tests-${{ matrix.name }}-
+      - uses: game-ci/unity-test-runner@32e57712352b500e17974b245a6dce9e11a73213 # v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}

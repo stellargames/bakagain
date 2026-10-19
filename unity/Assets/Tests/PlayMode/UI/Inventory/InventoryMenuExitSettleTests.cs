@@ -149,6 +149,21 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             Assert.AreEqual(-1, (int)slot.GetValue(menu));
         }
 
+        /// <summary>The next shop opens at the top of its shelf: a scroller left from the last visit
+        /// was read back over SetShop's reset on the first render.</summary>
+        [UnityTest]
+        public IEnumerator LeavingTheScreen_ForgetsTheShelfScroll() {
+            GameSession session = SessionWith(FreeSlot());
+            InventoryMenu menu = BuildMenu(session, new RecordingBagSpawner());
+            var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+            System.Reflection.FieldInfo shelf = typeof(InventoryMenu).GetField("_shelf", flags);
+            shelf.SetValue(menu, new ShelfScroller(new VisualElement(), new VisualElement(), 5, 2, offset: 300f));
+
+            yield return menu.HideAsync().ToCoroutine();
+
+            Assert.IsNull(shelf.GetValue(menu), "the shelf must not outlive the screen");
+        }
+
         /// <summary>A bag you only partly emptied is still a pile: it stays claimed and on screen.</summary>
         [UnityTest]
         public IEnumerator LeavingTheScreen_KeepsABagThatStillHoldsSomething() {

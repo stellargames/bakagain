@@ -57,6 +57,7 @@ namespace BakAgain.Core.DI {
 
         public async UniTask StartAsync(CancellationToken cancellation = default) {
             _logger.LogInformation("StartAsync() initiated.");
+            BakResourceSettings.ApplyPending(); // folders the Enhanced settings saved for this start
             ClearBehindUiToBlack();
             AsyncOperationHandle<GameObject> loadingScreenHandle = Addressables.InstantiateAsync(LoadingPrefabAddress);
 

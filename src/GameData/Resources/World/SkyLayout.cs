@@ -19,15 +19,16 @@ public sealed record GradingKey(double Hour, double Temperature, double Tint,
 
 /// <summary>
 /// Tuning for the Enhanced sky and lighting (spec 2026-10-15-enhanced-sky-design). Invented for
-/// Enhanced, not ported: the defaults are art choices, and a mod can retint the sky by replacing them.
+/// Enhanced, not ported: the defaults are art choices. Nothing loads them from data yet; a loader for
+/// mods would have to refuse a sunrise equal to the sunset, a zero moon period and an empty grading.
 /// The brightness of the world is NOT here; it stays <see cref="DaylightLevel"/>'s.
 /// </summary>
 public sealed class SkyLayout {
-    /// <summary>Halfway up the original's dawn ramp (04:00 → 08:00).</summary>
-    public double SunriseHour { get; set; } = 6.0;
+    /// <summary>Halfway up the original's dawn ramp.</summary>
+    public double SunriseHour { get; set; } = (DaylightLevel.DawnStartHour + DaylightLevel.FullDayHour) / 2.0;
 
-    /// <summary>Halfway down the original's dusk ramp (17:00 → 20:00).</summary>
-    public double SunsetHour { get; set; } = 18.5;
+    /// <summary>Halfway down the original's dusk ramp.</summary>
+    public double SunsetHour { get; set; } = (DaylightLevel.DuskStartHour + DaylightLevel.FullNightHour) / 2.0;
 
     /// <summary>How far the sun's arc leans south of the zenith; its noon elevation is 90 minus this.</summary>
     public double ArcTiltDegrees { get; set; } = 30;
@@ -77,8 +78,6 @@ public sealed class SkyLayout {
         new(18.5, 30, 5, (0.40, 0.30, 0.45), (1.00, 0.65, 0.35), 10, 0.70),
         new(20.0, -15, 8, (0.30, 0.32, 0.55), (0.70, 0.55, 0.65), -5, 0.30),
     };
-
-
 
     public CloudClimate ClimateFor(int zone) =>
         Climate.TryGetValue(zone, out CloudClimate c) ? c : DefaultClimate;

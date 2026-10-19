@@ -181,6 +181,31 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.AreEqual(0f, Shader.GetGlobalVector(SunTintId).w);
         }
 
+        /// <summary>The dropped sky takes what it made with it: a dome left without its material
+        /// draws magenta, and a stray Sun lights mod models for the rest of the zone.</summary>
+        [UnityTest]
+        public IEnumerator AFailingSkyLeavesNothingBehind() {
+            GameOptions.Enhanced = true;
+            GameOptions.SetFeature(EnhancedFeature.Sky, true);
+            GameOptions.SetFeature(EnhancedFeature.Lighting, true);
+            var session = new GameSession { GameTimeIn2Seconds = At(7) };
+            var lighting = new WorldLightingService(session, null);
+            Object.DestroyImmediate(_sky);
+            lighting.BindSky(_camera, _env, 1, false);
+            GameData.Resources.World.GradingKey[] grading = EnhancedSky.Layout.Grading;
+            EnhancedSky.Layout.Grading = System.Array.Empty<GameData.Resources.World.GradingKey>();
+            try {
+                LogAssert.Expect(LogType.Exception, new System.Text.RegularExpressions.Regex("IndexOutOfRange"));
+                lighting.Refresh();
+                Assert.IsNotNull(Child("Sun"), "fixture: the sky had made its light before it failed");
+            } finally {
+                EnhancedSky.Layout.Grading = grading;
+            }
+            yield return null; // Destroy lands at the end of the frame
+            Assert.IsNull(Child("Sun"), "the light it made goes with it");
+            Assert.IsNull(Child("EnhancedSkyDome"), "and the dome, whose material is gone");
+        }
+
         [Test]
         public void ATornDownZoneLeavesNoTintAndNoPost() {
             GameOptions.Enhanced = true;

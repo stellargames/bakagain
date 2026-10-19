@@ -39,6 +39,7 @@ namespace BakAgain.World {
         private static readonly int MoonBrightId = Shader.PropertyToID("_BakSkyMoonBright");
         private static readonly int CloudId = Shader.PropertyToID("_BakSkyCloud");
         private static readonly int StarRotId = Shader.PropertyToID("_BakSkyStarRot");
+        private static readonly int MoonLightId = Shader.PropertyToID("_BakSkyMoonLight");
 
         /// <summary>The Large Moon's light when it stands in for the sun at night.</summary>
         private static readonly Color MoonLight = new(0.55f, 0.65f, 1f);
@@ -73,6 +74,7 @@ namespace BakAgain.World {
             _env = env;
             _zone = zone;
             _underground = underground;
+            _applied = false; // a new binding is drawn afresh, whatever the clock says
         }
 
         /// <summary>One frame of the sky and the light, from the game clock and the two switches.</summary>
@@ -80,6 +82,10 @@ namespace BakAgain.World {
         /// <param name="daylight">The original's daylight level now (15 night .. 64 day).</param>
         public void Apply(long ticks, int daylight, bool skyOn, bool lightingOn) {
             bool map = _env != null && _env.MapModeOn;
+            // The clock moves in 2-second ticks and stands still between steps: nothing to redo.
+            if (_applied && map == _appliedMap && _last == (ticks, daylight, skyOn, lightingOn)) {
+                return;
+            }
             _applied = true;
             _appliedMap = map;
             _last = (ticks, daylight, skyOn, lightingOn);
@@ -87,14 +93,16 @@ namespace BakAgain.World {
             bool sky = skyOn && live;
             bool lit = lightingOn && live;
             SkyDirection sun = Clock.Sun(ticks);
+            (double r, double g, double b) = Clock.SunColor(Math.Max(0, sun.ElevationDegrees));
+            var sunColor = new Color((float)r, (float)g, (float)b);
 
             if (sky || lit) {
-                PublishSkyGlobals(ticks, sun);
+                PublishSkyGlobals(ticks, sun, sunColor);
             }
             SetDome(sky);
-            SetSun(sky || lit, ticks, sun, daylight);
+            SetSun(sky || lit, ticks, sun, sunColor, daylight);
             GradingKey grading = lit ? Clock.GradingAt(ticks) : null;
-            SetGrade(grading, ticks, sun);
+            SetGrade(grading, ticks, sun, sunColor);
             SetBloom(lit && !Application.isMobilePlatform, grading);
             Shader.SetGlobalFloat(SkyOnId, sky ? 1f : 0f);
         }
@@ -130,6 +138,11 @@ namespace BakAgain.World {
         }
 
         private void OnDestroy() {
+            // The objects too, not only their assets: when the sky is dropped after a failure the zone
+            // lives on, and a dome left behind with its material gone draws magenta.
+            if (_dome != null) Destroy(_dome);
+            if (_sun != null) Destroy(_sun.gameObject);
+            if (_volume != null) Destroy(_volume.gameObject);
             if (_domeMaterial != null) Destroy(_domeMaterial);
             if (_domeMesh != null) Destroy(_domeMesh);
             if (_profile != null) {
@@ -141,10 +154,10 @@ namespace BakAgain.World {
         /// <summary>The world is +X east, +Y up, +Z north (BakCoordinateConverter: BaK X→X, Y→Z).</summary>
         private static Vector3 ToVector(SkyDirection d) => new((float)d.East, (float)d.Up, (float)d.North);
 
-        private void PublishSkyGlobals(long ticks, SkyDirection sun) {
+        private void PublishSkyGlobals(long ticks, SkyDirection sun, Color sunColor) {
             Shader.SetGlobalVector(SunDirId, ToVector(sun));
-            (double r, double g, double b) = Clock.SunColor(Math.Max(0, sun.ElevationDegrees));
-            Shader.SetGlobalVector(SunColorId, new Vector4((float)r, (float)g, (float)b, 1f));
+            Shader.SetGlobalVector(SunColorId, new Vector4(sunColor.r, sunColor.g, sunColor.b, 1f));
+            Shader.SetGlobalVector(MoonLightId, new Vector4(MoonLight.r, MoonLight.g, MoonLight.b, (float)Clock.MoonFullness(0, ticks)));
             Shader.SetGlobalVector(ZoneColorId, _env != null ? _env.SkyColor.linear : Color.black);
             Shader.SetGlobalFloat(AnchorId, (float)Layout.ZoneAnchorWeight * Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.1f, 0.5f, (float)sun.Up)));
 
@@ -162,8 +175,8 @@ namespace BakAgain.World {
             Shader.SetGlobalVector(MoonBrightId, brightness);
 
             float hours = (float)((double)ticks / GameData.Resources.GameState.GameTime.UnitsPerHour);
-            Shader.SetGlobalVector(CloudId, new Vector4((float)Clock.CloudCover(_zone, ticks), hours,
-                Application.isMobilePlatform ? 1f : 2f, 0f));
+            Shader.SetGlobalVector(CloudId, new Vector4((float)Clock.CloudCover(_zone, ticks),
+                Application.isMobilePlatform ? 1f : 2f, 0f, 0f));
             Shader.SetGlobalFloat(StarRotId, (hours % 24f) / 24f * 2f * Mathf.PI);
             Shader.SetGlobalVector(HazeId, new Vector4((float)Layout.HazeStrength, (float)Layout.HazeBaseExtra, 0f, 0f));
         }
@@ -195,7 +208,7 @@ namespace BakAgain.World {
             }
         }
 
-        private void SetSun(bool on, long ticks, SkyDirection sun, int daylight) {
+        private void SetSun(bool on, long ticks, SkyDirection sun, Color sunColor, int daylight) {
             if (!on) {
                 if (_sun != null) _sun.gameObject.SetActive(false);
                 return;
@@ -215,22 +228,19 @@ namespace BakAgain.World {
             _sun.transform.rotation = Quaternion.LookRotation(-toLight);
             if (moonLight) {
                 _sun.color = MoonLight;
-                _sun.intensity = 0.15f * MoonFullness(ticks);
+                _sun.intensity = 0.15f * (float)Clock.MoonFullness(0, ticks);
             } else {
-                (double r, double g, double b) = Clock.SunColor(Math.Max(0, sun.ElevationDegrees));
-                _sun.color = new Color((float)r, (float)g, (float)b);
+                _sun.color = sunColor;
                 _sun.intensity = daylight / (float)DaylightLevel.Day;
             }
         }
-
-        private static float MoonFullness(long ticks) => 1f - (Mathf.Abs((float)Clock.MoonPhase(0, ticks) - 0.5f) * 2f);
 
         /// <summary>
         /// The grade for ApplyBakLighting: white balance, the sun's (or the Large Moon's) colour and split
         /// toning, as a tint for bright pixels and one for dark ones, each scaled to luminance 1 so the
         /// shader only moves hue; plus saturation, which turns about the same luminance.
         /// </summary>
-        private static void SetGrade(GradingKey k, long ticks, SkyDirection sun) {
+        private static void SetGrade(GradingKey k, long ticks, SkyDirection sun, Color sunColor) {
             if (k == null) {
                 Shader.SetGlobalVector(SunTintId, Vector4.zero);
                 Shader.SetGlobalVector(ShadeTintId, Vector4.zero);
@@ -239,12 +249,11 @@ namespace BakAgain.World {
             Color light;
             float strength;
             if (sun.Up > -0.05) {
-                (double r, double g, double b) = Clock.SunColor(Math.Max(0, sun.ElevationDegrees));
-                light = new Color((float)r, (float)g, (float)b);
+                light = sunColor;
                 strength = DayTint;
             } else {
                 light = MoonLight;
-                strength = NightTint * Mathf.Lerp(0.6f, 1f, MoonFullness(ticks));
+                strength = NightTint * Mathf.Lerp(0.6f, 1f, (float)Clock.MoonFullness(0, ticks));
             }
             Color common = WhiteBalance(k.Temperature, k.Tint) * Color.Lerp(Color.white, ToLuminanceOne(light), strength);
             Color highlights = ToLuminanceOne(common * Toning(k.Highlights));

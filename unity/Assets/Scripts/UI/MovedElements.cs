@@ -19,12 +19,14 @@ namespace BakAgain.UI {
             public readonly StyleLength Left, Top, Width, Height;
             public readonly StyleBackground Background;
             public readonly StyleTranslate Translate;
+            public readonly PickingMode Picking;
 
             public Saved(VisualElement e, string cls) {
                 Element = e; Parent = e.parent; Index = e.parent.IndexOf(e); Class = cls;
                 Position = e.style.position;
                 Left = e.style.left; Top = e.style.top; Width = e.style.width; Height = e.style.height;
                 Background = e.style.backgroundImage; Translate = e.style.translate;
+                Picking = e.pickingMode;
             }
         }
 
@@ -54,6 +56,7 @@ namespace BakAgain.UI {
                 s.Element.style.left = s.Left; s.Element.style.top = s.Top;
                 s.Element.style.width = s.Width; s.Element.style.height = s.Height;
                 s.Element.style.backgroundImage = s.Background; s.Element.style.translate = s.Translate;
+                s.Element.pickingMode = s.Picking;
             }
             _saved.Clear();
         }

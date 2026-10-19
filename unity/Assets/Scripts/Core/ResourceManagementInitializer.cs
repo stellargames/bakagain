@@ -13,7 +13,6 @@ namespace BakAgain.Core {
             Logger.LogInformation("BakResourceSettings.OverrideEnabled: {OverrideEnabled}", BakResourceSettings.OverrideEnabled);
             Logger.LogInformation("BakResourceSettings.OverridePath: '{OverridePath}'", BakResourceSettings.OverridePath);
             Logger.LogInformation("BakResourceSettings.GamePath: '{GamePath}'", BakResourceSettings.GamePath);
-            BakResourceSettings.MarkInUse();
 
             Logger.LogInformation("Injecting custom resource providers...");
 

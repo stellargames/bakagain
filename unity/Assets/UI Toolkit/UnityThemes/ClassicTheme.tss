@@ -358,12 +358,10 @@
 .enhanced-cast .enhanced-cast__top { flex-grow: 1; flex-direction: row; }
 .enhanced-cast .enhanced-cast__parch { flex-grow: 1; overflow: hidden; background-size: cover; }
 .enhanced-cast .enhanced-cast__parch .cast-info-line { color: rgb(46, 29, 15); }
-.enhanced-cast .enhanced-cast__portraits { width: 270px; flex-shrink: 0; flex-direction: column; justify-content: space-around; align-items: center; }
+.enhanced-cast .enhanced-cast__portraits { width: 270px; flex-shrink: 0; flex-direction: column; justify-content: space-around; align-items: center; margin-left: 26px; }
 .enhanced-cast .enhanced-cast__portrait { width: 214px; height: 214px; align-items: center; justify-content: center; background-size: 100% 100%; }
 .enhanced-cast .enhanced-cast__head { position: relative; width: 160px; height: 160px; border-radius: 50%; overflow: hidden; }
 .enhanced-cast .enhanced-cast__portrait--caster .enhanced-cast__head { border-width: 5px; border-color: rgb(156, 184, 220); }
-.enhanced-cast .enhanced-cast__name { display: none; }
-.enhanced-cast .enhanced-cast__portrait--caster .enhanced-cast__name { color: rgb(233, 183, 127); }
 .enhanced-cast .enhanced-cast__bar { height: 150px; flex-shrink: 0; margin-top: 16px; flex-direction: row; align-items: center; padding: 0 22px 0 66px; }
 .enhanced-cast .enhanced-cast__hint { flex-grow: 1; flex-shrink: 1; font-size: 36px; white-space: normal; color: rgb(205, 185, 143); }
 .enhanced-cast .enhanced-cast__gem { background-size: 100% 100%; }
@@ -383,4 +381,3 @@
 .enhanced-cast .enhanced-cast__stats { position: absolute; top: 218px; font-size: 32px; white-space: nowrap; color: rgb(236, 217, 176); -unity-text-align: upper-center; }
 .enhanced-cast .enhanced-cast__strip { height: 72px; flex-shrink: 0; margin: -8px 0 12px 0; overflow: hidden; }
 .enhanced-cast .enhanced-cast__frame { position: relative; flex-grow: 1; flex-direction: column; padding: 40px; }
-.enhanced-cast .enhanced-cast__portraits { margin-left: 26px; }

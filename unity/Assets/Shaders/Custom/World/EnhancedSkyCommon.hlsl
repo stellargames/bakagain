@@ -1,6 +1,8 @@
 #ifndef BAK_ENHANCED_SKY_COMMON
 #define BAK_ENHANCED_SKY_COMMON
 
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"   // Luminance()
+
 // The Enhanced sky's single-scattering model (spec 2026-10-15-enhanced-sky-design), shared by the
 // dome and by the mountains' haze so the two agree at the horizon. Analytic, no LUT pass: Rayleigh +
 // Mie with an air-mass approximation (Kasten-Young), evaluated per pixel. Invented for Enhanced — the
@@ -15,7 +17,6 @@ float  _BakSkyAnchor;     // how far the horizon's hue is pulled to the zone's (
 static const float3 BAK_RAYLEIGH = float3(5.8e-3, 13.5e-3, 33.1e-3);
 static const float  BAK_MIE = 2.1e-3;
 static const float  BAK_SKY_GAIN = 12.0;
-static const float3 BAK_LUMA = float3(0.2126, 0.7152, 0.0722);
 
 float BakAirMass(float cosZenith) {
     float c = max(cosZenith, 0.0);
@@ -45,8 +46,8 @@ float3 SkyRadiance(float3 v) {
     // Zone anchor: near the horizon, by day, take the zone pen's HUE at the model's own brightness,
     // so each zone keeps its character without the sky going darker toward the horizon.
     float horizonBand = 1.0 - smoothstep(0.0, 0.35, max(v.y, 0.0));
-    float zoneLum = max(dot(_BakSkyZoneColor.rgb, BAK_LUMA), 1e-4);
-    float3 zoneHue = _BakSkyZoneColor.rgb / zoneLum * dot(col, BAK_LUMA);
+    float zoneLum = max(Luminance(_BakSkyZoneColor.rgb), 1e-4);
+    float3 zoneHue = _BakSkyZoneColor.rgb / zoneLum * Luminance(col);
     return lerp(col, zoneHue, saturate(_BakSkyAnchor) * horizonBand);
 }
 

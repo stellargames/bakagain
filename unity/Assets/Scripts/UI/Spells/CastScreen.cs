@@ -203,7 +203,6 @@ namespace BakAgain.UI.Spells {
             _compass = null;
             _enhanced?.Revert();
             _enhanced = null;
-            _tabletsShown = false;
             _navApplied = false;
             _effectStrip?.Dispose();
             _effectStrip = null;
@@ -953,11 +952,11 @@ namespace BakAgain.UI.Spells {
                 GameData.Resources.Spells.CastRingSigil.VertexY[school], ink);
 
         private static void StrokeFigure(MeshGenerationContext context, int[] xs, int[] ys, Color ink,
-            float width = GameData.Resources.Spells.CastRingSigil.StrokeWidth) {
+            float width = GameData.Resources.Spells.CastRingSigil.StrokeWidth, LineCap cap = LineCap.Butt) {
             Painter2D painter = context.painter2D;
             painter.strokeColor = ink;
             painter.lineWidth = width;
-            painter.lineCap = LineCap.Round;
+            painter.lineCap = cap; // round only for the Enhanced laser: the faithful figure keeps its ends
             foreach (int[] edge in GameData.Resources.Spells.CastRingSigil.Edges) {
                 (float x0, float y0) = GameData.Resources.Spells.CastRingSigil.ToCanonical(xs[edge[0]], ys[edge[0]]);
                 (float x1, float y1) = GameData.Resources.Spells.CastRingSigil.ToCanonical(xs[edge[1]], ys[edge[1]]);
@@ -1413,6 +1412,9 @@ namespace BakAgain.UI.Spells {
             }
 
             await PlayRingFillAsync();
+            if (_sliderSpell != spellNumber) {
+                return; // abandoned during the fill (an Enhanced school click): nothing to hover
+            }
             await RefreshHoverAsync();
         }
 
@@ -1899,6 +1901,15 @@ namespace BakAgain.UI.Spells {
         public async UniTask SelectCaster(int slot) {
             if (_session?.IsActive != true) {
                 return;
+            }
+            // While a power is being chosen, as for a school (SelectSchool): the original's power loop
+            // reads only the ring and Escape, and the band belongs to the caster who picked the spell.
+            if (_sliderSpell >= 0) {
+                if (!EnhancedApplied) {
+                    return;
+                }
+                AbandonPowerSelection();
+                await DrawRingAndNamesAsync();
             }
 
             System.Collections.Generic.IReadOnlyList<byte> roster = _session.ActivePartyIndices;

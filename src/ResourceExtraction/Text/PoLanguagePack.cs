@@ -63,21 +63,35 @@ public static class PoLanguagePack {
     /// the catalog — for a menu that needs a pack's status and not its text. Null when absent.
     /// </summary>
     public static string? HeaderField(TextReader reader, string name) {
-        string prefix = "\"" + name + ":";
+        // The header's text is its msgstr's quoted pieces joined, wherever the lines break; its fields
+        // are the "\n"-separated parts of that (the escape, as written in the file).
+        var header = new System.Text.StringBuilder();
         bool inHeader = false;
         for (string? line = reader.ReadLine(); line != null; line = reader.ReadLine()) {
-            if (line.StartsWith("msgstr", System.StringComparison.Ordinal)) {
-                inHeader = true;
-            } else if (inHeader && !line.StartsWith("\"", System.StringComparison.Ordinal)) {
-                return null;   // the header entry ended
-            } else if (inHeader && line.StartsWith(prefix, System.StringComparison.OrdinalIgnoreCase)) {
-                string value = line.Substring(prefix.Length).Trim();
-                if (value.EndsWith("\"", System.StringComparison.Ordinal)) value = value.Substring(0, value.Length - 1);
-                if (value.EndsWith("\\n", System.StringComparison.Ordinal)) value = value.Substring(0, value.Length - 2);
-                return value.Trim();
+            string t = line.Trim();
+            if (!inHeader) {
+                if (t.StartsWith("msgstr", System.StringComparison.Ordinal)) {
+                    inHeader = true;
+                    header.Append(Unquote(t.Substring("msgstr".Length)));
+                }
+            } else if (t.StartsWith("\"", System.StringComparison.Ordinal)) {
+                header.Append(Unquote(t));
+            } else {
+                break;   // the header entry ended
+            }
+        }
+        foreach (string field in header.ToString().Split("\\n")) {
+            int colon = field.IndexOf(':');
+            if (colon > 0 && field.Substring(0, colon).Trim().Equals(name, System.StringComparison.OrdinalIgnoreCase)) {
+                return field.Substring(colon + 1).Trim();
             }
         }
         return null;
+    }
+
+    private static string Unquote(string s) {
+        s = s.Trim();
+        return s.Length >= 2 && s[0] == '"' && s[^1] == '"' ? s.Substring(1, s.Length - 2) : string.Empty;
     }
 
     private static bool IsFuzzy(IPOEntry entry) =>

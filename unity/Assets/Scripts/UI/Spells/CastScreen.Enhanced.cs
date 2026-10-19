@@ -25,7 +25,7 @@ namespace BakAgain.UI.Spells {
         private const string HoloDimClass = "enhanced-cast__holo--dim";
 
         /// <summary>A gem's canonical size: the art's 96 px gem canvas at the ring art's scale.</summary>
-        private float GemSize => 96f * _enhanced.RingRadius / 425f;
+        private float GemSize => 96f / 1100f * _enhanced.RingRadius / EnhancedCastLayout.ArtChannelRadius;
 
         /// <summary>Applies the layout when the option is on (and takes it down when it is not). The
         /// ring is loaded first, because the bench is fitted to its circle.</summary>
@@ -71,8 +71,9 @@ namespace BakAgain.UI.Spells {
         /// while they show): the REQ's own rects point at where the buttons were before the move.
         /// </summary>
         private void RefreshEnhancedNav() {
-            BakAgain.UI.InputCore.MenuLayerHost host = GetComponent<BakAgain.UI.InputCore.MenuLayerHost>();
-            if (host == null || _ui == null || !EnhancedApplied) return;
+            BakAgain.UI.InputCore.MenuLayerHost host = _layerHost ??= GetComponent<BakAgain.UI.InputCore.MenuLayerHost>();
+            // Update asks every frame until it takes: cheaply, until the host has a layer to take it.
+            if (host == null || _ui == null || !EnhancedApplied || !host.HasNavigableLayer) return;
             _navApplied = false;
             var widgets = new List<BakAgain.UI.InputCore.NavWidget>();
             foreach (BakAgain.UI.InputCore.NavWidget w in _ui.CurrentNavWidgets) {
@@ -80,7 +81,7 @@ namespace BakAgain.UI.Spells {
                 widgets.Add(new BakAgain.UI.InputCore.NavWidget(element, w.Label, () => _enhanced?.CanonicalRectOf(element) ?? Rect.zero,
                     w.Primary, w.Secondary, w.ActionId));
             }
-            if (_tabletsShown) {
+            if (_enhanced.TabletsShown) {
                 VisualElement back = _enhanced.BackTablet, cast = _enhanced.CastTablet;
                 widgets.Add(new BakAgain.UI.InputCore.NavWidget(back, UiTemplates.Format(UiTemplates.EnhancedCastBack),
                     () => _enhanced?.CanonicalRectOf(back) ?? Rect.zero, BackToSpells, null));
@@ -92,7 +93,8 @@ namespace BakAgain.UI.Spells {
             _navApplied = host.SetWidgets(widgets);
         }
 
-        private bool _tabletsShown, _navApplied;
+        private bool _navApplied;
+        private BakAgain.UI.InputCore.MenuLayerHost _layerHost;
 
         /// <summary>Cast: the power chosen on the ring, once one is.</summary>
         private void CastChosenPower() {
@@ -121,9 +123,9 @@ namespace BakAgain.UI.Spells {
 
         /// <summary>The figure as a red laser: a soft halo of stacked strokes and a thin bright core.</summary>
         private static void StrokeLaser(MeshGenerationContext context, int[] xs, int[] ys, Color ink) {
-            StrokeFigure(context, xs, ys, new Color(0.85f, 0.02f, 0.0f, 0.2f * ink.a), 9f);
-            StrokeFigure(context, xs, ys, new Color(1f, 0.06f, 0.02f, 0.4f * ink.a), 5f);
-            StrokeFigure(context, xs, ys, new Color(1f, 0.24f, 0.14f, 0.95f * ink.a), 2.6f);
+            StrokeFigure(context, xs, ys, new Color(0.85f, 0.02f, 0.0f, 0.2f * ink.a), 9f, LineCap.Round);
+            StrokeFigure(context, xs, ys, new Color(1f, 0.06f, 0.02f, 0.4f * ink.a), 5f, LineCap.Round);
+            StrokeFigure(context, xs, ys, new Color(1f, 0.24f, 0.14f, 0.95f * ink.a), 2.6f, LineCap.Round);
         }
 
         /// <summary>Drops the power choice and goes back to picking a spell, with the screen kept up and
@@ -133,6 +135,7 @@ namespace BakAgain.UI.Spells {
             _hoveredPosition = -1;
             _hoveredSpell = -1;
             _fillFrame = -1;
+            SyncHolograms(); // the tablets, readout and lights leave with the choice, not on the redraw
         }
 
         /// <summary>The gem a ring position shows for the icon the faithful ring would draw there.</summary>
@@ -202,9 +205,9 @@ namespace BakAgain.UI.Spells {
                 : touch ? UiTemplates.EnhancedCastHintPickTouch : UiTemplates.EnhancedCastHintPick;
             _enhanced.SetHint(UiTemplates.Format(key));
             _enhanced.SetCasterStats(CasterStatsText());
+            bool tabletsWere = _enhanced.TabletsShown;
             _enhanced.ShowTablets(choosing, _hoveredPosition >= 0);
-            if (choosing != _tabletsShown) {
-                _tabletsShown = choosing;
+            if (choosing != tabletsWere) {
                 RefreshEnhancedNav();
             }
             if (!choosing) {

@@ -772,6 +772,9 @@ namespace BakAgain.UI.Inventory {
             TeardownStageInput();
             ResetGesture();
             _selectedSlot = -1;
+            // Left set, the next visit's first render read the old shelf's offset back over the reset.
+            _shelf?.StopCoast();
+            _shelf = null;
             // Exit or Escape with an item examined ends the examine with the screen: left open, the
             // next pack showed the bag for the key ring and the Enhanced "back" hint.
             _inspectOpen = false;
@@ -815,9 +818,9 @@ namespace BakAgain.UI.Inventory {
             _stage = null;
         }
 
-        private static Rect HintRect(LayoutHint hint) => hint == null
-            ? Rect.zero
-            : new Rect(hint.Left.Value, hint.Top.Value, hint.Width.Value, hint.Height.Value);
+        /// <summary>A box hint in design-frame px, or empty: percent (which an override may author)
+        /// has no parent here to resolve against, so it is refused as the paperdoll box is.</summary>
+        private static Rect HintRect(LayoutHint hint) => MemberEquip.TryPxRect(hint, out Rect r) ? r : Rect.zero;
 
         private void RenderCurrent() {
             if (_document == null || _document.rootVisualElement == null) {
@@ -1884,7 +1887,8 @@ namespace BakAgain.UI.Inventory {
         /// missing cell degrades to "appears in place" rather than flying in from the origin.</summary>
         private Vector2 SlotSizeCanonical(int slot) {
             VisualElement cell = _stage?.Q($"item_slot_{slot}");
-            return cell == null ? Vector2.zero : cell.worldBound.size;
+            // Through WorldToLocal, not world sizes: the Enhanced sheet and the loot panels are scaled.
+            return cell == null ? Vector2.zero : _stage.WorldToLocal(cell.worldBound).size;
         }
 
         private Vector2 SlotCentreCanonical(int slot) {
@@ -1893,9 +1897,7 @@ namespace BakAgain.UI.Inventory {
                 LayoutHint icon = Layout.InspectIcon;
                 return icon == null ? Vector2.zero : new Vector2(icon.Left.Value, icon.Top.Value);
             }
-            Rect stageRect = _stage.worldBound;
-            Rect cellRect = cell.worldBound;
-            return new Vector2(cellRect.center.x - stageRect.x, cellRect.center.y - stageRect.y);
+            return _stage.WorldToLocal(cell.worldBound.center);
         }
 
         /// <summary>
@@ -3484,6 +3486,11 @@ namespace BakAgain.UI.Inventory {
                 }
                 return;
             }
+            ShowOtherInventory();
+        }
+
+        /// <summary>The container window's switch (0x54C08), also a press on the side-by-side loot.</summary>
+        private void ShowOtherInventory() {
             // CMBINV.C:385-392 / 0x54C08: with a loot container it shows that; opened from travel
             // (no container) it shows the party's SHARED keys inventory instead. Either way the
             // switch is one-way — a portrait click is how you get back to a member.

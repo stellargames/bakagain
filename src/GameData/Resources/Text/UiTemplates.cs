@@ -111,8 +111,8 @@ public static class UiTemplates {
     public const string EnhancedSave = "port:template:enhanced_save";
     public const string EnhancedCancel = "port:template:enhanced_cancel";
 
-    /// <summary>The Enhanced cast screen's Exit stone; the faithful button carries the word in its image.</summary>
-    public const string EnhancedCastExit = "port:template:enhanced_cast_exit";
+    /// <summary>The Enhanced screens' Exit stone (cast, inventory); the faithful button carries the word in its image.</summary>
+    public const string EnhancedExit = "port:template:enhanced_exit";
 
     /// <summary>The Enhanced inventory's Use stone, in its two worded roles: Use on a member's pack, the
     /// next page on a long shop shelf (blank otherwise, as the faithful disc is).</summary>
@@ -148,6 +148,9 @@ public static class UiTemplates {
 
     /// <summary>The Enhanced travel HUD's status line: "Day <c>{day}</c> · <c>{hour}</c>:00".</summary>
     public const string EnhancedStatusKey = "port:template:enhanced_status";
+
+    /// <summary>The status line at a town: <c>{place}</c>, the town's name, before <c>{status}</c>, the line above.</summary>
+    public const string EnhancedStatusAtKey = "port:template:enhanced_status_at";
 
     /// <summary>
     /// An amount in prose (TASK-777): <c>{case}</c> is <c>sovereigns</c>, <c>royals</c> or <c>both</c>,
@@ -217,7 +220,7 @@ public static class UiTemplates {
         (EnhancedBadGameFolder, _ => "That folder does not hold the game's files."),
         (EnhancedSave, _ => "Save"),
         (EnhancedCancel, _ => "Cancel"),
-        (EnhancedCastExit, _ => "Exit"),
+        (EnhancedExit, _ => "Exit"),
         (EnhancedInvUse, _ => "Use"),
         (EnhancedInvNextPage, _ => "More"),
         (EnhancedCastHintPick, _ => "Point at a symbol to read it; click it to cast."),
@@ -236,6 +239,7 @@ public static class UiTemplates {
         (EnhancedInvBack, _ => "Back to the pack"),
         (EnhancedPendingKey, _ => "{text} (restart)"),
         (EnhancedStatusKey, _ => "Day {day} · {hour}:00"),
+        (EnhancedStatusAtKey, _ => "{place} · {status}"),
         (PercentKey, _ => EnglishPercent),
         (TouchMove, _ => "Move"),
         (TouchCast, _ => "Cast"),
