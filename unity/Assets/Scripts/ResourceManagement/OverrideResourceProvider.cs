@@ -81,6 +81,8 @@ namespace BakAgain.ResourceManagement {
         /// <see cref="OverrideResourceLocator"/> instead of having to fabricate a
         /// <c>ProvideHandle</c>.
         /// </summary>
+        private static readonly ILogger LayerLogger = LogManager.LoggerFactory.CreateLogger<OverrideResourceProvider>();
+
         internal static object LoadOverrideObject(string path, Type resourceType, string resourceId) {
             string json = File.ReadAllText(path);
 
@@ -108,8 +110,13 @@ namespace BakAgain.ResourceManagement {
                         : Array.Empty<string>();
                 object merged = createBaseline(resourceId);
                 foreach (string layer in layers.Count > 0 ? layers : new[] { path }) {
-                    merged = OverrideJsonMerge.OntoBaseline(
-                        File.ReadAllText(layer), merged, resourceType, JsonSettings);
+                    // A broken document from one mod costs only that layer, not the table.
+                    try {
+                        merged = OverrideJsonMerge.OntoBaseline(
+                            File.ReadAllText(layer), merged, resourceType, JsonSettings);
+                    } catch (Exception e) {
+                        LayerLogger.LogError("Override {Path} skipped: {Reason}", layer, e.Message);
+                    }
                 }
                 return merged;
             }

@@ -49,11 +49,15 @@ namespace BakAgain.ResourceManagement {
                 foreach (string zip in Directory.GetFiles(ModsRoot, "*.zip")) {
                     InstallFromInbox(zip, state);
                 }
-                List<InstalledMod> installed = Directory.GetDirectories(ModsRoot)
-                    .Where(d => ModFolder.IsMatch(Path.GetFileName(d)))
-                    .Select(ModArchive.ReadInstalled)
-                    .Where(m => m != null)
-                    .ToList();
+                var installed = new List<InstalledMod>();
+                foreach (string folder in Directory.GetDirectories(ModsRoot).Where(d => ModFolder.IsMatch(Path.GetFileName(d)))) {
+                    InstalledMod mod = ModArchive.ReadInstalled(folder);
+                    if (mod != null) {
+                        installed.Add(mod);
+                    } else {
+                        Logger.LogWarning("Mod folder {Folder} has no valid mod.json; skipped.", folder);
+                    }
+                }
                 SemVersion? game = !Application.isEditor && SemVersion.TryParse(Application.version, out SemVersion v) ? v : null;
                 Current = ModResolver.Resolve(installed, state, Mode, game);
             } catch (Exception e) {
@@ -123,6 +127,7 @@ namespace BakAgain.ResourceManagement {
         public static void Reset() {
             _initialized = false;
             ModsRootOverride = null;
+            OverrideResourceLocator.ClearAliasCache();
             Mode = default;
             Current = Empty;
         }

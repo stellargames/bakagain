@@ -191,6 +191,32 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
         }
 
         [Test]
+        public void BaselineMerge_ABrokenLayerIsSkipped_TheOthersStillApply() {
+            Mod("lo-mod", ("DAT/DIALSTYL.json", "{\"Rows\":[null,"));
+            Mod("hi-mod", ("DAT/DIALSTYL.json", "{\"Rows\":[null,null,{\"DefaultArea\":{\"Left\":\"13.75%\"}}]}"));
+            Order("hi-mod", "lo-mod");
+            ModLayers.Initialize();
+            LogAssert.Expect(LogType.Error, new Regex("lo-mod.*DIALSTYL\\.json skipped"));
+
+            var table = (DialogStyleTable)OverrideResourceProvider.LoadOverrideObject(
+                Located(DialogStyleTable.ResourceId, typeof(DialogStyleTable)), typeof(DialogStyleTable),
+                DialogStyleTable.ResourceId);
+
+            Assert.AreEqual(LayoutLength.Percent(13.75f), table.Get(2).DefaultArea.Left, "the higher mod's field");
+            Assert.AreEqual(LayoutLength.Px(66f), table.Get(2).DefaultArea.Top, "the shipped value under it");
+        }
+
+        [Test]
+        public void Initialize_FolderWithoutValidManifest_IsLoggedAndSkipped() {
+            Directory.CreateDirectory(Path.Combine(_mods, "no-manifest"));
+            LogAssert.Expect(LogType.Warning, new Regex("no-manifest has no valid mod\\.json"));
+
+            ModLayers.Initialize();
+
+            Assert.IsEmpty(ModLayers.Current.Active);
+        }
+
+        [Test]
         public void ItemSources_OnePerLayer_LowestFirst() {
             Mod("lo-mod", ("ObjectInfo/a.json", "{\"Number\":3,\"Name\":\"Low Blade\",\"Price\":5}"));
             Mod("hi-mod", ("ObjectInfo/a.json", "{\"Number\":3,\"Price\":9}"));

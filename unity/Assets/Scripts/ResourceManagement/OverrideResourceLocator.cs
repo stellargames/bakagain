@@ -100,16 +100,32 @@ namespace BakAgain.ResourceManagement {
         internal static IReadOnlyList<string> FindAll(string directory, string filename) =>
             Roots().Select(root => Find(root, directory, filename)).Where(path => path != null).Reverse().ToList();
 
+        // Each root's aliases.json, read once: the roots are fixed until the next start.
+        private static readonly Dictionary<string, IReadOnlyDictionary<string, string>> AliasCache = new();
+
+        /// <summary>Forget the cached <c>aliases.json</c> maps (<see cref="ModLayers.Reset"/>).</summary>
+        internal static void ClearAliasCache() {
+            lock (AliasCache) {
+                AliasCache.Clear();
+            }
+        }
+
         /// <summary>The file in one root, or else the file that root's <c>aliases.json</c> maps it to.</summary>
         private static string Find(string root, string directory, string filename) {
             string path = FindIgnoringCase(root, directory, filename);
             if (path != null) {
                 return path;
             }
-            // ponytail: aliases.json is re-read on every miss in a root that has one; cache per root if lookups show up in a profile.
             string extension = Path.GetExtension(filename);
             string alias = (directory.Replace('\\', '/') + "/" + Path.GetFileNameWithoutExtension(filename)).TrimStart('/');
-            foreach (var entry in ModAliases.Read(root)) {
+            IReadOnlyDictionary<string, string> aliases;
+            lock (AliasCache) {
+                if (!AliasCache.TryGetValue(root, out aliases)) {
+                    aliases = ModAliases.Read(root);
+                    AliasCache[root] = aliases;
+                }
+            }
+            foreach (var entry in aliases) {
                 if (string.Equals(entry.Key, alias, StringComparison.OrdinalIgnoreCase)) {
                     int slash = entry.Value.LastIndexOf('/');
                     return slash < 0 ? null
