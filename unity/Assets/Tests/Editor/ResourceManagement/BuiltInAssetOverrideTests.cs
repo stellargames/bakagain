@@ -1,13 +1,20 @@
 namespace BakAgain.Tests.Editor.ResourceManagement {
+    using BakAgain.Audio;
     using BakAgain.Core;
     using BakAgain.ResourceManagement;
     using BakAgain.Tests.TestSupport;
+    using BakAgain.UI;
+    using Cysharp.Threading.Tasks;
     using NUnit.Framework;
     using System;
+    using System.Collections;
+    using System.Collections.Generic;
     using System.IO;
     using System.Linq;
+    using System.Reflection;
     using UnityEngine;
     using UnityEngine.AddressableAssets;
+    using UnityEngine.TestTools;
     using Object = UnityEngine.Object;
 
     /// <summary>
@@ -130,6 +137,83 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
             Assert.IsNotNull(loaded);
             CollectionAssert.AreEqual(bank, loaded.bytes);
         }
+
+        private static readonly byte[] NotAFile = System.Text.Encoding.ASCII.GetBytes("not an image or a sound bank");
+
+        /// <summary>Runs <paramref name="body"/> and returns the log messages containing <paramref name="mark"/>;
+        /// Addressables' own logs of the failed load are not under test.</summary>
+        private static async UniTask<List<string>> Logged(string mark, Func<UniTask> body) {
+            var logged = new List<string>();
+            void Collect(string message, string stack, LogType type) {
+                if (message.Contains(mark)) logged.Add(message);
+            }
+            LogAssert.ignoreFailingMessages = true;
+            Application.logMessageReceived += Collect;
+            try {
+                await body();
+            } finally {
+                Application.logMessageReceived -= Collect;
+                LogAssert.ignoreFailingMessages = false;
+            }
+            return logged;
+        }
+
+        [UnityTest]
+        public IEnumerator BrokenStoneMod_PreloadCompletesAndDrawsNothingForIt() => UniTask.ToCoroutine(async () => {
+            var loaded = (Dictionary<string, Texture2D>)typeof(EnhancedArt)
+                .GetField("Loaded", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null);
+            var saved = new Dictionary<string, Texture2D>(loaded);
+            loaded.Clear();
+            try {
+                StartWithMod(Path.Combine("Resources", "Enhanced", "Stone", "marble.png"), NotAFile);
+
+                List<string> errors = await Logged("Enhanced art", EnhancedArt.PreloadAsync);
+
+                // Once per preload; a focused run's scene boots the game, whose own preload can see the mod too.
+                Assert.IsNotEmpty(errors);
+                Assert.IsTrue(errors.All(e => e.Contains("'Enhanced/Stone/marble'")), string.Join("\n", errors));
+                Assert.IsNull(EnhancedArt.Texture("marble"), "the broken one is drawn as nothing");
+                Assert.IsNotNull(EnhancedArt.Texture("slab"), "the others still load");
+                Assert.IsNotNull(EnhancedArt.Texture("parchment"));
+            } finally {
+                loaded.Clear();
+                foreach (var kv in saved) loaded[kv.Key] = kv.Value;
+            }
+        });
+
+        [UnityTest]
+        public IEnumerator CorruptSoundFontMod_LogsOnceAndPlaysWithoutMusic() => UniTask.ToCoroutine(async () => {
+            FieldInfo bank = typeof(MidiSynthPlayer).GetField("_soundFont", BindingFlags.NonPublic | BindingFlags.Static);
+            FieldInfo unusable = typeof(MidiSynthPlayer).GetField("_soundFontUnusable", BindingFlags.NonPublic | BindingFlags.Static);
+            object savedBank = bank.GetValue(null);
+            bank.SetValue(null, null);
+            unusable.SetValue(null, false);
+            var host = new GameObject("MidiSynthPlayerUnderTest", typeof(AudioSource));
+            try {
+                StartWithMod(Path.Combine("Resources", "Audio", "GeneralUser-GS.sf2"), NotAFile);
+                // The smallest Standard MIDI File: a header and one empty track.
+                byte[] smf = {
+                    0x4D, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 0, 0, 1, 0, 0x60,
+                    0x4D, 0x54, 0x72, 0x6B, 0, 0, 0, 4, 0, 0xFF, 0x2F, 0,
+                };
+
+                List<string> errors = await Logged("Sound bank", async () => {
+                    await MidiSynthPlayer.PreloadSoundFontAsync();
+                    MidiSynthPlayer player = host.AddComponent<MidiSynthPlayer>();
+                    for (int song = 0; song < 2; song++) {
+                        Assert.DoesNotThrow(() => player.Load(smf));
+                        Assert.DoesNotThrow(() => player.Play(loop: false));
+                        Assert.IsFalse(player.IsPlaying);
+                    }
+                });
+
+                Assert.AreEqual(1, errors.Count, string.Join("\n", errors));
+            } finally {
+                Object.DestroyImmediate(host);
+                bank.SetValue(null, savedBank);
+                unusable.SetValue(null, false);
+            }
+        });
 
         [Test]
         public void NoResourcesLoadLeft() {

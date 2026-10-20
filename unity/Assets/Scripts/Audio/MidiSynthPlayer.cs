@@ -1,11 +1,13 @@
 namespace BakAgain.Audio {
     using System;
     using System.IO;
+    using BakAgain.Core;
     using Cysharp.Threading.Tasks;
     using MeltySynth;
     using UnityEngine;
     using UnityEngine.AddressableAssets;
     using UnityEngine.ResourceManagement.AsyncOperations;
+    using ILogger = Microsoft.Extensions.Logging.ILogger;
 
     /// <summary>
     /// One MIDI voice for <see cref="MidiPlaybackManager"/>: a MeltySynth synthesizer + sequencer
@@ -21,7 +23,9 @@ namespace BakAgain.Audio {
         /// <summary>GeneralUser GS 2.0.3 (its license: BuiltIn/Audio/GeneralUser-GS-LICENSE.txt).</summary>
         private const string SoundFontResource = "Audio/GeneralUser-GS";
 
+        private static readonly ILogger Logger = LogManager.LoggerFactory.CreateLogger(nameof(MidiSynthPlayer));
         private static SoundFont _soundFont;
+        private static bool _soundFontUnusable;
 
         private readonly object _gate = new();
         private MidiFileSequencer _sequencer;
@@ -64,17 +68,35 @@ namespace BakAgain.Audio {
         /// build their synthesizer on their first <see cref="Load"/>.
         /// </summary>
         public static async UniTask PreloadSoundFontAsync() {
-            if (_soundFont != null) {
+            if (_soundFont != null || _soundFontUnusable) {
                 return;
             }
             AsyncOperationHandle<TextAsset> handle = Addressables.LoadAssetAsync<TextAsset>(SoundFontResource);
             try {
                 _soundFont = Parse(await handle.ToUniTask());
-            } catch (Exception) {
-                // Addressables has logged it; the first song throws (LoadSoundFont), as a missing bank always has.
+            } catch (Exception e) {
+                Unusable(e);
             } finally {
                 Addressables.Release(handle);
             }
+        }
+
+        /// <summary>The bank, loading it now only if the boot's preload never ran; null once it proved unusable.</summary>
+        private static SoundFont SoundFontOrNull() {
+            if (_soundFont == null && !_soundFontUnusable) {
+                try {
+                    _soundFont = LoadSoundFont();
+                } catch (Exception e) {
+                    Unusable(e);
+                }
+            }
+            return _soundFont;
+        }
+
+        /// <summary>A missing or broken bank (a mod's corrupt .sf2) is said once; the game then plays without music.</summary>
+        private static void Unusable(Exception e) {
+            _soundFontUnusable = true;
+            Logger.LogError("Sound bank '{Resource}' is unusable, no music this session: {Reason}", SoundFontResource, e.Message);
         }
 
         private static SoundFont LoadSoundFont() {
@@ -102,8 +124,11 @@ namespace BakAgain.Audio {
         public void Load(byte[] smf) {
             using var stream = new MemoryStream(smf, writable: false);
             var midiFile = new MidiFile(stream);
-            MidiFileSequencer sequencer = _sequencer
-                ?? new MidiFileSequencer(new Synthesizer(_soundFont ??= LoadSoundFont(), AudioSettings.outputSampleRate));
+            SoundFont bank = SoundFontOrNull();
+            if (bank == null) {
+                return;
+            }
+            MidiFileSequencer sequencer = _sequencer ?? new MidiFileSequencer(new Synthesizer(bank, AudioSettings.outputSampleRate));
             lock (_gate) {
                 _sequencer = sequencer;
                 _loaded = midiFile;

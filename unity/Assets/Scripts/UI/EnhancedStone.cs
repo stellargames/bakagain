@@ -1,10 +1,12 @@
 namespace BakAgain.UI {
+    using BakAgain.Core;
     using Cysharp.Threading.Tasks;
     using System.Collections.Generic;
     using System.Linq;
     using UnityEngine;
     using UnityEngine.AddressableAssets;
     using UnityEngine.UIElements;
+    using ILogger = Microsoft.Extensions.Logging.ILogger;
 
     /// <summary>The Enhanced screens' shared art: the HD stone, marble, copper and parchment at the
     /// Addressables addresses <c>Enhanced/Stone/*</c> (see <c>docs/asset-origins.md</c>).</summary>
@@ -12,23 +14,31 @@ namespace BakAgain.UI {
         public const string Folder = "Enhanced/Stone/";
 
         private static readonly Dictionary<string, Texture2D> Loaded = new();
+        private static readonly ILogger Logger = LogManager.LoggerFactory.CreateLogger(nameof(EnhancedArt));
 
         /// <summary>
         /// Loads every <see cref="Folder"/> address the catalog has, so <see cref="Texture"/> finds
         /// them loaded: screens are often laid out inside another load's <c>Completed</c> callback,
-        /// where a synchronous load throws.
+        /// where a synchronous load throws. One that fails (a mod's broken PNG) is drawn as nothing,
+        /// as a missing texture always was, and never stops the boot.
         /// </summary>
         public static async UniTask PreloadAsync() {
             string[] addresses = Addressables.ResourceLocators.SelectMany(l => l.Keys).OfType<string>()
                 .Where(k => k.StartsWith(Folder, System.StringComparison.Ordinal)).Distinct().ToArray();
             foreach (string address in addresses) {
-                Loaded[address[Folder.Length..]] = await Addressables.LoadAssetAsync<Texture2D>(address).ToUniTask();
+                string name = address[Folder.Length..];
+                try {
+                    Loaded[name] = await Addressables.LoadAssetAsync<Texture2D>(address).ToUniTask();
+                } catch (System.Exception e) {
+                    Logger.LogError("Enhanced art '{Address}' failed to load, drawn as nothing: {Reason}", address, e.Message);
+                    Loaded[name] = null;
+                }
             }
         }
 
         /// <summary>Loaded once: the screens ask for the same few textures on every redraw.</summary>
         public static Texture2D Texture(string name) {
-            if (!Loaded.TryGetValue(name, out Texture2D t) || t == null) {
+            if (!Loaded.TryGetValue(name, out Texture2D t)) {
                 // Not preloaded (a test building a screen without the boot): WaitForCompletion throws
                 // inside another load's Completed callback, which the boot's preload keeps the game out of.
                 Loaded[name] = t = Addressables.LoadAssetAsync<Texture2D>(Folder + name).WaitForCompletion();
