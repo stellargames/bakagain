@@ -15,7 +15,7 @@ public sealed record ModValidation(ModManifest? Manifest, IReadOnlyList<string> 
 /// <summary>Validates, installs and packs mod archives (mod system spec 4.3). A downloaded zip is untrusted input.</summary>
 public static class ModArchive {
     private static readonly string[] FixedFolders = { "SCX", "BMX", "Lang", "Resources", "ObjectInfo" };
-    private static readonly string[] AllowedExtensions = { ".png", ".jpg", ".json", ".po", ".ttf", ".otf", ".sf2" };
+    private static readonly string[] AllowedExtensions = { ".png", ".jpg", ".json", ".po", ".ttf", ".otf", ".bdf", ".sf2" };
     private static readonly Regex SunVariant = new(@"^BMX/([^/]+)/(\d+)\.(front|left|right|back)\.png\z");
     private static readonly Regex DataFolder = new("^[A-Z0-9]+\\z");
     private static readonly Regex DriveLetter = new("^[A-Za-z]:");
@@ -73,10 +73,14 @@ public static class ModArchive {
                 if (Directory.Exists(old) && !Directory.Exists(finalDir)) Directory.Move(old, finalDir);
                 throw;
             }
-            DeleteIfExists(old);
         } catch {
             DeleteIfExists(tmp);
             throw;
+        }
+        // The new version is in place: an .old that cannot be deleted now is left for the next install (the scan skips it).
+        try {
+            DeleteIfExists(old);
+        } catch (Exception e) when (e is IOException or UnauthorizedAccessException) {
         }
         return ReadInstalled(finalDir) ?? throw new InvalidDataException("installed mod has no valid mod.json");
     }
@@ -138,6 +142,7 @@ public static class ModArchive {
         } else {
             manifest = ModManifest.Parse(readText("mod.json"), out IReadOnlyList<string> manifestErrors);
             errors.AddRange(manifestErrors.Select(e => "mod.json: " + e));
+            if (manifest != null) warnings.AddRange(manifest.Warnings.Select(w => "mod.json: " + w));
         }
 
         var present = new HashSet<string>(files);

@@ -27,6 +27,7 @@ hd-trees/
   Resources/<path>.png         a built-in Enhanced picture, e.g. Resources/Enhanced/Sky/moon_large.png
   Resources/<path>.sf2         the music sound bank
   Lang/<code>/<code>.po        a translation (a language mod)
+  Lang/<code>/fonts/GAME.bdf   extra letters for the game font (BOOK.bdf: the book font)
 ```
 
 To see what a file is called and how big it is, extract the game's own with
@@ -99,7 +100,7 @@ the same sprite in another zone's palette (a winter zone, say) is a different pi
 | `game` | the game versions it works with | no |
 | `dependencies` | other mods it needs, with a version range each | no |
 | `conflicts` | mods it cannot be used with | no |
-| `kinds` | what it changes, for display: `sprites`, `textures`, `portraits`, `sounds`, `music`, `rules`, `items`, `loot`, `text`, `language` | no |
+| `kinds` | what it changes, for display: `sprites`, `textures`, `portraits`, `sounds`, `music`, `rules`, `items`, `loot`, `text`, `language`; another kind is a warning, not an error | no |
 | `modes` | `enhanced`, `classic` or both; `["enhanced"]` when absent | no |
 
 A version range is `>=1.2.0` (this or later), `^1.2.0` (this or later, same major version) or an
@@ -135,8 +136,8 @@ dotnet run --project src/BakMod -- pack <folder> [-o <outDir>]
 
 - `validate` checks a zip the way the game does before installing it: a readable `mod.json` with
   valid fields, safe paths, no duplicate entries, only the folders above and only `.png`, `.jpg`,
-  `.json`, `.po`, `.ttf`, `.otf` and `.sf2` files, sun-lit versions with their `<n>.png`, and
-  aliases that point at files in the mod. It prints `OK (<id> <version>)` or the errors.
+  `.json`, `.po`, `.ttf`, `.otf`, `.bdf` and `.sf2` files, sun-lit versions with their `<n>.png`, and
+  aliases that point at files in the mod. It prints any warnings, then `OK (<id> <version>)` or the errors.
 - `pack` validates the folder and writes `<id>-<version>.zip` into `<outDir>` (default: the current
   folder; never inside the mod folder itself, so a second pack does not swallow the first).
 

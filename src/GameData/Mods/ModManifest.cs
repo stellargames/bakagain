@@ -28,6 +28,8 @@ public sealed class ModManifest {
     public IReadOnlyList<string> Conflicts { get; private set; } = Array.Empty<string>();
     public IReadOnlyList<string> Kinds { get; private set; } = Array.Empty<string>();
     public IReadOnlyList<ModMode> Modes { get; private set; } = new[] { ModMode.Enhanced };
+    /// <summary>What is accepted but probably a mistake, such as an unknown kind.</summary>
+    public IReadOnlyList<string> Warnings { get; private set; } = Array.Empty<string>();
 
     public bool IsLanguage => Kinds.Contains("language");
 
@@ -82,7 +84,8 @@ public sealed class ModManifest {
 
             m.Conflicts = StrList(root, "conflicts", errs);
             m.Kinds = StrList(root, "kinds", errs);
-            foreach (string k in m.Kinds.Where(k => !KnownKinds.Contains(k))) errs.Add($"unknown kind '{k}'");
+            // Kinds only describe the mod; one this game does not know may be a newer game's.
+            m.Warnings = m.Kinds.Where(k => !KnownKinds.Contains(k)).Select(k => $"unknown kind '{k}'").ToList();
 
             if (root.TryGetProperty("modes", out _)) {
                 var modes = new List<ModMode>();

@@ -3,8 +3,10 @@ namespace BakAgain.Tests.Editor.Core {
     using BakAgain.Core.Services;
     using BakAgain.Tests.Editor.Core.Fixtures;
     using Cysharp.Threading.Tasks;
+    using GameData.Mods;
     using NUnit.Framework;
     using System.Collections.Generic;
+    using System.IO;
 
     [TestFixture]
     public class SaveGameServiceTests {
@@ -22,6 +24,24 @@ namespace BakAgain.Tests.Editor.Core {
                 GameSessionSource.NewGame);
             _saves = new FakeSaveGameDirectoryService();
             _service = new SaveGameService(_session, _saves, new NullLogger<SaveGameService>(), new GameClock(_session), _resources = new FakeResourceProviderService());
+        }
+
+        [Test]
+        public void DeleteSlot_AlsoDeletesTheModsSidecar() {
+            string dir = Path.Combine(Path.GetTempPath(), "bakagain-saves-" + System.Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try {
+                string save = Path.Combine(dir, "SAVE01.GAM");
+                File.WriteAllText(save, "x");
+                File.WriteAllText(SaveModList.SidecarPath(save), "{}");
+
+                new SaveGameDirectoryService(new NullLogger<SaveGameDirectoryService>()).DeleteSlotAsync(save).GetAwaiter().GetResult();
+
+                Assert.IsFalse(File.Exists(save));
+                Assert.IsFalse(File.Exists(SaveModList.SidecarPath(save)), "the slot's mod list goes with it");
+            } finally {
+                Directory.Delete(dir, true);
+            }
         }
 
         [Test]

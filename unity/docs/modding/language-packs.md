@@ -18,9 +18,7 @@ A finished pack is installed as a **language mod**: a zip like any other mod (se
 
 Install it the way every mod is installed (drop the zip into the game's `mods` folder, or **Install
 from file…** on the Mods screen), then choose the language in **Preferences** and restart. A
-language mod is not listed on the Mods screen: it is used only while it is the chosen language. A
-mod zip cannot carry `fonts/*.bdf` yet; a pack that adds letters is installed in the dev folder
-below until it can.
+language mod is not listed on the Mods screen: it is used only while it is the chosen language.
 
 ### In the dev overrides folder
 

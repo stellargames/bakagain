@@ -146,6 +146,26 @@ public class ModArchiveTests : IDisposable {
     }
 
     [Fact]
+    public void Validate_LanguageModFonts_Ok() {
+        string folder = Folder(new Dictionary<string, string> {
+            ["mod.json"] = Manifest(extra: ", \"kinds\": [\"language\"]"),
+            ["Lang/xx/xx.po"] = "x",
+            ["Lang/xx/fonts/GAME.bdf"] = "STARTFONT 2.1",
+        });
+        ModValidation v = ModArchive.ValidateFolder(folder);
+        Assert.True(v.Ok, string.Join("; ", v.Errors));
+    }
+
+    [Fact]
+    public void Validate_UnknownKind_IsAWarning() {
+        var f = Good();
+        f["mod.json"] = Manifest(extra: ", \"kinds\": [\"smells\"]");
+        ModValidation v = ModArchive.ValidateZip(Zip(f));
+        Assert.True(v.Ok, string.Join("; ", v.Errors));
+        Assert.Contains(v.Warnings, w => w.Contains("smells"));
+    }
+
+    [Fact]
     public void Install_Extracts_ToIdFolder() {
         string root = Path.Combine(_dir, "mods");
         InstalledMod m = ModArchive.Install(Zip(Good()), root);
@@ -165,6 +185,26 @@ public class ModArchiveTests : IDisposable {
         InstalledMod m = ModArchive.Install(Zip(v2, "b.zip"), root);
         Assert.Equal("2.0.0", m.Manifest.Version.ToString());
         Assert.False(File.Exists(Path.Combine(root, "pack", "SCX", "TITLE.png")));
+    }
+
+    [Fact]
+    public void Install_OldFolderUndeletable_StillInstalled() {
+        if (OperatingSystem.IsWindows()) return; // the lock below is a Unix permission
+        string root = Path.Combine(_dir, "mods");
+        ModArchive.Install(Zip(Good(), "a.zip"), root);
+        // A folder whose files cannot be removed: deleting <id>.old fails after the swap.
+        string scx = Path.Combine(root, "pack", "SCX");
+        File.SetUnixFileMode(scx, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+        try {
+            var v2 = Good();
+            v2["mod.json"] = Manifest(version: "2.0.0");
+            InstalledMod m = ModArchive.Install(Zip(v2, "b.zip"), root);
+            Assert.Equal("2.0.0", m.Manifest.Version.ToString());
+            Assert.True(Directory.Exists(Path.Combine(root, "pack.old")), "left behind; the scan skips it");
+        } finally {
+            string oldScx = Path.Combine(root, "pack.old", "SCX");
+            if (Directory.Exists(oldScx)) File.SetUnixFileMode(oldScx, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
     }
 
     [Fact]

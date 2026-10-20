@@ -108,9 +108,9 @@ namespace BakAgain.Core.DI {
                 ResourceManagementInitializer.InitializeResourceManagement();
                 await MidiSynthPlayer.PreloadSoundFontAsync();
                 await BookSpreadBackdrop.PreloadAsync();
-                if (GameOptions.Enhanced) {
-                    await EnhancedArt.PreloadAsync();
-                }
+                // Always: Enhanced can be switched on in this session, and its screens then lay out
+                // inside load callbacks, where loading the art synchronously throws.
+                await EnhancedArt.PreloadAsync();
 
                 GameFonts.Install(_gamePanelSettings);
                 // The menus before any game is loaded read the catalog too (the V banner, the

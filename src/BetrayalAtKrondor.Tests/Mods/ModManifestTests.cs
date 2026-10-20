@@ -88,10 +88,11 @@ public class ModManifestTests {
     }
 
     [Fact]
-    public void Parse_UnknownKind_Error() {
+    public void Parse_UnknownKind_Warning() {
         ModManifest? m = Parse(SpecExample.Replace("\"sprites\"", "\"smells\""), out IReadOnlyList<string> errors);
-        Assert.Null(m);
-        Assert.Contains(errors, e => e.Contains("smells"));
+        Assert.Empty(errors);
+        Assert.NotNull(m);
+        Assert.Contains(m.Warnings, w => w.Contains("smells"));
     }
 
     [Fact]

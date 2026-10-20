@@ -94,15 +94,19 @@ namespace BakAgain.UI {
 
         /// <summary>
         /// Installs a mod zip into <see cref="ModLayers.ModsRoot"/> now (an install cannot wait for Save:
-        /// it replaces the folder) and puts it at the top, enabled. Throws
-        /// <see cref="InvalidDataException"/> listing what is wrong with the zip.
+        /// it replaces the folder). A new mod goes to the top, enabled; a re-installed one keeps its place
+        /// and its on/off state. Throws <see cref="InvalidDataException"/> listing what is wrong with the zip.
         /// </summary>
         public void Install(string zipPath) {
             InstalledMod mod = ModArchive.Install(zipPath, ModLayers.ModsRoot);
             string folder = Path.GetFullPath(mod.Folder);
-            _mods.RemoveAll(e => e.Id == mod.Manifest.Id);
             _uninstalled.RemoveAll(m => Path.GetFullPath(m.Folder) == folder);
-            _mods.Insert(0, new Entry(mod, true));
+            int at = _mods.FindIndex(e => e.Id == mod.Manifest.Id);
+            if (at < 0) {
+                _mods.Insert(0, new Entry(mod, true));
+            } else {
+                _mods[at] = new Entry(mod, _mods[at].Enabled);
+            }
         }
 
         /// <summary>Why the mod is not active, as resolved at start.</summary>
@@ -364,7 +368,8 @@ namespace BakAgain.UI {
             MetaMenu.PickZip(Templates.Format(Templates.ModsInstallFile), zip => {
                 try {
                     _draft.Install(zip);
-                } catch (Exception e) when (e is InvalidDataException or IOException or UnauthorizedAccessException) {
+                } catch (Exception e) {
+                    // Any failure, as at start: a bad entry name can throw ArgumentException or NotSupportedException.
                     Logger.LogError("Mod {Zip} could not be installed: {Errors}", zip, e.Message);
                     _error.text = e.Message;
                     return;

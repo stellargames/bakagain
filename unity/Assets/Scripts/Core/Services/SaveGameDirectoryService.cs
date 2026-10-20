@@ -308,6 +308,15 @@ namespace BakAgain.Core.Services {
             } catch (Exception e) {
                 _logger.LogError(e, "Failed to delete save {Path}.", fullPath);
             }
+            // The slot's mod list goes with it.
+            string mods = GameData.Mods.SaveModList.SidecarPath(fullPath);
+            try {
+                if (File.Exists(mods)) {
+                    File.Delete(mods);
+                }
+            } catch (Exception e) {
+                _logger.LogError(e, "Failed to delete the mod list of save {Path}.", fullPath);
+            }
             return UniTask.CompletedTask;
         }
 

@@ -55,6 +55,9 @@ namespace BakAgain.ResourceManagement {
                 Current = Empty;
             }
 
+            if (GameVersion == null) {
+                Logger.LogWarning("Mods' game versions are not checked: this is the Editor or a development build ({Version}).", Application.version);
+            }
             string mode = Mode.ToString().ToLowerInvariant();
             string active = Current.Active.Count == 0
                 ? "none"
@@ -65,9 +68,11 @@ namespace BakAgain.ResourceManagement {
             }
         }
 
-        /// <summary>The game version mods are checked against; none in the Editor (spec: my calls).</summary>
-        internal static SemVersion? GameVersion =>
-            !Application.isEditor && SemVersion.TryParse(Application.version, out SemVersion v) ? v : null;
+        /// <summary>The game version mods are checked against; none in the Editor or a development build (spec 4.1).</summary>
+        internal static SemVersion? GameVersion => GameVersionOf(Application.isEditor || Debug.isDebugBuild, Application.version);
+
+        internal static SemVersion? GameVersionOf(bool devBuild, string version) =>
+            !devBuild && SemVersion.TryParse(version, out SemVersion v) ? v : null;
 
         /// <summary>Whether a folder in <see cref="ModsRoot"/> is an installed mod's, by its name.</summary>
         internal static bool IsModFolder(string folder) => ModFolder.IsMatch(Path.GetFileName(folder));
@@ -100,13 +105,21 @@ namespace BakAgain.ResourceManagement {
             }
         }
 
-        /// <summary>The manual install path: a new mod goes to the top of the list and its zip is deleted.</summary>
+        /// <summary>
+        /// The manual install path: a new mod goes to the top of the list, enabled; a re-installed one
+        /// keeps its place and its on/off state. The zip is deleted.
+        /// </summary>
         private static void InstallFromInbox(string zip, List<ModStateEntry> state) {
             try {
                 InstalledMod mod = ModArchive.Install(zip, ModsRoot);
                 string id = mod.Manifest.Id;
-                state.RemoveAll(e => e.Id == id);
-                state.Insert(0, new ModStateEntry(id, mod.Manifest.Version.ToString(), true));
+                int at = state.FindIndex(e => e.Id == id);
+                var entry = new ModStateEntry(id, mod.Manifest.Version.ToString(), at < 0 || state[at].Enabled);
+                if (at < 0) {
+                    state.Insert(0, entry);
+                } else {
+                    state[at] = entry;
+                }
                 ModStateFile.Write(StatePath, state);
                 File.Delete(zip);
                 Logger.LogInformation("Installed mod {Id} {Version} from {Zip}.", id, mod.Manifest.Version.ToString(), zip);

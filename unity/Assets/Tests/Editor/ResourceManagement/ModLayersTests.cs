@@ -94,6 +94,36 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
         }
 
         [Test]
+        public void Initialize_InboxReinstall_KeepsPositionAndState() {
+            Mod("aa");
+            Mod("bb");
+            ModStateFile.Write(Path.Combine(_mods, "mods.json"),
+                new[] { new ModStateEntry("aa", "1.0.0", true), new ModStateEntry("bb", "1.0.0", false) });
+            string source = Path.Combine(Path.GetTempPath(), "bakagain-modsrc-" + Guid.NewGuid().ToString("N"));
+            try {
+                Directory.CreateDirectory(source);
+                File.WriteAllText(Path.Combine(source, "mod.json"), Manifest("bb"));
+                string zip = ModArchive.Pack(source, _mods);
+
+                ModLayers.Initialize();
+
+                Assert.IsFalse(File.Exists(zip), "an installed zip is deleted");
+                var state = ModStateFile.Read(Path.Combine(_mods, "mods.json"));
+                CollectionAssert.AreEqual(new[] { "aa", "bb" }, state.Select(e => e.Id).ToArray(), "a re-install keeps its place");
+                Assert.IsFalse(state[1].Enabled, "and stays off");
+            } finally {
+                Directory.Delete(source, true);
+            }
+        }
+
+        [Test]
+        public void GameVersion_SkippedInTheEditorAndDevelopmentBuilds() {
+            Assert.IsNull(ModLayers.GameVersionOf(devBuild: true, "0.2.0-beta"));
+            Assert.AreEqual("0.2.0-beta", ModLayers.GameVersionOf(devBuild: false, "0.2.0-beta")?.ToString());
+            Assert.IsNull(ModLayers.GameVersionOf(devBuild: false, "not a version"));
+        }
+
+        [Test]
         public void Initialize_BadInboxZip_RenamedFailed() {
             Directory.CreateDirectory(_mods);
             string zip = Path.Combine(_mods, "broken.zip");

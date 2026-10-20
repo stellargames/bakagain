@@ -161,6 +161,28 @@ namespace BakAgain.Tests.Editor.UI {
         }
 
         [Test]
+        public void Draft_ReinstallFromZip_KeepsPositionAndState() {
+            Mod("aa");
+            Mod("bb");
+            Order("aa", "bb");
+            string source = Path.Combine(Path.GetTempPath(), "bakagain-modsrc-" + Guid.NewGuid().ToString("N"));
+            try {
+                Directory.CreateDirectory(source);
+                File.WriteAllText(Path.Combine(source, "mod.json"), Manifest("bb"));
+                string zip = ModArchive.Pack(source, source);
+                ModsDraft draft = ModsDraft.Load();
+                draft.Toggle("bb");
+
+                draft.Install(zip);
+
+                CollectionAssert.AreEqual(new[] { "aa", "bb" }, Ids(draft), "a re-install keeps its place");
+                Assert.IsFalse(draft.Mods[1].Enabled, "and its on/off state");
+            } finally {
+                Directory.Delete(source, true);
+            }
+        }
+
+        [Test]
         public void Draft_InstallFromZip_GoesToTop() {
             Mod("aa");
             Order("aa");
