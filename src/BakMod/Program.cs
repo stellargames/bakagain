@@ -18,12 +18,13 @@ static int Pack(string folder, string outDir) {
     // Packing into the mod's own folder would put the zip inside the next pack; write beside the folder instead.
     string full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder));
     if (Path.TrimEndingDirectorySeparator(Path.GetFullPath(outDir)) == full && Path.GetDirectoryName(full) is { } parent) outDir = parent;
-    int rc = Report(ModArchive.ValidateFolder(folder), folder);
+    ModValidation v = ModArchive.ValidateFolder(folder);
+    int rc = Report(v, folder);
     if (rc != 0) return rc;
     try {
-        Console.WriteLine(ModArchive.Pack(folder, outDir));
+        Console.WriteLine(ModArchive.Pack(folder, outDir, v));
         return 0;
-    } catch (Exception e) when (e is IOException or UnauthorizedAccessException) {
+    } catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidDataException) {
         Console.Error.WriteLine("error: " + e.Message);
         return 1;
     }

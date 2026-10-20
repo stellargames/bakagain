@@ -27,6 +27,12 @@ for _ in 1 2; do (cd "$tmp/good" && dotnet run --project "$OLDPWD/src/BakMod" --
 bakmod validate "$tmp/smoke-mod-1.0.0.zip" > /dev/null
 test -z "$(find "$tmp/good" -name '*.zip')"
 
+# -o inside the mod folder is refused, not packed into itself.
+rc=0; bakmod pack "$tmp/good" -o "$tmp/good/out" 2> "$tmp/err" || rc=$?
+[ "$rc" = 1 ] || { echo "-o inside folder: expected exit 1, got $rc"; exit 1; }
+grep -q '^error:.*inside the mod folder' "$tmp/err"
+test ! -e "$tmp/good/out"
+
 rc=0; bakmod pack "$tmp/nonexistent" 2> "$tmp/err" || rc=$?
 [ "$rc" = 1 ] || { echo "missing folder: expected exit 1, got $rc"; exit 1; }
 grep -q '^error:' "$tmp/err"
