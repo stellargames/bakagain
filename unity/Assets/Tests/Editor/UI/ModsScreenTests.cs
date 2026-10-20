@@ -97,6 +97,22 @@ namespace BakAgain.Tests.Editor.UI {
         }
 
         [Test]
+        public void Draft_Uninstall_DeletesAnInstallsLeftoversToo() {
+            string aa = Mod("aa");
+            Directory.CreateDirectory(aa + ".old"); // a delete that failed after an earlier re-install
+            Directory.CreateDirectory(aa + ".tmp");
+            Order("aa");
+            ModsDraft draft = ModsDraft.Load();
+
+            draft.Uninstall("aa");
+            draft.Save();
+
+            Assert.IsFalse(Directory.Exists(aa));
+            Assert.IsFalse(Directory.Exists(aa + ".old"), "or the next start would put it back");
+            Assert.IsFalse(Directory.Exists(aa + ".tmp"));
+        }
+
+        [Test]
         public void Draft_UninstallDeleteFails_StaysDisabled() {
             string aa = Mod("aa");
             Mod("bb");

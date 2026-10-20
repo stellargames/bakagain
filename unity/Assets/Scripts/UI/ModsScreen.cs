@@ -129,8 +129,8 @@ namespace BakAgain.UI {
         private IEnumerable<ModStateEntry> State() =>
             _mods.Select(e => new ModStateEntry(e.Id, e.Mod.Manifest.Version.ToString(), e.Enabled));
 
-        /// <summary>Deletes an uninstalled mod's folder; tests make it fail.</summary>
-        internal Action<string> DeleteFolder { get; set; } = folder => Directory.Delete(folder, true);
+        /// <summary>Deletes an uninstalled mod's folder and an install's leftovers beside it; tests make it fail.</summary>
+        internal Action<string> DeleteFolder { get; set; } = ModArchive.DeleteInstalled;
 
         /// <summary>
         /// Deletes the uninstalled mods' folders, then writes <c>mods.json</c>. A folder that could not be

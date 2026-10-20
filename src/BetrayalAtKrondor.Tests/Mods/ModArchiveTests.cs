@@ -310,7 +310,7 @@ public class ModArchiveTests : IDisposable {
 
     [Fact]
     public void Validate_DefaultLimits_AreTheDocumentedOnes() {
-        Assert.Equal(new ModArchive.ZipLimits(20_000, 256L * 1024 * 1024, 1024L * 1024 * 1024), ModArchive.ZipLimits.Default);
+        Assert.Equal(new ModArchive.ZipLimits(20_000, 256L * 1024 * 1024, 1024L * 1024 * 1024, 1024 * 1024), ModArchive.ZipLimits.Default);
         Assert.True(ModArchive.ValidateZip(Zip(Good())).Ok);
     }
 
@@ -367,16 +367,103 @@ public class ModArchiveTests : IDisposable {
         ModArchive.Install(Zip(Good(), "a.zip"), root);
         // A crash between the two moves: only <id>.old and a finished <id>.tmp remain.
         Directory.Move(Path.Combine(root, "pack"), Path.Combine(root, "pack.old"));
-        ModArchive.RecoverStrandedInstalls(root);
+        Assert.Empty(ModArchive.RecoverStrandedInstalls(root, new[] { "pack" }));
         Assert.Equal("pack", ModArchive.ReadInstalled(Path.Combine(root, "pack"))!.Manifest.Id);
         Assert.False(Directory.Exists(Path.Combine(root, "pack.old")));
 
         // When the new version is in place, .old is left alone.
         Directory.CreateDirectory(Path.Combine(root, "pack.old"));
-        ModArchive.RecoverStrandedInstalls(root);
+        ModArchive.RecoverStrandedInstalls(root, new[] { "pack" });
         Assert.True(Directory.Exists(Path.Combine(root, "pack.old")));
         Assert.NotNull(ModArchive.ReadInstalled(Path.Combine(root, "pack")));
-        ModArchive.RecoverStrandedInstalls(Path.Combine(_dir, "no-such-root"));
+        Assert.Empty(ModArchive.RecoverStrandedInstalls(Path.Combine(_dir, "no-such-root"), new[] { "pack" }));
+    }
+
+    [Fact]
+    public void RecoverStrandedInstalls_UnlistedId_LeftAlone() {
+        // An uninstalled mod is no longer in mods.json: its leftover .old must not come back.
+        string root = Path.Combine(_dir, "mods");
+        Directory.CreateDirectory(Path.Combine(root, "pack.old"));
+        ModArchive.RecoverStrandedInstalls(root, Array.Empty<string>());
+        Assert.True(Directory.Exists(Path.Combine(root, "pack.old")));
+        Assert.False(Directory.Exists(Path.Combine(root, "pack")));
+    }
+
+    [Fact]
+    public void RecoverStrandedInstalls_OneFailedMove_TheOthersStillRecovered() {
+        string root = Path.Combine(_dir, "mods");
+        Directory.CreateDirectory(Path.Combine(root, "aa.old"));
+        Directory.CreateDirectory(Path.Combine(root, "bb.old"));
+        File.WriteAllText(Path.Combine(root, "aa"), "a file where the folder goes");
+
+        string failure = Assert.Single(ModArchive.RecoverStrandedInstalls(root, new[] { "aa", "bb" }));
+
+        Assert.Contains("aa.old", failure);
+        Assert.True(Directory.Exists(Path.Combine(root, "bb")));
+    }
+
+    [Fact]
+    public void DeleteInstalled_RemovesTheFolderAndItsOldAndTmp() {
+        string root = Path.Combine(_dir, "mods");
+        ModArchive.Install(Zip(Good(), "a.zip"), root);
+        Directory.CreateDirectory(Path.Combine(root, "pack.old"));
+        Directory.CreateDirectory(Path.Combine(root, "pack.tmp"));
+        Directory.CreateDirectory(Path.Combine(root, "pack-other"));
+
+        ModArchive.DeleteInstalled(Path.Combine(root, "pack"));
+
+        Assert.Equal(new[] { "pack-other" }, Directory.GetFileSystemEntries(root).Select(Path.GetFileName).ToArray());
+    }
+
+    /// <summary>A stream that never ends: what a lying header inflates to on a runtime that ignores it.</summary>
+    private sealed class Endless : Stream {
+        public long Served;
+        public override int Read(byte[] buffer, int offset, int count) {
+            Array.Fill(buffer, (byte)' ', offset, count);
+            Served += count;
+            return count;
+        }
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override void Flush() { }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
+    [Fact]
+    public void ReadCappedText_ReadsAtMostCapPlusOne_ThenRefuses() {
+        var stream = new Endless();
+        var e = Assert.Throws<InvalidDataException>(() => ModArchive.ReadCappedText(stream, "mod.json", 1000));
+        Assert.Equal("mod.json is larger than 1000 bytes", e.Message);
+        Assert.True(stream.Served <= 1001, $"read {stream.Served} bytes");
+        Assert.Equal("{}", ModArchive.ReadCappedText(new MemoryStream(System.Text.Encoding.UTF8.GetBytes("{}")), "mod.json", 2));
+    }
+
+    [Fact]
+    public void Validate_ManifestOverTextCap_Refused() {
+        var f = Good();
+        f["mod.json"] = Manifest() + new string(' ', 200);
+        ModValidation v = ModArchive.ValidateZip(Zip(f), new ModArchive.ZipLimits(100, 4000, 5000, TextBytes: 100));
+        Assert.False(v.Ok);
+        Assert.Contains("mod.json is larger than 100 bytes", Assert.Single(v.Errors));
+    }
+
+    [Fact]
+    public void Validate_AliasesOverTextCap_Refused_Folder() {
+        var f = Good();
+        f["aliases.json"] = "{" + new string(' ', ModArchive.MaxTextBytes) + "}";
+        ModValidation v = ModArchive.ValidateFolder(Folder(f));
+        Assert.Contains($"aliases.json is larger than {ModArchive.MaxTextBytes} bytes", Assert.Single(v.Errors));
+    }
+
+    [Fact]
+    public void CheckDeclaredSizes_HugeDeclaredLengths_RefusedWithoutOverflow() {
+        List<string> errors = ModArchive.CheckDeclaredSizes(new[] { ("a", long.MaxValue), ("b", long.MaxValue) }, ModArchive.ZipLimits.Default);
+        Assert.Contains(errors, e => e.StartsWith("archive is at least "));
     }
 
     [Fact]

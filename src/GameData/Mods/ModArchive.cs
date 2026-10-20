@@ -19,8 +19,10 @@ public static class ModArchive {
     internal const int MaxEntries = 20_000;
     internal const long MaxEntryBytes = 256L * 1024 * 1024;
     internal const long MaxTotalBytes = 1024L * 1024 * 1024;
+    // mod.json and aliases.json are read into memory to validate: a few KiB in practice.
+    internal const int MaxTextBytes = 1024 * 1024;
 
-    internal readonly record struct ZipLimits(int Entries, long EntryBytes, long TotalBytes) {
+    internal readonly record struct ZipLimits(int Entries, long EntryBytes, long TotalBytes, int TextBytes = MaxTextBytes) {
         public static readonly ZipLimits Default = new(MaxEntries, MaxEntryBytes, MaxTotalBytes);
     }
 
@@ -35,11 +37,12 @@ public static class ModArchive {
     internal static ModValidation ValidateZip(string zipPath, ZipLimits limits) {
         try {
             using ZipArchive zip = ZipFile.OpenRead(zipPath);
-            List<string> tooBig = CheckDeclaredSizes(zip, limits);
+            List<string> tooBig = CheckDeclaredSizes(zip.Entries.Select(e => (e.FullName, e.Length)).ToList(), limits);
             if (tooBig.Count > 0) return new ModValidation(null, tooBig, Array.Empty<string>());
+            // Bounded by bytes read, not by the header: Unity's Mono inflates past the declared size.
             return Validate(zip.Entries.Select(e => e.FullName).ToList(), name => {
-                using var r = new StreamReader(zip.GetEntry(name)!.Open());
-                return r.ReadToEnd();
+                using Stream s = zip.GetEntry(name)!.Open();
+                return ReadCappedText(s, name, limits.TextBytes);
             });
         } catch (Exception e) when (e is InvalidDataException or IOException or UnauthorizedAccessException) {
             return new ModValidation(null, new[] { "cannot read zip: " + e.Message }, Array.Empty<string>());
@@ -47,21 +50,44 @@ public static class ModArchive {
     }
 
     // The sizes in the central directory: a fast refusal. Install counts what it really writes.
-    private static List<string> CheckDeclaredSizes(ZipArchive zip, ZipLimits limits) {
+    internal static List<string> CheckDeclaredSizes(IReadOnlyList<(string Name, long Length)> entries, ZipLimits limits) {
         var errors = new List<string>();
-        if (zip.Entries.Count > limits.Entries) errors.Add($"archive has {zip.Entries.Count} entries; the limit is {limits.Entries}");
-        ZipArchiveEntry? big = zip.Entries.FirstOrDefault(e => e.Length > limits.EntryBytes);
-        if (big != null) errors.Add($"entry '{big.FullName}' is {big.Length} bytes uncompressed; the limit is {limits.EntryBytes} per entry");
-        long total = zip.Entries.Sum(e => e.Length);
-        if (total > limits.TotalBytes) errors.Add($"archive is {total} bytes uncompressed; the limit is {limits.TotalBytes}");
+        if (entries.Count > limits.Entries) errors.Add($"archive has {entries.Count} entries; the limit is {limits.Entries}");
+        (string Name, long Length) big = entries.FirstOrDefault(e => e.Length > limits.EntryBytes);
+        if (big.Name != null) errors.Add($"entry '{big.Name}' is {big.Length} bytes uncompressed; the limit is {limits.EntryBytes} per entry");
+        // Stops once over the limit, so declared sizes near long.MaxValue cannot overflow the sum.
+        long total = 0;
+        foreach ((string _, long length) in entries) {
+            total += Math.Max(0, Math.Min(length, limits.TotalBytes + 1));
+            if (total > limits.TotalBytes) {
+                errors.Add($"archive is at least {total} bytes uncompressed; the limit is {limits.TotalBytes}");
+                break;
+            }
+        }
         return errors;
+    }
+
+    /// <summary>
+    /// A text entry read whole, refused past <paramref name="cap"/> bytes: at most cap + 1 bytes are
+    /// read, whatever the archive's header claims.
+    /// </summary>
+    internal static string ReadCappedText(Stream stream, string name, int cap) {
+        var buffer = new byte[cap + 1];
+        int read = 0, n;
+        while (read < buffer.Length && (n = stream.Read(buffer, read, buffer.Length - read)) > 0) read += n;
+        if (read > cap) throw new InvalidDataException($"{name} is larger than {cap} bytes");
+        using var reader = new StreamReader(new MemoryStream(buffer, 0, read));
+        return reader.ReadToEnd();
     }
 
     public static ModValidation ValidateFolder(string folder) {
         try {
             List<string> names = Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories)
                 .Select(f => Path.GetRelativePath(folder, f).Replace(Path.DirectorySeparatorChar, '/')).ToList();
-            return Validate(names, name => File.ReadAllText(Path.Combine(folder, name)));
+            return Validate(names, name => {
+                using FileStream s = File.OpenRead(Path.Combine(folder, name));
+                return ReadCappedText(s, name, MaxTextBytes);
+            });
         } catch (Exception e) when (e is IOException or UnauthorizedAccessException) {
             return new ModValidation(null, new[] { "cannot read folder: " + e.Message }, Array.Empty<string>());
         }
@@ -115,10 +141,15 @@ public static class ModArchive {
                 throw;
             }
         } catch {
-            DeleteIfExists(tmp);
+            // A cleanup that fails must not replace the error that stopped the install.
+            try {
+                DeleteIfExists(tmp);
+            } catch (Exception e) when (e is IOException or UnauthorizedAccessException) {
+            }
             throw;
         }
-        // The new version is in place: an .old that cannot be deleted now is left for the next install (the scan skips it).
+        // The new version is in place. An .old that cannot be deleted now stays behind: the scan skips it, the
+        // next install or an uninstall (DeleteInstalled) deletes it, and RecoverStrandedInstalls leaves it alone.
         try {
             DeleteIfExists(old);
         } catch (Exception e) when (e is IOException or UnauthorizedAccessException) {
@@ -153,14 +184,35 @@ public static class ModArchive {
 
     /// <summary>
     /// Run at startup before scanning: a crash between the two moves of an install can leave the previous
-    /// version only as <c>&lt;id&gt;.old</c>, so put it back when <c>&lt;id&gt;</c> is gone.
+    /// version only as <c>&lt;id&gt;.old</c>, so put it back when <c>&lt;id&gt;</c> is gone and the id is
+    /// still in <paramref name="listedIds"/> (<c>mods.json</c>): an unlisted id was uninstalled, and its
+    /// <c>.old</c> is a leftover, not a stranded install. Returns the moves that failed, one line each; the
+    /// others still happen.
     /// </summary>
-    public static void RecoverStrandedInstalls(string modsRoot) {
-        if (!Directory.Exists(modsRoot)) return;
+    public static IReadOnlyList<string> RecoverStrandedInstalls(string modsRoot, IEnumerable<string> listedIds) {
+        var failures = new List<string>();
+        if (!Directory.Exists(modsRoot)) return failures;
+        var listed = new HashSet<string>(listedIds);
         foreach (string old in Directory.GetDirectories(modsRoot, "*.old")) {
             string original = old.Substring(0, old.Length - ".old".Length);
-            if (!Directory.Exists(original)) Directory.Move(old, original);
+            if (Directory.Exists(original) || !listed.Contains(Path.GetFileName(original))) continue;
+            try {
+                Directory.Move(old, original);
+            } catch (Exception e) when (e is IOException or UnauthorizedAccessException) {
+                failures.Add($"{old} could not be restored: {e.Message}");
+            }
         }
+        return failures;
+    }
+
+    /// <summary>
+    /// Uninstalls: deletes the mod's folder and any <c>.old</c> or <c>.tmp</c> an install left beside it.
+    /// The leftovers go first, so a failure keeps the mod itself, never a stray previous version.
+    /// </summary>
+    public static void DeleteInstalled(string modFolder) {
+        DeleteIfExists(modFolder + ".old");
+        DeleteIfExists(modFolder + ".tmp");
+        DeleteIfExists(modFolder);
     }
 
     /// <summary>Null when <c>mod.json</c> is missing or invalid.</summary>
@@ -183,6 +235,15 @@ public static class ModArchive {
     private static ModValidation Validate(IReadOnlyList<string> allNames, Func<string, string> readText) {
         var errors = new List<string>();
         var warnings = new List<string>();
+        // A text over the cap is an error of the mod, not an unreadable archive.
+        string? Read(string name) {
+            try {
+                return readText(name);
+            } catch (InvalidDataException e) {
+                errors.Add(e.Message);
+                return null;
+            }
+        }
 
         foreach (string n in allNames.Where(UnsafePath)) errors.Add("unsafe path: " + n);
         // Duplicates would let validation read one entry while extraction keeps another.
@@ -202,8 +263,8 @@ public static class ModArchive {
         ModManifest? manifest = null;
         if (!files.Contains("mod.json")) {
             errors.Add("mod.json is missing at the root");
-        } else {
-            manifest = ModManifest.Parse(readText("mod.json"), out IReadOnlyList<string> manifestErrors);
+        } else if (Read("mod.json") is { } manifestText) {
+            manifest = ModManifest.Parse(manifestText, out IReadOnlyList<string> manifestErrors);
             errors.AddRange(manifestErrors.Select(e => "mod.json: " + e));
             if (manifest != null) warnings.AddRange(manifest.Warnings.Select(w => "mod.json: " + w));
         }
@@ -219,8 +280,8 @@ public static class ModArchive {
             warnings.Add("sun variants only apply in Enhanced; this mod also lists classic");
         }
 
-        if (files.Contains("aliases.json")) {
-            Dictionary<string, string>? aliases = ModAliases.Parse(readText("aliases.json"));
+        if (files.Contains("aliases.json") && Read("aliases.json") is { } aliasesText) {
+            Dictionary<string, string>? aliases = ModAliases.Parse(aliasesText);
             if (aliases == null) {
                 errors.Add("aliases.json must be an object of strings");
             } else {

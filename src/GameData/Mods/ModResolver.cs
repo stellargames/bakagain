@@ -19,8 +19,9 @@ public static class ModResolver {
     public static ModResolution Resolve(IReadOnlyList<InstalledMod> installed, IReadOnlyList<ModStateEntry> state, ModMode mode, SemVersion? gameVersion) {
         var problems = new List<ModProblem>();
         var byId = new Dictionary<string, InstalledMod>();
-        foreach (InstalledMod m in installed) {
-            // First copy wins; the others are reported, under Conflict with the other copy's folder name.
+        // The copy in the folder named for its id wins, whatever order the folder listing gives; the others
+        // are reported, under Conflict with the other copy's folder name.
+        foreach (InstalledMod m in installed.OrderBy(m => Path.GetFileName(m.Folder) == m.Manifest.Id ? 0 : 1)) {
             if (!byId.TryAdd(m.Manifest.Id, m)) {
                 string other = Path.GetFileName(m.Folder);
                 problems.Add(new ModProblem(m.Manifest.Id, ModProblemKind.Conflict, $"installed twice; '{other}' is ignored in favour of '{Path.GetFileName(byId[m.Manifest.Id].Folder)}'", other));

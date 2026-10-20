@@ -45,9 +45,11 @@ namespace BakAgain.ResourceManagement {
             Mode = GameOptions.Enhanced ? ModMode.Enhanced : ModMode.Classic;
             try {
                 Directory.CreateDirectory(ModsRoot);
-                // Before the inbox: an install that put the old version back must not be lost to a new one.
-                ModArchive.RecoverStrandedInstalls(ModsRoot);
                 List<ModStateEntry> state = ReadState();
+                // Before the inbox: an install that put the old version back must not be lost to a new one.
+                foreach (string failure in ModArchive.RecoverStrandedInstalls(ModsRoot, state.Select(e => e.Id))) {
+                    Logger.LogWarning("Mod install not recovered: {Failure}", failure);
+                }
                 foreach (string zip in Directory.GetFiles(ModsRoot, "*.zip")) {
                     InstallFromInbox(zip, state);
                 }
@@ -66,7 +68,12 @@ namespace BakAgain.ResourceManagement {
                 : string.Join(", ", Current.Active.Select(m => $"{m.Manifest.Id} {m.Manifest.Version}"));
             Logger.LogInformation("Mods ({Mode}): {Active}", mode, active);
             foreach (ModProblem p in Current.Problems) {
-                Logger.LogWarning("Mod {Id} not active ({Kind}): {Detail}", p.ModId, p.Kind.ToString(), p.Detail);
+                // A duplicate id is a problem of the ignored copy; the id itself can still be active.
+                if (Current.Active.Any(m => m.Manifest.Id == p.ModId)) {
+                    Logger.LogWarning("Mod {Id} ({Kind}): {Detail}", p.ModId, p.Kind.ToString(), p.Detail);
+                } else {
+                    Logger.LogWarning("Mod {Id} not active ({Kind}): {Detail}", p.ModId, p.Kind.ToString(), p.Detail);
+                }
             }
         }
 

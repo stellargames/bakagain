@@ -190,4 +190,14 @@ public class ModResolverTests {
         ModProblem p = Assert.Single(r.Problems);
         Assert.Equal(("aa", ModProblemKind.Conflict, "aa-copy"), (p.ModId, p.Kind, p.Other));
     }
+
+    [Fact]
+    public void Resolve_SameIdTwice_TheFolderNamedForTheIdWins() {
+        // Whichever the folder listing returns first.
+        InstalledMod copy = new(Mod("aa", "2.0.0").Manifest, "mods/aa-copy");
+        InstalledMod own = Mod("aa", "1.0.0");
+        ModResolution r = Resolve(new[] { copy, own }, new[] { On("aa") });
+        Assert.Equal(new[] { "1.0.0" }, r.Active.Select(m => m.Manifest.Version.ToString()).ToArray());
+        Assert.Equal("aa-copy", Assert.Single(r.Problems).Other);
+    }
 }

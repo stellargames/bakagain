@@ -168,11 +168,67 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
             // An install interrupted between its two moves: the previous version is only <id>.old.
             Directory.CreateDirectory(Path.Combine(_mods, "a-mod.old"));
             File.WriteAllText(Path.Combine(_mods, "a-mod.old", "mod.json"), Manifest("a-mod"));
+            Order("a-mod");
 
             ModLayers.Initialize();
 
             CollectionAssert.AreEqual(new[] { "a-mod" }, ModLayers.Current.Active.Select(m => m.Manifest.Id).ToArray());
             Assert.IsTrue(Directory.Exists(Path.Combine(_mods, "a-mod")));
+        }
+
+        [Test]
+        public void Initialize_UninstalledModsOld_StaysGone() {
+            // A leftover .old of a mod the player uninstalled: no longer in mods.json.
+            Mod("b-mod");
+            Order("b-mod");
+            Directory.CreateDirectory(Path.Combine(_mods, "a-mod.old"));
+            File.WriteAllText(Path.Combine(_mods, "a-mod.old", "mod.json"), Manifest("a-mod"));
+
+            ModLayers.Initialize();
+
+            CollectionAssert.AreEqual(new[] { "b-mod" }, ModLayers.Current.Active.Select(m => m.Manifest.Id).ToArray());
+        }
+
+        [Test]
+        public void Initialize_FailedRecovery_OtherModsStayActive() {
+            Mod("b-mod");
+            Directory.CreateDirectory(Path.Combine(_mods, "a-mod.old"));
+            File.WriteAllText(Path.Combine(_mods, "a-mod"), "a file where the folder goes");
+            Order("a-mod", "b-mod");
+            LogAssert.Expect(LogType.Warning, new Regex("a-mod\\.old could not be restored"));
+
+            ModLayers.Initialize();
+
+            CollectionAssert.AreEqual(new[] { "b-mod" }, ModLayers.Current.Active.Select(m => m.Manifest.Id).ToArray());
+        }
+
+        [Test]
+        public void Initialize_InboxZipWithOversizedManifest_RenamedFailed() {
+            Directory.CreateDirectory(_mods);
+            string zip = Path.Combine(_mods, "big.zip");
+            using (var archive = System.IO.Compression.ZipFile.Open(zip, System.IO.Compression.ZipArchiveMode.Create)) {
+                using var w = new StreamWriter(archive.CreateEntry("mod.json").Open());
+                w.Write(Manifest("big-mod") + new string(' ', 1024 * 1024)); // past the 1 MiB cap
+            }
+            LogAssert.Expect(LogType.Error, new Regex("big\\.zip could not be installed: mod\\.json is larger than"));
+
+            ModLayers.Initialize();
+
+            Assert.IsTrue(File.Exists(zip + ".failed"), "refused once, not at every start");
+            Assert.IsEmpty(ModLayers.Current.Active);
+        }
+
+        [Test]
+        public void Initialize_DuplicateId_TheActiveIdIsNotCalledInactive() {
+            Mod("a-mod");
+            string copy = Path.Combine(_mods, "a-mod-copy");
+            Directory.CreateDirectory(copy);
+            File.WriteAllText(Path.Combine(copy, "mod.json"), Manifest("a-mod"));
+            LogAssert.Expect(LogType.Warning, new Regex("Mod a-mod \\(Conflict\\): installed twice; 'a-mod-copy' is ignored"));
+
+            ModLayers.Initialize();
+
+            CollectionAssert.AreEqual(new[] { Path.Combine(_mods, "a-mod") }, ModLayers.Current.Active.Select(m => m.Folder).ToArray());
         }
 
         [Test]

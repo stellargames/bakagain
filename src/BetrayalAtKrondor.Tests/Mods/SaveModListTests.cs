@@ -17,6 +17,19 @@ public class SaveModListTests {
         => new(id, version, modes.Length == 0 ? new[] { ModMode.Enhanced } : modes);
 
     [Fact]
+    public void Write_Fails_LeavesNoTmp() {
+        string dir = Directory.CreateTempSubdirectory().FullName;
+        try {
+            string save = Path.Combine(dir, "SAVE01.GAM");
+            Directory.CreateDirectory(SaveModList.SidecarPath(save)); // the move over it fails
+            Assert.ThrowsAny<IOException>(() => SaveModList.Write(save, new[] { Mod("aa") }));
+            Assert.False(File.Exists(SaveModList.SidecarPath(save) + ".tmp"));
+        } finally {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    [Fact]
     public void SidecarPath_NextToSave() {
         Assert.Equal(Path.Combine("a", "b", "SAVE03.MODS.json"), SaveModList.SidecarPath(Path.Combine("a", "b", "SAVE03.GAM")));
     }

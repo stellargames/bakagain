@@ -44,9 +44,17 @@ public static class SaveModList {
         // Written beside, then moved over, so a crash never leaves a half-written sidecar.
         string path = SidecarPath(savePath);
         string tmp = path + ".tmp";
-        File.WriteAllText(tmp, JsonSerializer.Serialize(doc, Options));
-        if (File.Exists(path)) File.Replace(tmp, path, null);
-        else File.Move(tmp, path);
+        try {
+            File.WriteAllText(tmp, JsonSerializer.Serialize(doc, Options));
+            if (File.Exists(path)) File.Replace(tmp, path, null);
+            else File.Move(tmp, path);
+        } catch {
+            try {
+                File.Delete(tmp);
+            } catch (Exception e) when (e is IOException or UnauthorizedAccessException) {
+            }
+            throw;
+        }
     }
 
     /// <summary>Empty when there is no sidecar or it is unreadable; entries without an id or version are dropped.</summary>
