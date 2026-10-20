@@ -183,6 +183,24 @@ public class ModArchiveTests : IDisposable {
     }
 
     [Fact]
+    public void Install_DuplicateManifest_Refused_PreviousVersionKept() {
+        string root = Path.Combine(_dir, "mods");
+        ModArchive.Install(Zip(Good(), "a.zip"), root);
+        string path = Path.Combine(_dir, "dup.zip");
+        using (ZipArchive z = ZipFile.Open(path, ZipArchiveMode.Create)) {
+            foreach (var (name, text) in new[] { ("mod.json", Manifest(version: "2.0.0")), ("mod.json", "{"), ("SCX/X.png", "x") }) {
+                using var w = new StreamWriter(z.CreateEntry(name).Open());
+                w.Write(text);
+            }
+        }
+        Assert.Contains(ModArchive.ValidateZip(path).Errors, e => e.Contains("duplicate") && e.Contains("mod.json"));
+        Assert.Throws<InvalidDataException>(() => ModArchive.Install(path, root));
+        Assert.True(File.Exists(Path.Combine(root, "pack", "SCX", "TITLE.png")));
+        Assert.Equal("1.0.0", ModArchive.ReadInstalled(Path.Combine(root, "pack"))!.Manifest.Version.ToString());
+        Assert.False(Directory.Exists(Path.Combine(root, "pack.tmp")));
+    }
+
+    [Fact]
     public void Pack_Folder_WritesIdVersionZip_ThatValidates() {
         string src = Folder(Good());
         string outDir = Path.Combine(_dir, "out");

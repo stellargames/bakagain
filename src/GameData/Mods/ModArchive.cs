@@ -61,6 +61,7 @@ public static class ModArchive {
                     src.CopyTo(dst);
                 }
             }
+            if (ReadInstalled(tmp)?.Manifest.Id != id) throw new InvalidDataException("extracted mod.json does not match the validated manifest");
             if (Directory.Exists(finalDir)) Directory.Move(finalDir, old);
             try {
                 Directory.Move(tmp, finalDir);
@@ -111,6 +112,8 @@ public static class ModArchive {
         var warnings = new List<string>();
 
         foreach (string n in allNames.Where(UnsafePath)) errors.Add("unsafe path: " + n);
+        // Duplicates would let validation read one entry while extraction keeps another.
+        foreach (var g in allNames.GroupBy(n => n.ToLowerInvariant()).Where(g => g.Count() > 1)) errors.Add("duplicate entry: " + g.First());
         List<string> files = allNames.Where(n => !n.EndsWith("/") && !UnsafePath(n)).ToList();
 
         foreach (string n in files) {
