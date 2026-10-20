@@ -54,6 +54,18 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
             });
         }
 
+        [Test]
+        public void InstalledModsAreReplacedByAnEmptyFolder_ForTheScope() {
+            string real = Path.Combine(Application.persistentDataPath, "mods");
+            using (var scope = new TempOverrideDirectory()) {
+                Assert.AreNotEqual(real, ModLayers.ModsRoot);
+                ModLayers.Initialize();
+                Assert.IsEmpty(ModLayers.Current.Active);
+                CollectionAssert.AreEqual(new[] { scope.Root }, ModLayers.ContentRoots());
+            }
+            Assert.AreEqual(real, ModLayers.ModsRoot, "the scope gives the real folder back");
+        }
+
         // ---------------------------------------------------------------------------------------
         // RestoreStashFromACrashedRun, driven directly (it is internal — see its own remarks).
         // Every test below fabricates its OWN stash/live state and restores whatever was actually

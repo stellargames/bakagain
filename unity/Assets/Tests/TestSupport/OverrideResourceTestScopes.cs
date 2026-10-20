@@ -82,6 +82,10 @@ namespace BakAgain.Tests.TestSupport {
             Directory.CreateDirectory(Root);
             BakResourceSettings.OverridePath = Root;
             BakResourceSettings.OverrideEnabled = true;
+            // Installed mods are override layers too: point them at an empty folder, so a mod
+            // installed on this machine cannot change what an override test sees.
+            ModLayers.Reset();
+            ModLayers.ModsRootOverride = Root + "-mods";
             s_instanceActive = true;
         }
 
@@ -100,8 +104,12 @@ namespace BakAgain.Tests.TestSupport {
 
         public void Dispose() {
             RestoreStashFromACrashedRun();
+            ModLayers.Reset();
             if (Directory.Exists(Root)) {
                 Directory.Delete(Root, true);
+            }
+            if (Directory.Exists(Root + "-mods")) {
+                Directory.Delete(Root + "-mods", true);
             }
             s_instanceActive = false;
         }
