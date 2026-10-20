@@ -15,6 +15,9 @@ switch (args) {
 }
 
 static int Pack(string folder, string outDir) {
+    // Packing into the mod's own folder would put the zip inside the next pack; write beside the folder instead.
+    string full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder));
+    if (Path.TrimEndingDirectorySeparator(Path.GetFullPath(outDir)) == full && Path.GetDirectoryName(full) is { } parent) outDir = parent;
     int rc = Report(ModArchive.ValidateFolder(folder), folder);
     if (rc != 0) return rc;
     try {
