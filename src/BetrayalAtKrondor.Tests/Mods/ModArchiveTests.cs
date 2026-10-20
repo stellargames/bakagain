@@ -94,7 +94,9 @@ public class ModArchiveTests : IDisposable {
     public void Validate_UnsafePath_Error(string entry) {
         var f = Good();
         f[entry] = "x";
-        Assert.False(ModArchive.ValidateZip(Zip(f)).Ok);
+        ModValidation v = ModArchive.ValidateZip(Zip(f));
+        Assert.False(v.Ok);
+        Assert.Contains("unsafe path: " + entry, v.Errors);
     }
 
     [Fact]
@@ -252,16 +254,6 @@ public class ModArchiveTests : IDisposable {
     }
 
     [Fact]
-    public void Pack_IntoItsOwnFolder_Works() {
-        string src = Folder(Good());
-        string zip = ModArchive.Pack(src, src);
-        Assert.True(ModArchive.ValidateZip(zip).Ok);
-        using ZipArchive z = ZipFile.OpenRead(zip);
-        Assert.DoesNotContain(z.Entries, e => e.FullName.EndsWith(".zip"));
-        Assert.Contains(z.Entries, e => e.FullName == "mod.json");
-    }
-
-    [Fact]
     public void Validate_MissingFolder_IsAnError() {
         ModValidation v = ModArchive.ValidateFolder(Path.Combine(_dir, "nope"));
         Assert.False(v.Ok);
@@ -286,5 +278,159 @@ public class ModArchiveTests : IDisposable {
         string dir = Folder(new Dictionary<string, string> { ["aliases.json"] = """{ "BMX/Z02SLOT1/4": "BMX/Z01SLOT0/3" }""" });
         Assert.Equal("BMX/Z01SLOT0/3", ModAliases.Read(dir)["BMX/Z02SLOT1/4"]);
         Assert.Empty(ModAliases.Read(Path.Combine(_dir, "nowhere")));
+    }
+
+    [Fact]
+    public void Validate_TooManyEntries_Refused() {
+        string zip = Zip(Good());
+        ModValidation v = ModArchive.ValidateZip(zip, new ModArchive.ZipLimits(2, long.MaxValue, long.MaxValue));
+        Assert.False(v.Ok);
+        Assert.Equal("archive has 3 entries; the limit is 2", Assert.Single(v.Errors));
+        Assert.Null(v.Manifest);
+    }
+
+    [Fact]
+    public void Validate_OneEntryTooBig_Refused() {
+        var f = Good();
+        f["SCX/BIG.png"] = new string('x', 5000);
+        ModValidation v = ModArchive.ValidateZip(Zip(f), new ModArchive.ZipLimits(100, 4000, long.MaxValue));
+        Assert.Equal("entry 'SCX/BIG.png' is 5000 bytes uncompressed; the limit is 4000 per entry", Assert.Single(v.Errors));
+    }
+
+    [Fact]
+    public void Validate_TotalTooBig_Refused() {
+        var f = Good();
+        f["SCX/A.png"] = new string('x', 3000);
+        f["SCX/B.png"] = new string('x', 3000);
+        ModValidation v = ModArchive.ValidateZip(Zip(f), new ModArchive.ZipLimits(100, 4000, 5000));
+        string error = Assert.Single(v.Errors);
+        Assert.StartsWith("archive is ", error);
+        Assert.EndsWith("bytes uncompressed; the limit is 5000", error);
+    }
+
+    [Fact]
+    public void Validate_DefaultLimits_AreTheDocumentedOnes() {
+        Assert.Equal(new ModArchive.ZipLimits(20_000, 256L * 1024 * 1024, 1024L * 1024 * 1024), ModArchive.ZipLimits.Default);
+        Assert.True(ModArchive.ValidateZip(Zip(Good())).Ok);
+    }
+
+    // System.IO.Compression bounds a read by the size the header declares, so a zip with an understated header
+    // cannot be made to overrun here. The counting path is therefore driven through Extract (no validation) with
+    // lowered limits, which is the same loop a lying header would reach.
+    [Fact]
+    public void Extract_EntryOverLimit_Aborted_PreviousVersionKept() {
+        string root = Path.Combine(_dir, "mods");
+        ModArchive.Install(Zip(Good(), "a.zip"), root);
+        var v2 = Good();
+        v2["mod.json"] = Manifest(version: "2.0.0");
+        v2["SCX/BIG.png"] = new string('x', 50_000);
+        var e = Assert.Throws<InvalidDataException>(() => ModArchive.Extract(Zip(v2, "b.zip"), "pack", root, new ModArchive.ZipLimits(100, 4000, long.MaxValue)));
+        Assert.Contains("larger than its header says", e.Message);
+        Assert.Equal("1.0.0", ModArchive.ReadInstalled(Path.Combine(root, "pack"))!.Manifest.Version.ToString());
+        Assert.Equal(new[] { "pack" }, Directory.GetFileSystemEntries(root).Select(Path.GetFileName).ToArray());
+    }
+
+    [Fact]
+    public void Extract_TotalOverLimit_Aborted_NoTempFolder() {
+        string root = Path.Combine(_dir, "mods");
+        var f = Good();
+        f["SCX/A.png"] = new string('x', 3000);
+        f["SCX/B.png"] = new string('x', 3000);
+        var e = Assert.Throws<InvalidDataException>(() => ModArchive.Extract(Zip(f), "pack", root, new ModArchive.ZipLimits(100, 4000, 5000)));
+        Assert.Contains("larger than its headers say", e.Message);
+        Assert.Empty(Directory.GetFileSystemEntries(root));
+    }
+
+    [Fact]
+    public void Install_OverLimitByHeaders_RefusedBeforeExtracting() {
+        string root = Path.Combine(_dir, "mods");
+        Assert.Throws<InvalidDataException>(() => ModArchive.Install(Zip(Good()), root, new ModArchive.ZipLimits(2, long.MaxValue, long.MaxValue)));
+        Assert.False(Directory.Exists(root));
+    }
+
+    [Fact]
+    public void Extract_ZipSlipEntry_RefusedByInstallCheck_WithoutValidation() {
+        string root = Path.Combine(_dir, "sandbox", "mods");
+        var evil = Good();
+        evil["../evil.png"] = "x";
+        string zip = Zip(evil);
+        Assert.False(ModArchive.ValidateZip(zip).Ok);
+        var e = Assert.Throws<InvalidDataException>(() => ModArchive.Extract(zip, "pack", root, ModArchive.ZipLimits.Default));
+        Assert.StartsWith("entry escapes the mod folder: ", e.Message);
+        Assert.Empty(Directory.GetFileSystemEntries(root));
+        Assert.Empty(Directory.GetFiles(Path.Combine(_dir, "sandbox")));
+    }
+
+    [Fact]
+    public void RecoverStrandedInstalls_MovesOldBack_OnlyWhenIdIsMissing() {
+        string root = Path.Combine(_dir, "mods");
+        ModArchive.Install(Zip(Good(), "a.zip"), root);
+        // A crash between the two moves: only <id>.old and a finished <id>.tmp remain.
+        Directory.Move(Path.Combine(root, "pack"), Path.Combine(root, "pack.old"));
+        ModArchive.RecoverStrandedInstalls(root);
+        Assert.Equal("pack", ModArchive.ReadInstalled(Path.Combine(root, "pack"))!.Manifest.Id);
+        Assert.False(Directory.Exists(Path.Combine(root, "pack.old")));
+
+        // When the new version is in place, .old is left alone.
+        Directory.CreateDirectory(Path.Combine(root, "pack.old"));
+        ModArchive.RecoverStrandedInstalls(root);
+        Assert.True(Directory.Exists(Path.Combine(root, "pack.old")));
+        Assert.NotNull(ModArchive.ReadInstalled(Path.Combine(root, "pack")));
+        ModArchive.RecoverStrandedInstalls(Path.Combine(_dir, "no-such-root"));
+    }
+
+    [Fact]
+    public void Pack_OutDirInsideFolder_Refused() {
+        string src = Folder(Good());
+        foreach (string outDir in new[] { Path.Combine(src, "out"), src, src + Path.DirectorySeparatorChar }) {
+            var e = Assert.Throws<InvalidDataException>(() => ModArchive.Pack(src, outDir));
+            Assert.Contains("is inside the mod folder", e.Message);
+        }
+        Assert.False(Directory.Exists(Path.Combine(src, "out")));
+        Assert.True(File.Exists(ModArchive.Pack(src, src + "-sibling-out")), "a sibling whose name starts the same is not inside");
+    }
+
+    [Fact]
+    public void Pack_ReusesGivenValidation() {
+        string src = Folder(Good());
+        ModValidation v = ModArchive.ValidateFolder(src);
+        File.Delete(Path.Combine(src, "mod.json")); // a second validation would now fail
+        Assert.True(File.Exists(ModArchive.Pack(src, Path.Combine(_dir, "out"), v)));
+    }
+
+    [Theory]
+    [InlineData("SCX//X.png")]
+    [InlineData("SCX/./X.png")]
+    [InlineData("//X.png")]
+    public void Validate_EmptyOrDotSegments_UnsafePath(string entry) {
+        var f = Good();
+        f[entry] = "x";
+        ModValidation v = ModArchive.ValidateZip(Zip(f));
+        Assert.Equal("unsafe path: " + entry, v.Errors.First());
+    }
+
+    [Fact]
+    public void Validate_FolderEntries_AreNotUnsafe() {
+        string path = Path.Combine(_dir, "dirs.zip");
+        using (ZipArchive z = ZipFile.Open(path, ZipArchiveMode.Create)) {
+            z.CreateEntry("SCX/");
+            foreach (var f in Good()) {
+                using var w = new StreamWriter(z.CreateEntry(f.Key).Open());
+                w.Write(f.Value);
+            }
+        }
+        ModValidation v = ModArchive.ValidateZip(path);
+        Assert.True(v.Ok, string.Join("; ", v.Errors));
+    }
+
+    [Theory]
+    [InlineData("mod")]
+    [InlineData("BMX/Z01SLOT0/3.front")]
+    [InlineData("aliases")]
+    public void Validate_AliasTarget_MustBeAnImageUnderScxOrBmx(string target) {
+        var f = Good();
+        f["aliases.json"] = "{ \"BMX/Z02SLOT1/4\": \"" + target + "\" }";
+        f["BMX/Z01SLOT0/3.front.png"] = "png"; // so the sun-variant target exists as a file
+        Assert.Contains(ModArchive.ValidateZip(Zip(f)).Errors, e => e.Contains("target is not an SCX/ or BMX/ image of this mod") && e.Contains(target));
     }
 }

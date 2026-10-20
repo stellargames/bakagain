@@ -24,6 +24,10 @@
     </ItemGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="BetrayalAtKrondor.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
         <EmbeddedResource Include="Content\uistrings.json" />
     </ItemGroup>
 
