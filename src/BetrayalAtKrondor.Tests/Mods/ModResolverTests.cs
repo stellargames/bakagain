@@ -148,4 +148,46 @@ public class ModResolverTests {
     public void StateFile_Missing_Empty() {
         Assert.Empty(ModStateFile.Read(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"), "mods.json")));
     }
+
+    [Fact]
+    public void Resolve_ConflictExcludesDependents() {
+        // aa conflicts with bb, so bb is dropped, and cc (which needs bb) goes with it.
+        InstalledMod[] installed = {
+            Mod("aa", extra: ", \"conflicts\": [\"bb\"]"),
+            Mod("bb"),
+            Mod("cc", extra: ", \"dependencies\": { \"bb\": \">=1.0.0\" }"),
+        };
+        ModResolution r = Resolve(installed, new[] { On("aa"), On("bb"), On("cc") });
+        Assert.Equal(new[] { "aa" }, Ids(r.Active));
+        Assert.Equal(new[] { (ModProblemKind.Conflict, "bb"), (ModProblemKind.MissingDependency, "cc") },
+            r.Problems.Select(p => (p.Kind, p.ModId)).ToArray());
+    }
+
+    [Fact]
+    public void Resolve_StateEntryForUninstalledMod_Ignored() {
+        ModResolution r = Resolve(new[] { Mod("aa") }, new[] { On("ghost"), On("aa") });
+        Assert.Equal(new[] { "aa" }, Ids(r.Active));
+        Assert.Empty(r.Problems);
+    }
+
+    [Fact]
+    public void Resolve_LanguageMod_FollowsModeFilter() {
+        InstalledMod[] installed = {
+            Mod("nl-lang", extra: ", \"kinds\": [\"language\"], \"modes\": [\"enhanced\", \"classic\"]"),
+            Mod("de-lang", extra: ", \"kinds\": [\"language\"]"),
+        };
+        ModStateEntry[] state = { On("nl-lang"), On("de-lang") };
+        Assert.Equal(new[] { "nl-lang", "de-lang" }, Ids(Resolve(installed, state).Languages));
+        Assert.Equal(new[] { "nl-lang" }, Ids(Resolve(installed, state, ModMode.Classic).Languages));
+    }
+
+    [Fact]
+    public void Resolve_SameIdTwice_FirstWinsAndProblemReported() {
+        InstalledMod first = Mod("aa", "1.0.0");
+        InstalledMod second = new(Mod("aa", "2.0.0").Manifest, "mods/aa-copy");
+        ModResolution r = Resolve(new[] { first, second }, new[] { On("aa") });
+        Assert.Equal(new[] { "1.0.0" }, r.Active.Select(m => m.Manifest.Version.ToString()).ToArray());
+        ModProblem p = Assert.Single(r.Problems);
+        Assert.Equal(("aa", ModProblemKind.Conflict, "aa-copy"), (p.ModId, p.Kind, p.Other));
+    }
 }

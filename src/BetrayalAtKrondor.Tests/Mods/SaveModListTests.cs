@@ -110,4 +110,29 @@ public class SaveModListTests {
             Assert.Empty(SaveModList.Compare(read, new[] { Mod("bb") }, ModMode.Classic));
         } finally { Directory.Delete(dir, true); }
     }
+
+    [Fact]
+    public void Read_UnknownModeInOneEntry_SkipsOnlyThatEntry() {
+        string dir = Directory.CreateTempSubdirectory().FullName;
+        try {
+            string save = Path.Combine(dir, "SAVE01.GAM");
+            File.WriteAllText(SaveModList.SidecarPath(save),
+                """{ "mods": [ { "id": "aa", "version": "1.0.0", "modes": ["turbo"] }, { "id": "bb", "version": "1.0.0", "modes": ["enhanced", "Classic"] }, { "id": "cc", "version": "1.0.0", "modes": ["1"] } ] }""");
+            SavedMod s = Assert.Single(SaveModList.Read(save));
+            Assert.Equal("bb", s.Id);
+            Assert.Equal(new[] { ModMode.Enhanced, ModMode.Classic }, s.Modes);
+        } finally { Directory.Delete(dir, true); }
+    }
+
+    [Fact]
+    public void Write_ReplacesExistingSidecar_LeavesNoTempFile() {
+        string dir = Directory.CreateTempSubdirectory().FullName;
+        try {
+            string save = Path.Combine(dir, "SAVE01.GAM");
+            SaveModList.Write(save, new[] { Mod("aa") });
+            SaveModList.Write(save, new[] { Mod("bb", "2.0.0") });
+            Assert.Equal("bb", Assert.Single(SaveModList.Read(save)).Id);
+            Assert.Equal(new[] { "SAVE01.MODS.json" }, Directory.GetFiles(dir).Select(Path.GetFileName).ToArray());
+        } finally { Directory.Delete(dir, true); }
+    }
 }
