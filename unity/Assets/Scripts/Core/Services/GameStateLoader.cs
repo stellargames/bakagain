@@ -249,19 +249,15 @@ namespace BakAgain.Core.Services {
                 return false;
             }
 
-            // *** THE MOD SOURCE IS A LATER ENTRY, NOT A SPECIAL CASE. *** The registry merges an
-            // ORDERED list and the base carries no privilege, so installing a mod is appending one
-            // source — see GameSession.CatalogOf. Without one the list has a single entry and this
-            // is exactly SetObjectInfo.
+            // *** THE MOD SOURCES ARE LATER ENTRIES, NOT A SPECIAL CASE. *** The registry merges an
+            // ORDERED list and the base carries no privilege, so each override layer is one more
+            // source, lowest first — see GameSession.CatalogOf. Without one the list has a single
+            // entry and this is exactly SetObjectInfo.
             var sources = new System.Collections.Generic.List<GameData.Resources.Content.IContentSource<
                 GameData.Resources.Object.ObjectInfo>> {
                 new GameData.Resources.Object.ObjectInfoContentSource(objectInfo),
             };
-            GameData.Resources.Content.IContentSource<GameData.Resources.Object.ObjectInfo> mod =
-                BakAgain.ResourceManagement.ModItemCatalogSource.FromOverrides(objectInfo, _logger);
-            if (mod != null) {
-                sources.Add(mod);
-            }
+            sources.AddRange(BakAgain.ResourceManagement.ModItemCatalogSource.FromLayers(objectInfo, _logger));
 
             GameData.Resources.Object.ObjectInfoCatalog catalog = GameSession.CatalogOf(sources);
             // The scroll price table rides along: it is OBJINFO.DAT's, not the catalog's, and the

@@ -13,7 +13,7 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
     /// <para><b>What these stand on.</b> The registry could always merge an ordered list of
     /// sources; until <see cref="ModItemCatalogSource"/> there was never more than one entry in
     /// it, so every merge was the no-regression case and nothing proved the fold worked at all.
-    /// These drive the real production path — <c>FromOverrides</c> reading real files from the
+    /// These drive the real production path — <c>FromLayers</c> reading real files from the
     /// real overrides directory, then <see cref="GameSession.CatalogOf(IReadOnlyList{IContentSource{ObjectInfo}})"/>
     /// folding them exactly as <c>GameStateLoader</c> does.</para>
     ///
@@ -38,10 +38,7 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
             var sources = new List<IContentSource<ObjectInfo>> {
                 new ObjectInfoContentSource(baseline),
             };
-            IContentSource<ObjectInfo> mod = ModItemCatalogSource.FromOverrides(baseline);
-            if (mod != null) {
-                sources.Add(mod);
-            }
+            sources.AddRange(ModItemCatalogSource.FromLayers(baseline, null));
             return GameSession.CatalogOf(sources);
         }
 
@@ -114,7 +111,7 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
         [Test]
         public void AnEmptyOverridesFolder_SuppliesNoSource() {
             using (new TempOverrideDirectory()) {
-                Assert.IsNull(ModItemCatalogSource.FromOverrides(Shipped()),
+                Assert.IsEmpty(ModItemCatalogSource.FromLayers(Shipped(), null),
                     "with nothing authored, \"no mod installed\" and \"a mod that changes nothing\" "
                     + "must stay distinguishable to anything reading provenance");
             }

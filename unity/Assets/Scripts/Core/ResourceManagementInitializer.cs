@@ -10,13 +10,14 @@ namespace BakAgain.Core {
 
         public static void InitializeResourceManagement() {
             Logger.LogInformation("Initializing Resource Management...");
+            ModLayers.Initialize();
             Logger.LogInformation("BakResourceSettings.OverrideEnabled: {OverrideEnabled}", BakResourceSettings.OverrideEnabled);
             Logger.LogInformation("BakResourceSettings.OverridePath: '{OverridePath}'", BakResourceSettings.OverridePath);
             Logger.LogInformation("BakResourceSettings.GamePath: '{GamePath}'", BakResourceSettings.GamePath);
 
             Logger.LogInformation("Injecting custom resource providers...");
 
-            // A language pack's folder is an override root too, so it counts even with mod overrides off.
+            // A language pack's folder and an active mod are override roots too, so they count even with the dev folder off.
             if (OverrideResourceLocator.HasAnyRoot()) {
                 Logger.LogInformation("Adding OverrideResourceProvider and Locator.");
                 Addressables.ResourceManager.ResourceProviders.AddOnce<OverrideResourceProvider>();

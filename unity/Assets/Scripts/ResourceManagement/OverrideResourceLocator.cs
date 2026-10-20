@@ -1,5 +1,6 @@
 namespace BakAgain.ResourceManagement {
     using BakAgain.Core;
+    using GameData.Mods;
     using System;
     using System.Collections.Generic;
     using System.IO;
@@ -39,7 +40,30 @@ namespace BakAgain.ResourceManagement {
             if (type == null) {
                 return false;
             }
-            string filename = key.ToString();
+            if (!TryMapKey(key.ToString(), out string directory, out string filename)) {
+                return false;
+            }
+            foreach (string root in _roots) {
+                string path = Find(root, directory, filename);
+                if (path != null) {
+                    locations.Add(new ResourceLocationBase(key.ToString(), path, nameof(OverrideResourceProvider), type));
+
+                    return true;
+                }
+            }
+
+            _logger.LogDebug("Override for {Type} '{Key}' not found under {Directory}", type, key, directory);
+
+            return false;
+        }
+
+        /// <summary>
+        /// The override folder and file name a resource key maps to: <c>AIR1.BMX#0</c> is
+        /// <c>BMX/AIR1</c>, <c>0.png</c>; <c>DIALSTYL.DAT</c> is <c>DAT</c>, <c>DIALSTYL.json</c>.
+        /// </summary>
+        internal static bool TryMapKey(string key, out string directory, out string filename) {
+            directory = null;
+            filename = key;
 
             // Create a subdirectory path for sub-assets. So AIR1.BMX#0 becomes AIR1/0.BMX
             string dirName = null;
@@ -65,33 +89,48 @@ namespace BakAgain.ResourceManagement {
             };
 
             filename = Path.GetFileNameWithoutExtension(filename) + newExtension;
-
-            string directory = Path.Join(extension[1..].ToUpperInvariant(), dirName);
-            foreach (string root in _roots) {
-                string path = FindIgnoringCase(root, directory, filename);
-                if (path != null) {
-                    locations.Add(new ResourceLocationBase(key.ToString(), path, nameof(OverrideResourceProvider), type));
-
-                    return true;
-                }
-            }
-
-            _logger.LogDebug("Override for {Type} '{Key}' not found under {Directory}", type, key, directory);
-
-            return false;
+            directory = Path.Join(extension[1..].ToUpperInvariant(), dirName);
+            return true;
         }
 
         /// <summary>
-        /// The folders searched, most specific first: the active language pack's, then the mod
-        /// folder when overrides are on. A pack is used whether or not mod overrides are.
+        /// Every override of <paramref name="directory"/>/<paramref name="filename"/> across the
+        /// roots, <b>lowest priority first</b>: the order partial documents apply in.
+        /// </summary>
+        internal static IReadOnlyList<string> FindAll(string directory, string filename) =>
+            Roots().Select(root => Find(root, directory, filename)).Where(path => path != null).Reverse().ToList();
+
+        /// <summary>The file in one root, or else the file that root's <c>aliases.json</c> maps it to.</summary>
+        private static string Find(string root, string directory, string filename) {
+            string path = FindIgnoringCase(root, directory, filename);
+            if (path != null) {
+                return path;
+            }
+            // ponytail: aliases.json is re-read on every miss in a root that has one; cache per root if lookups show up in a profile.
+            string extension = Path.GetExtension(filename);
+            string alias = (directory.Replace('\\', '/') + "/" + Path.GetFileNameWithoutExtension(filename)).TrimStart('/');
+            foreach (var entry in ModAliases.Read(root)) {
+                if (string.Equals(entry.Key, alias, StringComparison.OrdinalIgnoreCase)) {
+                    int slash = entry.Value.LastIndexOf('/');
+                    return slash < 0 ? null
+                        : FindIgnoringCase(root, entry.Value[..slash], entry.Value[(slash + 1)..] + extension);
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// The folders searched, most specific first: the active language pack's, then
+        /// <see cref="ModLayers.ContentRoots"/> (the dev folder when enabled, then the active mods).
+        /// A pack is used whether or not mod overrides are.
         /// </summary>
         private static IEnumerable<string> Roots() {
             string pack = LanguagePacks.ActiveFolder();
             if (pack != null && Directory.Exists(pack)) {
                 yield return pack;
             }
-            if (BakResourceSettings.OverrideEnabled && Directory.Exists(BakResourceSettings.OverridePath)) {
-                yield return BakResourceSettings.OverridePath;
+            foreach (string root in ModLayers.ContentRoots()) {
+                yield return root;
             }
         }
 

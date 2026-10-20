@@ -6,10 +6,11 @@ namespace BakAgain.ResourceManagement {
     using Newtonsoft.Json.Linq;
     using System.Collections.Generic;
     using System.IO;
+    using System.Linq;
     using ILogger = Microsoft.Extensions.Logging.ILogger;
 
     /// <summary>
-    /// Builds the MOD half of the item catalog from <c>Overrides/ObjectInfo/*.json</c> —
+    /// Builds the MOD half of the item catalog from each override layer's <c>ObjectInfo/*.json</c> —
     /// the source TASK-259's registry has always been able to merge and nothing has ever supplied.
     /// </summary>
     /// <remarks>
@@ -34,23 +35,23 @@ namespace BakAgain.ResourceManagement {
         internal const string Directory = "ObjectInfo";
 
         /// <summary>
-        /// The mod source, or <c>null</c> when overrides are off or nothing is authored.
+        /// One source per override layer that has <c>ObjectInfo/*.json</c>, <b>lowest priority
+        /// first</b>, so the registry's ordered merge lets the higher layer win a key.
         /// </summary>
         /// <remarks>
-        /// <b>Null rather than an empty source</b>: an empty source would still appear in the
-        /// merged catalog's provenance as having been consulted, which would make "no mod is
-        /// installed" and "a mod that changes nothing is installed" indistinguishable to anything
-        /// reading provenance.
+        /// <b>Each layer merges onto the one below it, not onto the shipped item</b> (mod system
+        /// spec 4.4): two mods changing different fields of one item both take effect.
+        ///
+        /// <para><b>A layer with nothing authored supplies no source</b> rather than an empty one:
+        /// an empty source would still appear in the merged catalog's provenance as having been
+        /// consulted, which would make "no mod is installed" and "a mod that changes nothing is
+        /// installed" indistinguishable to anything reading provenance.</para>
         /// </remarks>
-        internal static IContentSource<ObjectInfo> FromOverrides(
-            ObjectInfoSet baseline, ILogger logger = null) {
-            if (!BakResourceSettings.OverrideEnabled || baseline == null) {
-                return null;
-            }
-
-            string folder = Path.Join(BakResourceSettings.OverridePath, Directory);
-            if (!System.IO.Directory.Exists(folder)) {
-                return null;
+        internal static IReadOnlyList<IContentSource<ObjectInfo>> FromLayers(
+            ObjectInfoSet baseline, ILogger logger) {
+            var sources = new List<IContentSource<ObjectInfo>>();
+            if (baseline == null) {
+                return sources;
             }
 
             var byNumber = new Dictionary<int, ObjectInfo>();
@@ -58,17 +59,25 @@ namespace BakAgain.ResourceManagement {
                 byNumber[shipped.Number] = shipped;
             }
 
-            var entries = new List<ContentEntry<ObjectInfo>>();
-            foreach (string file in System.IO.Directory.GetFiles(folder, "*.json")) {
-                foreach (ObjectInfo merged in ItemsIn(file, byNumber, logger)) {
-                    entries.Add(new ContentEntry<ObjectInfo>(
-                        ContentKey.ForBase(ObjectInfoContentSource.Catalog, merged.Number), merged));
+            foreach (string root in ModLayers.ContentRoots().Reverse()) {
+                string folder = Path.Join(root, Directory);
+                if (!System.IO.Directory.Exists(folder)) {
+                    continue;
+                }
+                var entries = new List<ContentEntry<ObjectInfo>>();
+                foreach (string file in System.IO.Directory.GetFiles(folder, "*.json")) {
+                    foreach (ObjectInfo merged in ItemsIn(file, byNumber, logger).ToList()) {
+                        entries.Add(new ContentEntry<ObjectInfo>(
+                            ContentKey.ForBase(ObjectInfoContentSource.Catalog, merged.Number), merged));
+                        byNumber[merged.Number] = merged;
+                    }
+                }
+                if (entries.Count > 0) {
+                    sources.Add(new ListContentSource<ObjectInfo>(
+                        $"mod:{Path.GetFileName(root)}:{ObjectInfoContentSource.Catalog}", entries));
                 }
             }
-
-            return entries.Count == 0
-                ? null
-                : new ListContentSource<ObjectInfo>($"mod:{ObjectInfoContentSource.Catalog}", entries);
+            return sources;
         }
 
         /// <summary>

@@ -100,8 +100,18 @@ namespace BakAgain.ResourceManagement {
             }
 
             if (ShippedBaselines.TryGetValue(resourceType, out Func<string, object> createBaseline)) {
-                return OverrideJsonMerge.OntoBaseline(
-                    json, createBaseline(resourceId), resourceType, JsonSettings);
+                // Every layer's document applies, bottom-up (mod system spec 4.4), so two mods
+                // changing different fields of one table both take effect.
+                IReadOnlyList<string> layers =
+                    OverrideResourceLocator.TryMapKey(resourceId, out string directory, out string filename)
+                        ? OverrideResourceLocator.FindAll(directory, filename)
+                        : Array.Empty<string>();
+                object merged = createBaseline(resourceId);
+                foreach (string layer in layers.Count > 0 ? layers : new[] { path }) {
+                    merged = OverrideJsonMerge.OntoBaseline(
+                        File.ReadAllText(layer), merged, resourceType, JsonSettings);
+                }
+                return merged;
             }
 
             object loaded = JsonConvert.DeserializeObject(json, resourceType, JsonSettings);
