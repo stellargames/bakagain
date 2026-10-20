@@ -1,5 +1,7 @@
 namespace GameData.Mods;
 
+using System;
+
 /// <summary>
 /// A version constraint in one of three forms: <c>&gt;=X</c>, <c>^X</c> (same major, at least X) or
 /// exact <c>X</c> (mod system spec 4.1). Compares the core version only.
@@ -17,9 +19,10 @@ public sealed class VersionRange {
 
     public static bool TryParse(string s, out VersionRange r) {
         r = null!;
+        if (string.IsNullOrWhiteSpace(s)) return false;
         Kind kind = Kind.Exact;
-        if (s.StartsWith(">=")) { kind = Kind.AtLeast; s = s.Substring(2); }
-        else if (s.StartsWith("^")) { kind = Kind.Caret; s = s.Substring(1); }
+        if (s.StartsWith(">=", StringComparison.Ordinal)) { kind = Kind.AtLeast; s = s.Substring(2); }
+        else if (s.StartsWith("^", StringComparison.Ordinal)) { kind = Kind.Caret; s = s.Substring(1); }
         if (!SemVersion.TryParse(s, out SemVersion v)) return false;
         r = new VersionRange(kind, v);
         return true;

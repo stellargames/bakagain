@@ -77,14 +77,14 @@ public class ModManifestTests {
     public void Parse_BadId_Error(string id) {
         ModManifest? m = Parse(SpecExample.Replace("hd-trees", id), out IReadOnlyList<string> errors);
         Assert.Null(m);
-        Assert.Contains(errors, e => e.Contains("id"));
+        Assert.Contains(errors, e => e.StartsWith("id '") && e.Contains("' must match ^[a-z0-9]"));
     }
 
     [Fact]
     public void Parse_SchemaTooNew_Error() {
         ModManifest? m = Parse(SpecExample.Replace("\"schema\": 1", "\"schema\": 2"), out IReadOnlyList<string> errors);
         Assert.Null(m);
-        Assert.Contains(errors, e => e.Contains("newer"));
+        Assert.Contains(errors, e => e.StartsWith("schema 2 is newer than this game understands"));
     }
 
     [Fact]
@@ -99,7 +99,7 @@ public class ModManifestTests {
     public void Parse_UnknownMode_Error() {
         ModManifest? m = Parse(SpecExample.Replace("\"enhanced\"", "\"turbo\""), out IReadOnlyList<string> errors);
         Assert.Null(m);
-        Assert.Contains(errors, e => e.Contains("turbo"));
+        Assert.Contains("unknown mode 'turbo'", errors);
     }
 
     [Theory]
@@ -109,7 +109,7 @@ public class ModManifestTests {
     public void Parse_BadDependencyRange_Error(string badValue) {
         ModManifest? m = Parse(SpecExample.Replace("\"^1.0.0\"", badValue), out IReadOnlyList<string> errors);
         Assert.Null(m);
-        Assert.Contains(errors, e => e.Contains("some-mod"));
+        Assert.Contains("dependency 'some-mod' has an invalid version range", errors);
     }
 
     [Theory]
@@ -120,7 +120,7 @@ public class ModManifestTests {
         string json = SpecExample.Replace($"\"{field}\":", "\"renamed\":");
         ModManifest? m = Parse(json, out IReadOnlyList<string> errors);
         Assert.Null(m);
-        Assert.Contains(errors, e => e.Contains(field));
+        Assert.Contains($"{field} is missing", errors);
     }
 
     [Fact]
@@ -136,5 +136,58 @@ public class ModManifestTests {
     public void Parse_NotAnObject_Error(string json) {
         Assert.Null(Parse(json, out IReadOnlyList<string> errors));
         Assert.NotEmpty(errors);
+    }
+
+    [Fact]
+    public void Parse_MissingSchema_Error() {
+        ModManifest? m = Parse(SpecExample.Replace("\"schema\": 1,", ""), out IReadOnlyList<string> errors);
+        Assert.Null(m);
+        Assert.Contains("schema is missing or not a number", errors);
+    }
+
+    [Theory]
+    [InlineData("\"Bad_Id\": \"^1.0.0\"", "dependency id 'Bad_Id'")]
+    [InlineData("\"x\": \"^1.0.0\"", "dependency id 'x'")]
+    public void Parse_BadDependencyId_Error(string entry, string expected) {
+        ModManifest? m = Parse(SpecExample.Replace("\"some-mod\": \"^1.0.0\"", entry), out IReadOnlyList<string> errors);
+        Assert.Null(m);
+        Assert.Contains(errors, e => e.StartsWith(expected));
+    }
+
+    [Fact]
+    public void Parse_BadConflictId_Error() {
+        ModManifest? m = Parse(SpecExample.Replace("\"other-tree-mod\"", "\"Not An Id\""), out IReadOnlyList<string> errors);
+        Assert.Null(m);
+        Assert.Contains(errors, e => e.StartsWith("conflicts entry 'Not An Id'"));
+    }
+
+    [Theory]
+    [InlineData("\"\"")]
+    [InlineData("\"   \"")]
+    public void Parse_BlankName_Error(string name) {
+        ModManifest? m = Parse(SpecExample.Replace("\"HD Trees\"", name), out IReadOnlyList<string> errors);
+        Assert.Null(m);
+        Assert.Contains("name must not be empty", errors);
+    }
+
+    [Fact]
+    public void Parse_DuplicateEntries_DeDuplicated() {
+        string json = SpecExample
+            .Replace("[ \"other-tree-mod\" ]", "[ \"other-tree-mod\", \"other-tree-mod\" ]")
+            .Replace("[ \"sprites\" ]", "[ \"sprites\", \"sprites\" ]")
+            .Replace("[ \"enhanced\" ]", "[ \"enhanced\", \"classic\", \"enhanced\" ]");
+        ModManifest? m = Parse(json, out IReadOnlyList<string> errors);
+        Assert.Empty(errors);
+        Assert.Equal(new[] { "other-tree-mod" }, m!.Conflicts);
+        Assert.Equal(new[] { "sprites" }, m.Kinds);
+        Assert.Equal(new[] { ModMode.Enhanced, ModMode.Classic }, m.Modes);
+    }
+
+    [Fact]
+    public void Parse_EmptyModes_ReportedAlongsideOtherErrors() {
+        ModManifest? m = Parse(SpecExample.Replace("\"HD Trees\"", "\"\"").Replace("[ \"enhanced\" ]", "[]"), out IReadOnlyList<string> errors);
+        Assert.Null(m);
+        Assert.Contains("name must not be empty", errors);
+        Assert.Contains("modes must not be empty", errors);
     }
 }

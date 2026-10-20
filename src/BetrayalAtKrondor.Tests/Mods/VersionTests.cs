@@ -41,4 +41,53 @@ public class VersionTests {
     [InlineData(">1.0.0")]
     [InlineData("1.x")]
     public void Range_UnsupportedForm_Invalid(string s) => Assert.False(VersionRange.TryParse(s, out _));
+
+    [Theory]
+    [InlineData("01.2.3")]
+    [InlineData("1.02.3")]
+    [InlineData("1.2.03")]
+    [InlineData("1.2.3-a..b")]
+    [InlineData("1.2.3-.a")]
+    [InlineData("1.2.3-a_b")]
+    [InlineData("1.2.3-01")]
+    [InlineData("1.2.3-beta.01")]
+    public void Parse_Invalid_LeadingZerosAndBadPrerelease(string s) => Assert.False(SemVersion.TryParse(s, out _));
+
+    [Theory]
+    [InlineData("0.0.0")]
+    [InlineData("1.2.3-rc.1")]
+    [InlineData("1.2.3-alpha-1.x-y")]
+    [InlineData("1.2.3-0")]
+    [InlineData("1.2.3-0a")]
+    public void Parse_Valid_PrereleaseIdentifiers(string s) {
+        Assert.True(SemVersion.TryParse(s, out SemVersion v));
+        Assert.Equal(s, v.ToString());
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Range_NullOrWhitespace_Invalid(string? s) => Assert.False(VersionRange.TryParse(s!, out _));
+
+    // Spec 4.1: ^X is "same major, at least X". There is no npm-style special case below 1.0.
+    [Theory]
+    [InlineData("^0.2.0", "0.9.0", true)]
+    [InlineData("^0.2.0", "0.1.9", false)]
+    [InlineData("^0.2.0", "1.0.0", false)]
+    public void Range_Caret_ZeroMajor_IsSameMajor(string range, string version, bool expected) {
+        Assert.True(VersionRange.TryParse(range, out VersionRange r));
+        Assert.True(SemVersion.TryParse(version, out SemVersion v));
+        Assert.Equal(expected, r.Satisfies(v));
+    }
+
+    [Fact]
+    public void Range_BaseWithPrerelease_ComparesCore() {
+        Assert.True(VersionRange.TryParse(">=1.2.0-beta", out VersionRange r));
+        Assert.True(SemVersion.TryParse("1.2.0", out SemVersion plain));
+        Assert.True(SemVersion.TryParse("1.1.9", out SemVersion older));
+        Assert.True(r.Satisfies(plain));
+        Assert.False(r.Satisfies(older));
+        Assert.Equal(">=1.2.0-beta", r.ToString());
+    }
 }

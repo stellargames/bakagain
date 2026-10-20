@@ -14,7 +14,7 @@ public readonly record struct SemVersion(int Major, int Minor, int Patch, string
         int dash = s.IndexOf('-');
         if (dash >= 0) {
             pre = s.Substring(dash + 1);
-            if (pre.Length == 0) return false;
+            if (!ValidPrerelease(pre)) return false;
             s = s.Substring(0, dash);
         }
         string[] parts = s.Split('.');
@@ -23,10 +23,25 @@ public readonly record struct SemVersion(int Major, int Minor, int Patch, string
         return true;
     }
 
-    // Digits only: int.TryParse would also accept signs and whitespace.
+    // SemVer 2.0 section 9: dot-separated, non-empty identifiers of [0-9A-Za-z-]; numeric ones have no leading zero.
+    private static bool ValidPrerelease(string pre) {
+        foreach (string id in pre.Split('.')) {
+            if (id.Length == 0) return false;
+            bool numeric = true;
+            foreach (char c in id) {
+                bool digit = c >= '0' && c <= '9';
+                if (!digit && !(c >= 'a' && c <= 'z') && !(c >= 'A' && c <= 'Z') && c != '-') return false;
+                numeric &= digit;
+            }
+            if (numeric && id.Length > 1 && id[0] == '0') return false;
+        }
+        return true;
+    }
+
+    // Digits only, no leading zero: int.TryParse would also accept signs and whitespace.
     private static bool TryPart(string p, out int n) {
         n = 0;
-        if (p.Length == 0) return false;
+        if (p.Length == 0 || (p.Length > 1 && p[0] == '0')) return false;
         foreach (char c in p) if (c < '0' || c > '9') return false;
         return int.TryParse(p, out n);
     }

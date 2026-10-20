@@ -56,7 +56,9 @@ public sealed class ModManifest {
                 if (IdPattern.IsMatch(id)) m.Id = id;
                 else errs.Add($"id '{id}' must match {IdPattern}");
             }
-            m.Name = Str(root, "name", errs, required: true) ?? "";
+            string? name = Str(root, "name", errs, required: true);
+            if (name != null && string.IsNullOrWhiteSpace(name)) errs.Add("name must not be empty");
+            m.Name = name ?? "";
             string? version = Str(root, "version", errs, required: true);
             if (version != null) {
                 if (SemVersion.TryParse(version, out SemVersion v)) m.Version = v;
@@ -76,25 +78,29 @@ public sealed class ModManifest {
                 var map = new Dictionary<string, VersionRange>();
                 if (deps.ValueKind != JsonValueKind.Object) errs.Add("dependencies must be an object");
                 else foreach (JsonProperty p in deps.EnumerateObject()) {
-                    if (p.Value.ValueKind == JsonValueKind.String && VersionRange.TryParse(p.Value.GetString()!, out VersionRange r)) map[p.Name] = r;
+                    if (!IdPattern.IsMatch(p.Name)) errs.Add($"dependency id '{p.Name}' must match {IdPattern}");
+                    else if (p.Value.ValueKind == JsonValueKind.String && VersionRange.TryParse(p.Value.GetString()!, out VersionRange r)) map[p.Name] = r;
                     else errs.Add($"dependency '{p.Name}' has an invalid version range");
                 }
                 m.Dependencies = map;
             }
 
-            m.Conflicts = StrList(root, "conflicts", errs);
-            m.Kinds = StrList(root, "kinds", errs);
+            m.Conflicts = StrList(root, "conflicts", errs).Distinct().ToList();
+            foreach (string c in m.Conflicts.Where(c => !IdPattern.IsMatch(c))) errs.Add($"conflicts entry '{c}' must match {IdPattern}");
+            m.Kinds = StrList(root, "kinds", errs).Distinct().ToList();
             // Kinds only describe the mod; one this game does not know may be a newer game's.
             m.Warnings = m.Kinds.Where(k => !KnownKinds.Contains(k)).Select(k => $"unknown kind '{k}'").ToList();
 
             if (root.TryGetProperty("modes", out _)) {
                 var modes = new List<ModMode>();
-                foreach (string s in StrList(root, "modes", errs)) {
+                int before = errs.Count;
+                foreach (string s in StrList(root, "modes", errs).Distinct()) {
                     if (s == "enhanced") modes.Add(ModMode.Enhanced);
                     else if (s == "classic") modes.Add(ModMode.Classic);
                     else errs.Add($"unknown mode '{s}'");
                 }
-                if (modes.Count == 0 && errs.Count == 0) errs.Add("modes must not be empty");
+                // Reported next to other errors too; a malformed or unknown entry already said what is wrong.
+                if (modes.Count == 0 && errs.Count == before) errs.Add("modes must not be empty");
                 m.Modes = modes;
             }
 
