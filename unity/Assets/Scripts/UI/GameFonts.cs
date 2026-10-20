@@ -113,7 +113,9 @@ namespace BakAgain.UI {
             _bookFntAsset ??= TMP_FontAsset.CreateFontAsset(TrueType(dir, _bookFont, "Book"), 90, 9,
                 GlyphRenderMode.SDFAA, 1024, 1024, TMPro.AtlasPopulationMode.Dynamic, true);
             if (bookFont && _bookHand == null) {
-                Font hand = Resources.Load<Font>("Fonts/BookHand/BookHand-Regular");
+                // Synchronous like GAME.FNT above: the fonts are built at boot (Install), outside any
+                // load's Completed callback, where WaitForCompletion would throw.
+                Font hand = Addressables.LoadAssetAsync<Font>("Fonts/BookHand/BookHand-Regular").WaitForCompletion();
                 if (hand != null) {
                     _bookHand = TMP_FontAsset.CreateFontAsset(hand, 90, 9, GlyphRenderMode.SDFAA, 1024, 1024,
                         TMPro.AtlasPopulationMode.Dynamic, true);
@@ -161,8 +163,9 @@ namespace BakAgain.UI {
         /// fonts are missing.
         /// </summary>
         private static FontAsset LoadBookFont() {
-            Font medium = Resources.Load<Font>("Fonts/Alegreya/Alegreya-Medium");
-            Font italic = Resources.Load<Font>("Fonts/Alegreya/Alegreya-MediumItalic");
+            // Synchronous: called from Build, which already waits for GAME.FNT (see the note there).
+            Font medium = Addressables.LoadAssetAsync<Font>("Fonts/Alegreya/Alegreya-Medium").WaitForCompletion();
+            Font italic = Addressables.LoadAssetAsync<Font>("Fonts/Alegreya/Alegreya-MediumItalic").WaitForCompletion();
             if (medium == null) {
                 return null;
             }

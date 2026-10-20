@@ -1,7 +1,7 @@
 /* The game's own font lives in the original data files, which this menu exists to locate, so it
    cannot be used here: Alegreya Medium (SIL OFL 1.1), Enhanced mode's book font, instead. */
 :root {
-    -unity-font-definition: url("project://database/Assets/Resources/Fonts/Alegreya/Alegreya-Medium.ttf");
+    -unity-font-definition: url("project://database/Assets/BuiltIn/Fonts/Alegreya/Alegreya-Medium.ttf");
 }
 
 .textbox {

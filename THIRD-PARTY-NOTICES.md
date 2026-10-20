@@ -9,7 +9,7 @@ Bundled or build-time components and their licenses:
 | Component | Used for | License |
 |---|---|---|
 | [MeltySynth](https://github.com/sinshu/meltysynth) 2.4.1 | MIDI synthesis | MIT |
-| [GeneralUser GS](https://schristiancollins.com/generaluser.php) 2.0.3 by S. Christian Collins | General MIDI soundfont | GeneralUser GS License v2.0 (free use in software projects; text in `unity/Assets/Resources/Audio/GeneralUser-GS-LICENSE.txt`) |
+| [GeneralUser GS](https://schristiancollins.com/generaluser.php) 2.0.3 by S. Christian Collins | General MIDI soundfont | GeneralUser GS License v2.0 (free use in software projects; text in `unity/Assets/BuiltIn/Audio/GeneralUser-GS-LICENSE.txt`) |
 | [UniTask](https://github.com/Cysharp/UniTask) | async/await | MIT |
 | [VContainer](https://github.com/hadashiA/VContainer) 1.19.0 | dependency injection | MIT |
 | Newtonsoft.Json (Unity package 3.2.2) | JSON | MIT |

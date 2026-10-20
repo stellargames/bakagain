@@ -15,13 +15,143 @@ MonoBehaviour:
   m_GroupName: Default Local Group
   m_GUID: 42695b56fab7db548bd0729f956cb23e
   m_SerializeEntries:
+  - m_GUID: 060a6652f85d2e99eb9cc5b20dc3f868
+    m_Address: Enhanced/Sky/moon_small
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 07ab60db4d2b9e978bc2fa9b8e0cb7da
+    m_Address: BookSpread/table
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0b5fcf1b4ebe97d928c2afdb74285701
+    m_Address: Enhanced/Stone/gem-anchor-dim
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0c985900f81a0bc749748885a3ba01fc
+    m_Address: Enhanced/Stone/ring
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 16af164184a22dd35b5fcd2dc63a49ff
+    m_Address: Enhanced/Stone/gem-rest
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 190e7636ba9822a9c9bce808c89ed8ac
+    m_Address: Enhanced/Stone/slab
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 26568d9bde02d90ceb9caa9bba178ee6
+    m_Address: Enhanced/Stone/gem-lit
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 2b5212be2818a2c4286a9c2e9aa96738
     m_Address: Assets/Prefabs/MetaMenu.prefab
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3234b7a43f2b618c382ab5b8c5d7b5f4
+    m_Address: Enhanced/Stone/strap-h
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 34ded677866feb5149d381f14a3e03f6
+    m_Address: Enhanced/Sky/clouds_cumulus
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 42bf2b69887535815bfa57eeebaf11b4
+    m_Address: Enhanced/Stone/socket
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4fc1f277fc9a0c59eb4dceb44a33923a
+    m_Address: Enhanced/Sky/moon_large
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 55b9d218c2110dcf8b535bd87105f8de
+    m_Address: Enhanced/Stone/parchment
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 61d475c1264b217fea51302169534f1d
+    m_Address: Enhanced/Sky/clouds_cirrus
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 683f06ec3532ec735a4c01ef764750a5
+    m_Address: Audio/GeneralUser-GS
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 70285c36034ba8196872ab11e9bcc92f
+    m_Address: BookSpread/crease
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 809f27d12d42ce68ab11b0c71ddb45ea
+    m_Address: Fonts/BookHand/BookHand-Regular
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9173d29bac1f7231eb78a94f16399b16
+    m_Address: Enhanced/Stone/disc
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9835eecaa0910fc3e8374911b86dacbf
+    m_Address: Enhanced/Sky/moon_middle
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: aaaa64ca0cc8c9b4198ac01282ea4505
     m_Address: Assets/Prefabs/BackgroundLoading.prefab
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c1cc1d953b87ba3799a39f14e185aeb3
+    m_Address: Fonts/Alegreya/Alegreya-MediumItalic
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c5c18813adebacc2fb74773cadae3c8c
+    m_Address: Enhanced/Stone/gem-hover
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c84a2764d6146041395e0f870373b24c
+    m_Address: Enhanced/Stone/gem-anchor
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d0cfd34e8aa0118428f255d774c60872
+    m_Address: Enhanced/Stone/glow
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d7427ec9a7f3ba373b4b7cf0b3bd0bcf
+    m_Address: Fonts/Alegreya/Alegreya-Medium
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: dfdbea71c4b9581329e34aec1820ba35
+    m_Address: Enhanced/Stone/gem-dim
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e21265c264a22dce1a7292837b69fec1
+    m_Address: Enhanced/Stone/marble
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: fcd49afd3edf552a09c1c44f8de29606
+    m_Address: Enhanced/Stone/strap-v
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0

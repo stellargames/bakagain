@@ -1,4 +1,5 @@
 namespace BakAgain.Core.DI {
+    using BakAgain.Audio;
     using BakAgain.Core;
     using BakAgain.ResourceManagement;
     using BakAgain.UI;
@@ -105,6 +106,10 @@ namespace BakAgain.Core.DI {
 
                 _logger.LogInformation("Initializing ResourceManagement.");
                 ResourceManagementInitializer.InitializeResourceManagement();
+                await MidiSynthPlayer.PreloadSoundFontAsync();
+                if (GameOptions.Enhanced) {
+                    await EnhancedArt.PreloadAsync();
+                }
 
                 GameFonts.Install(_gamePanelSettings);
                 // The menus before any game is loaded read the catalog too (the V banner, the

@@ -84,6 +84,15 @@ namespace BakAgain.ResourceManagement {
         private static readonly ILogger LayerLogger = LogManager.LoggerFactory.CreateLogger<OverrideResourceProvider>();
 
         internal static object LoadOverrideObject(string path, Type resourceType, string resourceId) {
+            // A built-in asset's replacement (OverrideResourceLocator's path-style keys): a font file,
+            // or a binary file such as a sound bank, served as its bytes.
+            if (resourceType == typeof(Font)) {
+                return new Font(path); // a name with a directory in it makes Unity load the font from that file
+            }
+            if (resourceType == typeof(TextAsset) && !path.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) {
+                return new TextAsset(File.ReadAllBytes(path)) { name = resourceId };
+            }
+
             string json = File.ReadAllText(path);
 
             if (resourceType == typeof(TextAsset)) {
@@ -105,8 +114,8 @@ namespace BakAgain.ResourceManagement {
                 // Every layer's document applies, bottom-up (mod system spec 4.4), so two mods
                 // changing different fields of one table both take effect.
                 IReadOnlyList<string> layers =
-                    OverrideResourceLocator.TryMapKey(resourceId, out string directory, out string filename)
-                        ? OverrideResourceLocator.FindAll(directory, filename)
+                    OverrideResourceLocator.TryMapKey(resourceId, resourceType, out string directory, out IReadOnlyList<string> filenames)
+                        ? OverrideResourceLocator.FindAll(directory, filenames[0])
                         : Array.Empty<string>();
                 object merged = createBaseline(resourceId);
                 foreach (string layer in layers.Count > 0 ? layers : new[] { path }) {
@@ -139,9 +148,9 @@ namespace BakAgain.ResourceManagement {
         }
 
         /// <summary>
-        /// Destroys the textures this provider created when Addressables releases the
-        /// asset. Every <see cref="Provide"/> allocates a fresh Texture2D (no caching or
-        /// aliasing), so destroying on release is safe and stops override textures from
+        /// Destroys the textures and text assets this provider created when Addressables releases
+        /// the asset. Every <see cref="Provide"/> allocates a fresh one (no caching or aliasing), so
+        /// destroying on release is safe and stops overrides (a 31 MB sound bank among them) from
         /// accumulating in native memory.
         /// </summary>
         public override void Release(IResourceLocation location, object asset) {
@@ -157,6 +166,9 @@ namespace BakAgain.ResourceManagement {
                     break;
                 case Texture2D texture:
                     UnityObjectUtil.Destroy(texture);
+                    break;
+                case TextAsset text:
+                    UnityObjectUtil.Destroy(text);
                     break;
             }
         }

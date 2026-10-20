@@ -1,19 +1,37 @@
 namespace BakAgain.UI {
+    using Cysharp.Threading.Tasks;
     using System.Collections.Generic;
+    using System.Linq;
     using UnityEngine;
+    using UnityEngine.AddressableAssets;
     using UnityEngine.UIElements;
 
-    /// <summary>The Enhanced screens' shared art: the HD stone, marble, copper and parchment in
-    /// <c>Resources/Enhanced/Stone</c> (see <c>docs/asset-origins.md</c>).</summary>
+    /// <summary>The Enhanced screens' shared art: the HD stone, marble, copper and parchment at the
+    /// Addressables addresses <c>Enhanced/Stone/*</c> (see <c>docs/asset-origins.md</c>).</summary>
     public static class EnhancedArt {
         public const string Folder = "Enhanced/Stone/";
 
         private static readonly Dictionary<string, Texture2D> Loaded = new();
 
+        /// <summary>
+        /// Loads every <see cref="Folder"/> address the catalog has, so <see cref="Texture"/> finds
+        /// them loaded: screens are often laid out inside another load's <c>Completed</c> callback,
+        /// where a synchronous load throws.
+        /// </summary>
+        public static async UniTask PreloadAsync() {
+            string[] addresses = Addressables.ResourceLocators.SelectMany(l => l.Keys).OfType<string>()
+                .Where(k => k.StartsWith(Folder, System.StringComparison.Ordinal)).Distinct().ToArray();
+            foreach (string address in addresses) {
+                Loaded[address[Folder.Length..]] = await Addressables.LoadAssetAsync<Texture2D>(address).ToUniTask();
+            }
+        }
+
         /// <summary>Loaded once: the screens ask for the same few textures on every redraw.</summary>
         public static Texture2D Texture(string name) {
             if (!Loaded.TryGetValue(name, out Texture2D t) || t == null) {
-                Loaded[name] = t = Resources.Load<Texture2D>(Folder + name);
+                // Not preloaded (a test building a screen without the boot): WaitForCompletion throws
+                // inside another load's Completed callback, which the boot's preload keeps the game out of.
+                Loaded[name] = t = Addressables.LoadAssetAsync<Texture2D>(Folder + name).WaitForCompletion();
             }
             return t;
         }

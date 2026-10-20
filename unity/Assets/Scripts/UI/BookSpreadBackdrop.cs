@@ -159,18 +159,28 @@ namespace BakAgain.UI {
 
         private void Awake() {
             _back = NewCanvas("Back", BackSortingOrder);
-            _table = NewImage(_back, Resources.Load<Texture2D>("BookSpread/table"));
-            if (_table.texture != null) {
-                _table.texture.wrapMode = TextureWrapMode.Mirror;   // alternate copies mirrored: no seam
-            }
+            _table = NewImage(_back, null);
             _sheetShadow = NewImage(_back, null);
             _facing = NewImage(_back, null);
             _front = NewCanvas("Front", FrontSortingOrder);
-            _shade = NewImage(_front, Resources.Load<Texture2D>("BookSpread/crease"));
-            if (_shade.texture != null) {
-                _shade.texture.wrapMode = TextureWrapMode.Clamp;   // the page turn samples past the band: clear there, not smeared
-            }
+            _shade = NewImage(_front, null);
             _back.enabled = _front.enabled = false;
+            // Async, as the facing page below: Awake runs on the first Show, usually inside another load's callback.
+            LoadInto(_table, "BookSpread/table", TextureWrapMode.Mirror);   // alternate copies mirrored: no seam
+            LoadInto(_shade, "BookSpread/crease", TextureWrapMode.Clamp);   // the page turn samples past the band: clear there, not smeared
+        }
+
+        private void LoadInto(RawImage image, string address, TextureWrapMode wrap) {
+            Addressables.LoadAssetAsync<Texture2D>(address).Completed += loaded => {
+                if (this == null || loaded.Result == null) {
+                    return;
+                }
+                loaded.Result.wrapMode = wrap;
+                image.texture = loaded.Result;
+                image.enabled = true;
+                image.gameObject.name = loaded.Result.name;
+                _placed = default;   // re-place: the table's tiling depends on its size
+            };
         }
 
         // The plain parchment every dialog is drawn on is the facing page: no page art is shipped.

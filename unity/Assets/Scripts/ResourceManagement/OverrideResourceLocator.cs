@@ -5,6 +5,7 @@ namespace BakAgain.ResourceManagement {
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
+    using UnityEngine;
     using UnityEngine.AddressableAssets.ResourceLocators;
     using UnityEngine.ResourceManagement.ResourceLocations;
     using ILogger = Microsoft.Extensions.Logging.ILogger;
@@ -40,15 +41,17 @@ namespace BakAgain.ResourceManagement {
             if (type == null) {
                 return false;
             }
-            if (!TryMapKey(key.ToString(), out string directory, out string filename)) {
+            if (!TryMapKey(key.ToString(), type, out string directory, out IReadOnlyList<string> filenames)) {
                 return false;
             }
             foreach (string root in _roots) {
-                string path = Find(root, directory, filename);
-                if (path != null) {
-                    locations.Add(new ResourceLocationBase(key.ToString(), path, nameof(OverrideResourceProvider), type));
+                foreach (string filename in filenames) {
+                    string path = Find(root, directory, filename);
+                    if (path != null) {
+                        locations.Add(new ResourceLocationBase(key.ToString(), path, nameof(OverrideResourceProvider), type));
 
-                    return true;
+                        return true;
+                    }
                 }
             }
 
@@ -58,12 +61,23 @@ namespace BakAgain.ResourceManagement {
         }
 
         /// <summary>
-        /// The override folder and file name a resource key maps to: <c>AIR1.BMX#0</c> is
-        /// <c>BMX/AIR1</c>, <c>0.png</c>; <c>DIALSTYL.DAT</c> is <c>DAT</c>, <c>DIALSTYL.json</c>.
+        /// The override folder and file names a resource key maps to: <c>AIR1.BMX#0</c> is
+        /// <c>BMX/AIR1</c>, <c>0.png</c>; <c>DIALSTYL.DAT</c> is <c>DAT</c>, <c>DIALSTYL.json</c>. A
+        /// built-in asset's path-style address (a <c>/</c>, no extension) is <c>Resources/</c> plus that
+        /// path, with each extension <paramref name="type"/> can be read from, in the order tried:
+        /// <c>Enhanced/Sky/moon_large</c> as a texture is <c>Resources/Enhanced/Sky</c>,
+        /// <c>moon_large.png</c> then <c>moon_large.jpg</c>.
         /// </summary>
-        internal static bool TryMapKey(string key, out string directory, out string filename) {
+        internal static bool TryMapKey(string key, Type type, out string directory, out IReadOnlyList<string> filenames) {
+            if (key.Contains('/') && !key.Contains('#') && !Path.HasExtension(key)) {
+                directory = Path.Join("Resources", Path.GetDirectoryName(key));
+                string name = Path.GetFileName(key);
+                filenames = BuiltInExtensions(type).Select(extension => name + extension).ToList();
+                return filenames.Count > 0;
+            }
             directory = null;
-            filename = key;
+            filenames = null;
+            string filename = key;
 
             // Create a subdirectory path for sub-assets. So AIR1.BMX#0 becomes AIR1/0.BMX
             string dirName = null;
@@ -88,10 +102,17 @@ namespace BakAgain.ResourceManagement {
                 _ => ".json"
             };
 
-            filename = Path.GetFileNameWithoutExtension(filename) + newExtension;
+            filenames = new[] { Path.GetFileNameWithoutExtension(filename) + newExtension };
             directory = Path.Join(extension[1..].ToUpperInvariant(), dirName);
             return true;
         }
+
+        /// <summary>The file types a built-in asset of <paramref name="type"/> is read from.</summary>
+        private static string[] BuiltInExtensions(Type type) =>
+            type == typeof(Texture2D) || type == typeof(Sprite) ? new[] { ".png", ".jpg" }
+            : type == typeof(Font) ? new[] { ".ttf", ".otf" }
+            : type == typeof(TextAsset) ? new[] { ".sf2" }
+            : Array.Empty<string>();
 
         /// <summary>
         /// Every override of <paramref name="directory"/>/<paramref name="filename"/> across the

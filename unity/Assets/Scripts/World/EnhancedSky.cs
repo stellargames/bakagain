@@ -4,6 +4,7 @@ namespace BakAgain.World {
     using BakAgain.World.Rendering;
     using GameData.Resources.World;
     using UnityEngine;
+    using UnityEngine.AddressableAssets;
     using UnityEngine.Rendering;
     using UnityEngine.Rendering.Universal;
 
@@ -203,11 +204,12 @@ namespace BakAgain.World {
                 _dome.transform.SetParent(transform, false);
                 _domeMesh = BuildDome(DomeRadius, 24, 12);
                 _domeMaterial = new Material(Shader.Find("BakAgain/EnhancedSky"));
-                _domeMaterial.SetTexture("_CloudsA", Resources.Load<Texture2D>("Enhanced/Sky/clouds_cumulus"));
-                _domeMaterial.SetTexture("_CloudsB", Resources.Load<Texture2D>("Enhanced/Sky/clouds_cirrus"));
-                _domeMaterial.SetTexture("_Moon0", Resources.Load<Texture2D>("Enhanced/Sky/moon_large"));
-                _domeMaterial.SetTexture("_Moon1", Resources.Load<Texture2D>("Enhanced/Sky/moon_middle"));
-                _domeMaterial.SetTexture("_Moon2", Resources.Load<Texture2D>("Enhanced/Sky/moon_small"));
+                // Async: until a texture arrives the shader's default (black) shows no cloud or moon.
+                SetDomeTexture("_CloudsA", "Enhanced/Sky/clouds_cumulus");
+                SetDomeTexture("_CloudsB", "Enhanced/Sky/clouds_cirrus");
+                SetDomeTexture("_Moon0", "Enhanced/Sky/moon_large");
+                SetDomeTexture("_Moon1", "Enhanced/Sky/moon_middle");
+                SetDomeTexture("_Moon2", "Enhanced/Sky/moon_small");
                 _dome.AddComponent<MeshFilter>().sharedMesh = _domeMesh;
                 var renderer = _dome.AddComponent<MeshRenderer>();
                 renderer.sharedMaterial = _domeMaterial;
@@ -218,6 +220,14 @@ namespace BakAgain.World {
             if (_camera != null) {
                 _dome.transform.SetPositionAndRotation(_camera.transform.position, Quaternion.identity);
             }
+        }
+
+        private void SetDomeTexture(string property, string address) {
+            Addressables.LoadAssetAsync<Texture2D>(address).Completed += loaded => {
+                if (_domeMaterial != null) {
+                    _domeMaterial.SetTexture(property, loaded.Result);
+                }
+            };
         }
 
         private void SetSun(bool on, long ticks, SkyDirection sun, Color sunColor, int daylight, bool castShadows) {

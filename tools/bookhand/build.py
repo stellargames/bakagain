@@ -1,7 +1,7 @@
 """Builds Book Hand, Enhanced mode's book font, from the stroke drawings in glyphs.py.
 
 Run from bakagain/:
-    uv run --with fonttools --with shapely python tools/bookhand/build.py unity/Assets/Resources/Fonts/BookHand/BookHand-Regular.ttf
+    uv run --with fonttools --with shapely python tools/bookhand/build.py unity/Assets/BuiltIn/Fonts/BookHand/BookHand-Regular.ttf
     uv run --with fonttools --with shapely python tools/bookhand/build.py --check-only <font.ttf>
 """
 import math

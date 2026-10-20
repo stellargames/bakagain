@@ -161,15 +161,17 @@ namespace BakAgain.Tests.TestSupport {
     }
 
     /// <summary>
-    /// Empties Addressables' locator list for the duration of one test and puts it back exactly
-    /// as it was.
+    /// Takes the game's own locators out of Addressables' list for the duration of one test and puts
+    /// the list back exactly as it was. Addressables' catalog locator stays: the built-in assets
+    /// (<c>Enhanced/Sky/moon_large</c>, <c>BookSpread/table</c>) load through it, as in the game,
+    /// where Addressables is initialised before the game's locators are registered.
     ///
     /// <para>A test that drives the real resource system has to control locator ORDER, because
     /// Addressables takes the first locator that resolves a key. In a live Editor session the
     /// locators are already registered — and if <c>BakResourceLocator</c> happens to sit ahead of
     /// <c>OverrideResourceLocator</c> (which it does after any re-initialisation with overrides
     /// disabled) then the shipped resource wins and an override test passes or fails on session
-    /// history rather than on the code under test. Starting from an empty list and letting
+    /// history rather than on the code under test. Starting without them and letting
     /// <c>ResourceManagementInitializer</c> register in its production order makes the test
     /// deterministic.</para>
     /// </summary>
@@ -178,16 +180,21 @@ namespace BakAgain.Tests.TestSupport {
 
         public IsolatedResourceLocators() {
             _saved = Addressables.ResourceLocators.ToList();
-            foreach (IResourceLocator locator in _saved) {
+            foreach (IResourceLocator locator in _saved.Where(IsTheGames)) {
                 Addressables.RemoveResourceLocator(locator);
             }
         }
 
+        private static bool IsTheGames(IResourceLocator locator) =>
+            locator is OverrideResourceLocator or BakResourceLocator;
+
         public void Dispose() {
-            foreach (IResourceLocator locator in Addressables.ResourceLocators.ToList()) {
-                Addressables.RemoveResourceLocator(locator);
-            }
-            foreach (IResourceLocator locator in _saved) {
+            // A first load inside the scope initialises Addressables, which adds its catalog's
+            // locator: that one stays, or the rest of the run has no catalog.
+            List<IResourceLocator> catalogs = Addressables.ResourceLocators
+                .Where(l => !IsTheGames(l) && !_saved.Contains(l)).ToList();
+            Addressables.ClearResourceLocators();
+            foreach (IResourceLocator locator in _saved.Concat(catalogs)) {
                 Addressables.AddResourceLocator(locator);
             }
         }
