@@ -31,7 +31,7 @@ namespace BakAgain.ResourceManagement {
 
         public static ModResolution Current { get; private set; } = Empty;
 
-        private static string StatePath => Path.Combine(ModsRoot, "mods.json");
+        internal static string StatePath => Path.Combine(ModsRoot, "mods.json");
 
         /// <summary>
         /// Installs the zips dropped into <see cref="ModsRoot"/>, then resolves the installed mods for
@@ -49,17 +49,7 @@ namespace BakAgain.ResourceManagement {
                 foreach (string zip in Directory.GetFiles(ModsRoot, "*.zip")) {
                     InstallFromInbox(zip, state);
                 }
-                var installed = new List<InstalledMod>();
-                foreach (string folder in Directory.GetDirectories(ModsRoot).Where(d => ModFolder.IsMatch(Path.GetFileName(d)))) {
-                    InstalledMod mod = ModArchive.ReadInstalled(folder);
-                    if (mod != null) {
-                        installed.Add(mod);
-                    } else {
-                        Logger.LogWarning("Mod folder {Folder} has no valid mod.json; skipped.", folder);
-                    }
-                }
-                SemVersion? game = !Application.isEditor && SemVersion.TryParse(Application.version, out SemVersion v) ? v : null;
-                Current = ModResolver.Resolve(installed, state, Mode, game);
+                Current = ModResolver.Resolve(ReadInstalled(), state, Mode, GameVersion);
             } catch (Exception e) {
                 Logger.LogError(e, "Mods could not be read from {Root}; starting without mods.", ModsRoot);
                 Current = Empty;
@@ -75,8 +65,29 @@ namespace BakAgain.ResourceManagement {
             }
         }
 
+        /// <summary>The game version mods are checked against; none in the Editor (spec: my calls).</summary>
+        internal static SemVersion? GameVersion =>
+            !Application.isEditor && SemVersion.TryParse(Application.version, out SemVersion v) ? v : null;
+
+        /// <summary>Whether a folder in <see cref="ModsRoot"/> is an installed mod's, by its name.</summary>
+        internal static bool IsModFolder(string folder) => ModFolder.IsMatch(Path.GetFileName(folder));
+
+        /// <summary>The mods installed in <see cref="ModsRoot"/>; a folder without a valid mod.json is logged and skipped.</summary>
+        internal static List<InstalledMod> ReadInstalled() {
+            var installed = new List<InstalledMod>();
+            foreach (string folder in Directory.GetDirectories(ModsRoot).Where(IsModFolder)) {
+                InstalledMod mod = ModArchive.ReadInstalled(folder);
+                if (mod != null) {
+                    installed.Add(mod);
+                } else {
+                    Logger.LogWarning("Mod folder {Folder} has no valid mod.json; skipped.", folder);
+                }
+            }
+            return installed;
+        }
+
         /// <summary>A corrupt state file counts as empty: every installed mod is then enabled.</summary>
-        private static List<ModStateEntry> ReadState() {
+        internal static List<ModStateEntry> ReadState() {
             try {
                 List<ModStateEntry> state = ModStateFile.Read(StatePath).ToList();
                 if (state.Any(e => e?.Id == null)) {

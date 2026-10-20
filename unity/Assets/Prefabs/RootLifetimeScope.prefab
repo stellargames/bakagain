@@ -54,6 +54,7 @@ MonoBehaviour:
   inGameMenuPrefab: {fileID: 2724499040429203665, guid: b466103269df82e7a807710b7a2636d8, type: 3}
   preferencesMenuPrefab: {fileID: 5251917392965586031, guid: a4f9c2e1b6d84a3c9e7f1b2d5a8c4e60, type: 3}
   enhancedSettingsScreenPrefab: {fileID: 7838247949629317146, guid: a08dd6d8589c535169c0650b2eae843f, type: 3}
+  modsScreenPrefab: {fileID: 1271155516000817226, guid: 456d5f7f4106fe9e6a8777114545aead, type: 3}
   loadGameMenuPrefab: {fileID: 655378337821342906, guid: 13609b3a57ace1443adf930bdc9d922c, type: 3}
   saveGameScreenPrefab: {fileID: 8342474831928597182, guid: 190fef429ea47162ba54f66dd8a1a7e4, type: 3}
   contentsMenuPrefab: {fileID: 3765184352858967513, guid: 070088162b5f8984e85888fcdc3f6808, type: 3}

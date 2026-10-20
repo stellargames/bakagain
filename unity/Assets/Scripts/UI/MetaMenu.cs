@@ -237,6 +237,13 @@ namespace BakAgain.UI {
         internal static void PickFolder(string initialPath, string title, Action<string> picked) =>
             Pick(FilterDirectoriesOnly, FileBrowser.PickMode.Folders, initialPath, null, title, picked);
 
+        /// <summary>A mod zip picker (the Mods screen), with the same one-at-a-time rule.</summary>
+        internal static void PickZip(string title, Action<string> picked) =>
+            Pick(FilterZips, FileBrowser.PickMode.Files, null, null, title, picked);
+
+        private static bool FilterZips(FileSystemEntry entry) =>
+            entry.IsDirectory || entry.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
+
         private static void Pick(FileBrowser.FileSystemEntryFilter filter, FileBrowser.PickMode mode, string initialPath,
             string initialFilename, string title, Action<string> picked) {
             if (FileBrowser.IsOpen) {

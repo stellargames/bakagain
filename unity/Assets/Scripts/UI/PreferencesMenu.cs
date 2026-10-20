@@ -204,8 +204,9 @@ namespace BakAgain.UI {
             if (caption == null) {
                 return;
             }
+            EnhancedOptionsDraft draft = EnhancedOptionsDraft.Load();
             caption.text = EnhancedSettingsScreen.BoxText(GameData.Resources.Text.UiTemplates.EnhancedButtonKey, GameOptions.Enhanced,
-                state: true, pending: EnhancedSettingsScreen.FontChangePending(EnhancedOptionsDraft.Load()));
+                state: true, pending: EnhancedSettingsScreen.FontChangePending(draft) || EnhancedSettingsScreen.ModeChangePending(draft));
         }
 
         private void RefreshLanguageCaption(VisualElement root) {

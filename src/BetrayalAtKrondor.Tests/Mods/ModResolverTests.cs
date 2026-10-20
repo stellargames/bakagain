@@ -61,7 +61,7 @@ public class ModResolverTests {
     public void Resolve_MissingDependency_Excluded() {
         ModResolution r = Resolve(new[] { Mod("bb", extra: ", \"dependencies\": { \"aa\": \"^1.0.0\" }") }, new[] { On("bb") });
         Assert.Empty(r.Active);
-        Assert.Equal(new ModProblem("bb", ModProblemKind.MissingDependency, "needs 'aa', which is not active"), Assert.Single(r.Problems));
+        Assert.Equal(new ModProblem("bb", ModProblemKind.MissingDependency, "needs 'aa', which is not active", "aa"), Assert.Single(r.Problems));
     }
 
     [Fact]

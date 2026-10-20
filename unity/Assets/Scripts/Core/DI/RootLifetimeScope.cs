@@ -42,6 +42,9 @@ namespace BakAgain.Core.DI {
         private EnhancedSettingsScreen enhancedSettingsScreenPrefab;
 
         [SerializeField]
+        private ModsScreen modsScreenPrefab;
+
+        [SerializeField]
         private LoadGameMenu loadGameMenuPrefab;
 
         [SerializeField]
@@ -190,6 +193,7 @@ namespace BakAgain.Core.DI {
             builder.RegisterComponentInNewPrefab(inGameMenuPrefab, Lifetime.Singleton);
             builder.RegisterComponentInNewPrefab(preferencesMenuPrefab, Lifetime.Singleton);
             builder.RegisterComponentInNewPrefab(enhancedSettingsScreenPrefab, Lifetime.Singleton);
+            builder.RegisterComponentInNewPrefab(modsScreenPrefab, Lifetime.Singleton);
             builder.RegisterComponentInNewPrefab(loadGameMenuPrefab, Lifetime.Singleton);
             builder.RegisterComponentInNewPrefab(saveGameScreenPrefab, Lifetime.Singleton);
             builder.RegisterComponentInNewPrefab(contentsMenuPrefab, Lifetime.Singleton);

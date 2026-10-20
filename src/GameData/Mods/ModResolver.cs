@@ -7,7 +7,8 @@ public sealed record InstalledMod(ModManifest Manifest, string Folder);
 
 public enum ModProblemKind { MissingDependency, DependencyVersion, Conflict, GameVersion }
 
-public sealed record ModProblem(string ModId, ModProblemKind Kind, string Detail);
+/// <summary>Why a mod is not active. <see cref="Other"/> is what it names: the other mod's id, or the game range it needs.</summary>
+public sealed record ModProblem(string ModId, ModProblemKind Kind, string Detail, string Other);
 
 /// <summary>The mods in force for one mode. <see cref="Active"/> is listed highest priority first.</summary>
 public sealed record ModResolution(IReadOnlyList<InstalledMod> Active, IReadOnlyList<InstalledMod> Languages, IReadOnlyList<ModProblem> Problems);
@@ -32,7 +33,7 @@ public static class ModResolver {
         var active = new List<InstalledMod>();
         foreach (InstalledMod m in inMode.Where(m => !m.Manifest.IsLanguage && enabled.GetValueOrDefault(m.Manifest.Id, true))) {
             if (gameVersion is SemVersion gv && m.Manifest.Game is { } range && !range.Satisfies(gv))
-                problems.Add(new ModProblem(m.Manifest.Id, ModProblemKind.GameVersion, $"needs game {range}, this is {gv}"));
+                problems.Add(new ModProblem(m.Manifest.Id, ModProblemKind.GameVersion, $"needs game {range}, this is {gv}", range.ToString()));
             else active.Add(m);
         }
 
@@ -49,16 +50,16 @@ public static class ModResolver {
             foreach (var (depId, range) in m.Manifest.Dependencies) {
                 InstalledMod? dep = active.FirstOrDefault(a => a.Manifest.Id == depId);
                 if (dep == null)
-                    return (m, new ModProblem(m.Manifest.Id, ModProblemKind.MissingDependency, $"needs '{depId}', which is not active"));
+                    return (m, new ModProblem(m.Manifest.Id, ModProblemKind.MissingDependency, $"needs '{depId}', which is not active", depId));
                 if (!range.Satisfies(dep.Manifest.Version))
-                    return (m, new ModProblem(m.Manifest.Id, ModProblemKind.DependencyVersion, $"needs '{depId}' {range}, found {dep.Manifest.Version}"));
+                    return (m, new ModProblem(m.Manifest.Id, ModProblemKind.DependencyVersion, $"needs '{depId}' {range}, found {dep.Manifest.Version}", depId));
             }
         }
         for (int hi = 0; hi < active.Count; hi++) {
             for (int lo = hi + 1; lo < active.Count; lo++) {
                 ModManifest a = active[hi].Manifest, b = active[lo].Manifest;
                 if (a.Conflicts.Contains(b.Id) || b.Conflicts.Contains(a.Id))
-                    return (active[lo], new ModProblem(b.Id, ModProblemKind.Conflict, $"conflicts with higher-priority '{a.Id}'"));
+                    return (active[lo], new ModProblem(b.Id, ModProblemKind.Conflict, $"conflicts with higher-priority '{a.Id}'", a.Id));
             }
         }
         return null;

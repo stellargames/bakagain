@@ -6,6 +6,7 @@ namespace BakAgain.UI {
     using BakAgain.UI.Cursor;
     using BakAgain.UI.InputCore;
     using Cysharp.Threading.Tasks;
+    using GameData.Mods;
     using SimpleFileBrowser;
     using UnityEngine;
     using UnityEngine.UIElements;
@@ -14,13 +15,15 @@ namespace BakAgain.UI {
 
     /// <summary>
     /// The Enhanced settings, on a screen of their own (opened from Preferences): the master switch and
-    /// every <see cref="EnhancedFeature"/>, and the start-up prompt's fields — the game-files folder and
-    /// the mods switch and folder — so they can be changed without clearing the game path. In the
+    /// every <see cref="EnhancedFeature"/>, the start-up prompt's fields — the game-files folder and
+    /// the dev overrides switch and folder — so they can be changed without clearing the game path, and
+    /// the way to the installed mods (<see cref="ModsScreen"/>). In the
     /// Preferences look: OPTIONS2.SCX behind, the game font, "[x]" rows. Nothing is saved until Save;
     /// a folder or a font change takes effect at the next start and says so.
     /// </summary>
     public sealed class EnhancedSettingsScreen : Navigation.ScreenBase {
         private Navigation.IScreenNavigator _navigator;
+        private ModsScreen _modsScreen;
         private InputLayerStack _stack;
         private ICursorManager _cursor;
         private NavigableLayer _layer;
@@ -32,8 +35,9 @@ namespace BakAgain.UI {
         private readonly List<(Button Row, Func<string> Caption, Func<bool> Enabled)> _rows = new();
 
         [Inject]
-        public void Construct(Navigation.IScreenNavigator navigator, InputLayerStack stack, ICursorManager cursor) {
+        public void Construct(Navigation.IScreenNavigator navigator, InputLayerStack stack, ICursorManager cursor, ModsScreen modsScreen) {
             _navigator = navigator;
+            _modsScreen = modsScreen;
             _stack = stack;
             _cursor = cursor;
         }
@@ -61,6 +65,11 @@ namespace BakAgain.UI {
         internal static bool FontChangePending(EnhancedOptionsDraft draft) =>
             (draft.Master && draft[EnhancedFeature.BookFont]) != GameFonts.IsBookFont;
 
+        /// <summary>Whether Save would change the mode from the one the mods were resolved for at start
+        /// (<see cref="ModLayers.Mode"/>): the mod set follows at the next start (mod system spec 4.4).</summary>
+        internal static bool ModeChangePending(EnhancedOptionsDraft draft) =>
+            draft.Master != (ModLayers.Mode == ModMode.Enhanced);
+
         /// <summary>A row's caption: "[x] Sky", or for the master "Enhanced: On"; "(restart)" appended
         /// while the choice waits for the next start.</summary>
         internal static string BoxText(string key, bool on, bool state = false, bool pending = false) {
@@ -86,9 +95,12 @@ namespace BakAgain.UI {
             if (root == null) {
                 return UniTask.CompletedTask;
             }
-            _draft = EnhancedOptionsDraft.Load();
-            (_gamePath, _modsOn, _modsPath) = BakResourceSettings.NextStart;
-            if (string.IsNullOrWhiteSpace(_modsPath)) _modsPath = MetaMenu.DefaultOverridePath;
+            // Back from the Mods screen, which this screen is still under: the same visit, so its edits stay.
+            if (!_visitingMods || _draft == null) {
+                _draft = EnhancedOptionsDraft.Load();
+                (_gamePath, _modsOn, _modsPath) = BakResourceSettings.NextStart;
+                if (string.IsNullOrWhiteSpace(_modsPath)) _modsPath = MetaMenu.DefaultOverridePath;
+            }
             Build(CanonicalStage.GetOrCreate(root, null));
             return UniTask.CompletedTask;
         }
@@ -97,7 +109,7 @@ namespace BakAgain.UI {
             var widgets = new List<NavWidget>();
             foreach ((Button row, Func<string> _, Func<bool> _) in _rows) {
                 Button b = row;
-                widgets.Add(new NavWidget(b, b.Q<Label>("caption")?.text ?? string.Empty, () => CanonicalRect(b),
+                widgets.Add(new NavWidget(b, b.Q<Label>("caption")?.text ?? string.Empty, () => CanonicalRect(GetComponent<UIDocument>(), b),
                     () => { if (b.enabledSelf && !FileBrowser.IsOpen) ClickOf(b)?.Invoke(); }, null));
             }
             _layer = new NavigableLayer("enhanced-settings", CaptureMode.Exclusive, widgets, CancelOrClosePicker, _cursor);
@@ -118,8 +130,9 @@ namespace BakAgain.UI {
 
         private Action ClickOf(Button b) => _clicks.TryGetValue(b, out Action a) ? a : null;
 
-        private Rect CanonicalRect(VisualElement e) {
-            VisualElement stage = CanonicalStage.Find(GetComponent<UIDocument>()?.rootVisualElement);
+        /// <summary>A row's rect on the canonical stage, for focus and the cursor.</summary>
+        internal static Rect CanonicalRect(UIDocument document, VisualElement e) {
+            VisualElement stage = CanonicalStage.Find(document?.rootVisualElement);
             Rect wb = e.worldBound;
             if (stage == null || float.IsNaN(wb.x) || wb.width <= 0f) return Rect.zero;
             Vector2 min = stage.WorldToLocal(wb.min), max = stage.WorldToLocal(wb.max);
@@ -142,7 +155,8 @@ namespace BakAgain.UI {
             _panel.Add(columns);
 
             features.Add(Text(Templates.Format(Templates.EnhancedFeaturesHeading), "enhanced-settings__heading"));
-            Row(features, () => BoxText(Templates.EnhancedButtonKey, _draft.Master, state: true, pending: FontChangePending(_draft)),
+            Row(features, () => BoxText(Templates.EnhancedButtonKey, _draft.Master, state: true,
+                    pending: FontChangePending(_draft) || ModeChangePending(_draft)),
                 () => true, () => _draft.Master = !_draft.Master);
             foreach ((string key, EnhancedFeature feature) in FeatureRows) {
                 Row(features, () => BoxText(key, _draft[feature], pending: feature == EnhancedFeature.BookFont && FontChangePending(_draft)),
@@ -156,6 +170,7 @@ namespace BakAgain.UI {
             if (FoldersPickable) Row(folders, () => Templates.Format(Templates.EnhancedBrowse), () => true, BrowseGameFolder);
             _folderError = Text(string.Empty, "enhanced-settings__error");
             folders.Add(_folderError);
+            Row(folders, () => Templates.Format(Templates.ModsInstalled), () => true, () => VisitModsAsync().Forget());
             Row(folders, () => BoxText(Templates.EnhancedMods, _modsOn, pending: _modsOn != BakResourceSettings.OverrideEnabled),
                 () => true, () => _modsOn = !_modsOn);
             folders.Add(Text(Templates.Format(Templates.EnhancedModsFolder), "enhanced-settings__label"));
@@ -243,6 +258,18 @@ namespace BakAgain.UI {
 
         private void Cancel() => _navigator.Pop().Forget();
 
+        /// <summary>True while the Mods screen is open over this screen.</summary>
+        private bool _visitingMods;
+
+        private async UniTask VisitModsAsync() {
+            _visitingMods = true;
+            try {
+                await _navigator.PushAndWaitAsync(_modsScreen); // until this screen is back, or the stack moved on
+            } finally {
+                _visitingMods = false;
+            }
+        }
+
         /// <summary>Escape over an open folder picker closes the picker, not the screen under it.</summary>
         private void CancelOrClosePicker() {
             if (FileBrowser.IsOpen) {
@@ -252,7 +279,7 @@ namespace BakAgain.UI {
             Cancel();
         }
 
-        private static Label Text(string text, string cls) {
+        internal static Label Text(string text, string cls) {
             var label = new Label(text) { pickingMode = PickingMode.Ignore };
             label.AddToClassList(cls);
             GameFontText.Apply(label);

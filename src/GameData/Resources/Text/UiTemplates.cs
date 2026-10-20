@@ -117,6 +117,29 @@ public static class UiTemplates {
     public const string EnhancedSave = "port:template:enhanced_save";
     public const string EnhancedCancel = "port:template:enhanced_cancel";
 
+    /// <summary>The Mods screen (mod system spec 4.6): a row per installed mod, "[<c>{on}</c>] <c>{name}</c>
+    /// <c>{version}</c>", its buttons and a line per problem (<c>{other}</c>: the mod or game version it
+    /// names); and the missing-mods dialog on load, a line per mod the save was made with.</summary>
+    public const string ModsTitle = "port:template:mods_title";
+    public const string ModsInstalled = "port:template:mods_installed";
+    public const string ModsRow = "port:template:mods_row";
+    public const string ModsUp = "port:template:mods_up";
+    public const string ModsDown = "port:template:mods_down";
+    public const string ModsUninstall = "port:template:mods_uninstall";
+    public const string ModsUninstallConfirm = "port:template:mods_uninstall_confirm";
+    public const string ModsInstallFile = "port:template:mods_install_file";
+    public const string ModsInboxHint = "port:template:mods_inbox_hint";
+    public const string ModsProblemMissingDependency = "port:template:mods_problem_missing_dependency";
+    public const string ModsProblemDependencyVersion = "port:template:mods_problem_dependency_version";
+    public const string ModsProblemConflict = "port:template:mods_problem_conflict";
+    public const string ModsProblemGameVersion = "port:template:mods_problem_game_version";
+    public const string ModsNone = "port:template:mods_none";
+    public const string ModsMissingTitle = "port:template:mods_missing_title";
+    public const string ModsMissingLine = "port:template:mods_missing_line";
+    public const string ModsMajorLine = "port:template:mods_major_line";
+    public const string ModsLoadAnyway = "port:template:mods_load_anyway";
+    public const string ModsCancel = "port:template:mods_cancel";
+
     /// <summary>The Enhanced screens' Exit stone (cast, inventory); the faithful button carries the word in its image.</summary>
     public const string EnhancedExit = "port:template:enhanced_exit";
 
@@ -225,14 +248,33 @@ public static class UiTemplates {
         (EnhancedFeaturesHeading, _ => "Features"),
         (EnhancedFoldersHeading, _ => "Game files and mods"),
         (EnhancedGameFolder, _ => "Game files"),
-        (EnhancedMods, _ => "Mods"),
-        (EnhancedModsFolder, _ => "Mods folder"),
+        (EnhancedMods, _ => "Dev overrides"),
+        (EnhancedModsFolder, _ => "Dev overrides folder"),
         (EnhancedBrowse, _ => "Browse"),
         (EnhancedNotSet, _ => "not set"),
         (EnhancedBadGameFolder, _ => "That folder does not hold the game's files."),
         (EnhancedSave, _ => "Save"),
         (EnhancedCancel, _ => "Cancel"),
         (EnhancedExit, _ => "Exit"),
+        (ModsTitle, _ => "Mods"),
+        (ModsInstalled, _ => "Installed mods"),
+        (ModsRow, _ => "[{on}] {name} {version}"),
+        (ModsUp, _ => "Up"),
+        (ModsDown, _ => "Down"),
+        (ModsUninstall, _ => "Uninstall"),
+        (ModsUninstallConfirm, _ => "Uninstall? press again"),
+        (ModsInstallFile, _ => "Install from file…"),
+        (ModsInboxHint, _ => Literal("Put mod zips in the game's mods folder; they install at the next start.")),
+        (ModsProblemMissingDependency, _ => "Needs {other}"),
+        (ModsProblemDependencyVersion, _ => "Needs {other}, wrong version"),
+        (ModsProblemConflict, _ => "Conflicts with {other}"),
+        (ModsProblemGameVersion, _ => "Needs game {other}"),
+        (ModsNone, _ => "No mods installed."),
+        (ModsMissingTitle, _ => "This save was made with mods that are not active:"),
+        (ModsMissingLine, _ => "{name} {version}"),
+        (ModsMajorLine, _ => "{name} {version} (installed: {installed})"),
+        (ModsLoadAnyway, _ => "Load anyway"),
+        (ModsCancel, _ => "Cancel"),
         (EnhancedInvUse, _ => "Use"),
         (EnhancedInvNextPage, _ => "More"),
         (EnhancedCastHintPick, _ => "Point at a symbol to read it; click it to cast."),
