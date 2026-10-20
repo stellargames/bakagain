@@ -14,6 +14,7 @@ namespace BakAgain.Tests.PlayMode {
     using System.IO;
     using System.Linq;
     using System.Reflection;
+    using System.Threading.Tasks;
     using UnityEngine;
 
     /// <summary>
@@ -50,19 +51,40 @@ namespace BakAgain.Tests.PlayMode {
         }
 
         [Test]
-        public void Save_WritesSidecar_WithActiveMods() {
+        public async Task Save_WritesSidecar_WithActiveMods() {
             InstallMod("here-mod");
             ModLayers.Initialize();
-            var session = new GameSession();
-            session.Initialize(new SaveGameBuilder().WithBackingBody().Build(), GameSessionSource.NewGame);
-            var saves = new TempSaves(_saveDir);
-            var service = new SaveGameService(session, saves, new NullLogger<SaveGameService>(), new GameClock(session),
-                new FakeResourceProviderService());
+            (SaveGameService service, TempSaves saves) = SaveService();
 
-            Assert.That(service.SaveAsync("SAVES.G01", 1, "my save").AsTask().Result, Is.True);
+            Assert.That(await service.SaveAsync("SAVES.G01", 1, "my save"), Is.True);
 
             IReadOnlyList<SavedMod> saved = SaveModList.Read(saves.SlotFullPath("SAVES.G01", 1));
             Assert.That(saved.Select(m => $"{m.Id} {m.Version}"), Is.EqualTo(new[] { "here-mod 1.0.0" }));
+        }
+
+        [Test]
+        public async Task Save_SidecarWriteFails_StaleSidecarGoesAndTheSaveStands() {
+            InstallMod("here-mod");
+            ModLayers.Initialize();
+            (SaveGameService service, TempSaves saves) = SaveService();
+            string slot = saves.SlotFullPath("SAVES.G01", 1);
+            Directory.CreateDirectory(Path.GetDirectoryName(slot)!);
+            SaveModList.Write(slot, ModLayers.Current.Active); // the previous save's list
+            Assert.That(File.Exists(SaveModList.SidecarPath(slot)));
+            Directory.CreateDirectory(SaveModList.SidecarPath(slot) + ".tmp"); // the write cannot take its temp file
+
+            Assert.That(await service.SaveAsync("SAVES.G01", 1, "my save"), Is.True, "the save itself is not lost");
+
+            Assert.That(File.Exists(slot));
+            Assert.That(File.Exists(SaveModList.SidecarPath(slot)), Is.False, "a stale list would be taken for this save's");
+        }
+
+        private (SaveGameService, TempSaves) SaveService() {
+            var session = new GameSession();
+            session.Initialize(new SaveGameBuilder().WithBackingBody().Build(), GameSessionSource.NewGame);
+            var saves = new TempSaves(_saveDir);
+            return (new SaveGameService(session, saves, new NullLogger<SaveGameService>(), new GameClock(session),
+                new FakeResourceProviderService()), saves);
         }
 
         [Test]
@@ -117,6 +139,19 @@ namespace BakAgain.Tests.PlayMode {
 
             Assert.That(h.Navigator.Pops, Is.EqualTo(1));
             Assert.That(h.Flow.Loaded, Is.EqualTo(new[] { save }));
+        }
+
+        [Test]
+        public void Prompt_HiddenWithoutAChoice_ResolvesAsCancel() {
+            ModLayers.Initialize();
+            Harness h = Restore(Sidecar("gone-mod"));
+            Assert.That(h.Prompt.Result.Status, Is.EqualTo(UniTaskStatus.Pending));
+
+            typeof(MissingModsScreen).GetMethod("OnBeforeHide", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(h.Prompt, null);
+
+            Assert.That(h.Prompt.Result.Status, Is.EqualTo(UniTaskStatus.Succeeded));
+            Assert.That(h.Prompt.Result.GetAwaiter().GetResult(), Is.False, "Cancel, not a restore left waiting");
+            Assert.That(h.Flow.Loaded, Is.Empty);
         }
 
         [Test]

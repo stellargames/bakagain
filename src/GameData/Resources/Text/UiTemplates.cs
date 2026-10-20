@@ -129,6 +129,7 @@ public static class UiTemplates {
     public const string ModsUninstallConfirm = "port:template:mods_uninstall_confirm";
     public const string ModsInstallFile = "port:template:mods_install_file";
     public const string ModsInboxHint = "port:template:mods_inbox_hint";
+    public const string ModsInstallFailed = "port:template:mods_install_failed";
     public const string ModsProblemMissingDependency = "port:template:mods_problem_missing_dependency";
     public const string ModsProblemDependencyVersion = "port:template:mods_problem_dependency_version";
     public const string ModsProblemConflict = "port:template:mods_problem_conflict";
@@ -265,6 +266,7 @@ public static class UiTemplates {
         (ModsUninstall, _ => "Uninstall"),
         (ModsUninstallConfirm, _ => "Uninstall? press again"),
         (ModsInstallFile, _ => "Install from file…"),
+        (ModsInstallFailed, _ => "Could not install: {reason}"),
         (ModsInboxHint, _ => Literal("Put mod zips in the game's mods folder; they install at the next start.")),
         (ModsProblemMissingDependency, _ => "Needs {other}"),
         (ModsProblemDependencyVersion, _ => "Needs {other}, wrong version"),

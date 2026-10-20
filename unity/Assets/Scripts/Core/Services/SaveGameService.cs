@@ -1,5 +1,6 @@
 namespace BakAgain.Core.Services {
     using System;
+    using System.IO;
     using BakAgain.ResourceManagement;
     using Cysharp.Threading.Tasks;
     using GameData.Mods;
@@ -141,11 +142,17 @@ namespace BakAgain.Core.Services {
                     return false;
                 }
                 // The mods this game was played with, for the check on restore (mod system spec 4.7).
-                // A sidecar that cannot be written costs that check, never the save.
+                // A sidecar that cannot be written costs that check, never the save. The previous save's
+                // list is removed then: no sidecar means "unknown", a stale one would be taken for this save's.
                 try {
                     SaveModList.Write(path, ModLayers.Current.Active);
                 } catch (Exception e) {
-                    _logger.LogError(e, "SaveAsync: the mod list for {Path} could not be written.", path);
+                    _logger.LogError(e, "SaveAsync: the mod list for {Path} could not be written; removing the previous one.", path);
+                    try {
+                        File.Delete(SaveModList.SidecarPath(path));
+                    } catch (Exception d) when (d is IOException or UnauthorizedAccessException) {
+                        _logger.LogError(d, "SaveAsync: the previous mod list for {Path} could not be removed.", path);
+                    }
                 }
 
                 // Remember where this game now lives. The bookmark writes slot 0 of THIS directory,

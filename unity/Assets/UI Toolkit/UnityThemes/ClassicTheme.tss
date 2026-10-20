@@ -286,6 +286,20 @@
 .enhanced-settings__error { flex-shrink: 0; white-space: normal; color: rgb(120, 24, 12); }
 .enhanced-settings__buttons { height: 80px; flex-shrink: 0; flex-direction: row; justify-content: center; }
 .enhanced-settings__buttons .enhanced-settings__row { width: 30%; margin: 0 2%; }
+/* The Mods screen's list scrolls (ModsScreen). The panel carries none of Unity's default ScrollView
+   styles, so the vertical scroller is laid out here: a bar in the panel's dark brown on a darker track,
+   without the arrow buttons (the wheel, a drag, a touch and keyboard focus scroll as well). */
+.enhanced-settings__scroll { flex-grow: 1; flex-basis: 0; }
+.enhanced-settings__scroll .unity-scroll-view__content-and-vertical-scroll-container { flex-grow: 1; flex-direction: row; }
+.enhanced-settings__scroll .unity-scroll-view__content-viewport { flex-grow: 1; overflow: hidden; }
+.enhanced-settings__scroll .unity-scroller--vertical { width: 24px; flex-shrink: 0; margin-left: 8px; background-color: rgb(110, 80, 44); border-width: 2px; border-color: rgb(58, 40, 22); }
+.enhanced-settings__scroll .unity-scroller__low-button, .enhanced-settings__scroll .unity-scroller__high-button { display: none; }
+.enhanced-settings__scroll .unity-scroller__slider { flex-grow: 1; }
+.enhanced-settings__scroll .unity-base-slider--vertical, .enhanced-settings__scroll .unity-base-slider__input { flex-grow: 1; }
+.enhanced-settings__scroll .unity-base-slider__drag-container { flex-grow: 1; }
+.enhanced-settings__scroll .unity-base-slider__tracker { display: none; }
+.enhanced-settings__scroll .unity-base-slider__dragger-border { display: none; }
+.enhanced-settings__scroll .unity-base-slider__dragger { position: absolute; left: 0; right: 0; min-height: 40px; background-color: rgb(58, 40, 22); border-width: 2px; border-color: rgb(236, 210, 140); }
 
 /* Enhanced full-screen travel HUD (spec 2026-10-08 §3, EnhancedHudLayout). The REQ_MAIN elements
    are moved in here; the panel is 1200 units high at every aspect, so vertical percentages are of

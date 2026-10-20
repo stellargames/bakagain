@@ -40,10 +40,13 @@ exactly this layout.
   (its size as a fraction of 1600x1200, see [language packs](language-packs.md)), and for world
   billboards `VarySize`/`VaryColor`: how much each placed copy varies in
   size and colour, e.g. `{"VarySize":0.08,"VaryColor":0.07}`. Each copy keeps its variation for good.
+  (`VaryColor` is drawn in Enhanced only; `VarySize` in both modes.)
 - **Sun-lit billboards.** With all four of `<n>.front.png`, `.left`, `.right` and `.back` beside
   `<n>.png`, the Enhanced lighting blends them by where the sun stands against the view. `<n>.png`
   is the soft, overcast picture shown at night and with a low sun. All five must have the same
-  outline: the transparency of `<n>.png` cuts out all of them.
+  outline: the transparency of `<n>.png` cuts out all of them. The sun-lit versions are **Enhanced
+  only**: in Classic the game draws `<n>.png` alone and leaves the other four unused, even for a mod
+  that lists `classic`.
 - **A creature in a colour set** (`<NAME>_CS<n>`): for its HD world-billboard frames only, the game
   looks first in `BMX/<NAME>_CS<n>/`, then in `BMX/<NAME>/`, so one HD picture can serve every
   colour, or each its own. Other pictures have no such fallback.
@@ -136,10 +139,14 @@ dotnet run --project src/BakMod -- pack <folder> [-o <outDir>]
 
 - `validate` checks a zip the way the game does before installing it: a readable `mod.json` with
   valid fields, safe paths, no duplicate entries, only the folders above and only `.png`, `.jpg`,
-  `.json`, `.po`, `.ttf`, `.otf`, `.bdf` and `.sf2` files, sun-lit versions with their `<n>.png`, and
-  aliases that point at files in the mod. It prints any warnings, then `OK (<id> <version>)` or the errors.
+  `.json`, `.po`, `.ttf`, `.otf`, `.bdf` and `.sf2` files, sun-lit versions with their `<n>.png`, aliases
+  that point at files in the mod, and the size limits below. It prints any warnings, then
+  `OK (<id> <version>)` or the errors.
 - `pack` validates the folder and writes `<id>-<version>.zip` into `<outDir>` (default: the current
   folder; never inside the mod folder itself, so a second pack does not swallow the first).
+
+A zip is refused, by `validate` and by the game's install alike, when it has more than **20,000
+entries**, an entry over **256 MiB** uncompressed, or more than **1 GiB** uncompressed in total.
 
 ## Installing
 
@@ -176,7 +183,7 @@ version, the game names it and asks whether to load anyway.
 ## The dev folder
 
 While you make a mod, you do not need to pack it at every change. Switch on **Dev overrides** in
-**Preferences → Enhanced** and point **Dev overrides folder** at your mod folder (it has the same
-layout as a mod; `mod.json` is not needed there). After a restart the dev folder is used above every
+**Preferences → Enhanced** and point **Dev overrides folder** at your mod folder (the same folders
+as inside a mod; `mod.json` is not needed there). After a restart the dev folder is used above every
 installed mod, in Classic and Enhanced alike, so it is also how you test a Classic mod. Pack it with
 `bakmod pack` once it is done.

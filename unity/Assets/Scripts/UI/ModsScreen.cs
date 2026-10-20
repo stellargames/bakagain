@@ -229,14 +229,33 @@ namespace BakAgain.UI {
 
         private List<NavWidget> Widgets() {
             var widgets = new List<NavWidget>();
-            // Fixed rows first: a mod row scrolled out of view keeps its rect, under Install or Save, and
-            // the layer resolves focus to the FIRST widget under the cursor.
-            foreach ((Button row, Func<string> _, Func<bool> _) in _rows.OrderBy(r => _scroll.Contains(r.Row) ? 1 : 0)) {
+            foreach ((Button row, Func<string> _, Func<bool> _) in _rows) {
                 Button b = row;
-                widgets.Add(new NavWidget(b, b.Q<Label>("caption")?.text ?? string.Empty, () => EnhancedSettingsScreen.CanonicalRect(GetComponent<UIDocument>(), b),
+                widgets.Add(new NavWidget(b, b.Q<Label>("caption")?.text ?? string.Empty, () => VisibleRect(b),
                     () => { if (b.enabledSelf && !FileBrowser.IsOpen) ClickOf(b)?.Invoke(); }, null));
             }
             return widgets;
+        }
+
+        /// <summary>
+        /// The row's rect for focus and the cursor. A row in the list is cut to the scroll's viewport: one
+        /// scrolled out of view keeps its place under Install or Save, and the layer resolves the cursor
+        /// to the first widget it contains. A row wholly out of view gets an empty rect at its centre, which
+        /// contains no point but still has a place for the arrow keys.
+        /// </summary>
+        private Rect VisibleRect(Button row) {
+            UIDocument document = GetComponent<UIDocument>();
+            Rect rect = EnhancedSettingsScreen.CanonicalRect(document, row);
+            if (_scroll == null || !_scroll.Contains(row)) {
+                return rect;
+            }
+            return ClipTo(rect, EnhancedSettingsScreen.CanonicalRect(document, _scroll.contentViewport));
+        }
+
+        internal static Rect ClipTo(Rect rect, Rect viewport) {
+            float xMin = Mathf.Max(rect.xMin, viewport.xMin), xMax = Mathf.Min(rect.xMax, viewport.xMax);
+            float yMin = Mathf.Max(rect.yMin, viewport.yMin), yMax = Mathf.Min(rect.yMax, viewport.yMax);
+            return xMin < xMax && yMin < yMax ? Rect.MinMaxRect(xMin, yMin, xMax, yMax) : new Rect(rect.center, Vector2.zero);
         }
 
         private Action ClickOf(Button b) => _clicks.TryGetValue(b, out Action a) ? a : null;
@@ -255,14 +274,13 @@ namespace BakAgain.UI {
             _panel.Add(EnhancedSettingsScreen.Text(Templates.Format(Templates.ModsTitle), "enhanced-settings__title"));
 
             // The mods scroll; Install, Save and Cancel below them stay in view.
-            // The theme does not carry Unity's default ScrollView styles, so the clip is set here; with no
-            // scroller style, the wheel, a touch drag and focus do the scrolling.
+            // The theme does not carry Unity's default ScrollView styles: the clip is set here and the
+            // scroller's look in the theme (enhanced-settings__scroll).
             _scroll = new ScrollView(ScrollViewMode.Vertical) {
                 horizontalScrollerVisibility = ScrollerVisibility.Hidden,
-                verticalScrollerVisibility = ScrollerVisibility.Hidden,
+                verticalScrollerVisibility = ScrollerVisibility.Auto,
             };
-            _scroll.style.flexGrow = 1;
-            _scroll.style.flexBasis = 0; // the space left, not the list's height
+            _scroll.AddToClassList("enhanced-settings__scroll");
             _scroll.contentViewport.style.overflow = Overflow.Hidden;
             VisualElement list = new VisualElement(); // not __column: its zero basis collapses inside a scroll
             _scroll.Add(list);
@@ -371,7 +389,7 @@ namespace BakAgain.UI {
                 } catch (Exception e) {
                     // Any failure, as at start: a bad entry name can throw ArgumentException or NotSupportedException.
                     Logger.LogError("Mod {Zip} could not be installed: {Errors}", zip, e.Message);
-                    _error.text = e.Message;
+                    _error.text = Templates.Format(Templates.ModsInstallFailed, ("reason", e.Message));
                     return;
                 }
                 Rebuild();

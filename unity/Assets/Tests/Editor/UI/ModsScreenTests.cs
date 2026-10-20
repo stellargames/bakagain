@@ -6,8 +6,12 @@ namespace BakAgain.Tests.Editor.UI {
     using GameData.Mods;
     using NUnit.Framework;
     using System;
+    using System.Collections.Generic;
     using System.IO;
     using System.Linq;
+    using System.Reflection;
+    using UnityEngine;
+    using Templates = GameData.Resources.Text.UiTemplates;
 
     /// <summary>The Mods screen's draft (mod system spec 4.6): nothing changes on disk until Save.</summary>
     public class ModsScreenTests {
@@ -145,6 +149,50 @@ namespace BakAgain.Tests.Editor.UI {
 
             Assert.AreEqual(before, File.ReadAllText(StatePath));
             Assert.IsTrue(Directory.Exists(aa));
+        }
+
+        [Test]
+        public void Draft_Uninstall_NeverDeletesOutsideTheModsFolder() {
+            Mod("aa");
+            Order("aa");
+            string outside = Path.Combine(Path.GetTempPath(), "bakagain-outside-" + Guid.NewGuid().ToString("N"));
+            string foreign = Path.Combine(outside, "aa"); // a mod folder's name, but not directly in the mods folder
+            string notAMod = Path.Combine(_mods, "Not A Mod"); // directly in it, but not a mod folder's name
+            Directory.CreateDirectory(foreign);
+            Directory.CreateDirectory(notAMod);
+            try {
+                ModsDraft draft = ModsDraft.Load();
+                var mods = (List<ModsDraft.Entry>)typeof(ModsDraft).GetField("_mods", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(draft);
+                mods.Add(new ModsDraft.Entry(new InstalledMod(ModManifest.Parse(Manifest("bb"), out _), foreign), true));
+                mods.Add(new ModsDraft.Entry(new InstalledMod(ModManifest.Parse(Manifest("cc"), out _), notAMod), true));
+                draft.Uninstall("bb");
+                draft.Uninstall("cc");
+
+                draft.Save();
+
+                Assert.IsTrue(Directory.Exists(foreign));
+                Assert.IsTrue(Directory.Exists(notAMod));
+            } finally {
+                Directory.Delete(outside, true);
+            }
+        }
+
+        [Test]
+        public void ClipTo_CutsToTheViewport_AndEmptiesARowOutOfView() {
+            var viewport = new Rect(0, 100, 500, 300);
+
+            Assert.AreEqual(new Rect(0, 100, 500, 50), ModsScreen.ClipTo(new Rect(0, 50, 500, 100), viewport), "partly in view: its visible part");
+            Assert.AreEqual(new Rect(10, 150, 200, 66), ModsScreen.ClipTo(new Rect(10, 150, 200, 66), viewport));
+
+            Rect below = ModsScreen.ClipTo(new Rect(10, 450, 200, 66), viewport); // under the viewport, over Install or Save
+            Assert.IsFalse(below.Contains(new Vector2(100, 480)), "contains no point");
+            Assert.AreEqual(new Vector2(110, 483), below.center, "but keeps its place for the arrow keys");
+        }
+
+        [Test]
+        public void InstallFailed_ReadsWithALocalizedPrefix() {
+            Assert.AreEqual("Could not install: mod.json is missing",
+                Templates.Format(Templates.ModsInstallFailed, ("reason", "mod.json is missing")));
         }
 
         [Test]

@@ -86,6 +86,7 @@ namespace BakAgain.UI {
             if (document?.rootVisualElement == null) {
                 return UniTask.CompletedTask;
             }
+            _clicks.Clear(); // the previous show's buttons are gone
             _panel = MovedElements.Box("enhanced-settings");
             Label title = EnhancedSettingsScreen.Text(Title, "enhanced-settings__title");
             _panel.Add(title);

@@ -35,13 +35,14 @@ Once wired, models are meant to come from the **dev overrides folder**: a mod zi
 **Dev overrides**, point **Dev overrides folder** at the directory holding your `Models/` tree,
 restart), but nothing reads `Models/` from it yet. (Under the hood: `OverrideEnabled` +
 `OverridePath`. With the dev folder off and no mods, the game is the original.) It is the same
-folder, with the same layout, as a mod under development (see [making mods](README.md)); models
-would live under `Models/`.
+folder you point at while making a mod (see [making mods](README.md)), which holds the same folders
+as inside a mod; models would go in one more, `Models/`, that a mod itself does not have.
 
 ### Finding the zone and name
 
-Use the **Model Debug viewer** (a dev tool in the game): pick a zone from the dropdown and step
-through its models. Each model shows its name and dimensions. The name you see is the name an
+Use the **Model Debug viewer** (an Editor-only tool: it is the "[dbg] Model Debug" entry of the
+start-state picker in the Unity Editor, and is not in a built game): pick a zone from the dropdown
+and step through its models. Each model shows its name and dimensions. The name you see is the name an
 override file would use; the zone in the dropdown is the folder.
 
 Zones are `Z01`–`Z12`, the alternate-state zones `Z10M`/`Z11M`/`Z12M`, and `COMBAT`.
