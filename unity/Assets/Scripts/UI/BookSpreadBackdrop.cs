@@ -1,11 +1,14 @@
 namespace BakAgain.UI {
+    using BakAgain.Core;
     using BakAgain.ResourceManagement.Models;
+    using Cysharp.Threading.Tasks;
     using GameData.Resources.Layout;
     using System.Collections.Generic;
     using UnityEngine;
     using UnityEngine.AddressableAssets;
     using UnityEngine.UI;
     using UnityEngine.UIElements;
+    using ILogger = Microsoft.Extensions.Logging.ILogger;
 
     /// <summary>
     /// The open book around a full-screen parchment (spec 2026-10-11-book-spread-pillars-design.md in
@@ -32,6 +35,7 @@ namespace BakAgain.UI {
         private const int FrontSortingOrder = 11;
 
         private static readonly BookSpreadLayout Layout = new();
+        private static readonly ILogger Logger = LogManager.LoggerFactory.CreateLogger(nameof(BookSpreadBackdrop));
         // ponytail: keyed by texture and never pruned — a few bytes per parchment ever shown; prune on
         // texture destroy if mods ever stream hundreds of pages.
         private static readonly Dictionary<Texture2D, SpineSide> Spines = new();
@@ -165,22 +169,58 @@ namespace BakAgain.UI {
             _front = NewCanvas("Front", FrontSortingOrder);
             _shade = NewImage(_front, null);
             _back.enabled = _front.enabled = false;
-            // Async, as the facing page below: Awake runs on the first Show, usually inside another load's callback.
-            LoadInto(_table, "BookSpread/table", TextureWrapMode.Mirror);   // alternate copies mirrored: no seam
-            LoadInto(_shade, "BookSpread/crease", TextureWrapMode.Clamp);   // the page turn samples past the band: clear there, not smeared
+            UseArtAsync().Forget();
         }
 
-        private void LoadInto(RawImage image, string address, TextureWrapMode wrap) {
-            Addressables.LoadAssetAsync<Texture2D>(address).Completed += loaded => {
-                if (this == null || loaded.Result == null) {
-                    return;
-                }
-                loaded.Result.wrapMode = wrap;
-                image.texture = loaded.Result;
-                image.enabled = true;
-                image.gameObject.name = loaded.Result.name;
-                _placed = default;   // re-place: the table's tiling depends on its size
-            };
+        // ponytail: loaded once and kept for the session, as they were before Addressables (~1 MB).
+        // AsyncLazy: its task can be awaited by several at once (the backdrop and a page turn).
+        private static readonly AsyncLazy<(Texture2D Table, Texture2D Crease)> Art = UniTask.Lazy(LoadArtAsync);
+
+        /// <summary>
+        /// The table and the binding's crease, loaded once: the boot starts it
+        /// (<see cref="PreloadAsync"/>), so the first book already has them, and the page turn waits
+        /// for it (<see cref="ArtReadyAsync"/>). Async: the first Show usually comes from inside
+        /// another load's callback, where a synchronous load throws. A file that fails to load (a mod's
+        /// broken PNG) is left out of the book, never a reason to stop.
+        /// </summary>
+        internal static UniTask ArtReadyAsync() => Art.Task.AsUniTask();
+
+        /// <summary>Starts loading the table and the crease (boot).</summary>
+        public static UniTask PreloadAsync() => ArtReadyAsync();
+
+        private static async UniTask<(Texture2D Table, Texture2D Crease)> LoadArtAsync() =>
+            (await LoadOrNullAsync("BookSpread/table", TextureWrapMode.Mirror),   // alternate copies mirrored: no seam
+             await LoadOrNullAsync("BookSpread/crease", TextureWrapMode.Clamp));  // the page turn samples past the band: clear there, not smeared
+
+        private static async UniTask<Texture2D> LoadOrNullAsync(string address, TextureWrapMode wrap) {
+            try {
+                Texture2D texture = await Addressables.LoadAssetAsync<Texture2D>(address).ToUniTask();
+                texture.wrapMode = wrap;
+                return texture;
+            } catch (System.Exception e) {
+                Logger.LogError("Book art '{Address}' failed to load, the book is drawn without it: {Reason}", address, e.Message);
+                return null;
+            }
+        }
+
+        // At once when the boot has preloaded the art (the await completes synchronously).
+        private async UniTaskVoid UseArtAsync() {
+            (Texture2D table, Texture2D crease) = await Art.Task;
+            if (this == null) {
+                return;
+            }
+            Use(_table, table);
+            Use(_shade, crease);
+            _placed = default;   // re-place: the table's tiling depends on its size
+        }
+
+        private static void Use(RawImage image, Texture2D texture) {
+            if (texture == null) {
+                return;
+            }
+            image.texture = texture;
+            image.enabled = true;
+            image.gameObject.name = texture.name;
         }
 
         // The plain parchment every dialog is drawn on is the facing page: no page art is shipped.

@@ -107,6 +107,7 @@ namespace BakAgain.Core.DI {
                 _logger.LogInformation("Initializing ResourceManagement.");
                 ResourceManagementInitializer.InitializeResourceManagement();
                 await MidiSynthPlayer.PreloadSoundFontAsync();
+                await BookSpreadBackdrop.PreloadAsync();
                 if (GameOptions.Enhanced) {
                     await EnhancedArt.PreloadAsync();
                 }
