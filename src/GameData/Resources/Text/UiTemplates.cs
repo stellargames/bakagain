@@ -135,6 +135,7 @@ public static class UiTemplates {
     public const string ModsProblemGameVersion = "port:template:mods_problem_game_version";
     public const string ModsNone = "port:template:mods_none";
     public const string ModsMissingTitle = "port:template:mods_missing_title";
+    public const string ModsMismatchTitle = "port:template:mods_mismatch_title";
     public const string ModsMissingLine = "port:template:mods_missing_line";
     public const string ModsMajorLine = "port:template:mods_major_line";
     public const string ModsLoadAnyway = "port:template:mods_load_anyway";
@@ -271,6 +272,7 @@ public static class UiTemplates {
         (ModsProblemGameVersion, _ => "Needs game {other}"),
         (ModsNone, _ => "No mods installed."),
         (ModsMissingTitle, _ => "This save was made with mods that are not active:"),
+        (ModsMismatchTitle, _ => "This save was made with different versions of these mods:"),
         (ModsMissingLine, _ => "{name} {version}"),
         (ModsMajorLine, _ => "{name} {version} (installed: {installed})"),
         (ModsLoadAnyway, _ => "Load anyway"),

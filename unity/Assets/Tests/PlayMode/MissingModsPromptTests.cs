@@ -71,6 +71,7 @@ namespace BakAgain.Tests.PlayMode {
             Harness h = Restore(Sidecar("gone-mod"));
 
             Assert.That(h.Navigator.Pushed, Is.EqualTo(new IScreen[] { h.Prompt }));
+            Assert.That(h.Prompt.Title, Is.EqualTo("This save was made with mods that are not active:"));
             // A missing mod has no manifest to name it, so the line names its saved id.
             Assert.That(h.Prompt.Lines, Is.EqualTo(new[] { "gone-mod 1.0.0" }));
 
@@ -93,6 +94,32 @@ namespace BakAgain.Tests.PlayMode {
         }
 
         [Test]
+        public void Load_MajorVersion_PromptSaysMismatch() {
+            InstallMod("here-mod", "2.0.0");
+            ModLayers.Initialize();
+            Harness h = Restore(Sidecar("here-mod"));
+
+            Assert.That(h.Navigator.Pushed, Is.EqualTo(new IScreen[] { h.Prompt }));
+            // The mod is active, only at another major version: not "not active".
+            Assert.That(h.Prompt.Title, Is.EqualTo("This save was made with different versions of these mods:"));
+            Assert.That(h.Prompt.Lines, Is.EqualTo(new[] { "here-mod 1.0.0 (installed: 2.0.0)" }));
+        }
+
+        [Test]
+        public void Prompt_ClosedTwice_PopsOnce() {
+            ModLayers.Initialize();
+            string save = Sidecar("gone-mod");
+            Harness h = Restore(save);
+
+            // A double click, or a key and a click in one frame: the second must not pop the restore screen.
+            h.Prompt.LoadAnyway();
+            h.Prompt.Cancel();
+
+            Assert.That(h.Navigator.Pops, Is.EqualTo(1));
+            Assert.That(h.Flow.Loaded, Is.EqualTo(new[] { save }));
+        }
+
+        [Test]
         public void Load_NoIssues_NoPrompt() {
             InstallMod("here-mod");
             ModLayers.Initialize();
@@ -103,11 +130,11 @@ namespace BakAgain.Tests.PlayMode {
             Assert.That(h.Flow.Loaded, Is.EqualTo(new[] { save }));
         }
 
-        private void InstallMod(string id) {
+        private void InstallMod(string id, string version = "1.0.0") {
             string folder = Path.Combine(_mods, id);
             Directory.CreateDirectory(folder);
             File.WriteAllText(Path.Combine(folder, "mod.json"),
-                $"{{\"schema\":1,\"id\":\"{id}\",\"name\":\"{id}\",\"version\":\"1.0.0\"}}");
+                $"{{\"schema\":1,\"id\":\"{id}\",\"name\":\"{id}\",\"version\":\"{version}\"}}");
         }
 
         /// <summary>A save slot whose sidecar records one Enhanced mod; returns the slot's path.</summary>

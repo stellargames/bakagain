@@ -25,6 +25,7 @@ namespace BakAgain.UI {
         private VisualElement _panel;
         private IReadOnlyList<SaveModIssue> _issues = Array.Empty<SaveModIssue>();
         private UniTaskCompletionSource<bool> _result = new();
+        private bool? _choice;
 
         [Inject]
         public void Construct(Navigation.IScreenNavigator navigator, InputLayerStack stack, ICursorManager cursor) {
@@ -36,11 +37,20 @@ namespace BakAgain.UI {
         /// <summary>Sets the mods to name, and starts a new <see cref="Result"/>.</summary>
         public void Show(IReadOnlyList<SaveModIssue> issues) {
             _issues = issues;
+            _choice = null;
             _result = new UniTaskCompletionSource<bool>();
         }
 
         /// <summary>True for Load anyway, false for Cancel.</summary>
         public UniTask<bool> Result => _result.Task;
+
+        /// <summary>
+        /// "Not active" while any mod is missing; when every one is installed at another major version,
+        /// worded as a version mismatch. Each line says which case it is.
+        /// </summary>
+        internal string Title => Templates.Format(_issues.Any(i => i.Kind == SaveModIssueKind.Missing)
+            ? Templates.ModsMissingTitle
+            : Templates.ModsMismatchTitle);
 
         /// <summary>One line per mod. A missing mod has no manifest, so it is named by its saved id.</summary>
         internal IReadOnlyList<string> Lines => _issues.Select(Line).ToList();
@@ -58,9 +68,15 @@ namespace BakAgain.UI {
 
         internal void Cancel() => Close(false);
 
+        // Once only: a second press (a double click, a key and a click) would pop the restore screen too.
         // Pop first: the navigator runs its operations in order, so the restore that follows Load anyway
-        // starts from the restore screen, as without a prompt.
+        // starts from the restore screen, as without a prompt. The choice is kept first because the pop
+        // can hide the screen before it returns.
         private void Close(bool loadAnyway) {
+            if (_choice != null) {
+                return;
+            }
+            _choice = loadAnyway;
             _navigator.Pop().Forget();
             _result.TrySetResult(loadAnyway);
         }
@@ -71,7 +87,7 @@ namespace BakAgain.UI {
                 return UniTask.CompletedTask;
             }
             _panel = MovedElements.Box("enhanced-settings");
-            Label title = EnhancedSettingsScreen.Text(Templates.Format(Templates.ModsMissingTitle), "enhanced-settings__title");
+            Label title = EnhancedSettingsScreen.Text(Title, "enhanced-settings__title");
             _panel.Add(title);
             VisualElement list = MovedElements.Box("enhanced-settings__column");
             foreach (string line in Lines) {
@@ -97,6 +113,7 @@ namespace BakAgain.UI {
         }
 
         protected override void OnBeforeHide() {
+            _result.TrySetResult(_choice ?? false); // hidden without a choice: Cancel, not a restore left waiting
             if (_layer != null) {
                 _stack?.Remove(_layer);
                 _layer = null;
