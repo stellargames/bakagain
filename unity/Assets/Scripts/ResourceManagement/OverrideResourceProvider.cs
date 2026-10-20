@@ -208,11 +208,21 @@ namespace BakAgain.ResourceManagement {
         private static Texture2D LoadTextureInternal(ProvideHandle provideHandle) {
             string path = provideHandle.ResourceManager.TransformInternalId(provideHandle.Location);
             byte[] bytes = File.ReadAllBytes(path);
-            var texture = new Texture2D(0, 0) {
-                filterMode = FilterMode.Point,
-                wrapMode = TextureWrapMode.Clamp,
-                name = provideHandle.Location.PrimaryKey
-            };
+            string key = provideHandle.Location.PrimaryKey;
+            Texture2D texture;
+            if (OverrideResourceLocator.IsBuiltInAddress(key)) {
+                // A replacement for a built-in texture samples the way the built-in does.
+                (TextureWrapMode wrap, bool linear) = BuiltInSamplingOf(key);
+                texture = new Texture2D(2, 2, TextureFormat.RGBA32, mipChain: true, linear) {
+                    filterMode = FilterMode.Bilinear, wrapMode = wrap, anisoLevel = 1, name = key,
+                };
+            } else {
+                texture = new Texture2D(0, 0) {
+                    filterMode = FilterMode.Point,
+                    wrapMode = TextureWrapMode.Clamp,
+                    name = key
+                };
+            }
             if (!texture.LoadImage(bytes)) {
                 UnityObjectUtil.Destroy(texture);
                 throw new InvalidDataException($"Override image '{path}' is not a decodable PNG/JPG (LoadImage failed).");
@@ -220,6 +230,17 @@ namespace BakAgain.ResourceManagement {
 
             return texture;
         }
+
+        /// <summary>
+        /// The import settings of the built-in texture at <paramref name="address"/>, beyond what they
+        /// all share (bilinear, mipmapped, aniso 1): the clouds are data (density, thickness), so
+        /// linear, and they tile; the moons are discs, so clamped. BuiltInAssetOverrideTests checks
+        /// this against every built-in texture's importer.
+        /// </summary>
+        internal static (TextureWrapMode Wrap, bool Linear) BuiltInSamplingOf(string address) =>
+            address.StartsWith("Enhanced/Sky/clouds_", StringComparison.Ordinal) ? (TextureWrapMode.Repeat, true)
+            : address.StartsWith("Enhanced/Sky/moon_", StringComparison.Ordinal) ? (TextureWrapMode.Clamp, false)
+            : (TextureWrapMode.Repeat, false);
 
         private static void LoadSprite(ProvideHandle provideHandle) {
             Texture2D texture = LoadTextureInternal(provideHandle);

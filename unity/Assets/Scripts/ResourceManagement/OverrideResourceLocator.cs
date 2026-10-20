@@ -69,7 +69,7 @@ namespace BakAgain.ResourceManagement {
         /// <c>moon_large.png</c> then <c>moon_large.jpg</c>.
         /// </summary>
         internal static bool TryMapKey(string key, Type type, out string directory, out IReadOnlyList<string> filenames) {
-            if (key.Contains('/') && !key.Contains('#') && !Path.HasExtension(key)) {
+            if (IsBuiltInAddress(key)) {
                 directory = Path.Join("Resources", Path.GetDirectoryName(key));
                 string name = Path.GetFileName(key);
                 filenames = BuiltInExtensions(type).Select(extension => name + extension).ToList();
@@ -106,6 +106,9 @@ namespace BakAgain.ResourceManagement {
             directory = Path.Join(extension[1..].ToUpperInvariant(), dirName);
             return true;
         }
+
+        /// <summary>A built-in asset's path-style address (<c>Enhanced/Sky/moon_large</c>): a <c>/</c>, no extension.</summary>
+        internal static bool IsBuiltInAddress(string key) => key.Contains('/') && !key.Contains('#') && !Path.HasExtension(key);
 
         /// <summary>The file types a built-in asset of <paramref name="type"/> is read from.</summary>
         private static string[] BuiltInExtensions(Type type) =>

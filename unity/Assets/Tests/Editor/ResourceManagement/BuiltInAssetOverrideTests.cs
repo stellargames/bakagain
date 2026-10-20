@@ -80,6 +80,46 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
             Assert.AreEqual((3, 5), (moon.width, moon.height), "the mod's PNG, not the built-in moon");
         }
 
+        [TestCase("Enhanced/Sky/clouds_cumulus")]
+        [TestCase("Enhanced/Stone/marble")]
+        public void ModTexture_SamplesLikeTheBuiltIn(string address) {
+            var handle = Addressables.LoadAssetAsync<Texture2D>(address);
+            Texture2D builtIn = handle.WaitForCompletion();
+            var png = new Texture2D(4, 4);
+            byte[] bytes = png.EncodeToPNG();
+            Object.DestroyImmediate(png);
+            StartWithMod(Path.Combine("Resources", address + ".png"), bytes);
+
+            Texture2D mod = Load<Texture2D>(address);
+
+            Assert.AreEqual(4, mod.width, "the mod's texture");
+            Assert.AreEqual((builtIn.wrapModeU, builtIn.wrapModeV), (mod.wrapModeU, mod.wrapModeV), "wrap");
+            Assert.AreEqual(builtIn.filterMode, mod.filterMode, "filter");
+            Assert.AreEqual(builtIn.anisoLevel, mod.anisoLevel, "aniso");
+            Assert.AreEqual(builtIn.isDataSRGB, mod.isDataSRGB, "colour space");
+            Assert.Greater(mod.mipmapCount, 1, "mipmapped like the built-in");
+            Addressables.Release(handle);
+        }
+
+#if UNITY_EDITOR
+        /// <summary>The sampling a replacement gets is the built-in's import settings, for every built-in texture.</summary>
+        [Test]
+        public void BuiltInSamplingOf_MatchesEveryBuiltInImporter() {
+            // t:Texture2D also finds a font's atlas: only texture files have a TextureImporter.
+            UnityEditor.TextureImporter[] importers = UnityEditor.AssetDatabase.FindAssets("t:Texture2D", new[] { "Assets/BuiltIn" })
+                .Select(guid => UnityEditor.AssetImporter.GetAtPath(UnityEditor.AssetDatabase.GUIDToAssetPath(guid)) as UnityEditor.TextureImporter)
+                .Where(importer => importer != null).ToArray();
+            Assert.AreEqual(22, importers.Length, "the built-in textures");
+            foreach (UnityEditor.TextureImporter importer in importers) {
+                string path = importer.assetPath;
+                string address = Path.ChangeExtension(path["Assets/BuiltIn/".Length..], null);
+                (TextureWrapMode wrap, bool linear) = OverrideResourceProvider.BuiltInSamplingOf(address);
+                Assert.AreEqual((FilterMode.Bilinear, true, 1, wrap, !linear),
+                    (importer.filterMode, importer.mipmapEnabled, importer.anisoLevel, importer.wrapMode, importer.sRGBTexture), address);
+            }
+        }
+#endif
+
         [Test]
         public void ModFile_OverridesSoundFontBytes() {
             byte[] bank = { 0x52, 0x49, 0x46, 0x46, 0, 1, 2, 3 };
