@@ -93,6 +93,44 @@ namespace BakAgain.Tests.Editor.UI {
         }
 
         [Test]
+        public void Draft_UninstallDeleteFails_StaysDisabled() {
+            string aa = Mod("aa");
+            Mod("bb");
+            Order("aa", "bb");
+            ModsDraft draft = ModsDraft.Load();
+            draft.DeleteFolder = _ => throw new IOException("locked");
+
+            draft.Uninstall("aa");
+            Assert.Throws<IOException>(draft.Save);
+
+            Assert.IsTrue(Directory.Exists(aa));
+            var state = ModStateFile.Read(StatePath);
+            CollectionAssert.AreEqual(new[] { "bb", "aa" }, state.Select(e => e.Id).ToArray());
+            Assert.IsFalse(state[1].Enabled, "a mod the player uninstalled must not start enabled");
+            ModsDraft next = ModsDraft.Load();
+            Assert.IsFalse(next.Mods.Single(e => e.Mod.Manifest.Id == "aa").Enabled);
+        }
+
+        [Test]
+        public void Draft_Move_StepsOverHiddenLanguageMods() {
+            Mod("lang-xx", ",\"kinds\":[\"language\"]");
+            Mod("aa");
+            Mod("bb");
+            Order("lang-xx", "aa", "bb");
+            ModsDraft draft = ModsDraft.Load();
+
+            draft.MoveUp("aa"); // the top listed mod: the language pack above it is not on the screen
+            CollectionAssert.AreEqual(new[] { "lang-xx", "aa", "bb" }, Ids(draft));
+            draft.MoveUp("bb");
+            CollectionAssert.AreEqual(new[] { "lang-xx", "bb", "aa" }, Ids(draft));
+
+            Order("aa", "lang-xx", "bb");
+            draft = ModsDraft.Load();
+            draft.MoveDown("aa");
+            CollectionAssert.AreEqual(new[] { "bb", "lang-xx", "aa" }, Ids(draft), "swaps with the next listed mod");
+        }
+
+        [Test]
         public void Draft_Cancel_WritesNothing() {
             string aa = Mod("aa");
             Mod("bb");

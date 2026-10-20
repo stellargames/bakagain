@@ -3,6 +3,7 @@ namespace BakAgain.UI {
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
+    using System.Runtime.ExceptionServices;
     using BakAgain.Core;
     using BakAgain.ResourceManagement;
     using BakAgain.UI.Cursor;
@@ -67,12 +68,17 @@ namespace BakAgain.UI {
             e.Enabled = !e.Enabled;
         }
 
-        public void MoveUp(string id) => Swap(_mods.IndexOf(Find(id)), -1);
+        public void MoveUp(string id) => Move(id, -1);
 
-        public void MoveDown(string id) => Swap(_mods.IndexOf(Find(id)), +1);
+        public void MoveDown(string id) => Move(id, +1);
 
-        private void Swap(int i, int step) {
+        /// <summary>Swaps the mod with its neighbour on the screen: language mods are not listed there, so they are stepped over.</summary>
+        private void Move(string id, int step) {
+            int i = _mods.IndexOf(Find(id));
             int j = i + step;
+            while (j >= 0 && j < _mods.Count && _mods[j].Mod.Manifest.IsLanguage) {
+                j += step;
+            }
             if (j < 0 || j >= _mods.Count) {
                 return;
             }
@@ -119,18 +125,38 @@ namespace BakAgain.UI {
         private IEnumerable<ModStateEntry> State() =>
             _mods.Select(e => new ModStateEntry(e.Id, e.Mod.Manifest.Version.ToString(), e.Enabled));
 
-        /// <summary>Writes <c>mods.json</c>, then deletes the uninstalled mods' folders.</summary>
+        /// <summary>Deletes an uninstalled mod's folder; tests make it fail.</summary>
+        internal Action<string> DeleteFolder { get; set; } = folder => Directory.Delete(folder, true);
+
+        /// <summary>
+        /// Deletes the uninstalled mods' folders, then writes <c>mods.json</c>. A folder that could not be
+        /// deleted is written disabled: unlisted, it would start enabled at the top. Throws the first
+        /// delete failure after writing.
+        /// </summary>
         public void Save() {
-            ModStateFile.Write(ModLayers.StatePath, State());
             string root = Path.GetFullPath(ModLayers.ModsRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var kept = new List<InstalledMod>();
+            Exception failure = null;
             foreach (InstalledMod mod in _uninstalled) {
                 string folder = Path.GetFullPath(mod.Folder);
                 // Only ever a mod folder directly inside the mods folder.
-                if (ModLayers.IsModFolder(folder) && Path.GetDirectoryName(folder) == root && Directory.Exists(folder)) {
-                    Directory.Delete(folder, true);
+                if (!ModLayers.IsModFolder(folder) || Path.GetDirectoryName(folder) != root || !Directory.Exists(folder)) {
+                    continue;
+                }
+                try {
+                    DeleteFolder(folder);
+                } catch (Exception e) when (e is IOException or UnauthorizedAccessException) {
+                    kept.Add(mod);
+                    failure ??= e;
                 }
             }
+            ModStateFile.Write(ModLayers.StatePath,
+                State().Concat(kept.Select(m => new ModStateEntry(m.Manifest.Id, m.Manifest.Version.ToString(), false))));
             _uninstalled.Clear();
+            _uninstalled.AddRange(kept);
+            if (failure != null) {
+                ExceptionDispatchInfo.Capture(failure).Throw();
+            }
         }
     }
 
@@ -147,6 +173,7 @@ namespace BakAgain.UI {
         private ICursorManager _cursor;
         private NavigableLayer _layer;
         private VisualElement _panel;
+        private ScrollView _scroll;
         private Label _error;
         private ModsDraft _draft;
         private bool _pending;
@@ -198,7 +225,9 @@ namespace BakAgain.UI {
 
         private List<NavWidget> Widgets() {
             var widgets = new List<NavWidget>();
-            foreach ((Button row, Func<string> _, Func<bool> _) in _rows) {
+            // Fixed rows first: a mod row scrolled out of view keeps its rect, under Install or Save, and
+            // the layer resolves focus to the FIRST widget under the cursor.
+            foreach ((Button row, Func<string> _, Func<bool> _) in _rows.OrderBy(r => _scroll.Contains(r.Row) ? 1 : 0)) {
                 Button b = row;
                 widgets.Add(new NavWidget(b, b.Q<Label>("caption")?.text ?? string.Empty, () => EnhancedSettingsScreen.CanonicalRect(GetComponent<UIDocument>(), b),
                     () => { if (b.enabledSelf && !FileBrowser.IsOpen) ClickOf(b)?.Invoke(); }, null));
@@ -214,7 +243,6 @@ namespace BakAgain.UI {
             _layer?.SetWidgets(Widgets());
         }
 
-        // ponytail: one column, no scrolling; about six mods fit. A ScrollView that follows focus when more are installed.
         private void Build() {
             _panel?.RemoveFromHierarchy();
             _rows.Clear();
@@ -222,10 +250,19 @@ namespace BakAgain.UI {
             _panel = MovedElements.Box("enhanced-settings");
             _panel.Add(EnhancedSettingsScreen.Text(Templates.Format(Templates.ModsTitle), "enhanced-settings__title"));
 
-            VisualElement columns = MovedElements.Box("enhanced-settings__columns");
-            VisualElement list = MovedElements.Box("enhanced-settings__column");
-            columns.Add(list);
-            _panel.Add(columns);
+            // The mods scroll; Install, Save and Cancel below them stay in view.
+            // The theme does not carry Unity's default ScrollView styles, so the clip is set here; with no
+            // scroller style, the wheel, a touch drag and focus do the scrolling.
+            _scroll = new ScrollView(ScrollViewMode.Vertical) {
+                horizontalScrollerVisibility = ScrollerVisibility.Hidden,
+                verticalScrollerVisibility = ScrollerVisibility.Hidden,
+            };
+            _scroll.style.flexGrow = 1;
+            _scroll.style.flexBasis = 0; // the space left, not the list's height
+            _scroll.contentViewport.style.overflow = Overflow.Hidden;
+            VisualElement list = new VisualElement(); // not __column: its zero basis collapses inside a scroll
+            _scroll.Add(list);
+            _panel.Add(_scroll);
 
             List<ModsDraft.Entry> shown = _draft.Mods.Where(e => !e.Mod.Manifest.IsLanguage).ToList();
             if (shown.Count == 0) {
@@ -241,8 +278,8 @@ namespace BakAgain.UI {
                 string id = e.Mod.Manifest.Id;
                 Row(list, () => ModCaption(e), () => true, () => _draft.Toggle(id));
                 VisualElement buttons = MovedElements.Box("enhanced-settings__buttons");
-                Row(buttons, () => Templates.Format(Templates.ModsUp), () => _draft.Mods[0] != e, () => { _draft.MoveUp(id); Rebuild(); });
-                Row(buttons, () => Templates.Format(Templates.ModsDown), () => _draft.Mods[_draft.Mods.Count - 1] != e,
+                Row(buttons, () => Templates.Format(Templates.ModsUp), () => shown[0] != e, () => { _draft.MoveUp(id); Rebuild(); });
+                Row(buttons, () => Templates.Format(Templates.ModsDown), () => shown[shown.Count - 1] != e,
                     () => { _draft.MoveDown(id); Rebuild(); });
                 Row(buttons, () => Templates.Format(_armed == id ? Templates.ModsUninstallConfirm : Templates.ModsUninstall), () => true,
                     () => Uninstall(id));
@@ -251,14 +288,26 @@ namespace BakAgain.UI {
                     list.Add(EnhancedSettingsScreen.Text(ProblemText(p), "enhanced-settings__error"));
                 }
             }
+            // A row reached by keyboard or gamepad scrolls into view with the lines either side of it: a
+            // line still out of view keeps its rect under Install or Save, and focus would jump there.
+            foreach ((Button row, Func<string> _, Func<bool> _) in _rows) {
+                VisualElement line = row.parent == list ? row : row.parent;
+                row.RegisterCallback<FocusInEvent>(_ => {
+                    int i = list.IndexOf(line);
+                    if (i + 1 < list.childCount) _scroll.ScrollTo(list[i + 1]);
+                    if (i > 0) _scroll.ScrollTo(list[i - 1]);
+                    _scroll.ScrollTo(line);
+                });
+            }
+
             if (EnhancedSettingsScreen.FoldersPickable) {
-                Row(list, () => Templates.Format(Templates.ModsInstallFile), () => true, InstallFromFile);
+                Row(_panel, () => Templates.Format(Templates.ModsInstallFile), () => true, InstallFromFile);
             }
             _error = EnhancedSettingsScreen.Text(string.Empty, "enhanced-settings__error");
-            list.Add(_error);
+            _panel.Add(_error);
 
             VisualElement bottom = MovedElements.Box("enhanced-settings__buttons");
-            Row(bottom, () => Templates.Format(Templates.EnhancedSave), () => true, Save);
+            Row(bottom, () => Pending(Templates.Format(Templates.EnhancedSave)), () => true, Save);
             Row(bottom, () => Templates.Format(Templates.EnhancedCancel), () => true, Cancel);
             _panel.Add(bottom);
 
@@ -266,12 +315,14 @@ namespace BakAgain.UI {
             Refresh();
         }
 
+        /// <summary>"<c>{text}</c> (restart)" while the draft would start other mods.</summary>
+        private string Pending(string text) =>
+            _pending ? Templates.Format(Templates.EnhancedPendingKey, ("text", text)) : text;
+
         /// <summary>"[x] HD Trees 1.0.0", with "(restart)" while the draft would start other mods.</summary>
-        private string ModCaption(ModsDraft.Entry e) {
-            string text = Templates.Format(Templates.ModsRow, ("on", e.Enabled ? "x" : " "),
-                ("name", e.Mod.Manifest.Name), ("version", e.Mod.Manifest.Version.ToString()));
-            return _pending ? Templates.Format(Templates.EnhancedPendingKey, ("text", text)) : text;
-        }
+        private string ModCaption(ModsDraft.Entry e) =>
+            Pending(Templates.Format(Templates.ModsRow, ("on", e.Enabled ? "x" : " "),
+                ("name", e.Mod.Manifest.Name), ("version", e.Mod.Manifest.Version.ToString())));
 
         private void Row(VisualElement parent, Func<string> caption, Func<bool> enabled, Action action) {
             var row = new Button();

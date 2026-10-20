@@ -240,7 +240,9 @@ namespace BakAgain.UI.InputCore {
             // FocusWidget's explicit OnWidgetFocused fallback is what makes these "focused" anyway (see
             // FocusWidget) — so treat them as focusable rather than false-negative on missing layout state.
             if (el.panel == null) return true;
+            // A disabled element refuses focus the same way (an Up on the top mod, Browse with no folder).
             return el.focusable
+                && el.enabledInHierarchy
                 && el.resolvedStyle.display != DisplayStyle.None
                 && el.resolvedStyle.visibility != Visibility.Hidden;
         }
