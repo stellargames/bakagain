@@ -43,13 +43,15 @@ exactly this layout.
   `<n>.png`, the Enhanced lighting blends them by where the sun stands against the view. `<n>.png`
   is the soft, overcast picture shown at night and with a low sun. All five must have the same
   outline: the transparency of `<n>.png` cuts out all of them.
-- **A creature in a colour set** (`<NAME>_CS<n>`) looks first in `BMX/<NAME>_CS<n>/`, then in
-  `BMX/<NAME>/`, so one picture can serve every colour, or each its own.
+- **A creature in a colour set** (`<NAME>_CS<n>`): for its HD world-billboard frames only, the game
+  looks first in `BMX/<NAME>_CS<n>/`, then in `BMX/<NAME>/`, so one HD picture can serve every
+  colour, or each its own. Other pictures have no such fallback.
 - **Data documents** (`<EXT>/<NAME>.json`) are merged onto the game's own data where the type
   supports it: objects key by key, `null` leaves a value alone, item records (`ObjectInfo`) by their
   `Number`. Any other type is replaced whole.
-- **3D models** (`Models/<zone>/<name>.glb`) are not part of the mod layout yet: a mod zip cannot
-  carry them. See [replacing models](replacing-models.md).
+- **3D models** (`Models/<zone>/<name>.glb`) are not supported yet: the current build loads them
+  from nowhere (not from a mod, not from the dev folder), and a mod zip cannot carry them. See
+  [replacing models](replacing-models.md) for the intended layout.
 - **Translations**: see [language packs](language-packs.md).
 
 ### aliases.json
@@ -153,11 +155,14 @@ Two ways in:
 - **Drop the zip into the mods folder.** It is installed at the next start: unpacked into
   `mods/<id>/`, put at the top of the list and switched on, and the zip is deleted. A zip that
   cannot be installed is renamed `<name>.zip.failed` and the log says why.
-- **Install from file…** on the Mods screen (desktop): pick the zip, then **Save**.
+- **Install from file…** on the Mods screen (desktop): pick the zip. It is unpacked into
+  `mods/<id>/` at once and shown at the top, switched on; press **Save** to keep the list as shown.
 
 The Mods screen is under **Preferences → Enhanced → Installed mods**. There you switch mods on and
-off, move them up and down, and uninstall them (press Uninstall twice). Changes take effect at the
-next start; until then the buttons say "(restart)". A mod that needs a missing mod, the wrong
+off, move them up and down, and uninstall them (pressing Uninstall twice only marks the mod).
+Every change on the screen needs **Save**: Save writes the order and the on/off state and deletes
+the mods marked for uninstall; Cancel drops the changes (a mod installed from a file stays
+installed). Saved changes take effect at the next start; until then the buttons say "(restart)". A mod that needs a missing mod, the wrong
 version of one, or a newer game is listed with the reason and stays off.
 
 The game's log names the active mods at every start: `Mods (enhanced): hd-trees 0.1.0`.
