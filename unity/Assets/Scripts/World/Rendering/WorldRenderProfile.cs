@@ -87,6 +87,30 @@ namespace BakAgain.World.Rendering {
             return mat;
         }
 
+        public Material CreateHdSpriteMaterial(HdFrame frame) {
+            var mat = WorldShaders.Create(WorldShaders.Surface.Sprite);
+            mat.SetTexture(MainTexId, frame.Base);
+            mat.SetTexture(SunTexFId, frame.Front);
+            mat.SetTexture(SunTexLId, frame.Left);
+            mat.SetTexture(SunTexRId, frame.Right);
+            mat.SetTexture(SunTexBId, frame.Back);
+            mat.SetFloat(SunSetId, frame.HasSun ? 1f : 0f);
+            mat.SetFloat(AlphaCutoffId, HdFrames.AlphaCutoff);
+            mat.SetFloat(VarySizeId, frame.VarySize);
+            mat.SetFloat(VaryColorId, frame.VaryColor);
+            mat.name = $"HdSprite_{frame.Base.name}";
+            return mat;
+        }
+
+        private static readonly int SunTexFId = Shader.PropertyToID("_SunTexF");
+        private static readonly int SunTexLId = Shader.PropertyToID("_SunTexL");
+        private static readonly int SunTexRId = Shader.PropertyToID("_SunTexR");
+        private static readonly int SunTexBId = Shader.PropertyToID("_SunTexB");
+        private static readonly int SunSetId = Shader.PropertyToID("_SunSet");
+        private static readonly int AlphaCutoffId = Shader.PropertyToID("_AlphaCutoff");
+        private static readonly int VarySizeId = Shader.PropertyToID("_VarySize");
+        private static readonly int VaryColorId = Shader.PropertyToID("_VaryColor");
+
         public void ConfigureSky(GameObject skyContainer, Texture2D horizonTexture) {
             // HorizonRenderer is added by ZoneSceneBuilder; this just disables Unity skybox
             RenderSettings.skybox = null;

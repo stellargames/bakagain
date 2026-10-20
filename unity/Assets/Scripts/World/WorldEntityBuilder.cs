@@ -75,6 +75,7 @@ namespace BakAgain.World {
         // corrupt the cache for every later consumer.
         private readonly Dictionary<Texture2D, Material> _slotMaterials = new();
         private readonly Dictionary<Texture2D, Material> _spriteMaterials = new();
+        private readonly Dictionary<HdFrame, Material> _hdSpriteMaterials = new();
         private readonly List<Mesh> _trackedMeshes = new();
 
         /// <summary>One slot material per distinct bitmap, not per sub-mesh.</summary>
@@ -93,6 +94,15 @@ namespace BakAgain.World {
             return mat;
         }
 
+        /// <summary>One material per HD frame, not per placement. The frame's textures are
+        /// <see cref="HdFrames"/>' and outlive the zone.</summary>
+        public Material GetHdSpriteMaterial(HdFrame frame) {
+            if (_hdSpriteMaterials.TryGetValue(frame, out var mat) && mat != null) return mat;
+            mat = Profile.CreateHdSpriteMaterial(frame);
+            _hdSpriteMaterials[frame] = mat;
+            return mat;
+        }
+
         /// <summary>Register a runtime-built mesh so the zone teardown can free it.</summary>
         public void TrackMesh(Mesh mesh) {
             if (mesh != null) _trackedMeshes.Add(mesh);
@@ -107,12 +117,14 @@ namespace BakAgain.World {
             foreach (var m in LayeredTerrainCache.Values) DestroyAsset(m);
             foreach (var m in _slotMaterials.Values) DestroyAsset(m);
             foreach (var m in _spriteMaterials.Values) DestroyAsset(m);
+            foreach (var m in _hdSpriteMaterials.Values) DestroyAsset(m);
             foreach (var t in _spriteTextures.Values) DestroyAsset(t);
             foreach (var m in _trackedMeshes) DestroyAsset(m);
 
             LayeredTerrainCache.Clear();
             _slotMaterials.Clear();
             _spriteMaterials.Clear();
+            _hdSpriteMaterials.Clear();
             _spriteTextures.Clear();
             _trackedMeshes.Clear();
             SlotTextures.Clear();   // borrowed handles: drop the references, don't destroy
@@ -320,7 +332,11 @@ namespace BakAgain.World {
                     // Entity world extent (== engine dword_3803) drives the billboard size; see
                     // TblSpriteConverter.BuildBillboard. Extent ships pre-shifted by VertexScale.
                     int entityExtentBak = Mathf.Abs(dat.Extent);
-                    var spriteMat = ctx.GetSpriteMaterial(spriteTex);
+                    // A mod's HD frame changes the picture, never the size: the native texture above
+                    // still sizes and anchors the billboard (mod system spec 6, phase 1).
+                    var spriteMat = HdFrames.TryLoad(spriteFace.TextureBitmap, out HdFrame hd)
+                        ? ctx.GetHdSpriteMaterial(hd)
+                        : ctx.GetSpriteMaterial(spriteTex);
                     var go = CreateSpriteObject(entry.Name, spriteTex, spriteFace,
                         entityExtentBak, spriteMat, entityParent, position);
                     ctx.TrackMesh(go.GetComponent<MeshFilter>()?.sharedMesh);

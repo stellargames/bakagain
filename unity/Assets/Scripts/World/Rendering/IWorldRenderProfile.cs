@@ -27,6 +27,9 @@ namespace BakAgain.World.Rendering {
         /// <summary>Create material for a billboard sprite.</summary>
         Material CreateSpriteMaterial(Texture2D spriteTexture);
 
+        /// <summary>Create material for a billboard drawn with a mod's HD frame.</summary>
+        Material CreateHdSpriteMaterial(HdFrame frame);
+
         /// <summary>Configure the sky for this zone.</summary>
         void ConfigureSky(GameObject skyContainer, Texture2D horizonTexture);
 

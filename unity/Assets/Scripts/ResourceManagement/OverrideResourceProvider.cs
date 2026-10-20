@@ -190,19 +190,24 @@ namespace BakAgain.ResourceManagement {
         private static Vector2 LoadScaleInternal(ProvideHandle provideHandle) {
             string path = provideHandle.ResourceManager.TransformInternalId(provideHandle.Location);
 
-            string jsonPath = path.Replace(".png", ".json");
-            if (!File.Exists(jsonPath)) {
-                return Vector2.one;
-            }
-            string json = File.ReadAllText(jsonPath);
-            var metaData = JsonConvert.DeserializeObject<MetaData>(json);
-
-            return new Vector2((float)metaData.ScaleX, (float)metaData.ScaleY);
+            return ReadMetaData(path) is { } metaData
+                ? new Vector2((float)metaData.ScaleX, (float)metaData.ScaleY)
+                : Vector2.one;
         }
 
-        private struct MetaData {
+        /// <summary>The optional sidecar of an override PNG (<c>&lt;i&gt;.json</c> beside <c>&lt;i&gt;.png</c>), or null.</summary>
+        internal static MetaData? ReadMetaData(string pngPath) {
+            string jsonPath = pngPath.Replace(".png", ".json");
+            return File.Exists(jsonPath) ? JsonConvert.DeserializeObject<MetaData>(File.ReadAllText(jsonPath)) : null;
+        }
+
+        internal struct MetaData {
             public double ScaleX { get; set; }
             public double ScaleY { get; set; }
+            // An HD billboard frame's per-instance variation (HdFrames), 0 = none: size as a fraction
+            // (0.08 = up to +-8%), colour likewise.
+            public double VarySize { get; set; }
+            public double VaryColor { get; set; }
         }
 
         private static Texture2D LoadTextureInternal(ProvideHandle provideHandle) {

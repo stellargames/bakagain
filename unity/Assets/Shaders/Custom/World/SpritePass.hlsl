@@ -24,6 +24,8 @@ struct Varyings {
 #ifdef BAK_ENHANCED
     // The sun shadow at the entity's foot, sampled once in the vertex stage (spec Q3).
     half sunShade : TEXCOORD4;
+    half2 sunSide : TEXCOORD5;   // x = sun from the view's right (+) / left (-); y = sun behind the viewer (+)
+    half3 tint : TEXCOORD6;      // per-instance colour variation
 #endif
 };
 
@@ -32,10 +34,29 @@ CBUFFER_START(UnityPerMaterial)
     // One actor's tint (a spell hit's RED/WHITE/BLUE.RMP remap, WORLDRND.C:208), set per
     // renderer through a property block by SpellVfx. a = 0 leaves the sprite alone.
     float4 _FlashColor;
+    // An HD frame's (HdFrames): 1 when it has the four sun-lit versions. Per material, or the SRP
+    // Batcher leaks it into every other sprite's draw.
+    float _SunSet;
+    // Per-instance variation (0 = off): size as a fraction (0.08 = up to +-8%), colour likewise.
+    float _VarySize;
+    float _VaryColor;
 CBUFFER_END
+
+// Three stable random numbers in [-1, 1] for the sprite standing at worldPos (its pivot), so a tree
+// keeps its own size and tint from frame to frame and across saves.
+float3 InstanceRandom(float3 worldPos) {
+    uint2 q = (uint2)(int2)floor(worldPos.xz * 4);
+    uint h = q.x * 1597334677u ^ q.y * 3812015801u;
+    h = (h ^ (h >> 16)) * 0x7feb352du;
+    uint3 r = uint3(h, h * 0x846ca68bu, h * 0x9e3779b9u);
+    r ^= r >> 15;
+    return float3(r & 0xffffu) / 32767.5 - 1;
+}
 
 TEXTURE2D(_MainTex);
 SAMPLER(sampler_MainTex);
+// An HD frame's sun-lit versions: lit from the front, left, right and behind; _MainTex is soft front light.
+TEXTURE2D(_SunTexL); TEXTURE2D(_SunTexR); TEXTURE2D(_SunTexB); TEXTURE2D(_SunTexF);
 
 // The zone's own sprite haze range (Z##DEF.DAT, TASK-434), set as globals by the render
 // profile. Only sprites fade on this range, as only sprites are remapped in the original;
@@ -56,7 +77,9 @@ float3 BillboardWorldPos(float3 worldPos, float3 right, float2 positionOS) {
     // A length has no sign, so a mirrored sprite (negative x scale: the left-facing
     // octants, TASK-694) drew unmirrored. The matrix's handedness carries the flip.
     if (determinant((float3x3)UNITY_MATRIX_M) < 0) scaleX = -scaleX;
-    return worldPos + right * positionOS.x * scaleX + float3(0, 1, 0) * positionOS.y * scaleY;
+    // Scaled about the pivot at the sprite's foot, so a bigger tree still stands on the ground.
+    float vary = 1 + _VarySize * InstanceRandom(worldPos).x;
+    return worldPos + (right * positionOS.x * scaleX + float3(0, 1, 0) * positionOS.y * scaleY) * vary;
 }
 
 float3 CameraRightFlat() {
@@ -102,6 +125,11 @@ Varyings vert(Attributes input) {
     float3 toLight = normalize(float3(_MainLightPosition.x, 0, _MainLightPosition.z) + float3(1e-4, 0, 0));
     float height = length(float3(UNITY_MATRIX_M._m01, UNITY_MATRIX_M._m11, UNITY_MATRIX_M._m21));
     output.sunShade = BakSunShade(worldPos + (toLight + float3(0, 0.5, 0)) * 0.1 * height);
+    float3 toCam = normalize(float3(-toSprite.x, 0, -toSprite.z) + float3(1e-4, 0, 0));
+    output.sunSide = half2(dot(CameraRightFlat(), toLight), dot(toCam, toLight));
+    // Brightness and warmth, each up to +-_VaryColor: some trees a little darker, some a little yellower.
+    float3 rnd = InstanceRandom(worldPos);
+    output.tint = 1 + _VaryColor * (rnd.y + float3(rnd.z, 0.3 * rnd.z, -rnd.z));
 #endif
     return output;
 }
@@ -109,6 +137,19 @@ Varyings vert(Attributes input) {
 half4 frag(Varyings input) : SV_Target {
     half4 color = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv);
     clip(color.a - _AlphaCutoff);
+#ifdef BAK_ENHANCED
+    if (_SunSet > 0) {
+        // Daylight: the four sun-direction photos, weighted by where the sun is relative to the view
+        // (x: from the right +, y: behind the viewer +). Night and low sun fade to the soft-lit base.
+        half wR = saturate(input.sunSide.x), wL = saturate(-input.sunSide.x);
+        half wF = saturate(input.sunSide.y), wB = saturate(-input.sunSide.y);
+        half3 lit = (SAMPLE_TEXTURE2D(_SunTexR, sampler_MainTex, input.uv).rgb * wR
+                   + SAMPLE_TEXTURE2D(_SunTexL, sampler_MainTex, input.uv).rgb * wL
+                   + SAMPLE_TEXTURE2D(_SunTexF, sampler_MainTex, input.uv).rgb * wF
+                   + SAMPLE_TEXTURE2D(_SunTexB, sampler_MainTex, input.uv).rgb * wB) / max(wR + wL + wF + wB, 1e-3);
+        color.rgb = lerp(color.rgb, lit, (half)_BakSunShadow);
+    }
+#endif
     // Ordered 4x4 dither: a screen-door fade that stays in the opaque queue.
     if (input.nearFade < 1) {
         uint2 px = (uint2)input.positionCS.xy & 3;
@@ -117,6 +158,7 @@ half4 frag(Varyings input) : SV_Target {
     }
     color.rgb = lerp(color.rgb, _FlashColor.rgb, _FlashColor.a);
 #ifdef BAK_ENHANCED
+    color.rgb *= input.tint;
     color.rgb *= input.sunShade;
 #endif
     // The sprite haze when a range is set, else URP distance fog.
