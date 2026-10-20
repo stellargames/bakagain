@@ -16,8 +16,14 @@ switch (args) {
 
 static int Pack(string folder, string outDir) {
     int rc = Report(ModArchive.ValidateFolder(folder), folder);
-    if (rc == 0) Console.WriteLine(ModArchive.Pack(folder, outDir));
-    return rc;
+    if (rc != 0) return rc;
+    try {
+        Console.WriteLine(ModArchive.Pack(folder, outDir));
+        return 0;
+    } catch (Exception e) when (e is IOException or UnauthorizedAccessException) {
+        Console.Error.WriteLine("error: " + e.Message);
+        return 1;
+    }
 }
 
 static int Report(ModValidation v, string what) {

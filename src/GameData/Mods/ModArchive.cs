@@ -33,9 +33,13 @@ public static class ModArchive {
     }
 
     public static ModValidation ValidateFolder(string folder) {
-        List<string> names = Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories)
-            .Select(f => Path.GetRelativePath(folder, f).Replace(Path.DirectorySeparatorChar, '/')).ToList();
-        return Validate(names, name => File.ReadAllText(Path.Combine(folder, name)));
+        try {
+            List<string> names = Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories)
+                .Select(f => Path.GetRelativePath(folder, f).Replace(Path.DirectorySeparatorChar, '/')).ToList();
+            return Validate(names, name => File.ReadAllText(Path.Combine(folder, name)));
+        } catch (Exception e) when (e is IOException or UnauthorizedAccessException) {
+            return new ModValidation(null, new[] { "cannot read folder: " + e.Message }, Array.Empty<string>());
+        }
     }
 
     /// <summary>Extracts into <c>modsRoot/&lt;id&gt;</c>, replacing a previous version; a failure leaves the old version in place.</summary>
@@ -81,11 +85,13 @@ public static class ModArchive {
     public static string Pack(string folder, string outDir) {
         ModValidation v = ValidateFolder(folder);
         if (!v.Ok) throw new InvalidDataException(string.Join("; ", v.Errors));
+        // Listed before the zip exists, so packing into the mod's own folder cannot include or lock the output.
+        List<string> files = Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories).ToList();
         Directory.CreateDirectory(outDir);
         string zipPath = Path.Combine(outDir, $"{v.Manifest!.Id}-{v.Manifest.Version}.zip");
         File.Delete(zipPath);
         using ZipArchive zip = ZipFile.Open(zipPath, ZipArchiveMode.Create);
-        foreach (string file in Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories)) {
+        foreach (string file in files) {
             // Entry names are built by hand so they use '/' on every platform.
             zip.CreateEntryFromFile(file, Path.GetRelativePath(folder, file).Replace(Path.DirectorySeparatorChar, '/'));
         }

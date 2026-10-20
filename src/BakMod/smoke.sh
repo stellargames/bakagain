@@ -20,4 +20,13 @@ rc=0; bakmod pack "$tmp/bad" -o "$tmp/out" 2> "$tmp/err" || rc=$?
 grep -q '^error:' "$tmp/err"
 rc=0; bakmod > /dev/null 2>&1 || rc=$?
 [ "$rc" = 2 ] || { echo "no args: expected exit 2, got $rc"; exit 1; }
+
+# In-place pack: cwd is the mod folder, default output dir "."; the zip must not contain itself.
+(cd "$tmp/good" && dotnet run --project "$OLDPWD/src/BakMod" -- pack .)
+bakmod validate "$tmp/good/smoke-mod-1.0.0.zip" > /dev/null
+test "$(unzip -Z1 "$tmp/good/smoke-mod-1.0.0.zip" | grep -c '\.zip$')" = 0
+
+rc=0; bakmod pack "$tmp/nonexistent" 2> "$tmp/err" || rc=$?
+[ "$rc" = 1 ] || { echo "missing folder: expected exit 1, got $rc"; exit 1; }
+grep -q '^error:' "$tmp/err"
 echo OK

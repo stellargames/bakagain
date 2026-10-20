@@ -212,6 +212,23 @@ public class ModArchiveTests : IDisposable {
     }
 
     [Fact]
+    public void Pack_IntoItsOwnFolder_Works() {
+        string src = Folder(Good());
+        string zip = ModArchive.Pack(src, src);
+        Assert.True(ModArchive.ValidateZip(zip).Ok);
+        using ZipArchive z = ZipFile.OpenRead(zip);
+        Assert.DoesNotContain(z.Entries, e => e.FullName.EndsWith(".zip"));
+        Assert.Contains(z.Entries, e => e.FullName == "mod.json");
+    }
+
+    [Fact]
+    public void Validate_MissingFolder_IsAnError() {
+        ModValidation v = ModArchive.ValidateFolder(Path.Combine(_dir, "nope"));
+        Assert.False(v.Ok);
+        Assert.Contains(v.Errors, e => e.Contains("cannot read folder"));
+    }
+
+    [Fact]
     public void Pack_InvalidFolder_Throws() {
         string src = Folder(new Dictionary<string, string> { ["mod.json"] = Manifest(), ["x.dll"] = "x" });
         Assert.Throws<InvalidDataException>(() => ModArchive.Pack(src, Path.Combine(_dir, "out")));
