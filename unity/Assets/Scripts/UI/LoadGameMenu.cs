@@ -1,9 +1,11 @@
 namespace BakAgain.UI {
     using BakAgain.Core;
     using BakAgain.Core.Services;
+    using BakAgain.ResourceManagement;
     using BakAgain.ResourceManagement.Loaders;
     using BakAgain.UI.InputCore;
     using Cysharp.Threading.Tasks;
+    using GameData.Mods;
     using System;
     using System.Collections.Generic;
     using UnityEngine;
@@ -24,6 +26,7 @@ namespace BakAgain.UI {
         private ILogger _logger;
         private IDialogManager _dialogManager;
         private BakAgain.Core.Services.IGameFlow _flow;
+        private MissingModsScreen _missingMods;
 
         protected override void Awake() {
             base.Awake();
@@ -33,11 +36,12 @@ namespace BakAgain.UI {
         [Inject]
         public void Construct(ISaveGameDirectoryService saves, IDialogManager dialogManager,
             BakAgain.Core.Services.IGameFlow flow,
-            BakAgain.UI.Navigation.IScreenNavigator navigator) {
+            BakAgain.UI.Navigation.IScreenNavigator navigator, MissingModsScreen missingMods) {
             _saves = saves ?? throw new ArgumentNullException(nameof(saves));
             _dialogManager = dialogManager ?? throw new ArgumentNullException(nameof(dialogManager));
             _flow = flow ?? throw new ArgumentNullException(nameof(flow));
             _navigator = navigator ?? throw new ArgumentNullException(nameof(navigator));
+            _missingMods = missingMods ?? throw new ArgumentNullException(nameof(missingMods));
         }
 
         // Populate the pickers once the loader is awake (activation kicked its async REQ build).
@@ -86,6 +90,17 @@ namespace BakAgain.UI {
             // screen off the stack — and presents the fullmap + chapter dialog before entering the
             // world (faithful to StartGameOrLoadSave @ 0x20835, mode 3). On failure we simply stay.
             RememberSelection(); // the dialog's exit records the pair whatever the load does (MAINMENU.C:551)
+            // Mods the save was played with that are not active now (mod system spec 4.7): ask first.
+            // Push returns once the prompt is up, so the answer is its Result; Cancel stays here.
+            IReadOnlyList<SaveModIssue> issues =
+                SaveModList.Compare(SaveModList.Read(slot.FullPath), ModLayers.Current.Active, ModLayers.Mode);
+            if (issues.Count > 0) {
+                _missingMods.Show(issues);
+                await _navigator.Push(_missingMods);
+                if (!await _missingMods.Result) {
+                    return;
+                }
+            }
             bool ok = await _flow.LoadSave(slot.FullPath);
             if (!ok) {
                 _logger.LogError("Restore failed for '{Name}' ({Path}). Staying on screen.",

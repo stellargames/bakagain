@@ -1,6 +1,8 @@
 namespace BakAgain.Core.Services {
     using System;
+    using BakAgain.ResourceManagement;
     using Cysharp.Threading.Tasks;
+    using GameData.Mods;
     using GameData.Resources.Data;
     using Microsoft.Extensions.Logging;
     using ResourceExtraction;
@@ -137,6 +139,13 @@ namespace BakAgain.Core.Services {
                     // phantom success.
                     _logger.LogError("SaveAsync: write failed for {Dir}/slot {Slot}.", directoryName, slotIndex);
                     return false;
+                }
+                // The mods this game was played with, for the check on restore (mod system spec 4.7).
+                // A sidecar that cannot be written costs that check, never the save.
+                try {
+                    SaveModList.Write(path, ModLayers.Current.Active);
+                } catch (Exception e) {
+                    _logger.LogError(e, "SaveAsync: the mod list for {Path} could not be written.", path);
                 }
 
                 // Remember where this game now lives. The bookmark writes slot 0 of THIS directory,
