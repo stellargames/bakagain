@@ -101,6 +101,16 @@ namespace BakAgain.Tests.Editor.World {
         }
 
         [Test]
+        public void TryLoad_AliasedKeys_ShareOneFrame() {
+            Png("Z01SLOT0", "3.png");
+            File.WriteAllText(Path.Combine(_mods.Root, "aliases.json"), "{ \"BMX/Z02SLOT1/4\": \"BMX/Z01SLOT0/3\" }");
+
+            Assert.IsTrue(HdFrames.TryLoad("Z01SLOT0.BMX#3", out HdFrame direct));
+            Assert.IsTrue(HdFrames.TryLoad("Z02SLOT1.BMX#4", out HdFrame aliased), "the alias reaches the file");
+            Assert.AreSame(direct, aliased, "one file, one frame: not a second decoded copy");
+        }
+
+        [Test]
         public void Mips_PreserveCoverage() {
             // Fine noise (r^2) under a coarse random envelope, its mean below the cutoff everywhere: plain
             // box-filtered mips lose the speckle that reaches the cutoff, the thinning a tree shows with

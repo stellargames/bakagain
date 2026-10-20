@@ -36,6 +36,9 @@ namespace BakAgain.World.Rendering {
 
         private static readonly ILogger Logger = LogManager.LoggerFactory.CreateLogger(nameof(HdFrames));
         private static readonly Dictionary<string, HdFrame> Cache = new();
+        // The same frames by the file they were read from: aliases send many keys to one file, and
+        // those keys share one frame (and so one material) rather than each decoding their own copy.
+        private static readonly Dictionary<string, HdFrame> ByPath = new();
         private static readonly string[] Sides = { "front", "left", "right", "back" };
 
         /// <summary>
@@ -59,12 +62,13 @@ namespace BakAgain.World.Rendering {
 
         /// <summary>For tests only: forget (and free) every frame read.</summary>
         internal static void ClearCache() {
-            foreach (HdFrame f in Cache.Values.Where(f => f != null)) {
+            foreach (HdFrame f in ByPath.Values) {
                 foreach (Texture2D t in new[] { f.Base, f.Front, f.Left, f.Right, f.Back }) {
                     UnityObjectUtil.Destroy(t);
                 }
             }
             Cache.Clear();
+            ByPath.Clear();
         }
 
         private static HdFrame Load(string resourceKey) {
@@ -84,13 +88,14 @@ namespace BakAgain.World.Rendering {
                 if (path != null) break;
             }
             if (path == null) return null;
+            if (ByPath.TryGetValue(path, out HdFrame known)) return known;
 
             // The sun-lit versions and the sidecar sit beside the file found, so an alias brings them too.
             string sibling = path[..^".png".Length];
             OverrideResourceProvider.MetaData? meta = OverrideResourceProvider.ReadMetaData(path);
             Texture2D image = Build(path);
             Texture2D[] sides = Sides.Select(side => File.Exists($"{sibling}.{side}.png") ? Build($"{sibling}.{side}.png") : null).ToArray();
-            return new HdFrame {
+            return ByPath[path] = new HdFrame {
                 Base = image,
                 Front = sides[0], Left = sides[1], Right = sides[2], Back = sides[3],
                 VarySize = (float)(meta?.VarySize ?? 0),
