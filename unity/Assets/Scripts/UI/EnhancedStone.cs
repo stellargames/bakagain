@@ -5,6 +5,7 @@ namespace BakAgain.UI {
     using System.Linq;
     using UnityEngine;
     using UnityEngine.AddressableAssets;
+    using UnityEngine.ResourceManagement.AsyncOperations;
     using UnityEngine.UIElements;
     using ILogger = Microsoft.Extensions.Logging.ILogger;
 
@@ -25,25 +26,50 @@ namespace BakAgain.UI {
         public static async UniTask PreloadAsync() {
             string[] addresses = Addressables.ResourceLocators.SelectMany(l => l.Keys).OfType<string>()
                 .Where(k => k.StartsWith(Folder, System.StringComparison.Ordinal)).Distinct().ToArray();
+            // ponytail: one at a time; in parallel, a focused run of BuiltInAssetOverrideTests races the
+            // scene boot's own preload. Parallel once tests can wait for the boot.
             foreach (string address in addresses) {
-                string name = address[Folder.Length..];
-                try {
-                    Loaded[name] = await Addressables.LoadAssetAsync<Texture2D>(address).ToUniTask();
-                } catch (System.Exception e) {
-                    Logger.LogError("Enhanced art '{Address}' failed to load, drawn as nothing: {Reason}", address, e.Message);
-                    Loaded[name] = null;
+                await PreloadOneAsync(address);
+            }
+        }
+
+        private static async UniTask PreloadOneAsync(string address) {
+            string name = address[Folder.Length..];
+            AsyncOperationHandle<Texture2D> handle = Addressables.LoadAssetAsync<Texture2D>(address);
+            try {
+                Loaded[name] = await handle.ToUniTask();
+            } catch (System.Exception e) {
+                Logger.LogError("Enhanced art '{Address}' failed to load, drawn as nothing: {Reason}", address, e.Message);
+                Loaded[name] = null;
+                if (handle.IsValid()) {
+                    Addressables.Release(handle);
                 }
             }
         }
 
-        /// <summary>Loaded once: the screens ask for the same few textures on every redraw.</summary>
+        /// <summary>
+        /// Loaded once: the screens ask for the same few textures on every redraw. A failed preload
+        /// stays drawn as nothing; a texture destroyed since (fake null) is loaded again.
+        /// </summary>
         public static Texture2D Texture(string name) {
-            if (!Loaded.TryGetValue(name, out Texture2D t)) {
-                // Not preloaded (a test building a screen without the boot): WaitForCompletion throws
-                // inside another load's Completed callback, which the boot's preload keeps the game out of.
-                Loaded[name] = t = Addressables.LoadAssetAsync<Texture2D>(Folder + name).WaitForCompletion();
+            // A real null is a failed preload; a destroyed texture compares equal to null but is not one.
+            if (Loaded.TryGetValue(name, out Texture2D t) && (t is null || t != null)) {
+                return t;
             }
-            return t;
+            // Not preloaded (a test building a screen without the boot). Inside another load's
+            // Completed callback WaitForCompletion throws; the boot's preload keeps the game out of
+            // here, so that is drawn as nothing, once, rather than breaking the screen.
+            AsyncOperationHandle<Texture2D> handle = Addressables.LoadAssetAsync<Texture2D>(Folder + name);
+            try {
+                t = handle.WaitForCompletion();
+            } catch (System.Exception e) {
+                Logger.LogWarning("Enhanced art '{Name}' could not be loaded here, drawn as nothing: {Reason}", name, e.Message);
+                t = null;
+                if (handle.IsValid()) {
+                    Addressables.Release(handle);
+                }
+            }
+            return Loaded[name] = t;
         }
 
         public static StyleBackground Load(string name) {

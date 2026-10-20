@@ -59,6 +59,9 @@ namespace BakAgain.Core.DI {
         public async UniTask StartAsync(CancellationToken cancellation = default) {
             _logger.LogInformation("StartAsync() initiated.");
             BakResourceSettings.ApplyPending(); // folders the Enhanced settings saved for this start
+            // Before the first boot text: a language installed as a mod is found through the mods.
+            ModLayers.Initialize();
+            LanguagePacks.Reload();
             ClearBehindUiToBlack();
             AsyncOperationHandle<GameObject> loadingScreenHandle = Addressables.InstantiateAsync(LoadingPrefabAddress);
 

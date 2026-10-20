@@ -93,15 +93,38 @@ namespace BakAgain.World.Rendering {
             // The sun-lit versions and the sidecar sit beside the file found, so an alias brings them too.
             string sibling = path[..^".png".Length];
             OverrideResourceProvider.MetaData? meta = OverrideResourceProvider.ReadMetaData(path);
-            Texture2D image = Build(path);
-            Texture2D[] sides = Sides.Select(side => File.Exists($"{sibling}.{side}.png") ? Build($"{sibling}.{side}.png") : null).ToArray();
+            string[] sidePaths = Sides.Select(side => $"{sibling}.{side}.png").ToArray();
+            int present = sidePaths.Count(File.Exists);
+            if (present is > 0 and < 4) {
+                // The shader blends none unless it has all four: a partial set would only cost memory.
+                Logger.LogWarning("HD frame {Path} has {Count} of the four sun-lit versions; drawn without them.", path, present);
+            }
+            var built = new List<Texture2D>();
+            try {
+                built.Add(Build(path));
+                if (present == 4) {
+                    foreach (string side in sidePaths) {
+                        built.Add(Build(side));
+                    }
+                }
+            } catch {
+                // One undecodable file costs the whole frame: free what was built for it.
+                foreach (Texture2D t in built) {
+                    UnityObjectUtil.Destroy(t);
+                }
+                throw;
+            }
             return ByPath[path] = new HdFrame {
-                Base = image,
-                Front = sides[0], Left = sides[1], Right = sides[2], Back = sides[3],
-                VarySize = (float)(meta?.VarySize ?? 0),
-                VaryColor = (float)(meta?.VaryColor ?? 0),
+                Base = built[0],
+                Front = built.ElementAtOrDefault(1), Left = built.ElementAtOrDefault(2),
+                Right = built.ElementAtOrDefault(3), Back = built.ElementAtOrDefault(4),
+                VarySize = Variation(meta?.VarySize),
+                VaryColor = Variation(meta?.VaryColor),
             };
         }
+
+        /// <summary>A sidecar variation, kept within [0, 0.9]: at 1 or more a billboard would shrink to nothing or flip.</summary>
+        private static float Variation(double? fraction) => Mathf.Clamp((float)(fraction ?? 0), 0f, 0.9f);
 
         private static Texture2D Build(string path) {
             var t = new Texture2D(2, 2, TextureFormat.RGBA32, mipChain: true) {

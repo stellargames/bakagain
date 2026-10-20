@@ -18,12 +18,14 @@ namespace BakAgain.Tests.PlayMode.UI {
     public class BookPageCurlTests {
         private GameObject _host;
 
-        [SetUp]
-        public void SetUp() {
+        // The boot preloads the table and the crease the turn shows; so does each test.
+        [UnitySetUp]
+        public IEnumerator SetUp() => UniTask.ToCoroutine(async () => {
             using (new IsolatedResourceLocators()) {
                 ResourceManagementInitializer.InitializeResourceManagement();
             }
-        }
+            await BookSpreadBackdrop.PreloadAsync();
+        });
 
         [TearDown]
         public void TearDown() {
@@ -35,6 +37,15 @@ namespace BakAgain.Tests.PlayMode.UI {
             if (BookPageCurl.Exists) {
                 Object.DestroyImmediate(BookPageCurl.Instance.gameObject);
             }
+        }
+
+        // The page in its book, two frames on: the first page a run shows reads black at the end of
+        // its first frame (why is not known; frames before the Show do not help), and the turn grabs
+        // the screen.
+        private static async UniTask ShowInBook(RawImage page) {
+            BookSpreadBackdrop.Show(page, (Texture2D)page.texture, facingPage: (Texture2D)page.texture);
+            await UniTask.Yield();
+            await UniTask.Yield();
         }
 
         // A left-bound parchment, half a 4:3 stage, on an overlay canvas as BookView draws it.
@@ -60,8 +71,7 @@ namespace BakAgain.Tests.PlayMode.UI {
         [UnityTest]
         public IEnumerator APageInABook_TurnsOverAndTheSheetGoes() => UniTask.ToCoroutine(async () => {
             RawImage page = BookPage();
-            BookSpreadBackdrop.Show(page, (Texture2D)page.texture, facingPage: (Texture2D)page.texture);
-            await UniTask.Yield();
+            await ShowInBook(page);
             BookPageCurl curl = BookPageCurl.Instance;
 
             Assert.IsTrue(await curl.CaptureAsync(), "a page with the book drawn around it can be turned");
@@ -92,8 +102,7 @@ namespace BakAgain.Tests.PlayMode.UI {
             GameOptions.SetFeature(EnhancedFeature.PageTurn, true);
             try {
                 RawImage page = BookPage();
-                BookSpreadBackdrop.Show(page, (Texture2D)page.texture, facingPage: (Texture2D)page.texture);
-                await UniTask.Yield();
+                await ShowInBook(page);
 
                 await BookPageCurl.HoldAsync();
                 Assert.IsTrue(BookPageCurl.Instance.GetComponent<Canvas>().enabled, "the grab holds the screen");
@@ -114,8 +123,7 @@ namespace BakAgain.Tests.PlayMode.UI {
         [UnityTest]
         public IEnumerator AScreenThatDrawsNoPage_IsLeftToTheCaller() => UniTask.ToCoroutine(async () => {
             RawImage page = BookPage();
-            BookSpreadBackdrop.Show(page, (Texture2D)page.texture, facingPage: (Texture2D)page.texture);
-            await UniTask.Yield();
+            await ShowInBook(page);
             bool changed = false;
 
             bool turned = await BookPageCurl.TryTurnAsync(_host, () => { changed = true; return UniTask.CompletedTask; });
@@ -129,8 +137,7 @@ namespace BakAgain.Tests.PlayMode.UI {
         [UnityTest]
         public IEnumerator AGrabTakenMidTurn_SurvivesTheTurnItInterrupts() => UniTask.ToCoroutine(async () => {
             RawImage page = BookPage();
-            BookSpreadBackdrop.Show(page, (Texture2D)page.texture, facingPage: (Texture2D)page.texture);
-            await UniTask.Yield();
+            await ShowInBook(page);
             BookPageCurl curl = BookPageCurl.Instance;
             Assert.IsTrue(await curl.CaptureAsync());
             UniTask turning = curl.PlayAsync();

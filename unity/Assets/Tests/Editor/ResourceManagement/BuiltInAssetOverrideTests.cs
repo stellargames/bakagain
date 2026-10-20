@@ -127,6 +127,44 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
         }
 #endif
 
+        [UnityTest]
+        public IEnumerator ModFile_OverridesBuiltInFont_AndIsDestroyedOnRelease() {
+            var builtInHandle = Addressables.LoadAssetAsync<Font>("Fonts/Alegreya/Alegreya-Medium");
+            Font builtIn = builtInHandle.WaitForCompletion();
+            byte[] other = File.ReadAllBytes(Path.Combine(Application.dataPath, "BuiltIn", "Fonts", "BookHand", "BookHand-Regular.ttf"));
+            StartWithMod(Path.Combine("Resources", "Fonts", "Alegreya", "Alegreya-Medium.ttf"), other);
+
+            var handle = Addressables.LoadAssetAsync<Font>("Fonts/Alegreya/Alegreya-Medium");
+            Font mod = handle.WaitForCompletion();
+
+            Assert.IsNotNull(mod);
+            Assert.AreNotSame(builtIn, mod, "the mod's font, not the built-in");
+            Addressables.Release(handle);
+            Addressables.Release(builtInHandle);
+            yield return null; // Destroy lands at the end of the frame
+            Assert.IsTrue(mod == null, "the font the provider made is destroyed when released");
+        }
+
+        [Test]
+        public void EnhancedArt_DestroyedEntryIsLoadedAgain_AFailedOneStaysNothing() {
+            ResourceManagementInitializer.InitializeResourceManagement();
+            var loaded = (Dictionary<string, Texture2D>)typeof(EnhancedArt)
+                .GetField("Loaded", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null);
+            var saved = new Dictionary<string, Texture2D>(loaded);
+            try {
+                var destroyed = new Texture2D(1, 1);
+                Object.DestroyImmediate(destroyed);
+                loaded["marble"] = destroyed;
+                loaded["slab"] = null; // what a failed preload leaves
+
+                Assert.IsTrue(EnhancedArt.Texture("marble") != null, "a destroyed texture is a miss, loaded again");
+                Assert.IsNull(EnhancedArt.Texture("slab"), "a failed preload stays drawn as nothing");
+            } finally {
+                loaded.Clear();
+                foreach (var kv in saved) loaded[kv.Key] = kv.Value;
+            }
+        }
+
         [Test]
         public void ModFile_OverridesSoundFontBytes() {
             byte[] bank = { 0x52, 0x49, 0x46, 0x46, 0, 1, 2, 3 };

@@ -109,17 +109,29 @@ namespace BakAgain.ResourceManagement {
         /// pack can carry its own art (TASK-826).
         /// </summary>
         public static string ActiveFolder() {
-            string root = Current == LanguagePack.English ? null : RootFor(Current.Locale);
+            string root = ActiveRoot();
             return root == null ? null : Path.Combine(root, "Lang", Current.Locale);
         }
+
+        /// <summary>
+        /// The pack root the active pack is read from, or null in English. The pseudo language has no
+        /// PO file, so its art and fonts are looked for in the override folder's <c>Lang/qps</c>.
+        /// </summary>
+        private static string ActiveRoot() =>
+            Current == LanguagePack.English ? null
+            : Current == LanguagePack.Pseudo ? (string.IsNullOrEmpty(BakResourceSettings.OverridePath) ? null : BakResourceSettings.OverridePath)
+            : RootFor(Current.Locale);
 
         /// <summary>The pack's pixel font for a game font: <c>fonts/&lt;GAME|BOOK&gt;.bdf</c> beside the PO file.</summary>
         public static string FontPathFor(string overridePath, string locale, string fontId) =>
             Path.Combine(overridePath ?? string.Empty, "Lang", locale, "fonts",
                 Path.GetFileNameWithoutExtension(fontId) + ".bdf");
 
-        /// <summary>The active pack's pixel font for a game font, wherever the pack is installed.</summary>
-        public static string ActiveFontPath(string fontId) => FontPathFor(RootFor(Current.Locale), Current.Locale, fontId);
+        /// <summary>The active pack's pixel font for a game font, wherever the pack is installed; null in English.</summary>
+        public static string ActiveFontPath(string fontId) {
+            string root = ActiveRoot();
+            return root == null ? null : FontPathFor(root, Current.Locale, fontId);
+        }
 
         /// <summary>
         /// Give <paramref name="font"/> every letter the active pack's text uses (TASK-778): first the
@@ -163,11 +175,11 @@ namespace BakAgain.ResourceManagement {
                 return LanguagePack.Pseudo; // built in: no file (TASK-780)
             }
             string root = RootFor(locale);
-            string path = PathFor(root, locale);
             if (root == null) {
                 Debug.LogWarning($"Language '{locale}' selected but no pack in the override folder or a language mod; using English.");
                 return LanguagePack.English;
             }
+            string path = PathFor(root, locale);
             try {
                 using var reader = new StreamReader(path);
                 LanguagePack pack = ResourceExtraction.Text.PoLanguagePack.Read(reader, locale);

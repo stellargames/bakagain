@@ -14,7 +14,7 @@ namespace BakAgain.Core {
         public static void InitializeResourceManagement() {
             Logger.LogInformation("Initializing Resource Management...");
             ModLayers.Initialize();
-            LanguagePacks.Reload(); // a language mod only exists now; the boot screen may have read the setting before
+            LanguagePacks.Reload(); // without the boot (tests), a language mod only exists now
             Logger.LogInformation("BakResourceSettings.OverrideEnabled: {OverrideEnabled}", BakResourceSettings.OverrideEnabled);
             Logger.LogInformation("BakResourceSettings.OverridePath: '{OverridePath}'", BakResourceSettings.OverridePath);
             Logger.LogInformation("BakResourceSettings.GamePath: '{GamePath}'", BakResourceSettings.GamePath);

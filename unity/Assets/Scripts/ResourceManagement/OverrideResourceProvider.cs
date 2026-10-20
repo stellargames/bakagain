@@ -15,6 +15,7 @@ namespace BakAgain.ResourceManagement {
     using ILogger = Microsoft.Extensions.Logging.ILogger;
 
     public class OverrideResourceProvider : ResourceProviderBase {
+        private static readonly ILogger Logger = LogManager.LoggerFactory.CreateLogger<OverrideResourceProvider>();
         private static readonly JsonSerializerSettings JsonSettings = new() {
             TypeNameHandling = TypeNameHandling.Auto,
             SerializationBinder = new FrameCommandSerializationBinder()
@@ -81,8 +82,6 @@ namespace BakAgain.ResourceManagement {
         /// <see cref="OverrideResourceLocator"/> instead of having to fabricate a
         /// <c>ProvideHandle</c>.
         /// </summary>
-        private static readonly ILogger LayerLogger = LogManager.LoggerFactory.CreateLogger<OverrideResourceProvider>();
-
         internal static object LoadOverrideObject(string path, Type resourceType, string resourceId) {
             // A built-in asset's replacement (OverrideResourceLocator's path-style keys): a font file,
             // or a binary file such as a sound bank, served as its bytes.
@@ -92,8 +91,6 @@ namespace BakAgain.ResourceManagement {
             if (resourceType == typeof(TextAsset) && !path.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) {
                 return new TextAsset(File.ReadAllBytes(path)) { name = resourceId };
             }
-
-            string json = File.ReadAllText(path);
 
             if (resourceType == typeof(TextAsset)) {
                 // Served as the file's raw text, not run through JsonConvert like every other
@@ -107,7 +104,7 @@ namespace BakAgain.ResourceManagement {
                 // read-only Entries), so it can't be the target of a property-by-property merge
                 // either — see EveryMergeBaselineResource_HasNoUnfencedNoSetterProperties, which
                 // polices exactly that family for get-only properties a merge can't reach.
-                return new TextAsset(json) { name = resourceId };
+                return new TextAsset(File.ReadAllText(path)) { name = resourceId };
             }
 
             if (ShippedBaselines.TryGetValue(resourceType, out Func<string, object> createBaseline)) {
@@ -124,13 +121,13 @@ namespace BakAgain.ResourceManagement {
                         merged = OverrideJsonMerge.OntoBaseline(
                             File.ReadAllText(layer), merged, resourceType, JsonSettings);
                     } catch (Exception e) {
-                        LayerLogger.LogError("Override {Path} skipped: {Reason}", layer, e.Message);
+                        Logger.LogError("Override {Path} skipped: {Reason}", layer, e.Message);
                     }
                 }
                 return merged;
             }
 
-            object loaded = JsonConvert.DeserializeObject(json, resourceType, JsonSettings);
+            object loaded = JsonConvert.DeserializeObject(File.ReadAllText(path), resourceType, JsonSettings);
             // A mod's DDX JSON carries the same tags as the extracted one (TASK-774).
             if (loaded is GameData.Resources.Dialog.Dialog modDialog) {
                 GameData.Resources.Dialog.DialogTextRuns.ToRuntime(modDialog);
@@ -148,7 +145,7 @@ namespace BakAgain.ResourceManagement {
         }
 
         /// <summary>
-        /// Destroys the textures and text assets this provider created when Addressables releases
+        /// Destroys the textures, text assets and fonts this provider created when Addressables releases
         /// the asset. Every <see cref="Provide"/> allocates a fresh one (no caching or aliasing), so
         /// destroying on release is safe and stops overrides (a 31 MB sound bank among them) from
         /// accumulating in native memory.
@@ -169,6 +166,9 @@ namespace BakAgain.ResourceManagement {
                     break;
                 case TextAsset text:
                     UnityObjectUtil.Destroy(text);
+                    break;
+                case Font font:
+                    UnityObjectUtil.Destroy(font);
                     break;
             }
         }
@@ -255,8 +255,6 @@ namespace BakAgain.ResourceManagement {
         }
 
         private abstract class InternalOp {
-            private static readonly ILogger Logger = LogManager.LoggerFactory.CreateLogger<OverrideResourceProvider>();
-
             public static void Start(ProvideHandle provideHandle) {
                 if (provideHandle.Location == null) {
                     return;

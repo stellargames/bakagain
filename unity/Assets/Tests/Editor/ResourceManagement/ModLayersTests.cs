@@ -151,7 +151,8 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
 
         [Test]
         public void Initialize_SkipsTmpAndOldFolders() {
-            // What an interrupted install leaves behind; the id pattern has no '.', so neither is a mod.
+            // What an interrupted install leaves beside an installed mod; the id pattern has no '.', so neither is a mod.
+            Mod("a-mod");
             foreach (string leftover in new[] { "a-mod.tmp", "a-mod.old" }) {
                 Directory.CreateDirectory(Path.Combine(_mods, leftover));
                 File.WriteAllText(Path.Combine(_mods, leftover, "mod.json"), Manifest("a-mod"));
@@ -159,7 +160,39 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
 
             ModLayers.Initialize();
 
-            Assert.IsEmpty(ModLayers.Current.Active);
+            CollectionAssert.AreEqual(new[] { Path.Combine(_mods, "a-mod") }, ModLayers.Current.Active.Select(m => m.Folder).ToArray());
+        }
+
+        [Test]
+        public void Initialize_StrandedOld_ComesBackInstalled() {
+            // An install interrupted between its two moves: the previous version is only <id>.old.
+            Directory.CreateDirectory(Path.Combine(_mods, "a-mod.old"));
+            File.WriteAllText(Path.Combine(_mods, "a-mod.old", "mod.json"), Manifest("a-mod"));
+
+            ModLayers.Initialize();
+
+            CollectionAssert.AreEqual(new[] { "a-mod" }, ModLayers.Current.Active.Select(m => m.Manifest.Id).ToArray());
+            Assert.IsTrue(Directory.Exists(Path.Combine(_mods, "a-mod")));
+        }
+
+        [Test]
+        public void Initialize_StateFileUnwritable_InstalledWithAWarning() {
+            Directory.CreateDirectory(Path.Combine(_mods, "mods.json")); // a folder where the state file goes
+            string source = Path.Combine(Path.GetTempPath(), "bakagain-modsrc-" + Guid.NewGuid().ToString("N"));
+            try {
+                Directory.CreateDirectory(source);
+                File.WriteAllText(Path.Combine(source, "mod.json"), Manifest("new-mod"));
+                string zip = ModArchive.Pack(source, _mods);
+                LogAssert.Expect(LogType.Warning, new Regex("new-mod is installed, but the mod order and on/off state could not be saved"));
+
+                ModLayers.Initialize(); // a "could not be installed" error would fail the test
+
+                Assert.IsFalse(File.Exists(zip), "an installed zip is deleted");
+                Assert.IsFalse(File.Exists(zip + ".failed"), "and not reported as a failed install");
+                CollectionAssert.AreEqual(new[] { "new-mod" }, ModLayers.Current.Active.Select(m => m.Manifest.Id).ToArray());
+            } finally {
+                Directory.Delete(source, true);
+            }
         }
 
         [Test]
@@ -192,6 +225,32 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
 
             Assert.AreEqual(ModMode.Classic, ModLayers.Mode);
             Assert.IsNull(Located("MODTEST.SCX"));
+        }
+
+        [Test]
+        public void Locate_EnhancedFindsEnhancedOnlyMod() {
+            string mod = Mod("a-mod", ("SCX/MODTEST.png", "png")); // the control for the Classic case above
+            ModLayers.Initialize();
+
+            Assert.AreEqual(ModMode.Enhanced, ModLayers.Mode);
+            Assert.AreEqual(Path.Combine(mod, "SCX", "MODTEST.png"), Located("MODTEST.SCX"));
+        }
+
+        [Test]
+        public void AliasCache_ReadOncePerRoot_ResetForgetsIt() {
+            string mod = Mod("a-mod", ("BMX/Z01SLOT0/3.png", "png"),
+                ("aliases.json", "{\"BMX/Z02SLOT1/4\": \"BMX/Z01SLOT0/3\"}"));
+            ModLayers.Initialize();
+            string aliased = Path.Combine(mod, "BMX", "Z01SLOT0", "3.png");
+            Assert.AreEqual(aliased, Located("Z02SLOT1.BMX#4"));
+
+            File.WriteAllText(Path.Combine(mod, "aliases.json"), "{}");
+            Assert.AreEqual(aliased, Located("Z02SLOT1.BMX#4"), "the second lookup is served from the cache");
+
+            ModLayers.Reset();
+            ModLayers.ModsRootOverride = _mods;
+            ModLayers.Initialize();
+            Assert.IsNull(Located("Z02SLOT1.BMX#4"), "a reset reads aliases.json again");
         }
 
         [Test]

@@ -167,9 +167,10 @@ namespace BakAgain.Tests.Editor.UI {
             Order("aa", "bb");
             string source = Path.Combine(Path.GetTempPath(), "bakagain-modsrc-" + Guid.NewGuid().ToString("N"));
             try {
-                Directory.CreateDirectory(source);
-                File.WriteAllText(Path.Combine(source, "mod.json"), Manifest("bb"));
-                string zip = ModArchive.Pack(source, source);
+                string folder = Path.Combine(source, "bb"); // packed beside it: a mod's own folder is refused
+                Directory.CreateDirectory(folder);
+                File.WriteAllText(Path.Combine(folder, "mod.json"), Manifest("bb"));
+                string zip = ModArchive.Pack(folder, source);
                 ModsDraft draft = ModsDraft.Load();
                 draft.Toggle("bb");
 
@@ -188,9 +189,10 @@ namespace BakAgain.Tests.Editor.UI {
             Order("aa");
             string source = Path.Combine(Path.GetTempPath(), "bakagain-modsrc-" + Guid.NewGuid().ToString("N"));
             try {
-                Directory.CreateDirectory(source);
-                File.WriteAllText(Path.Combine(source, "mod.json"), Manifest("nn"));
-                string zip = ModArchive.Pack(source, source);
+                string folder = Path.Combine(source, "nn"); // packed beside it: a mod's own folder is refused
+                Directory.CreateDirectory(folder);
+                File.WriteAllText(Path.Combine(folder, "mod.json"), Manifest("nn"));
+                string zip = ModArchive.Pack(folder, source);
                 ModsDraft draft = ModsDraft.Load();
 
                 draft.Install(zip);

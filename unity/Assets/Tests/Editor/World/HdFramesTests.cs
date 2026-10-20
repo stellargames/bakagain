@@ -3,8 +3,12 @@ namespace BakAgain.Tests.Editor.World {
     using BakAgain.World.Rendering;
     using NUnit.Framework;
     using System;
+    using System.Collections;
     using System.IO;
+    using System.Linq;
+    using System.Text.RegularExpressions;
     using UnityEngine;
+    using UnityEngine.TestTools;
     using Object = UnityEngine.Object;
 
     /// <summary>
@@ -98,6 +102,59 @@ namespace BakAgain.Tests.Editor.World {
             Assert.IsTrue(HdFrames.TryLoad("Z01SLOT0.BMX#3", out HdFrame frame));
             Assert.AreEqual(0.08f, frame.VarySize, 1e-6f);
             Assert.AreEqual(0.05f, frame.VaryColor, 1e-6f);
+        }
+
+        [Test]
+        public void TryLoad_SidecarVariation_KeptBelowOne() {
+            // At 1 or more a billboard's size or colour factor reaches zero or goes negative.
+            Png("Z01SLOT0", "3.png");
+            File.WriteAllText(Path.Combine(_mods.Root, "BMX", "Z01SLOT0", "3.json"),
+                "{ \"ScaleX\": 1, \"ScaleY\": 1, \"VarySize\": 1.5, \"VaryColor\": -0.2 }");
+
+            Assert.IsTrue(HdFrames.TryLoad("Z01SLOT0.BMX#3", out HdFrame frame));
+            Assert.AreEqual(0.9f, frame.VarySize, 1e-6f);
+            Assert.AreEqual(0f, frame.VaryColor);
+        }
+
+        [Test]
+        public void TryLoad_PartialSunSet_PlainFrameLoggedOnce() {
+            Png("Z01SLOT0", "3.png");
+            Png("Z01SLOT0", "3.front.png");
+            Png("Z01SLOT0", "3.left.png");
+            File.WriteAllText(Path.Combine(_mods.Root, "aliases.json"), "{ \"BMX/Z02SLOT1/4\": \"BMX/Z01SLOT0/3\" }");
+            LogAssert.Expect(LogType.Warning, new Regex("has 2 of the four sun-lit versions"));
+
+            Assert.IsTrue(HdFrames.TryLoad("Z01SLOT0.BMX#3", out HdFrame frame));
+            Assert.IsTrue(HdFrames.TryLoad("Z02SLOT1.BMX#4", out _), "the same file by another key: not logged again");
+
+            Assert.IsFalse(frame.HasSun);
+            Assert.IsNull(frame.Front, "not loaded: the shader would not use it");
+            Assert.IsNull(frame.Left);
+            LogAssert.NoUnexpectedReceived();
+        }
+
+        [Test]
+        public void TryLoad_TextureHasMips() {
+            Png("Z01SLOT0", "3.png", 16, 16);
+
+            Assert.IsTrue(HdFrames.TryLoad("Z01SLOT0.BMX#3", out HdFrame frame));
+            Assert.AreEqual(5, frame.Base.mipmapCount, "16, 8, 4, 2, 1");
+        }
+
+        [UnityTest]
+        public IEnumerator TryLoad_BrokenSunSide_FreesWhatWasBuilt() {
+            Png("Z01SLOT0", "9137.png");
+            foreach (string side in new[] { "front", "left", "right", "back" }) {
+                Png("Z01SLOT0", $"9137.{side}.png");
+            }
+            File.WriteAllText(Path.Combine(_mods.Root, "BMX", "Z01SLOT0", "9137.right.png"), "not a png");
+            LogAssert.Expect(LogType.Error, new Regex("HD frame for Z01SLOT0.BMX#9137 skipped"));
+
+            Assert.IsFalse(HdFrames.TryLoad("Z01SLOT0.BMX#9137", out _));
+            yield return null; // Destroy lands at the end of the frame
+
+            string[] left = Resources.FindObjectsOfTypeAll<Texture2D>().Where(t => t.name.StartsWith("9137.")).Select(t => t.name).ToArray();
+            CollectionAssert.IsEmpty(left, "the base and the sides built before the broken one are freed");
         }
 
         [Test]

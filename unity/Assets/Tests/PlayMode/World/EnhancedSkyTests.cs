@@ -164,9 +164,6 @@ namespace BakAgain.Tests.PlayMode.World {
         public void AFailingSkyIsLoggedOnceAndSwitchedOff() {
             GameOptions.Enhanced = true;
             GameOptions.SetFeature(EnhancedFeature.Lighting, true);
-            // No dome: its texture loads ask every locator, and a miss is logged (in the Editor the
-            // game's archive locator sits before the catalog's), which NoUnexpectedReceived counts.
-            GameOptions.SetFeature(EnhancedFeature.Sky, false);
             var session = new GameSession { GameTimeIn2Seconds = At(7) };
             var lighting = new WorldLightingService(session, null);
             Object.DestroyImmediate(_sky);

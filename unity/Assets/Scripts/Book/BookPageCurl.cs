@@ -156,15 +156,6 @@ namespace BakAgain.Book {
         /// A turn still running is let go first, so the grab is of the screen, not of its sheet.
         /// </summary>
         public async UniTask<bool> CaptureAsync() {
-            // The table and the crease the turn shows. The boot preloads them, so only a turn in a
-            // session's first frames waits here; and then a frame more, because a grab in the frame they
-            // arrived read an empty screen in the focused BookPageCurlTests (why is not known), while
-            // one a frame later reads the page.
-            UniTask art = BookSpreadBackdrop.ArtReadyAsync();
-            if (art.Status == UniTaskStatus.Pending) {
-                await art;
-                await UniTask.Yield();
-            }
             BookSpreadBackdrop backdrop = BookSpreadBackdrop.Exists ? BookSpreadBackdrop.Instance : null;
             if (backdrop == null || !backdrop.Drawn || backdrop.Spine == SpineSide.NotAPage
                 || backdrop.FacingImage.texture == null) {

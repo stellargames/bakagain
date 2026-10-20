@@ -45,6 +45,8 @@ namespace BakAgain.ResourceManagement {
             Mode = GameOptions.Enhanced ? ModMode.Enhanced : ModMode.Classic;
             try {
                 Directory.CreateDirectory(ModsRoot);
+                // Before the inbox: an install that put the old version back must not be lost to a new one.
+                ModArchive.RecoverStrandedInstalls(ModsRoot);
                 List<ModStateEntry> state = ReadState();
                 foreach (string zip in Directory.GetFiles(ModsRoot, "*.zip")) {
                     InstallFromInbox(zip, state);
@@ -110,19 +112,10 @@ namespace BakAgain.ResourceManagement {
         /// keeps its place and its on/off state. The zip is deleted.
         /// </summary>
         private static void InstallFromInbox(string zip, List<ModStateEntry> state) {
+            InstalledMod mod;
             try {
-                InstalledMod mod = ModArchive.Install(zip, ModsRoot);
-                string id = mod.Manifest.Id;
-                int at = state.FindIndex(e => e.Id == id);
-                var entry = new ModStateEntry(id, mod.Manifest.Version.ToString(), at < 0 || state[at].Enabled);
-                if (at < 0) {
-                    state.Insert(0, entry);
-                } else {
-                    state[at] = entry;
-                }
-                ModStateFile.Write(StatePath, state);
+                mod = ModArchive.Install(zip, ModsRoot);
                 File.Delete(zip);
-                Logger.LogInformation("Installed mod {Id} {Version} from {Zip}.", id, mod.Manifest.Version.ToString(), zip);
             } catch (Exception e) {
                 Logger.LogError("Mod {Zip} could not be installed: {Errors}", zip, e.Message);
                 try {
@@ -131,6 +124,23 @@ namespace BakAgain.ResourceManagement {
                 } catch (Exception moveError) {
                     Logger.LogError("Could not rename {Zip}: {Reason}", zip, moveError.Message);
                 }
+                return;
+            }
+            string id = mod.Manifest.Id;
+            int at = state.FindIndex(e => e.Id == id);
+            var entry = new ModStateEntry(id, mod.Manifest.Version.ToString(), at < 0 || state[at].Enabled);
+            if (at < 0) {
+                state.Insert(0, entry);
+            } else {
+                state[at] = entry;
+            }
+            Logger.LogInformation("Installed mod {Id} {Version} from {Zip}.", id, mod.Manifest.Version.ToString(), zip);
+            // The mod is installed: an unsaved order costs this start's place and on/off state, not the mod.
+            try {
+                ModStateFile.Write(StatePath, state);
+            } catch (Exception e) {
+                Logger.LogWarning("Mod {Id} is installed, but the mod order and on/off state could not be saved to {Path}: {Reason}",
+                    id, StatePath, e.Message);
             }
         }
 
@@ -152,6 +162,8 @@ namespace BakAgain.ResourceManagement {
             _initialized = false;
             ModsRootOverride = null;
             OverrideResourceLocator.ClearAliasCache();
+            World.Rendering.HdFrames.ClearCache();
+            UI.BookSpreadBackdrop.ResetArt();
             Mode = default;
             Current = Empty;
         }

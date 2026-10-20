@@ -173,20 +173,20 @@ namespace BakAgain.UI {
         }
 
         // ponytail: loaded once and kept for the session, as they were before Addressables (~1 MB).
-        // AsyncLazy: its task can be awaited by several at once (the backdrop and a page turn).
-        private static readonly AsyncLazy<(Texture2D Table, Texture2D Crease)> Art = UniTask.Lazy(LoadArtAsync);
+        // AsyncLazy: its task can be awaited by several at once (the boot and a backdrop).
+        private static AsyncLazy<(Texture2D Table, Texture2D Crease)> Art = UniTask.Lazy(LoadArtAsync);
 
         /// <summary>
-        /// The table and the binding's crease, loaded once: the boot starts it
-        /// (<see cref="PreloadAsync"/>), so the first book already has them, and the page turn waits
-        /// for it (<see cref="ArtReadyAsync"/>). Async: the first Show usually comes from inside
-        /// another load's callback, where a synchronous load throws. A file that fails to load (a mod's
-        /// broken PNG) is left out of the book, never a reason to stop.
+        /// The table and the binding's crease, loaded once by the boot, so the first book already has
+        /// them. Async: the first Show usually comes from inside another load's callback, where a
+        /// synchronous load throws. A file that fails to load (a mod's broken PNG) is left out of the
+        /// book, never a reason to stop.
         /// </summary>
-        internal static UniTask ArtReadyAsync() => Art.Task.AsUniTask();
+        public static UniTask PreloadAsync() => Art.Task.AsUniTask();
 
-        /// <summary>Starts loading the table and the crease (boot).</summary>
-        public static UniTask PreloadAsync() => ArtReadyAsync();
+        /// <summary>For tests (<see cref="BakAgain.ResourceManagement.ModLayers.Reset"/>): load the art
+        /// again on next use, so a mod's table from one test is not another's.</summary>
+        internal static void ResetArt() => Art = UniTask.Lazy(LoadArtAsync);
 
         private static async UniTask<(Texture2D Table, Texture2D Crease)> LoadArtAsync() =>
             (await LoadOrNullAsync("BookSpread/table", TextureWrapMode.Mirror),   // alternate copies mirrored: no seam

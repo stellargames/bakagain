@@ -62,9 +62,10 @@ namespace BakAgain.ResourceManagement {
 
         /// <summary>
         /// The override folder and file names a resource key maps to: <c>AIR1.BMX#0</c> is
-        /// <c>BMX/AIR1</c>, <c>0.png</c> (a <c>@HOST.PAL</c> suffix is ignored); <c>DIALSTYL.DAT</c> is <c>DAT</c>, <c>DIALSTYL.json</c>. A
-        /// built-in asset's path-style address (a <c>/</c>, no extension) is <c>Resources/</c> plus that
-        /// path, with each extension <paramref name="type"/> can be read from, in the order tried:
+        /// <c>BMX/AIR1</c>, <c>0.png</c> (a <c>@HOST.PAL</c> suffix is ignored); <c>DIALSTYL.DAT</c>
+        /// is <c>DAT</c>, <c>DIALSTYL.json</c>. A built-in asset's path-style address (a <c>/</c>, no
+        /// extension) is <c>Resources/</c> plus that path, with each extension
+        /// <paramref name="type"/> can be read from, in the order tried:
         /// <c>Enhanced/Sky/moon_large</c> as a texture is <c>Resources/Enhanced/Sky</c>,
         /// <c>moon_large.png</c> then <c>moon_large.jpg</c>.
         /// </summary>

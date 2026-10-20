@@ -22,6 +22,11 @@ namespace BakAgain.ResourceManagement {
 #endif
         public bool Locate(object key, Type type, out IList<IResourceLocation> locations) {
             string keyString = key.ToString();
+            // A built-in asset's address (Enhanced/Sky/moon_large) is the catalog's, never the archive's.
+            if (OverrideResourceLocator.IsBuiltInAddress(keyString)) {
+                locations = null;
+                return false;
+            }
             string[] parts = keyString.Split('#');
             bool subResourceRequested = parts.Length > 1;
             string keyName = parts[0].ToUpperInvariant();

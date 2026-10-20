@@ -26,7 +26,7 @@ namespace BakAgain.UI.Spells {
         public const string ShownClass = "enhanced-cast__school--shown";
         public const string OffClass = "enhanced-cast__school--off";
 
-        /// <summary>The ring art's gem channel radius, as a fraction of its width (pack_cast.py: r 425 of 1100).</summary>
+        /// <summary>The ring art's gem channel radius, as a fraction of its width (the art's channel: r 425 of 1100).</summary>
         public const float ArtChannelRadius = 425f / 1100f;
 
         /// <summary>The ring art's inner edge, as a fraction of its width (its disc is cut at r 341.5).</summary>
