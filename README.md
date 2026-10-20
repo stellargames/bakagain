@@ -36,7 +36,8 @@ files skip when it is not present.
 
 ## Modding
 
-Put replacement assets in an `Overrides/` folder next to the game files. See `unity/docs/modding/`.
+Mods are zips installed into the game's `mods` folder, or from the Mods screen. See
+[`unity/docs/modding/`](unity/docs/modding/README.md) for making, packing and installing one.
 
 ## Thanks
 

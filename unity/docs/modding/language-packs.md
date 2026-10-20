@@ -7,6 +7,26 @@ does not need rebuilding, and a pack never changes your game files.
 
 ## Installing a pack
 
+A finished pack is installed as a **language mod**: a zip like any other mod (see
+[making mods](README.md)), with the pack under `Lang/<code>/` and a `mod.json` that lists the kind
+`language` and both modes:
+
+```json
+{ "schema": 1, "id": "lang-nl", "name": "Nederlands", "version": "1.0.0",
+  "kinds": ["language"], "modes": ["enhanced", "classic"] }
+```
+
+Install it the way every mod is installed (drop the zip into the game's `mods` folder, or **Install
+from file…** on the Mods screen), then choose the language in **Preferences** and restart. A
+language mod is not listed on the Mods screen: it is used only while it is the chosen language. A
+mod zip cannot carry `fonts/*.bdf` yet; a pack that adds letters is installed in the dev folder
+below until it can.
+
+### In the dev overrides folder
+
+While you work on a pack, put it in the dev overrides folder instead; it wins over an installed
+language mod of the same language.
+
 1. **Find your overrides folder.** It is the "Override directory" on the screen the game shows at its
    first start (where you pick the folder holding `KRONDOR.001`). If you never changed it, it is:
 
@@ -30,8 +50,9 @@ does not need rebuilding, and a pack never changes your game files.
 3. **Choose the language** in **Preferences**: the Language button steps through English and every
    installed pack. Press OK and restart the game; the button shows "(restart)" until you do.
 
-A language pack works whether or not **Enable overrides** is ticked; that switch is for mods. To go
-back to English, choose English in Preferences, or delete the pack folder.
+A language pack works whether or not **Dev overrides** (Preferences → Enhanced) is switched on; that
+switch is for the other files in the folder. To go back to English, choose English in Preferences, or
+delete the pack folder.
 
 ## What a pack contains
 
@@ -45,10 +66,10 @@ back to English, choose English in Preferences, or delete the pack folder.
 
 Anything the pack does not translate stays in English, so a half-finished pack is a working pack.
 
-The pack folder is searched before your mod folder, which is searched before the game's own files.
-So `SCX/`, `BMX/` and `TTM/` follow exactly the layout described for mods in
-[laying out screens](laying-out-screens.md), and any other override a mod can make, a pack can make
-too.
+The pack folder is searched before the dev overrides folder and the installed mods, which are
+searched before the game's own files. So `SCX/`, `BMX/` and `TTM/` follow exactly the layout
+described for mods in [making mods](README.md) and [laying out screens](laying-out-screens.md), and
+any other override a mod can make, a pack can make too.
 
 ## Making a pack
 

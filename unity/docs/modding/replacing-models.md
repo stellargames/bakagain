@@ -24,10 +24,12 @@ the same name can mean different models in different zones, so `Z01/inn.glb` onl
 
 ### Turning overrides on
 
-In **Preferences**, enable overrides and point the overrides folder at the directory holding
-your `Models/` tree. (Under the hood: `OverrideEnabled` + `OverridePath`. With overrides off,
-the game is byte-for-byte the original.) This is the same `Overrides/` folder used for SCX/BMX
-art replacement — models just live under `Models/`.
+Models are read from the **dev overrides folder**, not from installed mods: a mod zip cannot carry
+a `.glb` yet (`bakmod validate` refuses it). In **Preferences → Enhanced**, switch on **Dev
+overrides** and point **Dev overrides folder** at the directory holding your `Models/` tree, then
+restart. (Under the hood: `OverrideEnabled` + `OverridePath`. With the dev folder off and no mods,
+the game is the original.) It is the same folder, with the same layout, as a mod under development
+(see [making mods](README.md)); models just live under `Models/`.
 
 ### Finding the zone and name
 
@@ -75,7 +77,7 @@ malformed sidecar is ignored (with a warning) — it never breaks the model.
 
 ## Worked example: a cube for the inn
 
-1. Enable overrides and set your overrides folder (Preferences).
+1. Switch on Dev overrides and set the Dev overrides folder (Preferences → Enhanced), then restart.
 2. Create `Models/Z01/` under it.
 3. Put a `cube.glb` there named `inn.glb`: `Models/Z01/inn.glb`.
 4. Enter the world in Z01 — a cube stands where the inn's buildings were (above).
