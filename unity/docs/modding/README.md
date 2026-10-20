@@ -162,8 +162,9 @@ The Mods screen is under **Preferences → Enhanced → Installed mods**. There 
 off, move them up and down, and uninstall them (pressing Uninstall twice only marks the mod).
 Every change on the screen needs **Save**: Save writes the order and the on/off state and deletes
 the mods marked for uninstall; Cancel drops the changes (a mod installed from a file stays
-installed). Saved changes take effect at the next start; until then the buttons say "(restart)". A mod that needs a missing mod, the wrong
-version of one, or a newer game is listed with the reason and stays off.
+installed). Saved changes take effect at the next start; until then the buttons say "(restart)".
+A mod that needs a missing mod, the wrong version of one, or a newer game is listed with the
+reason and stays off.
 
 The game's log names the active mods at every start: `Mods (enhanced): hd-trees 0.1.0`.
 
