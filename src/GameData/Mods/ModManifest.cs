@@ -14,7 +14,7 @@ public sealed class ModManifest {
         "sprites", "textures", "portraits", "sounds", "music", "rules", "items", "loot", "text", "language",
     };
 
-    private static readonly Regex IdPattern = new("^[a-z0-9][a-z0-9-]{1,47}$");
+    private static readonly Regex IdPattern = new("^[a-z0-9][a-z0-9-]{1,47}\\z");
 
     public int Schema { get; private set; }
     public string Id { get; private set; } = "";

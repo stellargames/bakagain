@@ -71,9 +71,11 @@ public class ModManifestTests {
         Assert.NotNull(m);
     }
 
-    [Fact]
-    public void Parse_BadId_Error() {
-        ModManifest? m = Parse(SpecExample.Replace("hd-trees", "HD_Trees"), out IReadOnlyList<string> errors);
+    [Theory]
+    [InlineData("HD_Trees")]
+    [InlineData("hd-trees\\n")]
+    public void Parse_BadId_Error(string id) {
+        ModManifest? m = Parse(SpecExample.Replace("hd-trees", id), out IReadOnlyList<string> errors);
         Assert.Null(m);
         Assert.Contains(errors, e => e.Contains("id"));
     }
