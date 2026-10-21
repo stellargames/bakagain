@@ -2571,6 +2571,7 @@ namespace BakAgain.UI {
                         // before.
                         await UniTask.Yield(PlayerLoopTiming.Update);
                     }
+                    bool paged = false;
                     while (true) {
                         // *** AND THE TIMEOUT IS SUPPRESSED WHILE LINES REMAIN. *** The wait is
                         // called with the record's flags replaced by 0 whenever
@@ -2578,6 +2579,7 @@ namespace BakAgain.UI {
                         // for the whole record up front. A port that kept its text-speed deadline
                         // running would flick through the pages by itself.
                         bool more = body != null && body.LinesRemaining > 0;
+                        paged |= more;
                         // A SkipWait record's LAST page is not waited for (below), so a translation
                         // that needs a second page is never read: report it (TASK-779).
                         if (more && (entry.Flags & DialogEntryFlags.SkipWait) != 0) {
@@ -2596,7 +2598,7 @@ namespace BakAgain.UI {
                         }
                         dismissed = false;
                         await WaitForDismiss(scrim, () => dismissed, cancellationToken,
-                            more ? null : AutoDismissSecondsFor(entry));
+                            more ? null : AutoDismissSecondsFor(entry, paged));
                         if (!more) {
                             break;
                         }
@@ -2763,17 +2765,25 @@ namespace BakAgain.UI {
         // (DIALOG.C:1361-1384). The CHOICE branch does not page yet — see TASK-389.
         /// <summary>
         /// How long this entry's panel should hold before dismissing itself, from the player's
-        /// text-speed preference and the amount of text — null at Slow, which waits for input.
-        /// See <see cref="GameData.Resources.Config.DialogTextSpeed"/> for the formula and where
+        /// text-speed preference and the amount of text — null at Slow, which waits for input,
+        /// unless the record is <c>AutoAdvanceTimer</c> (0x40), which closes itself at every speed
+        /// (TASK-912: the zone crossing's "The trip was dull..."). See <see cref="GameData.Resources.Config.DialogTextSpeed"/> for the formula and where
         /// the engine's tick rate comes from.
         /// </summary>
-        private double? AutoDismissSecondsFor(DialogEntry entry) {
+        private double? AutoDismissSecondsFor(DialogEntry entry, bool paged = false) {
             GameData.Resources.Config.Preferences prefs = _preferences?.Current;
             if (prefs == null) {
                 return null; // no preferences yet: behave as Slow and wait for the player
             }
+            DialogEntryFlags flags = entry?.Flags ?? 0;
+            if (paged) {
+                // `if (g_wTextWrapLinesRemaining != 0) record->wFlags &= ~0x40;` (DIALOG.C:1363-1365):
+                // a record that pages loses its auto-advance, and its last page waits like any other.
+                flags &= ~DialogEntryFlags.AutoAdvanceTimer;
+            }
             return GameData.Resources.Config.DialogTextSpeed.AutoDismissSeconds(
-                entry?.Text?.Length ?? 0, prefs.TextSpeed, entry?.Flags ?? 0);
+                GameData.Resources.Config.DialogTextSpeed.DrawnCharacters(entry?.Text), prefs.TextSpeed,
+                flags, _gameSession?.Chapter ?? 0);
         }
 
         /// <summary>

@@ -42,14 +42,14 @@ public class DialogTextSpeedTests {
     }
 
     [Fact]
-    public void ATypicalLineReadsInAFewSeconds() {
-        // 236.7 Hz, so a 100-character line is about 4.3s at Medium and 2.9s at Fast. If this ever
-        // comes out in minutes, the tick rate is wrong — that is the number worth guarding.
+    public void TheDeadlineCountsTheSixtyHertzTimer_NotTheInterruptRate() {
+        // The deadline is `+ g_timer_ticks` (DIALOG.C:218, :236), and g_timer_ticks is bumped by
+        // syslowio_timer_tick_isr, registered with interval 4 (BOOT.C:212) — every fourth IRQ0, so
+        // 59.17 Hz (GameTick), not 236.7. Measured 2026-10-21 in the original (TASK-912): Timer2
+        // advanced 900 while the BIOS tick advanced 277, i.e. 13/4 per BIOS tick.
         double medium = DialogTextSpeed.AutoDismissSeconds(100, TextSpeed.Medium)!.Value;
-        double fast = DialogTextSpeed.AutoDismissSeconds(100, TextSpeed.Fast)!.Value;
 
-        Assert.InRange(medium, 4.0, 4.6);
-        Assert.InRange(fast, 2.6, 3.1);
+        Assert.Equal(1012 / GameData.Resources.Animation.GameTick.TicksPerSecond, medium, 6);
     }
 
     [Fact]
@@ -72,5 +72,48 @@ public class DialogTextSpeedTests {
         Assert.Null(DialogTextSpeed.AutoDismissSeconds(100, TextSpeed.Fast,
             GameData.Resources.Dialog.DialogEntryFlags.KeepAcceptingKeyboard));
         Assert.NotNull(DialogTextSpeed.AutoDismissSeconds(100, TextSpeed.Fast, 0));
+    }
+
+    [Fact]
+    public void AnAutoAdvanceRecordClosesItselfEvenAtSlow() {
+        // DIALOG.C:211-220: under flags & 0x40 the deadline is set before the text-speed test, so
+        // it runs at Slow too, divided by chapter / 5 + 3. Measured in the original (TASK-912):
+        // dial_z27:1203 drew 213 characters in chapter 1 and closed with no input after 902 ticks.
+        double? seconds = DialogTextSpeed.AutoDismissSeconds(213, TextSpeed.Slow,
+            GameData.Resources.Dialog.DialogEntryFlags.AutoAdvanceTimer, chapter: 1);
+
+        Assert.NotNull(seconds);
+        Assert.Equal(902 / GameData.Resources.Animation.GameTick.TicksPerSecond, seconds!.Value, 6);
+    }
+
+    [Fact]
+    public void AnAutoAdvanceRecordGetsBrieferAsTheChaptersGoOn() {
+        // `/ (nChapter / 5 + 3)`: chapters 5-9 divide by 4.
+        double early = DialogTextSpeed.AutoDismissSeconds(213, TextSpeed.Slow,
+            GameData.Resources.Dialog.DialogEntryFlags.AutoAdvanceTimer, chapter: 4)!.Value;
+        double late = DialogTextSpeed.AutoDismissSeconds(213, TextSpeed.Slow,
+            GameData.Resources.Dialog.DialogEntryFlags.AutoAdvanceTimer, chapter: 5)!.Value;
+
+        Assert.Equal(902 / GameData.Resources.Animation.GameTick.TicksPerSecond, early, 6);
+        Assert.Equal(676 / GameData.Resources.Animation.GameTick.TicksPerSecond, late, 6);
+    }
+
+    [Fact]
+    public void AutoAdvanceIsDecidedBefore0x20() {
+        // The 0x40 branch returns before the `while (... || (flags & 0x20))` loop is reached.
+        Assert.NotNull(DialogTextSpeed.AutoDismissSeconds(100, TextSpeed.Slow,
+            GameData.Resources.Dialog.DialogEntryFlags.AutoAdvanceTimer
+            | GameData.Resources.Dialog.DialogEntryFlags.KeepAcceptingKeyboard, chapter: 1));
+    }
+
+    [Fact]
+    public void OnlyTheDrawnCharactersCount() {
+        // g_wTextWrapXAccum sums `lines[fl].end - lines[fl].start` (TEXTWRAP.C:145): tabs, line
+        // breaks and markup are not drawn. Read live in the original after dial_z27:1203: 213,
+        // where the extracted text is 220 long (two tabs, one line break, `<i/>`).
+        const string text = "\tThe trip was <i/>dull.\n\tWith only the occasional cold draft to chill their bones as they moved through the pass, it was a relief to finally feel the more temperate winds typical to the southern reaches of the Kingdom...";
+
+        Assert.Equal(220, text.Length);
+        Assert.Equal(213, DialogTextSpeed.DrawnCharacters(text));
     }
 }
