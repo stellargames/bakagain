@@ -207,6 +207,58 @@ namespace BakAgain.UI.InGame {
 
         private VisualElement _wheelRoot;
 
+        // While the town approach walk plays the map is the original's camera loop, not the player's:
+        // nothing the player does reaches it (MAP.C:537-549 reads no input).
+        private bool _approaching;
+
+        /// <summary>
+        /// The approach walk to a town — <c>map_animate_camera_to_tile</c> (MAP.C:503-561), opened
+        /// after a Yes at the gate (HOTSPOT.C:640-642).
+        /// </summary>
+        /// <remarks>
+        /// <b>The original moves the party's own camera</b>, so the walk moves the party's pose and
+        /// this screen's camera, marker and compass follow it as they follow any step. One world step
+        /// per <see cref="GameData.Resources.Scene.TownApproach.SecondsPerStep"/>, at the Preferences step halved underground
+        /// (MAP.C:528-530), glided rather than jumped. The caller puts the party back afterwards.
+        ///
+        /// <para>Opened over the travel screen it cuts in, as the original's first map frame does
+        /// (MAP.C:534-536), and goes under the fade the location opens with. Already up, it stays up:
+        /// the original then walks at the map's own zoom and returns to the map.</para>
+        /// </remarks>
+        public async UniTask PlayApproachAsync(System.Collections.Generic.List<(int X, int Y, ushort Heading)> path,
+            IScreenNavigator navigator, IScreenFade fade) {
+            bool opened = !ReferenceEquals(navigator.Current, this);
+            if (opened) {
+                await navigator.PushUnfaded(this);
+            }
+            _approaching = true;
+            try {
+                int step = GameData.Resources.Scene.TownApproach.StepFor(Movement?.WorldStepSpeed ?? RoadTravel.CellSize,
+                    Movement?.Underground ?? false);
+                double seconds = GameData.Resources.Scene.TownApproach.SecondsFor(path, step);
+                float start = Time.unscaledTime;
+                while (this != null) {
+                    double cells = seconds <= 0 ? path.Count
+                        : (Time.unscaledTime - start) / seconds * (path.Count - 1);
+                    (int x, int y, ushort heading) = GameData.Resources.Scene.TownApproach.PoseAt(path, cells);
+                    _session.PositionX = x;
+                    _session.PositionY = y;
+                    _session.Rotation = unchecked((short)heading);
+                    if (cells >= path.Count - 1) {
+                        break;
+                    }
+                    await UniTask.Yield();
+                }
+                await UniTask.Yield();   // the last cell drawn before the fade takes it
+            } finally {
+                _approaching = false;
+            }
+            if (opened) {
+                await (fade?.FadeOutAsync() ?? UniTask.CompletedTask);
+                await navigator.PopUnfaded();
+            }
+        }
+
         /// <summary>A fight took the screen from the map; reopen it when the fight is done.</summary>
         public bool ReopenAfterFight { get; set; }
         private TouchControlsView _touchControls;
@@ -236,7 +288,7 @@ namespace BakAgain.UI.InGame {
         /// </remarks>
         private void OnWheel(WheelEvent evt) {
             ZoneDefinition def = _world?.ZoneDefinition;
-            if (def == null || _session == null || Mathf.Approximately(evt.delta.y, 0f)) {
+            if (_approaching || def == null || _session == null || Mathf.Approximately(evt.delta.y, 0f)) {
                 return;
             }
 
@@ -422,11 +474,13 @@ namespace BakAgain.UI.InGame {
             }
             // Same gate the travel HUD uses: a dialog over the map is resolved above this screen's
             // layer, so the party stops while it is up.
-            bool ownsInput = _layerHost != null && _layerHost.IsInputActive;
+            bool onTop = _layerHost != null && _layerHost.IsInputActive;
+            bool ownsInput = !_approaching && onTop;
             _touchControls?.Refresh(inFight: false);
             _movementDriver?.Tick(ownsInput);
             ToggleNorthUpIfAsked(ownsInput);
-            _hud?.Sync(_fullScreen != null && _fullScreen.Active, ownsInput);
+            // The HUD is shown while the walk plays: the original walks inside the travel chrome.
+            _hud?.Sync(_fullScreen != null && _fullScreen.Active, onTop);
             OpenCheatChestOnALongHold(ownsInput);
             CloseOnAWorldExitRequest(ownsInput);
             CloseWhenAFightStarts();
@@ -619,6 +673,9 @@ namespace BakAgain.UI.InGame {
         private const int ZoomDownActionId = 0x51;
 
         public void PrimaryAction(int menuEntryActionId) {
+            if (_approaching) {
+                return;
+            }
             if (IsPortrait(menuEntryActionId)) {
                 // With Shift held, the character sheet (MAP.C:409-411); else the inventory.
                 int slot = menuEntryActionId - ActionPartyMember1;
@@ -658,6 +715,9 @@ namespace BakAgain.UI.InGame {
         }
 
         public async Awaitable SecondaryAction(int menuEntryActionId) {
+            if (_approaching) {
+                return;
+            }
             // Right-click / Shift on a portrait opens the character sheet where a plain click opens
             // the inventory — the travel HUD's idiom, on the same three click areas.
             if (IsPortrait(menuEntryActionId) && _characterSheet != null) {
@@ -729,6 +789,9 @@ namespace BakAgain.UI.InGame {
         /// move the party twice for one press.
         /// </remarks>
         public bool OnDirection(NavDirection dir, bool ctrl) {
+            if (_approaching) {
+                return true;
+            }
             switch (dir) {
                 case NavDirection.PageUp: Zoom(LocalMapScreen.MapAction.ZoomUpOneStep); return true;
                 case NavDirection.PageDown: Zoom(LocalMapScreen.MapAction.ZoomDownOneStep); return true;
@@ -755,6 +818,9 @@ namespace BakAgain.UI.InGame {
         /// letter reaches exactly the handler its button would and the screen keeps one dispatch.</para>
         /// </remarks>
         public void OnText(char c) {
+            if (_approaching) {
+                return;
+            }
             int action = GameData.Resources.World.TravelHotkeys.ActionFor(c);
             if (action != GameData.Resources.World.TravelHotkeys.NoAction) {
                 PrimaryAction(action);
@@ -765,6 +831,10 @@ namespace BakAgain.UI.InGame {
 
         public void OnSubmit() { }
 
-        public void OnCancel() => _navigator?.Pop().Forget();
+        public void OnCancel() {
+            if (!_approaching) {
+                _navigator?.Pop().Forget();
+            }
+        }
     }
 }

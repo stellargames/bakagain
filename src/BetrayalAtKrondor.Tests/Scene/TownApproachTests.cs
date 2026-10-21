@@ -45,3 +45,61 @@ public class TownApproachTests {
         Assert.Equal((short)0x2000, TownApproach.FacingAfter(0xA000));
     }
 }
+
+public class TownApproachWalkTests {
+    private const int Cell = RoadTravel.CellSize;
+
+    private static int C(int cell) => (cell * Cell) + RoadTravel.HalfCell;
+
+    // Road cells by (cellX, cellY); anything else is grass.
+    private static System.Func<int, int, bool> Road(params (int X, int Y)[] cells) =>
+        (x, y) => System.Array.IndexOf(cells, (x / Cell, y / Cell)) >= 0;
+
+    [Fact]
+    public void TheWalkFollowsTheRoadFromTheRecordCellUntilItEnds() {
+        // MAP.C:503-561: start on the record's cell with its heading, step along the road
+        // (worldmove_crossing_check_8dir) and stop where no road continues. West is 0x4000.
+        var road = Road((16, 20), (15, 20), (14, 20), (13, 20));
+
+        var path = TownApproach.WalkPath(C(16), C(20), 0x4000, road);
+
+        Assert.Equal(new[] { 16, 15, 14, 13 }, path.ConvertAll(p => p.X / Cell));
+        Assert.All(path, p => Assert.Equal(20, p.Y / Cell));
+    }
+
+    [Fact]
+    public void TheWalkTakesTheRoadsBends() {
+        // At a cell centre the sweep (worldmove_sweep_adjacent_cells) turns onto the one
+        // continuation: west two cells, then south (0x8000, -y) two more.
+        var road = Road((16, 20), (15, 20), (15, 19), (15, 18));
+
+        var path = TownApproach.WalkPath(C(16), C(20), 0x4000, road);
+
+        Assert.Equal(new[] { (16, 20), (15, 20), (15, 19), (15, 18) },
+            path.ConvertAll(p => (p.X / Cell, p.Y / Cell)));
+        Assert.Equal(0x8000, path[1].Heading);
+    }
+
+    [Fact]
+    public void NoRoadAheadIsAWalkOfNoSteps() {
+        var path = TownApproach.WalkPath(C(16), C(20), 0x4000, Road((16, 20)));
+
+        Assert.Single(path);
+    }
+
+    [Fact]
+    public void ThePoseSlidesAlongThePathAtTheWorldStep() {
+        var road = Road((16, 20), (15, 20), (14, 20));
+        var path = TownApproach.WalkPath(C(16), C(20), 0x4000, road);
+
+        // One world step a frame: 1600 units = a cell per step at Large, a quarter of one at Small.
+        Assert.Equal(2 * TownApproach.SecondsPerStep, TownApproach.SecondsFor(path, step: 1600), 6);
+        Assert.Equal(8 * TownApproach.SecondsPerStep, TownApproach.SecondsFor(path, step: 400), 6);
+
+        (int x, int y, ushort heading) = TownApproach.PoseAt(path, cells: 1.5);
+        Assert.Equal(C(16) - (Cell * 3 / 2), x);
+        Assert.Equal(C(20), y);
+        Assert.Equal(0x4000, heading);
+        Assert.Equal((C(14), C(20)), (TownApproach.PoseAt(path, 99).X, TownApproach.PoseAt(path, 99).Y));
+    }
+}

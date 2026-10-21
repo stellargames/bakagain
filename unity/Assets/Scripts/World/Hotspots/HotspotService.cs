@@ -207,6 +207,15 @@ using GameData.Resources.Scene;
         /// <summary>The placements on one map tile, in file order — for the arena's scenery walls.</summary>
         private readonly Func<int, int, IEnumerable<GameData.Resources.Combat.ArenaScenery.Placement>> _sceneryOnTile;
 
+        /// <summary>The party's movement: a town gate holds its step open (see <see cref="EnterTownAsync"/>).</summary>
+        private readonly Func<BakAgain.World.PartyMovement> _movementAccessor;
+
+        /// <summary>Plays the approach walk on the overhead map and returns when it is over.</summary>
+        private readonly Func<List<(int X, int Y, ushort Heading)>, UniTask> _showApproach;
+
+        /// <summary>Whether the overhead map is already up (<c>g_full_redraw_needed</c>).</summary>
+        private readonly Func<bool> _mapIsOpen;
+
         /// <summary>Trigger indices the last activate pass queued for a dispatch pass we do not have yet.</summary>
         public List<int> Pending { get; } = new();
 
@@ -230,8 +239,14 @@ using GameData.Resources.Scene;
             Func<BakAgain.UI.Character.CharacterSheetScreen> characterSheetAccessor = null,
             Func<int, int, IEnumerable<GameData.Resources.Combat.ArenaScenery.Placement>> sceneryOnTile = null,
             Func<int> undergroundFloorCells = null,
-            Func<bool> arenaBusy = null) {
+            Func<bool> arenaBusy = null,
+            Func<BakAgain.World.PartyMovement> movementAccessor = null,
+            Func<List<(int X, int Y, ushort Heading)>, UniTask> showApproach = null,
+            Func<bool> mapIsOpen = null) {
             _arenaBusy = arenaBusy;
+            _movementAccessor = movementAccessor;
+            _showApproach = showApproach;
+            _mapIsOpen = mapIsOpen ?? (() => false);
             _logger = logger;
             _resources = resources;
             _session = session;
@@ -622,13 +637,23 @@ using GameData.Resources.Scene;
 
         /// <inheritdoc/>
         public void ApproachBeforeLocation(TileEventTrigger trigger) {
+            if (TryApproach(trigger, out int x, out int y, out int heading)) {
+                Place(x, y, heading);
+            }
+        }
+
+        /// <summary>
+        /// The record's approach: the cell the walk starts on (in the party's tile) and its heading.
+        /// False when the record asks for none (<c>buf[0x12] == 0</c>, HOTSPOT.C:640).
+        /// </summary>
+        private bool TryApproach(TileEventTrigger trigger, out int x, out int y, out int heading) {
             int offset;
-            int heading;
             bool walk;
+            x = y = heading = 0;
             switch (trigger.Type) {
                 case TileEventType.Town: {
                     DefTownEntry r = TownRecord(trigger);
-                    if (r == null) return;
+                    if (r == null) return false;
                     offset = r.ApproachTileOffset;
                     heading = r.ApproachHeading;
                     walk = r.DoApproachWalk != 0;
@@ -636,31 +661,65 @@ using GameData.Resources.Scene;
                 }
                 case TileEventType.Bkgr: {
                     DefBkgrEntry r = BkgrRecord(trigger);
-                    if (r == null) return;
+                    if (r == null) return false;
                     offset = r.ApproachTileOffset;
                     heading = r.ApproachHeading;
                     walk = r.DoApproachWalk != 0;
                     break;
                 }
                 default:
-                    return;
+                    return false;
             }
 
             if (!walk || _session == null) {
-                return;
+                return false;
             }
 
-            // The destination is relative to the tile the party is standing on, so read that first.
+            // The cell is relative to the tile the party is standing on, so read that first.
             int tileX = GameData.Resources.World.WorldPlacement.TileOf(_session.PositionX);
             int tileY = GameData.Resources.World.WorldPlacement.TileOf(_session.PositionY);
-            (long x, long y) = TownApproach.DestinationOf(tileX, tileY, offset);
+            (long cx, long cy) = TownApproach.DestinationOf(tileX, tileY, offset);
+            x = (int)cx;
+            y = (int)cy;
+            return true;
+        }
 
-            // ponytail: placed, not walked — the party ends at the right spot, but without the
-            // original's step-by-step approach animation. Upgrade to an animated travel when the
-            // movement seam can be driven toward a destination; the end pose is already faithful.
-            _session.PositionX = (int)x;
-            _session.PositionY = (int)y;
-            _session.Rotation = GameData.Resources.Scene.TownApproach.FacingAfter(heading);
+        // MAP.C:556-557: the camera goes back to the walk's first cell, facing away from the town.
+        private void Place(int x, int y, int heading) {
+            _session.PositionX = x;
+            _session.PositionY = y;
+            _session.Rotation = TownApproach.FacingAfter(heading);
+        }
+
+        /// <summary>The map height the approach is seen from when the map is not already open (MAP.C:521).</summary>
+        public const long ApproachMapHeight = 0x1b968;
+
+        /// <summary>
+        /// The approach walk — <c>map_animate_camera_to_tile</c> (MAP.C:503-561) — then the party
+        /// placed on its first cell.
+        /// </summary>
+        /// <remarks>
+        /// The original tips the camera down to the map height, walks it along the road from the
+        /// record's cell (<see cref="TownApproach.WalkPath"/>), puts it back on that cell facing
+        /// away from the town, and stores the height it walked at as the map's zoom (MAP.C:559 -> :482's
+        /// <c>lInsetCameraPosZ = z</c>). Opened from the map itself it keeps the map's own zoom.
+        /// </remarks>
+        private async UniTask ApproachAsync(TileEventTrigger trigger) {
+            if (!TryApproach(trigger, out int x, out int y, out int heading)) {
+                return;
+            }
+            BakAgain.World.PartyMovement movement = _movementAccessor?.Invoke();
+            if (_showApproach != null && movement != null) {
+                List<(int X, int Y, ushort Heading)> path =
+                    TownApproach.WalkPath(x, y, unchecked((ushort)heading), movement.IsRoadAt);
+                if (!_mapIsOpen()) {
+                    _session.MapCameraZ = ApproachMapHeight;
+                }
+                await _showApproach(path);
+            }
+            Place(x, y, heading);
+            // The view the party comes back to when it leaves the location.
+            _resyncCamera?.Invoke();
         }
 
         private DefZoneEntry ZoneRecord(TileEventTrigger trigger) =>
@@ -753,20 +812,36 @@ using GameData.Resources.Scene;
                 return;
             }
 
-            if (await _dialogs.ShowChoiceIndexById((int)dialogId) != 0) {
-                return;
-            }
+            // *** ASKED FROM THE GATE, CHARGED AFTER THE TOWN. *** The original asks inside
+            // hotspotevt_activate_at_player with the party already on the gate cell, turns the step
+            // back once that returns (WORLDMOV.C:126-135), runs the town from the dispatch pass and
+            // only then advances the clock for the step (WORLDLP.C:190-198). Charged at once, the
+            // step's hour raised "Locklear yawned" over this question and knocked it away (TASK-906).
+            BakAgain.World.PartyMovement.HeldStep step = _movementAccessor?.Invoke()?.HoldStep();
+            try {
+                int answer = await _dialogs.ShowChoiceIndexById((int)dialogId);
+                step?.RollBack();
+                if (answer != 0) {
+                    return;
+                }
 
-            ApproachBeforeLocation(trigger);
-            EnterLocation(gdsSceneNumber);
-            // *** NO DONE FLAG AND NO SILENCE. *** hotspotevt_action_enter_town (HOTSPOT.C:636) writes
-            // the post key and nothing else, so the gate asks again on every step onto it. Silencing
-            // it for the tile let a party leave LaMut and walk west across its gate unasked.
-            HotspotRules.ApplyOnFire(this, trigger);
+                await ApproachAsync(trigger);
+                await EnterLocationAsync(gdsSceneNumber);
+                // *** NO DONE FLAG AND NO SILENCE. *** hotspotevt_action_enter_town (HOTSPOT.C:636)
+                // writes the post key, after the town, and nothing else, so the gate asks again on
+                // every step onto it. Silencing it for the tile let a party leave LaMut and walk west
+                // across its gate unasked.
+                HotspotRules.ApplyOnFire(this, trigger);
+            } finally {
+                step?.Charge();
+            }
         }
 
         /// <inheritdoc/>
-        public void EnterLocation(int gdsSceneNumber) {
+        public void EnterLocation(int gdsSceneNumber) => EnterLocationAsync(gdsSceneNumber).Forget();
+
+        /// <summary>Runs the location and returns when the party has left it.</summary>
+        private async UniTask EnterLocationAsync(int gdsSceneNumber) {
             if (_locations == null) {
                 if (_logger != null) {
                     LoggerExtensions.LogWarning(_logger,
@@ -778,7 +853,7 @@ using GameData.Resources.Scene;
             if (_logger != null) {
                 LoggerExtensions.LogInformation(_logger, "Hotspots: entering GDS scene {Scene}.", gdsSceneNumber);
             }
-            _locations.RunAsync(gdsSceneNumber, 1).Forget();
+            await _locations.RunAsync(gdsSceneNumber, 1);
         }
 
         private DefTownEntry TownRecord(TileEventTrigger trigger) =>

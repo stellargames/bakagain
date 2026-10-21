@@ -248,9 +248,95 @@ namespace BakAgain.World {
         /// <summary>Leave travel mode. Pressing the travel control again, or any failed step.</summary>
         public void DisengageTravel() => IsTravelling = false;
 
-        /// <summary>Road/bridge test at a world position, for <see cref="RoadTravel"/>.</summary>
-        private bool IsRoadAt(int x, int y) =>
-            _collision.TryScan(x, y, out int kind, out _) && RoadTravel.IsRoadKind(kind);
+        /// <summary>Road/bridge test at a world position, for <see cref="RoadTravel"/> and the town approach walk.</summary>
+        public bool IsRoadAt(int x, int y) =>
+            _collision != null && _collision.TryScan(x, y, out int kind, out _) && RoadTravel.IsRoadKind(kind);
+
+        /// <summary>
+        /// <c>g_nWorldStepSpeed</c>: the Preferences step as MOVEMENT.DAT resolves it, before any
+        /// underground quartering — what the town approach walk paces itself by (MAP.C:517).
+        /// </summary>
+        public int WorldStepSpeed => _movement.StepDistanceFor(_preferences.Current.StepSize);
+
+        /// <summary>Whether this zone is an underground one (<c>g_game_mode == 2</c>).</summary>
+        public bool Underground => _underground;
+
+        /// <summary>
+        /// A step a hotspot pass is turning back, held open for the pass to finish on its own time.
+        /// </summary>
+        /// <remarks>
+        /// The original turns a step back only after <c>hotspotevt_activate_at_player</c> has returned
+        /// (WORLDMOV.C:126-135), and a town gate asks its question inside that call — so the question
+        /// is asked with the party on the gate. The step's time is charged by the world loop after the
+        /// dispatch pass, i.e. after the town (WORLDLP.C:190-198). Our pass cannot block, so the gate
+        /// takes the step and finishes it: <see cref="RollBack"/> after the answer, <see cref="Charge"/>
+        /// after the visit. Each runs once.
+        /// </remarks>
+        public sealed class HeldStep {
+            private Action _rollBack;
+            private Action _charge;
+
+            internal HeldStep(Action rollBack, Action charge) {
+                _rollBack = rollBack;
+                _charge = charge;
+            }
+
+            /// <summary>Puts the party back where it stepped from.</summary>
+            public void RollBack() {
+                Action a = _rollBack;
+                _rollBack = null;
+                a?.Invoke();
+            }
+
+            /// <summary>Charges the step's time, rolling it back first if that has not happened.</summary>
+            public void Charge() {
+                RollBack();
+                Action a = _charge;
+                _charge = null;
+                a?.Invoke();
+            }
+        }
+
+        // Non-null only while a step's hotspot pass runs: how to turn that step back.
+        private Action _stepRollBack;
+        private bool _stepHeld;
+
+        /// <summary>
+        /// Called from inside a hotspot pass to finish the step being turned back itself. Null when no
+        /// step is in progress (a pass a dialog requested), where there is nothing to hold.
+        /// </summary>
+        public HeldStep HoldStep() {
+            if (_stepRollBack == null) {
+                return null;
+            }
+            _stepHeld = true;
+            return new HeldStep(_stepRollBack, () => AdvanceClockForStep(stepStands: false));
+        }
+
+        /// <summary>
+        /// Runs the hotspot pass on the step just taken. True keeps the step; false means it was turned
+        /// back — now, or later by whoever held it (<see cref="HoldStep"/>).
+        /// </summary>
+        private bool RunHotspotPass(Action rollBack) {
+            if (_hotspotPass == null) {
+                return true;
+            }
+            _stepRollBack = rollBack;
+            _stepHeld = false;
+            bool keep;
+            try {
+                keep = _hotspotPass(_session.PositionX, _session.PositionY);
+            } finally {
+                _stepRollBack = null;
+            }
+            bool held = _stepHeld;
+            _stepHeld = false;
+            if (!keep && !held) {
+                rollBack();
+                AdvanceClockForStep(stepStands: false);
+            }
+            return keep;
+        }
 
         /// <summary>
         /// One travelling step: a whole cell along the road, then the bend if there is one.
@@ -338,19 +424,19 @@ namespace BakAgain.World {
                 SetEyeHeight(groundZ);
             }
 
-            if (_hotspotPass != null && !_hotspotPass(_session.PositionX, _session.PositionY)) {
-                // Same rule as a walking step: whatever fired happens where the party stood, so the
-                // step is rolled back. Travel is NOT ended — WORLDMOV.C:135 restores the position
-                // and returns 1 without touching the flag.
-                _session.PositionX = savedX;
-                _session.PositionY = savedY;
-                if (heading != raw) {
-                    _session.Rotation = unchecked((short)raw);
-                }
-                _eyeZ = savedEye;
-                _session.PositionZ = savedEye;
-                AdvanceClockForStep(stepStands: false);
-                SyncCamera();
+            if (!RunHotspotPass(() => {
+                    // Same rule as a walking step: whatever fired happens where the party stood, so the
+                    // step is rolled back. Travel is NOT ended — WORLDMOV.C:135 restores the position
+                    // and returns 1 without touching the flag.
+                    _session.PositionX = savedX;
+                    _session.PositionY = savedY;
+                    if (heading != raw) {
+                        _session.Rotation = unchecked((short)raw);
+                    }
+                    _eyeZ = savedEye;
+                    _session.PositionZ = savedEye;
+                    SyncCamera();
+                })) {
                 return;
             }
 
@@ -507,7 +593,16 @@ namespace BakAgain.World {
                 _session.PositionY = savedY + dy;
                 SetEyeHeight(groundZ);
 
-                if (_hotspotPass == null || _hotspotPass(_session.PositionX, _session.PositionY)) {
+                if (RunHotspotPass(() => {
+                        // Something scripted fired: the encounter happens where the party was
+                        // standing, so the completed step is rolled back. The move still counted as
+                        // an action (charged by RunHotspotPass, or by whoever held the step).
+                        _session.PositionX = savedX;
+                        _session.PositionY = savedY;
+                        _eyeZ = savedEye;
+                        _session.PositionZ = savedEye;
+                        SyncCamera();
+                    })) {
                     // Recorded only on a step that STANDS. A rolled-back step (below) never
                     // happened, so the crossing it probed must not drop the party from a tile they
                     // were pushed off.
@@ -517,14 +612,6 @@ namespace BakAgain.World {
                     return;
                 }
 
-                // Something scripted fired: the encounter happens where the party was standing, so
-                // the completed step is rolled back. The move still counted as an action.
-                _session.PositionX = savedX;
-                _session.PositionY = savedY;
-                _eyeZ = savedEye;
-                _session.PositionZ = savedEye;
-                AdvanceClockForStep(stepStands: false);
-                SyncCamera();
                 return;
             }
 

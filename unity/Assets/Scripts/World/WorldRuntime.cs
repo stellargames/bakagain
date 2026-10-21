@@ -1738,6 +1738,19 @@ namespace BakAgain.World {
         /// assigned, so a missing reference would otherwise turn "no HUD" into an exception thrown
         /// out of the middle of starting a fight — breaking combat entirely rather than degrading it.
         /// </remarks>
+        // The town approach walk, on the overhead map the player opens from the HUD (TASK-906).
+        private UniTask PlayApproachOnTheMapAsync(List<(int X, int Y, ushort Heading)> path) {
+            var map = _resolver?.Resolve(typeof(BakAgain.UI.InGame.OverheadMapScreen))
+                as BakAgain.UI.InGame.OverheadMapScreen;
+            var navigator = _resolver?.Resolve(typeof(BakAgain.UI.Navigation.IScreenNavigator))
+                as BakAgain.UI.Navigation.IScreenNavigator;
+            var fade = _resolver?.Resolve(typeof(BakAgain.UI.Navigation.IScreenFade))
+                as BakAgain.UI.Navigation.IScreenFade;
+            return map == null || navigator == null
+                ? UniTask.CompletedTask
+                : map.PlayApproachAsync(path, navigator, fade);
+        }
+
         private BakAgain.UI.Combat.CombatMenu ResolveCombatMenu() {
             try {
                 return _resolver.Resolve(typeof(BakAgain.UI.Combat.CombatMenu))
@@ -2208,6 +2221,13 @@ namespace BakAgain.World {
                 // turn — and both write the SESSION. Without this the view stays where the fight
                 // was. Deferred through the field because PartyMovement is built further down.
                 resyncCamera: () => _partyMovement?.SyncToCamera(),
+                // A town gate holds the step it turns back, and walks its approach on the overhead
+                // map, before the location opens (TASK-906).
+                movementAccessor: () => _partyMovement,
+                showApproach: PlayApproachOnTheMapAsync,
+                mapIsOpen: () => _resolver?.Resolve(typeof(BakAgain.UI.Navigation.IScreenNavigator))
+                    is BakAgain.UI.Navigation.IScreenNavigator nav
+                    && nav.Current is BakAgain.UI.InGame.OverheadMapScreen,
                 // Each turn changes the board — someone moved, someone fell. Without this the
                 // sprites stay exactly as the fight opened.
                 redrawArena: () => SlideThenRedrawAsync().Forget(),
