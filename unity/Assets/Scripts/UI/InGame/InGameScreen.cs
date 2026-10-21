@@ -1223,14 +1223,33 @@ namespace BakAgain.UI.InGame {
             }
             _afflictionUpkeep ??= _resolver?.Resolve(typeof(BakAgain.Core.Services.PartyUpkeepService))
                 as BakAgain.Core.Services.PartyUpkeepService;
-            _afflictionUpkeep?.QueueSkillNotice();
-            if (_afflictionUpkeep == null || _afflictionUpkeep.PendingAnnouncements.Count == 0) {
-                return;
-            }
             // Tied to the screen's lifetime: this is fire-and-forget, so without a token a
             // torn-down announcement leaves _announcing true and every later rest waits on it.
-            _afflictionUpkeep.PlayAnnouncementsAsync(_dialogManager, destroyCancellationToken)
-                .Forget();
+            TellQueuedAfflictions(_afflictionUpkeep, _gameSession, _dialogManager, destroyCancellationToken);
+        }
+
+        /// <summary>
+        /// One world-loop look at the queued announcements: plays them if there are any.
+        /// </summary>
+        /// <returns>Whether it started playing them.</returns>
+        internal static bool TellQueuedAfflictions(BakAgain.Core.Services.PartyUpkeepService upkeep,
+            GameSession session, IDialogManager dialogs, System.Threading.CancellationToken cancellationToken) {
+            upkeep?.QueueSkillNotice();
+            if (upkeep == null || upkeep.PendingAnnouncements.Count == 0) {
+                return false;
+            }
+            // *** NOT OVER A DIALOG THAT IS STILL PLAYING. *** The original plays a hotspot's text
+            // modally inside the passes — a Bloc wall's in the activate pass (HOTSPOT.C:133-134), a
+            // Dial's in the dispatch pass (:173-175) — and advances the clock for the step only after
+            // them (WORLDLP.C:190-198), so the hour's "Locklear yawned" (GSTATE.C:305-318) follows the
+            // text. Ours plays fire-and-forget while the step is charged at once; shown now, the yawn
+            // replaced the text 5-13 ms after it went up (TASK-911). A dialog's own time skip is spent
+            // when it is dismissed (DIALOG.C:1505), so its announcements wait for it too.
+            if (session != null && session.DialogsPlaying > 0) {
+                return false;
+            }
+            upkeep.PlayAnnouncementsAsync(dialogs, cancellationToken).Forget();
+            return true;
         }
 
         /// <summary>

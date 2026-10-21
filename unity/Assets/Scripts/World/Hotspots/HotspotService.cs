@@ -432,7 +432,9 @@ using GameData.Resources.Scene;
             bool underground = false,
             DefFamilyFile<DefTrapEntry> trap = null,
             DefFamilyFile<DefTownEntry> town = null,
-            DefFamilyFile<DefZoneEntry> zoneDef = null) {
+            DefFamilyFile<DefZoneEntry> zoneDef = null,
+            DefFamilyFile<DefBlocEntry> bloc = null,
+            DefFamilyFile<DefDialEntry> dial = null) {
             _zone = zoneNumber;
             _byChunk.Clear();
             if (byChunk != null) {
@@ -450,6 +452,8 @@ using GameData.Resources.Scene;
             _trap = trap;
             _town = town;
             _zoneDef = zoneDef;
+            _bloc = bloc;
+            _dial = dial;
             _lastChunk = null;
         }
 
