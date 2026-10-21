@@ -1729,15 +1729,6 @@ namespace BakAgain.World {
         private async UniTaskVoid PlayCombatTrackAsync(int track) =>
             _trackBeforeCombat = await _midi.PlayTrackAsync(track, _resources, owner: this);
 
-        /// <summary>
-        /// The combat HUD, or null when the container has none.
-        /// </summary>
-        /// <remarks>
-        /// <b>Resolve THROWS for an unregistered type, and this one's registration is conditional.</b>
-        /// <c>RootLifetimeScope</c> only registers <c>CombatMenu</c> when its prefab reference is
-        /// assigned, so a missing reference would otherwise turn "no HUD" into an exception thrown
-        /// out of the middle of starting a fight — breaking combat entirely rather than degrading it.
-        /// </remarks>
         // The town approach walk, on the overhead map the player opens from the HUD (TASK-906).
         private UniTask PlayApproachOnTheMapAsync(List<(int X, int Y, ushort Heading)> path) {
             var map = _resolver?.Resolve(typeof(BakAgain.UI.InGame.OverheadMapScreen))
@@ -1751,6 +1742,15 @@ namespace BakAgain.World {
                 : map.PlayApproachAsync(path, navigator, fade);
         }
 
+        /// <summary>
+        /// The combat HUD, or null when the container has none.
+        /// </summary>
+        /// <remarks>
+        /// <b>Resolve THROWS for an unregistered type, and this one's registration is conditional.</b>
+        /// <c>RootLifetimeScope</c> only registers <c>CombatMenu</c> when its prefab reference is
+        /// assigned, so a missing reference would otherwise turn "no HUD" into an exception thrown
+        /// out of the middle of starting a fight — breaking combat entirely rather than degrading it.
+        /// </remarks>
         private BakAgain.UI.Combat.CombatMenu ResolveCombatMenu() {
             try {
                 return _resolver.Resolve(typeof(BakAgain.UI.Combat.CombatMenu))

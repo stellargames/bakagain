@@ -118,8 +118,9 @@ public static class TownApproach {
     /// </summary>
     /// <remarks>
     /// The original renders one frame per step and has no clock in the loop, so its pace is the
-    /// machine's. This is the owner's DOSBox reading (2026-10-21): LaMut's 24-cell approach at the
-    /// Large step took about 5.5 s.
+    /// machine's: LaMut's approach took about 205 BIOS ticks (~11 s) of emulated time under Spice86
+    /// and about 5.5 s of wall clock in the TASK-904 capture. This pace (~5.9 s for LaMut) follows the
+    /// wall-clock reading; it is a feel choice, not a measured constant (TASK-906).
     /// </remarks>
     public const double SecondsPerStep = 0.23;
 
