@@ -73,6 +73,11 @@ namespace BakAgain.World.Scenes {
         }
         private GdsScene _scene;
         private Action<int> _onTransition;
+
+        /// <summary>
+        /// Whether the action running now needs no redraw after it: it asked to leave this sub-scene.
+        /// </summary>
+        private bool _redrawHandled;
         private readonly Dictionary<int, int> _visits = new();
 
         [VContainer.Inject]
@@ -112,7 +117,10 @@ namespace BakAgain.World.Scenes {
                 ui.TouchLongPressIsSecondary = true;
             }
             _sceneLetter = sceneLetter;
-            _onTransition = onTransition;
+            _onTransition = letter => {
+                _redrawHandled = true;
+                onTransition?.Invoke(letter);
+            };
             // Visit counts are per run of a scene: gds_loadSceneFile zeroes the counter on load, so
             // the value the file ships is scratch and re-entering starts from zero again.
             _visits.Clear();
@@ -553,6 +561,7 @@ namespace BakAgain.World.Scenes {
 
             int index = GdsSceneInteraction.HotspotIndexFor(menuEntryActionId);
             var kind = GdsActionDispatch.KindOf(outcome);
+            _redrawHandled = false;
             await Dispatch(hotspot, index, outcome);
 
             if (dialogQueuedATeleport) {
@@ -567,8 +576,10 @@ namespace BakAgain.World.Scenes {
             // tail replays the idle animation and re-renders the scene's own dialog text, so the
             // description is always there — a screen that opened over it (a shop, a container)
             // leaves the location silent otherwise. A TRANSITION is the exception: the scene it
-            // would redraw is the one being left.
-            if (GdsActionDispatch.RedrawsTheLocationAfterwards(StaysInTheScene(kind))) {
+            // would redraw is the one being left. That includes an arm that BECAME one on the way
+            // through (a thrown-out performance): redrawn, the old description replaced the page the
+            // original keeps up until the next scene is presented (TASK-916).
+            if (!_redrawHandled && GdsActionDispatch.RedrawsTheLocationAfterwards(StaysInTheScene(kind))) {
                 await ShowSceneDescriptionAsync();
             }
         }
@@ -716,12 +727,19 @@ namespace BakAgain.World.Scenes {
                 previousTrack = await midi.PlayTrackAsync(
                     GameData.Resources.Audio.MusicSelection.ForTavernPerformance(skill), songs, owner: this);
             }
-            await _dialogs.ShowById(Barding.DialogFor(fund, difficulty, skill));
+            // *** THROWN OUT, THE LINE STAYS UP UNTIL THE EXIT SCENE (TASK-916). *** The outcome is a
+            // dialog_play_record(.., 0) inside the scene (TOWNSCN.C:299), which does not clear the
+            // screen when it closes (DIALOG.C:1492-1500), and outcome 0 becomes code 3 (:533-538),
+            // whose arm skips the refresh (:608-609): the next present is the exit scene's (:409).
+            // Measured at Krondor's Rainbow Parrot: dialog 73 stays until GDS2A replaces it.
+            bool thrownOut = Barding.ThrownOut(fund, difficulty, skill);
+            int line = Barding.DialogFor(fund, difficulty, skill);
+            await (thrownOut ? _dialogs.ShowByIdLeavingLastPage(line) : _dialogs.ShowById(line));
             if (performs) {
                 midi.PlayTrackAsync(previousTrack, songs, owner: this).Forget();
             }
 
-            if (Barding.ThrownOut(fund, difficulty, skill)) {
+            if (thrownOut) {
                 // A failed performance becomes a TRANSITION: the party is walked out through the
                 // scene's own exit rather than left standing where they were.
                 _onTransition?.Invoke(GdsActionDispatch.TransitionLetter(

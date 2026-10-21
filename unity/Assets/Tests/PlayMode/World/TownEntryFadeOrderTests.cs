@@ -161,6 +161,102 @@ namespace BakAgain.Tests.PlayMode.World {
 
         private const int ActionDialogId = 1500029;
 
+        /// <summary>dlgRecord 0x49, the tavern keeper's "Out, out, out" (TOWNSCN.C:285).</summary>
+        private const int ThrownOutDialogId = 73;
+
+        /// <summary>
+        /// A performer thrown out of the tavern: dialog 73 stays drawn until the exit scene is
+        /// presented, with no description redrawn in between (TASK-916).
+        /// </summary>
+        /// <remarks>
+        /// <c>townscene_resolv_enc_outcome</c> plays the line with <c>dialog_play_record(0x49, 0)</c>
+        /// inside the scene (TOWNSCN.C:299), so its page is not cleared when it closes
+        /// (DIALOG.C:1492-1500), and outcome 0 (:285-286) turns the action into code 3 (:533-538),
+        /// whose arm sets needRefresh = 0 (:608-609): no redraw until the exit scene's present
+        /// (:409). Measured at Krondor's Rainbow Parrot (GDS2C) on t916: the line stays until GDS2A
+        /// replaces it in one change. The port closed the page and redrew the old description, so the
+        /// cut held the bare tavern.
+        /// </remarks>
+        [UnityTest]
+        [BakAgain.Tests.TestSupport.RequiresShippedGameData]
+        public IEnumerator AThrownOutPerformanceStaysDrawnUntilTheExitScene() =>
+            UniTask.ToCoroutine(async () => {
+                InGameScreen hud = TravelHud();
+                var fade = new RecordingFade();
+                BakAgain.UI.DialogManager dialogs = RealDialogs();
+                LocationScenePlayer player = Player(fade, dialogs, Resolver(hud), teleport: null,
+                    session: TavernSession(bardingDifficulty: 80, fund: 50, performerBarding: 10));
+                LocationScreen screen = _screenGo.GetComponent<LocationScreen>();
+
+                try {
+                    UniTask run = player.RunAsync(1, 1);
+                    await Until(() => fade.Events.Contains("in"), "the town never faded in");
+                    Assume.That(GameData.Resources.Scene.Barding.ThrownOut(50, 80, 10), Is.True);
+
+                    // GDS2C's shape: the lute is code 9, and the scene's exit is letter 2 here.
+                    screen.Bind(new GdsScene(GdsSceneLoader.ResourceName(1, 1)) {
+                        NextSceneLetter = 2,
+                        Hotspots = new[] { new GdsHotspot { ActionCode = 9 } },
+                    }, 1, 1, letter => Choose(player, letter));
+                    VisualElement atFreeze = null;
+                    bool drawnAtFreeze = false;
+                    fade.OnFreeze = () => {
+                        atFreeze = ActivePanel(dialogs);
+                        drawnAtFreeze = atFreeze?.panel != null;
+                    };
+                    fade.Events.Clear();
+
+                    VisualElement described = ActivePanel(dialogs);
+                    screen.PrimaryAction(GdsSceneRules.HotspotActionIdBase);
+                    VisualElement thrownOut = null;
+                    await Until(() => (thrownOut = ActivePanel(dialogs)) != null && thrownOut != described,
+                        "the thrown-out line never showed");
+                    await Until(() => fade.Events.Contains("thaw"), "the exit scene never showed");
+
+                    Assert.That(atFreeze, Is.SameAs(thrownOut),
+                        "the cut's still holds the thrown-out line, not the bare tavern or its old "
+                        + "description: needRefresh is 0 on the code-3 arm (TOWNSCN.C:608-609)");
+                    Assert.That(drawnAtFreeze, Is.True, "and the line is still drawn then");
+                    Assert.That(thrownOut.panel, Is.Null, "the exit scene replaces it at the cut");
+                } finally {
+                    player.Hide();
+                }
+            });
+
+        /// <summary>The tavern's container, at the location's own (zone 15, scene, letter).</summary>
+        private static BakAgain.Core.GameSession TavernSession(byte bardingDifficulty, byte fund,
+            byte performerBarding) {
+            var session = LocationSession(new GameData.Resources.Data.SaveGameContainerShopData(
+                0, 0, 0, 0, 0, 0, bardingDifficulty, fund, fund, lastRestockChapter: 10, 0, 0, 0, 0,
+                (GameData.ShopItemCategories)0));
+            var stats = new GameData.Resources.Character.ActorStat[
+                GameData.Resources.Character.StatEngine.TableSize];
+            for (var i = 0; i < stats.Length; i++) {
+                stats[i] = new GameData.Resources.Character.ActorStat { Base = 0, Max = 100 };
+            }
+            stats[(int)GameData.ActorAttribute.Barding].Base = performerBarding;
+            session.SetActorStatsForTest(0, stats);
+            session.SetActiveParty(1, new byte[] { 0 });
+            return session;
+        }
+
+        private static BakAgain.Core.GameSession LocationSession(
+            GameData.Resources.Data.SaveGameContainerShopData shop) {
+            var container = new GameData.Resources.Data.SaveGameContainerData(
+                new GameData.Resources.Data.SaveGameContainerLocationData(zone: 15, minChapter: 0,
+                    maxChapter: 10, worldItemId: 0, x: 1, y: 1, actorNumber: 1),
+                GameData.Resources.Data.SaveGameContainerType.FixedWorldItem, numberOfItems: 0,
+                capacity: 5, dataTypes: GameData.Resources.Data.SaveGameContainerDataType.Shop,
+                items: new GameData.Resources.Data.SaveGameInventoryItemData[5], lockData: null,
+                dialogData: null, shopData: shop, encounterData: null, timestamp: 0,
+                globalStateIndex: null);
+            var session = new BakAgain.Core.GameSession();
+            session.SetZoneContainersForTest(new GameData.Resources.Data.SaveGameZoneContainerStateData(new[] {
+                new GameData.Resources.Data.SaveGameZoneContainerEntryData(15, 0, new[] { container }),
+            }), chapter: 1);
+            return session;
+        }
+
         /// <summary>The real dialog overlay, with the hotspot's page and the location's description.</summary>
         private BakAgain.UI.DialogManager RealDialogs() {
             _dialogGo = new GameObject("DialogOverlay");
@@ -183,8 +279,18 @@ namespace BakAgain.Tests.PlayMode.World {
                 Actions = new List<GameData.Resources.Dialog.Actions.DialogActionBase>(),
                 Branches = new List<GameData.Resources.Dialog.Branches.DialogBranchBase>(),
             };
+            // Barding's thrown-out line, closing itself.
+            GameData.Resources.Dialog.DialogEntry Closing(int offset, int id, string text) => new() {
+                Offset = offset, Id = (uint)id, Text = text,
+                Flags = GameData.Resources.Dialog.DialogEntryFlags.Legacy10
+                    | GameData.Resources.Dialog.DialogEntryFlags.AutoAdvanceTimer,
+                Actions = new List<GameData.Resources.Dialog.Actions.DialogActionBase>(),
+                Branches = new List<GameData.Resources.Dialog.Branches.DialogBranchBase>(),
+            };
             var dialog = new GameData.Resources.Dialog.Dialog("dial_z15");
-            foreach (GameData.Resources.Dialog.DialogEntry e in new[] { action, description }) {
+            foreach (GameData.Resources.Dialog.DialogEntry e in new[] {
+                         action, description, Closing(300, ThrownOutDialogId, "\tOut, out, out."),
+                     }) {
                 dialog.Entries.Add(e);
                 e.Key = GameData.Resources.Content.ContentKey.ForBase("ddx:dial_z15", e.Offset);
             }
@@ -302,13 +408,13 @@ namespace BakAgain.Tests.PlayMode.World {
 
         private LocationScenePlayer Player(RecordingFade fade, BakAgain.UI.IDialogManager dialogs,
             VContainer.IObjectResolver resolver, GameData.Resources.Location.PendingTeleport teleport,
-            string undescribed = null) {
+            string undescribed = null, BakAgain.Core.GameSession session = null) {
             _screenGo = new GameObject("Location");
             LocationScreen screen = _screenGo.AddComponent<LocationScreen>();
-            var session = new BakAgain.Core.GameSession();
+            session ??= new BakAgain.Core.GameSession();
+            var cache = new TownCache { Undescribed = undescribed };
             screen.Construct(dialogs, null, session, null, null, null, null, null, null, null);
 
-            var cache = new TownCache { Undescribed = undescribed };
             var presenter = new CutscenePresenter(NullLogger<CutscenePresenter>.Instance, cache,
                 new HoldingPlayerFactory(), null, null);
             return new LocationScenePlayer(NullLogger<LocationScenePlayer>.Instance, presenter,
