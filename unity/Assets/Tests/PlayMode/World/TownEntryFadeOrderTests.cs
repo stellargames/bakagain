@@ -46,7 +46,7 @@ namespace BakAgain.Tests.PlayMode.World {
 
         [TearDown]
         public void TearDown() {
-            foreach (GameObject go in new[] { _hudGo, _screenGo, _canvasGo, _dialogGo, _teleportGo }) {
+            foreach (GameObject go in new[] { _hudGo, _screenGo, _canvasGo, _dialogGo, _teleportGo, _menuGo }) {
                 if (go != null) { Object.DestroyImmediate(go); }
             }
             if (_panelSettings != null) { Object.DestroyImmediate(_panelSettings); }
@@ -364,6 +364,76 @@ namespace BakAgain.Tests.PlayMode.World {
                 }
             });
 
+        private GameObject _menuGo;
+
+        /// <summary>
+        /// A screen raised over a location puts the location back with its description drawn once
+        /// (TASK-922).
+        /// </summary>
+        /// <remarks>
+        /// The container and shop arms (codes 5, 6, 8) run the inventory screen and set needRefresh
+        /// (TOWNSCN.C:525-546); the refresh paints the idle picture and the description once and
+        /// presents them (:592-633). Measured at the Rainbow Parrot (GDS2C hotspot 4): the original
+        /// fades out of the shop and fades the tavern in with its description; the port wiped the
+        /// description in, took it down and wiped it in again, because the raise redrew it and the
+        /// action's own tail redrew it a second time.
+        /// </remarks>
+        [UnityTest]
+        public IEnumerator AScreenRaisedOverALocationPutsTheDescriptionBackOnce() =>
+            UniTask.ToCoroutine(async () => {
+                InGameScreen hud = TravelHud();
+                var fade = new RecordingFade();
+                var dialogs = new MomentRecordingDialogs(fade, _hudGo);
+                var navigator = new HudRevealingNavigator(_hudGo) { ClosesAtOnce = true };
+                BakAgain.Core.GameSession session = LocationSession(
+                    new GameData.Resources.Data.SaveGameContainerShopData(
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, (GameData.ShopItemCategories)0));
+                LocationScenePlayer player = Player(fade, dialogs, Resolver(hud, fade: fade),
+                    teleport: null, session: session, navigator: navigator,
+                    inventoryMenu: InventoryMenu(session, navigator));
+                LocationScreen screen = _screenGo.GetComponent<LocationScreen>();
+
+                try {
+                    UniTask run = player.RunAsync(1, 1);
+                    await Until(() => fade.Events.Contains("in"), "the town never faded in");
+                    _hudGo.SetActive(false);
+                    screen.Bind(new GdsScene(GdsSceneLoader.ResourceName(1, 1)) {
+                        SceneDialogId = DescriptionId,
+                        Hotspots = new[] { new GdsHotspot { ActionCode = 5 } },
+                    }, 1, 1, letter => Choose(player, letter));
+                    dialogs.Moments.Clear();
+
+                    screen.PrimaryAction(GdsSceneRules.HotspotActionIdBase);
+                    await Until(() => dialogs.Moments.Count > 0, "the location never came back");
+                    for (var i = 0; i < 30; i++) {
+                        await UniTask.Yield();
+                    }
+
+                    Assert.That(navigator.Pushed, Is.Null, "the container screen was raised and closed");
+                    Assert.That(dialogs.Moments, Has.Count.EqualTo(1),
+                        "the description is drawn once when the screen closes (TOWNSCN.C:592-633)");
+                    StringAssert.Contains("hud down", dialogs.Moments[0],
+                        "and over the location, after the HUD the pop revealed is down again");
+                } finally {
+                    player.Hide();
+                }
+            });
+
+        private BakAgain.UI.Inventory.InventoryMenu InventoryMenu(BakAgain.Core.GameSession session,
+            IScreenNavigator navigator) {
+            _menuGo = new GameObject("InventoryMenu");
+            var document = _menuGo.AddComponent<UIDocument>();
+            _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            document.panelSettings = _panelSettings;
+            var menu = _menuGo.AddComponent<BakAgain.UI.Inventory.InventoryMenu>();
+            menu.Construct(session, new BakAgain.Tests.PlayMode.UI.Inventory.NoOpResources(), navigator,
+                new BakAgain.Core.Services.DialogExecutor(
+                    NullLogger<BakAgain.Core.Services.DialogExecutor>.Instance, session,
+                    new BakAgain.Core.Services.GameClock(session)),
+                new BakAgain.Tests.PlayMode.UI.Inventory.NoOpDialogs());
+            return menu;
+        }
+
         /// <summary>
         /// A move queued while a location is open waits for the location to close, whatever brings
         /// the travel HUD back meanwhile (TASK-917).
@@ -464,13 +534,21 @@ namespace BakAgain.Tests.PlayMode.World {
                 _hud = hud;
             }
 
+            /// <summary>The pushed screen is closed by the player at once (its own Exit pops it).</summary>
+            public bool ClosesAtOnce;
+
             public IScreen Current => Pushed;
             public UniTask ResetTo(IScreen root) => UniTask.CompletedTask;
             public UniTask Push(IScreen screen) {
                 Pushed = screen;
                 return UniTask.CompletedTask;
             }
-            public UniTask PushAndWaitAsync(IScreen screen) => Push(screen);
+            public async UniTask PushAndWaitAsync(IScreen screen) {
+                await Push(screen);
+                if (ClosesAtOnce) {
+                    await Pop();
+                }
+            }
             public UniTask Pop() {
                 Pushed = null;
                 _hud.SetActive(true);
@@ -638,15 +716,16 @@ namespace BakAgain.Tests.PlayMode.World {
             VContainer.IObjectResolver resolver, GameData.Resources.Location.PendingTeleport teleport,
             string undescribed = null, BakAgain.Core.GameSession session = null,
             BakAgain.UI.Teleport.TeleportScreen teleportScreen = null,
-            BakAgain.UI.Navigation.IScreenNavigator navigator = null) {
+            BakAgain.UI.Navigation.IScreenNavigator navigator = null,
+            BakAgain.UI.Inventory.InventoryMenu inventoryMenu = null) {
             _screenGo = new GameObject("Location");
             LocationScreen screen = _screenGo.AddComponent<LocationScreen>();
             session ??= new BakAgain.Core.GameSession();
             var cache = new TownCache { Undescribed = undescribed };
             // The screen's own resolver only where a test raises something over the location: it is
             // what finds the travel HUD and the fade.
-            screen.Construct(dialogs, null, session, teleport, teleportScreen, null, null, cache, null,
-                navigator, navigator != null ? resolver : null);
+            screen.Construct(dialogs, null, session, teleport, teleportScreen, null, null, cache,
+                inventoryMenu, navigator, navigator != null ? resolver : null);
 
             var presenter = new CutscenePresenter(NullLogger<CutscenePresenter>.Instance, cache,
                 new HoldingPlayerFactory(), null, null);

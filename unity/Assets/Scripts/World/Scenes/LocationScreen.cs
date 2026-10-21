@@ -916,7 +916,7 @@ namespace BakAgain.World.Scenes {
         }
 
         /// <summary>
-        /// Raises a screen over this location and redraws the location when it closes.
+        /// Raises a screen over this location; Act's tail redraws the location when it closes.
         /// </summary>
         /// <remarks>
         /// <b>The location's description must come DOWN while a screen is up.</b> Measured against
@@ -935,7 +935,7 @@ namespace BakAgain.World.Scenes {
             RaiseOverLocationAsync(() => _navigator.PushAndWaitAsync(screen));
 
         /// <summary>
-        /// Run something full-screen over this location and put the location back afterwards.
+        /// Run something full-screen over this location and take down the HUD its close reveals.
         /// </summary>
         /// <remarks>
         /// <see cref="RaiseScreenAsync"/>'s body, for the one caller that pushes its own screen —
@@ -964,9 +964,11 @@ namespace BakAgain.World.Scenes {
             // and is still worth doing.
             await HideTravelScreenAsync();
 
-            // Re-shown, not restored: the description is re-resolved because an action can have
-            // changed what the place says about itself.
-            await ShowSceneDescriptionAsync();
+            // *** THE DESCRIPTION COMES BACK FROM Act's TAIL, NOT FROM HERE (TASK-922). *** The
+            // original redraws it once, in the loop's refresh after the arm (TOWNSCN.C:592-633).
+            // Drawing it here as well wiped it in twice after every shop and container, and inside
+            // the temple's service loop it put the location up between the heal reply and the
+            // re-raised service page, which the original goes straight between (TOWNSCN.C:585-596).
         }
 
         /// <summary>Takes down the travel HUD a navigator pop brought back over this location.</summary>
