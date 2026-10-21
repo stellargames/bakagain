@@ -965,10 +965,10 @@ namespace BakAgain.World.Scenes {
             await HideTravelScreenAsync();
 
             // *** THE DESCRIPTION COMES BACK FROM Act's TAIL, NOT FROM HERE (TASK-922). *** The
-            // original redraws it once, in the loop's refresh after the arm (TOWNSCN.C:592-633).
+            // original redraws it once, in the loop's refresh after the arm (TOWNSCN.C:624-650).
             // Drawing it here as well wiped it in twice after every shop and container, and inside
             // the temple's service loop it put the location up between the heal reply and the
-            // re-raised service page, which the original goes straight between (TOWNSCN.C:585-596).
+            // re-raised service page, which the original goes straight between (TOWNSCN.C:589-606).
         }
 
         /// <summary>Takes down the travel HUD a navigator pop brought back over this location.</summary>

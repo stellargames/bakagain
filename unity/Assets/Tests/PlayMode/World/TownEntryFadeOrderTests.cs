@@ -372,8 +372,8 @@ namespace BakAgain.Tests.PlayMode.World {
         /// </summary>
         /// <remarks>
         /// The container and shop arms (codes 5, 6, 8) run the inventory screen and set needRefresh
-        /// (TOWNSCN.C:525-546); the refresh paints the idle picture and the description once and
-        /// presents them (:592-633). Measured at the Rainbow Parrot (GDS2C hotspot 4): the original
+        /// (TOWNSCN.C:519-549); the refresh paints the idle picture and the description once and
+        /// presents them (:624-650). Measured at the Rainbow Parrot (GDS2C hotspot 4): the original
         /// fades out of the shop and fades the tavern in with its description; the port wiped the
         /// description in, took it down and wiped it in again, because the raise redrew it and the
         /// action's own tail redrew it a second time.
@@ -411,7 +411,7 @@ namespace BakAgain.Tests.PlayMode.World {
 
                     Assert.That(navigator.Pushed, Is.Null, "the container screen was raised and closed");
                     Assert.That(dialogs.Moments, Has.Count.EqualTo(1),
-                        "the description is drawn once when the screen closes (TOWNSCN.C:592-633)");
+                        "the description is drawn once when the screen closes (TOWNSCN.C:624-650)");
                     StringAssert.Contains("hud down", dialogs.Moments[0],
                         "and over the location, after the HUD the pop revealed is down again");
                 } finally {
