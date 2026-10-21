@@ -50,7 +50,12 @@ namespace BakAgain.World.Scenes {
         /// markup and haggling for a shop — so reading it as an inn is only correct because the
         /// action code said so.
         /// </param>
-        public async UniTask RunAsync(SaveGameContainerShopData shop) {
+        /// <param name="opened">Awaited once the panel is up, before the offer: the location fades it in
+        /// (MODALSCR.C:766-768).</param>
+        /// <param name="closing">Awaited before the panel comes down: the location fades it out
+        /// (MODALSCR.C:816).</param>
+        public async UniTask RunAsync(SaveGameContainerShopData shop,
+            System.Func<UniTask> opened = null, System.Func<UniTask> closing = null) {
             if (shop == null) {
                 _logger.LogWarning("Inn hotspot with no container shop block.");
 
@@ -68,6 +73,9 @@ namespace BakAgain.World.Scenes {
             // 0x501f6), so the player can see what they have while deciding whether to spend it.
             _screen?.Open(shop.InnRestHours);
             try {
+                if (opened != null) {
+                    await opened();
+                }
                 // *** THE OFFER'S OWN CHAIN DECIDES, AS dialog_play_record's ANSWER DOES. ***
                 // MODALSCR.C:772 is `if (dialog_play_record(0x13d672, 0) == 0) { sleep }`. Yes walks
                 // on to the Var 3 router (global 30003, "party gold >= the price"): affordable plays
@@ -92,6 +100,9 @@ namespace BakAgain.World.Scenes {
                     }
                 }
             } finally {
+                if (closing != null) {
+                    await closing();
+                }
                 _screen?.Close();
             }
         }
@@ -109,7 +120,10 @@ namespace BakAgain.World.Scenes {
             _session.SetGlobalValue(InnStay.HoursGlobal, wakeHour);
             _session.SetGlobalValue(InnStay.RepeatOfferGlobal, firstOffer ? 0 : 1);
 
-            return await _dialogs.ShowById(InnStay.OfferDialog);
+            // Its last page stays drawn (DIALOG.C:1492-1500; the town's g_dialog_in_scene is cleared only
+            // for the night, MODALSCR.C:773/808): a refusal's "Another time nightmaster" fades out
+            // with the panel (TASK-923).
+            return await _dialogs.ShowByIdLeavingLastPage(InnStay.OfferDialog);
         }
 
         /// <summary>What the offer answers for a night accepted and paid for — the original's <c>== 0</c>.</summary>

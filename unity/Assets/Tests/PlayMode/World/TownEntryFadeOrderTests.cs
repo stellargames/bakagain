@@ -419,6 +419,308 @@ namespace BakAgain.Tests.PlayMode.World {
                 }
             });
 
+        /// <summary>
+        /// A shop or container closing over a location fades back onto the location with its
+        /// description, never onto the travel HUD (TASK-923 item 1).
+        /// </summary>
+        /// <remarks>
+        /// Codes 5, 6 and 8 set <c>needRefresh = fadeFlag = 1</c> when the inventory screen returns
+        /// (TOWNSCN.C:519-549), and the refresh fades out, repaints the idle picture and the
+        /// description bubble, and fades in (:624-650). The port's navigator pop showed the travel
+        /// HUD, because a location is not on its stack: measured at the Rainbow Parrot (t906), one
+        /// frame of the HUD over the world, then the bare tavern, then the description wiping in.
+        /// </remarks>
+        [UnityTest]
+        public IEnumerator AScreenClosingOverALocationFadesBackOntoItsDescriptionNotOntoTheHud() =>
+            UniTask.ToCoroutine(async () => {
+                InGameScreen hud = TravelHud();
+                var fade = new RecordingFade();
+                var dialogs = new MomentRecordingDialogs(fade, _hudGo);
+                var navigator = new FadingNavigator(hud, fade);
+                BakAgain.Core.GameSession session = LocationSession(
+                    new GameData.Resources.Data.SaveGameContainerShopData(
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, (GameData.ShopItemCategories)0));
+                LocationScenePlayer player = Player(fade, dialogs, Resolver(hud, fade: fade),
+                    teleport: null, session: session, navigator: navigator,
+                    inventoryMenu: InventoryMenu(session, navigator));
+                SetLocations(hud, player);
+                LocationScreen screen = _screenGo.GetComponent<LocationScreen>();
+
+                try {
+                    UniTask run = player.RunAsync(1, 1);
+                    await Until(() => fade.Events.Contains("in"), "the town never faded in");
+                    screen.Bind(new GdsScene(GdsSceneLoader.ResourceName(1, 1)) {
+                        SceneDialogId = DescriptionId,
+                        Hotspots = new[] { new GdsHotspot { ActionCode = 5 } },
+                    }, 1, 1, letter => Choose(player, letter));
+
+                    screen.PrimaryAction(GdsSceneRules.HotspotActionIdBase);
+                    await Until(() => navigator.Pushed != null, "the container screen was never raised");
+                    dialogs.Moments.Clear();
+                    fade.Events.Clear();
+
+                    await navigator.Pop();   // the screen's own Exit
+                    for (var i = 0; i < 30; i++) {
+                        await UniTask.Yield();
+                    }
+
+                    Assert.That(navigator.HudShown, Is.False,
+                        "the pop lands on the location, not on the travel HUD");
+                    Assert.That(dialogs.Moments, Is.EqualTo(new[] { "covered, hud down, before fade-in" }),
+                        "the description is drawn once, under the fade, and fades in with the picture "
+                        + "(TOWNSCN.C:624-650)");
+                } finally {
+                    player.Hide();
+                }
+            });
+
+        /// <summary>
+        /// The real navigator cuts, so the location fades the shop in and out itself (TASK-923 item 1).
+        /// </summary>
+        /// <remarks>
+        /// The inventory screen fades the town out before drawing (CMBINV.C:232, :278); the town's
+        /// refresh fades the inventory out and the town in (TOWNSCN.C:624-650).
+        /// </remarks>
+        [UnityTest]
+        public IEnumerator TheShopOpensAndClosesUnderTheWorldFadeOnTheRealNavigator() =>
+            UniTask.ToCoroutine(async () => {
+                InGameScreen hud = TravelHud();
+                var fade = new RecordingFade();
+                var dialogs = new MomentRecordingDialogs(fade, _hudGo);
+                var navigator = new ScreenNavigator();
+                await navigator.ResetTo(new HudStandIn(hud));
+                BakAgain.Core.GameSession session = LocationSession(
+                    new GameData.Resources.Data.SaveGameContainerShopData(
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, (GameData.ShopItemCategories)0));
+                var shop = new ClosableScreen();
+                LocationScenePlayer player = Player(fade, dialogs, Resolver(hud, fade: fade),
+                    teleport: null, session: session, navigator: navigator,
+                    inventoryMenu: InventoryMenu(session, navigator));
+                SetLocations(hud, player);
+                LocationScreen screen = _screenGo.GetComponent<LocationScreen>();
+                _menuGo.SetActive(false);
+
+                try {
+                    UniTask run = player.RunAsync(1, 1);
+                    await Until(() => fade.Events.Contains("in"), "the town never faded in");
+                    screen.Bind(new GdsScene(GdsSceneLoader.ResourceName(1, 1)) {
+                        SceneDialogId = DescriptionId,
+                        Hotspots = new[] { new GdsHotspot { ActionCode = 5 } },
+                    }, 1, 1, letter => Choose(player, letter));
+                    fade.Events.Clear();
+
+                    // The container arm pushes the inventory menu; stand a closable screen in for it.
+                    typeof(LocationScreen).GetMethod("PushFadedAndWaitAsync", BindingFlags.NonPublic | BindingFlags.Instance)
+                        .Invoke(screen, new object[] { shop });
+                    await Until(() => ReferenceEquals(navigator.Current, shop) && fade.Events.Count == 3,
+                        "the shop never opened");
+                    Assert.That(fade.Events, Is.EqualTo(new[] { "out", "covered", "in" }), "into the shop under a fade");
+
+                    fade.Events.Clear();
+                    await navigator.Pop();   // the shop's own Exit
+                    Assert.That(fade.Events, Is.EqualTo(new[] { "out", "covered", "in" }), "and out of it under one");
+                    await Until(() => navigator.Fade is NullScreenFade, "the navigator never cut again afterwards");
+                } finally {
+                    player.Hide();
+                }
+            });
+
+        /// <summary>
+        /// Leaving the temple's service menu puts the location back in one change (TASK-923).
+        /// </summary>
+        /// <remarks>
+        /// After the service loop the arm's <c>needRefresh = 1</c> runs the unfaded refresh: the idle
+        /// picture and the description bubble are painted and presented once (TOWNSCN.C:624-650), so
+        /// the farewell page is on screen until both are. Measured at Malac's Cross (t917 SAVE02):
+        /// the port took the page down and wiped the description in over the bare chapel.
+        /// </remarks>
+        [UnityTest]
+        public IEnumerator LeavingTheServiceMenuPutsTheLocationBackInOneChange() =>
+            UniTask.ToCoroutine(async () => {
+                InGameScreen hud = TravelHud();
+                var fade = new RecordingFade();
+                var dialogs = new MomentRecordingDialogs(fade, _hudGo);
+                BakAgain.Core.GameSession session = TempleSession(currentTemple: 1, visited: 2);
+                LocationScenePlayer player = Player(fade, dialogs, Resolver(hud, fade: fade),
+                    teleport: null, session: session, navigator: new FadingNavigator(hud, fade));
+                LocationScreen screen = _screenGo.GetComponent<LocationScreen>();
+
+                try {
+                    UniTask run = player.RunAsync(1, 1);
+                    await Until(() => fade.Events.Contains("in"), "the town never faded in");
+                    screen.Bind(new GdsScene(GdsSceneLoader.ResourceName(1, 1)) {
+                        SceneDialogId = DescriptionId,
+                        Hotspots = new[] { new GdsHotspot { ActionCode = 13, ActionDialogId = 1300072 } },
+                    }, 1, 1, letter => Choose(player, letter));
+                    dialogs.Moments.Clear();
+
+                    // The service menu answers -1 here: the loop ends at once.
+                    screen.PrimaryAction(GdsSceneRules.HotspotActionIdBase);
+                    await Until(() => dialogs.Moments.Count > 0, "the location never came back");
+                    for (var i = 0; i < 10; i++) {
+                        await UniTask.Yield();
+                    }
+
+                    Assert.That(dialogs.Moments, Is.EqualTo(new[] { "frozen, hud down" }),
+                        "the description is drawn under a still of the last page and appears with the "
+                        + "picture in one change (TOWNSCN.C:624-650)");
+                } finally {
+                    player.Hide();
+                }
+            });
+
+        /// <summary>The travel HUD as the navigator's base screen.</summary>
+        private sealed class HudStandIn : IScreen {
+            private readonly InGameScreen _hud;
+            public HudStandIn(InGameScreen hud) => _hud = hud;
+            public UniTask ShowAsync() => UniTask.CompletedTask;
+            public UniTask HideAsync() => _hud.HideAsync();
+        }
+
+        private sealed class ClosableScreen : IScreen {
+            public UniTask ShowAsync() => UniTask.CompletedTask;
+            public UniTask HideAsync() => UniTask.CompletedTask;
+        }
+
+        /// <summary>
+        /// The inn's panel comes and goes under fades, with the location's sign off it (TASK-923 item 2).
+        /// </summary>
+        /// <remarks>
+        /// <c>modalscreen_rest_until_time</c> fades the location out before drawing the panel and
+        /// fades the panel out when it ends (MODALSCR.C:724-737, :830-835); code 7 then sets
+        /// <c>needRefresh = fadeFlag = 1</c> (TOWNSCN.C:550-559) and the refresh fades the tavern in
+        /// with its description (:624-650). Measured at the Rainbow Parrot's inn (t906): the port
+        /// kept "Rainbow Parrot Inn" over the panel and cut back to the tavern.
+        /// </remarks>
+        [UnityTest]
+        public IEnumerator TheInnOpensAndClosesUnderAFadeAndTheLocationFadesBackIn() =>
+            UniTask.ToCoroutine(async () => {
+                InGameScreen hud = TravelHud();
+                var fade = new RecordingFade();
+                var dialogs = new MomentRecordingDialogs(fade, _hudGo);
+                BakAgain.Core.GameSession session = LocationSession(
+                    new GameData.Resources.Data.SaveGameContainerShopData(
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, (GameData.ShopItemCategories)0));
+                // The nightmaster's offer answers -1 here: declined.
+                var inn = new InnService(session, new BakAgain.Core.Services.GameClock(session), null,
+                    dialogs, null);
+                LocationScenePlayer player = Player(fade, dialogs, Resolver(hud, fade: fade),
+                    teleport: null, session: session, navigator: new FadingNavigator(hud, fade), inn: inn);
+                LocationScreen screen = _screenGo.GetComponent<LocationScreen>();
+
+                try {
+                    UniTask run = player.RunAsync(1, 1);
+                    await Until(() => fade.Events.Contains("in"), "the town never faded in");
+                    screen.Bind(new GdsScene(GdsSceneLoader.ResourceName(1, 1)) {
+                        SceneDialogId = DescriptionId,
+                        Hotspots = new[] { new GdsHotspot { ActionCode = 7 } },
+                    }, 1, 1, letter => Choose(player, letter));
+                    dialogs.Moments.Clear();
+                    fade.Events.Clear();
+
+                    screen.PrimaryAction(GdsSceneRules.HotspotActionIdBase);
+                    await Until(() => dialogs.Moments.Count > 0, "the location never came back");
+                    for (var i = 0; i < 30; i++) {
+                        await UniTask.Yield();
+                    }
+
+                    Assert.That(fade.Events, Is.EqualTo(new[] { "out", "covered", "in", "out", "covered", "in" }),
+                        "into the inn under a fade, and back out of it under another");
+                    Assert.That(dialogs.Moments, Has.Count.EqualTo(1), "the description comes back once");
+                    StringAssert.StartsWith("covered", dialogs.Moments[0],
+                        "while the second fade still covers the screen");
+                } finally {
+                    player.Hide();
+                }
+            });
+
+        /// <summary>
+        /// A full-screen page replacing one left drawn opens over it, not over the location beneath
+        /// (TASK-923 item 3).
+        /// </summary>
+        /// <remarks>
+        /// In a scene the priest's reply is <c>dialog_play_record(.., 0)</c> (CHARSCRN.C:449-452),
+        /// which leaves its page drawn (DIALOG.C:1492-1500), and the service loop's next
+        /// <c>dialog_play_record</c> (TOWNSCN.C:597) boxes the menu page out over it: one page to the
+        /// next. The port removed the reply's panel before the menu's full-screen wipe, so the wipe
+        /// opened over the bare chapel (Malac's Cross, t917 SAVE02).
+        /// </remarks>
+        [UnityTest]
+        public IEnumerator AFullScreenPageOpensOverThePageLeftDrawnNotOverTheLocation() =>
+            UniTask.ToCoroutine(async () => {
+                BakAgain.UI.DialogManager dialogs = RealDialogs();
+                await dialogs.ShowByIdLeavingLastPage(ReplyDialogId);
+                VisualElement reply = ActivePanel(dialogs);
+                Assume.That(reply?.panel, Is.Not.Null, "the reply's page is left drawn");
+
+                GameData.Resources.Dialog.DialogPlay menu = await dialogs.ResolveById(MenuDialogId);
+                UniTask shown = dialogs.DisplayEntry(menu);
+                var frames = 0;
+                var bare = 0;
+                while (shown.Status == UniTaskStatus.Pending && frames++ < 600) {
+                    if (reply.panel == null) {
+                        bare++;
+                    }
+                    await UniTask.Yield();
+                }
+                await shown;
+
+                Assert.That(bare, Is.Zero,
+                    "the reply stays under the menu's page until its wipe has opened it all");
+                Assert.That(reply.panel, Is.Null, "and goes once the menu's page covers the screen");
+                dialogs.ClearDialog();
+            });
+
+        private const int ReplyDialogId = 1300083;
+        private const int MenuDialogId = 1300072;
+
+        /// <summary>
+        /// A navigator that transitions as the real one does: under a fade, the outgoing screen is
+        /// hidden and the revealed one shown — the travel HUD, a location not being on its stack.
+        /// </summary>
+        private sealed class FadingNavigator : IScreenNavigator {
+            private readonly InGameScreen _hud;
+            private readonly IScreenFade _fade;
+            public IScreen Pushed;
+            public bool HudShown;
+            private bool _busy;
+
+            public FadingNavigator(InGameScreen hud, IScreenFade fade) {
+                _hud = hud;
+                _fade = fade;
+            }
+
+            public IScreen Current => Pushed;
+            public UniTask ResetTo(IScreen root) => UniTask.CompletedTask;
+            public async UniTask Push(IScreen screen) {
+                _busy = true;
+                await _fade.FadeOutAsync();
+                await _hud.HideAsync();
+                Pushed = screen;
+                await _fade.FadeInAsync();
+                _busy = false;
+            }
+            public async UniTask PushAndWaitAsync(IScreen screen) {
+                await Push(screen);
+                await UniTask.WaitUntil(() => Pushed == null && !_busy);
+            }
+            public async UniTask Pop() {
+                _busy = true;
+                await _fade.FadeOutAsync();
+                Pushed = null;
+                await _hud.ShowAsync();
+                HudShown |= _hud.IsVisible;
+                await _fade.FadeInAsync();
+                _busy = false;
+            }
+            public UniTask Replace(IScreen screen) => UniTask.CompletedTask;
+            public UniTask Clear() => UniTask.CompletedTask;
+        }
+
+        private static void SetLocations(InGameScreen hud, LocationScenePlayer player) =>
+            typeof(InGameScreen).GetField("_locations", BindingFlags.NonPublic | BindingFlags.Instance)
+                .SetValue(hud, player);
+
         private BakAgain.UI.Inventory.InventoryMenu InventoryMenu(BakAgain.Core.GameSession session,
             IScreenNavigator navigator) {
             _menuGo = new GameObject("InventoryMenu");
@@ -588,9 +890,14 @@ namespace BakAgain.Tests.PlayMode.World {
                 Actions = new List<GameData.Resources.Dialog.Actions.DialogActionBase>(),
                 Branches = new List<GameData.Resources.Dialog.Branches.DialogBranchBase>(),
             };
+            // The temple priest's reply and the service menu: full-screen pages.
+            GameData.Resources.Dialog.DialogEntry reply = Closing(600, ReplyDialogId, "\tThe priest shrugged.");
+            reply.DialogType = GameData.Resources.Dialog.DialogType.PlainFullScreen;
+            GameData.Resources.Dialog.DialogEntry menu = Closing(700, MenuDialogId, "\tLocklear pulled the curtains aside.");
+            menu.DialogType = GameData.Resources.Dialog.DialogType.PlainFullScreen;
             var dialog = new GameData.Resources.Dialog.Dialog("dial_z15");
             foreach (GameData.Resources.Dialog.DialogEntry e in new[] {
-                         action, description, Closing(300, ThrownOutDialogId, "\tOut, out, out."),
+                         action, description, reply, menu, Closing(300, ThrownOutDialogId, "\tOut, out, out."),
                          Closing(400, GameData.Resources.Location.TeleportMenu.ArrivalDialog, "\tA new temple wall."),
                          Closing(500, GameData.Resources.Location.TeleportMenu.IntroDialog, "\tThe design was odd."),
                      }) {
@@ -717,14 +1024,14 @@ namespace BakAgain.Tests.PlayMode.World {
             string undescribed = null, BakAgain.Core.GameSession session = null,
             BakAgain.UI.Teleport.TeleportScreen teleportScreen = null,
             BakAgain.UI.Navigation.IScreenNavigator navigator = null,
-            BakAgain.UI.Inventory.InventoryMenu inventoryMenu = null) {
+            BakAgain.UI.Inventory.InventoryMenu inventoryMenu = null, InnService inn = null) {
             _screenGo = new GameObject("Location");
             LocationScreen screen = _screenGo.AddComponent<LocationScreen>();
             session ??= new BakAgain.Core.GameSession();
             var cache = new TownCache { Undescribed = undescribed };
             // The screen's own resolver only where a test raises something over the location: it is
             // what finds the travel HUD and the fade.
-            screen.Construct(dialogs, null, session, teleport, teleportScreen, null, null, cache,
+            screen.Construct(dialogs, null, session, teleport, teleportScreen, null, inn, cache,
                 inventoryMenu, navigator, navigator != null ? resolver : null);
 
             var presenter = new CutscenePresenter(NullLogger<CutscenePresenter>.Instance, cache,

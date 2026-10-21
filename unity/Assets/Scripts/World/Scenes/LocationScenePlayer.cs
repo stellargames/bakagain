@@ -136,6 +136,13 @@ namespace BakAgain.World.Scenes {
         /// </summary>
         public bool IsOpen { get; private set; }
 
+        /// <summary>
+        /// The location a screen has been raised over, while it is up: what that screen's push hides
+        /// and its pop reveals in the travel HUD's place (see <see cref="LocationScreen.RaisedOver"/>).
+        /// Null otherwise.
+        /// </summary>
+        public LocationScreen RaisedOver => _screen != null && _screen.RaisedOver ? _screen : null;
+
         /// <param name="leaving">Run once the player has left, while the location is still on screen
         /// and before any queued teleport: what the world loop's dispatch pass does after the town
         /// returns (the gate's post key and the step's time, HOTSPOT.C:643-646 and WORLDLP.C:191-198).

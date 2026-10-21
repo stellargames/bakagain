@@ -582,8 +582,13 @@ namespace BakAgain.World.Scenes {
             // replaced the page the original keeps up until the next scene is presented (TASK-916,
             // TASK-917). And an arm that already redrew it under its own cut is not redrawn twice:
             // the second show wiped the text in again over a bare picture.
+            //
+            // *** AND IN ONE CHANGE (TASK-923). *** The unfaded refresh paints the idle picture and the
+            // bubble and presents them once (TOWNSCN.C:624-650), so whatever page is up stays until
+            // both are drawn: the temple's farewell went, and the description wiped in over the bare
+            // chapel. Built under a still, as a sub-scene is.
             if (!_redrawHandled && GdsActionDispatch.RedrawsTheLocationAfterwards(StaysInTheScene(kind))) {
-                await ShowSceneDescriptionAsync();
+                await ScreenFade().CutAsync(() => ShowSceneDescriptionAsync());
             }
         }
 
@@ -660,9 +665,7 @@ namespace BakAgain.World.Scenes {
                     return;
 
                 case GdsActionDispatch.ActionKind.Inn:
-                    // The shop block is read as an inn ONLY because the action code says so — the
-                    // same bytes are markup and haggling for a shop.
-                    await _inn.RunAsync(InnBlock());
+                    await RunInnAsync();
                     return;
 
                 default:
@@ -864,15 +867,19 @@ namespace BakAgain.World.Scenes {
             _session?.SetGlobalValue(DialogSubjectGlobal, shop.ShopType);
             int result;
             do {
-                result = await _dialogs.ShowChoiceIndexById(hotspot.ActionDialogId);
+                // In the scene, so the page stays drawn when it closes (DIALOG.C:1492-1500) until what
+                // follows replaces it: the priest's reply, or the next service page (TASK-923).
+                result = await _dialogs.ShowChoiceIndexByIdLeavingLastPage(hotspot.ActionDialogId);
                 if (result == GdsActionDispatch.HealingService) {
                     // *** THROUGH THE SAME BRACKET THE BLESSING USES. *** The heal screen pushes
                     // itself, so calling it bare skipped ClearSign/ClearDialog and left the
                     // location's picture, its sign and its description painted UNDER the priest's
                     // parchment — the Chapel of Ishap's name ran straight through the middle of the
                     // quote. Measured 2026-09-13; the same shape TASK-407 fixed for the shop.
+                    // No refresh on return: the loop goes straight back to the service page
+                    // (TOWNSCN.C:597-606).
                     await RaiseOverLocationAsync(
-                        () => _healScreen.RunAsync(shop.ShopkeeperSkill, shop.ShopType));
+                        () => _healScreen.RunAsync(shop.ShopkeeperSkill, shop.ShopType), refresh: false);
                 } else if (result == GdsActionDispatch.BlessingService) {
                     await RunBlessingAsync(shop);
                 }
@@ -912,11 +919,11 @@ namespace BakAgain.World.Scenes {
                 return;
             }
 
-            await RaiseScreenAsync(_inventoryMenu);
+            await RaiseOverLocationAsync(() => _navigator.PushAndWaitAsync(_inventoryMenu), refresh: false);
         }
 
         /// <summary>
-        /// Raises a screen over this location; Act's tail redraws the location when it closes.
+        /// Raises a screen over this location, which is redrawn under the screen's closing transition.
         /// </summary>
         /// <remarks>
         /// <b>The location's description must come DOWN while a screen is up.</b> Measured against
@@ -924,7 +931,7 @@ namespace BakAgain.World.Scenes {
         /// location — clean portraits, the "Shop" detail panel, the page arrow, Exit and the purse.
         /// Ours painted the description across the portraits and the purse and left the sign over
         /// the middle of the item grid, hiding one cell's name outright. A location is not on the
-        /// navigator's stack, so nothing was taking it down.
+        /// navigator's stack, so nothing was taking it down (now <see cref="Cover"/>).
         ///
         /// <para><b>And it comes back afterwards.</b> Every screen arm in <c>TOWNSCN.C</c> reloads
         /// the backdrop and sets <c>needRefresh = fadeFlag = 1</c> on return, so the location is
@@ -932,44 +939,123 @@ namespace BakAgain.World.Scenes {
         /// description survives an action at all.</para>
         /// </remarks>
         private UniTask RaiseScreenAsync(UI.Navigation.IScreen screen) =>
-            RaiseOverLocationAsync(() => _navigator.PushAndWaitAsync(screen));
+            RaiseOverLocationAsync(() => PushFadedAndWaitAsync(screen), refresh: true);
 
         /// <summary>
-        /// Run something full-screen over this location and take down the HUD its close reveals.
+        /// Push <paramref name="screen"/> and wait for it to close, both ways under the world's fade.
         /// </summary>
         /// <remarks>
-        /// <see cref="RaiseScreenAsync"/>'s body, for the one caller that pushes its own screen —
-        /// the temple's heal menu, which owns its push/pop and so cannot be handed to the navigator
-        /// here.
+        /// The navigator cuts (its fade was removed, RootLifetimeScope), but the original fades both
+        /// ways here: the inventory screen fades the town out before it draws (CMBINV.C:232, :278),
+        /// and the town's refresh fades the inventory out and the town back in (TOWNSCN.C:624-650).
+        /// ponytail: the shared navigator's fade is swapped for the duration, so anything else it
+        /// does meanwhile fades too; give the navigator a per-push fade if that ever shows.
         /// </remarks>
-        private async UniTask RaiseOverLocationAsync(System.Func<UniTask> run) {
+        private async UniTask PushFadedAndWaitAsync(UI.Navigation.IScreen screen) {
+            var navigator = _navigator as UI.Navigation.ScreenNavigator;
+            UI.Navigation.IScreenFade previous = navigator?.Fade;
+            if (navigator != null) {
+                navigator.Fade = ScreenFade();
+            }
+            try {
+                await _navigator.PushAndWaitAsync(screen);
+            } finally {
+                if (navigator != null) {
+                    navigator.Fade = previous;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Run something full-screen over this location, which stands in for the travel HUD on the
+        /// navigator while it does.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="RaiseScreenAsync"/>'s body, and the temple heal's, which pushes its own screen.
+        ///
+        /// <para><b>A location is not on the navigator's stack, so the HUD is what a push hides and a
+        /// pop reveals.</b> While this runs, the HUD hands both to the location
+        /// (<c>InGameScreen.ShowAsync</c>/<c>HideAsync</c>): the push takes the description and the
+        /// sign down under its transition (<see cref="Cover"/>), and the pop puts them back under its
+        /// own (<see cref="RevealAsync"/>). The original's arms for codes 5, 6 and 8 return with
+        /// <c>needRefresh = fadeFlag = 1</c> (TOWNSCN.C:519-548), and its refresh repaints the picture
+        /// and the description while the screen is black and fades them in together (:624-650).
+        /// Before TASK-923 the pop showed the HUD over the world for a frame, the description came
+        /// back afterwards over the bare picture, and in Romney (TASK-407) the HUD stayed up.</para>
+        /// </remarks>
+        /// <param name="refresh">Whether the location is redrawn when the screen closes. Not inside
+        /// the temple's service loop, which goes straight back to its page (TOWNSCN.C:597-606).</param>
+        private async UniTask RaiseOverLocationAsync(System.Func<UniTask> run, bool refresh) {
+            _raised = true;
+            _refreshOnReturn = refresh;
+            // Enhanced: no page turn to or from the raised screen, which is not a bound page; it fades.
+            Book.BookPageCurl.Suppressed++;
+            try {
+                await run();
+            } finally {
+                Book.BookPageCurl.Suppressed--;
+                _raised = false;
+                _refreshOnReturn = false;
+            }
+
+            // A screen that closed by some other route than the navigator's pop (a Clear, a load)
+            // can still have left the HUD up; no-op otherwise.
+            await HideTravelScreenAsync();
+        }
+
+        private bool _raised;
+        private bool _refreshOnReturn;
+
+        /// <summary>A screen raised over this location is up (see <see cref="RaiseOverLocationAsync"/>).</summary>
+        public bool RaisedOver => _raised && isActiveAndEnabled;
+
+        /// <summary>A screen is about to cover the location: its description and sign come down.</summary>
+        public void Cover() {
             _dialogs?.ClearDialog();
             ClearSign();
-
-            await run();
-
-            // *** THE POP BRINGS THE TRAVEL HUD BACK, AND IT HAS TO GO STRAIGHT DOWN AGAIN. ***
-            // `ScreenNavigator.Pop` ends in `EnsureTopShownAsync`, which shows the NAVIGATOR's own
-            // previous top — and a location is deliberately not on that stack, so what gets revealed
-            // is the HUD `LocationScenePlayer.HideTravelScreenAsync` took down on the way in. It
-            // then paints over the location: InGameScreen sits at -2 and LocationScreen at -3.
-            //
-            // Measured at Romney 2026-09-12: after closing the shop with its own Exit
-            // (REQ_INV action 1), the location was STILL ACTIVE and still on GDS6C with the travel
-            // HUD drawn over it. The original returns to the Port Exchange scene — picture, sign
-            // and description — with no HUD in sight. TASK-407.
-            //
-            // Taking it down here rather than teaching the navigator about locations is the smaller
-            // of the two fixes; putting the location on the navigator's stack is the structural one
-            // and is still worth doing.
-            await HideTravelScreenAsync();
-
-            // *** THE DESCRIPTION COMES BACK FROM Act's TAIL, NOT FROM HERE (TASK-922). *** The
-            // original redraws it once, in the loop's refresh after the arm (TOWNSCN.C:624-650).
-            // Drawing it here as well wiped it in twice after every shop and container, and inside
-            // the temple's service loop it put the location up between the heal reply and the
-            // re-raised service page, which the original goes straight between (TOWNSCN.C:589-606).
         }
+
+        /// <summary>
+        /// The raised screen has closed: the location says what it is again, once, if the arm
+        /// refreshes — the redraw Act's tail would otherwise make after the fade.
+        /// </summary>
+        public async UniTask RevealAsync() {
+            if (!_refreshOnReturn) {
+                return;
+            }
+            _refreshOnReturn = false;
+            await ShowSceneDescriptionAsync();
+            _redrawHandled = true;
+        }
+
+        /// <summary>
+        /// The inn: its panel replaces the location under a fade, and the location fades back in.
+        /// </summary>
+        /// <remarks>
+        /// <c>modalscreen_rest_until_time</c> fades the town out before drawing its panel and fades
+        /// the panel in (MODALSCR.C:724, :767), and fades the panel out when the stay ends (:816);
+        /// code 7 then sets <c>needRefresh = fadeFlag = 1</c> (TOWNSCN.C:550-558) and the refresh
+        /// fades the town in with its description (:624-650). The location's sign is not drawn on
+        /// the panel: the black screen it is drawn on has none. Measured at the Rainbow Parrot
+        /// (TASK-923): the port kept the sign over the panel and cut back to the tavern.
+        /// The shop block is read as an inn ONLY because the action code says so — the same bytes
+        /// are markup and haggling for a shop.
+        /// </remarks>
+        private async UniTask RunInnAsync() {
+            UI.Navigation.IScreenFade fade = ScreenFade();
+            await fade.FadeOutAsync();
+            try {
+                Cover();
+                await _inn.RunAsync(InnBlock(), opened: fade.FadeInAsync, closing: fade.FadeOutAsync);
+                await ShowSceneDescriptionAsync();
+                _redrawHandled = true;
+            } finally {
+                await fade.FadeInAsync();
+            }
+        }
+
+        private UI.Navigation.IScreenFade ScreenFade() =>
+            ResolveOptional<UI.Navigation.IScreenFade>() ?? new UI.Navigation.NullScreenFade();
 
         /// <summary>Takes down the travel HUD a navigator pop brought back over this location.</summary>
         /// <remarks>Unconditional: <c>InGameScreen.HideAsync</c> is a no-op on a hidden HUD and forces
@@ -1022,9 +1108,7 @@ namespace BakAgain.World.Scenes {
             // only then is anything queued. Declined, the original's refresh (TOWNSCN.C:584,
             // needRefresh = 1, no fade) puts the location back in that same present.
             if (ReferenceEquals(_navigator?.Current, _teleportScreen)) {
-                UI.Navigation.IScreenFade fade = ResolveOptional<UI.Navigation.IScreenFade>()
-                    ?? new UI.Navigation.NullScreenFade();
-                await fade.CutAsync(async () => {
+                await ScreenFade().CutAsync(async () => {
                     await _navigator.PopUnfaded();
                     await HideTravelScreenAsync();
                     if (row < 0) {

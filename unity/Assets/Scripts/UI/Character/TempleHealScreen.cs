@@ -91,7 +91,9 @@ namespace BakAgain.UI.Character {
             SetService(priceMultiplier, mode);
             TempleHealOpening opening = TempleHealEntry.Decide(AnyoneAfflicted(), AnyoneWounded(), mode);
             if (opening != TempleHealOpening.Screen) {
-                await _dialogs.ShowById(TempleHealEntry.DialogFor(opening));
+                // In the temple, so the reply stays drawn until the service page replaces it
+                // (CHARSCRN.C:448-454 plays it with dialog_play_record(.., 0); TASK-923).
+                await _dialogs.ShowByIdLeavingLastPage(TempleHealEntry.DialogFor(opening));
 
                 return;
             }

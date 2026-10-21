@@ -99,6 +99,14 @@ namespace BakAgain.Book {
         internal static bool Exists => _instance != null;
 
         /// <summary>
+        /// While above zero, screen changes fade instead of turning: a screen raised over a location
+        /// (TASK-923). The location's page stays registered under that screen, so a turn grabbed the
+        /// screen on top and then waited its whole timeout for a page that never came, a second's
+        /// freeze before a cut, both ways. The original fades there (MODALSCR.C:724, TOWNSCN.C:624-650).
+        /// </summary>
+        public static int Suppressed { get; set; }
+
+        /// <summary>
         /// Enhanced: if the page on screen and <paramref name="incoming"/> are both bound pages, grabs
         /// the page (or takes up a held grab), runs <paramref name="change"/> under it and turns the page
         /// over onto the next one. False, having done nothing, when this is not a page-to-page change:
@@ -115,7 +123,7 @@ namespace BakAgain.Book {
             // The book draws its page once its presenter runs, after the push that shows it.
             bool book = incoming is BookView;
             bool held = Exists && _instance._held;
-            if (!Core.GameOptions.IsOn(Core.EnhancedFeature.PageTurn) || (!page && !cutscene && !book)) {
+            if (!Core.GameOptions.IsOn(Core.EnhancedFeature.PageTurn) || Suppressed > 0 || (!page && !cutscene && !book)) {
                 if (held) {
                     _instance.Abandon();
                 }

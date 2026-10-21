@@ -822,6 +822,7 @@ namespace BakAgain.UI {
         /// itself.</para>
         /// </param>
         private void RemovePanel(BakAgain.UI.InputCore.IInputLayer mine) {
+            RemovePageUnderWipe();
             RestoreCameraIfTurned();
             RemoveSpeakerFace();
             if (_activePanel != null) {
@@ -955,6 +956,9 @@ namespace BakAgain.UI {
         /// is released. <see cref="ClearDialog"/>, or the next show, takes the panel down.
         /// </summary>
         private void ReleaseInputKeepingPanel(BakAgain.UI.InputCore.IInputLayer mine) {
+            _keptPanel = _activePanel;
+            // Drawn, not live: a kept choice page's buttons must not answer a play that has ended.
+            LetClicksThroughPanel();
             if (_modalScrim != null) {
                 _modalScrim.RemoveFromHierarchy();
                 _modalScrim = null;
@@ -964,6 +968,54 @@ namespace BakAgain.UI {
                 if (ReferenceEquals(_dialogLayer, mine)) {
                     _dialogLayer = null;
                 }
+            }
+        }
+
+        /// <summary>The page <see cref="ReleaseInputKeepingPanel"/> left drawn, while it is the active one.</summary>
+        private VisualElement _keptPanel;
+
+        /// <summary>
+        /// A page left drawn that the next full-screen page opens over: its panel, parchment and vines,
+        /// taken down once that page's wipe has uncovered the whole screen.
+        /// </summary>
+        /// <remarks>
+        /// The original's box-out (<c>anim_screenTransitionEffect</c>) copies the new page onto the
+        /// screen from the centre out, over whatever the screen holds, and inside a scene that is the
+        /// last page (DIALOG.C:1492-1500 does not clear it). Removing the old page first opened the
+        /// new one over the location's bare picture: the temple's service page after the priest's
+        /// reply at Malac's Cross (TASK-923).
+        /// </remarks>
+        private readonly System.Collections.Generic.List<VisualElement> _pageUnderWipe = new();
+
+        private void RemovePageUnderWipe() {
+            foreach (VisualElement element in _pageUnderWipe) {
+                element.RemoveFromHierarchy();
+            }
+            _pageUnderWipe.Clear();
+        }
+
+        /// <summary>
+        /// Keep the page left drawn under <paramref name="entry"/>'s whole-screen open wipe, when there
+        /// is one: detached from the fields that would take it down at the start of the show.
+        /// </summary>
+        private void KeepPageUnderWipe(DialogEntry entry) {
+            if (_keptPanel == null || !ReferenceEquals(_keptPanel, _activePanel) || entry == null
+                || !DialogOpenWipe.ShouldPlay(entry.Flags) || !DialogOpenWipe.WipesWholeScreen(entry.DialogType)) {
+                return;
+            }
+            VisualElement stage = _activePanel.parent;
+            _pageUnderWipe.Add(_activePanel);
+            _activePanel = null;
+            if (_backdrop != null) {
+                // Renamed, so the new page's own lookups find its own parchment and vines.
+                _backdrop.name = "BakDialogBackdropUnderWipe";
+                _pageUnderWipe.Add(_backdrop);
+                _backdrop = _pageBackdrop = null;
+            }
+            VisualElement vines = stage?.Q<VisualElement>(VineLayerName);
+            if (vines != null) {
+                vines.name = VineLayerName + "UnderWipe";
+                _pageUnderWipe.Add(vines);
             }
         }
 
@@ -1051,14 +1103,7 @@ namespace BakAgain.UI {
         public UniTask<int> ShowById(int id, CancellationToken cancellationToken = default) => Playing(() => ShowByIdCore(id, cancellationToken), "ShowById " + id);
 
         public UniTask<int> ShowByIdLeavingLastPage(int id, CancellationToken cancellationToken = default) =>
-            Playing(async () => {
-                _leavePagesDrawn++;
-                try {
-                    return await ShowByIdCore(id, cancellationToken);
-                } finally {
-                    _leavePagesDrawn--;
-                }
-            }, "ShowByIdLeavingLastPage " + id);
+            Playing(() => LeavingPagesDrawn(() => ShowByIdCore(id, cancellationToken)), "ShowByIdLeavingLastPage " + id);
 
         /// <summary>
         /// Plays that leave their pages drawn (<see cref="ShowByIdLeavingLastPage"/>). Every page of
@@ -1320,6 +1365,20 @@ namespace BakAgain.UI {
 
         /// <inheritdoc/>
         public UniTask<int> ShowChoiceIndexById(int id, CancellationToken cancellationToken = default) => Playing(() => ShowChoiceIndexByIdCore(id, cancellationToken), "ShowChoiceIndexById " + id);
+
+        /// <inheritdoc/>
+        public UniTask<int> ShowChoiceIndexByIdLeavingLastPage(int id, CancellationToken cancellationToken = default) =>
+            Playing(() => LeavingPagesDrawn(() => ShowChoiceIndexByIdCore(id, cancellationToken)),
+                "ShowChoiceIndexByIdLeavingLastPage " + id);
+
+        private async UniTask<int> LeavingPagesDrawn(System.Func<UniTask<int>> play) {
+            _leavePagesDrawn++;
+            try {
+                return await play();
+            } finally {
+                _leavePagesDrawn--;
+            }
+        }
 
         private async UniTask<int> ShowChoiceIndexByIdCore(int id, CancellationToken cancellationToken = default) {
             DialogPlay play = await LoadPlayById(id);
@@ -2176,7 +2235,13 @@ namespace BakAgain.UI {
             // Tear down any previous panel before showing the new one — the
             // cutscene path can fire a clear + show in the same frame, and the
             // in-game path expects modal one-at-a-time semantics.
+            // A page left drawn stays under a full-screen page until its wipe is done (TASK-923).
+            RemovePageUnderWipe();
+            KeepPageUnderWipe(entry);
+            var underWipe = new System.Collections.Generic.List<VisualElement>(_pageUnderWipe);
+            _pageUnderWipe.Clear();
             RemovePanel(mine: null);
+            _pageUnderWipe.AddRange(underWipe);
 
             // The layer THIS call pushes, so its teardown removes its own and not a concurrent
             // show's — see RemovePanel. Declared out here so the catch below can reach it too.
@@ -2476,6 +2541,7 @@ namespace BakAgain.UI {
                         wipePanel.style.visibility = StyleKeyword.Null;
                     }
                 }
+                RemovePageUnderWipe();
 
                 // Fire-and-forget path leaves the panel up — caller disposes
                 // via ClearDialog() (or by issuing a subsequent show call).

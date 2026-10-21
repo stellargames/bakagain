@@ -431,6 +431,14 @@ namespace BakAgain.UI.InGame {
         }
 
         public async UniTask ShowAsync() {
+            // *** A SCREEN RAISED OVER A LOCATION CLOSES ONTO THE LOCATION (TASK-923). *** A location
+            // is not on the navigator's stack, so this HUD is what a raised screen's pop reveals. The
+            // original returns to the town: its refresh repaints the picture and the description
+            // under the fade (TOWNSCN.C:624-650), with no travel screen in between.
+            if (_locations?.RaisedOver is { } location) {
+                await location.RevealAsync();
+                return;
+            }
             if (_visible) {
                 return;
             }
@@ -448,6 +456,10 @@ namespace BakAgain.UI.InGame {
         }
 
         public async UniTask HideAsync() {
+            // ...and its push takes the location's description and sign down, under the transition.
+            if (_locations?.RaisedOver is { } location) {
+                location.Cover();
+            }
             if (!_visible) {
                 // *** THE FLAG GOES FALSE BEFORE THE SCREEN DOES. *** _visible is cleared below
                 // before the fade is awaited, and only the line after it deactivates the

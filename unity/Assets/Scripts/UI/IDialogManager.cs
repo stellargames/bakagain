@@ -177,5 +177,13 @@ namespace BakAgain.UI {
         /// 1 as "heal" where the flag for that option is 272.
         /// </remarks>
         UniTask<int> ShowChoiceIndexById(int id, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// <see cref="ShowChoiceIndexById"/>, leaving the last page drawn as
+        /// <see cref="ShowByIdLeavingLastPage"/> does: a service menu inside a location stays up
+        /// until what follows replaces it (TASK-923).
+        /// </summary>
+        UniTask<int> ShowChoiceIndexByIdLeavingLastPage(int id, CancellationToken cancellationToken = default) =>
+            ShowChoiceIndexById(id, cancellationToken);
     }
 }
