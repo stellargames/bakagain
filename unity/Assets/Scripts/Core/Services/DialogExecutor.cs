@@ -1431,7 +1431,7 @@ namespace BakAgain.Core.Services {
         /// <see cref="GameData.Resources.Location.PendingTeleport"/>. A destination that names a GDS
         /// scene is taken by the location loop (so a temple teleport lands INSIDE the destination
         /// temple); the world half is taken afterwards, by
-        /// <c>LocationScenePlayer.ApplyQueuedTeleportAsync</c> when a location was open and by
+        /// <c>LocationScenePlayer.ApplyTeleportAsync</c> when a location was open and by
         /// <c>GameFlow.PumpWorldLoop</c> when one was not.</para>
         /// </remarks>
         private void ApplyTeleport(TeleportAction teleport) {

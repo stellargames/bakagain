@@ -797,7 +797,7 @@ namespace BakAgain.Core.Services {
         /// The latch is what stops the every-frame seam re-entering while the scene is open: the
         /// world half is still in the slot the whole time, and taking it mid-scene would tear the
         /// world down under a location that is still drawing — the case
-        /// <c>LocationScenePlayer.ApplyQueuedTeleportAsync</c> is written to avoid.
+        /// <c>LocationScenePlayer.ApplyTeleportAsync</c> is written to avoid.
         /// </remarks>
         private async UniTask RunQueuedLocationAsync(int sceneNumber, int sceneLetter) {
             _drainingTeleport = true;

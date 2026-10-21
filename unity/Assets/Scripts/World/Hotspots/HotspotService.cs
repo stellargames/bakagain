@@ -846,12 +846,19 @@ using GameData.Resources.Scene;
                 }
 
                 await ApproachAsync(trigger);
-                await EnterLocationAsync(gdsSceneNumber);
+                // Finished as the town is left, while it is still on screen and before a teleport
+                // it queued moves the party: the post key is written as the town returns
+                // (HOTSPOT.C:643-646), and the world loop charges the step in that same pass
+                // (WORLDLP.C:191-198); the queued move waits for the NEXT pass (:94-95). Charged
+                // after the visit returned, the step landed after the teleport (TASK-906 item 3).
                 // *** NO DONE FLAG AND NO SILENCE. *** hotspotevt_action_enter_town (HOTSPOT.C:636)
                 // writes the post key, after the town, and nothing else, so the gate asks again on
                 // every step onto it. Silencing it for the tile let a party leave LaMut and walk west
                 // across its gate unasked.
-                HotspotRules.ApplyOnFire(this, trigger);
+                await EnterLocationAsync(gdsSceneNumber, () => {
+                    HotspotRules.ApplyOnFire(this, trigger);
+                    step?.Charge();
+                });
             } finally {
                 step?.Charge();
             }
@@ -861,8 +868,11 @@ using GameData.Resources.Scene;
         public void EnterLocation(int gdsSceneNumber) => EnterLocationAsync(gdsSceneNumber).Forget();
 
         /// <summary>Runs the location and returns when the party has left it.</summary>
-        private async UniTask EnterLocationAsync(int gdsSceneNumber) {
+        /// <param name="leaving">What the visit's caller finishes as the party leaves (see
+        /// <see cref="BakAgain.World.Scenes.LocationScenePlayer.RunAsync"/>).</param>
+        private async UniTask EnterLocationAsync(int gdsSceneNumber, Action leaving = null) {
             if (_locations == null) {
+                leaving?.Invoke();
                 if (_logger != null) {
                     LoggerExtensions.LogWarning(_logger,
                         "Hotspots: no location player; GDS scene {Scene} not entered.", gdsSceneNumber);
@@ -873,7 +883,7 @@ using GameData.Resources.Scene;
             if (_logger != null) {
                 LoggerExtensions.LogInformation(_logger, "Hotspots: entering GDS scene {Scene}.", gdsSceneNumber);
             }
-            await _locations.RunAsync(gdsSceneNumber, 1);
+            await _locations.RunAsync(gdsSceneNumber, 1, leaving);
         }
 
         private DefTownEntry TownRecord(TileEventTrigger trigger) =>

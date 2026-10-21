@@ -27,6 +27,18 @@ namespace BakAgain.UI.Navigation {
 
         /// <summary>Clear back to the game. Completes when nothing is covering it.</summary>
         UniTask FadeInAsync();
+
+        /// <summary>
+        /// Runs <paramref name="change"/> as a CUT: the frame now on screen stays up until the change
+        /// completes, and then the new one replaces it at once — no darkening, and no frame of the
+        /// change half done.
+        /// </summary>
+        /// <remarks>
+        /// A location's sub-scene change is the one transition that cuts (owner, 2026-10-21; the
+        /// original's <c>fadeFlag</c> is 1 only for a town's first scene, TOWNSCN.C:325/:376/:398).
+        /// The default just runs the change, which is what a fade that cannot draw does anyway.
+        /// </remarks>
+        UniTask CutAsync(System.Func<UniTask> change) => change();
     }
 
     /// <summary>

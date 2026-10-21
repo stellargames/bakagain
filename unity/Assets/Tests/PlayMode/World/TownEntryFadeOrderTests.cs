@@ -12,6 +12,7 @@ namespace BakAgain.Tests.PlayMode.World {
     using NUnit.Framework;
     using System.Collections;
     using System.Collections.Generic;
+    using System.Reflection;
     using System.Threading;
     using UnityEngine;
     using UnityEngine.TestTools;
@@ -20,7 +21,8 @@ namespace BakAgain.Tests.PlayMode.World {
 
     /// <summary>
     /// A location's description arrives with its picture, under the fade, never over the world
-    /// (TASK-904).
+    /// (TASK-904); a sub-scene cuts instead of fading, and leaving with a teleport queued charges the
+    /// step first and moves the party under the one fade (TASK-906 items 3 and 4).
     /// </summary>
     /// <remarks>
     /// The original paints the description bubble while the palette is still black and fades the
@@ -46,60 +48,185 @@ namespace BakAgain.Tests.PlayMode.World {
         }
 
         [UnityTest]
-        public IEnumerator TheDescriptionWaitsForTheFadeOutAndTheHudAndPrecedesTheFadeIn() =>
+        public IEnumerator ArrivingFadesASubSceneCutsAndLeavingFades() =>
             UniTask.ToCoroutine(async () => {
-                // A travel HUD that is on screen: the stray state TravelHudGoesDown... builds, which
-                // HideAsync takes down synchronously, so "down" is observable without waiting.
-                _hudGo = new GameObject("TravelHud");
-                _hudGo.SetActive(false);
-                InGameScreen hud = _hudGo.AddComponent<InGameScreen>();
-                _hudGo.SetActive(true);
-                _hudGo.SetActive(true);
-                Assume.That(_hudGo.activeSelf, Is.True, "the HUD starts on screen");
-
-                var builder = new VContainer.ContainerBuilder();
-                builder.RegisterInstance(hud);
-                VContainer.IObjectResolver resolver = builder.Build();
-
+                InGameScreen hud = TravelHud();
                 var fade = new RecordingFade();
                 var dialogs = new MomentRecordingDialogs(fade, _hudGo);
-                _screenGo = new GameObject("Location");
-                LocationScreen screen = _screenGo.AddComponent<LocationScreen>();
-                var session = new BakAgain.Core.GameSession();
-                screen.Construct(dialogs, null, session, null, null, null, null, null, null, null);
-
-                var cache = new TownCache();
-                var presenter = new CutscenePresenter(NullLogger<CutscenePresenter>.Instance, cache,
-                    new HoldingPlayerFactory(), null, null);
-                var player = new LocationScenePlayer(NullLogger<LocationScenePlayer>.Instance, presenter,
-                    new CanvasView(_canvasGo = new GameObject("LocationCanvas")),
-                    new GdsSceneLoader(cache, session), cache, screen, null, resolver, fade);
+                LocationScenePlayer player = Player(fade, dialogs, Resolver(hud), teleport: null);
 
                 try {
-                    // Arriving, then walking into a second sub-scene: the second show awaits the
-                    // first one's held animation, which is where a stray continuation on it throws.
-                    foreach (int sub in new[] { 1, 2 }) {
-                        fade.Events.Clear();
-                        dialogs.Moment = null;
+                    UniTask run = player.RunAsync(1, 1);
 
-                        GdsScene shown = await player.ShowAsync(1, sub);
+                    await Until(() => fade.Events.Contains("in"), "the town never faded in");
+                    Assert.That(dialogs.Moments, Is.EqualTo(new[] { "covered, hud down, before fade-in" }),
+                        "arriving: the description is painted under the fade, after the travel HUD is down "
+                        + "and before the fade-in starts, as TOWNSCN.C:378-404 does");
+                    Assert.That(fade.Events, Is.EqualTo(new[] { "out", "covered", "in" }));
 
-                        Assert.That(shown, Is.Not.Null, $"sub-scene {sub} must show for the order to mean anything");
-                        Assert.That(dialogs.Moment, Is.Not.Null, $"sub-scene {sub}: the description was never raised");
-                        Assert.That(dialogs.Moment, Is.EqualTo("covered, hud down, before fade-in"),
-                            $"sub-scene {sub}: the description must be painted under the fade, after the "
-                            + "travel HUD is down and before the fade-in starts, as TOWNSCN.C:392-404 does");
-                        Assert.That(fade.Events, Is.EqualTo(new[] { "out", "covered", "in" }));
-                    }
+                    // Into a second sub-scene. This show awaits the first one's held animation, which
+                    // is where a stray continuation on it throws (TASK-904).
+                    fade.Events.Clear();
+                    Choose(player, 2);
+                    await Until(() => dialogs.Moments.Count == 2 && fade.Events.Count >= 2,
+                        "sub-scene 2 never showed");
+                    await UniTask.Yield();
+                    Assert.That(fade.Events, Is.EqualTo(new[] { "freeze", "thaw" }),
+                        "a sub-scene CUTS: fadeFlag is 1 only for the first scene (TOWNSCN.C:325, :376, "
+                        + ":398), and the owner chose the cut for the remake on 2026-10-21");
+                    Assert.That(dialogs.Moments[1], Is.EqualTo("frozen, hud down"),
+                        "the new description is painted while the old frame is still held, so it "
+                        + "appears with its picture at the cut (TOWNSCN.C:392 then :409)");
+
+                    // Leaving still fades: TOWNSCN.C:680 raises g_nSceneReloadPending and the world
+                    // loop fades out, repaints and fades in (WORLDLP.C:102-139).
+                    fade.Events.Clear();
+                    Choose(player, 0);
+                    await run;
+                    Assert.That(fade.Events, Is.EqualTo(new[] { "out", "covered", "in" }));
                 } finally {
                     player.Hide();
                 }
             });
 
+        /// <summary>
+        /// Leaving a town with a teleport queued (TASK-906 item 3): the step is charged first, then
+        /// the party moves under the one fade that takes the town down.
+        /// </summary>
+        /// <remarks>
+        /// The town returns into the world loop's dispatch pass, which charges the step there and
+        /// then (WORLDLP.C:191-198). Only the NEXT pass sees the queued record and moves the party
+        /// (:94-95, modalscreen_pending_scene_trans), and its answer raises the one fade-out /
+        /// repaint / fade-in (:102-139), so the destination is what fades in. The port faded the
+        /// old position in, then moved, and charged the step after the move.
+        /// </remarks>
+        [UnityTest]
+        public IEnumerator LeavingWithAQueuedTeleportChargesTheStepFirstAndMovesUnderTheSameFade() =>
+            UniTask.ToCoroutine(async () => {
+                InGameScreen hud = TravelHud();
+                var flow = new RecordingFlow();
+                var fade = new RecordingFade();
+                var teleport = new GameData.Resources.Location.PendingTeleport();
+                // The location keeps its own session (its loader reads only the chapter); the step,
+                // the clock and the gate are the rig's.
+                LocationScenePlayer player = Player(fade, new MomentRecordingDialogs(fade, _hudGo),
+                    Resolver(hud, flow), teleport);
+                TownGateStepTests.Rig rig = TownGateStepTests.Build(player, () => flow);
+                flow.Rig = rig;
+                flow.Fade = fade;
+
+                try {
+                    long before = rig.Clock.Ticks;
+                    rig.Dialogs.Answer.TrySetResult(0);   // Yes, as soon as it is asked
+                    rig.Movement.MoveForward();
+                    await Until(() => fade.Events.Contains("in"), "the town never faded in");
+
+                    // TELEPORT.DAT row 19, the Krondor sewer door's (GDS2E hotspot 0, dialog 2300001).
+                    fade.Events.Clear();
+                    teleport.Queue(new GameData.Resources.Location.TeleportDestination {
+                        Location = new GameData.Resources.Location.Location {
+                            ZoneNumber = 11, X = 10, Y = 10, XOffset = 38, YOffset = 22,
+                        },
+                        Id = 19,
+                    });
+                    Choose(player, 0);
+                    await Until(() => flow.At != null && fade.Events.Contains("in"), "the party never moved");
+                    await UniTask.Yield();
+                    await UniTask.Yield();
+
+                    Assert.That(flow.At.Value.Ticks, Is.EqualTo(before + TownGateStepTests.TicksPerLargeStep),
+                        "the step is charged before the teleport moves the party (WORLDLP.C:191-198, then :94-95)");
+                    Assert.That(flow.At.Value.Covered, Is.True,
+                        "the party moves while the town's fade-out still covers the screen");
+                    Assert.That(fade.Events, Is.EqualTo(new[] { "out", "covered", "in" }),
+                        "one fade: out of the town and in on the destination (WORLDLP.C:102-139)");
+                    Assert.That(rig.Clock.Ticks, Is.EqualTo(before + TownGateStepTests.TicksPerLargeStep),
+                        "and the step is charged once");
+                } finally {
+                    player.Hide();
+                }
+            });
+
+        // A travel HUD that is on screen, which HideAsync takes down synchronously, so "down" is
+        // observable without waiting.
+        private InGameScreen TravelHud() {
+            _hudGo = new GameObject("TravelHud");
+            _hudGo.SetActive(false);
+            InGameScreen hud = _hudGo.AddComponent<InGameScreen>();
+            // Twice, as the original test did: the first activation runs the screen's own OnEnable,
+            // which takes it down again.
+            _hudGo.SetActive(true);
+            _hudGo.SetActive(true);
+            Assume.That(_hudGo.activeSelf, Is.True, "the HUD starts on screen");
+            return hud;
+        }
+
+        private static VContainer.IObjectResolver Resolver(InGameScreen hud,
+            BakAgain.Core.Services.IGameFlow flow = null) {
+            var builder = new VContainer.ContainerBuilder();
+            builder.RegisterInstance(hud);
+            if (flow != null) {
+                builder.RegisterInstance(flow).As<BakAgain.Core.Services.IGameFlow>();
+            }
+            return builder.Build();
+        }
+
+        private LocationScenePlayer Player(RecordingFade fade, BakAgain.UI.IDialogManager dialogs,
+            VContainer.IObjectResolver resolver, GameData.Resources.Location.PendingTeleport teleport) {
+            _screenGo = new GameObject("Location");
+            LocationScreen screen = _screenGo.AddComponent<LocationScreen>();
+            var session = new BakAgain.Core.GameSession();
+            screen.Construct(dialogs, null, session, null, null, null, null, null, null, null);
+
+            var cache = new TownCache();
+            var presenter = new CutscenePresenter(NullLogger<CutscenePresenter>.Instance, cache,
+                new HoldingPlayerFactory(), null, null);
+            return new LocationScenePlayer(NullLogger<LocationScenePlayer>.Instance, presenter,
+                new CanvasView(_canvasGo = new GameObject("LocationCanvas")),
+                new GdsSceneLoader(cache, session), cache, screen, teleport, resolver, fade);
+        }
+
+        /// <summary>What a hotspot's transition hands the loop (LocationScreen's bound callback).</summary>
+        private static void Choose(LocationScenePlayer player, int letter) =>
+            typeof(LocationScenePlayer)
+                .GetField("_pendingTransition", BindingFlags.NonPublic | BindingFlags.Instance)
+                .SetValue(player, (int?)letter);
+
+        private static async UniTask Until(System.Func<bool> condition, string failure) {
+            float deadline = Time.realtimeSinceStartup + 10f;
+            while (!condition()) {
+                if (Time.realtimeSinceStartup > deadline) {
+                    Assert.Fail(failure);
+                }
+                await UniTask.Yield();
+            }
+        }
+
+        /// <summary>Records the clock and the cover at the moment the party is moved.</summary>
+        private sealed class RecordingFlow : BakAgain.Core.Services.IGameFlow {
+            public TownGateStepTests.Rig Rig;
+            public RecordingFade Fade;
+            public (long Ticks, bool Covered)? At;
+
+            public UniTask<GameData.Resources.Location.ZoneTransitionKind> TransitionTo(
+                GameData.Resources.Location.Location destination) {
+                At = (Rig.Clock.Ticks, Fade.Covered);
+                return UniTask.FromResult(GameData.Resources.Location.ZoneTransitionKind.ChangeZone);
+            }
+
+            public UniTask<bool> LoadSave(string path) => UniTask.FromResult(false);
+            public UniTask Boot() => UniTask.CompletedTask;
+            public UniTask ShowMainMenu() => UniTask.CompletedTask;
+            public UniTask StartNewGame(bool playChapterScenes = true) => UniTask.CompletedTask;
+            public UniTask GoToChapter(int chapter) => UniTask.CompletedTask;
+            public UniTask EnterWorld() => UniTask.CompletedTask;
+        }
+
         /// <summary>A fade that takes a few frames to cover, as the real one does.</summary>
         private sealed class RecordingFade : IScreenFade {
             public readonly List<string> Events = new();
             public bool Covered;
+            public bool Frozen;
 
             public async UniTask FadeOutAsync() {
                 Events.Add("out");
@@ -114,9 +241,20 @@ namespace BakAgain.Tests.PlayMode.World {
                 Events.Add("in");
                 return UniTask.CompletedTask;
             }
+
+            public async UniTask CutAsync(System.Func<UniTask> change) {
+                Events.Add("freeze");
+                Frozen = true;
+                try {
+                    await change();
+                } finally {
+                    Frozen = false;
+                    Events.Add("thaw");
+                }
+            }
         }
 
-        /// <summary>Records the screen's state at the moment the description is asked for.</summary>
+        /// <summary>Records the screen's state each time the description is asked for.</summary>
         private sealed class MomentRecordingDialogs : EndChapterHotspotTests.ClearCountingDialogs {
             private readonly RecordingFade _fade;
             private readonly GameObject _hud;
@@ -126,14 +264,16 @@ namespace BakAgain.Tests.PlayMode.World {
                 _hud = hud;
             }
 
-            public string Moment { get; set; }
+            public readonly List<string> Moments = new();
 
             public override UniTask<GameData.Resources.Dialog.DialogPlay> ResolveById(int id,
                 CancellationToken cancellationToken = default) {
                 if (id == DescriptionId) {
-                    Moment = (_fade.Covered ? "covered" : "NOT covered")
-                        + (_hud.activeSelf ? ", HUD UP" : ", hud down")
-                        + (_fade.Events.Contains("in") ? ", AFTER fade-in" : ", before fade-in");
+                    string hud = _hud.activeSelf ? ", HUD UP" : ", hud down";
+                    Moments.Add(_fade.Frozen
+                        ? "frozen" + hud
+                        : (_fade.Covered ? "covered" : "NOT covered") + hud
+                            + (_fade.Events.Contains("in") ? ", AFTER fade-in" : ", before fade-in"));
                 }
                 return UniTask.FromResult<GameData.Resources.Dialog.DialogPlay>(null);
             }

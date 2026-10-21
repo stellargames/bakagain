@@ -59,6 +59,43 @@ namespace BakAgain.UI.Navigation {
         public UniTask FadeInAsync() => RampAsync(0f);
 
         /// <summary>
+        /// A cut: a still of the frame now on screen covers everything while <paramref name="change"/>
+        /// builds the next one, and is dropped in a single frame when it is done.
+        /// </summary>
+        /// <remarks>
+        /// The still is what makes it a cut rather than a sequence of half-built frames — a location's
+        /// sub-scene tears its picture down, starts the next animation, builds the hotspots and paints
+        /// the description over several frames. Read back at the end of the frame into an sRGB, alpha-
+        /// less texture, as <c>BookPageCurl.CaptureAsync</c> does: the screen holds sRGB values, and
+        /// <c>ScreenCapture.CaptureScreenshotAsTexture</c>'s texture was drawn visibly washed out.
+        /// </remarks>
+        public async UniTask CutAsync(System.Func<UniTask> change) {
+            _session.ThrowIfCancellationRequested();
+            VisualElement cover = Cover();
+            Texture2D still = null;
+            if (cover != null) {
+                await Awaitable.EndOfFrameAsync();
+                still = new Texture2D(Screen.width, Screen.height, TextureFormat.RGB24, mipChain: false, linear: false);
+                still.ReadPixels(new Rect(0, 0, Screen.width, Screen.height), 0, 0, recalculateMipMaps: false);
+                still.Apply(false);
+                cover.style.backgroundImage = Background.FromTexture2D(still);
+                cover.style.backgroundSize = new BackgroundSize(Length.Percent(100), Length.Percent(100));
+                cover.style.opacity = 1f;
+                cover.style.display = DisplayStyle.Flex;
+            }
+            try {
+                await change();
+            } finally {
+                if (cover != null) {
+                    cover.style.backgroundImage = StyleKeyword.None;
+                    cover.style.opacity = _opacity;
+                    cover.style.display = _opacity <= 0f ? DisplayStyle.None : DisplayStyle.Flex;
+                    Object.Destroy(still);
+                }
+            }
+        }
+
+        /// <summary>
         /// Ramps to <paramref name="to"/> from wherever the cover currently is.
         /// </summary>
         /// <remarks>

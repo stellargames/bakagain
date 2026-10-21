@@ -30,11 +30,11 @@ namespace BakAgain.Tests.PlayMode.World {
     public class TownGateStepTests {
         private const int Cell = RoadTravel.CellSize;
         private const short East = unchecked((short)0xC000);
-        private const long TicksPerLargeStep = 240 / 2;
+        internal const long TicksPerLargeStep = 240 / 2;
 
         private static int C(int cell) => (cell * Cell) + RoadTravel.HalfCell;
 
-        private sealed class HeldAnswer : NoOpDialogs {
+        internal sealed class HeldAnswer : NoOpDialogs {
             public readonly UniTaskCompletionSource<int> Answer = new();
             public int Asked;
 
@@ -44,7 +44,7 @@ namespace BakAgain.Tests.PlayMode.World {
             }
         }
 
-        private sealed class Rig {
+        internal sealed class Rig {
             public GameSession Session;
             public GameClock Clock;
             public PartyMovement Movement;
@@ -56,7 +56,10 @@ namespace BakAgain.Tests.PlayMode.World {
 
         // LaMut as shipped: the gate is the column x 14 (T011014), the record starts the walk on
         // (16,20) heading west (DEF_TOWN 0: offset 0x1410, heading 0x4000). Road runs 16..12 on row 20.
-        private static Rig Build() {
+        // TownEntryFadeOrderTests adds a real location player and a flow, for the visit and what
+        // leaving it does (TASK-906 item 3).
+        internal static Rig Build(BakAgain.World.Scenes.LocationScenePlayer locations = null,
+            System.Func<IGameFlow> flow = null) {
             var rig = new Rig {
                 Session = new GameSession { PositionX = C(13), PositionY = C(20), Rotation = East, MapCameraZ = 50000 },
                 Dialogs = new HeldAnswer(),
@@ -69,6 +72,7 @@ namespace BakAgain.Tests.PlayMode.World {
             var prefs = new FakePreferencesService();
             prefs.Current.StepSize = StepSize.Large;
             rig.Hotspots = new HotspotService(null, null, rig.Session, rig.Dialogs,
+                locations: locations, flowAccessor: flow,
                 movementAccessor: () => rig.Movement,
                 showApproach: path => {
                     rig.Walked = path;
