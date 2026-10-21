@@ -110,8 +110,13 @@ namespace BakAgain.UI {
             }
             Game = IsBookFont ? _alegreya : _gameFntAsset;
             _bookFont = Addressables.LoadAssetAsync<FontResource>("BOOK.FNT").WaitForCompletion();
-            _bookFntAsset ??= TMP_FontAsset.CreateFontAsset(TrueType(dir, _bookFont, "Book"), 90, 9,
-                GlyphRenderMode.SDFAA, 1024, 1024, TMPro.AtlasPopulationMode.Dynamic, true);
+            // `== null`, never `??=`: leaving Play destroys these assets while the statics live on into
+            // a session entered without a domain reload (the PlayMode test runner's), and only
+            // UnityEngine.Object's == sees a destroyed one (TASK-918).
+            if (_bookFntAsset == null) {
+                _bookFntAsset = TMP_FontAsset.CreateFontAsset(TrueType(dir, _bookFont, "Book"), 90, 9,
+                    GlyphRenderMode.SDFAA, 1024, 1024, TMPro.AtlasPopulationMode.Dynamic, true);
+            }
             if (bookFont && _bookHand == null) {
                 // Synchronous like GAME.FNT above: the fonts are built at boot (Install), outside any
                 // load's Completed callback, where WaitForCompletion would throw.
@@ -119,12 +124,14 @@ namespace BakAgain.UI {
                 if (hand != null) {
                     _bookHand = TMP_FontAsset.CreateFontAsset(hand, 90, 9, GlyphRenderMode.SDFAA, 1024, 1024,
                         TMPro.AtlasPopulationMode.Dynamic, true);
-                    _bookHand.fallbackFontAssetTable = new System.Collections.Generic.List<TMP_FontAsset> { _bookFntAsset };
                 }
             }
             // A missing bundled font is a broken build, not a reason to draw nothing: BOOK.FNT then.
-            Book = bookFont && _bookHand != null ? _bookHand : _bookFntAsset;
-            if (Book == _bookHand) {
+            bool bookHand = bookFont && _bookHand != null;
+            Book = bookHand ? _bookHand : _bookFntAsset;
+            if (bookHand) {
+                // Set each time: BOOK.FNT's asset may have been made again since Book Hand was.
+                _bookHand.fallbackFontAssetTable = new System.Collections.Generic.List<TMP_FontAsset> { _bookFntAsset };
                 FollowBookFntWidths(_bookHand, _bookFont);
             }
         }

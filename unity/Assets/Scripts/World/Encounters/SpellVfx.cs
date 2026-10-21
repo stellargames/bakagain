@@ -769,8 +769,9 @@ namespace BakAgain.World.Encounters {
             _mesh.bounds = bounds;
         }
 
-        public static Material DotMaterial => s_dot ??= Make(RadialTexture(), billboard: true);
-        public static Material LineMaterial => s_line ??= Make(LineTexture(), billboard: false);
+        // `!= null`, not `??=`: only UnityEngine.Object's == sees one destroyed by leaving Play (TASK-918).
+        public static Material DotMaterial => s_dot != null ? s_dot : s_dot = Make(RadialTexture(), billboard: true);
+        public static Material LineMaterial => s_line != null ? s_line : s_line = Make(LineTexture(), billboard: false);
 
         /// <summary>The dot, alpha-blended instead of added, so a dark pen darkens the ground.</summary>
         public static Material ShadowMaterial {

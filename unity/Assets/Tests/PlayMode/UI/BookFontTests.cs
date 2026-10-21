@@ -67,6 +67,28 @@ namespace BakAgain.Tests.PlayMode.UI {
         }
 
         /// <summary>
+        /// Leaving Play destroys what the session made, but the statics survive into the next one
+        /// when it starts without a domain reload (the MCP test runner's PlayMode runs, or Enter Play
+        /// Mode options): a destroyed BOOK.FNT asset is built again, and Book Hand falls back to the
+        /// new one (TASK-918).
+        /// </summary>
+        [Test]
+        public void ADestroyedBookFntAsset_IsBuiltAgain() {
+            GameFonts.Build(bookFont: false);
+            TMPro.TMP_FontAsset stale = GameFonts.Book;
+            Object.DestroyImmediate(stale.sourceFontFile);
+            Object.DestroyImmediate(stale);
+
+            GameFonts.Build(bookFont: false);
+            Assert.IsTrue(GameFonts.Book != null, "BOOK.FNT's asset is built again");
+            Assert.AreNotEqual("BookHand-Regular", GameFonts.Book.sourceFontFile.name);
+
+            GameFonts.Build(bookFont: true);
+            Assert.IsTrue(GameFonts.Book.fallbackFontAssetTable.TrueForAll(f => f != null),
+                "Book Hand falls back to the live BOOK.FNT asset, not the destroyed one");
+        }
+
+        /// <summary>
         /// A language pack's own BOOK font can redraw a letter at its own width (the German pack's ß
         /// is 8 columns, Book Hand's 10). The wrap measures the merged font, so Book Hand follows it.
         /// </summary>

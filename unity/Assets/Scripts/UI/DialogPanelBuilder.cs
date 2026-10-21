@@ -79,8 +79,10 @@ namespace BakAgain.UI {
         private static Texture2D _panelTile;
         private static bool _panelTileLoaded;
 
-        private static Texture2D GetPanelTile() {
-            if (!_panelTileLoaded) {
+        internal static Texture2D GetPanelTile() {
+            // Baked again once leaving Play has destroyed it (TASK-918): a destroyed texture is == null
+            // while the reference itself is not.
+            if (!_panelTileLoaded || (_panelTile is not null && _panelTile == null)) {
                 _panelTileLoaded = true;
                 Color[] scx = ScxTileBaker.LoadPixels("OPTIONS0.SCX", "OPTIONS.PAL");
                 if (scx != null) {
