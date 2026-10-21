@@ -249,7 +249,7 @@ namespace BakAgain.ResourceManagement {
 
         private static void LoadSprite(ProvideHandle provideHandle) {
             Texture2D texture = LoadTextureInternal(provideHandle);
-            var sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
+            var sprite = texture != null ? Converters.SpriteUnityConverter.CreateSprite(texture) : null;
 
             provideHandle.Complete(sprite, sprite != null, sprite != null ? null : new Exception($"Sprite failed to load for location {provideHandle.Location.PrimaryKey}."));
         }

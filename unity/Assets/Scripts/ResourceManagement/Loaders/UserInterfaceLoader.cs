@@ -898,10 +898,6 @@ namespace BakAgain.ResourceManagement.Loaders {
             root.AddToClassList("colorset-" + (int)_userInterface.Colorset);
             int canvasWidth = _userInterface.Width;
 
-            // The menus use the default POINTER set; the world/combat/location screens swap to
-            // POINTERG. Set it once per build so hover SetByIndex calls index the right set.
-            _cursorManager?.SelectSet(string.IsNullOrWhiteSpace(cursorSet) ? "POINTER" : cursorSet);
-
             foreach (UiElement menuEntry in _userInterface.MenuEntries) {
                 switch (menuEntry.ElementType) {
                     case ElementType.TextButton:
@@ -1057,8 +1053,18 @@ namespace BakAgain.ResourceManagement.Loaders {
                 return;
             }
             int cursor = menuEntry.Cursor;
-            element.RegisterCallback<PointerEnterEvent>(_ => _cursorManager.SetByIndex(cursor));
+            element.RegisterCallback<PointerEnterEvent>(_ => ShowHoverCursor(cursor));
             element.RegisterCallback<PointerLeaveEvent>(_ => _cursorManager.SetByIndex(-1));
+        }
+
+        // The menus use the default POINTER set; the world/combat/location screens use POINTERG. The
+        // active set is one global, so select this screen's set on every hover rather than once per
+        // build: a build of another screen (the travel HUD behind a town) would otherwise leave the
+        // town's hovers indexing POINTER, which has 3 images (TASK-908). Leaving goes to index 0, the
+        // arrow in both sets.
+        private void ShowHoverCursor(int cursor) {
+            _cursorManager.SelectSet(string.IsNullOrWhiteSpace(cursorSet) ? "POINTER" : cursorSet);
+            _cursorManager.SetByIndex(cursor);
         }
 
         // Render an ImageButton: its BICONS icon plus click wiring. In the original an

@@ -23,8 +23,15 @@ namespace BakAgain.ResourceManagement.Converters {
             bool isSubImage = image is BmImage;
             Texture2D texture = ConvertToTexture(image, colors, transparentIndex0: isSubImage);
 
-            return Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
+            return CreateSprite(texture);
         }
+
+        // FullRect, not Sprite.Create's default Tight: UI Toolkit draws a sprite through its mesh, and a
+        // tight mesh traced around pixel art leaves thin strokes outside it. The town's "Exit" cursor
+        // lost the lower right of its "t" that way (TASK-908). FontGlyphConverter does the same.
+        internal static Sprite CreateSprite(Texture2D texture) =>
+            Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f),
+                pixelsPerUnit: 100f, extrude: 0, meshType: SpriteMeshType.FullRect);
 
         // Extract the sub-image index from a resource id like "BICONS1.BMX#66" or "BICONS1.BMX[66]".
         // Returns -1 when there is no sub-resource suffix (the whole image).
