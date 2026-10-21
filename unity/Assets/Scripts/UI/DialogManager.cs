@@ -2986,11 +2986,18 @@ namespace BakAgain.UI {
                 scrim.CapturePointer(evt.pointerId);
             }
 
+            // *** ONLY THE RELEASE OF A PRESS MADE ON THIS PAGE (TASK-919). *** A click reaches a
+            // narrative twice, as the adapter's Skip and as this release, and the release can be
+            // dispatched after the Skip has already turned the page: it closed the next page with
+            // no click of its own. The original waits for every button to be up before it reads a
+            // press (DIALOG.C:223, dialog_input_wait_release), so one click turns one page.
             void OnPointerUp(PointerUpEvent evt) {
                 if (scrim.HasPointerCapture(evt.pointerId)) {
                     scrim.ReleasePointer(evt.pointerId);
                 }
-                pointerDismissed = true;
+                if (capturedPointer == evt.pointerId) {
+                    pointerDismissed = true;
+                }
             }
 
             scrim.RegisterCallback<PointerDownEvent>(OnPointerDown);
