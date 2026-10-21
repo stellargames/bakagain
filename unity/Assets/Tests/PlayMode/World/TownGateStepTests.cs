@@ -146,7 +146,7 @@ namespace BakAgain.Tests.PlayMode.World {
 
         private const long TownApproachMapHeight = 0x1b968;
 
-        private static ZoneTableEntry Entry(int kind, int half) {
+        internal static ZoneTableEntry Entry(int kind, int half) {
             var region = new GidRegion();
             region.Subedges.Add(new GidSubedge { Dx = 0, Dy = 125, AnchorX = (short)-half, AnchorY = (short)half });
             region.Subedges.Add(new GidSubedge { Dx = 125, Dy = 0, AnchorX = (short)half, AnchorY = (short)half });
@@ -160,7 +160,7 @@ namespace BakAgain.Tests.PlayMode.World {
             return entry;
         }
 
-        private static FilterData AlwaysDraw() {
+        internal static FilterData AlwaysDraw() {
             var filter = new FilterData("FILTER.DAT");
             for (int level = 0; level < FilterData.DetailLevelCount; level++) {
                 var block = new DetailLevelFilter { Level = level };

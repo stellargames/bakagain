@@ -431,7 +431,8 @@ using GameData.Resources.Scene;
             GameData.Resources.Config.StartData start = null,
             bool underground = false,
             DefFamilyFile<DefTrapEntry> trap = null,
-            DefFamilyFile<DefTownEntry> town = null) {
+            DefFamilyFile<DefTownEntry> town = null,
+            DefFamilyFile<DefZoneEntry> zoneDef = null) {
             _zone = zoneNumber;
             _byChunk.Clear();
             if (byChunk != null) {
@@ -448,6 +449,7 @@ using GameData.Resources.Scene;
             _underground = underground;
             _trap = trap;
             _town = town;
+            _zoneDef = zoneDef;
             _lastChunk = null;
         }
 
@@ -757,29 +759,43 @@ using GameData.Resources.Scene;
                 return;
             }
 
-            // The confirm path, not the plain one: this is the only hotspot that needs a dialog's
-            // ANSWER. Its true is the original's `result == 0`, the same polarity the boundary wants.
-            bool accepted = await _dialogs.ShowConfirmById((int)record.DialogId1);
-            if (!GameData.Resources.World.ZoneTriggerRules.CrossesAfterPrompt(record.DialogId1, accepted)) {
-                return;
-            }
-
-            if (GameData.Resources.World.ZoneTriggerRules.AnnouncesArrival(record.DialogId2)) {
-                // A statement, not a question — the original discards its result too.
-                await _dialogs.ShowById((int)record.DialogId2);
-            }
-
-            Core.Services.IGameFlow flow = _flowAccessor?.Invoke();
-            if (flow != null) {
-                await flow.TransitionTo(record.Location);
-            }
-
-            HotspotRules.ApplyOnFire(this, trigger);
-            if (trigger.Repeatable == 0) {
-                if (trigger.FireOnce != 0) {
-                    WriteGlobal(DoneFlagKey(hotspotIndex), 1);
+            // *** ASKED FROM THE BORDER, CHARGED AFTER THE CROSSING. *** Same shape as the town gate
+            // (EnterTownAsync): hotspotevt_action_try_enter_zone asks inside the activate pass with the
+            // party on the border cell (HOTSPOT.C:839-860), the step is put back once that returns
+            // (WORLDMOV.C:126-135), the crossing runs from the dispatch pass (HOTSPOT.C:192) and the
+            // step's time is charged after it, in the zone the party is then in (WORLDLP.C:190-198).
+            // Charged at once, the step's hour raised "Locklear yawned" over the prompt and knocked
+            // it away (TASK-910).
+            BakAgain.World.PartyMovement.HeldStep step = _movementAccessor?.Invoke()?.HoldStep();
+            try {
+                // The confirm path, not the plain one: the prompt's ANSWER is needed. Its true is the
+                // original's `result == 0`, the same polarity the boundary wants.
+                bool accepted = await _dialogs.ShowConfirmById((int)record.DialogId1);
+                step?.RollBack();
+                if (!GameData.Resources.World.ZoneTriggerRules.CrossesAfterPrompt(record.DialogId1, accepted)) {
+                    return;
                 }
-                MarkActedThisChunk(hotspotIndex);
+
+                if (GameData.Resources.World.ZoneTriggerRules.AnnouncesArrival(record.DialogId2)) {
+                    // A statement, not a question — the original discards its result too.
+                    await _dialogs.ShowById((int)record.DialogId2);
+                }
+
+                Core.Services.IGameFlow flow = _flowAccessor?.Invoke();
+                if (flow != null) {
+                    await flow.TransitionTo(record.Location);
+                }
+
+                HotspotRules.ApplyOnFire(this, trigger);
+                if (trigger.Repeatable == 0) {
+                    if (trigger.FireOnce != 0) {
+                        WriteGlobal(DoneFlagKey(hotspotIndex), 1);
+                    }
+                    MarkActedThisChunk(hotspotIndex);
+                }
+            } finally {
+                // A crossing to another zone has built a new movement; the step is charged there.
+                step?.Charge(_movementAccessor?.Invoke());
             }
         }
 

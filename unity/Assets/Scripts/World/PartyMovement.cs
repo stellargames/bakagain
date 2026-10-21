@@ -270,15 +270,15 @@ namespace BakAgain.World {
         /// is asked with the party on the gate. The step's time is charged by the world loop after the
         /// dispatch pass, i.e. after the town (WORLDLP.C:190-198). Our pass cannot block, so the gate
         /// takes the step and finishes it: <see cref="RollBack"/> after the answer, <see cref="Charge"/>
-        /// after the visit. Each runs once.
+        /// after the visit. Each runs once. A zone border does the same around its crossing (TASK-910).
         /// </remarks>
         public sealed class HeldStep {
             private Action _rollBack;
-            private Action _charge;
+            private PartyMovement _owner;
 
-            internal HeldStep(Action rollBack, Action charge) {
+            internal HeldStep(Action rollBack, PartyMovement owner) {
                 _rollBack = rollBack;
-                _charge = charge;
+                _owner = owner;
             }
 
             /// <summary>Puts the party back where it stepped from.</summary>
@@ -289,11 +289,16 @@ namespace BakAgain.World {
             }
 
             /// <summary>Charges the step's time, rolling it back first if that has not happened.</summary>
-            public void Charge() {
+            /// <param name="chargedIn">The movement of the zone the party is in now, when a zone crossing
+            /// has replaced the one that took the step: the world loop charges at the rate of the zone
+            /// it is then in, quartered underground (WORLDLP.C:192-197, after the crossing).</param>
+            public void Charge(PartyMovement chargedIn = null) {
                 RollBack();
-                Action a = _charge;
-                _charge = null;
-                a?.Invoke();
+                PartyMovement owner = _owner;
+                _owner = null;
+                if (owner != null) {
+                    (chargedIn ?? owner).AdvanceClockForStep(stepStands: false);
+                }
             }
         }
 
@@ -310,7 +315,7 @@ namespace BakAgain.World {
                 return null;
             }
             _stepHeld = true;
-            return new HeldStep(_stepRollBack, () => AdvanceClockForStep(stepStands: false));
+            return new HeldStep(_stepRollBack, this);
         }
 
         /// <summary>
