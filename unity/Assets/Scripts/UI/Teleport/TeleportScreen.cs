@@ -63,13 +63,14 @@ namespace BakAgain.UI.Teleport {
         /// <param name="currentTemple">The temple the party is standing in, 1-12.</param>
         /// <param name="baseCost">Its flat charge, from the location's shop block.</param>
         /// <param name="costPerUnit">Its charge per unit of map distance.</param>
-        /// <returns>The <c>TELEPORT.DAT</c> row the party should be moved to, or -1 for no move.</returns>
+        /// <returns>The <c>TELEPORT.DAT</c> row the party should be moved to, or -1 for no move.
+        /// Once the map has been shown it is still pushed on return, with the outcome's page drawn
+        /// over it: the caller pops it (see the outcome note in the body).</returns>
         /// <remarks>
-        /// <b>The order of the last three steps is the original's and is load-bearing.</b> The spark
-        /// flies while the screen is still up, the screen comes down, and only then is the purse
-        /// checked — so a party that cannot afford the fare watches nothing, loses nothing, and hears
-        /// its apology after the map has gone. Checking the purse up front would be tidier and would
-        /// change what the player sees.
+        /// <b>The order of the last steps is the original's and is load-bearing.</b> The spark flies
+        /// while the map is still up, and only then is the purse checked — so a party that cannot
+        /// afford the fare watches nothing, loses nothing, and hears its apology once the map is
+        /// done. Checking the purse up front would be tidier and would change what the player sees.
         /// </remarks>
         public async UniTask<int> RunAsync(int currentTemple, int baseCost, int costPerUnit) {
             _currentTemple = currentTemple;
@@ -108,23 +109,28 @@ namespace BakAgain.UI.Teleport {
                 await FlyAsync(_currentTemple, temple);
             }
 
-            await _navigator.Pop();
-
+            // *** THE OUTCOME IS SAID OVER THE MAP'S END, AND ITS PAGE STAYS (TASK-917). ***
+            // MODALSCR.C:346-367 ends the menu page, clears the screen and plays the outcome with
+            // dialog_play_record(.., 0) inside the scene, which does not clear it on close
+            // (DIALOG.C:1492-1500): the page stays until the next present, the destination temple's
+            // or the location's refresh. So the screen is NOT popped here — the caller takes it down
+            // under a cut, because a location must get the HUD the pop reveals down before it
+            // queues anything (LocationScreen.RunTeleportAsync).
             if (temple <= 0) {
-                await Say(TeleportMenu.DeclinedDialog);
+                await SayKeepingThePage(TeleportMenu.DeclinedDialog);
 
                 return -1;
             }
 
             if (!affordable) {
-                await Say(TeleportMenu.CannotAffordDialog);
+                await SayKeepingThePage(TeleportMenu.CannotAffordDialog);
 
                 return -1;
             }
 
             // The full royal fare, not the sovereign figure the quote rounded down to.
             _session.PartyGold -= (int)fare;
-            await Say(TeleportMenu.ArrivalDialog);
+            await SayKeepingThePage(TeleportMenu.ArrivalDialog);
 
             return TeleportMenu.DestinationIdForTemple(temple);
         }
@@ -138,6 +144,9 @@ namespace BakAgain.UI.Teleport {
 
         private UniTask Say(int dialogId) =>
             _dialogs == null ? UniTask.CompletedTask : _dialogs.ShowById(dialogId);
+
+        private UniTask SayKeepingThePage(int dialogId) =>
+            _dialogs == null ? UniTask.CompletedTask : _dialogs.ShowByIdLeavingLastPage(dialogId);
 
         // ---- the fare --------------------------------------------------------------------
 

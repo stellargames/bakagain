@@ -126,8 +126,15 @@ namespace BakAgain.World.Scenes {
         /// </remarks>
         public void Abandon() {
             _generation++;
+            IsOpen = false;
             Hide();
         }
+
+        /// <summary>
+        /// Whether a location loop is running, its leaving fade and move included — while it is, the
+        /// world loop does not run (GameFlow's pump checks this).
+        /// </summary>
+        public bool IsOpen { get; private set; }
 
         /// <param name="leaving">Run once the player has left, while the location is still on screen
         /// and before any queued teleport: what the world loop's dispatch pass does after the town
@@ -148,6 +155,7 @@ namespace BakAgain.World.Scenes {
             // The screen had already drawn GDS1A, which is what made it read as a wrong-destination
             // bug rather than as a leak.
             int generation = ++_generation;
+            IsOpen = true;
 
             // *** A LOCATION PLAYS ITS OWN SONG AND HANDS THE WORLD'S BACK ON THE WAY OUT. ***
             // GDS_RunScene queries the playing track on entry (TOWNSCN.C:329), plays each sub-scene's
@@ -215,6 +223,7 @@ namespace BakAgain.World.Scenes {
                         }
                     } finally {
                         await Fade.FadeInAsync();
+                        IsOpen = false;
                     }
                 }
             }

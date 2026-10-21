@@ -12,6 +12,7 @@ namespace BakAgain.Tests.PlayMode.World {
     using NUnit.Framework;
     using System.Collections;
     using System.Collections.Generic;
+    using System.Linq;
     using System.Reflection;
     using System.Threading;
     using UnityEngine;
@@ -45,7 +46,7 @@ namespace BakAgain.Tests.PlayMode.World {
 
         [TearDown]
         public void TearDown() {
-            foreach (GameObject go in new[] { _hudGo, _screenGo, _canvasGo, _dialogGo }) {
+            foreach (GameObject go in new[] { _hudGo, _screenGo, _canvasGo, _dialogGo, _teleportGo }) {
                 if (go != null) { Object.DestroyImmediate(go); }
             }
             if (_panelSettings != null) { Object.DestroyImmediate(_panelSettings); }
@@ -223,6 +224,191 @@ namespace BakAgain.Tests.PlayMode.World {
                 }
             });
 
+        /// <summary>
+        /// A temple teleport: the arrival page stays drawn until the destination temple is presented,
+        /// and the travel HUD the map's pop reveals is down before the destination is queued
+        /// (TASK-917).
+        /// </summary>
+        /// <remarks>
+        /// <c>modalscreen_teleport_spell_run</c> ends the map (MODALSCR.C:346-353) and plays 0x13d660
+        /// = 1300064 inside the scene (:361), which is not cleared when it closes; the destination
+        /// temple is then presented in one change (TOWNSCN.C:576-581 sets the next scene, :409).
+        /// Measured at Malac's Cross (GDS3C) to the Temple of Ishap on t917: the page stays until the
+        /// temple, picture and description, replaces it. The port popped the map first, which put
+        /// the travel HUD back over the location; the HUD's world-loop pump then drained the queued
+        /// move while the destination temple was loading (zone rebuilt, the HUD left over the
+        /// temple's description).
+        /// </remarks>
+        [UnityTest]
+        [BakAgain.Tests.TestSupport.RequiresShippedGameData]
+        public IEnumerator ATempleTeleportKeepsTheArrivalPageAndNeverRaisesTheHud() =>
+            UniTask.ToCoroutine(async () => {
+                InGameScreen hud = TravelHud();
+                var fade = new RecordingFade();
+                BakAgain.UI.DialogManager dialogs = RealDialogs();
+                var teleport = new GameData.Resources.Location.PendingTeleport();
+                var navigator = new HudRevealingNavigator(_hudGo);
+                BakAgain.Core.GameSession session = TempleSession(currentTemple: 5, visited: 2);
+                var mapGo = new GameObject("TeleportScreen");
+                _teleportGo = mapGo;
+                var map = mapGo.AddComponent<BakAgain.UI.Teleport.TeleportScreen>();
+                map.Construct(new TownCache(), navigator, dialogs, session);
+                LocationScenePlayer player = Player(fade, dialogs, Resolver(hud, fade: fade), teleport,
+                    session: session, teleportScreen: map, navigator: navigator);
+                LocationScreen screen = _screenGo.GetComponent<LocationScreen>();
+
+                try {
+                    UniTask run = player.RunAsync(1, 1);
+                    await Until(() => fade.Events.Contains("in"), "the town never faded in");
+                    _hudGo.SetActive(false);   // the location took the HUD down on the way in
+
+                    bool? hudUpAtQueue = null;
+                    VisualElement arrival = null;
+                    int thawsAtQueue = 0;
+                    screen.Bind(new GdsScene(GdsSceneLoader.ResourceName(1, 1)) {
+                        Hotspots = new[] { new GdsHotspot { ActionCode = 11 } },
+                    }, 1, 1, letter => {
+                        hudUpAtQueue = _hudGo.activeSelf;
+                        arrival = ActivePanel(dialogs);
+                        thawsAtQueue = fade.Events.Count(e => e == "thaw");
+                        Choose(player, letter);
+                    });
+                    VisualElement atFreeze = null;
+                    bool drawnAtFreeze = false;
+                    fade.OnFreeze = () => {
+                        if (hudUpAtQueue != null) {   // the destination's cut, not the map's
+                            atFreeze = ActivePanel(dialogs);
+                            drawnAtFreeze = atFreeze?.panel != null;
+                        }
+                    };
+                    fade.Events.Clear();
+
+                    screen.PrimaryAction(GdsSceneRules.HotspotActionIdBase);
+                    await Until(() => navigator.Pushed != null, "the map never opened");
+                    map.PrimaryAction(GameData.Resources.Location.TeleportMenu.ActionIdForTemple(2));
+                    await Until(() => hudUpAtQueue != null, "the destination was never queued");
+                    await Until(() => fade.Events.Count(e => e == "thaw") > thawsAtQueue,
+                        "the destination temple never showed");
+
+                    Assert.That(hudUpAtQueue, Is.False,
+                        "the HUD the map's pop revealed is down before the destination is queued: "
+                        + "while it is up its world-loop pump drains the move mid-location");
+                    Assert.That(arrival, Is.Not.Null,
+                        "the arrival page is still drawn when the destination is queued "
+                        + "(MODALSCR.C:361, in the scene, not cleared on close)");
+                    Assert.That(atFreeze, Is.SameAs(arrival),
+                        "and it is what the destination's cut holds as its still");
+                    Assert.That(drawnAtFreeze, Is.True, "drawn, not a panel already taken down");
+                    Assert.That(arrival.panel, Is.Null, "the destination temple replaces it at the cut");
+                    Assert.That(teleport.HasAnything, Is.True,
+                        "the world half waits for the loop's exit; nothing drained it");
+                } finally {
+                    player.Hide();
+                }
+            });
+
+        private GameObject _teleportGo;
+
+        /// <summary>
+        /// A declined temple teleport puts the location back, description included, in the one cut
+        /// that takes the map's last page down, and draws the description once (TASK-917).
+        /// </summary>
+        /// <remarks>
+        /// MODALSCR.C:364-366 plays 0x13d661 = 1300065 inside the scene and returns 0, so the
+        /// code-11 arm sets needRefresh (TOWNSCN.C:584) and the refresh paints the idle picture and
+        /// the description and presents them together, with no fade (:612-633). Driven in the Temple
+        /// of Silban: the port put the location back under the cut and then redrew the description
+        /// a second time, which wiped its text in again over the bare picture.
+        /// </remarks>
+        [UnityTest]
+        [BakAgain.Tests.TestSupport.RequiresShippedGameData]
+        public IEnumerator ADeclinedTempleTeleportPutsTheLocationBackOnceAtTheCut() =>
+            UniTask.ToCoroutine(async () => {
+                InGameScreen hud = TravelHud();
+                var fade = new RecordingFade();
+                var dialogs = new MomentRecordingDialogs(fade, _hudGo);
+                var navigator = new HudRevealingNavigator(_hudGo);
+                BakAgain.Core.GameSession session = TempleSession(currentTemple: 5, visited: 2);
+                _teleportGo = new GameObject("TeleportScreen");
+                var map = _teleportGo.AddComponent<BakAgain.UI.Teleport.TeleportScreen>();
+                map.Construct(new TownCache(), navigator, dialogs, session);
+                LocationScenePlayer player = Player(fade, dialogs, Resolver(hud, fade: fade),
+                    new GameData.Resources.Location.PendingTeleport(), session: session,
+                    teleportScreen: map, navigator: navigator);
+                LocationScreen screen = _screenGo.GetComponent<LocationScreen>();
+
+                try {
+                    UniTask run = player.RunAsync(1, 1);
+                    await Until(() => fade.Events.Contains("in"), "the town never faded in");
+                    _hudGo.SetActive(false);
+                    screen.Bind(new GdsScene(GdsSceneLoader.ResourceName(1, 1)) {
+                        SceneDialogId = DescriptionId,
+                        Hotspots = new[] { new GdsHotspot { ActionCode = 11 } },
+                    }, 1, 1, letter => Choose(player, letter));
+                    fade.Events.Clear();
+                    dialogs.Moments.Clear();
+
+                    screen.PrimaryAction(GdsSceneRules.HotspotActionIdBase);
+                    await Until(() => navigator.Pushed != null, "the map never opened");
+                    map.PrimaryAction(GameData.Resources.Location.TeleportMenu.CancelActionId);
+                    await Until(() => fade.Events.Contains("thaw"), "the location never came back");
+                    for (var i = 0; i < 30; i++) {
+                        await UniTask.Yield();
+                    }
+
+                    Assert.That(dialogs.Moments, Is.EqualTo(new[] { "frozen, hud down" }),
+                        "the description is drawn once, under the cut that takes the page down and "
+                        + "after the HUD the pop revealed is down again (TOWNSCN.C:612-633)");
+                } finally {
+                    player.Hide();
+                }
+            });
+
+        /// <summary>
+        /// A move queued while a location is open waits for the location to close, whatever brings
+        /// the travel HUD back meanwhile (TASK-917).
+        /// </summary>
+        /// <remarks>
+        /// The original's world loop does not run while <c>townscene_main_loop</c> does: the move a
+        /// temple teleport queues is made by the world loop's next pass after the scene returns
+        /// (WORLDLP.C:94-95). The port's pump runs every frame the travel HUD is visible, and a
+        /// screen raised over a location brings the HUD back when it pops. Measured in the Temple of
+        /// Ishap after a teleport from Malac's Cross: declining a second teleport popped the map,
+        /// the pump took the first teleport's still-queued move, and the zone was rebuilt under the
+        /// temple.
+        /// </remarks>
+        [UnityTest]
+        public IEnumerator AQueuedMoveWaitsForTheLocationToClose() =>
+            UniTask.ToCoroutine(async () => {
+                InGameScreen hud = TravelHud();
+                var fade = new RecordingFade();
+                var teleport = new GameData.Resources.Location.PendingTeleport();
+                LocationScenePlayer player = Player(fade, new MomentRecordingDialogs(fade, _hudGo),
+                    Resolver(hud), teleport);
+                var flow = new BakAgain.Core.Services.GameFlow(
+                    NullLogger<BakAgain.Core.Services.GameFlow>.Instance, null,
+                    new BakAgain.Core.GameSession(), null, null, null, null, null, null, null, null, null,
+                    null, null, null, teleport: teleport, locations: player);
+
+                try {
+                    UniTask run = player.RunAsync(1, 1);
+                    await Until(() => fade.Events.Contains("in"), "the town never faded in");
+                    // The world half a temple teleport leaves behind once its scene half is taken.
+                    teleport.Queue(new GameData.Resources.Location.TeleportDestination {
+                        Location = new GameData.Resources.Location.Location { ZoneNumber = 1 }, Id = 1,
+                    });
+
+                    typeof(BakAgain.Core.Services.GameFlow)
+                        .GetMethod("PumpWorldLoop", BindingFlags.NonPublic | BindingFlags.Instance)
+                        .Invoke(flow, null);
+
+                    Assert.That(teleport.HasAnything, Is.True,
+                        "the world loop does not run under an open location: the move waits for it to close");
+                } finally {
+                    player.Hide();
+                }
+            });
+
         /// <summary>The tavern's container, at the location's own (zone 15, scene, letter).</summary>
         private static BakAgain.Core.GameSession TavernSession(byte bardingDifficulty, byte fund,
             byte performerBarding) {
@@ -237,6 +423,15 @@ namespace BakAgain.Tests.PlayMode.World {
             stats[(int)GameData.ActorAttribute.Barding].Base = performerBarding;
             session.SetActorStatsForTest(0, stats);
             session.SetActiveParty(1, new byte[] { 0 });
+            return session;
+        }
+
+        /// <summary>A temple's container: its number, a flat fare, and one other temple visited.</summary>
+        private static BakAgain.Core.GameSession TempleSession(byte currentTemple, int visited) {
+            var session = LocationSession(new GameData.Resources.Data.SaveGameContainerShopData(
+                currentTemple, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, (GameData.ShopItemCategories)100));
+            session.SetGlobalValue(GameData.Resources.Location.TeleportMenu.VisitedFlagFor(visited), 1);
+            session.PartyGold = 5000;
             return session;
         }
 
@@ -255,6 +450,34 @@ namespace BakAgain.Tests.PlayMode.World {
                 new GameData.Resources.Data.SaveGameZoneContainerEntryData(15, 0, new[] { container }),
             }), chapter: 1);
             return session;
+        }
+
+        /// <summary>
+        /// A navigator whose pop brings the travel HUD back, as <c>EnsureTopShownAsync</c> does: the
+        /// location is not on its stack, so the HUD is what the pop reveals.
+        /// </summary>
+        private sealed class HudRevealingNavigator : IScreenNavigator {
+            private readonly GameObject _hud;
+            public IScreen Pushed;
+
+            public HudRevealingNavigator(GameObject hud) {
+                _hud = hud;
+            }
+
+            public IScreen Current => Pushed;
+            public UniTask ResetTo(IScreen root) => UniTask.CompletedTask;
+            public UniTask Push(IScreen screen) {
+                Pushed = screen;
+                return UniTask.CompletedTask;
+            }
+            public UniTask PushAndWaitAsync(IScreen screen) => Push(screen);
+            public UniTask Pop() {
+                Pushed = null;
+                _hud.SetActive(true);
+                return UniTask.CompletedTask;
+            }
+            public UniTask Replace(IScreen screen) => UniTask.CompletedTask;
+            public UniTask Clear() => UniTask.CompletedTask;
         }
 
         /// <summary>The real dialog overlay, with the hotspot's page and the location's description.</summary>
@@ -279,7 +502,7 @@ namespace BakAgain.Tests.PlayMode.World {
                 Actions = new List<GameData.Resources.Dialog.Actions.DialogActionBase>(),
                 Branches = new List<GameData.Resources.Dialog.Branches.DialogBranchBase>(),
             };
-            // Barding's thrown-out line, closing itself.
+            // Barding's thrown-out line and the temple's arrival page, both closing themselves.
             GameData.Resources.Dialog.DialogEntry Closing(int offset, int id, string text) => new() {
                 Offset = offset, Id = (uint)id, Text = text,
                 Flags = GameData.Resources.Dialog.DialogEntryFlags.Legacy10
@@ -290,6 +513,8 @@ namespace BakAgain.Tests.PlayMode.World {
             var dialog = new GameData.Resources.Dialog.Dialog("dial_z15");
             foreach (GameData.Resources.Dialog.DialogEntry e in new[] {
                          action, description, Closing(300, ThrownOutDialogId, "\tOut, out, out."),
+                         Closing(400, GameData.Resources.Location.TeleportMenu.ArrivalDialog, "\tA new temple wall."),
+                         Closing(500, GameData.Resources.Location.TeleportMenu.IntroDialog, "\tThe design was odd."),
                      }) {
                 dialog.Entries.Add(e);
                 e.Key = GameData.Resources.Content.ContentKey.ForBase("ddx:dial_z15", e.Offset);
@@ -397,9 +622,12 @@ namespace BakAgain.Tests.PlayMode.World {
         }
 
         private static VContainer.IObjectResolver Resolver(InGameScreen hud,
-            BakAgain.Core.Services.IGameFlow flow = null) {
+            BakAgain.Core.Services.IGameFlow flow = null, IScreenFade fade = null) {
             var builder = new VContainer.ContainerBuilder();
             builder.RegisterInstance(hud);
+            if (fade != null) {
+                builder.RegisterInstance(fade).As<IScreenFade>();
+            }
             if (flow != null) {
                 builder.RegisterInstance(flow).As<BakAgain.Core.Services.IGameFlow>();
             }
@@ -408,12 +636,17 @@ namespace BakAgain.Tests.PlayMode.World {
 
         private LocationScenePlayer Player(RecordingFade fade, BakAgain.UI.IDialogManager dialogs,
             VContainer.IObjectResolver resolver, GameData.Resources.Location.PendingTeleport teleport,
-            string undescribed = null, BakAgain.Core.GameSession session = null) {
+            string undescribed = null, BakAgain.Core.GameSession session = null,
+            BakAgain.UI.Teleport.TeleportScreen teleportScreen = null,
+            BakAgain.UI.Navigation.IScreenNavigator navigator = null) {
             _screenGo = new GameObject("Location");
             LocationScreen screen = _screenGo.AddComponent<LocationScreen>();
             session ??= new BakAgain.Core.GameSession();
             var cache = new TownCache { Undescribed = undescribed };
-            screen.Construct(dialogs, null, session, null, null, null, null, null, null, null);
+            // The screen's own resolver only where a test raises something over the location: it is
+            // what finds the travel HUD and the fade.
+            screen.Construct(dialogs, null, session, teleport, teleportScreen, null, null, cache, null,
+                navigator, navigator != null ? resolver : null);
 
             var presenter = new CutscenePresenter(NullLogger<CutscenePresenter>.Instance, cache,
                 new HoldingPlayerFactory(), null, null);
@@ -544,6 +777,20 @@ namespace BakAgain.Tests.PlayMode.World {
                     result = new AnimationResource("TTM", "V1.0", new Dictionary<int, string>(), new List<Frame>());
                 } else if (typeof(T) == typeof(PaletteResource)) {
                     result = new PaletteResource("options.pal");
+                } else if (typeof(T) == typeof(GameData.Resources.Location.TeleportDestinationSet)) {
+                    result = new GameData.Resources.Location.TeleportDestinationSet(key) {
+                        // Indexed by row: row 0 is the Temple of Kilian's, unused here.
+                        Destinations = {
+                            new GameData.Resources.Location.TeleportDestination {
+                                Location = new GameData.Resources.Location.Location { ZoneNumber = 1 },
+                            },
+                            new GameData.Resources.Location.TeleportDestination {
+                                Id = GameData.Resources.Location.TeleportMenu.DestinationIdForTemple(2),
+                                GdsNumber = 1, GdsLetter = 2,
+                                Location = new GameData.Resources.Location.Location { ZoneNumber = 1 },
+                            },
+                        },
+                    };
                 }
                 return UniTask.FromResult((T)result);
             }

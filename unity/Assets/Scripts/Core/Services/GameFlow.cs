@@ -718,6 +718,16 @@ namespace BakAgain.Core.Services {
                 return;
             }
 
+            // *** NOR UNDER AN OPEN LOCATION. *** The original's world loop does not run while
+            // townscene_main_loop does; a move a temple teleport queues is made by the next pass
+            // after the scene returns (WORLDLP.C:94-95). This seam ticks whenever the travel HUD is
+            // visible, and a screen raised over a location brings the HUD back when it pops: measured
+            // in the Temple of Ishap after a teleport, declining a second one took the first one's
+            // still-queued move and rebuilt the zone under the temple (TASK-917).
+            if (_locations is { IsOpen: true }) {
+                return;
+            }
+
             // *** WHAT NO PACK COULD TAKE WAS DROPPED AT THE PARTY'S FEET -- AND NEVER SHOWN. ***
             // A dialog that hands out more than the packs hold cascades the rest onto the ground
             // pile (DialogExecutor.CascadeAround); the original's world loop empties it on its next

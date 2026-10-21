@@ -75,7 +75,8 @@ namespace BakAgain.World.Scenes {
         private Action<int> _onTransition;
 
         /// <summary>
-        /// Whether the action running now needs no redraw after it: it asked to leave this sub-scene.
+        /// Whether the action running now needs no redraw after it: it asked to leave this sub-scene,
+        /// or it already put the location back itself.
         /// </summary>
         private bool _redrawHandled;
         private readonly Dictionary<int, int> _visits = new();
@@ -577,8 +578,10 @@ namespace BakAgain.World.Scenes {
             // description is always there — a screen that opened over it (a shop, a container)
             // leaves the location silent otherwise. A TRANSITION is the exception: the scene it
             // would redraw is the one being left. That includes an arm that BECAME one on the way
-            // through (a thrown-out performance): redrawn, the old description replaced the page the
-            // original keeps up until the next scene is presented (TASK-916).
+            // through (a thrown-out performance, a temple teleport): redrawn, the old description
+            // replaced the page the original keeps up until the next scene is presented (TASK-916,
+            // TASK-917). And an arm that already redrew it under its own cut is not redrawn twice:
+            // the second show wiped the text in again over a bare picture.
             if (!_redrawHandled && GdsActionDispatch.RedrawsTheLocationAfterwards(StaysInTheScene(kind))) {
                 await ShowSceneDescriptionAsync();
             }
@@ -959,14 +962,21 @@ namespace BakAgain.World.Scenes {
             // Taking it down here rather than teaching the navigator about locations is the smaller
             // of the two fixes; putting the location on the navigator's stack is the structural one
             // and is still worth doing.
-            UI.InGame.InGameScreen travel = TravelScreen();
-            if (travel != null && travel.IsVisible) {
-                await travel.HideAsync();
-            }
+            await HideTravelScreenAsync();
 
             // Re-shown, not restored: the description is re-resolved because an action can have
             // changed what the place says about itself.
             await ShowSceneDescriptionAsync();
+        }
+
+        /// <summary>Takes down the travel HUD a navigator pop brought back over this location.</summary>
+        /// <remarks>Unconditional: <c>InGameScreen.HideAsync</c> is a no-op on a hidden HUD and forces
+        /// down one that is still active with its flag already cleared (TASK-620).</remarks>
+        private async UniTask HideTravelScreenAsync() {
+            UI.InGame.InGameScreen travel = TravelScreen();
+            if (travel != null) {
+                await travel.HideAsync();
+            }
         }
 
         /// <summary>The portrait the blessing screen opens on.</summary>
@@ -999,6 +1009,30 @@ namespace BakAgain.World.Scenes {
                 currentTemple: shop.ShopType,
                 baseCost: (int)shop.ShopCategories,
                 costPerUnit: shop.TeleportParam);
+
+            // *** THE MAP COMES DOWN UNDER A CUT, AND THE HUD ITS POP REVEALS GOES WITH IT. ***
+            // The map returns still pushed, its outcome page drawn (see TeleportScreen.RunAsync). A
+            // location is not on the navigator's stack, so the pop shows the travel HUD — and while
+            // the HUD is up its world-loop pump drains any queued move. Measured at Malac's Cross
+            // (TASK-917): the destination was queued under the HUD, the pump moved the party and
+            // rebuilt the zone while the destination temple loaded, and the HUD was left over the
+            // temple's description. So the pop and the hide happen under a still of the page, and
+            // only then is anything queued. Declined, the original's refresh (TOWNSCN.C:584,
+            // needRefresh = 1, no fade) puts the location back in that same present.
+            if (ReferenceEquals(_navigator?.Current, _teleportScreen)) {
+                UI.Navigation.IScreenFade fade = ResolveOptional<UI.Navigation.IScreenFade>()
+                    ?? new UI.Navigation.NullScreenFade();
+                await fade.CutAsync(async () => {
+                    await _navigator.PopUnfaded();
+                    await HideTravelScreenAsync();
+                    if (row < 0) {
+                        _dialogs.ClearDialog();
+                        await ShowSceneDescriptionAsync();
+                        _redrawHandled = true;
+                    }
+                });
+            }
+
             if (row < 0) {
                 return;
             }
