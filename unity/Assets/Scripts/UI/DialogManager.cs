@@ -1050,6 +1050,24 @@ namespace BakAgain.UI {
 
         public UniTask<int> ShowById(int id, CancellationToken cancellationToken = default) => Playing(() => ShowByIdCore(id, cancellationToken), "ShowById " + id);
 
+        public UniTask<int> ShowByIdLeavingLastPage(int id, CancellationToken cancellationToken = default) =>
+            Playing(async () => {
+                _leavePagesDrawn++;
+                try {
+                    return await ShowByIdCore(id, cancellationToken);
+                } finally {
+                    _leavePagesDrawn--;
+                }
+            }, "ShowByIdLeavingLastPage " + id);
+
+        /// <summary>
+        /// Plays that leave their pages drawn (<see cref="ShowByIdLeavingLastPage"/>). Every page of
+        /// such a play keeps its panel when it ends; the next page's show replaces it, so only the
+        /// last one is left. ponytail: a count, not per show, so a show overlapping one of these
+        /// keeps its panel too; scope it per show if that ever matters.
+        /// </summary>
+        private int _leavePagesDrawn;
+
         private async UniTask<int> ShowByIdCore(int id, CancellationToken cancellationToken = default) {
             DialogPlay play = await LoadPlayById(id);
             DialogEntry entry = play?.Entry;
@@ -2606,7 +2624,7 @@ namespace BakAgain.UI {
                     }
                     return -1;
                 } finally {
-                    if (keepPanel) {
+                    if (keepPanel || _leavePagesDrawn > 0) {
                         ReleaseInputKeepingPanel(mine);
                     } else {
                         Deactivate(mine);

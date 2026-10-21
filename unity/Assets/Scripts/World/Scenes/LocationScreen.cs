@@ -506,7 +506,13 @@ namespace BakAgain.World.Scenes {
                 ClearSign();
                 int said;
                 try {
-                    said = await _dialogs.ShowById(hotspot.ActionDialogId);
+                    // *** THE LAST PAGE STAYS DRAWN (TASK-914). *** In a scene the dialog does not
+                    // clear the screen when it closes (DIALOG.C:1492-1500: screenDirty is only set
+                    // by a modal record, :874, or the out-of-scene speaker branch, :1005), so a page
+                    // that leads to a sub-scene or out of the location stays up until the next
+                    // present: the new sub-scene's (TOWNSCN.C:409) or the world's fade-out. Taking
+                    // it down here showed the bare old picture, and the cut held THAT as its still.
+                    said = await _dialogs.ShowByIdLeavingLastPage(hotspot.ActionDialogId);
                 } finally {
                     StoreEstablishmentFund();
                 }
@@ -531,6 +537,13 @@ namespace BakAgain.World.Scenes {
                 // the destination's scene instead of closing.
                 dialogQueuedATeleport =
                     _teleport?.QueuedId != null && _teleport.QueuedId != teleportBefore;
+
+                // Staying, the page goes now, as it always did: what follows repaints the location
+                // or opens a screen over it. Leaving, LocationScenePlayer takes it down under the
+                // cut or the fade.
+                if (!dialogQueuedATeleport && StaysInTheScene(GdsActionDispatch.KindOf(outcome))) {
+                    _dialogs.ClearDialog();
+                }
 
                 // GdsSceneRules.InvalidatesPalette(said) is the -2 arm's extra effect — it clears
                 // the current-palette pointer so whatever runs next reloads it. Not applied here:

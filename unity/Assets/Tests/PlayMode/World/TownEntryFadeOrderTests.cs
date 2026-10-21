@@ -17,6 +17,7 @@ namespace BakAgain.Tests.PlayMode.World {
     using UnityEngine;
     using UnityEngine.TestTools;
     using UnityEngine.UI;
+    using UnityEngine.UIElements;
     using VContainer;
 
     /// <summary>
@@ -39,12 +40,15 @@ namespace BakAgain.Tests.PlayMode.World {
         private GameObject _hudGo;
         private GameObject _screenGo;
         private GameObject _canvasGo;
+        private GameObject _dialogGo;
+        private PanelSettings _panelSettings;
 
         [TearDown]
         public void TearDown() {
-            foreach (GameObject go in new[] { _hudGo, _screenGo, _canvasGo }) {
+            foreach (GameObject go in new[] { _hudGo, _screenGo, _canvasGo, _dialogGo }) {
                 if (go != null) { Object.DestroyImmediate(go); }
             }
+            if (_panelSettings != null) { Object.DestroyImmediate(_panelSettings); }
         }
 
         [UnityTest]
@@ -88,6 +92,131 @@ namespace BakAgain.Tests.PlayMode.World {
                     player.Hide();
                 }
             });
+
+        /// <summary>
+        /// A hotspot dialog that precedes a sub-scene change stays drawn until the cut (TASK-914).
+        /// </summary>
+        /// <remarks>
+        /// TOWNSCN.C:478 plays the hotspot's dialog with <c>dialog_play_record(key, 0)</c>. Inside a
+        /// scene that dialog never clears the screen when it closes: <c>screenDirty</c> is only set
+        /// by a modal record (DIALOG.C:874, modal is 0 here) or by the out-of-scene speaker branch
+        /// (:1005), so :1492-1500 leaves the last page drawn. A code 3/4 answer then skips the
+        /// refresh (needRefresh = 0, :608-617) and the next thing presented is the new sub-scene
+        /// (:409). Measured at Krondor GDS2A hotspot 4 (dialog 1500029): the narration page is on
+        /// screen until GDS2E replaces it in one change. The port took the panel down when the
+        /// play ended, so the still the cut held was of the bare old picture. And the new sub-scene
+        /// is drawn over the whole screen, so the page must not outlive the cut either: GDS40K
+        /// hotspot 0 leads into GDS40L, which has no description to replace the panel with.
+        /// </remarks>
+        [UnityTest]
+        [BakAgain.Tests.TestSupport.RequiresShippedGameData]
+        public IEnumerator AHotspotDialogBeforeASubSceneStaysDrawnUntilTheCut() =>
+            UniTask.ToCoroutine(async () => {
+                InGameScreen hud = TravelHud();
+                var fade = new RecordingFade();
+                BakAgain.UI.DialogManager dialogs = RealDialogs();
+                // Sub-scene B has no description, as GDS40L has none.
+                LocationScenePlayer player = Player(fade, dialogs, Resolver(hud), teleport: null,
+                    undescribed: GdsSceneLoader.ResourceName(1, 2));
+                LocationScreen screen = _screenGo.GetComponent<LocationScreen>();
+
+                try {
+                    UniTask run = player.RunAsync(1, 1);
+                    await Until(() => fade.Events.Contains("in"), "the town never faded in");
+
+                    // GDS2A hotspot 4's shape: code 4 to the hotspot's own letter, behind a dialog.
+                    screen.Bind(new GdsScene(GdsSceneLoader.ResourceName(1, 1)) {
+                        Hotspots = new[] {
+                            new GdsHotspot { ActionCode = 4, NextSceneLetter = 2, ActionDialogId = ActionDialogId },
+                        },
+                    }, 1, 1, letter => Choose(player, letter));
+                    VisualElement atFreeze = null;
+                    bool drawnAtFreeze = false;
+                    fade.OnFreeze = () => {
+                        atFreeze = ActivePanel(dialogs);
+                        drawnAtFreeze = atFreeze?.panel != null;
+                    };
+                    fade.Events.Clear();
+
+                    VisualElement described = ActivePanel(dialogs);
+                    screen.PrimaryAction(GdsSceneRules.HotspotActionIdBase);
+                    // The control: the hotspot's page did go up, so a missing panel at the freeze
+                    // is the teardown and not a dialog that never rendered.
+                    await Until(() => ActivePanel(dialogs) is { } page && page != described,
+                        "the hotspot's page never showed");
+                    await Until(() => fade.Events.Contains("thaw"), "sub-scene 2 never showed");
+
+                    Assert.That(drawnAtFreeze, Is.True,
+                        "the hotspot's last page is still drawn when the cut takes its still: in a "
+                        + "scene dialog_play_record leaves it up (DIALOG.C:1492-1500) until the next "
+                        + "sub-scene is presented (TOWNSCN.C:409)");
+                    Assert.That(atFreeze.panel, Is.Null,
+                        "and the new sub-scene replaces it: it is gone once the cut is over");
+                    Assert.That(ActivePanel(dialogs), Is.Null,
+                        "a sub-scene with no description shows no dialog at all");
+                } finally {
+                    player.Hide();
+                }
+            });
+
+        private const int ActionDialogId = 1500029;
+
+        /// <summary>The real dialog overlay, with the hotspot's page and the location's description.</summary>
+        private BakAgain.UI.DialogManager RealDialogs() {
+            _dialogGo = new GameObject("DialogOverlay");
+            var document = _dialogGo.AddComponent<UIDocument>();
+            _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            document.panelSettings = _panelSettings;
+            document.sortingOrder = 10;
+
+            // An AutoAdvanceTimer page closes itself (TASK-912), so the play ends with no input. The
+            // shipped 1500029 waits for a click instead; both end in the same narrative teardown.
+            var action = new GameData.Resources.Dialog.DialogEntry {
+                Offset = 100, Id = ActionDialogId, Text = "\tDown.",
+                Flags = GameData.Resources.Dialog.DialogEntryFlags.Legacy10
+                    | GameData.Resources.Dialog.DialogEntryFlags.AutoAdvanceTimer,
+                Actions = new List<GameData.Resources.Dialog.Actions.DialogActionBase>(),
+                Branches = new List<GameData.Resources.Dialog.Branches.DialogBranchBase>(),
+            };
+            var description = new GameData.Resources.Dialog.DialogEntry {
+                Offset = 200, Id = DescriptionId, Text = "\tThe square.",
+                Actions = new List<GameData.Resources.Dialog.Actions.DialogActionBase>(),
+                Branches = new List<GameData.Resources.Dialog.Branches.DialogBranchBase>(),
+            };
+            var dialog = new GameData.Resources.Dialog.Dialog("dial_z15");
+            foreach (GameData.Resources.Dialog.DialogEntry e in new[] { action, description }) {
+                dialog.Entries.Add(e);
+                e.Key = GameData.Resources.Content.ContentKey.ForBase("ddx:dial_z15", e.Offset);
+            }
+
+            var session = new BakAgain.Core.GameSession();
+            var executor = new BakAgain.Core.Services.DialogExecutor(
+                NullLogger<BakAgain.Core.Services.DialogExecutor>.Instance, session, clock: null, provider: null);
+            executor.UseResourceLoader(new OneDialogLoader(dialog));
+            var manager = _dialogGo.AddComponent<BakAgain.UI.DialogManager>();
+            manager.Construct(cursorManager: null, stack: null, menuSound: null, gameSession: session,
+                executor: executor, preferences: new BakAgain.Tests.Editor.World.FakePreferencesService());
+            return manager;
+        }
+
+        private static VisualElement ActivePanel(BakAgain.UI.DialogManager dialogs) =>
+            (VisualElement)typeof(BakAgain.UI.DialogManager)
+                .GetField("_activePanel", BindingFlags.NonPublic | BindingFlags.Instance)
+                .GetValue(dialogs);
+
+        private sealed class OneDialogLoader : BakAgain.UI.IDialogResourceLoader {
+            private readonly GameData.Resources.Dialog.Dialog _dialog;
+
+            public OneDialogLoader(GameData.Resources.Dialog.Dialog dialog) {
+                _dialog = dialog;
+            }
+
+            public UniTask<GameData.Resources.Dialog.Dialog> LoadDialogAsync(int dialogId) =>
+                UniTask.FromResult(_dialog);
+
+            public UniTask<GameData.Resources.Location.TeleportDestinationSet> GetTeleportDestinationsAsync() =>
+                UniTask.FromResult(new GameData.Resources.Location.TeleportDestinationSet("TELEPORT.DAT"));
+        }
 
         /// <summary>
         /// Leaving a town with a teleport queued (TASK-906 item 3): the step is charged first, then
@@ -172,13 +301,14 @@ namespace BakAgain.Tests.PlayMode.World {
         }
 
         private LocationScenePlayer Player(RecordingFade fade, BakAgain.UI.IDialogManager dialogs,
-            VContainer.IObjectResolver resolver, GameData.Resources.Location.PendingTeleport teleport) {
+            VContainer.IObjectResolver resolver, GameData.Resources.Location.PendingTeleport teleport,
+            string undescribed = null) {
             _screenGo = new GameObject("Location");
             LocationScreen screen = _screenGo.AddComponent<LocationScreen>();
             var session = new BakAgain.Core.GameSession();
             screen.Construct(dialogs, null, session, null, null, null, null, null, null, null);
 
-            var cache = new TownCache();
+            var cache = new TownCache { Undescribed = undescribed };
             var presenter = new CutscenePresenter(NullLogger<CutscenePresenter>.Instance, cache,
                 new HoldingPlayerFactory(), null, null);
             return new LocationScenePlayer(NullLogger<LocationScenePlayer>.Instance, presenter,
@@ -227,6 +357,7 @@ namespace BakAgain.Tests.PlayMode.World {
             public readonly List<string> Events = new();
             public bool Covered;
             public bool Frozen;
+            public System.Action OnFreeze;
 
             public async UniTask FadeOutAsync() {
                 Events.Add("out");
@@ -244,6 +375,7 @@ namespace BakAgain.Tests.PlayMode.World {
 
             public async UniTask CutAsync(System.Func<UniTask> change) {
                 Events.Add("freeze");
+                OnFreeze?.Invoke();
                 Frozen = true;
                 try {
                     await change();
@@ -284,12 +416,15 @@ namespace BakAgain.Tests.PlayMode.World {
         /// to its hold. No REQ layout, so no hotspots are built — the order is what is under test.
         /// </summary>
         private sealed class TownCache : IResourceCache {
+            /// <summary>The one scene file that has no description, or null.</summary>
+            public string Undescribed;
+
             public UniTask<T> GetOrLoadAsync<T>(string key) where T : class {
                 object result = null;
                 if (typeof(T) == typeof(GdsScene)) {
                     result = new GdsScene(key) {
                         AnimationResource = "G_TOWN", EntryAnimationTag = 1, IdleAnimationTag = 2,
-                        SceneDialogId = DescriptionId,
+                        SceneDialogId = key == Undescribed ? 0 : DescriptionId,
                     };
                 } else if (typeof(T) == typeof(AnimatorResource)) {
                     result = new AnimatorResource("G_TOWN.ADS") {

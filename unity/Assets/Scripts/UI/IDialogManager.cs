@@ -136,6 +136,16 @@ namespace BakAgain.UI {
         UniTask<int> ShowById(int id, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// <see cref="ShowById"/>, leaving the last page DRAWN when the play ends: only its input is
+        /// released, and <see cref="ClearDialog"/> or the next show takes it down. What a dialog
+        /// inside a location does in the original: <c>dialog_play_record(key, 0)</c> with
+        /// <c>g_dialog_in_scene</c> set never clears the screen when it closes (DIALOG.C:1492-1500),
+        /// so the page stays until the next present (TOWNSCN.C:409, or the world's fade-out).
+        /// </summary>
+        UniTask<int> ShowByIdLeavingLastPage(int id, CancellationToken cancellationToken = default) =>
+            ShowById(id, cancellationToken);
+
+        /// <summary>
         /// Confirm/choice path: load the entry, render one button per branch
         /// (labelled from <c>KEYWORD.DAT</c> via the branch's keyword index),
         /// await selection, and return <c>true</c> when the first branch (Yes)

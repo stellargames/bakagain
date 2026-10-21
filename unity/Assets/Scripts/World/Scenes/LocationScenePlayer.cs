@@ -324,7 +324,13 @@ namespace BakAgain.World.Scenes {
             // its description are both up: the original's single screen_frame_present (TOWNSCN.C:409)
             // after painting both. No black frame, and no frame of one without the other.
             if (cut) {
-                await Fade.CutAsync(() => PresentAsync(scene, tags, sceneNumber, sub));
+                // Under the still, the page a hotspot left drawn (TASK-914) goes: the new picture
+                // covers the whole screen in the original, and a sub-scene with no description
+                // (GDS40L, after GDS40K hotspot 0) would otherwise keep the old page over it.
+                await Fade.CutAsync(() => {
+                    _screen?.ClearDescription();
+                    return PresentAsync(scene, tags, sceneNumber, sub);
+                });
             } else {
                 await Fade.FadeOutAsync();
                 try {
