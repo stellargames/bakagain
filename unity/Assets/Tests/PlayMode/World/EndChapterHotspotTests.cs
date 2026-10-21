@@ -103,7 +103,7 @@ namespace BakAgain.Tests.PlayMode.World {
         }
 
         /// <summary>Counts <c>ClearDialog</c>; every other member is unreachable from this test.</summary>
-        private class ClearCountingDialogs : BakAgain.UI.IDialogManager {
+        internal class ClearCountingDialogs : BakAgain.UI.IDialogManager {
             public int Cleared { get; private set; }
             public int ClickThrough { get; private set; }
             public void ClearDialog() => Cleared++;

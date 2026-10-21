@@ -209,13 +209,12 @@ namespace BakAgain.World.Scenes {
         /// Defaults to the bound one.
         /// </param>
         public async UniTask ShowSceneDescriptionAsync(GdsScene scene = null) {
-            // *** THE ENTRY ANIMATION REACHES ITS HOLD BEFORE Bind RUNS. ***
-            // LocationScenePlayer.ShowAsync starts PlayEntryAnimation and only then awaits
-            // ShowHotspotsAsync, which loads a layout, fades twice and takes the travel HUD down
-            // before it binds this screen. The animation's onHeld fires in that gap, so reading
-            // _scene there described the location the party had just LEFT: arriving in Romney
-            // printed LaMut's "All who visit LaMut are equal" over Romney's market square
-            // (measured 2026-09-09). The caller that has the scene passes it.
+            // *** THE CALLER THAT HAS THE SCENE PASSES IT. *** Reading _scene once described the
+            // location the party had just LEFT: the description used to be raised before
+            // ShowHotspotsAsync had bound this screen, and arriving in Romney printed LaMut's "All
+            // who visit LaMut are equal" over Romney's market square (measured 2026-09-09). It is
+            // raised after the bind now (TASK-904), but a location whose layout fails to load is
+            // never bound at all.
             scene ??= _scene;
             if (_dialogs == null || (scene?.SceneDialogId ?? 0) == 0) {
                 return;
@@ -355,7 +354,6 @@ namespace BakAgain.World.Scenes {
             if (string.IsNullOrEmpty(sign)) {
                 return;
             }
-            _sign = sign;
             _signPalette = palette ?? _signPalette;
             VisualElement stage = Stage();
             if (stage == null) {
@@ -396,38 +394,9 @@ namespace BakAgain.World.Scenes {
         private Color[] _signPalette;
 
         private void ClearSign() {
-            _sign = null;
             Stage()?.Q(SignName)?.RemoveFromHierarchy();
         }
 
-        /// <summary>
-        /// Puts the sign back after the REQ loader has rebuilt the stage.
-        /// </summary>
-        /// <remarks>
-        /// <b>The loader clears the stage wholesale</b> (<c>UserInterfaceLoader</c>: <c>stage.Clear()</c>
-        /// before it builds the hotspot widgets), and the sign is a child of that same stage. Which
-        /// of the two runs last is a race: the description — and with it the sign — is raised from
-        /// the entry animation's <c>onHeld</c>, while the hotspots are built by
-        /// <c>LocationScenePlayer.ShowHotspotsAsync</c> on a path that awaits a layout load and two
-        /// fades. On a cold first entry that load is slow and the sign wins; on every later
-        /// sub-scene it is cached and the sign is wiped a frame after it appears.
-        ///
-        /// <para>Measured at Romney 2026-09-12: the FIRST scene shown carried its sign ("Romney",
-        /// then "Port Exchange"), and every sub-scene after that carried none — while the original
-        /// shows one on all of them, "The Black Sheep Tavern" included. Calling
-        /// <see cref="ShowSceneDescriptionAsync"/> by hand afterwards put the sign straight back,
-        /// which is what ruled out the text, the split and the scene data.</para>
-        ///
-        /// <para>Re-applying is the right shape rather than teaching the loader to spare foreign
-        /// children: the stage is the loader's to rebuild, and the sign is this screen's to own.</para>
-        /// </remarks>
-        public void RestoreSign() {
-            if (!string.IsNullOrEmpty(_sign)) {
-                ShowSign(_sign);
-            }
-        }
-
-        private string _sign;
 
         /// <summary>The canonical stage this screen draws into — the hotspots' own.</summary>
         private VisualElement Stage() {

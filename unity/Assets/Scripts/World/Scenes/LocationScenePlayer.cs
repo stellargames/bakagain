@@ -170,7 +170,16 @@ namespace BakAgain.World.Scenes {
                 }
             } finally {
                 if (generation == _generation) {
-                    Hide();
+                    // *** LEAVING FADES TOO. *** The original's loop exit raises
+                    // g_nSceneReloadPending (TOWNSCN.C:678), and the world loop answers it by fading
+                    // out from the town, repainting the world and HUD under black, and fading in
+                    // (WORLDLP.C:102-139). Hide() alone cut straight from the picture to the world.
+                    await Fade.FadeOutAsync();
+                    try {
+                        await HideAsync();
+                    } finally {
+                        await Fade.FadeInAsync();
+                    }
                     PlayTrackAsync(trackBefore).Forget();
                 }
             }
@@ -268,36 +277,84 @@ namespace BakAgain.World.Scenes {
                 return null;
             }
 
-            // The hold runs until the location closes, so give it a token this player owns.
-            //
-            // Cancelling the previous hold lets the PREVIOUS PlayCutsceneTagsAsync resume, and its
-            // tail calls view.Hide(). Await it here, before starting the next scene, or that
-            // teardown lands after the new sub-scene has drawn and blanks it — which is exactly what
-            // moving between sub-scenes did.
-            _showing?.Cancel();
-            if (_animation.HasValue) {
-                await _animation.Value.SuppressCancellationThrow();
-                _animation = null;
-            }
-            _showing?.Dispose();
-            _showing = new CancellationTokenSource();
+            // *** DARK FIRST, THEN EVERYTHING ELSE (TASK-904). *** The original's order is
+            // TOWNSCN.C:378-404: fade out, clear, play the idle animation, paint the description
+            // bubble WHILE THE PALETTE IS STILL BLACK, then fade in — so the description arrives with
+            // the picture and is never seen over the world. (It plays the ENTRY script before its
+            // fade-out, :356, but that script only loads — see ResolveTagsAsync — and measured at
+            // LaMut nothing of the town shows before the screen goes black.)
+            // Starting the animation before this fade let its onHeld paint "In many ways the town
+            // looked like..." over the travel view for the whole fade-out, and on a sub-scene put
+            // the new picture and its text up a second before fading them out and back in.
+            // Everything from here to the fade-in is under the cover, and the finally clears it on
+            // every exit, or a failure would leave it black.
+            await Fade.FadeOutAsync();
+            try {
+                // The hold runs until the location closes, so give it a token this player owns.
+                //
+                // Cancelling the previous hold lets the PREVIOUS PlayCutsceneTagsAsync resume, and
+                // its tail calls view.Hide(). Await it here, before starting the next scene, or that
+                // teardown lands after the new sub-scene has drawn and blanks it — which is exactly
+                // what moving between sub-scenes did.
+                _showing?.Cancel();
+                if (_animation.HasValue) {
+                    await _animation.Value.SuppressCancellationThrow();
+                    _animation = null;
+                }
+                _showing?.Dispose();
+                _showing = new CancellationTokenSource();
 
-            // *** THE HOTSPOTS DO NOT WAIT FOR THE ENTRY ANIMATION. ***
-            // The original plays it and then ends the wait itself (FinishDialogWait) before building
-            // the menu and polling — it never blocks on the animation running out. Awaiting it here
-            // hung forever against the shipped data: the entry script does not terminate on its own,
-            // so the location never became clickable and there was no error to say why.
-            // Preserve(): a UniTask is single-consumption, and this one is stored to be awaited by
-            // the next sub-scene. PlayEntryAnimation swallows its own errors, so nothing is lost by
-            // not observing it here.
-            _animation = PlayEntryAnimation(scene, tags).Preserve();
-            await ShowHotspotsAsync(scene, sceneNumber, sub);
+                // *** THE TRAVEL HUD MUST GO DOWN, OR IT PAINTS OVER THE LOCATION. ***
+                // A location's picture is drawn by the cutscene view, which is a uGUI Canvas; every
+                // screen here is a UI Toolkit panel, and those render ABOVE that canvas whatever
+                // their sortingOrder says. The navigator gets this right for an ordinary cutscene by
+                // enabling only the stack top (EnsureTopShownAsync), and a location deliberately does
+                // NOT go through the navigator — so nothing was taking the HUD down and it covered the
+                // town completely. Measured: with the HUD alone deactivated by hand, the location
+                // appeared.
+                await HideTravelScreenAsync();
+
+                // *** THE HOTSPOTS DO NOT WAIT FOR THE ENTRY ANIMATION. ***
+                // The original plays it and then ends the wait itself (FinishDialogWait) before
+                // building the menu and polling — it never blocks on the animation running out.
+                // Awaiting it here hung forever against the shipped data: the hold that follows the
+                // scripts only ends when the location closes, so the location never became clickable
+                // and there was no error to say why. What IS awaited below is the moment the scripts
+                // reach that hold, which is bounded.
+                // Preserve(): a UniTask is single-consumption, and this one is stored to be awaited
+                // by the next sub-scene. PlayEntryAnimation swallows its own errors, so nothing is
+                // lost by not observing it here.
+                var held = new UniTaskCompletionSource();
+                _animation = PlayEntryAnimation(scene, tags, () => held.TrySetResult()).Preserve();
+                await ShowHotspotsAsync(scene, sceneNumber, sub);
+
+                // What the place says when you arrive goes ON the held picture, so it waits for the
+                // picture: every script clears the dialog panel as it ends. After the hotspots, so
+                // their build (which clears the stage) cannot wipe the sign off it.
+                // The SCENE, not the screen's binding: see LocationScreen.ShowSceneDescriptionAsync.
+                UniTask described = held.Task.ContinueWith(() =>
+                    _screen?.ShowSceneDescriptionAsync(scene) ?? UniTask.CompletedTask);
+                // ponytail: a fixed bound, so a script that never reaches its hold (or fails) fades
+                // in without its description rather than staying black; its text still lands if
+                // the hold comes later.
+                // NOT _animation in this WhenAny: Preserve() only memoizes a FINISHED task, so a
+                // continuation registered here on the still-holding animation made the next
+                // sub-scene's await of it throw "Already continuation registered".
+                await UniTask.WhenAny(described,
+                    UniTask.Delay(TimeSpan.FromSeconds(HoldTimeoutSeconds), ignoreTimeScale: true));
+            } finally {
+                await Fade.FadeInAsync();
+            }
+
             return scene;
         }
 
+        /// <summary>How long the fade-in waits for the scripts to reach their hold.</summary>
+        private const float HoldTimeoutSeconds = 3f;
+
         // Drives the entry animation and holds on its last frame. Not awaited by the caller — see
         // ShowAsync — so its errors are logged here rather than propagating.
-        private async UniTask PlayEntryAnimation(GdsScene scene, List<string> tags) {
+        private async UniTask PlayEntryAnimation(GdsScene scene, List<string> tags, Action onHeld) {
             try {
                 // holdUntil = this player's token: the picture is held WITHOUT an input layer, so
                 // the hotspot overlay owns the clicks. The default hold pushes an Exclusive layer
@@ -305,11 +362,7 @@ namespace BakAgain.World.Scenes {
                 // click on the location.
                 await _presenter.PlayCutsceneTagsAsync(scene.AnimationResource, _view,
                     tags, holdRenderingAfter: true, holdUntil: _showing.Token, backdrop: Backdrop,
-                    // What the place says when you arrive goes ON the held picture, so it waits
-                    // for the picture: every script clears the dialog panel as it ends.
-                    // The SCENE, not the screen's binding: this fires before ShowHotspotsAsync
-                    // has bound it. See LocationScreen.ShowSceneDescriptionAsync.
-                    onHeld: () => _screen?.ShowSceneDescriptionAsync(scene).Forget());
+                    onHeld: onHeld);
             } catch (Exception e) {
                 _logger.LogError(e, "LocationScenePlayer: error animating scene {SceneId}.", scene.Id);
             }
@@ -320,8 +373,8 @@ namespace BakAgain.World.Scenes {
         /// </summary>
         /// <remarks>
         /// The visibility pass belongs to <see cref="GdsSceneLoader.VisibleHotspots"/> and is not
-        /// repeated here; this only converts what it returns. The hotspots go up <b>after</b> the
-        /// entry animation, so nothing is clickable while the arrival is still playing.
+        /// repeated here; this only converts what it returns. Runs under the fade cover
+        /// (<see cref="ShowAsync"/>), so nothing is clickable before the location is on screen.
         /// </remarks>
         private async UniTask ShowHotspotsAsync(GdsScene scene, int sceneNumber, int sub) {
             if (_screen == null) {
@@ -330,7 +383,6 @@ namespace BakAgain.World.Scenes {
 
             var frame = await _resources.GetOrLoadAsync<UserInterface>(HotspotLayout);
             if (frame == null) {
-                // No fade to clear: this exit is BEFORE the fade-out below.
                 _logger.LogError("LocationScenePlayer: {Layout} did not load; {Scene} has no hotspots.",
                     HotspotLayout, scene.Id);
                 return;
@@ -340,17 +392,6 @@ namespace BakAgain.World.Scenes {
                 .Select(live => GdsSceneMenu.ElementFor(live.Index, live.Hotspot, frame))
                 .ToArray();
 
-            // Darken BEFORE the world is replaced, in the order the original fades: out, repaint,
-            // in. The fade-in waits until the hotspots are on the screen, at the end of this method.
-            await Fade.FadeOutAsync();
-            // *** THE TRAVEL HUD MUST GO DOWN, OR IT PAINTS OVER THE LOCATION. ***
-            // A location's picture is drawn by the cutscene view, which is a uGUI Canvas; every
-            // screen here is a UI Toolkit panel, and those render ABOVE that canvas whatever their
-            // sortingOrder says. The navigator gets this right for an ordinary cutscene by enabling
-            // only the stack top (EnsureTopShownAsync), and a location deliberately does NOT go
-            // through the navigator — so nothing was taking the HUD down and it covered the town
-            // completely. Measured: with the HUD alone deactivated by hand, the location appeared.
-            await HideTravelScreenAsync();
             _screen.Bind(scene, sceneNumber, sub, letter => _pendingTransition = letter);
             _screen.gameObject.SetActive(true);
 
@@ -360,20 +401,12 @@ namespace BakAgain.World.Scenes {
             var ui = _screen.GetComponent<ResourceManagement.Loaders.UserInterfaceLoader>();
             await UniTask.WaitUntil(() => ui.IsBuilt || !_screen.gameObject.activeInHierarchy);
             if (!ui.IsBuilt) {
-                // *** CLEAR THE COVER ON EVERY EXIT AFTER THE FADE-OUT. *** A location that fails to
-                // build its hotspots would otherwise leave the screen black with no way back.
-                await Fade.FadeInAsync();
                 _logger.LogError("LocationScenePlayer: {Layout} never built; {Scene} has no hotspots.",
                     HotspotLayout, scene.Id);
                 return;
             }
 
-
             await ui.SetMenuEntries(elements);
-            // The build above CLEARS the stage, and the sign lives on it — see
-            // LocationScreen.RestoreSign for why that is a race and not an ordering bug.
-            _screen?.RestoreSign();
-            await Fade.FadeInAsync();
             _logger.LogInformation("LocationScenePlayer: {Scene} showing {Count} hotspots.",
                 scene.Id, elements.Length);
         }
@@ -449,7 +482,11 @@ namespace BakAgain.World.Scenes {
         private bool _hidTravelScreen;
 
         /// <summary>Takes the location down: ends the held picture and hides the click overlay.</summary>
-        public void Hide() {
+        // Fire-and-forget: Hide() is the synchronous teardown path and cannot await. The guard
+        // inside RestoreTravelScreenAsync means a second call is a no-op rather than a second Show.
+        public void Hide() => HideAsync().Forget();
+
+        private UniTask HideAsync() {
             var dialogs = ResolveOptional<UI.IDialogManager>();
             if (dialogs != null) {
                 dialogs.SceneSpeakerBackdrop = null;
@@ -464,9 +501,7 @@ namespace BakAgain.World.Scenes {
                 _screen.ClearDescription();
                 _screen.gameObject.SetActive(false);
             }
-            // Fire-and-forget: Hide() is the synchronous teardown path and cannot await. The guard
-            // inside means a second call is a no-op rather than a second Show.
-            RestoreTravelScreenAsync().Forget();
+            return RestoreTravelScreenAsync();
         }
 
         /// <summary>
