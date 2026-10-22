@@ -125,7 +125,9 @@ namespace BakAgain.Tests.PlayMode.UI {
                         // being replaced along with it. Invisible on the stage under Fill.
                         UnityEngine.ResourceManagement.AsyncOperations.AsyncOperationHandle<DialogStyleTable> handle =
                             Addressables.LoadAssetAsync<DialogStyleTable>(DialogStyleTable.ResourceId);
-                        DialogStyleTable table = handle.WaitForCompletion();
+                        // Not WaitForCompletion: after the await above this runs inside a load's
+                        // Completed callback, where Addressables 4.x refuses it (TASK-883).
+                        DialogStyleTable table = handle.ResultOrWait();
                         Assert.AreEqual(LayoutFit.Fill, table.Frame.Fit,
                             "the document's Fit never reached the merged table");
                         Assert.AreEqual(Canonical.Width, table.Frame.Width,

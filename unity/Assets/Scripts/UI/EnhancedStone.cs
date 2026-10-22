@@ -1,4 +1,5 @@
 namespace BakAgain.UI {
+    using BakAgain.ResourceManagement;
     using BakAgain.Core;
     using Cysharp.Threading.Tasks;
     using System.Collections.Generic;
@@ -61,7 +62,7 @@ namespace BakAgain.UI {
             // here, so that is drawn as nothing, once, rather than breaking the screen.
             AsyncOperationHandle<Texture2D> handle = Addressables.LoadAssetAsync<Texture2D>(Folder + name);
             try {
-                t = handle.WaitForCompletion();
+                t = handle.ResultOrWait();
             } catch (System.Exception e) {
                 Logger.LogWarning("Enhanced art '{Name}' could not be loaded here, drawn as nothing: {Reason}", name, e.Message);
                 t = null;

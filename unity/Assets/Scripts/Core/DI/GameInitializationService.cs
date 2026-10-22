@@ -105,7 +105,7 @@ namespace BakAgain.Core.DI {
                 _logger.LogInformation("Using GamePath: {GamePath}", BakResourceSettings.GamePath);
 
                 _logger.LogInformation("Initializing Addressables.");
-                await Addressables.InitializeAsync();
+                await Addressables.InitializeAsync().ToUniTask();
 
                 _logger.LogInformation("Initializing ResourceManagement.");
                 ResourceManagementInitializer.InitializeResourceManagement();

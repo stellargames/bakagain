@@ -1,4 +1,5 @@
 namespace BakAgain.CutScenes.AnimationCommands {
+    using BakAgain.ResourceManagement;
     using BakAgain.Core;
     using BakAgain.Utility;
     using GameData.Resources.Animation.FrameCommands;
@@ -33,7 +34,7 @@ namespace BakAgain.CutScenes.AnimationCommands {
                     AudioResource fetched = null;
                     try {
                         fetched = UnityEngine.AddressableAssets.Addressables
-                            .LoadAssetAsync<AudioResource>(resourceKey).WaitForCompletion();
+                            .LoadAssetAsync<AudioResource>(resourceKey).ResultOrWait();
                     } catch (Exception e) {
                         Logger.LogWarning(e, "Could not load sound {SoundId} on demand.", args.SoundId);
                     }

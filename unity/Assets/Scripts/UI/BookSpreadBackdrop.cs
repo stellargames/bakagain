@@ -224,9 +224,10 @@ namespace BakAgain.UI {
         }
 
         // The plain parchment every dialog is drawn on is the facing page: no page art is shipped.
-        // Loaded in Start, not Awake: the first Show usually comes from inside another load's Completed
-        // callback (BackgroundImageLoader), and the sprite converter's own WaitForCompletion throws
-        // there ("Reentering the Update method is not allowed").
+        // Loaded in Start. It was moved out of Awake because the first Show usually comes from inside
+        // another load's Completed callback (BackgroundImageLoader), where the sprite converter's
+        // palette wait threw "Reentering the Update method is not allowed"; since TASK-883 it does
+        // not wait there (LoadInsideACompletedCallbackTests), so Start is no longer required, only kept.
         private void Start() {
             Addressables.LoadAssetAsync<Sprite>(GameData.Resources.Dialog.DialogBackdrop.Resource).Completed += loaded => {
                 if (this == null || loaded.Result == null) {

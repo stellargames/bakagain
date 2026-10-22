@@ -49,7 +49,7 @@ namespace BakAgain.ResourceManagement {
             }
             handleList.Add(handle);
 
-            await handle;
+            await handle.ToUniTask();
 
             if (handle.Status == AsyncOperationStatus.Succeeded) {
                 _logger.LogDebug("Successfully loaded asset with key: {Key}", key);
@@ -84,7 +84,12 @@ namespace BakAgain.ResourceManagement {
 
             _logger.LogDebug("Releasing {Count} assets for owner {Owner}", handlesToRelease.Count, owner.GetType().Name);
             foreach (AsyncOperationHandle handle in handlesToRelease) {
-                Addressables.Release(handle);
+                // Leaving Play Mode in the Editor, Addressables 4.x disposes its whole context
+                // before the container is disposed (Addressables.PlayModeStateChangedCleanup), so a
+                // handle still held then is already invalid, and releasing it would throw.
+                if (handle.IsValid()) {
+                    Addressables.Release(handle);
+                }
             }
 
             _handlesByOwner.Remove(owner);

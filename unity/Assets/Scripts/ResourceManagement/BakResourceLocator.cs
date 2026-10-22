@@ -17,9 +17,7 @@ namespace BakAgain.ResourceManagement {
             _dictionary = resourceProvider.GetDictionary();
             Keys = _dictionary.Keys;
         }
-#if !ENABLE_JSON_CATALOG
         public IEnumerable<IResourceLocation> AllLocations { get; } = Array.Empty<IResourceLocation>();
-#endif
         public bool Locate(object key, Type type, out IList<IResourceLocation> locations) {
             string keyString = key.ToString();
             // A built-in asset's address (Enhanced/Sky/moon_large) is the catalog's, never the archive's.

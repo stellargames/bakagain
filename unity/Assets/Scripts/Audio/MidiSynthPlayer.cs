@@ -1,4 +1,5 @@
 namespace BakAgain.Audio {
+    using BakAgain.ResourceManagement;
     using System;
     using System.IO;
     using BakAgain.Core;
@@ -105,7 +106,7 @@ namespace BakAgain.Audio {
             // keeps the game out of.
             AsyncOperationHandle<TextAsset> handle = Addressables.LoadAssetAsync<TextAsset>(SoundFontResource);
             try {
-                TextAsset asset = handle.WaitForCompletion();
+                TextAsset asset = handle.ResultOrWait();
                 if (asset == null) {
                     throw new InvalidOperationException($"Soundfont resource '{SoundFontResource}' is missing.");
                 }

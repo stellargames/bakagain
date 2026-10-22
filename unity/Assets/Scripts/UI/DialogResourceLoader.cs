@@ -63,7 +63,7 @@ namespace BakAgain.UI {
             string key = GameData.Resources.Animation.CutsceneDialogCommand.DdxKeyFor(dialogId);
 
             AsyncOperationHandle<Dialog> handle = Addressables.LoadAssetAsync<Dialog>(key);
-            Dialog dialog = await handle;
+            Dialog dialog = await handle.ToUniTask();
 
             if (handle.Status == AsyncOperationStatus.Succeeded) {
                 // Already in run-time codes: the resource providers convert as the Dialog loads.
@@ -85,7 +85,7 @@ namespace BakAgain.UI {
             }
             AsyncOperationHandle<GameData.Resources.Location.TeleportDestinationSet> handle =
                 Addressables.LoadAssetAsync<GameData.Resources.Location.TeleportDestinationSet>(TeleportKey);
-            GameData.Resources.Location.TeleportDestinationSet result = await handle;
+            GameData.Resources.Location.TeleportDestinationSet result = await handle.ToUniTask();
             if (handle.Status == AsyncOperationStatus.Succeeded && result != null) {
                 _teleportDestinations = result;
                 _held.Add(handle);
@@ -100,7 +100,7 @@ namespace BakAgain.UI {
                 return _keywords;
             }
             AsyncOperationHandle<KeywordList> handle = Addressables.LoadAssetAsync<KeywordList>(KeywordsKey);
-            KeywordList result = await handle;
+            KeywordList result = await handle.ToUniTask();
             if (handle.Status == AsyncOperationStatus.Succeeded && result != null) {
                 _keywords = result;
                 _held.Add(handle);
@@ -129,7 +129,7 @@ namespace BakAgain.UI {
             }
             AsyncOperationHandle<DialogStyleTable> handle =
                 Addressables.LoadAssetAsync<DialogStyleTable>(DialogStyleTable.ResourceId);
-            DialogStyleTable table = await handle;
+            DialogStyleTable table = await handle.ToUniTask();
             if (handle.Status == AsyncOperationStatus.Succeeded && table != null) {
                 _styleTable = table;
                 _held.Add(handle);
@@ -164,7 +164,7 @@ namespace BakAgain.UI {
 
             AsyncOperationHandle<UnityEngine.Sprite> handle =
                 Addressables.LoadAssetAsync<UnityEngine.Sprite>(address);
-            UnityEngine.Sprite sprite = await handle;
+            UnityEngine.Sprite sprite = await handle.ToUniTask();
             if (handle.Status != AsyncOperationStatus.Succeeded || sprite == null) {
                 _logger.LogWarning("Dialog decoration sprite {Key} did not load.", address);
                 return null;
@@ -187,7 +187,10 @@ namespace BakAgain.UI {
         /// <summary>Ends the loader's lifetime: drops its caches and releases what it loaded.</summary>
         public void Release() {
             foreach (AsyncOperationHandle handle in _held) {
-                Addressables.Release(handle);
+                // Invalid when Play Mode is left: Addressables 4.x has disposed its context by then.
+                if (handle.IsValid()) {
+                    Addressables.Release(handle);
+                }
             }
             _held.Clear();
             _keywords = null;
@@ -203,7 +206,7 @@ namespace BakAgain.UI {
             }
             AsyncOperationHandle<PaletteResource> handle =
                 Addressables.LoadAssetAsync<PaletteResource>(DefaultDialogPaletteKey);
-            PaletteResource palette = await handle;
+            PaletteResource palette = await handle.ToUniTask();
             if (handle.Status == AsyncOperationStatus.Succeeded && palette != null) {
                 _defaultPalette = palette.Colors.ToUnity();
                 _held.Add(handle);

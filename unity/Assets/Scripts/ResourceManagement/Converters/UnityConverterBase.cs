@@ -50,7 +50,7 @@ namespace BakAgain.ResourceManagement.Converters {
                 paletteKey = key[..^4] + ".PAL";
             }
             AsyncOperationHandle<PaletteResource> paletteOp = Addressables.LoadAssetAsync<PaletteResource>(paletteKey);
-            Color[] colors = paletteOp.WaitForCompletion().Colors;
+            Color[] colors = paletteOp.ResultOrWait().Colors;
             const float divider = byte.MaxValue;
 
             return colors

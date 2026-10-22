@@ -1,4 +1,5 @@
 namespace BakAgain.CutScenes {
+    using BakAgain.ResourceManagement;
     using BakAgain.Audio;
     using BakAgain.Core;
     using BakAgain.CutScenes.Extensions;
@@ -506,7 +507,7 @@ namespace BakAgain.CutScenes {
             }
 
             try {
-                var loaded = Addressables.LoadAssetAsync<IndexedTexture>(key).WaitForCompletion();
+                var loaded = Addressables.LoadAssetAsync<IndexedTexture>(key).ResultOrWait();
                 if (loaded != null) {
                     Resources.Add(key, loaded);
                 }

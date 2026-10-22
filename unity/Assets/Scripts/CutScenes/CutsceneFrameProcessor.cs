@@ -1,5 +1,6 @@
 namespace BakAgain.CutScenes
 {
+    using BakAgain.ResourceManagement;
     using BakAgain.Core;
     using BakAgain.ResourceManagement.Models;
     using Cysharp.Threading.Tasks;
@@ -243,7 +244,7 @@ namespace BakAgain.CutScenes
         /// </remarks>
         private sealed class AddressablesBlockingCache : IResourceCache {
             public UniTask<T> GetOrLoadAsync<T>(string key) where T : class =>
-                UniTask.FromResult(Addressables.LoadAssetAsync<T>(key).WaitForCompletion());
+                UniTask.FromResult(Addressables.LoadAssetAsync<T>(key).ResultOrWait());
 
             public void Clear() { }
         }

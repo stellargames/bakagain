@@ -35,8 +35,8 @@ namespace BakAgain.ResourceManagement.Converters {
 
                 return null;
             }
-            PaletteResource palette = Addressables.LoadAssetAsync<PaletteResource>(paletteKey).WaitForCompletion();
-            BackgroundImage scx = Addressables.LoadAssetAsync<BackgroundImage>(scxKey).WaitForCompletion();
+            PaletteResource palette = Addressables.LoadAssetAsync<PaletteResource>(paletteKey).ResultOrWait();
+            BackgroundImage scx = Addressables.LoadAssetAsync<BackgroundImage>(scxKey).ResultOrWait();
             if (palette == null || scx == null) {
                 Debug.LogWarning($"ScxTileBaker: could not load {scxKey} / {paletteKey}.");
 
@@ -61,7 +61,7 @@ namespace BakAgain.ResourceManagement.Converters {
 
         private static bool HasLocation(string key) {
             var handle = Addressables.LoadResourceLocationsAsync(key);
-            bool found = handle.WaitForCompletion() is { Count: > 0 };
+            bool found = handle.ResultOrWait() is { Count: > 0 };
             Addressables.Release(handle);
 
             return found;

@@ -857,7 +857,7 @@ namespace BakAgain.ResourceManagement.Loaders {
 
             _uiHandle = Addressables.LoadAssetAsync<UserInterface>(userInterfaceAddress);
             _uiHandleValid = true;
-            _userInterface = await _uiHandle;
+            _userInterface = await _uiHandle.ToUniTask();
             if (_userInterface == null) {
                 _logger.LogError("Failed to load user interface from address {Address}", userInterfaceAddress);
                 return;

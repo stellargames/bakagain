@@ -132,7 +132,7 @@ namespace BakAgain.ResourceManagement.Loaders {
 
             _formHandle = Addressables.LoadAssetAsync<InputForm>(_inAddress);
             _formHandleValid = true;
-            InputForm form = await _formHandle;
+            InputForm form = await _formHandle.ToUniTask();
             if (form == null || (isActive != null && !isActive())) {
                 return;
             }

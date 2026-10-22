@@ -161,3 +161,6 @@ MonoBehaviour:
     m_Schemas:
     - {fileID: 11400000, guid: dd01f16b56f0d434a8d3a6b1beef969a, type: 2}
     - {fileID: 11400000, guid: 164ac2798aba13147a2936087004b40b, type: 2}
+    m_SchemaDisplayOrder: []
+  m_IncludeInBuild: 1
+  m_IncludeInBuildMigrated: 1

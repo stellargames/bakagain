@@ -43,7 +43,7 @@ namespace BakAgain.ResourceManagement.Loaders {
 
             _labelHandle = Addressables.LoadAssetAsync<LabelSet>(_labelAddress);
             _labelHandleValid = true;
-            LabelSet labelSet = await _labelHandle;
+            LabelSet labelSet = await _labelHandle.ToUniTask();
             if (labelSet == null || (isActive != null && !isActive())) {
                 return;
             }
