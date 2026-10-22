@@ -205,5 +205,36 @@ namespace BakAgain.Tests.PlayMode.UI.Navigation {
                 Assert.AreSame(travel, nav.Current, "the base screen survives a balanced pair");
                 Assert.IsTrue(travel.Shown);
             });
+
+        /// <summary>
+        /// TASK-900: the wait is for the screen to leave the STACK. Preferences -> Enhanced -> Mods
+        /// covered Enhanced, Preferences' wait ended, and its unsaved picks were re-copied on return.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator PushAndWaitOutlastsAScreenPushedOverIt() =>
+            UniTask.ToCoroutine(async () => {
+                var log = new List<string>();
+                var nav = new ScreenNavigator();
+                var prefs = new RecordingScreen("prefs", log);
+                var enhanced = new RecordingScreen("enhanced", log);
+                var mods = new RecordingScreen("mods", log);
+
+                await nav.ResetTo(prefs);
+                bool done = false;
+                nav.PushAndWaitAsync(enhanced).ContinueWith(() => done = true).Forget();
+                await UniTask.DelayFrame(2);
+
+                await nav.Push(mods);
+                await UniTask.DelayFrame(2);
+                Assert.IsFalse(done, "covered, not closed: Enhanced is still on the stack under Mods");
+
+                await nav.Pop();
+                await UniTask.DelayFrame(2);
+                Assert.IsFalse(done, "Enhanced is back on top and still open");
+
+                await nav.Pop();
+                await UniTask.DelayFrame(2);
+                Assert.IsTrue(done, "Enhanced left the stack, so the wait ends");
+            });
     }
 }

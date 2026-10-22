@@ -76,8 +76,16 @@ namespace BakAgain.UI.Navigation {
             // travel HUD the moment the shop's Exit popped it, read IsVisible == false because the
             // pop had not reached it yet, skipped the hide — and EnsureTopShownAsync then showed the
             // HUD over the location.
-            await UniTask.WaitUntil(() => !ReferenceEquals(Current, screen) && IsIdle);
+            //
+            // *** OFF THE STACK, NOT OFF THE TOP. *** A screen that pushes another over itself is
+            // still open: Preferences -> Enhanced -> Installed mods ended Preferences' wait for
+            // Enhanced, and Preferences then re-copied its working set and lost unsaved picks
+            // (TASK-900). The same early return ran a combat pack's command when a character
+            // sheet was opened from it.
+            await UniTask.WaitUntil(() => !IsOnStack(screen) && IsIdle);
         }
+
+        private bool IsOnStack(IScreen screen) => _stack.Exists(e => ReferenceEquals(e.Screen, screen));
 
         /// <summary>No operation is running or queued, so the stack and what is shown agree.</summary>
         private bool IsIdle => !_pumping && _queue.Count == 0;

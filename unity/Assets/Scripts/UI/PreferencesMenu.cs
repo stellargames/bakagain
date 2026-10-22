@@ -92,7 +92,7 @@ namespace BakAgain.UI {
         private async UniTask VisitEnhancedAsync() {
             _visitingEnhanced = true;
             try {
-                await _navigator.PushAndWaitAsync(_enhancedScreen); // until this screen is back, or the stack moved on
+                await _navigator.PushAndWaitAsync(_enhancedScreen); // until the Enhanced settings leave the stack
             } finally {
                 _visitingEnhanced = false;
             }

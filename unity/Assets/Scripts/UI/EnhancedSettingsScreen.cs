@@ -264,7 +264,7 @@ namespace BakAgain.UI {
         private async UniTask VisitModsAsync() {
             _visitingMods = true;
             try {
-                await _navigator.PushAndWaitAsync(_modsScreen); // until this screen is back, or the stack moved on
+                await _navigator.PushAndWaitAsync(_modsScreen); // until the Mods screen leaves the stack
             } finally {
                 _visitingMods = false;
             }

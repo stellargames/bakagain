@@ -3538,7 +3538,7 @@ using GameData.Resources.Scene;
         /// does not close the screen, and a later ordinary use overwrites the value, so waiting for
         /// the screen to close is the only moment at which the answer is final.
         ///
-        /// <para>Waiting on the navigator's top rather than on an event, because a screen has no
+        /// <para>Waiting on the navigator's stack rather than on an event, because a screen has no
         /// "closed" signal and adding one would fire on being pushed OVER as well as on being
         /// popped.</para>
         /// </remarks>

@@ -28,13 +28,14 @@ namespace BakAgain.UI.Navigation {
         UniTask Push(IScreen screen);
 
         /// <summary>
-        /// Show <paramref name="screen"/> and complete once it is no longer the top of the stack.
+        /// Show <paramref name="screen"/> and complete once it has left the stack.
         /// </summary>
         /// <remarks>
         /// What callers usually mean by "open this screen": the original's screen calls are
-        /// blocking, and the code after them is the code that runs when the player is done. It
-        /// returns as soon as the screen stops being the top, so a screen that pushes another over
-        /// itself does not resume its opener early.
+        /// blocking, and the code after them is the code that runs when the player is done. Being
+        /// covered is not being done -- the character sheet runs inside the inventory screen's own
+        /// loop (CMBINV.C:338) -- so a screen that pushes another over itself does not resume its
+        /// opener; a pop, a replace or a clear that takes it off the stack does.
         /// </remarks>
         UniTask PushAndWaitAsync(IScreen screen);
 
