@@ -108,16 +108,15 @@ public class AiTargetSearchTests {
     }
 
     [Fact]
-    public void TheEQUIDISTANTTieBreakIsTheSameUnderBothBounds() {
-        // *** Why the radius and the nearest-so-far bound are separate variables. *** They were one
-        // variable that each acceptance tightened; applying the melee `>=` to that tightened value
-        // would also reject a candidate at the same distance as the best so far, flipping which of
-        // two equidistant targets wins. Nothing observed says the exclusive bound touches the tie
-        // break, so it must not.
+    public void TheEQUIDISTANTTieBreak_RangedTakesTheLast_MeleeKeepsTheFirst() {
+        // The ranged selector skips `dist > max` and then sets max = dist, so a later candidate at
+        // the same distance replaces the earlier (CBENC.C:564,610). The melee selector accepts only
+        // `iDist < max_dist` before the same tightening (CMBTAI.C:329,357), so the first of two
+        // equals keeps it. Seen live in both games in TASK-937: E#1 went for Locklear, not Gorath.
         var tied = new[] { At(2, 0), At(0, 2) };
 
         Assert.Equal(1, CombatAi.SelectTarget(0, 0, tied, 6, TargetRole.Anyone, 0));
-        Assert.Equal(1, CombatAi.SelectTarget(0, 0, tied, 6, TargetRole.Anyone, 0,
+        Assert.Equal(0, CombatAi.SelectTarget(0, 0, tied, 6, TargetRole.Anyone, 0,
             excludeAtMaxDistance: true));
     }
 }

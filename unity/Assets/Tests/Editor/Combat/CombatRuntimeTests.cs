@@ -1269,6 +1269,44 @@ namespace BakAgain.Tests.Editor.Combat {
         }
 
         [Test]
+        public void OfTwoEquallyNearTargetsTheMeleeMonsterTakesTheFirst_NotTheBodysNeighbour() {
+            // TASK-937, the chapter-1 fight in dir.G01 SAVE04 after Owyn's Flamecast kills E#0 on
+            // (5,2): Locklear (2,1) and Gorath (6,2) are both three from E#1 on (3,4). The melee
+            // selector accepts on `iDist < max_dist` and then tightens max_dist to iDist
+            // (CMBTAI.C:329,357), so the FIRST of two equals in party order wins: Locklear, dest
+            // (3,1). Taking the last one walked E#1 to Gorath's approach cell — the body's (5,2).
+            var session = new GameSession();
+            for (var i = 0; i < 3; i++) {
+                session.SetActorStatsForTest(i, StatBlock(health: 40));
+            }
+            session.SetActiveParty(3, new byte[] { 0, 1, 2 });
+            session.SetRosterActorForTest(400, StatBlock(health: 40), gridX: 5, gridY: 2);
+            session.SetRosterActorForTest(401, StatBlock(health: 40), gridX: 3, gridY: 4);
+            var runtime = new CombatRuntime(session, null,
+                Entries(((byte)2, (byte)1), ((byte)2, (byte)0), ((byte)6, (byte)2)));
+            CombatEncounter fight = runtime.EnterRoster(new short[] { 400, 401 });
+            (int X, int Y)[] at = { (2, 1), (2, 0), (6, 2), (5, 2), (3, 4) };
+            var everyone = new List<Combatant>(fight.Party);
+            everyone.AddRange(fight.Enemies);
+            foreach (Combatant c in everyone) {
+                runtime.Grid.SetOccupied(c.X, c.Y, false);
+            }
+            for (var i = 0; i < everyone.Count; i++) {
+                everyone[i].X = at[i].X;
+                everyone[i].Y = at[i].Y;
+                runtime.Grid.SetOccupied(at[i].X, at[i].Y, true);
+            }
+            Combatant e1 = fight.Enemies[1];
+            runtime.KillForTest(fight.Enemies[0]);
+
+            runtime.ResolveEnemyTurn(e1, Melee(), _ => 0);
+
+            Assert.AreEqual(0, fight.Party.IndexOf(e1.Target),
+                "Locklear, the first of the two nearest in party order (2 is Gorath)");
+            Assert.AreEqual((3, 1), (e1.X, e1.Y), "beside Locklear, not on the body's cell");
+        }
+
+        [Test]
         public void MovingKeepsTheGridsOccupancyHonest() {
             // Neither CombatWalk nor CombatMovement touches occupancy. Left to them, every tile
             // anyone has stood on keeps a phantom blocker and the fight seizes up.

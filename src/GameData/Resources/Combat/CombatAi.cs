@@ -427,6 +427,8 @@ public static class CombatAi {
     /// <c>dist &lt;= maxDistance</c>, while <c>combat_selectTargetByCriterion</c> @0x64ff6 (ovr170,
     /// melee) <i>skips</i> on <c>dist &gt;= maxDistance</c>. Set this for the melee families, where
     /// a radius of 6 means "within 5". It makes no difference at 100 and all the difference at 6.
+    /// The same strict bound makes the melee selector keep the FIRST of two equally near
+    /// candidates, where the ranged one takes the last (TASK-937).
     /// </param>
     public static int SelectTarget(
         int fromX, int fromY, IReadOnlyList<TargetCandidate> candidates,
@@ -437,12 +439,13 @@ public static class CombatAi {
             return chosen;
         }
 
-        // *** The behaviour's radius and the nearest-so-far bound are kept APART. *** They used to
-        // be one variable that each acceptance tightened, which is equivalent while the test is
-        // `>` — but applying the melee `>=` rule to a tightened bound would also start rejecting a
-        // candidate at the SAME distance as the best so far, silently flipping which of two
-        // equidistant targets wins. That tie-break is not something the exclusive bound was
-        // observed to change, so it is left exactly as it was.
+        // *** THE TWO SELECTORS BREAK A TIE OPPOSITE WAYS. *** Each keeps one variable that is
+        // both the radius and the nearest-so-far bound. The ranged one skips `dist > max` and so
+        // lets a later candidate at the same distance replace the earlier (CBENC.C:564,610); the
+        // melee one accepts only `iDist < max_dist` (CMBTAI.C:329,357), so the FIRST of two equals
+        // in party order keeps it. Taking the last one in melee sent E#1 in the dir.G01 SAVE04
+        // fight to Gorath's side, onto a fresh body's cell, where the original went for Locklear
+        // (TASK-937). The bounds are kept apart only so a caller's radius stays readable.
         int nearestSoFar = int.MaxValue;
 
         for (var i = 0; i < candidates.Count; i++) {
@@ -450,7 +453,8 @@ public static class CombatAi {
             int distance = CombatGrid.ChebyshevDistance(fromX, fromY, candidate.X, candidate.Y);
 
             bool outOfRange = excludeAtMaxDistance ? distance >= maxDistance : distance > maxDistance;
-            if (outOfRange || distance > nearestSoFar || candidate.IsDead) {
+            bool notNearer = excludeAtMaxDistance ? distance >= nearestSoFar : distance > nearestSoFar;
+            if (outOfRange || notNearer || candidate.IsDead) {
                 continue;
             }
             // The clearance test uses the caller-supplied count; a 0 clearance disables it, matching
