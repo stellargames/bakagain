@@ -259,6 +259,7 @@ namespace BakAgain.ResourceManagement.Loaders {
         }
 
         private void OnDisable() {
+            _cursorManager?.HideTouchWord();
             // The screen can be re-enabled (Preferences opens/closes repeatedly),
             // so tear down what OnEnable built and release every handle to avoid
             // duplicate elements and leaked Addressables references.
@@ -887,6 +888,9 @@ namespace BakAgain.ResourceManagement.Loaders {
             // The hovered hotspot went with the stage and no PointerLeave will say so: let go of its
             // cursor, or a location keeps the last scene's word ("Tavern") over the next one.
             _cursorManager?.SetByIndex(-1);
+            _cursorManager?.HideTouchWord();
+            _touchHotspots.Clear();
+            RegisterTouchHotspots(root);
             _navWidgets.Clear();
             _builtEntries.Clear();
             _navigableOverrides.Clear();
@@ -1175,6 +1179,7 @@ namespace BakAgain.ResourceManagement.Loaders {
                 activators = {new ManipulatorActivationFilter {button = MouseButton.RightMouse}}
             });
             RegisterCursorHover(hotspot, menuEntry);
+            _touchHotspots[hotspot] = menuEntry;
             RegisterTouchLongPress(hotspot, () => TouchLongPressIsSecondary, () => {
                 // The Clickable's release must not also run the primary.
                 if (BakAgain.UI.InputCore.TouchInputState.Instance != null) {
@@ -1193,6 +1198,45 @@ namespace BakAgain.ResourceManagement.Loaders {
         /// touch (TASK-67).
         /// </summary>
         public bool TouchLongPressIsSecondary { get; set; }
+
+        /// <summary>
+        /// Set by a screen whose hotspots carry words (a location, TASK-926): a finger then shows the
+        /// word of the hotspot under it and acts on release (<see cref="RegisterTouchHotspotGesture"/>),
+        /// and this answers which hotspots ask first (the way out). Null: hotspots take a finger as a
+        /// plain click.
+        /// </summary>
+        public Func<int, bool> TouchAsksFirst { get; set; }
+
+        private readonly Dictionary<VisualElement, UiElement> _touchHotspots = new();
+        private VisualElement _touchGestureRoot;
+
+        private UiElement TouchHotspotEntry(int actionId) {
+            foreach (UiElement e in _touchHotspots.Values) {
+                if (e.ActionId == actionId) return e;
+            }
+            return null;
+        }
+
+        private void RegisterTouchHotspots(VisualElement root) {
+            if (_touchGestureRoot == root) return;
+            _touchGestureRoot = root;
+            RegisterTouchHotspotGesture(root,
+                e => _touchHotspots.TryGetValue(e, out UiElement entry) && TakesClicks(entry) ? entry.ActionId : -1,
+                () => TouchAsksFirst != null,
+                action => {
+                    if (TouchHotspotEntry(action) is { } entry) Select(entry);
+                },
+                action => {
+                    if (TouchHotspotEntry(action) is { } entry && TakesClicks(entry)) _ = _actionHandler?.SecondaryAction(action);
+                },
+                action => TouchAsksFirst?.Invoke(action) == true,
+                (action, at) => {
+                    int cursor = TouchHotspotEntry(action)?.Cursor ?? 0;
+                    if (cursor > 0) _cursorManager?.ShowTouchWord(string.IsNullOrWhiteSpace(cursorSet) ? "POINTER" : cursorSet, cursor, at);
+                    else _cursorManager?.HideTouchWord();
+                },
+                () => _cursorManager?.HideTouchWord());
+        }
 
         // Android's long-press timeout and slop, the same as TouchHoldDetector's.
         private const long TouchLongPressMs = 500;
@@ -1227,6 +1271,101 @@ namespace BakAgain.ResourceManagement.Loaders {
             element.RegisterCallback<PointerCancelEvent>(_ => Cancel(), TrickleDown.TrickleDown);
             element.RegisterCallback<PointerCaptureOutEvent>(_ => Cancel());
             element.RegisterCallback<DetachFromPanelEvent>(_ => Cancel());
+        }
+
+        /// <summary>
+        /// A finger on a screen whose hotspots have words (a location, TASK-926): the whole gesture is
+        /// taken here from the hotspots' own Clickables, because a finger has no hover to show the word
+        /// the mouse cursor shows. While it is down, the word of the hotspot under it shows (away from
+        /// it); the release acts on the hotspot under it THEN, or on nothing; a hotspot that
+        /// <paramref name="asksFirst"/> takes a second tap; a resting finger runs the secondary (the
+        /// TASK-67 examine) and its release nothing. The mouse is left to the Clickables.
+        /// </summary>
+        /// <param name="actionOf">The action of a hotspot element, or -1 for any other element.</param>
+        internal static void RegisterTouchHotspotGesture(VisualElement root, Func<VisualElement, int> actionOf,
+            Func<bool> armed, Action<int> primary, Action<int> secondary, Func<int, bool> asksFirst,
+            Action<int, Vector2> showWord, Action hideWord, long holdMs = TouchLongPressMs) {
+            int pointer = -1, asked = -1;
+            bool held = false;
+            Vector2 origin = default;
+            IVisualElementScheduledItem hold = null;
+
+            int At(Vector2 position) {
+                for (VisualElement e = root.panel?.Pick(position); e != null; e = e.parent) {
+                    int action = actionOf(e);
+                    if (action >= 0) return action;
+                }
+                return -1;
+            }
+            void Word(int action, Vector2 position) {
+                if (action >= 0) showWord(action, position);
+                else hideWord();
+            }
+            void StopHold() {
+                hold?.Pause();
+                hold = null;
+            }
+            bool Ours(IPointerEvent e) => e.pointerId == pointer;
+            void End() {
+                StopHold();
+                if (pointer >= 0 && root.HasPointerCapture(pointer)) root.ReleasePointer(pointer);
+                pointer = -1;
+            }
+
+            root.RegisterCallback<PointerDownEvent>(e => {
+                if (e.pointerType != UnityEngine.UIElements.PointerType.touch || !armed()) return;
+                e.StopPropagation(); // the hotspot's Clickable and long-press are the mouse's
+                End();
+                pointer = e.pointerId;
+                root.CapturePointer(pointer);
+                origin = e.position;
+                held = false;
+                int action = At(e.position);
+                Word(action, e.position);
+                if (action >= 0) {
+                    hold = root.schedule.Execute(() => {
+                        hold = null;
+                        held = true;
+                        hideWord();
+                        secondary(action);
+                    }).StartingIn(holdMs);
+                }
+            }, TrickleDown.TrickleDown);
+            root.RegisterCallback<PointerMoveEvent>(e => {
+                if (!Ours(e)) return;
+                e.StopPropagation();
+                if (hold != null && ((Vector2)e.position - origin).sqrMagnitude > TouchLongPressSlop * TouchLongPressSlop) {
+                    StopHold();
+                }
+                if (!held) Word(At(e.position), e.position);
+            }, TrickleDown.TrickleDown);
+            root.RegisterCallback<PointerUpEvent>(e => {
+                if (!Ours(e)) return;
+                e.StopPropagation();
+                End();
+                if (held) {
+                    held = false;
+                    return;
+                }
+                int action = At(e.position);
+                if (action >= 0 && asksFirst(action) && asked != action) {
+                    asked = action; // the word stays up: tap it again to go
+                    showWord(action, e.position);
+                    return;
+                }
+                asked = -1;
+                hideWord();
+                if (action >= 0) primary(action);
+            }, TrickleDown.TrickleDown);
+            root.RegisterCallback<PointerCancelEvent>(e => {
+                if (!Ours(e)) return;
+                End();
+                hideWord();
+            }, TrickleDown.TrickleDown);
+            root.RegisterCallback<DetachFromPanelEvent>(_ => {
+                End();
+                asked = -1;
+            });
         }
 
         private void AddToggle(UiElement menuEntry, VisualElement root) {

@@ -119,6 +119,62 @@ namespace BakAgain.UI.Cursor {
             _hotspot = entry.hotspot;
         }
 
+        /// <summary>How far a hotspot's word stands off a finger, in panel units: a fingertip and the
+        /// hand above it cover about this much of a phone held in landscape.</summary>
+        private const float TouchWordClearance = 160f;
+
+        /// <summary>
+        /// Where a hotspot's word goes for a finger (TASK-926): centred above it, clear of the
+        /// fingertip; below it when there is no room above; always inside <paramref name="bounds"/>.
+        /// </summary>
+        public static Vector2 TouchWordPosition(Vector2 finger, Vector2 size, Vector2 bounds) {
+            float x = Mathf.Clamp(finger.x - size.x / 2f, 0f, Mathf.Max(0f, bounds.x - size.x));
+            float y = finger.y - TouchWordClearance - size.y;
+            if (y < 0f) y = Mathf.Min(finger.y + TouchWordClearance, Mathf.Max(0f, bounds.y - size.y));
+            return new Vector2(x, y);
+        }
+
+        private VisualElement _touchWord;
+
+        /// <inheritdoc/>
+        public void ShowTouchWord(string setName, int index, Vector2 panelPosition) {
+            ShowTouchWordAsync(setName + ".BMX", index, panelPosition).Forget();
+        }
+
+        /// <inheritdoc/>
+        public void HideTouchWord() {
+            _touchWordRequest++;
+            if (_touchWord != null) _touchWord.style.display = DisplayStyle.None;
+        }
+
+        private int _touchWordRequest;
+
+        private async UniTaskVoid ShowTouchWordAsync(string setFile, int index, Vector2 finger) {
+            int request = ++_touchWordRequest;
+            if (_resources == null || _root == null) return;
+            string key = $"{setFile}#{index}";
+            if (!_cache.TryGetValue(key, out (Sprite sprite, Vector2 hotspot) entry)) {
+                Sprite sprite = await _resources.GetOrLoadAsync<Sprite>(key);
+                if (sprite == null) return;
+                entry = (sprite, ComputeHotspot(index, sprite.rect.width, sprite.rect.height));
+                _cache[key] = entry;
+            }
+            if (request != _touchWordRequest) return; // hidden or moved on meanwhile
+            _touchWord ??= new VisualElement {
+                name = "touch-word", pickingMode = PickingMode.Ignore, style = { position = Position.Absolute },
+            };
+            if (_touchWord.parent != _root) _root.Add(_touchWord);
+            var size = new Vector2(entry.sprite.rect.width, entry.sprite.rect.height);
+            Vector2 at = TouchWordPosition(finger, size, _root.layout.size);
+            _touchWord.style.backgroundImage = new StyleBackground(entry.sprite);
+            _touchWord.style.width = size.x;
+            _touchWord.style.height = size.y;
+            _touchWord.style.left = at.x;
+            _touchWord.style.top = at.y;
+            _touchWord.style.display = DisplayStyle.Flex;
+        }
+
+
         /// <summary>SetPointerImage (0x2abb7) hotspot rule: index 0/1 → top-left (0,0);
         /// index ≥ 2 → centred (w/2, h/2). Computed on the already-upscaled canonical sprite size,
         /// which equals the extractor's canonical hotspot.</summary>

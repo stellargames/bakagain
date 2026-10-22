@@ -33,5 +33,12 @@ namespace BakAgain.UI.Cursor {
 
         /// <summary>The cursor's owned canonical position (exposed for tests/diagnostics).</summary>
         Vector2 CanonicalPosition { get; }
+
+        /// <summary>A finger has no cursor: show image <paramref name="index"/> of a set (a hotspot's
+        /// word) near the finger at <paramref name="panelPosition"/> and clear of it (TASK-926).</summary>
+        void ShowTouchWord(string setName, int index, Vector2 panelPosition) { }
+
+        /// <summary>Takes <see cref="ShowTouchWord"/>'s word down.</summary>
+        void HideTouchWord() { }
     }
 }

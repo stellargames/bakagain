@@ -116,6 +116,9 @@ namespace BakAgain.World.Scenes {
             // Examine is right-click-only (see SecondaryAction): on touch it is a long-press.
             if (GetComponent<ResourceManagement.Loaders.UserInterfaceLoader>() is { } ui) {
                 ui.TouchLongPressIsSecondary = true;
+                // A finger has no cursor to say what it is on: the word shows while it is down, the
+                // release acts, and the way out asks first (owner, TASK-926).
+                ui.TouchAsksFirst = LeavesThisScene;
             }
             _sceneLetter = sceneLetter;
             _onTransition = letter => {
@@ -1276,6 +1279,22 @@ namespace BakAgain.World.Scenes {
         /// one of them somewhere no shipped dialog looks.
         /// </remarks>
         private const int DialogSubjectGlobal = 30000;
+
+        /// <summary>
+        /// Whether a hotspot is a way out of this scene — the bottom strip's code 3 (to the scene's
+        /// exit) or a transition that leaves the location — the hotspot a finger must tap twice.
+        /// </summary>
+        private bool LeavesThisScene(int menuEntryActionId) {
+            int index = GdsSceneInteraction.HotspotIndexFor(menuEntryActionId);
+            if (_scene?.Hotspots == null || index < 0 || index >= _scene.Hotspots.Length) return false;
+            GdsHotspot hotspot = _scene.Hotspots[index];
+            if (GdsActionDispatch.KindOf(hotspot.ActionCode) != GdsActionDispatch.ActionKind.SubScene) return false;
+            return hotspot.ActionCode == GdsSceneExitActionCode || GdsActionDispatch.TransitionLeavesTheLocation(
+                GdsActionDispatch.TransitionLetter(hotspot.ActionCode, _scene.NextSceneLetter, hotspot.NextSceneLetter));
+        }
+
+        /// <summary>Code 3: go to the SCENE's next letter — the exit strip every street and room ships.</summary>
+        private const int GdsSceneExitActionCode = 3;
 
         private GdsHotspot HotspotFor(int menuEntryActionId) {
             int index = GdsSceneInteraction.HotspotIndexFor(menuEntryActionId);
