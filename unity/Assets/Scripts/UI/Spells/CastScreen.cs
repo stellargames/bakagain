@@ -259,8 +259,31 @@ namespace BakAgain.UI.Spells {
                 }
             } else {
                 AttachPartyHeads();
-                if (!enhanced) AttachCompass();
+                if (!enhanced) {
+                    AttachCompass();
+                    AttachEffectStrip();
+                }
             }
+        }
+
+        /// <summary>
+        /// The running-spell runes on the top rod, as the travel HUD draws them (TASK-928).
+        /// </summary>
+        /// <remarks>
+        /// The original presents only cast.scx's world-view rect (CSPELL.C:2115-2121), so the
+        /// travel frame around it stays up with the plaque and runes
+        /// <c>spellfx_draw_events_caption</c> drew there (SPELLFX.C:379, WORLDLP.C:126). Field only:
+        /// a fight never draws the caption. The Enhanced screen builds its own in
+        /// <see cref="ApplyEnhancedAsync"/>.
+        /// </remarks>
+        private void AttachEffectStrip() {
+            VisualElement stage = Stage();
+            if (stage == null || _session == null || _providers == null) {
+                return;
+            }
+            _effectStrip?.Dispose();
+            _effectStrip = new BakAgain.UI.InGame.SpellEffectCaptionView(_session, _providers, _logger);
+            _effectStrip.BuildAsync(stage, this).Forget();
         }
 
         /// <summary>
