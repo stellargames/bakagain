@@ -306,14 +306,19 @@
    the window height. Two-class selectors so these beat .req-hitbox's absolute placement. Portrait
    widths are copied from their heights by EnhancedHudLayout (square boxes). */
 .enhanced-hud { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
-.enhanced-hud .enhanced-hud__portraits { position: absolute; left: 1.5%; top: 3%; height: 48%; flex-direction: column; justify-content: space-between; }
-/* The buttons keep their REQ size (the face is the icon at native size), so the column is scaled
-   as a whole: 96% tall unscaled x 0.8 = 3%..79.8% of the window (owner, 2026-10-11: bigger than
-   the mockup's 0.735). Lower than that meets the touch pads' forward arrow on a 16:9 screen. */
-.enhanced-hud .enhanced-hud__buttons { position: absolute; right: 1.5%; top: 3%; height: 96%; flex-direction: column; justify-content: space-between; scale: 0.8 0.8; transform-origin: right top; }
+/* The left edge in quarters of the window height (owner, 2026-10-22, TASK-939): a portrait centred in each
+   of the first three, clear of a phone's camera hole at mid-height; the touch pads take the fourth
+   (EnhancedTravelLayout.TouchPadBandTop = 0.75). Same on desktop. A portrait is 19.6% of the column
+   = 14.7% of the window, its size before. */
+.enhanced-hud .enhanced-hud__portraits { position: absolute; left: 1.5%; top: 0; height: 75%; flex-direction: column; justify-content: space-around; }
+/* The buttons evenly over the whole height (owner, 2026-10-22, TASK-940): six slots spread round, each
+   button scaled to its slot's height by EnhancedHudLayout (the face stays the icon at native size). On
+   a phone the right edge is the column's alone: the pads moved left. */
+.enhanced-hud .enhanced-hud__buttons { position: absolute; right: 1.5%; top: 0; bottom: 0; flex-direction: column; justify-content: space-around; align-items: flex-end; }
+.enhanced-hud .enhanced-hud__slot { height: 14%; justify-content: center; }
 .enhanced-hud .enhanced-hud__top { position: absolute; top: 2.5%; left: 0; right: 0; flex-direction: row; justify-content: center; align-items: center; }
-.enhanced-hud .enhanced-hud__portrait { position: relative; height: 30.7%; }
-.enhanced-hud .enhanced-hud__button { position: relative; }
+.enhanced-hud .enhanced-hud__portrait { position: relative; height: 19.6%; }
+.enhanced-hud .enhanced-hud__button { position: relative; flex-shrink: 0; transform-origin: right center; }
 .enhanced-hud .enhanced-hud__compass { position: relative; }
 /* The spell plaque without its parchment, on the status line's dark bar (owner, 2026-10-12). */
 .enhanced-hud .enhanced-hud__spellbar { position: relative; margin-right: 10px; border-radius: 3px; background-color: rgba(0, 0, 0, 0.6); flex-direction: row; justify-content: center; align-items: center; }

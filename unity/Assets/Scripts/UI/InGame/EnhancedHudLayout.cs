@@ -149,8 +149,13 @@ namespace BakAgain.UI.InGame {
             foreach (string n in _elements.Portraits) _moved.Move(_root.Q(n), portraits, "enhanced-hud__portrait", clearSize: true);
             // Buttons and the compass keep their REQ size: a button's face is its icon at native size
             // (inline, re-applied on every press), the compass strips are sized from the window in
-            // panel px. The theme scales the button column as a whole instead.
-            foreach (string n in _elements.Buttons) _moved.Move(_root.Q(n), buttons, "enhanced-hud__button", clearSize: false);
+            // panel px. Each button sits in a theme-sized slot instead and is scaled to its height
+            // (TASK-940), which a press re-applying the face does not touch.
+            foreach (string n in _elements.Buttons) {
+                VisualElement slot = MovedElements.Box("enhanced-hud__slot");
+                buttons.Add(slot);
+                _moved.Move(_root.Q(n), slot, "enhanced-hud__button", clearSize: false);
+            }
             // The spell plaque sits left of the compass on the theme's translucent bar instead of its
             // parchment, with the runes inside it rather than centred on the stage.
             if (_elements.SpellBar) {
@@ -165,11 +170,15 @@ namespace BakAgain.UI.InGame {
             top.Add(_status);
             foreach (string n in _elements.Arrows) _root.Q(n).style.display = DisplayStyle.None;
 
-            // Square portraits from the theme's heights, and the status font from the window height —
-            // sizes derived from layout data, not coordinates.
+            // Square portraits from the theme's heights, buttons scaled to their slots' (aspect kept),
+            // and the status font from the window height — sizes derived from layout data, not coordinates.
             _hud.RegisterCallback<GeometryChangedEvent>(_ => {
                 if (_hud == null) return;
                 foreach (VisualElement e in _hud.Query(className: "enhanced-hud__portrait").ToList()) e.style.width = e.resolvedStyle.height;
+                foreach (VisualElement e in _hud.Query(className: "enhanced-hud__button").ToList()) {
+                    float f = e.parent.resolvedStyle.height / e.resolvedStyle.height;
+                    if (f > 0f && !float.IsInfinity(f)) e.style.scale = new Scale(new Vector2(f, f));
+                }
                 _status.style.fontSize = _hud.resolvedStyle.height * _statusFontFraction;
             });
             return true;

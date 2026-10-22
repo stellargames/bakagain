@@ -73,21 +73,53 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
                 Assert.AreEqual(DisplayStyle.None, root.Q("touch-thrust").resolvedStyle.display, "no Thrust outside a fight");
             });
 
+        /// <summary>
+        /// Enhanced travel on a phone (TASK-939/940, owner 2026-10-22): all four pads on the left,
+        /// fitted into the band below the portraits, so the right edge is the button column's alone.
+        /// </summary>
         [UnityTest]
-        public IEnumerator ThePadCentreYOverrideLowersThePadsAndKeepsThemInTheWindow() =>
-            Harness(2666, Touch(), (view, root, state) => {
+        public IEnumerator TheBandOverridePutsAllFourPadsInTheBandOnTheLeft_20by9() => BandCase(2666);
+
+        [UnityTest]
+        public IEnumerator TheBandOverridePutsAllFourPadsInTheBandOnTheLeft_16by9() => BandCase(2133);
+
+        private static IEnumerator BandCase(float width) =>
+            Harness(width, Touch(), (view, root, state) => {
+                VisualElement left = root.Q("touch-left"), right = root.Q("touch-right");
+                Assert.IsTrue(right.Contains(root.Q("touchpad_72")), "control: walking on the right without the band");
+                float? top = 0.75f;
+                view.PadBandTopOverride = () => top;
+                view.Refresh(inFight: false);
                 // Place() writes inline styles, so read those: layout only updates next frame.
-                float Top(string pad) => root.Q(pad).style.top.value.value;
-                float faithful = Top("touchpad_72");
-                float? centre = 0.86f;
-                view.PadCentreYOverride = () => centre;
+                Rect R(string pad) {
+                    IStyle s = root.Q(pad).style;
+                    return new Rect(s.left.value.value, s.top.value.value, s.width.value.value, s.height.value.value);
+                }
+                float barW = (width - 1600) / 2f, bandTop = 1200 * 0.75f, bandH = 1200 - bandTop;
+                string[] pads = { "touchpad_72", "touchpad_80", "touchpad_75", "touchpad_77" };
+                Rect all = R(pads[0]);
+                foreach (string p in pads) {
+                    Assert.IsTrue(left.Contains(root.Q(p)), $"{p} on the left");
+                    Rect r = R(p);
+                    Assert.GreaterOrEqual(r.yMin, bandTop - 0.01f, $"{p} below the band's top");
+                    Assert.LessOrEqual(r.yMax, 1200.01f, $"{p} inside the window");
+                    Assert.GreaterOrEqual(r.xMin, -0.01f, p);
+                    Assert.LessOrEqual(r.xMax, barW + 0.01f, $"{p} inside the bar");
+                    foreach (string q in pads) {
+                        // Neighbours share an edge, as in the fight's cross: overlap beyond rounding only.
+                        Rect o = R(q);
+                        if (q != p) Assert.IsFalse(new Rect(r.x + 0.01f, r.y + 0.01f, r.width - 0.02f, r.height - 0.02f).Overlaps(o), $"{p} overlaps {q}");
+                    }
+                    all = Rect.MinMaxRect(Mathf.Min(all.xMin, r.xMin), Mathf.Min(all.yMin, r.yMin),
+                        Mathf.Max(all.xMax, r.xMax), Mathf.Max(all.yMax, r.yMax));
+                }
+                Assert.Less(R("touchpad_72").yMax, R("touchpad_80").yMin + 0.01f, "forward above back");
+                Assert.Less(R("touchpad_75").xMax, R("touchpad_77").xMin, "turn left left of turn right");
+                Assert.AreEqual(new TouchControlsLayout().PadSize, Mathf.Max(all.width / barW, all.height / bandH), 0.01f,
+                    "the cluster fitted to the band: PadSize of its height or of the bar's width");
+                top = null;
                 view.Refresh(inFight: false);
-                Assert.Greater(Top("touchpad_72"), faithful);
-                VisualElement back = root.Q("touchpad_80");
-                Assert.LessOrEqual(back.style.top.value.value + back.style.height.value.value, 1200f, "the back pad stays inside the window");
-                centre = null;
-                view.Refresh(inFight: false);
-                Assert.AreEqual(faithful, Top("touchpad_72"), 0.01f, "null restores the layout's value");
+                Assert.IsTrue(right.Contains(root.Q("touchpad_72")), "null splits them again");
             });
 
         [UnityTest]

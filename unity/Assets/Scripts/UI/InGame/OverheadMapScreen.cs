@@ -194,8 +194,8 @@ namespace BakAgain.UI.InGame {
                     _pointer, new GameData.Resources.Layout.TouchControlsLayout());
                 _touchControls.Build(root, CanonicalStage.GetOrCreate(root, _loader.Frame));
                 // Full-window, the map's buttons sit in the bars: the pads go under them, as in travel.
-                _touchControls.PadCentreYOverride = () => _fullScreen != null && _fullScreen.Active
-                    ? _travelLayout.TouchPadCentreY : (float?)null;
+                _touchControls.PadBandTopOverride = () => _fullScreen != null && _fullScreen.Active
+                    ? _travelLayout.TouchPadBandTop : (float?)null;
             }
             // Registered here rather than in BuildWhileHiddenAsync because the root only exists once the REQ
             // has built, and this method is the one place that is true. The guard above makes it

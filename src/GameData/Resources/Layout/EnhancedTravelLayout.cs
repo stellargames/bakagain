@@ -22,8 +22,11 @@ public sealed class EnhancedTravelLayout
     /// </summary>
     public float PitchMaxDegrees { get; set; } = 89f;
 
-    /// <summary>Vertical centre of the touch movement pads, as a fraction of the window height.</summary>
-    public float TouchPadCentreY { get; set; } = 0.9f;
+    /// <summary>
+    /// Where the touch pads' band starts, as a fraction of the window height; it runs to the bottom.
+    /// The left edge's fourth quarter (TASK-939): the theme's portrait column (<c>.enhanced-hud__portraits</c>) takes the three above.
+    /// </summary>
+    public float TouchPadBandTop { get; set; } = 0.75f;
 
     /// <summary>The HUD status line's font size, as a fraction of the window height.</summary>
     public float StatusFontFraction { get; set; } = 0.024f;

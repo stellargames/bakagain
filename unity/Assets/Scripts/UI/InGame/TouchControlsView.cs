@@ -19,7 +19,8 @@ namespace BakAgain.UI.InGame {
     /// resolve through the mouse's click path; the grid button is the original's G key.</para>
     ///
     /// <para><b>Layout (owner's choice, 2026-10-01).</b> Travel: turning on the left thumb, walking
-    /// on the right. A fight: all four on the left, moving the combat cursor, and the buttons for the
+    /// on the right; Enhanced travel (owner, 2026-10-22, TASK-939/940): all four on the left, fitted
+    /// into the band under the portraits (<see cref="PadBandTopOverride"/>). A fight: all four on the left, moving the combat cursor, and the buttons for the
     /// cell under it on the right. ponytail: flat stone-coloured fills, not the original's BICONS
     /// sprites — swap them in (UiElement.IconKeyForCombined) if the fills look out of place.</para>
     /// </remarks>
@@ -90,13 +91,13 @@ namespace BakAgain.UI.InGame {
         public void Refresh(bool inFight) {
             bool hidden = DialogManager.PageOverTheWorld;
             bool touch = IsTouch;
-            float centreY = PadCentreY;
-            if (centreY == _lastCentreY && inFight == _inFight && touch == _wasTouch && hidden == _hidden
+            float? bandTop = PadBandTopOverride?.Invoke();
+            if (bandTop == _lastBandTop && inFight == _inFight && touch == _wasTouch && hidden == _hidden
                 && _state.CursorContext == _lastContext && _state.AwaitingTarget == _lastAwaiting
                 && _state.CastAccepted == _lastCastAccepted && _state.MoveAccepted == _lastMoveAccepted) {
                 return;
             }
-            _lastCentreY = centreY;
+            _lastBandTop = bandTop;
             _lastContext = _state.CursorContext;
             _lastAwaiting = _state.AwaitingTarget;
             _lastCastAccepted = _state.CastAccepted;
@@ -227,12 +228,14 @@ namespace BakAgain.UI.InGame {
 
         private void OnGeometry(GeometryChangedEvent _) => Layout();
 
-        /// <summary>Overrides the pad cluster's vertical centre (fraction of the window); null = the layout's.</summary>
-        public System.Func<float?> PadCentreYOverride { get; set; }
+        /// <summary>
+        /// Enhanced travel: all four pads on the left, fitted into the band from this fraction of the
+        /// window height to its bottom (EnhancedTravelLayout.TouchPadBandTop). Null = the layout's
+        /// split, turning left and walking right; a fight's caller passes null.
+        /// </summary>
+        public System.Func<float?> PadBandTopOverride { get; set; }
 
-        private float _lastCentreY = float.NaN;
-
-        private float PadCentreY => PadCentreYOverride?.Invoke() ?? _layout.PadCentreY;
+        private float? _lastBandTop;
 
         private void Layout() {
             if (_root == null) {
@@ -255,23 +258,39 @@ namespace BakAgain.UI.InGame {
             }
 
             // Travel: turning left, walking right. A fight: the four-way pad moves the cursor.
+            // Enhanced travel: all four on the left, in the band, as the keyboard's inverted T.
+            float? bandTop = _inFight ? null : PadBandTopOverride?.Invoke();
             foreach (KeyValuePair<int, VisualElement> kv in _pads) {
                 bool walk = kv.Key == Forward || kv.Key == Back;
-                VisualElement bar = walk && !_inFight ? _right : _left;
+                VisualElement bar = walk && !_inFight && bandTop == null ? _right : _left;
                 if (kv.Value.parent != bar) {
                     bar.Add(kv.Value);
                 }
                 float barW = bar == _left ? leftW : rightW;
-                float cell = barW * _layout.PadSize / 3f;
-                // A wide window makes the bars (and the pads, sized by bar width) bigger than the window is tall:
-                // keep the whole cluster inside it (Enhanced 21:9; a no-op at every aspect that already fit).
-                var centre = new Vector2(barW / 2f, Mathf.Min(h * PadCentreY, h - 1.5f * cell));
-                Vector2 off = kv.Key switch {
-                    Forward => new Vector2(0, -cell),
-                    Back => new Vector2(0, cell),
-                    TurnLeft => new Vector2(-cell, 0),
-                    _ => new Vector2(cell, 0),
-                };
+                float cell;
+                Vector2 centre, off;
+                if (bandTop is float top) {
+                    float bandH = h * (1f - top);
+                    cell = _layout.PadSize * Mathf.Min(barW / 3f, bandH / 2f);
+                    centre = new Vector2(barW / 2f, h * top + bandH / 2f);
+                    off = kv.Key switch {
+                        Forward => new Vector2(0, -cell / 2f),
+                        Back => new Vector2(0, cell / 2f),
+                        TurnLeft => new Vector2(-cell, cell / 2f),
+                        _ => new Vector2(cell, cell / 2f),
+                    };
+                } else {
+                    cell = barW * _layout.PadSize / 3f;
+                    // A wide window makes the bars (and the pads, sized by bar width) bigger than the window is tall:
+                    // keep the whole cluster inside it (a no-op at every aspect that already fit).
+                    centre = new Vector2(barW / 2f, Mathf.Min(h * _layout.PadCentreY, h - 1.5f * cell));
+                    off = kv.Key switch {
+                        Forward => new Vector2(0, -cell),
+                        Back => new Vector2(0, cell),
+                        TurnLeft => new Vector2(-cell, 0),
+                        _ => new Vector2(cell, 0),
+                    };
+                }
                 Place(kv.Value, centre.x + off.x - cell / 2f, centre.y + off.y - cell / 2f, cell, cell, true);
             }
 
