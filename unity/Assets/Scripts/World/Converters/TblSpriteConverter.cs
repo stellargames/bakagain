@@ -37,7 +37,8 @@ namespace BakAgain.World.Converters {
         /// z units (<see cref="TableDatInfo.SpriteAnchorRise"/>): renderSprite2 hangs the bitmap from a
         /// projected vertex, so a raised one lifts the whole quad. Baked into the mesh rather than the
         /// transform, because a flight sets the transform's position every frame.</param>
-        /// <returns>Mesh (anchored unit quad) and the localScale to apply to the GameObject.</returns>
+        /// <returns>Mesh (anchored unit quad) and the localScale to apply to the GameObject. Its z equals
+        /// its x so the turn-covering bounds (<see cref="CoverTurns"/>) are round in the world.</returns>
         public static (Mesh mesh, Vector3 localScale) BuildBillboard(
             SpriteBMeshFace face, int entityExtentBak, int texW, int texH, int anchorRiseBak = 0) {
             // Anchor and size are RE knowledge (the anchor is in the source bitmap's pixels, and the
@@ -49,9 +50,8 @@ namespace BakAgain.World.Converters {
 
             var mesh = CreateAnchoredQuad((float)pivotU, (float)pivotV,
                 height > 0 ? (float)(anchorRiseBak / height) : 0f);
-            var localScale = new Vector3(
-                (float)(width / BakCoordinateConverter.WorldScale),
-                (float)(height / BakCoordinateConverter.WorldScale), 1f);
+            float worldWidth = (float)(width / BakCoordinateConverter.WorldScale);
+            var localScale = new Vector3(worldWidth, (float)(height / BakCoordinateConverter.WorldScale), worldWidth);
             return (mesh, localScale);
         }
 
@@ -80,8 +80,32 @@ namespace BakAgain.World.Converters {
             };
             mesh.triangles = new[] { 0, 2, 1, 0, 3, 2 };
             mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
+            CoverTurns(mesh);
             return mesh;
+        }
+
+        /// <summary>
+        /// Gives a billboard the bounds of every way the sprite shader can turn it. SpritePass.hlsl
+        /// (BillboardWorldPos) swings the quad about its pivot to face the camera, and to the sun in the
+        /// Enhanced shadow pass, so Unity must cull by a column as wide as the quad's longer arm, not by
+        /// the quad as built: side-on, that is a sliver round the pivot, and a tree whose pivot had just
+        /// left the screen vanished while part of it was still drawn (TASK-943). The column is in mesh
+        /// space, so it is round in the world only while the transform's z scale equals its x scale.
+        /// The mesh's bounds are therefore NOT the drawn quad: read the vertices for that.
+        /// </summary>
+        /// <param name="vary">The material's <c>_VarySize</c>: the shader scales the quad about its pivot
+        /// by up to 1 +- this.</param>
+        public static void CoverTurns(Mesh quad, float vary = 0f) {
+            float arm = 0f, bottom = float.MaxValue, top = float.MinValue;
+            foreach (Vector3 v in quad.vertices) {
+                arm = Mathf.Max(arm, Mathf.Abs(v.x));
+                bottom = Mathf.Min(bottom, v.y);
+                top = Mathf.Max(top, v.y);
+            }
+            float lo = 1f - vary, hi = 1f + vary;
+            arm *= hi;
+            float min = Mathf.Min(bottom * lo, bottom * hi), max = Mathf.Max(top * lo, top * hi);
+            quad.bounds = new Bounds(new Vector3(0f, (min + max) / 2f, 0f), new Vector3(2f * arm, max - min, 2f * arm));
         }
     }
 }

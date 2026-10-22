@@ -291,6 +291,8 @@ namespace BakAgain.World {
     /// exactly what the game shows.
     /// </summary>
     public static class WorldEntityBuilder {
+        private static readonly int VarySizeId = Shader.PropertyToID("_VarySize");
+
         /// <summary>
         /// Build one entity's GameObject. Terrain goes under <paramref name="terrainParent"/>,
         /// everything else under <paramref name="entityParent"/> (pass the same transform for both
@@ -392,7 +394,11 @@ namespace BakAgain.World {
                 go.transform.localScale = billboard.localScale;
             } else {
                 quad = TblSpriteConverter.CreateBillboardQuad();
-                go.transform.localScale = new Vector3(spriteTex.width / 44f, spriteTex.height / 44f, 1f);
+                go.transform.localScale = new Vector3(spriteTex.width / 44f, spriteTex.height / 44f, spriteTex.width / 44f);
+            }
+            // An HD frame's size variation draws the quad bigger than built.
+            if (material.HasFloat(VarySizeId) && material.GetFloat(VarySizeId) > 0f) {
+                TblSpriteConverter.CoverTurns(quad, material.GetFloat(VarySizeId));
             }
 
             var filter = go.AddComponent<MeshFilter>();
@@ -433,15 +439,17 @@ namespace BakAgain.World {
         }
 
         private static Bounds ComputeLocalBounds(GameObject go) {
-            // Union of the object's mesh bounds in local space (billboard quad for sprites, the model
-            // mesh for 3D). Falls back to a unit box if no mesh is found.
+            // Union of the object's mesh geometry in local space (billboard quad for sprites, the model
+            // mesh for 3D) — the vertices, not mesh.bounds, which on a billboard cover its every turn.
+            // Falls back to a unit box if no mesh is found.
             var filters = go.GetComponentsInChildren<MeshFilter>();
             Bounds b = new Bounds(Vector3.zero, Vector3.one);
             bool seeded = false;
             foreach (var f in filters) {
                 if (f.sharedMesh == null) { continue; }
-                if (!seeded) { b = f.sharedMesh.bounds; seeded = true; }
-                else { b.Encapsulate(f.sharedMesh.bounds); }
+                Bounds mb = GeometryUtility.CalculateBounds(f.sharedMesh.vertices, Matrix4x4.identity);
+                if (!seeded) { b = mb; seeded = true; }
+                else { b.Encapsulate(mb); }
             }
             return b;
         }

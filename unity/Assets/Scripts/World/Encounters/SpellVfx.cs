@@ -741,9 +741,11 @@ namespace BakAgain.World.Encounters {
             IList<float> sizes = null) {
             _v.Clear(); _uv.Clear(); _corner.Clear(); _c.Clear(); _i.Clear();
             var n = 0;
+            float largest = 0f;
             foreach (ParticlePoint p in points) {
                 Vector3 at = BakCoordinateConverter.ConvertPosition((int)p.X, (int)p.Y, (int)p.Z);
                 float h = (sizes != null && n < sizes.Count ? sizes[n] : size) / BakCoordinateConverter.WorldScale / 2f;
+                largest = Mathf.Max(largest, h);
                 Color c = colour(p);
                 int b = _v.Count;
                 for (var k = 0; k < 4; k++) {
@@ -762,10 +764,12 @@ namespace BakAgain.World.Encounters {
             _mesh.SetUVs(1, _corner);
             _mesh.SetColors(_c);
             _mesh.SetTriangles(_i, 0);
-            // Billboarding happens in the shader, so pad the bounds by the largest quad.
+            // Billboarding happens in the shader, so pad the bounds by the largest quad: a corner sits up
+            // to h along the view's right and up, so up to h*sqrt(2) along any world axis. A fixed pad of
+            // 0.5 let a halo (h is half its sprite's height) pop at the screen edge (TASK-943).
             _mesh.RecalculateBounds();
             Bounds bounds = _mesh.bounds;
-            bounds.Expand(1f);
+            bounds.Expand(2f * Mathf.Sqrt(2f) * largest);
             _mesh.bounds = bounds;
         }
 

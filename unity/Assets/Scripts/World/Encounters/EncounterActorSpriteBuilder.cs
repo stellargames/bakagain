@@ -294,6 +294,8 @@ namespace BakAgain.World.Encounters {
                 : localScale;
 
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            // The drawn quad, for the colliders: mesh.bounds covers every turn (CoverTurns).
+            Bounds quad = GeometryUtility.CalculateBounds(mesh.vertices, Matrix4x4.identity);
             Material material = ctx.GetSpriteMaterial(tex);
             go.AddComponent<MeshRenderer>().sharedMaterial = material;
             go.AddComponent<BillboardSprite>();
@@ -322,14 +324,14 @@ namespace BakAgain.World.Encounters {
                 corpse.SetName = setName;
                 corpse.Face = face;
                 corpse.Extent = entry.Dat.Extent;
-                WorldEntityBuilder.AddInteractionCollider(go, mesh.bounds.center, mesh.bounds.size);
+                WorldEntityBuilder.AddInteractionCollider(go, quad.center, quad.size);
             } else if (arena) {
                 ArenaCombatant marker = go.AddComponent<ArenaCombatant>();
                 marker.RosterSlot = actor.RosterSlot;
                 marker.PartyMember = actor.PartyMember;
                 marker.Face = face;
                 marker.Extent = entry.Dat.Extent;
-                WorldEntityBuilder.AddInteractionCollider(go, mesh.bounds.center, mesh.bounds.size);
+                WorldEntityBuilder.AddInteractionCollider(go, quad.center, quad.size);
             }
             // An actor that walks a route needs identity on the transform, or the ported tick has
             // nothing to move: BuildAsync returns a count, so after this method there is no way back
@@ -348,8 +350,8 @@ namespace BakAgain.World.Encounters {
                     GameData.Resources.World.WorldEntityType.Corpse, ctx.Underground) ?? 0;
                 // The billboard quad has no depth, and a ray misses a zero-thickness box; give it
                 // as much depth as width so the click lands whichever way the quad has turned.
-                Vector3 size = mesh.bounds.size;
-                WorldEntityBuilder.AddInteractionCollider(go, mesh.bounds.center,
+                Vector3 size = quad.size;
+                WorldEntityBuilder.AddInteractionCollider(go, quad.center,
                     new Vector3(size.x, size.y, Mathf.Max(size.z, size.x)));
             }
             ctx.TrackMesh(mesh);

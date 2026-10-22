@@ -38,8 +38,9 @@ namespace BakAgain.World.Rendering {
             if (quad == null) return null;
             // Local space carries the sprite's scale and mirror; the circle is set in world units and
             // divided back out, so it stays round whichever way the billboard turns.
+            // The quad is a unit wide (its bounds cover its turns, TblSpriteConverter.CoverTurns).
             Vector3 s = sprite.transform.localScale;
-            float diameter = quad.bounds.size.x * Mathf.Abs(s.x) * SpriteFootprint;
+            float diameter = Mathf.Abs(s.x) * SpriteFootprint;
             return Attach(sprite.transform, Vector3.zero, new Vector3(diameter / s.x, 1f, diameter / Mathf.Max(Mathf.Abs(s.z), 1e-4f)));
         }
 
