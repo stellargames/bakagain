@@ -1300,7 +1300,7 @@ using GameData.Resources.Scene;
                     // as "#0" — wrong for the sprite's name and useless as identity. An enemy's
                     // place is its index in the encounter's roster, which is also the x its corpse
                     // container is keyed by: GetLiveContainerAt(100, index, encounterNumber).
-                    rosterSlot: c.IsPartyMember ? c.PartySlot : fight.Enemies.IndexOf(c),
+                    rosterSlot: RosterIdentity(fight, c).RosterSlot,
                     creatureNumber: creature,
                     worldX: _session.PositionX + dx,
                     worldY: _session.PositionY + dy,
@@ -1309,7 +1309,7 @@ using GameData.Resources.Scene;
                     downed: downed,
                     // Which list rosterSlot indexes. Without it a click on a target could not tell
                     // party slot 0 from enemy slot 0 — see Placed.PartyMember.
-                    partyMember: c.IsPartyMember));
+                    partyMember: RosterIdentity(fight, c).PartyMember));
             }
             return placed;
         }
@@ -1847,26 +1847,34 @@ using GameData.Resources.Scene;
         /// <see cref="PlaceCombatants"/>.
         /// </summary>
         /// <remarks>
-        /// <b>Sited here on purpose.</b> The forward mapping is one expression a few lines up
-        /// (<c>c.IsPartyMember ? c.PartySlot : fight.Enemies.IndexOf(c)</c>), and a second copy of it
-        /// somewhere else is a thing that can drift. Both directions live in one file so they cannot.
+        /// <b>Sited here on purpose.</b> The forward mapping is <see cref="RosterIdentity"/>, and a
+        /// second copy of it somewhere else is a thing that can drift. Both directions live in one
+        /// file so they cannot.
         /// </remarks>
         public GameData.Resources.Combat.Combatant CombatantFor(int rosterSlot, bool partyMember) {
             GameData.Resources.Combat.CombatEncounter fight = Combat?.Encounter;
-            if (fight == null) {
-                return null;
+            return fight == null ? null : TargetAt(fight, rosterSlot, partyMember);
+        }
+
+        /// <summary>
+        /// The roster identity a combatant is drawn and picked by — the one forward mapping, whose
+        /// inverse is <see cref="CombatantFor"/>.
+        /// </summary>
+        /// <remarks>
+        /// A character is its 1-based party slot, an enemy its index in the encounter's list. A
+        /// party-side actor that is no character — a summon or a decoy, which the original appends
+        /// to the party's array with no character slot (CSPELL.C:717 and 765, CACTOR.C:184) — is
+        /// <c>-1 - its index in Party</c>: negative, so it cannot collide with a character, and
+        /// still one actor. It used to fall to <c>Enemies.IndexOf</c> = (-1, false), which named
+        /// nobody, so the cursor read a summon's cell as empty (TASK-934).
+        /// </remarks>
+        private static (int RosterSlot, bool PartyMember) RosterIdentity(
+            GameData.Resources.Combat.CombatEncounter fight, GameData.Resources.Combat.Combatant c) {
+            if (c.IsPartyMember) {
+                return (c.PartySlot, true);
             }
-            if (!partyMember) {
-                return rosterSlot >= 0 && rosterSlot < fight.Enemies.Count
-                    ? fight.Enemies[rosterSlot]
-                    : null;
-            }
-            foreach (GameData.Resources.Combat.Combatant c in fight.AllCombatants()) {
-                if (c != null && c.IsPartyMember && c.PartySlot == rosterSlot) {
-                    return c;
-                }
-            }
-            return null;
+            int enemy = fight.Enemies.IndexOf(c);
+            return enemy >= 0 ? (enemy, false) : (-1 - fight.Party.IndexOf(c), true);
         }
 
         /// <summary>
@@ -2013,9 +2021,7 @@ using GameData.Resources.Scene;
                 return null;
             }
 
-            return occupant.IsPartyMember
-                ? (occupant.PartySlot, true)
-                : (fight.Enemies.IndexOf(occupant), false);
+            return RosterIdentity(fight, occupant);
         }
 
         /// <summary>Arm an effect sprite to fly from <paramref name="from"/> to
@@ -2032,13 +2038,13 @@ using GameData.Resources.Scene;
             if (fight == null || from == null || to == null) {
                 return;
             }
-            int slot = to.IsPartyMember ? to.PartySlot : fight.Enemies.IndexOf(to);
-            if (slot < 0) {
-                return;
+            (int slot, bool party) = RosterIdentity(fight, to);
+            if (TargetAt(fight, slot, party) != to) {
+                return;   // not on the field: nobody to fly at
             }
             from.FlightEffectId = effectId;
             from.FlightToSlot = slot;
-            from.FlightToParty = to.IsPartyMember;
+            from.FlightToParty = party;
         }
 
         /// <summary>Give a pending thrown-rock flight its arc, if that is what is flying.</summary>
@@ -3003,7 +3009,8 @@ using GameData.Resources.Scene;
         private (System.Collections.Generic.IReadOnlyList<GameData.Resources.Combat.HudPanelLine>,
                  System.Collections.Generic.IReadOnlyList<GameData.Resources.Combat.HudPanelRule>)
             MeleePanelContent(Combatant acting, Combatant target) {
-            if (target == null || target.IsDead || target.IsPartyMember) {
+            // An encounter actor, not "not a character": a summon is neither (COMBAT.C:2251-2255).
+            if (target == null || target.IsDead || !IsEncounterActor(Combat.Encounter, target)) {
                 return (null, null);
             }
             if (!GameData.Resources.Combat.CombatActionDispatch.WithinReach(
@@ -3225,7 +3232,7 @@ using GameData.Resources.Scene;
             GameData.Resources.Combat.InspectAction.Result result =
                 GameData.Resources.Combat.InspectAction.Resolve(
                     moveCost: 0, confirmed: true,
-                    targetIsEncounterActor: target != null && !target.IsPartyMember);
+                    targetIsEncounterActor: target != null && IsEncounterActor(Combat.Encounter, target));
             if (result != GameData.Resources.Combat.InspectAction.Result.Inspected) {
                 return;
             }
@@ -3392,8 +3399,8 @@ using GameData.Resources.Scene;
                 return;
             }
 
-            if (target.IsPartyMember || target.IsDead) {
-                return;   // the party is never a melee target
+            if (!IsEncounterActor(Combat.Encounter, target) || target.IsDead) {
+                return;   // the party's side -- a summon too -- is never a melee target (COMBAT.C:2251)
             }
 
             CombatRuntime.MeleeClick outcome = Combat.ResolveMeleeClick(acting, target,
@@ -3706,7 +3713,7 @@ using GameData.Resources.Scene;
             GameData.Resources.Combat.CombatItemUse.Use arm = _pendingCombatItem.Value;
             _pendingCombatItem = null;
 
-            bool aimable = target != null && !target.IsPartyMember && !target.IsDead;
+            bool aimable = target != null && IsEncounterActor(Combat.Encounter, target) && !target.IsDead;
             if (aimable
                 && arm.Targeting
                     == GameData.Resources.Combat.CombatItemUse.Targeting.AdjacentEnemy) {
@@ -4541,17 +4548,19 @@ using GameData.Resources.Scene;
         /// <c>EncounterActorPlacement.Placed.PartyMember</c>.</remarks>
         private static Combatant TargetAt(GameData.Resources.Combat.CombatEncounter fight,
             int rosterSlot, bool partyMember) {
-            System.Collections.Generic.List<Combatant> side =
-                partyMember ? fight.Party : fight.Enemies;
-            if (partyMember) {
-                foreach (Combatant c in side) {
-                    if (c != null && c.PartySlot == rosterSlot) {
-                        return c;
-                    }
-                }
-                return null;
+            if (!partyMember) {
+                return rosterSlot >= 0 && rosterSlot < fight.Enemies.Count ? fight.Enemies[rosterSlot] : null;
             }
-            return rosterSlot >= 0 && rosterSlot < side.Count ? side[rosterSlot] : null;
+            if (rosterSlot < 0) {
+                int index = -1 - rosterSlot;   // a summon or a decoy -- see RosterIdentity
+                return index < fight.Party.Count ? fight.Party[index] : null;
+            }
+            foreach (Combatant c in fight.Party) {
+                if (c != null && c.IsPartyMember && c.PartySlot == rosterSlot) {
+                    return c;
+                }
+            }
+            return null;
         }
 
         /// <summary>

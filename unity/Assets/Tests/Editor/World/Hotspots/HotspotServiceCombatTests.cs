@@ -398,6 +398,70 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
         }
 
         [Test]
+        public void ASummonsCellNamesTheSummon_AndEveryCursorArmRefusesIt() {
+            // TASK-934. The cursor reads the tile's occupant (combat_actor_terr_under_cur, CACTOR.C:741)
+            // and a summon is one (CSPELL.C:730 writes its tile word). It is on the party's side
+            // (CACTOR.C:184), so the move/melee states refuse it as no encounter actor
+            // (COMBAT.C:2251-2255) and a ground spell refuses its tile as blocked (COMBAT.C:2218-2220).
+            // The port named it (-1, false) -- nobody -- so a summon spell clicked on it cast anyway.
+            const int Rusalki = 56;
+            Rig rig = Build(start: new GameData.Resources.Config.StartData("START.DAT") { CombatGridCellSize = 300 });
+            Assert.IsTrue(rig.Service.StartCombat(CombTrigger()));
+            CombatEncounter fight = rig.Service.Combat.Encounter;
+            for (int i = 0; i < 4 && (fight.Current == null || !fight.Current.IsPartyMember); i++) {
+                fight.EndTurn();
+                fight.PickNext();
+            }
+            Combatant acting = fight.Current;
+            Assert.IsTrue(acting?.IsPartyMember ?? false, "the fixture needs a party member's turn");
+            rig.Service.Combat.MonsterTemplates = new Dictionary<int, GameData.Resources.Monster.MonsterStats> {
+                [Rusalki] = new GameData.Resources.Monster.MonsterStats("MONST56") {
+                    CreatureId = Rusalki,
+                    Health = new GameData.Resources.Monster.StatRange { Min = 40, Max = 40 },
+                    Stamina = new GameData.Resources.Monster.StatRange { Min = 20, Max = 20 },
+                    Speed = new GameData.Resources.Monster.StatRange { Min = 4, Max = 4 },
+                },
+            };
+            Combatant summon = rig.Service.Combat.Summon(Rusalki, 1, 4);
+            Assert.IsNotNull(summon);
+            acting.X = 1; acting.Y = 3;   // orthogonally next to it, well within reach
+
+            (int RosterSlot, bool PartyMember)? picked =
+                rig.Service.CombatantAtPoint(rig.Service.CellCentreWorld(1, 4).Value);
+            Assert.IsTrue(picked.HasValue, "somebody stands there");
+            Assert.AreSame(summon, rig.Service.CombatantFor(picked.Value.RosterSlot, picked.Value.PartyMember),
+                "the cursor names the summon");
+            Assert.IsTrue(picked.Value.PartyMember, "on the party's side");
+            Assert.AreEqual(((int, bool)?)(0, false),
+                rig.Service.CombatantAtPoint(rig.Service.CellCentreWorld(fight.Enemies[0].X, fight.Enemies[0].Y).Value),
+                "the control: an enemy keeps its own identity");
+
+            // Nothing armed: the acting member's stats (no melee preview), and a click strikes nothing.
+            string stats = rig.Service.CombatPanelContent(-1, partyMember: false).Lines?[0].Text;
+            Assert.AreEqual(stats,
+                rig.Service.CombatPanelContent(picked.Value.RosterSlot, picked.Value.PartyMember).Lines?[0].Text,
+                "no melee preview over the summon");
+            int health = summon.Health;
+            rig.Service.ResolveCombatTargetClick(picked.Value.RosterSlot, picked.Value.PartyMember, isPrimary: true);
+            Assert.AreEqual(health, summon.Health, "nobody struck it");
+            Assert.IsTrue(acting.CanAct(strict: true), "and the turn is kept");
+
+            // A summon spell armed: the creature's tile is taken, so the click is refused and the
+            // spell stays armed; a free tile is the control.
+            rig.Service.ArmSpellForTest(new GameData.Resources.Spells.Spell("S") {
+                Name = "River Song", TargetingType = 6, EffectSubject = Rusalki,
+            }, 16, 20);
+            Assert.IsFalse(rig.Service.CastAcceptedAtCell(1, 4), "touch offers no Cast on it");
+            Assert.IsTrue(rig.Service.CastAcceptedAtCell(0, 4), "the control: a free tile takes it");
+            int sides = fight.Party.Count;
+            rig.Service.ResolveCombatTargetClick(picked.Value.RosterSlot, picked.Value.PartyMember, isPrimary: true);
+            Assert.IsTrue(acting.CanAct(strict: true), "the occupied tile refused the cast");
+            Assert.AreEqual(sides, fight.Party.Count, "nothing more was conjured");
+            Assert.AreEqual(CombatCommandOutcome.PendingMode.TargetSelection, rig.Service.PendingModeForTest,
+                "the spell stays armed");
+        }
+
+        [Test]
         public void AClickTheArmedAimRefusesIsIgnored_TheTurnIsKeptAndTheSpellStaysArmed() {
             // TASK-546. The original's cursor marks a refused cell with move cost 1000, and case 4 acts
             // on a click only below that (COMBAT.C:2411): the prompt stays up and nothing is spent.

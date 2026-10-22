@@ -766,7 +766,7 @@ namespace BakAgain.Combat {
             if (!ShootTargetPanel.ShowsTargetStats(
                     alive: target != null && !target.IsDead,
                     onOpenTile: true,
-                    encounterActor: target != null && !target.IsPartyMember)) {
+                    encounterActor: target != null && Encounter != null && Encounter.Enemies.Contains(target))) {
                 return ShootTargetPanel.WithoutTarget(
                     nameLines, QuarrelsCarried(acting, previewedKind));
             }
