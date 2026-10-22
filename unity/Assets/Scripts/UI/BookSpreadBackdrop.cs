@@ -390,8 +390,11 @@ namespace BakAgain.UI {
 
         private static readonly List<CanvasGroup> Groups = new();   // GetComponentsInParent's buffer, reused every frame
 
+        // A stage hidden by its own screen (the Enhanced inventory's display:none REQ stage, with its
+        // sheet drawn over it) is still on screen: the screen covers the page below, so that page's
+        // book must not come back (TASK-938). It draws nothing itself: hidden, it has no layout rect.
         private static bool IsOnScreen(object surface) => surface switch {
-            VisualElement v => v.panel != null && v.resolvedStyle.display != DisplayStyle.None,
+            VisualElement v => v.panel != null,
             Graphic g => g != null && g.isActiveAndEnabled && g.canvas != null && g.canvas.isActiveAndEnabled,
             _ => false,
         };

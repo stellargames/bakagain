@@ -244,6 +244,41 @@ namespace BakAgain.Tests.PlayMode.UI {
             }
         }
 
+        // TASK-938: the Enhanced inventory hides its REQ stage (EnhancedInventoryLayout.Apply,
+        // display:none) and draws its own sheet, while the screen stays up. Raised as the shop over a
+        // location, it dropped out of the book's list, the location's page beneath won again, and its
+        // crease (sorted over every UI surface) lay across the shop.
+        [UnityTest]
+        public IEnumerator AStageHiddenUnderItsScreensOwnLayout_StillCoversThePageBelow() {
+            BookSpreadBackdrop.Show(Surface("Location"), Page(leftStraight: true, rightStraight: false));
+            var screen = new GameObject("ShopScreen");
+            screen.transform.SetParent(_host.transform, false);
+            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            try {
+                var document = screen.AddComponent<UIDocument>();
+                document.panelSettings = settings;
+                var stage = new VisualElement { style = { position = Position.Absolute, left = 100, top = 0, width = 400, height = 300 } };
+                document.rootVisualElement.Add(stage);
+                BookSpreadBackdrop.Show(stage, Page(leftStraight: true, rightStraight: true));   // INVENTOR.SCX: a picture
+                for (int f = 0; f < 3; f++) {
+                    yield return null;
+                }
+                Assert.IsFalse(BookSpreadBackdrop.Instance.Drawn, "control: the shop's own picture covers the page");
+
+                stage.style.display = DisplayStyle.None;
+                for (int f = 0; f < 3; f++) {
+                    yield return null;
+                }
+                Assert.IsFalse(BookSpreadBackdrop.Instance.Drawn, "the shop is still up: no book, no crease");
+
+                screen.SetActive(false);   // the shop closes
+                yield return null;
+                Assert.IsTrue(BookSpreadBackdrop.Instance.Drawn, "the location's page has its book again");
+            } finally {
+                Object.DestroyImmediate(settings);
+            }
+        }
+
         // ScreenBase.HideAsync fades a leaving screen's root to transparent before it deactivates: the
         // book goes with its page instead of standing round an empty slot of table (seen 2026-10-22,
         // main menu -> chapter page).
