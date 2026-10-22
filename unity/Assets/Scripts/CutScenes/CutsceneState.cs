@@ -128,6 +128,40 @@ namespace BakAgain.CutScenes {
         public ResourceSet Resources { get; set; }
         public RenderTexture OutputBuffer { get; set; }
 
+        // ------------------------------------------------------------------ the book around the page
+        // Port-only (TASK-871): the open book in the pillars (BookSpreadBackdrop) stands in for the
+        // part of the original's 320x200 screen a widescreen window adds, so it fades with the page.
+
+        /// <summary>The highest palette entry of the parchment: DIALOG.SCX draws only with 0-15 (0 is
+        /// the tears' black), and every fade over a picture inside the page starts at 16 or later.</summary>
+        private const int LastParchmentColour = 15;
+
+        /// <summary>The light on the book, 0 (dark) to 1, as the fades last left it.</summary>
+        internal float BackdropLight { get; private set; } = 1f;
+
+        /// <summary>
+        /// The whole screen was filled since the last page was drawn — every shipped whole-screen fill is pen 0,
+        /// black, just before a fade-out — so there is no page left to light the book.
+        /// </summary>
+        internal bool ScreenBlanked { get; set; }
+
+        /// <summary>A fade that reaches the parchment's colours dims the page, so it dims the book.</summary>
+        internal static bool FadeReachesTheParchment(int start, int length) =>
+            start <= 1 && start + length > LastParchmentColour;
+
+        internal void LightBackdrop(float light) {
+            BackdropLight = light;
+            BakAgain.UI.BookSpreadBackdrop.Dim(ContainerImage.Graphic, light);
+        }
+
+        /// <summary>A full-screen page or picture has been drawn: the book around it (or none, for a
+        /// picture), lit.</summary>
+        internal void ShowPage(IndexedTexture page) {
+            ScreenBlanked = false;
+            BackdropLight = 1f;
+            BakAgain.UI.BookSpreadBackdrop.Show(ContainerImage.Graphic, page);
+        }
+
         /// <summary>The script's saved-rect slots: <c>pFreemem[12]</c> (structs.h:1228).</summary>
         public const int SavedRectSlotCount = 12;
 

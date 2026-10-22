@@ -2,7 +2,6 @@ namespace BakAgain.CutScenes.AnimationCommands {
     using BakAgain.Core;
     using BakAgain.Graphics;
     using BakAgain.ResourceManagement.Models;
-    using BakAgain.UI;
     using GameData.Resources.Animation.FrameCommands;
     using GameData.Resources.Dialog;
     using System;
@@ -56,7 +55,7 @@ namespace BakAgain.CutScenes.AnimationCommands {
 
             Drawing.DrawImage(dialogScreen, 0, 0, Orientation.Normal, Vector3.one, cutsceneState);
             // A narrative page ("Gorath leapt forward"): the open book around it.
-            BookSpreadBackdrop.Show(cutsceneState.ContainerImage.Graphic, dialogScreen);
+            cutsceneState.ShowPage(dialogScreen);
 
             // Draw flat area behind "window", just larger than the window, to act as a border; then
             // the background into the window (rects from CutsceneDialogPlate, canonical).

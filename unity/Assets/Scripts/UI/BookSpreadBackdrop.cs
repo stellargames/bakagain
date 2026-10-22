@@ -45,7 +45,7 @@ namespace BakAgain.UI {
         private static BookSpreadBackdrop _instance;
         private static readonly Vector3[] Corners = new Vector3[4];   // GetWorldCorners' out array, reused every frame
 
-        private readonly List<(object Surface, Texture2D Page, Texture2D Facing)> _shown = new();
+        private readonly List<(object Surface, Texture2D Page, Texture2D Facing, float Light)> _shown = new();
         private Canvas _back;
         private Canvas _front;
         private RawImage _table;
@@ -66,7 +66,27 @@ namespace BakAgain.UI {
             }
             BookSpreadBackdrop backdrop = Instance;
             backdrop._shown.RemoveAll(e => e.Surface == (object)surface);
-            backdrop._shown.Add((surface, null, null));
+            backdrop._shown.Add((surface, null, null, 1f));
+            backdrop.Refresh();
+        }
+
+        /// <summary>
+        /// The light on the book around <paramref name="surface"/>'s page, 0 (dark) to 1: a cutscene's
+        /// palette fade dims the page, and the table, the facing page and the crease go with it, as the
+        /// original's whole screen does. Lasts while the page does; a new <see cref="Show(Graphic, Texture2D, Texture2D)"/>
+        /// of the surface lights it again.
+        /// </summary>
+        public static void Dim(Graphic surface, float light) {
+            if (!Exists || surface == null) {
+                return;
+            }
+            BookSpreadBackdrop backdrop = Instance;
+            int i = backdrop._shown.FindIndex(e => e.Surface == (object)surface);
+            if (i < 0) {
+                return;
+            }
+            (object s, Texture2D page, Texture2D facing, _) = backdrop._shown[i];
+            backdrop._shown[i] = (s, page, facing, Mathf.Clamp01(light));
             backdrop.Refresh();
         }
 
@@ -118,6 +138,7 @@ namespace BakAgain.UI {
         internal bool Drawn => _back.enabled;
         internal RectTransform FacingPage => _facing.rectTransform;
         internal RawImage FacingImage => _facing;
+        internal RawImage TableImage => _table;
         /// <summary>The latest live surface a page is drawn on, a book or not; null when none is.</summary>
         internal object Surface { get; private set; }
         /// <summary>Where the page is, in screen pixels, while <see cref="Drawn"/>.</summary>
@@ -131,7 +152,7 @@ namespace BakAgain.UI {
             }
             BookSpreadBackdrop backdrop = Instance;
             backdrop._shown.RemoveAll(e => e.Surface == surface);
-            backdrop._shown.Add((surface, page, facing));
+            backdrop._shown.Add((surface, page, facing, 1f));
             backdrop.Refresh();
         }
 
@@ -242,8 +263,9 @@ namespace BakAgain.UI {
 
         private void Refresh() {
             _shown.RemoveAll(e => !IsOnScreen(e.Surface));
-            (object surface, Texture2D page, Texture2D ownFacing) = _shown.Count > 0 ? _shown[_shown.Count - 1] : (null, null, null);
+            (object surface, Texture2D page, Texture2D ownFacing, float light) = _shown.Count > 0 ? _shown[_shown.Count - 1] : (null, null, null, 1f);
             Surface = surface;
+            Light(light * Opacity(surface));
             _sheetShadow.enabled = false;
             if (surface != null && page == null) {
                 ShowAsSheet(surface);
@@ -285,7 +307,14 @@ namespace BakAgain.UI {
             }
             float shadeWidth = Layout.ShadeWidth * stage.height;
             SetRect(_shade, new Rect(spineX - shadeWidth / 2, stage.yMin, shadeWidth, stage.height));
-            _shade.color = new Color(1, 1, 1, Layout.ShadeOpacity);
+        }
+
+        // Every layer under its light; the crease keeps its own opacity. (Graphic.color only dirties on a change.)
+        private void Light(float light) {
+            var lit = new Color(light, light, light, 1f);
+            _table.color = lit;
+            _facing.color = lit;
+            _shade.color = new Color(light, light, light, Layout.ShadeOpacity);
         }
 
         // The table, and the sheet's shadow on it. Not a page: no spine, so nothing turns it.
@@ -338,6 +367,28 @@ namespace BakAgain.UI {
             texture.Apply(false, makeNoLongerReadable: true);
             return texture;
         }
+
+        // How much of the page shows: a screen fading out (ScreenBase.HideAsync takes its document's
+        // root to opacity 0 before it deactivates; the full map fades a CanvasGroup) takes the book
+        // with it, rather than leaving the facing page and table lit round an empty slot.
+        private static float Opacity(object surface) {
+            float opacity = 1f;
+            for (var v = surface as VisualElement; v != null; v = v.parent) {
+                opacity *= v.resolvedStyle.opacity;
+            }
+            if (surface is Graphic g) {
+                g.GetComponentsInParent(false, Groups);
+                foreach (CanvasGroup group in Groups) {
+                    opacity *= group.alpha;
+                    if (group.ignoreParentGroups) {
+                        break;
+                    }
+                }
+            }
+            return opacity;
+        }
+
+        private static readonly List<CanvasGroup> Groups = new();   // GetComponentsInParent's buffer, reused every frame
 
         private static bool IsOnScreen(object surface) => surface switch {
             VisualElement v => v.panel != null && v.resolvedStyle.display != DisplayStyle.None,

@@ -1,6 +1,11 @@
 namespace BakAgain.Tests.PlayMode.UI {
     using BakAgain.Core;
+    using BakAgain.CutScenes;
+    using BakAgain.CutScenes.AnimationCommands;
+    using BakAgain.Graphics;
     using BakAgain.Tests.TestSupport;
+    using Cysharp.Threading.Tasks;
+    using GameData.Resources.Animation.FrameCommands;
     using BakAgain.UI;
     using GameData.Resources.Layout;
     using NUnit.Framework;
@@ -239,6 +244,47 @@ namespace BakAgain.Tests.PlayMode.UI {
             }
         }
 
+        // ScreenBase.HideAsync fades a leaving screen's root to transparent before it deactivates: the
+        // book goes with its page instead of standing round an empty slot of table (seen 2026-10-22,
+        // main menu -> chapter page).
+        [UnityTest]
+        public IEnumerator AStageFadingOut_TakesTheBookWithIt() {
+            _host = new GameObject("StageHost");
+            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            try {
+                var document = _host.AddComponent<UIDocument>();
+                document.panelSettings = settings;
+                var stage = new VisualElement { style = { position = Position.Absolute, left = 100, top = 0, width = 400, height = 300 } };
+                document.rootVisualElement.Add(stage);
+                BookSpreadBackdrop.Show(stage, Page(leftStraight: true, rightStraight: false));
+                for (int f = 0; f < 3; f++) {
+                    yield return null;
+                }
+                Assert.AreEqual(1f, BookLight(), 1e-4f);
+
+                document.rootVisualElement.style.opacity = 0.25f;
+                for (int f = 0; f < 3; f++) {
+                    yield return null;
+                }
+                Assert.AreEqual(0.25f, BookLight(), 0.01f);
+            } finally {
+                Object.DestroyImmediate(settings);
+            }
+        }
+
+        // The full map fades with a CanvasGroup (FullMapView.FadeAsync): the table goes with the sheet.
+        [UnityTest]
+        public IEnumerator ASheetFadingOut_TakesTheTableWithIt() {
+            RawImage surface = Surface();
+            BookSpreadBackdrop.ShowSheet(surface);
+            yield return null;
+            Assert.AreEqual(1f, BookSpreadBackdrop.Instance.TableImage.color.r, 1e-4f);
+
+            surface.canvas.gameObject.AddComponent<CanvasGroup>().alpha = 0.4f;
+            yield return null;
+            Assert.AreEqual(0.4f, BookSpreadBackdrop.Instance.TableImage.color.r, 0.01f);
+        }
+
         [UnityTest]
         public IEnumerator AStageNotYetLaidOut_DrawsNothing() {
             _host = new GameObject("StageHost");
@@ -314,5 +360,112 @@ namespace BakAgain.Tests.PlayMode.UI {
                 Object.DestroyImmediate(settings);
             }
         }
+
+        // ------------------------------------------------------------------ cutscene palette fades
+        // The original fades its whole 320x200 screen (TTM.C:554 fade-out, :582 fade-in, palette_set_scaled), so the book
+        // around a page fades with it: the table, the facing page and the crease, not the page alone.
+
+        private CutsceneState CutsceneOn(RawImage surface) {
+            surface.texture = new Texture2D(8, 8, TextureFormat.RGBA32, false);
+            var palette = new Color[256];
+            for (int i = 0; i < 256; i++) {
+                palette[i] = new Color(i / 255f, i / 255f, i / 255f, 1f);
+            }
+            return new CutsceneState(new UiImage(surface), palette);
+        }
+
+        // The light on the book: the table's, after checking the facing page and the crease agree.
+        private float BookLight() {
+            BookSpreadBackdrop b = BookSpreadBackdrop.Instance;
+            Color table = b.TableImage.color;
+            Color shade = b.Shade.GetComponent<RawImage>().color;
+            Assert.AreEqual(table, b.FacingImage.color, "the facing page has the table's light");
+            Assert.AreEqual(table.r, shade.r, 1e-4f, "and so does the crease");
+            Assert.AreEqual(_layout.ShadeOpacity, shade.a, 1e-4f, "the crease keeps its own opacity");
+            return table.r;
+        }
+
+        [UnityTest]
+        public IEnumerator AWholeScreenFadeOut_TakesTheBookDownWithThePage() => UniTask.ToCoroutine(async () => {
+            RawImage surface = Surface();
+            CutsceneState state = CutsceneOn(surface);
+            try {
+                BookSpreadBackdrop.Show(surface, Page(leftStraight: true, rightStraight: false));
+                await UniTask.Yield();
+                Assert.AreEqual(1f, BookLight(), 1e-4f, "lit before the fade");
+
+                // C11's last frame: the screen filled black, then FadeOut(0, 256, 0, 4) ramps the frame
+                // as it began down to black over ~1.1 s.
+                await new FillArea { X = 0, Y = 0, Width = 1600, Height = 1200 }.ToAction()(state);
+                Awaitable fade = new FadeOut { Start = 0, Length = 256, Color = 0, Speed = 4 }.ToAction()(state);
+                try {
+                    await UniTask.Delay(400, ignoreTimeScale: true);
+                    float mid = BookLight();
+                    Assert.Less(mid, 0.95f, "the book dims while the page does");
+                    Assert.Greater(mid, 0.05f, "gradually, not at once");
+                } finally {
+                    await fade;
+                }
+                Assert.AreEqual(0f, BookLight(), 1e-4f, "and stays dark: the page under it was filled black");
+            } finally {
+                state.Dispose();
+            }
+        });
+
+        [UnityTest]
+        public IEnumerator AFadeOutOfAPageThatIsStillThere_LightsTheBookAgain() => UniTask.ToCoroutine(async () => {
+            // C62 frame 5 and C93 frame 92 fill only the picture, then fade the whole palette: when the
+            // palette comes back (TTM.C:578) the parchment is lit again, so the book must be too.
+            RawImage surface = Surface();
+            CutsceneState state = CutsceneOn(surface);
+            try {
+                BookSpreadBackdrop.Show(surface, Page(leftStraight: true, rightStraight: false));
+                await new FillArea { X = 75, Y = 66, Width = 1445, Height = 606 }.ToAction()(state);
+                await new FadeOut { Start = 0, Length = 256, Color = 0, Speed = 1 }.ToAction()(state);
+                Assert.AreEqual(1f, BookLight(), 1e-4f);
+            } finally {
+                state.Dispose();
+            }
+        });
+
+        [UnityTest]
+        public IEnumerator AFadeOfThePictureOnly_LeavesTheBookLit() => UniTask.ToCoroutine(async () => {
+            // FadeOut(16, 240, ...) dims the picture inside the page. The parchment is palette 1-15
+            // (DIALOG.SCX uses 0-15 only), so the page stays lit and so does the book.
+            RawImage surface = Surface();
+            CutsceneState state = CutsceneOn(surface);
+            try {
+                BookSpreadBackdrop.Show(surface, Page(leftStraight: true, rightStraight: false));
+                Awaitable fade = new FadeOut { Start = 16, Length = 240, Color = 16, Speed = 4 }.ToAction()(state);
+                try {
+                    await UniTask.Delay(400, ignoreTimeScale: true);
+                    Assert.AreEqual(1f, BookLight(), 1e-4f, "lit through the fade");
+                } finally {
+                    await fade;
+                }
+                Assert.AreEqual(1f, BookLight(), 1e-4f, "and after it");
+            } finally {
+                state.Dispose();
+            }
+        });
+
+        [UnityTest]
+        public IEnumerator AFadeInThatReachesTheParchment_BringsTheBookUpFromBlack() => UniTask.ToCoroutine(async () => {
+            // C72 opens with FadeIn(0, 239, ...): not the whole palette, but all of the parchment.
+            RawImage surface = Surface();
+            CutsceneState state = CutsceneOn(surface);
+            try {
+                BookSpreadBackdrop.Show(surface, Page(leftStraight: true, rightStraight: false));
+                Awaitable fade = new FadeIn { Start = 0, Length = 239, Color = 0, Speed = 3 }.ToAction()(state);
+                try {
+                    Assert.Less(BookLight(), 0.1f, "the first step is drawn before the fade waits: black");
+                } finally {
+                    await fade;
+                }
+                Assert.AreEqual(1f, BookLight(), 1e-4f);
+            } finally {
+                state.Dispose();
+            }
+        });
     }
 }

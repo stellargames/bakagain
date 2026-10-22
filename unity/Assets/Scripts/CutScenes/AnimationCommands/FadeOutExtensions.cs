@@ -67,6 +67,13 @@ namespace BakAgain.CutScenes.AnimationCommands {
                     return;
                 }
                 Color targetColor = originalPalette[args.Color];
+
+                // The open book around the page dims with the parchment (port-only, TASK-871). The
+                // original fades its whole 320x200 screen (TTM.C:554-578, palette_set_scaled over
+                // the command's range); the book is the part of that screen a wide window adds. A
+                // fade of the picture's colours only (16 and up) leaves the parchment, and the book, lit.
+                bool dimsTheBook = CutsceneState.FadeReachesTheParchment(startIndex, length);
+                float bookLight = cutsceneState.BackdropLight;
                 var targetVec = new Vector4(targetColor.r, targetColor.g, targetColor.b, targetColor.a);
 
                 double fadeStartTime = Time.realtimeSinceStartupAsDouble;
@@ -97,6 +104,9 @@ namespace BakAgain.CutScenes.AnimationCommands {
                     Graphics.Blit(cutsceneState.GetIndexedBuffer(0), cutsceneState.OutputBuffer,
                         cutsceneState.IndexedMaterial);
                     cutsceneState.RenderOutput();
+                    if (dimsTheBook) {
+                        cutsceneState.LightBackdrop(bookLight * (1f - progress));
+                    }
 
                     // Don't wait for the next frame if we're in the cutscene editor, only when playing
                     if (Application.isPlaying) {
@@ -108,6 +118,12 @@ namespace BakAgain.CutScenes.AnimationCommands {
                 // returns to normal for the next command. Verified against revision 013e39b, where
                 // fading worked and this restore was present.
                 cutsceneState.SetPalette(originalPalette);
+
+                // The original sets the palette back too (TTM.C:578, palette_set after the ramp), so
+                // what shows next is the frame's own drawing: dark when the script filled the whole
+                // screen first (every scene-ending fade-out does), the page and its book lit when it
+                // filled only the picture (C62 frame 5, C93 frame 92).
+                cutsceneState.LightBackdrop(cutsceneState.ScreenBlanked ? 0f : bookLight);
             };
         }
     }

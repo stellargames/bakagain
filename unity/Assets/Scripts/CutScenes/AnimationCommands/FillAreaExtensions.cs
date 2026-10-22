@@ -22,6 +22,12 @@ namespace BakAgain.CutScenes.AnimationCommands {
                 // fills in pen 6 where the original uses pen 0.
                 Drawing.FillArea(args, cutsceneState.BackgroundColorIndex, cutsceneState, true);
 
+                // The whole screen painted over: no page left to light the book around it.
+                if (args.X <= 0 && args.Y <= 0 && args.X + args.Width >= Canonical.Width
+                    && args.Y + args.Height >= Canonical.Height) {
+                    cutsceneState.ScreenBlanked = true;
+                }
+
                 return AwaitableUtility.Completed;
             };
         }

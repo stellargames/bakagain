@@ -66,6 +66,9 @@ namespace BakAgain.CutScenes.AnimationCommands {
                 }
                 Color startColor = currentPalette[args.Color];
 
+                // The open book around the page comes up with the parchment (port-only, TASK-871).
+                bool lightsTheBook = CutsceneState.FadeReachesTheParchment(startIndex, length);
+
                 // Pre-calculate color steps for each palette entry to avoid per-frame calculations
                 var colorDeltas = new Vector4[length];
                 var startVec = new Vector4(startColor.r, startColor.g, startColor.b, startColor.a);
@@ -95,6 +98,9 @@ namespace BakAgain.CutScenes.AnimationCommands {
                     cutsceneState.SetPalette(tempPalette);
                     cutsceneState.RenderIndexed();
                     cutsceneState.RenderOutput();
+                    if (lightsTheBook) {
+                        cutsceneState.LightBackdrop(progress);
+                    }
 
                     // Don't wait for the next frame if we're in the cutscene editor, only when playing
                     if (Application.isPlaying) {
@@ -104,6 +110,9 @@ namespace BakAgain.CutScenes.AnimationCommands {
 
                 // Restore the original palette
                 cutsceneState.SetPalette(currentPalette);
+                if (lightsTheBook) {
+                    cutsceneState.LightBackdrop(1f);   // also for speed 0, a cut, whose loop never runs
+                }
             };
         }
     }
