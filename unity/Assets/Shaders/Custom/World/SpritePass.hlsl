@@ -13,6 +13,9 @@
 struct Attributes {
     float4 positionOS : POSITION;
     float2 uv : TEXCOORD0;
+    // x: the billboard's draw layer among those standing on its very spot (0 when alone, or when the
+    // mesh has no second UV channel). WorldEntityRenderContext.NextSpriteLayer.
+    float2 layer : TEXCOORD1;
 };
 
 struct Varyings {
@@ -52,6 +55,9 @@ float3 InstanceRandom(float3 worldPos) {
     r ^= r >> 15;
     return float3(r & 0xffffu) / 32767.5 - 1;
 }
+
+// The fraction of its distance one draw layer moves a billboard toward the eye (see vert).
+#define SPRITE_LAYER_LIFT (1.0 / 256.0)
 
 TEXTURE2D(_MainTex);
 SAMPLER(sampler_MainTex);
@@ -108,7 +114,14 @@ Varyings vert(Attributes input) {
     float3 worldPos = TransformObjectToWorld(float3(0, 0, 0)); // pivot
     float3 billboardPos = BillboardWorldPos(worldPos, CameraRightFlat(), input.positionOS.xy);
 
-    output.positionCS = TransformWorldToHClip(billboardPos);
+    // Two billboards on one spot are turned into one plane, and the depth test then settled each
+    // pixel by rounding noise: the trees swapped patches while the view moved (TASK-942). A later
+    // layer is pulled toward the eye along its own view ray, so it covers the earlier one whole and
+    // stays where it is on screen. A fraction of the distance, so it outlasts a 24-bit depth buffer's
+    // coarser steps far away as well as the rounding of world coordinates near.
+    float3 positionVS = TransformWorldToView(billboardPos);
+    positionVS *= 1 - input.layer.x * SPRITE_LAYER_LIFT;
+    output.positionCS = TransformWViewToHClip(positionVS);
     output.uv = input.uv;
     output.fogCoord = ComputeFogFactor(output.positionCS.z);
     float3 toSprite = worldPos - _WorldSpaceCameraPos;

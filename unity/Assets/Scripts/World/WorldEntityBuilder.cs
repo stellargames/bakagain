@@ -103,6 +103,21 @@ namespace BakAgain.World {
             return mat;
         }
 
+        // How many billboards this zone has already stood on each spot (TASK-942): see NextSpriteLayer.
+        private readonly Dictionary<Vector3, int> _spriteLayers = new();
+
+        /// <summary>
+        /// The draw layer of the next billboard standing at <paramref name="pivot"/>: 0 for the first,
+        /// 1 for a second on the very same spot, and so on. The WLDs do stand two trees on one spot
+        /// (zone 1's tree1 and tree2, ten times in T011016 alone). The sprite shader turns both quads
+        /// into one plane, so without a layer the depth test let them fight pixel by pixel.
+        /// </summary>
+        public int NextSpriteLayer(Vector3 pivot) {
+            _spriteLayers.TryGetValue(pivot, out int layer);
+            _spriteLayers[pivot] = layer + 1;
+            return layer;
+        }
+
         /// <summary>Register a runtime-built mesh so the zone teardown can free it.</summary>
         public void TrackMesh(Mesh mesh) {
             if (mesh != null) _trackedMeshes.Add(mesh);
@@ -127,6 +142,7 @@ namespace BakAgain.World {
             _hdSpriteMaterials.Clear();
             _spriteTextures.Clear();
             _trackedMeshes.Clear();
+            _spriteLayers.Clear();
             SlotTextures.Clear();   // borrowed handles: drop the references, don't destroy
         }
 
@@ -340,7 +356,7 @@ namespace BakAgain.World {
                         ? ctx.GetHdSpriteMaterial(hd)
                         : ctx.GetSpriteMaterial(spriteTex);
                     var go = CreateSpriteObject(entry.Name, spriteTex, spriteFace,
-                        entityExtentBak, spriteMat, entityParent, position);
+                        entityExtentBak, spriteMat, entityParent, position, ctx.NextSpriteLayer(position));
                     ctx.TrackMesh(go.GetComponent<MeshFilter>()?.sharedMesh);
                     AttachWorldEntity(go, typeId, entry, true, spriteIdx, rotationZ);
                     AddPickColliderIfInteractable(go, entry.Dat.EntityType, ctx.Detect, ctx.Underground);
@@ -378,7 +394,8 @@ namespace BakAgain.World {
         }
 
         private static GameObject CreateSpriteObject(string name, Texture2D spriteTex,
-            SpriteBMeshFace spriteFace, int entityExtentBak, Material material, Transform parent, Vector3 position) {
+            SpriteBMeshFace spriteFace, int entityExtentBak, Material material, Transform parent, Vector3 position,
+            int layer) {
             var go = new GameObject(name);
             go.transform.SetParent(parent);
             go.transform.localPosition = position;
@@ -399,6 +416,15 @@ namespace BakAgain.World {
             // An HD frame's size variation draws the quad bigger than built.
             if (material.HasFloat(VarySizeId) && material.GetFloat(VarySizeId) > 0f) {
                 TblSpriteConverter.CoverTurns(quad, material.GetFloat(VarySizeId));
+            }
+
+            // A later billboard on the same spot draws over the earlier one, whole (SpritePass.hlsl's
+            // layer lift). The original paints one whole sprite over the other too (no depth buffer);
+            // which of two equally far ones wins its unstable sort decides, so the later in the WLD is our pick.
+            if (layer > 0) {
+                var layers = new Vector2[quad.vertexCount];
+                System.Array.Fill(layers, new Vector2(layer, 0f));
+                quad.uv2 = layers;
             }
 
             var filter = go.AddComponent<MeshFilter>();
