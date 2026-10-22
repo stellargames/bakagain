@@ -833,6 +833,13 @@ namespace BakAgain.UI {
                 _modalScrim.RemoveFromHierarchy();
                 _modalScrim = null;
             }
+            // The topic grid sits on the stage beside the panel (AddKeywordGrid), so it goes with the
+            // panel here: an overlay left up between a location's records (TASK-914) kept it under
+            // the picked topic's answer and everything after it (TASK-927).
+            if (_keywordGrid != null) {
+                _keywordGrid.RemoveFromHierarchy();
+                _keywordGrid = null;
+            }
             _choiceButtons = null;
             // A NEW box, not a cleared one: the old box is what a wait that outlived this panel is
             // still polling, and leaving it unreachable is the point. Blanking a shared value here
@@ -959,6 +966,9 @@ namespace BakAgain.UI {
             _keptPanel = _activePanel;
             // Drawn, not live: a kept choice page's buttons must not answer a play that has ended.
             LetClicksThroughPanel();
+            if (_keywordGrid != null) {
+                foreach (VisualElement e in _keywordGrid.Query<VisualElement>().ToList()) e.pickingMode = PickingMode.Ignore;
+            }
             if (_modalScrim != null) {
                 _modalScrim.RemoveFromHierarchy();
                 _modalScrim = null;
@@ -973,6 +983,9 @@ namespace BakAgain.UI {
 
         /// <summary>The page <see cref="ReleaseInputKeepingPanel"/> left drawn, while it is the active one.</summary>
         private VisualElement _keptPanel;
+
+        /// <summary>The ask-about topic grid of the page on screen: on the stage, not in the panel.</summary>
+        private VisualElement _keywordGrid;
 
         /// <summary>
         /// A page left drawn that the next full-screen page opens over: its panel, parchment and vines,
@@ -1006,6 +1019,10 @@ namespace BakAgain.UI {
             VisualElement stage = _activePanel.parent;
             _pageUnderWipe.Add(_activePanel);
             _activePanel = null;
+            if (_keywordGrid != null) {
+                _pageUnderWipe.Add(_keywordGrid);
+                _keywordGrid = null;
+            }
             if (_backdrop != null) {
                 // Renamed, so the new page's own lookups find its own parchment and vines.
                 _backdrop.name = "BakDialogBackdropUnderWipe";
@@ -1845,6 +1862,7 @@ namespace BakAgain.UI {
             Place(farewell, farewellSlot);
 
             stage.Add(grid);
+            _keywordGrid = grid;
             SetChoiceFocus(0);
 
             var widgets = new System.Collections.Generic.List<BakAgain.UI.InputCore.NavWidget>();
