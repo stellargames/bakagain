@@ -304,6 +304,35 @@ namespace BakAgain.UI.InGame {
 
         public bool IsVisible => _visible;
 
+        /// <summary>
+        /// The button was down when this screen came back: the press belongs to the screen above,
+        /// which closed on it (the cast screen commits on the press and pops in that frame).
+        /// </summary>
+        /// <remarks>
+        /// The popped screen's press then reached this freshly built viewport, and its release
+        /// clicked the arena: River Song summoned on the cell under the spell's symbol (TASK-935).
+        /// The original returns from its cast screen to stateA 4 and asks for the target
+        /// (COMBAT.C:2043-2047); driven on dir.G01 SAVE04, the click on the symbol placed nothing.
+        /// Its menu acts on a release only for a press anchored on that entry (MENUPAGE.C:500-504).
+        /// </remarks>
+        private bool _pressFromAbove;
+
+        private int _revealFrame = -1;
+
+        internal void NoteRevealUnderAPress() {
+            _revealFrame = Time.frameCount;
+            _pressFromAbove = _pointer != null && (_pointer.Primary.IsDown || _pointer.Primary.PressedThisFrame);
+        }
+
+        /// <summary>Whether a viewport click is this screen's; false once for the carried-over press.</summary>
+        internal bool TakesViewportClick() {
+            if (!_pressFromAbove) {
+                return true;
+            }
+            _pressFromAbove = false;
+            return false;
+        }
+
         private void Awake() {
             _logger = LogManager.LoggerFactory.CreateLogger<InGameScreen>();
             _document = GetComponent<UIDocument>();
@@ -447,6 +476,7 @@ namespace BakAgain.UI.InGame {
                 return;
             }
             _visible = true;
+            NoteRevealUnderAPress();
             gameObject.SetActive(true); // triggers BackgroundImageLoader + UserInterfaceLoader OnEnable
             VisualElement root = _document != null ? _document.rootVisualElement : null;
             if (root == null) {
@@ -940,6 +970,9 @@ namespace BakAgain.UI.InGame {
         private void Update() {
             if (!_visible) {
                 return;
+            }
+            if (_pointer != null && _pointer.Primary.PressedThisFrame && Time.frameCount > _revealFrame) {
+                _pressFromAbove = false;   // a new press is this screen's own
             }
             _compass?.Refresh();
             ReopenTheMapAfterAFight();
@@ -1663,6 +1696,9 @@ namespace BakAgain.UI.InGame {
         public void PrimaryAction(int menuEntryActionId) {
             if (menuEntryActionId == ActionWorldViewport && _look != null && _look.ConsumeClick()) {
                 return;   // the release of a touch look-drag
+            }
+            if (menuEntryActionId == ActionWorldViewport && !TakesViewportClick()) {
+                return;   // the release of a press the screen above took
             }
             if (RefusedDuringAFight(menuEntryActionId)) {
                 return;

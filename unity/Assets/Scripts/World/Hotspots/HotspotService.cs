@@ -510,13 +510,8 @@ using GameData.Resources.Scene;
         /// A seam because the production caller, <c>OnCombatSpellCommitted</c>, reads its record from
         /// a pushed cast screen, and standing one up would test the screen rather than the aim.
         /// </remarks>
-        internal void ArmSpellForTest(GameData.Resources.Spells.Spell record, int spellId, int power) {
-            _pendingSpell = record;
-            _pendingSpellId = spellId;
-            _pendingSpellPower = power;
-            _pendingCombatMode =
-                GameData.Resources.Combat.CombatCommandOutcome.PendingMode.TargetSelection;
-        }
+        internal void ArmSpellForTest(GameData.Resources.Spells.Spell record, int spellId, int power) =>
+            ArmCombatSpell(record, spellId, power);
 
         /// <summary>
         /// The <c>Func&lt;x, y, bool&gt;</c> <see cref="PartyMovement"/> calls after a successful
@@ -3840,18 +3835,6 @@ using GameData.Resources.Scene;
         /// <inheritdoc cref="_pendingSummonsLeft"/>
         private int _pendingSummonCreature = -1;
 
-        /// <summary>The spell a pending summon was cast from, or null when an item raised it.</summary>
-        /// <remarks>
-        /// A cast summon is billed and spends the turn once it is placed — see
-        /// <see cref="BakAgain.Combat.CombatRuntime.SummonByCast"/>. An item's summon was paid for when
-        /// the item was used.
-        /// </remarks>
-        private GameData.Resources.Spells.Spell _pendingSummonSpell;
-
-        private int _pendingSummonSpellId = -1;
-
-        private int _pendingSummonSpellPower;
-
         /// <summary>Whom a pending Dannon's Delusions decoy will copy, or null when none is pending.</summary>
         /// <remarks>
         /// The spell resolves on its target and then its kind-17 arm asks for a tile
@@ -3886,7 +3869,6 @@ using GameData.Resources.Scene;
 
             _pendingSummonCreature = arm.SummonCreature;
             _pendingSummonsLeft = arm.SummonCount;
-            _pendingSummonSpell = null;
             SpendCombatItem(acting, arm.ObjectId);
             _logger?.LogDebug($"Summon armed: {arm.SummonCount} x creature "
                 + $"{arm.SummonCreature}; waiting for a tile.");
@@ -4030,38 +4012,19 @@ using GameData.Resources.Scene;
                 return;
             }
 
-            Combatant caster = Combat.Encounter.Current;
-            bool fromSpell = _pendingSummonSpell != null;
-            Combatant summoned = fromSpell
-                ? Combat.SummonByCast(caster, _pendingSummonSpell, _pendingSummonSpellId,
-                    _pendingSummonSpellPower, cell.Value.Column, cell.Value.Row, _random)
-                : Combat.Summon(_pendingSummonCreature, cell.Value.Column, cell.Value.Row);
+            Combatant summoned = Combat.Summon(_pendingSummonCreature, cell.Value.Column, cell.Value.Row);
             if (summoned == null) {
                 // The seven-actor array is full — combat_actor_slot_append @0x5c502 refuses at
                 // seven and shows this dialog, which was modelled from the start and unreachable
                 // until CombatRuntime.Summon learned to count. The summon stays PENDING rather than
-                // being consumed: the original spends the cast either way, but this is the ITEM
-                // path, where refusing silently would leave the player holding neither the item nor
-                // a creature.
+                // being consumed: the item is already spent, and refusing silently would leave the
+                // player holding neither the item nor a creature.
                 _dialogs?.ShowById(GameData.Resources.Combat.MonsterSummon.NoRoomDialog).Forget();
                 return;
             }
 
             _pendingSummonsLeft--;
-            if (!fromSpell) {
-                _redrawArena?.Invoke();
-                return;
-            }
-
-            // *** THE CAST IS SPENT. *** COMBAT.C:2426 clears CAF_READY after cspell_resolve_cast, and
-            // RefreshCombatHud only advances past a character who is no longer ready — so without
-            // this the caster summoned and then kept the turn. RefreshCombatHud redraws the arena
-            // itself; a second redraw here is the double rebuild TASK-103 removed from the move arm.
-            _pendingSummonSpell = null;
-            if (caster != null) {
-                caster.Flags &= ~GameData.Resources.Combat.CombatantFlags.Ready;
-            }
-            RefreshCombatHud();
+            _redrawArena?.Invoke();
         }
 
         /// <summary>
@@ -4102,9 +4065,17 @@ using GameData.Resources.Scene;
                 return;
             }
 
-            Combat.ResolveCast(acting, null, _pendingSpell, _pendingSpellId, _pendingSpellPower,
-                _random, groundCell: (column, row));
+            // Kind 6 summons at the cursor tile inside the cast (CSPELL.C:1329,
+            // cspell_summon_monster(id, 0): no prompt of its own -- this click was the prompt).
+            if (_pendingSpell.SummonedCreatureId != null) {
+                Combat.SummonByCast(acting, _pendingSpell, _pendingSpellId, _pendingSpellPower,
+                    column, row, _random);
+            } else {
+                Combat.ResolveCast(acting, null, _pendingSpell, _pendingSpellId, _pendingSpellPower,
+                    _random, groundCell: (column, row));
+            }
             _pendingSpell = null;
+            EndTargetSelection();   // as the target-click arm does, or the next actor inherits the aim
             // Clearing Ready is what spends the turn — the same line the target-click arm draws,
             // and for the same reason: RefreshCombatHud only advances past a character who is no
             // longer ready, so without it the caster keeps casting until the pool runs out.
@@ -4314,29 +4285,15 @@ using GameData.Resources.Scene;
                 SpendCombatItem(amplifierUser, amplifier);
             }
 
-            // *** A SUMMONING SPELL PICKS A TILE, NOT A COMBATANT. *** TargetingType 6 is what
-            // makes the polymorphic +10 field a creature id (Spell.SummonedCreatureId), and the
-            // original's kind-6 arm calls cspell_summon_monster with prompt_for_tile = 0 — it does
-            // not ask, because the cast's own targeting already put the cursor on a tile. Arming
-            // combatant selection for one of these would offer the player an enemy to click and
-            // then summon on top of it.
-            int? summoned = record.SummonedCreatureId;
-            if (summoned != null) {
-                _pendingSummonCreature = summoned.Value;
-                _pendingSummonsLeft = 1;
-                _pendingSummonSpell = record;
-                _pendingSummonSpellId = spellNumber;
-                _pendingSummonSpellPower = power;
-                _pendingCombatMode =
-                    GameData.Resources.Combat.CombatCommandOutcome.PendingMode.None;
-                _pendingSpell = null;
-                _logger?.LogDebug($"Cast {spellNumber} summons creature {summoned.Value}; "
-                    + "waiting for a tile.");
-                return;
-            }
+            ArmCombatSpell(record, spellNumber, power);
+        }
 
+        /// <summary>Arms a chosen combat spell for its target click.</summary>
+        private void ArmCombatSpell(GameData.Resources.Spells.Spell record, int spellId, int power) {
+            // A summoning spell (type 6) arms like any other: stateA 4, "Choose a target", and the
+            // tile click casts it (COMBAT.C:2043-2047, 2218-2224) -- see ResolveCellCast (TASK-935).
             _pendingSpell = record;
-            _pendingSpellId = spellNumber;
+            _pendingSpellId = spellId;
             _pendingSpellPower = power;
             _pendingCombatMode =
                 GameData.Resources.Combat.CombatCommandOutcome.PendingMode.TargetSelection;

@@ -295,6 +295,54 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
         }
 
         [Test]
+        public void ASummonSpellAsksForATileLikeAnyCast_AndTheClickedTileTakesTheCreature() {
+            // TASK-935. Combat action 46 leaves stateA 4 after the cast screen (COMBAT.C:2043-2047),
+            // so the turn loop shows "Choose a target" and waits; types 5/6 take a free tile
+            // (COMBAT.C:2218-2224), and kind 6 then summons at the cursor tile with no prompt of its
+            // own (CSPELL.C:1329, cspell_summon_monster(id, 0)). The port armed a summon spell with
+            // nothing pending, so the panel kept the caster's stats.
+            const int Rusalki = 56;
+            Rig rig = Build(start: new GameData.Resources.Config.StartData("START.DAT") { CombatGridCellSize = 300 });
+            Assert.IsTrue(rig.Service.StartCombat(CombTrigger()));
+            CombatEncounter fight = rig.Service.Combat.Encounter;
+            for (int i = 0; i < 4 && (fight.Current == null || !fight.Current.IsPartyMember); i++) {
+                fight.EndTurn();
+                fight.PickNext();
+            }
+            Combatant acting = fight.Current;
+            Assert.IsTrue(acting?.IsPartyMember ?? false, "the fixture needs a party member's turn");
+            rig.Service.Combat.MonsterTemplates = new Dictionary<int, GameData.Resources.Monster.MonsterStats> {
+                [Rusalki] = new GameData.Resources.Monster.MonsterStats("MONST56") {
+                    CreatureId = Rusalki,
+                    Health = new GameData.Resources.Monster.StatRange { Min = 40, Max = 40 },
+                    Stamina = new GameData.Resources.Monster.StatRange { Min = 20, Max = 20 },
+                    Speed = new GameData.Resources.Monster.StatRange { Min = 4, Max = 4 },
+                },
+            };
+            var song = new GameData.Resources.Spells.Spell("S") {
+                Name = "River Song", TargetingType = 6, EffectSubject = Rusalki,
+            };
+
+            rig.Service.ArmSpellForTest(song, 16, 20);
+
+            Assert.AreEqual(CombatCommandOutcome.PendingMode.TargetSelection, rig.Service.PendingModeForTest,
+                "the summon waits for its tile as a cast waits for its target");
+            var lines = rig.Service.CombatPanelContent(-1, partyMember: false).Lines;
+            Assert.AreEqual(GameData.Resources.Combat.SpellTargetPanel.Prompt, lines?[0].Text,
+                "the panel asks for the tile");
+
+            UnityEngine.Vector3? tile = rig.Service.CellCentreWorld(1, 4);
+            Assert.IsTrue(tile.HasValue);
+            rig.Service.ResolveCombatGroundClick(tile.Value);
+
+            Combatant conjured = System.Linq.Enumerable.LastOrDefault(fight.Party);
+            Assert.AreEqual(Rusalki, conjured?.ClassId, "the clicked tile took the creature");
+            Assert.AreEqual((1, 4), (conjured.X, conjured.Y));
+            Assert.IsFalse(acting.CanAct(strict: true), "the cast spent the turn");
+            Assert.AreEqual(CombatCommandOutcome.PendingMode.None, rig.Service.PendingModeForTest);
+        }
+
+        [Test]
         public void AClickTheArmedAimRefusesIsIgnored_TheTurnIsKeptAndTheSpellStaysArmed() {
             // TASK-546. The original's cursor marks a refused cell with move cost 1000, and case 4 acts
             // on a click only below that (COMBAT.C:2411): the prompt stays up and nothing is spent.
