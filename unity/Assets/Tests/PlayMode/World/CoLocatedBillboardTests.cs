@@ -79,6 +79,12 @@ namespace BakAgain.Tests.PlayMode.World {
                 camera.targetTexture = rt;
                 camera.aspect = 1f;
                 camera.transform.position = Eye;
+                // Sprites only. Each tree brings its ground blob (ShadowBlobs), and the earlier tree's
+                // blob darkens the later tree's foot rows wherever it reaches. How dark depends on the
+                // _BakSunShadow global, which the Editor keeps from whatever ran last. With 0 left over,
+                // 97 foot pixels failed this test at every heading. With 1 left over (after an Enhanced
+                // daylight session) it passed.
+                ShadowBlobs.Show(camera, false);
 
                 Color32[] Render() {
                     camera.Render();
