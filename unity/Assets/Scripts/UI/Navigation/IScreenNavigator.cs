@@ -58,7 +58,8 @@ namespace BakAgain.UI.Navigation {
 
         /// <summary>
         /// <see cref="Push"/> without the screen fade, for a screen that brings its own transition
-        /// — the cast screen's split wipe is the original's only transition there (TASK-818).
+        /// — the cast screen's split wipe is the original's only transition there (TASK-818). The
+        /// screens' own fade-out and fade-in are skipped too, so the swap is a cut (TASK-887).
         /// </summary>
         UniTask PushUnfaded(IScreen screen) => Push(screen);
 

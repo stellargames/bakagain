@@ -430,7 +430,11 @@ namespace BakAgain.UI.InGame {
             _worldView?.SetWorldCamera(worldCamera);
         }
 
-        public async UniTask ShowAsync() {
+        public UniTask ShowAsync() => ShowAsync(fade: true);
+
+        public UniTask HideAsync() => HideAsync(fade: true);
+
+        public async UniTask ShowAsync(bool fade) {
             // *** A SCREEN RAISED OVER A LOCATION CLOSES ONTO THE LOCATION (TASK-923). *** A location
             // is not on the navigator's stack, so this HUD is what a raised screen's pop reveals. The
             // original returns to the town: its refresh repaints the picture and the description
@@ -452,10 +456,10 @@ namespace BakAgain.UI.InGame {
             root.style.opacity = 0f;
             BuildContent();
             _logger.LogInformation("InGameScreen shown (zone {Zone}).", _gameSession?.CurrentZone);
-            await FadeRootAsync(root, 0f, 1f);
+            await FadeRootAsync(root, fade ? 0f : 1f, 1f);
         }
 
-        public async UniTask HideAsync() {
+        public async UniTask HideAsync(bool fade) {
             // ...and its push takes the location's description and sign down, under the transition.
             if (_locations?.RaisedOver is { } location) {
                 location.Cover();
@@ -479,7 +483,7 @@ namespace BakAgain.UI.InGame {
             }
             _visible = false;
             VisualElement root = _document != null ? _document.rootVisualElement : null;
-            if (root != null) {
+            if (root != null && fade) {
                 await FadeRootAsync(root, 1f, 0f);
             }
             TeardownContent();
@@ -845,7 +849,7 @@ namespace BakAgain.UI.InGame {
         }
 
         private async UniTask FadeRootAsync(VisualElement root, float from, float to) {
-            if (_fadeSeconds <= 0f) { root.style.opacity = to; return; }
+            if (_fadeSeconds <= 0f || from == to) { root.style.opacity = to; return; }
             root.style.opacity = from;
             float elapsed = 0f;
             while (elapsed < _fadeSeconds) {

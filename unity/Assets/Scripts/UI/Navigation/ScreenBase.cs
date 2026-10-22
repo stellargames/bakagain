@@ -25,7 +25,11 @@ namespace BakAgain.UI.Navigation {
             _fadeSeconds = seconds;
         }
 
-        public async UniTask ShowAsync() {
+        public UniTask ShowAsync() => ShowAsync(fade: true);
+
+        public UniTask HideAsync() => HideAsync(fade: true);
+
+        public async UniTask ShowAsync(bool fade) {
             if (gameObject.activeSelf) {
                 return; // idempotent per the IScreen contract
             }
@@ -36,16 +40,18 @@ namespace BakAgain.UI.Navigation {
                 root.style.opacity = 0f;
             }
             await BuildWhileHiddenAsync();
-            await FadeAsync(0f, 1f);
+            await FadeAsync(fade ? 0f : 1f, 1f);
             OnAfterShow();
         }
 
-        public async UniTask HideAsync() {
+        public async UniTask HideAsync(bool fade) {
             if (!gameObject.activeSelf) {
                 return; // idempotent per the IScreen contract
             }
             OnBeforeHide();
-            await FadeAsync(1f, 0f);
+            if (fade) {
+                await FadeAsync(1f, 0f);
+            }
             gameObject.SetActive(false);
         }
 
@@ -54,7 +60,7 @@ namespace BakAgain.UI.Navigation {
         /// GameObject has no UIDocument (e.g. a Canvas-based screen).</summary>
         private async UniTask FadeAsync(float from, float to) {
             VisualElement root = GetComponent<UIDocument>()?.rootVisualElement;
-            if (root == null || _fadeSeconds <= 0f) {
+            if (root == null || _fadeSeconds <= 0f || from == to) {
                 if (root != null) {
                     root.style.opacity = to;
                 }

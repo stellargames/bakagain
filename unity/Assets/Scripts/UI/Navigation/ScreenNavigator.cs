@@ -138,7 +138,7 @@ namespace BakAgain.UI.Navigation {
         private async UniTask TransitionAsync(bool fade, IScreen incoming, Action change) {
             async UniTask ChangeAsync() {
                 change();
-                await EnsureTopShownAsync();
+                await EnsureTopShownAsync(fade);
             }
             if (fade && await Book.BookPageCurl.TryTurnAsync(incoming, ChangeAsync)) {
                 return;
@@ -182,7 +182,8 @@ namespace BakAgain.UI.Navigation {
         // FIRST, then show the new top (enable + fade in) — the sequential dip. Because only the top is
         // ever enabled, a transition between two menu-family screens never touches the travel HUD
         // beneath them (it was already disabled when the menu opened), so no transition routes through it.
-        private async UniTask EnsureTopShownAsync() {
+        // Unfaded, the screens' own dips are skipped as well: the swap is a cut (TASK-887).
+        private async UniTask EnsureTopShownAsync(bool fade = true) {
             IScreen top = _stack.Count > 0 ? _stack[_stack.Count - 1].Screen : null;
             if (ReferenceEquals(_shown, top)) {
                 return;
@@ -190,10 +191,10 @@ namespace BakAgain.UI.Navigation {
             if (_shown != null) {
                 IScreen outgoing = _shown;
                 _shown = null;
-                await outgoing.HideAsync();
+                await outgoing.HideAsync(fade);
             }
             if (top != null) {
-                await top.ShowAsync();
+                await top.ShowAsync(fade);
                 _shown = top;
             }
         }

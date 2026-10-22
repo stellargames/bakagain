@@ -75,9 +75,7 @@ namespace BakAgain.UI.Navigation {
             Texture2D still = null;
             if (cover != null) {
                 await Awaitable.EndOfFrameAsync();
-                still = new Texture2D(Screen.width, Screen.height, TextureFormat.RGB24, mipChain: false, linear: false);
-                still.ReadPixels(new Rect(0, 0, Screen.width, Screen.height), 0, 0, recalculateMipMaps: false);
-                still.Apply(false);
+                still = CaptureStill();
                 cover.style.backgroundImage = Background.FromTexture2D(still);
                 cover.style.backgroundSize = new BackgroundSize(Length.Percent(100), Length.Percent(100));
                 cover.style.opacity = 1f;
@@ -93,6 +91,14 @@ namespace BakAgain.UI.Navigation {
                     Object.Destroy(still);
                 }
             }
+        }
+
+        /// <summary>The frame on screen now as an opaque sRGB texture; call at the end of a frame.</summary>
+        internal static Texture2D CaptureStill() {
+            var still = new Texture2D(Screen.width, Screen.height, TextureFormat.RGB24, mipChain: false, linear: false);
+            still.ReadPixels(new Rect(0, 0, Screen.width, Screen.height), 0, 0, recalculateMipMaps: false);
+            still.Apply(false);
+            return still;
         }
 
         /// <summary>

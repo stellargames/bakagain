@@ -368,20 +368,14 @@ namespace BakAgain.UI.Spells {
         public async UniTask PushAsync(BakAgain.UI.Navigation.IScreenNavigator navigator) {
             await Awaitable.EndOfFrameAsync();
             DestroySnapshot();
-            // The screen's alpha is not coverage — the panel leaves it at zero — so the capture is
-            // copied into an opaque texture, or the cover draws as a hole.
-            // Fixed in place rather than copied: a phone-sized screen is millions of pixels, and a
-            // managed copy of them was most of the time the opening took on Android (TASK-818).
-            _openingSnapshot = ScreenCapture.CaptureScreenshotAsTexture();
-            if (_openingSnapshot.format == TextureFormat.RGBA32) {
-                Unity.Collections.NativeArray<byte> raw = _openingSnapshot.GetRawTextureData<byte>();
-                for (int i = 3; i < raw.Length; i += 4) {
-                    raw[i] = 255;
-                }
-                _openingSnapshot.Apply(false);
-            }
+            // Read back into an sRGB texture with no alpha (ScreenFade.CutAsync's still): the screen's
+            // alpha is not coverage, and CaptureScreenshotAsTexture's linear-flagged texture drew the
+            // curtains washed out — sky (40,81,93) came up (110,152,162), its sRGB encoding (TASK-887).
+            _openingSnapshot = CaptureOpeningStill();
             await navigator.PushUnfaded(this);
         }
+
+        internal static Texture2D CaptureOpeningStill() => BakAgain.UI.Navigation.ScreenFade.CaptureStill();
 
         /// <summary>The whole screen as it was, over everything, until the wipe takes over.</summary>
         private void CoverWithSnapshot() {

@@ -12,5 +12,14 @@ namespace BakAgain.UI.Navigation {
 
         /// <summary>Deactivate + tear down the surface.</summary>
         UniTask HideAsync();
+
+        /// <summary>
+        /// <see cref="ShowAsync()"/>; with <paramref name="fade"/> false the surface's own fade-in is
+        /// skipped too, for an unfaded push (TASK-887). Screens without one ignore it.
+        /// </summary>
+        UniTask ShowAsync(bool fade) => ShowAsync();
+
+        /// <summary><see cref="HideAsync()"/>, its fade-out skipped when <paramref name="fade"/> is false.</summary>
+        UniTask HideAsync(bool fade) => HideAsync();
     }
 }

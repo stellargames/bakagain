@@ -4,7 +4,9 @@ namespace BakAgain.Tests.PlayMode.UI.Navigation {
     using BakAgain.UI.Navigation;
     using Cysharp.Threading.Tasks;
     using NUnit.Framework;
+    using UnityEngine;
     using UnityEngine.TestTools;
+    using UnityEngine.UIElements;
 
     /// <summary>
     /// The navigator covers a transition with a fade — TASK-214, decided 2026-09-03.
@@ -104,6 +106,50 @@ namespace BakAgain.Tests.PlayMode.UI.Navigation {
 
                 Assert.AreEqual(new List<string> { "show:a" }, fade.Calls);
             });
+
+        private sealed class FadingScreen : ScreenBase { }   // ScreenBase's own 0.15 s dip
+
+        /// <summary>
+        /// An unfaded push or pop CUTS: the outgoing screen is gone and the incoming one is fully
+        /// opaque in the same frame, with no frame between (TASK-887).
+        /// </summary>
+        /// <remarks>
+        /// <b>Unfaded has to reach the screens' own dips, not only the navigator's fade.</b> The cast
+        /// screen pushes unfaded because its wipe is the original's only transition there
+        /// (CSPELL.C:2108-2128, the travel view stays on screen until the wipe). Measured 2026-10-22
+        /// with a 20 Hz burst: the travel HUD still faded out to an empty frame and the cast screen
+        /// faded in over its own cover, the "blank frame and ghost frame" of TASK-887.
+        /// </remarks>
+        [UnityTest]
+        public IEnumerator AnUnfadedPushAndPopCutInOneFrame() => UniTask.ToCoroutine(async () => {
+            var hudGo = new GameObject("hud", typeof(UIDocument));
+            var hud = hudGo.AddComponent<FadingScreen>();
+            hudGo.SetActive(false);
+            var castGo = new GameObject("cast", typeof(UIDocument));
+            var cast = castGo.AddComponent<FadingScreen>();
+            castGo.SetActive(false);
+            try {
+                var navigator = new ScreenNavigator();
+                await navigator.ResetTo(hud);
+
+                int frame = Time.frameCount;
+                await navigator.PushUnfaded(cast);
+                Assert.AreEqual(frame, Time.frameCount, "the push must not spend frames dipping");
+                Assert.IsFalse(hudGo.activeSelf, "the screen beneath is gone at once");
+                Assert.AreEqual(1f, castGo.GetComponent<UIDocument>().rootVisualElement.style.opacity.value,
+                    0.001f, "and the pushed one is opaque at once, not fading in");
+
+                frame = Time.frameCount;
+                await navigator.PopUnfaded();
+                Assert.AreEqual(frame, Time.frameCount, "the pop must not spend frames dipping either");
+                Assert.IsFalse(castGo.activeSelf);
+                Assert.AreEqual(1f, hudGo.GetComponent<UIDocument>().rootVisualElement.style.opacity.value,
+                    0.001f);
+            } finally {
+                Object.DestroyImmediate(hudGo);
+                Object.DestroyImmediate(castGo);
+            }
+        });
 
         private static int CountOf(List<string> calls, string value) {
             var n = 0;
