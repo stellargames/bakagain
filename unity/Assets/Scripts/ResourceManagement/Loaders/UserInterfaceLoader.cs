@@ -196,16 +196,7 @@ namespace BakAgain.ResourceManagement.Loaders {
             return false;
         }
 
-        private void Awake() => Initialize();
-
-        /// <summary>The state the build needs, made once per instance.</summary>
-        /// <remarks>
-        /// <b>Also from <see cref="OnEnable"/> when it is missing (TASK-920).</b> A script recompile
-        /// while the Editor plays reloads the domain: Unity re-creates the component, restores only
-        /// its serialized fields and calls OnEnable again, but not Awake. The build then ran with
-        /// <c>_icons</c> null and threw in <see cref="AddImageButton"/>, on a task nobody observed.
-        /// </remarks>
-        private void Initialize() {
+        private void Awake() {
             _document = GetComponent<UIDocument>();
             _actionHandler = GetComponent<IActionHandler>();
             _stateProvider = _actionHandler as IMenuStateProvider;
@@ -264,9 +255,6 @@ namespace BakAgain.ResourceManagement.Loaders {
         }
 
         private void OnEnable() {
-            if (_icons == null) {
-                Initialize();
-            }
             _ = OnEnableAsync();
         }
 
