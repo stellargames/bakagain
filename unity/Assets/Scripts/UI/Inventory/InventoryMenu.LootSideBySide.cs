@@ -6,9 +6,12 @@ namespace BakAgain.UI.Inventory {
     using UnityEngine.UIElements;
 
     /// <summary>
-    /// Enhanced side-by-side loot (TASK-889, owner-approved S3, "pack only"): a member's pack on the
-    /// left and the chest or body on the right, in the one stone frame, instead of the original's
-    /// one-at-a-time view and its container toggle.
+    /// Enhanced side-by-side loot (TASK-889, owner-approved S3, "pack only"): the chest or body on the
+    /// left, beside the container window, and a member's pack on the right, beside the portraits
+    /// (TASK-944), in the one stone frame, instead of the original's one-at-a-time view and its
+    /// container toggle. Each side is drawn over its real capacity in squares: the pack's 20 slots
+    /// and the container's 28 (more rows only if the game filled it past that), the budgets of
+    /// <c>cmbinv_has_space_for_item</c> (canassa CMBINV.C:631).
     ///
     /// <para><b>Nothing here decides a rule.</b> One side is the faithful screen's live
     /// <c>_displayed</c>, drawn by the usual renderer; the other is a passive picture drawn by a
@@ -23,16 +26,13 @@ namespace BakAgain.UI.Inventory {
         /// <summary>The share of the item field between the two panels; the frame's middle bar lies over it.</summary>
         private const float HalfGapShare = 0.026f;
 
-        /// <summary>Room left round the loot's own cells inside its panel, in canonical units.</summary>
-        private const float LootPadding = 24f;
-
-        private const int PlaceRetries = 10; // frames the loot's placement waits for its cells' layout
+        /// <summary>Room left round each side's squares inside its panel, in canonical units.</summary>
+        private const float SquaresPadding = 24f;
 
         private readonly ItemGridRenderer _peer = new ItemGridRenderer { SlotPrefix = PeerSlotPrefix };
         private VisualElement _packHalf, _lootHalf, _packWrap, _lootWrap;
-        private Vector2 _halfSize;
-        private int _lootMember; // the portrait whose pack is on the left
-        private IVisualElementScheduledItem _placeRetry;
+        private Vector2 _packSize, _lootSize;
+        private int _lootMember; // the portrait whose pack is beside the portraits
 
         /// <summary>Looting a chest, a body or a pile with the Enhanced layout — not a shop, a lock,
         /// a temple, a mender, a fight, or the party's own packs and keys.</summary>
@@ -77,8 +77,8 @@ namespace BakAgain.UI.Inventory {
             }
             _peer.Render(ShowingLootSide ? _packWrap : _lootWrap, other, _gameSession.ObjectInfo, _resources,
                 onSlotPicked: null, ShowingLootSide ? InventoryLayoutMode.Member : InventoryLayoutMode.Loot,
-                Layout, _ui?.Frame);
-            PlaceWraps(PlaceRetries);
+                Layout, _ui?.Frame, squares: true);
+            PlaceWraps();
         }
 
         private void EnsureHalves() {
@@ -86,27 +86,44 @@ namespace BakAgain.UI.Inventory {
                 return;
             }
             RemoveHalves();
-            Rect full = HintRect(Layout.FullItemsBox);
-            float gap = full.width * HalfGapShare;
-            _halfSize = new Vector2((full.width - gap) / 2f, full.height);
-            _packHalf = Half(new Vector2(full.x, full.y));
-            _lootHalf = Half(new Vector2(full.x + _halfSize.x + gap, full.y));
+            _lootHalf = Half();
+            _packHalf = Half();
             _packWrap = Wrap(_packHalf);
             _lootWrap = Wrap(_lootHalf);
+            Split(0.5f); // until both sides have rendered: PlaceWraps splits by their squares
         }
 
-        private VisualElement Half(Vector2 at) {
+        private VisualElement Half() {
             var half = new VisualElement {
                 name = "panel_bg", // the stone frame joins the two with its middle bar
                 pickingMode = PickingMode.Position,
                 style = {
-                    position = Position.Absolute, left = at.x, top = at.y,
-                    width = _halfSize.x, height = _halfSize.y,
+                    position = Position.Absolute,
                     backgroundColor = Color.black, overflow = Overflow.Hidden,
                 },
             };
             _stage.Add(half);
             return half;
+        }
+
+        /// <summary>The loot's panel on the left with <paramref name="lootShare"/> of the field, the
+        /// pack's on the right with the rest: the container window sits bottom left of the Enhanced
+        /// screen and the portraits in a column on its right.</summary>
+        private void Split(float lootShare) {
+            Rect full = HintRect(Layout.FullItemsBox);
+            float gap = full.width * HalfGapShare;
+            float lootW = (full.width - gap) * lootShare;
+            _lootSize = new Vector2(lootW, full.height);
+            _packSize = new Vector2(full.width - gap - lootW, full.height);
+            Size(_lootHalf, new Rect(full.x, full.y, _lootSize.x, _lootSize.y));
+            Size(_packHalf, new Rect(full.x + lootW + gap, full.y, _packSize.x, _packSize.y));
+        }
+
+        private static void Size(VisualElement half, Rect r) {
+            half.style.left = r.x;
+            half.style.top = r.y;
+            half.style.width = r.width;
+            half.style.height = r.height;
         }
 
         private VisualElement Wrap(VisualElement half) {
@@ -126,21 +143,20 @@ namespace BakAgain.UI.Inventory {
         }
 
         /// <summary>While an item is examined the two panels become one, as the faithful examine
-        /// takes the whole field: the left one spans it and the right one, and both pictures, hide.</summary>
+        /// takes the whole field: the left one (the loot's) spans it and the right one, and both
+        /// pictures, hide.</summary>
         private void SyncLootHalvesForExamine() {
             if (_packHalf == null || _packHalf.parent != _stage) {
                 return;
             }
             bool examining = _inspectOpen || _descriptionOpen;
             Rect full = HintRect(Layout.FullItemsBox);
-            _packHalf.style.width = examining ? full.width : _halfSize.x;
-            _lootHalf.style.display = examining ? DisplayStyle.None : DisplayStyle.Flex;
-            _packWrap.style.display = examining ? DisplayStyle.None : DisplayStyle.Flex;
+            _lootHalf.style.width = examining ? full.width : _lootSize.x;
+            _packHalf.style.display = examining ? DisplayStyle.None : DisplayStyle.Flex;
+            _lootWrap.style.display = examining ? DisplayStyle.None : DisplayStyle.Flex;
         }
 
         private void RemoveHalves() {
-            _placeRetry?.Pause();
-            _placeRetry = null;
             _peer.Clear();
             _packHalf?.RemoveFromHierarchy();
             _lootHalf?.RemoveFromHierarchy();
@@ -148,59 +164,34 @@ namespace BakAgain.UI.Inventory {
         }
 
         /// <summary>
-        /// One scale for both panels, set by the pack's own box (so items do not change size as the
-        /// loot empties) unless the loot is wider; each side centred in its panel. The loot's extent
-        /// is its cells' laid-out rects, so this waits for a layout.
+        /// The field is split between the two panels in proportion to their squares, so one scale
+        /// fits both and an item is the same size on either side; each grid is centred in its panel.
+        /// The squares are the renderers' own (no layout pass to wait for).
         /// </summary>
-        private void PlaceWraps(int retries) {
-            _placeRetry?.Pause(); // one chain at a time: every render starts its own
-            _placeRetry = null;
+        private void PlaceWraps() {
             if (_packWrap == null) {
                 return;
             }
-            Rect pack = HintRect(Layout.GeneralItemsBox);
-            if (!TryLootExtent(out Rect loot, out bool pending)) {
-                if (pending && retries > 0) {
-                    _placeRetry = _stage?.schedule.Execute(() => PlaceWraps(retries - 1));
-                }
-                loot = new Rect(HintRect(Layout.FullItemsBox).center - pack.size / 2f, pack.size);
-            }
-            float s = Mathf.Min(1f, Fit(pack), Fit(loot));
-            Place(_packWrap, pack, s);
-            Place(_lootWrap, loot, s);
+            Rect pack = Padded(ShowingLootSide ? _peer.SquaresRect : _renderer.SquaresRect, Layout.GeneralItemsBox);
+            Rect loot = Padded(ShowingLootSide ? _renderer.SquaresRect : _peer.SquaresRect, Layout.FullItemsBox);
+            Split(loot.width / (loot.width + pack.width));
+            float s = Mathf.Min(1f, Fit(pack, _packSize), Fit(loot, _lootSize));
+            Place(_packWrap, pack, s, _packSize);
+            Place(_lootWrap, loot, s, _lootSize);
         }
 
-        private float Fit(Rect r) =>
-            r.width <= 0f || r.height <= 0f ? 1f : Mathf.Min(_halfSize.x / r.width, _halfSize.y / r.height);
+        private static Rect Padded(Rect squares, LayoutHint fallback) =>
+            squares.width > 0f
+                ? Rect.MinMaxRect(squares.xMin - SquaresPadding, squares.yMin - SquaresPadding,
+                    squares.xMax + SquaresPadding, squares.yMax + SquaresPadding)
+                : HintRect(fallback); // that side drew nothing (no member to show)
 
-        private void Place(VisualElement wrap, Rect r, float s) {
+        private static float Fit(Rect r, Vector2 half) =>
+            r.width <= 0f || r.height <= 0f ? 1f : Mathf.Min(half.x / r.width, half.y / r.height);
+
+        private static void Place(VisualElement wrap, Rect r, float s, Vector2 half) {
             wrap.style.scale = new Scale(new Vector3(s, s, 1f));
-            wrap.style.translate = new Translate(_halfSize.x / 2f - s * r.center.x, _halfSize.y / 2f - s * r.center.y);
-        }
-
-        /// <summary>The loot's cells, padded, in stage coordinates; false until they have a layout.
-        /// An empty container has no extent and answers false with nothing to wait for.</summary>
-        private bool TryLootExtent(out Rect extent, out bool pending) {
-            extent = default;
-            bool any = false;
-            pending = false;
-            foreach (VisualElement host in _lootWrap.Children()) {
-                foreach (VisualElement cell in host.Children()) {
-                    if (cell.name == null || cell.name.EndsWith("_equipbg")
-                        || !(cell.name.StartsWith(PeerSlotPrefix) || cell.name.StartsWith("item_slot_"))) continue;
-                    Rect c = cell.layout, h = host.layout;
-                    if (float.IsNaN(c.width) || float.IsNaN(h.x) || c.width <= 0f) { pending = true; continue; }
-                    var r = new Rect(h.x + c.x, h.y + c.y, c.width, c.height);
-                    extent = any ? EnhancedSheet.Union(extent, r) : r;
-                    any = true;
-                }
-            }
-            if (any && !pending) {
-                extent = Rect.MinMaxRect(extent.xMin - LootPadding, extent.yMin - LootPadding,
-                    extent.xMax + LootPadding, extent.yMax + LootPadding);
-                return true;
-            }
-            return false;
+            wrap.style.translate = new Translate(half.x / 2f - s * r.center.x, half.y / 2f - s * r.center.y);
         }
 
         /// <summary>A press on the other side's picture makes that side live, as the portrait or the

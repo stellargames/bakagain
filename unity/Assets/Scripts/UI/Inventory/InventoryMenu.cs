@@ -914,7 +914,8 @@ namespace BakAgain.UI.Inventory {
                     : 0,
                 // Only a shelf is chapter-gated; every other grid shows what it holds.
                 shopChapter: ShowingShopShelf ? _gameSession.Chapter : int.MaxValue,
-                shelfScrolls: shelfScrolls);
+                shelfScrolls: shelfScrolls,
+                squares: SideBySide); // the Enhanced loot's capacity squares (TASK-944)
             AttachShelfScroller();
             RenderLootPeer();
             SyncShopPageButton();
@@ -4175,7 +4176,7 @@ namespace BakAgain.UI.Inventory {
 
             // Share is offered when the destination is a party member and not in combat
             // (pickupItem's picker argument).
-            RunTransfer(slot, target, allowShare: true).Forget();
+            RunTransfer(slot, target, allowShare: true, portraitDrop: true).Forget();
         }
 
         /// <summary>
@@ -4637,7 +4638,7 @@ namespace BakAgain.UI.Inventory {
         /// the choice to Apply (amount) or Distribute (Share). Ends with the refusal dialog, a
         /// deselect and a re-render either way.
         /// </summary>
-        private UniTask RunTransfer(int slot, RuntimeContainer target, bool allowShare) {
+        private UniTask RunTransfer(int slot, RuntimeContainer target, bool allowShare, bool portraitDrop = false) {
             // *** THE REFUSALS NAME THE ITEM, SO EVERY TRANSFER HAS TO SAY WHICH ONE. ***
             // "For a moment he'd thought to discard his @1..." resolves the object through the
             // engine's nEvtArgItemId, which the original stamps at each site that can refuse. It was
@@ -4650,6 +4651,14 @@ namespace BakAgain.UI.Inventory {
                 _gameSession.SetDialogKeyObjectId(moving.ObjectId);
             }
 
+            // Var 0 of the "no room" record: a refusal on a PORTRAIT says whether the source is a
+            // member's pack (INVENTOR.C:749, `actor->bResidence == 1`), one on the container window
+            // names the destination's kind (INVENTOR.C:775). So loot dropped on a full member reads
+            // "Owyn scowled. 'There isn't enough room...'", and only a pack-to-pack hand-over reads
+            // "Owyn waved off the ...".
+            int noRoomVar0 = portraitDrop
+                ? (_displayed?.ContainerType == GameData.Resources.Data.SaveGameContainerType.Inventory ? 1 : 0)
+                : target != null ? (int)target.ContainerType : 0;
             int gold = _gameSession.PartyGold;
             InventoryTransfer.TransferPlan plan = InventoryTransfer.Plan(_displayed, slot, target,
                 _gameSession.ObjectInfo, ref gold, IsMemberCaster(target), allowShare,
@@ -4659,12 +4668,12 @@ namespace BakAgain.UI.Inventory {
                 if (immediate == InventoryTransfer.Result.Moved) {
                     FeedIfStarving(target, moving);
                 }
-                ShowTransferResult(immediate, target);
+                ShowTransferResult(immediate, noRoomVar0);
                 DeselectItem();
                 RenderCurrent();
                 return UniTask.CompletedTask;
             }
-            return RunPickerTransferAsync(plan, target, moving);
+            return RunPickerTransferAsync(plan, target, moving, noRoomVar0);
         }
 
         /// <summary>
@@ -4709,7 +4718,7 @@ namespace BakAgain.UI.Inventory {
         // The plan knows its own target, but TransferPlan.Target is internal to GameData, so the
         // destination rides along rather than widening that library's surface for a message.
         private async UniTask RunPickerTransferAsync(InventoryTransfer.TransferPlan plan,
-            RuntimeContainer target, RuntimeItem moving) {
+            RuntimeContainer target, RuntimeItem moving, int noRoomVar0) {
             try {
                 int qty = await ShowQuantityPickerAsync(plan.MaxQuantity, plan.AllowShare);
                 InventoryTransfer.Result result = qty < 0
@@ -4718,7 +4727,7 @@ namespace BakAgain.UI.Inventory {
                 if (qty > 0 && result == InventoryTransfer.Result.Moved) {
                     FeedIfStarving(target, moving);
                 }
-                ShowTransferResult(result, target);
+                ShowTransferResult(result, noRoomVar0);
             } finally {
                 DeselectItem();
                 RenderCurrent();
@@ -4763,7 +4772,7 @@ namespace BakAgain.UI.Inventory {
             return members;
         }
 
-        private void ShowTransferResult(InventoryTransfer.Result result, RuntimeContainer target) {
+        private void ShowTransferResult(InventoryTransfer.Result result, int noRoomVar0) {
             // *** THE ORIGINAL ANIMATES ONLY ON A TRANSFER THAT HAPPENED. *** invui_dropOnPortrait
             // guards the whole blit loop on `xfer_result > 0`, so a refusal shows its dialog and
             // nothing flies. These three are our "it moved"; every other leaf below is a refusal,
@@ -4786,15 +4795,14 @@ namespace BakAgain.UI.Inventory {
                     _dialogs?.ShowById(LitTorchDialogId).Forget();
                     break;
                 case InventoryTransfer.Result.DoesNotFit:
-                    // Var 0 is the DESTINATION container's type byte, read straight off the record:
-                    // sub_ovr157_4E3 @0x54be9 does `mov al, es:[bx+container.metaData.containerType]`
-                    // / `mov global_30000, ax` on the failed-transfer branch, then shows this record.
+                    // Var 0 is decided by the drop (see RunTransfer). On the container window it is
+                    // the DESTINATION container's type byte: sub_ovr157_4E3 @0x54be9 does
+                    // `mov al, es:[bx+container.metaData.containerType]` / `mov global_30000, ax`.
                     // SaveGameContainerType lines up with the leaves 1:1 — 1 Inventory ("waved off
                     // the ..."), 2/3 Bag ("canvas sack"), 4 Chest ("wooden chest"), 5/7 Corpse and
-                    // NpcInventory ("pawed the dead body"), 10 shop ("room ... on my shelves").
-                    // Passing the byte therefore covers every kind we can open, not just members;
-                    // an unmodelled kind still lands on the record's own default leaf.
-                    ShowVar0Message(NoRoomDialogId, target != null ? (int)target.ContainerType : 0);
+                    // NpcInventory ("pawed the dead body"), 10 shop ("room ... on my shelves"). On a
+                    // portrait it is 0 or 1, whether the source is a member's pack (TASK-944).
+                    ShowVar0Message(NoRoomDialogId, noRoomVar0);
                     break;
                 case InventoryTransfer.Result.Blocked:
                     _logger.LogInformation("Transfer blocked.");

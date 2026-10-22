@@ -100,6 +100,12 @@ namespace BakAgain.UI.Inventory {
         public int ShelfRows { get; private set; }
         public int ShelfVisibleRows { get; private set; }
 
+        /// <summary>Class of an empty grid square (the Enhanced loot's capacity squares, TASK-944).</summary>
+        public const string SquareClass = "inv-square";
+
+        /// <summary>The squares of the last render that drew them, in the root's space; empty otherwise.</summary>
+        public Rect SquaresRect { get; private set; }
+
         /// <summary>Element name of the host holding the member paperdoll's equipped cells.</summary>
         internal const string PaperdollHostName = "item_paperdoll";
 
@@ -302,7 +308,8 @@ namespace BakAgain.UI.Inventory {
             IList<BakAgain.UI.InputCore.NavWidget> navWidgets = null,
             Action<int> onSlotActivated = null,
             Func<RuntimeItem, ObjectInfo, ShopCellText?> shopCellText = null,
-            int firstItem = 0, int shopChapter = int.MaxValue, bool shelfScrolls = false) {
+            int firstItem = 0, int shopChapter = int.MaxValue, bool shelfScrolls = false,
+            bool squares = false) {
             _shopCellText = shopCellText;
             Clear();
             navWidgets?.Clear();
@@ -343,8 +350,29 @@ namespace BakAgain.UI.Inventory {
             int gen = _generation;
 
             shelfScrolls &= mode == InventoryLayoutMode.Shop;
-            List<Placement> placements = Pack(container, objects, mode, grid, firstItem, shopChapter, shelfScrolls);
-            if (placements.Count == 0) {
+            squares &= mode != InventoryLayoutMode.Shop;
+            List<Placement> placements = Pack(container, objects, mode, grid, firstItem, shopChapter,
+                out int hidden, shelfScrolls);
+            // The Enhanced loot never hides loot (TASK-944, cf. TASK-66): a container the game filled
+            // past its 28 slots gets more rows of the same grid rather than losing items off it.
+            while (squares && mode == InventoryLayoutMode.Loot && hidden > 0 && grid.Rows < container.Items.Count * 2) {
+                grid = grid.Clone();
+                grid.Rows++;
+                placements = Pack(container, objects, mode, grid, firstItem, shopChapter, out hidden, shelfScrolls);
+            }
+            // *** SAY SO WHEN AN ITEM IS NOT DRAWN. *** Dropping past the grid's bound matches the
+            // original, but doing it silently does not help anyone: the item is in the container the
+            // screen is showing and simply is not on it — indistinguishable from a save that lost it.
+            // Not reachable on shipped data in a faithful grid (7x4 = 28 and the room rule keeps
+            // every container it fills within that), so this fires for an authored layout or an
+            // overfull save container. One line per pack rather than one per item.
+            if (hidden > 0) {
+                Debug.LogWarning(
+                    $"Inventory grid {grid.Columns}x{grid.Rows} could not show {hidden} of " +
+                    $"{container.Items.Count} items. They are in the container but not on the screen — " +
+                    "see TASK-66.");
+            }
+            if (placements.Count == 0 && !squares) {
                 return;
             }
             bool member = mode == InventoryLayoutMode.Member;
@@ -353,6 +381,10 @@ namespace BakAgain.UI.Inventory {
                 out bool needsFillReposition, out float clusterWidth);
             VisualElement generalHost = null;
             VisualElement paperdollHost = null;
+            if (squares) {
+                generalHost = CreateGridHost(root, GridHostName, generalOrigin, grid, area);
+                DrawSquares(generalHost, grid, firstColumn: member ? PaperdollColumns : 0, generalOrigin);
+            }
 
             foreach (Placement pl in placements) {
                 int slot = pl.ItemIndex; // capture for the closures below
@@ -600,6 +632,27 @@ namespace BakAgain.UI.Inventory {
                     + (paperdollRow * grid.CellHeight.Value)
                     + layout.PaperdollPlaceholderNudgeY),
             };
+        }
+
+        // One empty square per cell the general grid offers, beneath the item cells (TASK-944). A
+        // member's first columns are the paperdoll's, so the pack's squares are the rest: its 20
+        // slots on the shipped 7x4 grid (cmbinv_has_space_for_item's 0x14, CMBINV.C:631).
+        private void DrawSquares(VisualElement host, LayoutGrid grid, int firstColumn, Vector2 origin) {
+            for (int c = firstColumn; c < grid.Columns; c++) {
+                for (int r = 0; r < grid.Rows; r++) {
+                    var square = new VisualElement { pickingMode = PickingMode.Ignore };
+                    square.AddToClassList(SquareClass);
+                    var tile = new VisualElement { pickingMode = PickingMode.Ignore };
+                    tile.AddToClassList(SquareClass + "__tile");
+                    square.Add(tile);
+                    LayoutApplier.ApplyGridPlacement(square, grid,
+                        new LayoutGridPlacement { Column = c, Row = r, ColumnSpan = 1, RowSpan = 1 });
+                    host.Add(square);
+                }
+            }
+            float cw = grid.CellWidth.Value, ch = grid.CellHeight.Value;
+            SquaresRect = new Rect(origin.x + firstColumn * cw, origin.y,
+                (grid.Columns - firstColumn) * cw, grid.Rows * ch);
         }
 
         // Footprint of an item's slot count, in grid CELLS (sub_ovr157_0 @0x544ea). The single owner
@@ -931,8 +984,10 @@ namespace BakAgain.UI.Inventory {
         // mode first places equipped items on the paperdoll and reserves the leading columns.
         // Placements are GRID-RELATIVE — where the grid itself sits is ResolveGridOrigin's job.
         private static List<Placement> Pack(RuntimeContainer container, ObjectInfoSet objects,
-            InventoryLayoutMode mode, LayoutGrid grid, int firstItem, int shopChapter, bool shelfScrolls = false) {
+            InventoryLayoutMode mode, LayoutGrid grid, int firstItem, int shopChapter, out int hidden,
+            bool shelfScrolls = false) {
             var placements = new List<Placement>();
+            hidden = 0;
             int columns = grid.Columns;
             int rows = grid.Rows;
             if (columns <= 0 || rows <= 0) {
@@ -1055,20 +1110,7 @@ namespace BakAgain.UI.Inventory {
                 });
             }
 
-            // *** SAY SO WHEN AN ITEM IS NOT DRAWN. *** Dropping past the grid's bound matches the
-            // original, but doing it silently does not help anyone: the item is in the container the
-            // screen is showing and simply is not on it — indistinguishable from a save that lost it.
-            // Not reachable on shipped data (the grid is 7x4 = 28 and no shipped container needs
-            // more), so this only ever fires for an authored layout, which is exactly who needs
-            // telling. One line per pack rather than one per item.
-            if (unplaced > 0 || truncated > 0) {
-                Debug.LogWarning(
-                    $"Inventory grid {columns}x{rows} could not show {unplaced + truncated} of " +
-                    $"{container.Items.Count} items ({truncated} past the cell count, {unplaced} " +
-                    "with no free footprint). They are in the container but not on the screen — " +
-                    "see TASK-66.");
-            }
-
+            hidden = unplaced + truncated;
             return placements;
         }
 
@@ -1181,6 +1223,7 @@ namespace BakAgain.UI.Inventory {
             _generation++; // invalidate any in-flight LoadIconAsync
             ShelfViewport = ShelfContent = null;
             ShelfRows = ShelfVisibleRows = 0;
+            SquaresRect = Rect.zero;
             ClearDeferredReposition();
             foreach (VisualElement built in _built) {
                 built.RemoveFromHierarchy();

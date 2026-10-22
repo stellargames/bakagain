@@ -66,7 +66,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             typeof(InventoryMenu).GetField("_displayed", any).SetValue(menu, giver);
             typeof(InventoryMenu).GetField("_stage", any).SetValue(menu, document.rootVisualElement);
 
-            typeof(InventoryMenu).GetMethod("RunTransfer", any).Invoke(menu, new object[] { 0, hungry, false });
+            typeof(InventoryMenu).GetMethod("RunTransfer", any).Invoke(menu, new object[] { 0, hungry, false, false });
 
             Assert.IsFalse(session.ConditionsOf(1).Has(ActorCondition.Starving), "the ration was eaten on arrival");
             Assert.AreEqual(0, hungry.Items.Count, "the one ration given is the one eaten");

@@ -353,6 +353,8 @@
 .enhanced-inv .enhanced-inv__purse-text { font-size: 55px; white-space: nowrap; color: rgb(46, 29, 15); }
 .enhanced-inv .enhanced-inv__hint { flex-grow: 1; flex-shrink: 1; overflow: hidden; font-size: 44px; white-space: normal; color: rgb(205, 185, 143); }
 .enhanced-inv .enhanced-inv__button { position: relative; flex-shrink: 0; margin-left: 6px; }
+/* The Enhanced loot's capacity squares (TASK-944): one faint tile per slot, under the items. */
+.enhanced-inv .inv-square__tile { position: absolute; left: 6px; top: 6px; right: 6px; bottom: 6px; border-radius: 10px; border-width: 3px; border-color: rgba(181, 140, 90, 0.38); background-color: rgba(255, 236, 200, 0.05); }
 .enhanced-inv .enhanced-inv__examine { position: absolute; left: 5%; right: 4%; top: 7%; bottom: 7%; flex-direction: row; }
 .enhanced-inv .enhanced-inv__description { flex-grow: 3; flex-basis: 0; align-self: flex-start; font-size: 44px; white-space: normal; color: var(--ui-ink); }
 .enhanced-inv .enhanced-inv__stats { flex-grow: 2; flex-basis: 0; align-self: stretch; overflow: hidden; margin-left: 24px; padding-left: 24px; border-left-width: 2px; border-color: rgba(58, 36, 16, 0.4); }

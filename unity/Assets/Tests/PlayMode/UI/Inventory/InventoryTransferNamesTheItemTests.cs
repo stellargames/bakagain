@@ -66,7 +66,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
                 ContainerType = SaveGameContainerType.Inventory,
             };
 
-            Invoke("RunTransfer", 0, target, false);
+            Invoke("RunTransfer", 0, target, false, false);
 
             // The stamp is on the SHARED path, so a refusal names the item whichever caller ran it
             // — the portrait drop, the container move, and any later one. It used to be stamped
@@ -81,9 +81,44 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
 
             // Out of range: nothing to name. Stamping a zero here would blank the name for whatever
             // message the caller is about to show instead.
-            Invoke("RunTransfer", 99, new RuntimeContainer { Capacity = 4 }, false);
+            Invoke("RunTransfer", 99, new RuntimeContainer { Capacity = 4 }, false, false);
 
             Assert.That(_session.DialogKeyObjectId, Is.EqualTo(Sword));
+        }
+
+        // ---- which leaf of the "no room" record a refusal reads (TASK-944) --------------------
+        // INVENTOR.C:749: a drop on a PORTRAIT that the member refuses sets Var 0 to whether the
+        // SOURCE is a party member's pack (actor->bResidence == 1); INVENTOR.C:775: a drop on the
+        // container window sets it to the DESTINATION's type. From a chest the portrait refusal is
+        // "Owyn scowled. 'There isn't enough room...'", not "Owyn waved off the ...".
+
+        private static RuntimeContainer FullPack() {
+            var pack = new RuntimeContainer { Capacity = 24, ContainerType = SaveGameContainerType.Inventory };
+            for (int i = 0; i < 20; i++) pack.Items.Add(new RuntimeItem(Sword, 1, 0));
+            return pack;
+        }
+
+        private int? NoRoomVar0 => _session.GetGlobalValue(30000); // ItemInspectText.DescriptionGlobalKey
+
+        [Test]
+        public void APortraitRefusal_FromAChest_ReadsTheNotAMemberLeaf() {
+            _displayed.ContainerType = SaveGameContainerType.Chest;
+            Invoke("RunTransfer", 0, FullPack(), false, true);
+            Assert.That(NoRoomVar0, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void APortraitRefusal_FromAMembersPack_ReadsTheMemberLeaf() {
+            Invoke("RunTransfer", 0, FullPack(), false, true);
+            Assert.That(NoRoomVar0, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void AContainerWindowRefusal_ReadsTheDestinationsType() {
+            var body = new RuntimeContainer { Capacity = 1, ContainerType = SaveGameContainerType.Corpse };
+            body.Items.Add(new RuntimeItem(Sword, 1, 0));
+            Invoke("RunTransfer", 0, body, false, false);
+            Assert.That(NoRoomVar0, Is.EqualTo((int)SaveGameContainerType.Corpse));
         }
 
         private void SetField(string name, object value) =>
