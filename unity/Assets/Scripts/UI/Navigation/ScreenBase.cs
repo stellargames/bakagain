@@ -91,12 +91,21 @@ namespace BakAgain.UI.Navigation {
         protected virtual void OnAfterShow() {
         }
 
-        /// <summary>Session-end settlement, run BEFORE the fade-out and deactivation — the place for
-        /// game-state a screen owns for exactly as long as it is up (the loot screen returning an
-        /// emptied ground bag to its zone pool). Component teardown belongs in <c>OnDisable</c>;
-        /// this hook exists because that runs too late to be told apart from a scene teardown, and
-        /// because it must still see the screen's collaborators wired.</summary>
+        /// <summary>Runs BEFORE the fade-out and deactivation of EVERY hide — a screen pushed over this
+        /// one hides it too, and the pop shows it again. So this is for what the surface itself
+        /// holds (an input layer, a built panel), never for the visit: that is
+        /// <see cref="OnClosing"/>.</summary>
         protected virtual void OnBeforeHide() {
+        }
+
+        void IScreen.OnLeftStack() => OnClosing();
+
+        /// <summary>Session-end settlement, run once when the screen leaves the navigator's stack and
+        /// before it hides — the place for game-state a screen owns for exactly as long as it is open
+        /// (the loot screen returning an emptied ground bag to its zone pool, a shop's visit). Not
+        /// run when another screen merely covers this one (TASK-925). It may run while the screen is
+        /// already hidden, when it is removed from beneath another.</summary>
+        protected virtual void OnClosing() {
         }
     }
 }

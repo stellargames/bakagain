@@ -147,7 +147,7 @@ namespace BakAgain.Tests.PlayMode {
             Harness h = Restore(Sidecar("gone-mod"));
             Assert.That(h.Prompt.Result.Status, Is.EqualTo(UniTaskStatus.Pending));
 
-            typeof(MissingModsScreen).GetMethod("OnBeforeHide", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(h.Prompt, null);
+            typeof(MissingModsScreen).GetMethod("OnClosing", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(h.Prompt, null);
 
             Assert.That(h.Prompt.Result.Status, Is.EqualTo(UniTaskStatus.Succeeded));
             Assert.That(h.Prompt.Result.GetAwaiter().GetResult(), Is.False, "Cancel, not a restore left waiting");

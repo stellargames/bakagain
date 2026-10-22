@@ -79,4 +79,17 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
 
         public UniTask Clear() => UniTask.CompletedTask;
     }
+
+    /// <summary>
+    /// Closes a screen the way the game does — onto a navigator's stack and off it — so its
+    /// end-of-visit settlement runs. A bare <c>HideAsync</c> is only a hide, which a cover causes
+    /// too, and settles nothing (TASK-925).
+    /// </summary>
+    internal static class ScreenLeave {
+        public static async UniTask LeaveAsync(BakAgain.UI.Navigation.IScreen screen) {
+            var nav = new BakAgain.UI.Navigation.ScreenNavigator();
+            await nav.PushUnfaded(screen);
+            await nav.PopUnfaded();
+        }
+    }
 }

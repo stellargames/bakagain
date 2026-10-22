@@ -121,7 +121,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
 
             bag.Items.Clear(); // the player picked the pile up
 
-            yield return menu.HideAsync().ToCoroutine();
+            yield return ScreenLeave.LeaveAsync(menu).ToCoroutine();
 
             Assert.AreEqual(SaveGameContainerType.Free, bag.ContainerType,
                 "an emptied self-spawning bag returns to the zone's pool");
@@ -143,7 +143,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             open.SetValue(menu, true); // as ShowItemDescriptionAsync leaves it while the examine is up
             slot.SetValue(menu, 2);
 
-            yield return menu.HideAsync().ToCoroutine();
+            yield return ScreenLeave.LeaveAsync(menu).ToCoroutine();
 
             Assert.IsFalse((bool)open.GetValue(menu), "the examine must not outlive the screen");
             Assert.AreEqual(-1, (int)slot.GetValue(menu));
@@ -159,7 +159,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             System.Reflection.FieldInfo shelf = typeof(InventoryMenu).GetField("_shelf", flags);
             shelf.SetValue(menu, new ShelfScroller(new VisualElement(), new VisualElement(), 5, 2, offset: 300f));
 
-            yield return menu.HideAsync().ToCoroutine();
+            yield return ScreenLeave.LeaveAsync(menu).ToCoroutine();
 
             Assert.IsNull(shelf.GetValue(menu), "the shelf must not outlive the screen");
         }
@@ -179,7 +179,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
 
             bag.Items.RemoveAt(0);
 
-            yield return menu.HideAsync().ToCoroutine();
+            yield return ScreenLeave.LeaveAsync(menu).ToCoroutine();
 
             Assert.AreEqual(SaveGameContainerType.Bag, bag.ContainerType);
             Assert.AreSame(bag, session.GetLiveContainerAt(1, BagX, BagY));
@@ -200,7 +200,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
 
             corpse.Items.Clear();
 
-            yield return menu.HideAsync().ToCoroutine();
+            yield return ScreenLeave.LeaveAsync(menu).ToCoroutine();
 
             Assert.AreEqual(SaveGameContainerType.Corpse, corpse.ContainerType);
             Assert.AreSame(corpse, session.GetLiveContainerAt(1, BagX, BagY));
@@ -262,7 +262,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             var bags = new RecordingBagSpawner();
             InventoryMenu menu = BuildMenu(session, bags);
 
-            yield return menu.HideAsync().ToCoroutine();
+            yield return ScreenLeave.LeaveAsync(menu).ToCoroutine();
 
             CollectionAssert.IsEmpty(bags.Despawned);
         }

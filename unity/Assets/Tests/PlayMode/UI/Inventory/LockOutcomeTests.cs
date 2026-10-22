@@ -74,7 +74,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             _menu.SetLock(20);
             UniTask<bool> outcome = _menu.LockOutcomeAsync();
 
-            yield return _menu.HideAsync().ToCoroutine();
+            yield return ScreenLeave.LeaveAsync(_menu).ToCoroutine();
 
             Assert.That(outcome.Status, Is.EqualTo(UniTaskStatus.Succeeded));
             Assert.That(outcome.GetAwaiter().GetResult(), Is.False);

@@ -697,7 +697,6 @@ namespace BakAgain.UI.Inventory {
         protected override UniTask OnBeforeShowAsync() {
             ResetGesture();
             _selectedSlot = -1;
-            _droppedBag = null;
             _partyHeads?.Dispose();
             _partyHeads = new PartyHeadsView(_gameSession, _resources);
             _headsAttached = false;
@@ -3062,6 +3061,16 @@ namespace BakAgain.UI.Inventory {
             _groundBags?.SpawnAsync(bag).Forget();
         }
 
+        protected override void OnBeforeHide() {
+            // *** ANSWER AN UNANSWERED QUANTITY PICKER ON ANY HIDE. *** It is a wait on this
+            // screen that only its own buttons could end, so a teardown while it was up parked the
+            // continuation for ever -- leaving `_pickerOpen` true on a component that outlives the
+            // screen, which deadens every gesture handler from then on. Cancelling resolves it as
+            // "None", so the picker's own teardown and the caller's both run. See
+            // ShowQuantityPickerAsync (TASK-568).
+            _pickerAbandoned?.Cancel();
+        }
+
         /// <summary>
         /// Screen-exit settlement, the counterpart of <c>actorspawn_destroy_and_persist</c>: every
         /// world-container handler calls it the moment <c>cmbinv_inventory_screen_run</c> returns
@@ -3073,18 +3082,18 @@ namespace BakAgain.UI.Inventory {
         /// every zone build respawned its entity and every save carried it; and un-openable,
         /// because the loot gate needs items.</para>
         /// </summary>
-        protected override void OnBeforeHide() {
+        /// <remarks>
+        /// <b>Leaving, not being covered.</b> A character sheet (or a map an item shows) pushed over
+        /// the pack hides it; the original runs the sheet INSIDE the inventory loop (CMBINV.C:338, and
+        /// the shop/picklock arm :409-419), so the visit — shop, lock, temple, mender, fight — goes on
+        /// underneath it. Run on the hide, this dropped the shop and the shelf gave its stock away
+        /// (TASK-925).
+        /// </remarks>
+        protected override void OnClosing() {
             // Answer whoever is waiting on the lock BEFORE the scratch goes, since dropping it is
             // what makes IsLockMode false. Exit and a picked-open pop both land here, so a caller
             // that gave up on the lock is answered rather than left waiting — see LockOutcomeAsync.
             _lockClosed?.TrySetResult(_lockOpened);
-            // *** AND ANSWER AN UNANSWERED QUANTITY PICKER, FOR THE SAME REASON. *** It is the other
-            // wait on this screen that only its own buttons could end, so a teardown while it was up
-            // parked the continuation for ever -- leaving `_pickerOpen` true on a component that
-            // outlives the screen, which deadens every gesture handler from then on. Cancelling
-            // resolves it as "None", so the picker's own teardown and the caller's both run. See
-            // ShowQuantityPickerAsync (TASK-568).
-            _pickerAbandoned?.Cancel();
             _lockPicker = -1;
             // Drop the scratch container with the screen. It is assembled per lock and holds copies,
             // so keeping it would both leak a stale working set into the next open and leave
@@ -3115,6 +3124,7 @@ namespace BakAgain.UI.Inventory {
             CombatDistance = null;
             SettleContainer(_container);
             SettleContainer(_droppedBag);
+            _droppedBag = null;
         }
 
         /// <summary>

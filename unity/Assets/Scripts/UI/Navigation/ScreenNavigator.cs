@@ -145,7 +145,7 @@ namespace BakAgain.UI.Navigation {
         /// </summary>
         private async UniTask TransitionAsync(bool fade, IScreen incoming, Action change) {
             async UniTask ChangeAsync() {
-                change();
+                ChangeStack(change);
                 await EnsureTopShownAsync(fade);
             }
             if (fade && await Book.BookPageCurl.TryTurnAsync(incoming, ChangeAsync)) {
@@ -166,11 +166,33 @@ namespace BakAgain.UI.Navigation {
         // In Enhanced it grabs the page on screen first, for the transition that follows to turn.
         public UniTask Clear() => Serialize(async () => {
             await Book.BookPageCurl.HoldAsync();
-            _stack.Clear();
+            ChangeStack(_stack.Clear);
             await EnsureTopShownAsync();
         });
 
         // --- stack mutation helpers (only run inside the serialized tail) ---
+
+        /// <summary>
+        /// Applies a stack change and tells every screen it removed, top first, before anything hides.
+        /// </summary>
+        /// <remarks>
+        /// <b>Leaving the stack, not being hidden, is what closes a screen.</b> EnsureTopShownAsync
+        /// hides a screen that is merely COVERED too, and the inventory's end-of-visit settlement ran
+        /// on that hide: a character sheet opened over a shop dropped the shop, and the shelf then
+        /// handed its stock out unpaid (TASK-925).
+        /// </remarks>
+        private void ChangeStack(Action change) {
+            var before = new List<IScreen>(_stack.Count);
+            foreach (Entry e in _stack) {
+                before.Add(e.Screen);
+            }
+            change();
+            for (int i = before.Count - 1; i >= 0; i--) {
+                if (!IsOnStack(before[i])) {
+                    before[i].OnLeftStack();
+                }
+            }
+        }
 
         private void AddTop(IScreen screen) {
             if (screen == null) {

@@ -14,6 +14,9 @@ namespace BakAgain.Tests.PlayMode.UI.Navigation {
             public RecordingScreen(string name, List<string> log) { _name = name; _log = log; }
             public UniTask ShowAsync() { Shown = true; _log.Add("show:" + _name); return UniTask.CompletedTask; }
             public UniTask HideAsync() { Shown = false; _log.Add("hide:" + _name); return UniTask.CompletedTask; }
+            public int Left;
+            public bool ShownWhenLeft;
+            public void OnLeftStack() { Left++; ShownWhenLeft = Shown; }
         }
 
         [UnityTest]
@@ -235,6 +238,46 @@ namespace BakAgain.Tests.PlayMode.UI.Navigation {
                 await nav.Pop();
                 await UniTask.DelayFrame(2);
                 Assert.IsTrue(done, "Enhanced left the stack, so the wait ends");
+            });
+
+        /// <summary>
+        /// TASK-925: a COVERED screen is hidden but not closed. Only leaving the stack tells a
+        /// screen its visit is over — once, before it hides, whichever operation removed it.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator OnlyLeavingTheStackClosesAScreen_NotBeingCovered() =>
+            UniTask.ToCoroutine(async () => {
+                var log = new List<string>();
+                var nav = new ScreenNavigator();
+                var travel = new RecordingScreen("travel", log);
+                var pack = new RecordingScreen("pack", log);
+                var sheet = new RecordingScreen("sheet", log);
+
+                await nav.ResetTo(travel);
+                await nav.Push(pack);
+                await nav.Push(sheet);
+                Assert.IsFalse(pack.Shown, "covered: hidden");
+                await nav.Pop();
+                Assert.AreEqual(0, pack.Left, "covered and uncovered, never closed. log=" + string.Join(",", log));
+                Assert.AreEqual(1, sheet.Left, "the sheet closed");
+
+                await nav.Pop();
+                Assert.AreEqual(1, pack.Left);
+                Assert.IsTrue(pack.ShownWhenLeft, "closed before it hides, collaborators still up");
+
+                // Removed from BENEATH another screen: closed although it was already hidden.
+                await nav.Push(pack);
+                await nav.Push(sheet);
+                await nav.Pop(2);
+                Assert.AreEqual(2, pack.Left, "Pop(2) closes the covered one too");
+                Assert.AreEqual(2, sheet.Left);
+
+                await nav.Push(pack);
+                await nav.Replace(sheet);
+                Assert.AreEqual(3, pack.Left, "Replace closes what it replaces");
+                await nav.Clear();
+                Assert.AreEqual(3, sheet.Left, "Clear closes everything");
+                Assert.AreEqual(1, travel.Left);
             });
     }
 }

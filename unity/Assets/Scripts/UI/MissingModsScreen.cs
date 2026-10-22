@@ -113,8 +113,11 @@ namespace BakAgain.UI {
             _stack?.Push(_layer);
         }
 
+        // Closed without a choice: Cancel, not a restore left waiting. On leaving the stack, not on a
+        // hide, which a screen pushed over this one would also cause (TASK-925).
+        protected override void OnClosing() => _result.TrySetResult(_choice ?? false);
+
         protected override void OnBeforeHide() {
-            _result.TrySetResult(_choice ?? false); // hidden without a choice: Cancel, not a restore left waiting
             if (_layer != null) {
                 _stack?.Remove(_layer);
                 _layer = null;
