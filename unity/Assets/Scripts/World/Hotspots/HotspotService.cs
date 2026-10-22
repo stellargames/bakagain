@@ -1973,7 +1973,7 @@ using GameData.Resources.Scene;
             Combatant target = Combat.CombatantAtCell(column, row);
             int type = _pendingSpell.TargetingType;
             return GameData.Resources.Combat.CombatTargetSelection.ResolveOnField(
-                    false, SpellTargetIsValid(type, target), type)
+                    false, SpellTargetIsValid(Combat.Encounter, acting, type, target), type)
                 != GameData.Resources.Combat.CombatTargetSelection.Resolution.RevertToMove;
         }
 
@@ -2926,7 +2926,10 @@ using GameData.Resources.Scene;
                 // The spell's own panel: "Choose a target", its name, and for a damage spell over a
                 // living enemy the accuracy and damage (COMBAT.C:1092). It was blank here (TASK-821).
                 if (_pendingSpell != null) {
-                    bool liveEnemy = target != null && !target.IsDead && !target.IsPartyMember;
+                    // Only over a cell the aim takes: the rows draw while stateA is 4 and the target
+                    // is a living encounter actor (COMBAT.C:1105-1109); a refused cell is stateA -1.
+                    bool liveEnemy = _aimHighlightCell != null && target != null && !target.IsDead
+                        && IsEncounterActor(fight, target);
                     bool rate = GameData.Resources.Combat.SpellTargetPanel.ShowsTargetStats(
                         liveEnemy, _pendingSpell.TargetingType, _pendingSpellId);
                     (int accuracy, int damage) = rate
@@ -4583,19 +4586,31 @@ using GameData.Resources.Scene;
         /// it. Only the actor-aimed aims are answered here — the ground and crystal ones are decided
         /// by the tile rather than by an occupant, and reach the cast with no target at all
         /// (<see cref="GameData.Resources.Spells.SpellTargetingRules.CastsWithoutATarget"/>).
+        ///
+        /// <para><b>"Enemy" is the encounter's list, not "not a party member"</b> (TASK-930):
+        /// <c>combatenc_is_encounter_actor</c> (CBENC.C:908) asks the enemy array, and a summon is in
+        /// the party's (CSPELL.C:712, CACTOR.C:184) with no character slot.</para>
         /// </remarks>
-        private static bool SpellTargetIsValid(int targetingType, Combatant target) {
+        private static bool SpellTargetIsValid(GameData.Resources.Combat.CombatEncounter fight,
+            Combatant acting, int targetingType, Combatant target) {
             GameData.Resources.Spells.SpellTargetingRules.Aim aim =
                 GameData.Resources.Spells.SpellTargetingRules.AimOf(targetingType);
             switch (aim) {
                 case GameData.Resources.Spells.SpellTargetingRules.Aim.NamedCharacter:
-                    // Types 2 and 3 reject an actor number of zero, which is what monsters carry.
+                    // Types 2 and 3: charSlot != 0, alive, not CAF_AI_SUMMON (COMBAT.C:2184-2190). A
+                    // summon has no charSlot (zero-allocated, CACTOR.C:68), so PartySlot covers both.
+                    // The tile_blocked term there cannot fire with an occupant: CACTOR.C:752 is
+                    // "blocked AND nobody on it".
                     return target != null && target.IsPartyMember && !target.IsDead;
                 case GameData.Resources.Spells.SpellTargetingRules.Aim.DownedActor:
-                    // Type 7 is the coup de grace: the ONE aim that wants a DEAD target (CAF_DEAD).
-                    return target != null && target.IsDead;
+                    // Type 7 is the coup de grace: a DEAD encounter actor (COMBAT.C:2202-2207).
+                    return target != null && target.IsDead && IsEncounterActor(fight, target);
                 case GameData.Resources.Spells.SpellTargetingRules.Aim.LivingActor:
-                    return target != null && !target.IsPartyMember && !target.IsDead;
+                    // Types 0, 1, 4: a living encounter actor (COMBAT.C:2191-2201); type 0 also needs
+                    // the move map's bit 2, which is line of fire (CMBTGRID.C:1432-1435). 1/4's
+                    // tile_blocked term is dead with an occupant, as above.
+                    return target != null && !target.IsDead && IsEncounterActor(fight, target)
+                        && (targetingType != 0 || LineOfFireTo(fight, acting, target));
                 default:
                     // ClearGround and Crystal are tile questions, answered by the cast itself.
                     return false;
@@ -4607,10 +4622,11 @@ using GameData.Resources.Scene;
             Combatant target, bool canShoot) {
             if (!canShoot) {
                 // The spell arm asks SpellTargetingRules rather than the shot's three tests.
-                return _pendingSpell != null && SpellTargetIsValid(_pendingSpell.TargetingType, target);
+                return _pendingSpell != null
+                    && SpellTargetIsValid(fight, acting, _pendingSpell.TargetingType, target);
             }
             return GameData.Resources.Combat.CombatTargetSelection.ShotIsValid(
-                targetIsEncounterActor: target != null && !target.IsPartyMember,
+                targetIsEncounterActor: target != null && IsEncounterActor(fight, target),
                 targetIsDead: target?.IsDead ?? true,
                 targetIsInLineOfFire: target != null && LineOfFireTo(fight, acting, target),
                 hasSelectedQuarrel: Combat.QuarrelsFor(acting) is { } packed
@@ -4655,10 +4671,14 @@ using GameData.Resources.Scene;
                     ? target
                     : null;
             } else if (_pendingSpell != null
-                && SpellTargetIsValid(_pendingSpell.TargetingType, target)) {
+                && SpellTargetIsValid(fight, acting, _pendingSpell.TargetingType, target)) {
                 acting.Target = target;
             }
         }
+
+        /// <summary>One of the encounter's own combatants — <c>combatenc_is_encounter_actor</c> (CBENC.C:908).</summary>
+        private static bool IsEncounterActor(GameData.Resources.Combat.CombatEncounter fight, Combatant c) =>
+            fight.Enemies.Contains(c);
 
         /// <summary>Whether the shooter has a clear projectile path — the shoot check's real question.</summary>
         /// <remarks><c>combatgrid_tile_has_terr_bit2</c> reads a per-turn map whose bit 1 is set by

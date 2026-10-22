@@ -191,6 +191,109 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
                 "the caster's own cell is no target for it, so no outline");
         }
 
+        /// <summary>A party member's turn in the one-member, one-enemy fixture, a spell of this type armed.</summary>
+        private static (Rig Rig, CombatEncounter Fight, Combatant Acting) ArmedFight(int targetingType) {
+            Rig rig = Build(start: new GameData.Resources.Config.StartData("START.DAT") { CombatGridCellSize = 300 });
+            Assert.IsTrue(rig.Service.StartCombat(CombTrigger()));
+            CombatEncounter fight = rig.Service.Combat.Encounter;
+            for (int i = 0; i < 4 && (fight.Current == null || !fight.Current.IsPartyMember); i++) {
+                fight.EndTurn();
+                fight.PickNext();
+            }
+            Assert.IsTrue(fight.Current?.IsPartyMember ?? false, "the fixture needs a party member's turn");
+            rig.Service.ArmSpellForTest(
+                new GameData.Resources.Spells.Spell("S") { TargetingType = targetingType }, 0, 5);
+            return (rig, fight, fight.Current);
+        }
+
+        private static int AimEdges(Rig rig) => System.Linq.Enumerable.Count(
+            rig.Service.ActingCellSegments(), s => s.Kind == BakAgain.World.Encounters.ArenaOverlayKind.AimCell);
+
+        private static Combatant Bystander(int partySlot, int x, int y) => new Combatant {
+            PartySlot = partySlot, ClassId = 2, Health = 20, Stamina = 20, X = x, Y = y,
+            Flags = CombatantFlags.Ready,
+        };
+
+        [Test]
+        public void ATypeZeroSpellNeedsALineOfFire_ALivingCombatantInTheWayRefusesTheCell() {
+            // TASK-930. Type 0 (Flamecast) takes a living encounter actor only when its tile has the
+            // move map's bit 2 (COMBAT.C:2191-2195), which combatgrid_build_move_attack_map sets when
+            // combat_actor_trace_proj_path reaches the occupant (CMBTGRID.C:1432-1435): a living
+            // combatant other than shooter and target on the way stops it (CACTOR.C:1190-1197).
+            // Types 1/4 have no such test (COMBAT.C:2197-2201).
+            (Rig rig, CombatEncounter fight, Combatant acting) = ArmedFight(0);
+            Combatant enemy = fight.Enemies[0];
+            acting.X = 2; acting.Y = 2;
+            enemy.X = 5; enemy.Y = 2;
+            Combatant blocker = Bystander(0, 4, 2);
+            fight.Enemies.Add(blocker);
+
+            int blockedLines = rig.Service.CombatPanelContent(0, partyMember: false).Lines.Count;
+            Assert.AreEqual(0, AimEdges(rig), "the blocked enemy gets no aim ring");
+            Assert.IsFalse(rig.Service.CastAcceptedAtCell(5, 2), "touch offers no Cast there");
+            rig.Service.ResolveCombatTargetClick(0, partyMember: false, isPrimary: true);
+            Assert.IsTrue(acting.CanAct(strict: true), "the click on the blocked enemy casts nothing");
+
+            blocker.Y = 4;
+            int clearLines = rig.Service.CombatPanelContent(0, partyMember: false).Lines.Count;
+            Assert.AreEqual(4, AimEdges(rig), "the control: with the line clear the same enemy is taken");
+            // The Accuracy/Damage rows draw only while stateA is 4, i.e. while the cell is accepted
+            // (combat_arena_draw_tgt_info_hud, COMBAT.C:1105-1109, 1122-1125).
+            Assert.AreEqual(clearLines - 4, blockedLines, "the refused enemy gets no Accuracy/Damage rows (two label+value pairs)");
+        }
+
+        [Test]
+        public void ATypeOneSpellIgnoresTheLineOfFire() {
+            // The control for the above: types 1/4 ask only for a living encounter actor.
+            (Rig rig, CombatEncounter fight, Combatant acting) = ArmedFight(1);
+            Combatant enemy = fight.Enemies[0];
+            acting.X = 2; acting.Y = 2;
+            enemy.X = 5; enemy.Y = 2;
+            fight.Enemies.Add(Bystander(0, 4, 2));
+
+            rig.Service.CombatPanelContent(0, partyMember: false);
+            Assert.AreEqual(4, AimEdges(rig));
+        }
+
+        [Test]
+        public void AnEnemyAimedSpellRefusesThePartysSummon() {
+            // TASK-930. Types 0, 1 and 4 take only combatenc_is_encounter_actor (COMBAT.C:2192, 2198),
+            // a member of g_pCombatOtherActors (CBENC.C:908), which is the enemy array while the party
+            // aims (COMBAT.C:128). A summon joins the party's array (cspell_summon_monster ->
+            // combat_actor_party_add, CSPELL.C:712, CACTOR.C:184), so it is no encounter actor.
+            foreach (int type in new[] { 0, 1, 4 }) {
+                (Rig rig, CombatEncounter fight, Combatant acting) = ArmedFight(type);
+                acting.X = 2; acting.Y = 2;
+                fight.Party.Add(Bystander(0, 3, 3));   // PartySlot 0 on the party's side: a summon
+                rig.Service.CombatPanelContent(0, partyMember: true);
+                Assert.AreEqual(0, AimEdges(rig), $"type {type} takes no summon");
+            }
+
+            foreach (int type in new[] { 2, 3 }) {
+                // Already refused before TASK-930: charSlot 0 (COMBAT.C:2186), which every summon has.
+                (Rig rig, CombatEncounter fight, Combatant acting) = ArmedFight(type);
+                acting.X = 2; acting.Y = 2;
+                fight.Party.Add(Bystander(0, 3, 3));
+                rig.Service.CombatPanelContent(0, partyMember: true);
+                Assert.AreEqual(0, AimEdges(rig), $"type {type} takes no summon");
+            }
+        }
+
+        [Test]
+        public void FinalRestRefusesADeadPartyMember_AndTakesADeadEnemy() {
+            // TASK-930. Type 7 asks combat_actor_encounter_at_tile (COMBAT.C:2203, CACTOR.C:315).
+            (Rig r7, CombatEncounter f7, Combatant a7) = ArmedFight(7);
+            a7.X = 2; a7.Y = 2;
+            Combatant downed = Bystander(2, 3, 3);
+            downed.Flags = CombatantFlags.Dead;
+            f7.Party.Add(downed);
+            r7.Service.CombatPanelContent(2, partyMember: true);
+            Assert.AreEqual(0, AimEdges(r7), "Final Rest takes no dead party member");
+            f7.Enemies[0].Flags = CombatantFlags.Dead;
+            r7.Service.CombatPanelContent(0, partyMember: false);
+            Assert.AreEqual(4, AimEdges(r7), "the control: it takes a dead enemy");
+        }
+
         [Test]
         public void AClickTheArmedAimRefusesIsIgnored_TheTurnIsKeptAndTheSpellStaysArmed() {
             // TASK-546. The original's cursor marks a refused cell with move cost 1000, and case 4 acts
