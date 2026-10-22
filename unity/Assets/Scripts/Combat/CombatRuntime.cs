@@ -3448,6 +3448,20 @@ namespace BakAgain.Combat {
             && CombatWalk.Walk(Grid, actor, x, y, actor.Speed, probe: true, puzzle: Puzzle,
                 occupiedByLiveCombatant: TileHoldsLiveCombatant).Arrived;
 
+        /// <summary>
+        /// The body lying on a tile, or null — <c>g_active_combatants</c>, which a death with its
+        /// animation fills (COMBAT.C:227 -> combat_actor_register, CACTOR.C:267-279) and Final Rest
+        /// or a vanishing class empties (combat_actor_grid_remove).
+        /// </summary>
+        public Combatant BodyAt(int x, int y) {
+            foreach (Combatant c in Encounter.AllCombatants()) {
+                if (c != null && c.IsDead && c.X == x && c.Y == y && LeavesCorpse(c)) {
+                    return c;
+                }
+            }
+            return null;
+        }
+
         /// <summary>The living combatant on a tile, or null.</summary>
         private Combatant LiveCombatantAt(int x, int y) {
             foreach (Combatant c in Encounter.AllCombatants()) {

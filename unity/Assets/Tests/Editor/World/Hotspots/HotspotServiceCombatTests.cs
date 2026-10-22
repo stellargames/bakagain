@@ -294,6 +294,61 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
             Assert.AreEqual(4, AimEdges(r7), "the control: it takes a dead enemy");
         }
 
+        /// <summary>A party member's turn, the one enemy dead on (4,3) with a body on the field.</summary>
+        private static (Rig Rig, CombatEncounter Fight, Combatant Acting, Combatant Body) FightWithABody() {
+            Rig rig = Build(roll: 0, start: new GameData.Resources.Config.StartData("START.DAT") { CombatGridCellSize = 300 });
+            Assert.IsTrue(rig.Service.StartCombat(CombTrigger()));
+            CombatEncounter fight = rig.Service.Combat.Encounter;
+            for (int i = 0; i < 4 && (fight.Current == null || !fight.Current.IsPartyMember); i++) {
+                fight.EndTurn();
+                fight.PickNext();
+            }
+            Combatant acting = fight.Current;
+            Assert.IsTrue(acting?.IsPartyMember ?? false, "the fixture needs a party member's turn");
+            Combatant body = fight.Enemies[0];
+            acting.X = 2; acting.Y = 2;
+            body.X = 4; body.Y = 3;
+            Assert.AreEqual(DeathOutcome.LeavesCorpse, rig.Service.Combat.KillForTest(body));
+            return (rig, fight, acting, body);
+        }
+
+        [Test]
+        public void FinalRestArmed_TheCursorFindsTheBodyOnItsCell_AndTheClickLaysItToRest() {
+            // TASK-933. A death puts the body in g_active_combatants and clears the tile's occupant
+            // (COMBAT.C:227 -> combat_actor_register, CACTOR.C:267-279); type 7 alone looks there,
+            // through combat_actor_encounter_at_tile (COMBAT.C:2202-2207, CACTOR.C:315-327), and the
+            // click casts at it (COMBAT.C:2412-2421). The port's pick saw only the living.
+            (Rig rig, CombatEncounter fight, Combatant acting, Combatant body) = FightWithABody();
+            rig.Service.ArmSpellForTest(new GameData.Resources.Spells.Spell("S") {
+                Name = "Final Rest", TargetingType = 7,
+                Calculation = GameData.SpellCalculation.NonCostRelated,
+            }, GameData.Resources.Spells.SpellIds.FinalRest, 5);
+            UnityEngine.Vector3 cell = rig.Service.CellCentreWorld(4, 3).Value;
+
+            Assert.AreEqual(((int, bool)?)(0, false), rig.Service.CombatantAtPoint(cell),
+                "the cursor over the body addresses it");
+            rig.Service.CombatPanelContent(0, partyMember: false);
+            Assert.AreEqual(4, AimEdges(rig), "and the aim takes it");
+            Assert.IsTrue(rig.Service.CastAcceptedAtCell(4, 3), "touch offers Cast there");
+
+            rig.Service.ResolveCombatTargetClick(0, partyMember: false, isPrimary: true);
+
+            Assert.IsFalse(acting.CanAct(strict: true), "the cast spent the turn");
+            Assert.AreNotEqual((4, 3), (body.X, body.Y), "Final Rest took the body off the field");
+        }
+
+        [Test]
+        public void WithoutFinalRestTheBodysCellReadsEmpty() {
+            // The control: everything else sees the tile the death cleared (CACTOR.C:270), so with
+            // nothing armed, or another spell armed, the cursor finds nobody there.
+            (Rig rig, CombatEncounter fight, Combatant acting, Combatant body) = FightWithABody();
+            UnityEngine.Vector3 cell = rig.Service.CellCentreWorld(4, 3).Value;
+
+            Assert.IsNull(rig.Service.CombatantAtPoint(cell), "nothing armed");
+            rig.Service.ArmSpellForTest(new GameData.Resources.Spells.Spell("S") { TargetingType = 1 }, 0, 5);
+            Assert.IsNull(rig.Service.CombatantAtPoint(cell), "a living-target spell armed");
+        }
+
         [Test]
         public void ASummonSpellAsksForATileLikeAnyCast_AndTheClickedTileTakesTheCreature() {
             // TASK-935. Combat action 46 leaves stateA 4 after the cast screen (COMBAT.C:2043-2047),

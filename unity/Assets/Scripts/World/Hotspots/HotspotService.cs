@@ -1965,11 +1965,32 @@ using GameData.Resources.Scene;
             if (GroundCellRefused(column, row)) {
                 return false;
             }
-            Combatant target = Combat.CombatantAtCell(column, row);
+            Combatant target = CombatantUnderCursor(column, row);
             int type = _pendingSpell.TargetingType;
             return GameData.Resources.Combat.CombatTargetSelection.ResolveOnField(
                     false, SpellTargetIsValid(Combat.Encounter, acting, type, target), type)
                 != GameData.Resources.Combat.CombatTargetSelection.Resolution.RevertToMove;
+        }
+
+        /// <summary>
+        /// Whom the cursor addresses on a cell: the living occupant -- and with Final Rest (type 7)
+        /// armed, the enemy body lying there.
+        /// </summary>
+        /// <remarks>
+        /// A death clears the tile's occupant and puts the body in the body list (COMBAT.C:227,
+        /// CACTOR.C:267-279), so the pick (combat_actor_terr_under_cur) and every other action see an
+        /// empty cell; only type 7 looks in the body list, through combat_actor_encounter_at_tile
+        /// (COMBAT.C:2202-2207, CACTOR.C:315-327). TASK-933.
+        /// </remarks>
+        private Combatant CombatantUnderCursor(int column, int row) {
+            if (_pendingCombatMode == GameData.Resources.Combat.CombatCommandOutcome.PendingMode.TargetSelection
+                && _pendingCombatItem == null && _pendingSpell != null
+                && GameData.Resources.Spells.SpellTargetingRules.AimOf(_pendingSpell.TargetingType)
+                    == GameData.Resources.Spells.SpellTargetingRules.Aim.DownedActor
+                && Combat.BodyAt(column, row) is { } body && IsEncounterActor(Combat.Encounter, body)) {
+                return body;
+            }
+            return Combat.CombatantAtCell(column, row);
         }
 
         public (int RosterSlot, bool PartyMember)? CombatantAtPoint(UnityEngine.Vector3 point) {
@@ -1987,7 +2008,7 @@ using GameData.Resources.Scene;
             }
 
             GameData.Resources.Combat.Combatant occupant =
-                Combat.CombatantAtCell(cell.Value.Column, cell.Value.Row);
+                CombatantUnderCursor(cell.Value.Column, cell.Value.Row);
             if (occupant == null) {
                 return null;
             }
