@@ -1291,6 +1291,10 @@ namespace BakAgain.UI.Spells {
                     CastRingLayout.PositionForPower(_maximumPower),
                     CastRingLayout.TouchReach);
 
+            if (EnhancedApplied && TapLeavesPowerChoice(cursorX, cursorY, position)) {
+                return;
+            }
+
             // The Enhanced screen keeps the chosen power when the pointer leaves the ring, so its Cast
             // tablet can cast it; a finger's lift chooses there and Cast casts, where the faithful
             // screen casts on the lift (TASK-816).
@@ -1400,9 +1404,13 @@ namespace BakAgain.UI.Spells {
             // cast that never happened.
             if (band.IsFixed && band.Minimum > 0) {
                 _hoveredPosition = CastRingLayout.PositionForPower(band.Minimum);
-                CommitPowerSelection();
+                // On the Enhanced screen a finger's tap only chooses the spell, at its one power;
+                // the Cast tablet casts it (owner, TASK-878 round 10). A mouse click still casts.
+                if (!EnhancedApplied || _pointer?.IsPresent != false) {
+                    CommitPowerSelection();
 
-                return;
+                    return;
+                }
             }
 
             await PlayRingFillAsync();

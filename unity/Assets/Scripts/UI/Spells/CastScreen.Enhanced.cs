@@ -121,6 +121,68 @@ namespace BakAgain.UI.Spells {
             stage.Insert(1, art);
         }
 
+        /// <summary>The spell symbol under a press that has not lifted yet, or -1.</summary>
+        private int _pressSymbol = -1;
+
+        /// <summary>Whether that press landed on a gem of the band.</summary>
+        private bool _pressOnRing;
+
+        /// <summary>
+        /// A tap on another symbol, or off the ring, leaves the power choice (owner, TASK-878 round 10):
+        /// another symbol is chosen in its place, as a school tap switches school; a tap on nothing
+        /// goes back to picking a spell. The original's power loop reads only the ring and Escape.
+        /// </summary>
+        /// <returns>True when this frame's pointer is taken here and the slider must not read it.</returns>
+        private bool TapLeavesPowerChoice(int x, int y, int position) {
+            int index = CastRingLayout.SymbolAt(_drawnSymbols, x, y, isCastable: null,
+                CastRingLayout.CanonicalHitBoxWidth, CastRingLayout.CanonicalHitBoxHeight);
+            int symbol = index < 0 ? -1 : _drawnSymbols[index].SpellId;
+            if (_pointer.Primary.PressedThisFrame) {
+                _pressSymbol = symbol;
+                _pressOnRing = position >= 0 && symbol < 0;
+            }
+            if (!Picks(_pointer)) {
+                // A finger held on a symbol previews no power: it is about to choose that spell.
+                return _pressSymbol >= 0 && _pointer.Primary.IsDown;
+            }
+            int pressed = _pressSymbol;
+            bool onRing = _pressOnRing;
+            _pressSymbol = -1;
+            _pressOnRing = false;
+            if (pressed >= 0 && symbol == pressed) {
+                if (symbol != _sliderSpell) {
+                    AbandonPowerSelection();
+                    ChooseSpellAsync(symbol).Forget();
+                }
+                return true;
+            }
+            // A finger that chose a power on the ring and lifted off it keeps that power; a press
+            // on a button or a tablet is that control's, not a cancel.
+            if (position >= 0 || onRing || symbol >= 0 || OverControl()) {
+                return false;
+            }
+            AbandonPowerSelection();
+            DrawRingAndNamesAsync().Forget();
+            return true;
+        }
+
+        /// <summary>Whether the pointer is on one of the screen's controls: a school, a portrait,
+        /// Exit, or a tablet.</summary>
+        private bool OverControl() {
+            IPanel panel = GetComponent<UIDocument>()?.rootVisualElement?.panel;
+            if (panel == null) return false;
+            Vector2 at = RuntimePanelUtils.ScreenToPanel(panel,
+                new Vector2(_pointer.ScreenPosition.x, Screen.height - _pointer.ScreenPosition.y));
+            for (VisualElement e = panel.Pick(at); e != null; e = e.parent) {
+                if (e == _enhanced.CastTablet || e == _enhanced.BackTablet) return true;
+                if (_ui == null) continue;
+                foreach (BakAgain.UI.InputCore.NavWidget w in _ui.CurrentNavWidgets) {
+                    if (w.Element == e) return true;
+                }
+            }
+            return false;
+        }
+
         /// <summary>The figure as a red laser: a soft halo of stacked strokes and a thin bright core.</summary>
         private static void StrokeLaser(MeshGenerationContext context, int[] xs, int[] ys, Color ink) {
             StrokeFigure(context, xs, ys, new Color(0.85f, 0.02f, 0.0f, 0.2f * ink.a), 9f, LineCap.Round);
@@ -167,11 +229,21 @@ namespace BakAgain.UI.Spells {
         }
 
         private void PaintGem(VisualElement gem, int index) {
-            string name = GemFor(IconAt(index), index, _sliderSpell >= 0 || _fillFrame >= 0);
+            // Every gem below the chosen power, those under the spell's minimum too, is the chosen
+            // run (owner, round 10): the hover gem's art in the laser's red, so the power itself stays
+            // the bright tip, the rest of the band gold, and the ring outside it dim.
+            bool chosen = _sliderSpell >= 0 && _fillFrame < 0 && index < _hoveredPosition;
+            string name = chosen ? ChosenGem : GemFor(IconAt(index), index, _sliderSpell >= 0 || _fillFrame >= 0);
             if (gem.userData as string == name) return;
             gem.userData = name;
-            gem.style.backgroundImage = EnhancedArt.Load(name);
+            gem.style.backgroundImage = EnhancedArt.Load(chosen ? "gem-hover" : name);
+            gem.style.unityBackgroundImageTintColor = chosen ? ChosenTint : new StyleColor(StyleKeyword.Null);
         }
+
+        private const string ChosenGem = "gem-chosen";
+
+        /// <summary>The laser figure's red (StrokeLaser's core), over the hover gem's pale gold.</summary>
+        private static readonly Color ChosenTint = new(1f, 0.3f, 0.2f);
 
         /// <summary>
         /// Every castable symbol is a light over the bench; the one under the pointer, or being cast,
