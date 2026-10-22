@@ -3009,7 +3009,7 @@ using GameData.Resources.Scene;
         private (System.Collections.Generic.IReadOnlyList<GameData.Resources.Combat.HudPanelLine>,
                  System.Collections.Generic.IReadOnlyList<GameData.Resources.Combat.HudPanelRule>)
             MeleePanelContent(Combatant acting, Combatant target) {
-            // An encounter actor, not "not a character": a summon is neither (COMBAT.C:2251-2255).
+            // An encounter actor, not "not a character": a summon is neither (COMBAT.C:2239-2243).
             if (target == null || target.IsDead || !IsEncounterActor(Combat.Encounter, target)) {
                 return (null, null);
             }
@@ -3400,7 +3400,7 @@ using GameData.Resources.Scene;
             }
 
             if (!IsEncounterActor(Combat.Encounter, target) || target.IsDead) {
-                return;   // the party's side -- a summon too -- is never a melee target (COMBAT.C:2251)
+                return;   // the party's side -- a summon too -- is never a melee target (COMBAT.C:2240)
             }
 
             CombatRuntime.MeleeClick outcome = Combat.ResolveMeleeClick(acting, target,

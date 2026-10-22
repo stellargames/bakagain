@@ -400,9 +400,9 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
         [Test]
         public void ASummonsCellNamesTheSummon_AndEveryCursorArmRefusesIt() {
             // TASK-934. The cursor reads the tile's occupant (combat_actor_terr_under_cur, CACTOR.C:741)
-            // and a summon is one (CSPELL.C:730 writes its tile word). It is on the party's side
+            // and a summon is one (CSPELL.C:738 writes its tile word). It is on the party's side
             // (CACTOR.C:184), so the move/melee states refuse it as no encounter actor
-            // (COMBAT.C:2251-2255) and a ground spell refuses its tile as blocked (COMBAT.C:2218-2220).
+            // (COMBAT.C:2239-2243) and a ground spell refuses its tile as blocked (COMBAT.C:2216-2219).
             // The port named it (-1, false) -- nobody -- so a summon spell clicked on it cast anyway.
             const int Rusalki = 56;
             Rig rig = Build(start: new GameData.Resources.Config.StartData("START.DAT") { CombatGridCellSize = 300 });
