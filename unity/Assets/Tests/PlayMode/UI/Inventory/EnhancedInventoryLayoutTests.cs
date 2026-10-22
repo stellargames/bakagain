@@ -190,5 +190,49 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
                 .Invoke(null, new object[] { shopShelf, memberPack });
             Assert.AreEqual(verb, v.ToString());
         }
+
+        [Test]
+        public void TheUseAndExitButtonsKeepTheirOriginalFacesInTheEnhancedBar() {
+            Build();
+            var layout = new EnhancedInventoryLayout(_root, new GameSession());
+
+            Assert.IsTrue(layout.Apply(_reqStage, ItemBox));
+
+            foreach (string n in new[] { "imagebutton_22", "imagebutton_1" }) {
+                VisualElement b = _root.Q(n);
+                Assert.IsNull(b.Q(BakAgain.UI.StoneButton.DiscName), $"{n} carries no stone over its face");
+                Assert.AreEqual(StyleKeyword.Null, b.style.unityBackgroundImageTintColor.keyword,
+                    $"{n}'s original face is not tinted out");
+            }
+        }
+
+        // The faithful third arm draws no face and lets the SCX's stone show through; the Enhanced
+        // layout hides the SCX, so the original's own blank stone (the face a disabled button wears)
+        // stands in for it there, and goes when a face returns. Not the HD disc: beside the
+        // original Exit face it reads as a different material.
+        [Test]
+        public void TheUseButtonWithNoFaceWearsTheOriginalBlankStone_AFaceTakesItOff() {
+            Build();
+            var layout = new EnhancedInventoryLayout(_root, new GameSession());
+            layout.Apply(_reqStage, ItemBox);
+            var tex = new Texture2D(4, 4);
+            Sprite blank = Sprite.Create(tex, new Rect(0, 0, 4, 4), Vector2.zero);
+            layout.BlankStone = blank;
+            VisualElement use = _root.Q("imagebutton_22");
+
+            try {
+                layout.ShowUseFace(false);
+                VisualElement stone = use.Q(EnhancedInventoryLayout.BlankStoneName);
+                Assert.IsNotNull(stone, "no face: the blank stone");
+                Assert.AreEqual(blank, stone.style.backgroundImage.value.sprite);
+                Assert.IsNull(use.Q(BakAgain.UI.StoneButton.DiscName), "not the HD disc");
+
+                layout.ShowUseFace(true);
+                Assert.IsNull(use.Q(EnhancedInventoryLayout.BlankStoneName), "a face: the original's own");
+            } finally {
+                Object.DestroyImmediate(blank);
+                Object.DestroyImmediate(tex);
+            }
+        }
     }
 }

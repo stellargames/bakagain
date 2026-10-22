@@ -176,8 +176,7 @@ namespace BakAgain.UI.Spells {
             _well.Add(_readout);
             SetReadout(null, null);
             VisualElement exit = _root.Q(ExitName);
-            _moved.Move(exit, bar, "enhanced-cast__exit", clearSize: true);
-            Stone(exit, -1);
+            _moved.Move(exit, bar, "enhanced-cast__exit", clearSize: true); // the original's own face (TASK-941)
 
             // Hidden, not removed from layout: its canonical frame is what the cursor and keyboard focus
             // map through (CanonicalRectOf), so it has to keep its place and size.
@@ -207,8 +206,6 @@ namespace BakAgain.UI.Spells {
                 s.RemoveFromClassList(OffClass);
                 s.RemoveFromClassList(ShownClass);
             }
-            VisualElement exit = _root.Q(ExitName);
-            StoneButton.Undress(exit);
             _moved.RestoreAll();
             if (_reqStage != null) {
                 _reqStage.style.visibility = StyleKeyword.Null;
@@ -511,12 +508,8 @@ namespace BakAgain.UI.Spells {
             return sheet;
         }
 
-        /// <summary>A stone disc over the button: the school's figure engraved in it, or the Exit word.</summary>
+        /// <summary>A stone disc over the button with the school's figure engraved in it.</summary>
         private void Stone(VisualElement button, int school) {
-            if (school < 0) {
-                StoneButton.Dress(button, GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedExit));
-                return;
-            }
             VisualElement disc = StoneButton.Dress(button);
             disc.generateVisualContent += ctx => DrawFigure(ctx, disc, school, button.ClassListContains(ShownClass));
         }

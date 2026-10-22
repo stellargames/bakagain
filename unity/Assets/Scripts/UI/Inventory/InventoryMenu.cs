@@ -722,6 +722,7 @@ namespace BakAgain.UI.Inventory {
                 return;
             }
             _enhanced = new EnhancedInventoryLayout(Root, _gameSession);
+            LoadBlankStoneAsync(_enhanced).Forget();
             if (_ui == null) {
                 return;
             }
@@ -3317,6 +3318,16 @@ namespace BakAgain.UI.Inventory {
             RenderCurrent();
         }
 
+        /// <summary>The original's blank stone for the Enhanced Use button's face-less state
+        /// (TASK-941); the next render puts it on.</summary>
+        private async UniTaskVoid LoadBlankStoneAsync(EnhancedInventoryLayout layout) {
+            layout.BlankStone = await _resources.LoadAssetAsync<Sprite>(
+                GameData.Resources.Menu.UiElement.IconKeyForCombined(UserInterfaceLoader.DisabledButtonIcon), this);
+            if (layout == _enhanced && layout.Applied) {
+                SyncShopPageButton();
+            }
+        }
+
         /// <summary>
         /// Give button 22 the face that matches what it currently does — or no face at all.
         /// </summary>
@@ -3340,9 +3351,7 @@ namespace BakAgain.UI.Inventory {
                 UsesUseButton ? (int?)null
                 : ShelfPages ? ShopPageIcon
                 : NoIcon);
-            _enhanced?.SetUseWord(UsesUseButton ? GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedInvUse)
-                : ShelfPages ? GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedInvNextPage)
-                : null);
+            _enhanced?.ShowUseFace(UsesUseButton || ShelfPages);
         }
 
         /// <summary>

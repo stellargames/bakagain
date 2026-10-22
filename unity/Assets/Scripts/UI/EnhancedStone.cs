@@ -233,22 +233,17 @@ namespace BakAgain.UI {
 
     /// <summary>
     /// A REQ button dressed as an HD stone disc: its faithful face is tinted out (its icon loader keeps
-    /// re-applying the face, so it cannot be replaced) and a disc with an engraved word, or a drawn
-    /// figure, is laid over it. Returns the disc so the layout can take it off again.
+    /// re-applying the face, so it cannot be replaced) and a bare disc, or one the caller draws a figure
+    /// on, is laid over it. Returns the disc so the layout can take it off again.
     /// </summary>
     public static class StoneButton {
         public const string DiscName = "enhanced-stone-disc";
 
-        public static VisualElement Dress(VisualElement button, string word = null) {
+        public static VisualElement Dress(VisualElement button) {
             button.style.unityBackgroundImageTintColor = Color.clear;
             var disc = new VisualElement { name = DiscName, pickingMode = PickingMode.Ignore };
             disc.AddToClassList("enhanced-stone");
             disc.style.backgroundImage = EnhancedArt.Load("disc");
-            if (word != null) {
-                var label = new Label(word) { pickingMode = PickingMode.Ignore };
-                label.AddToClassList("enhanced-stone__word");
-                disc.Add(label);
-            }
             button.Add(disc);
             return disc;
         }

@@ -363,11 +363,11 @@
 .enhanced-cast .enhanced-cast__sheet { position: absolute; left: 0; top: 0; width: 1600px; height: 1200px; transform-origin: 0 0; }
 .enhanced-cast .enhanced-cast__schools { height: 150px; flex-shrink: 0; margin-top: 16px; flex-direction: row; justify-content: space-around; align-items: center; }
 .enhanced-cast .enhanced-cast__school { position: relative; width: 118px; height: 118px; }
-.enhanced-cast .enhanced-cast__exit { position: relative; width: 124px; height: 124px; flex-shrink: 0; margin-left: 18px; }
+/* Exit wears the original face, drawn at its native size top-left (TASK-941): the box is that size. */
+.enhanced-cast .enhanced-cast__exit { position: relative; width: 165px; height: 168px; flex-shrink: 0; margin-left: 18px; }
 .enhanced-stone { position: absolute; left: 0; top: 0; right: 0; bottom: 0; border-radius: 50%; background-size: 100% 100%; }
 .enhanced-cast .enhanced-cast__school--off .enhanced-stone { opacity: 0.35; }
 .enhanced-cast .enhanced-cast__school--shown .enhanced-stone { border-width: 4px; border-color: rgb(224, 149, 92); }
-.enhanced-stone__word { position: absolute; left: 0; top: 0; right: 0; bottom: 0; -unity-text-align: middle-center; font-size: 36px; color: rgb(28, 21, 11); }
 .enhanced-cast .enhanced-cast__right { flex-grow: 1; flex-direction: column; }
 .enhanced-cast .enhanced-cast__top { flex-grow: 1; flex-direction: row; }
 .enhanced-cast .enhanced-cast__parch { flex-grow: 1; overflow: hidden; background-size: cover; }

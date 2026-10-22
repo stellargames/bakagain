@@ -132,8 +132,9 @@ namespace BakAgain.UI.Inventory {
             bar.Add(_hint);
             _moved.Move(_root.Q(UseName), bar, "enhanced-inv__button", clearSize: false);
             _moved.Move(_root.Q(ExitName), bar, "enhanced-inv__button", clearSize: false);
-            StoneButton.Dress(_root.Q(ExitName), GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedExit));
-            SetUseWord(_useWord);
+            // Use and Exit wear the original's own faces (TASK-941: the engraved words were too small
+            // and dark to read); only a Use with no face gets a stone, see ShowUseFace.
+            ShowUseFace(_useHasFace);
 
             _reqStage = reqStage;
             if (_reqStage != null) {
@@ -153,8 +154,7 @@ namespace BakAgain.UI.Inventory {
                 return;
             }
             RemoveRings();
-            StoneButton.Undress(_root.Q(UseName));
-            StoneButton.Undress(_root.Q(ExitName));
+            _root.Q(UseName)?.Q(BlankStoneName)?.RemoveFromHierarchy();
             _frame?.Release();
             _frame = null;
             _frameBox = null;
@@ -171,18 +171,30 @@ namespace BakAgain.UI.Inventory {
             Array.Clear(_nameOverrides, 0, 3);
         }
 
-        /// <summary>The Use stone's word for the role the faithful button has now (Use, the next shop
-        /// page, or none), so the stone says what a click on it does.</summary>
-        public void SetUseWord(string word) {
-            bool same = word == _useWord;
-            _useWord = word;
+        public const string BlankStoneName = "enhanced-inv-blank-stone";
+
+        /// <summary>The original's blank stone face (the one a disabled button wears), loaded by the
+        /// menu; until it arrives the face-less Use shows nothing.</summary>
+        public Sprite BlankStone { get; set; }
+
+        /// <summary>Whether the Use button wears a face now (the hand, or the shop's next-page arrow).
+        /// Without one the faithful screen shows the SCX's bare stone, which this layout hides, so the
+        /// original's blank stone stands in for it: a child, because the icon loader clears the
+        /// button's own face on every press.</summary>
+        public void ShowUseFace(bool hasFace) {
+            _useHasFace = hasFace;
             VisualElement use = _root.Q(UseName);
-            if (!Applied || use == null || (same && use.Q(StoneButton.DiscName) != null)) return; // every render asks
-            StoneButton.Undress(use);
-            StoneButton.Dress(use, word);
+            if (!Applied || use == null) return;
+            use.Q(BlankStoneName)?.RemoveFromHierarchy();
+            if (hasFace || BlankStone == null) return;
+            var stone = new VisualElement { name = BlankStoneName, pickingMode = PickingMode.Ignore };
+            stone.style.position = Position.Absolute;
+            stone.style.left = stone.style.top = stone.style.right = stone.style.bottom = 0;
+            stone.SetBackgroundSpriteNativeSizeTopLeft(BlankStone);
+            use.Add(stone);
         }
 
-        private string _useWord;
+        private bool _useHasFace = true;
         private VisualElement _frameBox;
         private StoneFrame _frame;
 
