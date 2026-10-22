@@ -90,6 +90,9 @@ namespace BakAgain.World.Encounters {
         /// <summary>The touch aids' marker on a cell that is neither a target nor movable.</summary>
         private static readonly Color NoneCellColour = new Color(0.75f, 0.75f, 0.72f);
 
+        /// <summary>The marker on a target an armed spell or shot would take (the original's pen 208, cyan).</summary>
+        private static readonly Color AimCellColour = new Color(0.3f, 0.95f, 1f);
+
         private System.Func<List<(long X0, long Y0, long X1, long Y1, ArenaOverlayKind Kind)>> _segments;
 
         /// <summary>The ring's own source, asked every frame because it moves with the turn.</summary>
@@ -97,7 +100,7 @@ namespace BakAgain.World.Encounters {
             _actingCellSegments;
 
         /// <summary>Where the ring currently sits, so it is only rebuilt when it actually moves.</summary>
-        private (long X, long Y, int Count)? _actingCellAnchor;
+        private (long X, long Y, int Count, ArenaOverlayKind Kind)? _actingCellAnchor;
         private System.Func<bool> _togglePressed;
 
         /// <summary>Reads and writes the flag that OUTLIVES an arena redraw.</summary>
@@ -168,9 +171,11 @@ namespace BakAgain.World.Encounters {
             // standing still the rebuild was skipped and the yellow ring could not follow the
             // cursor from one enemy to the next. Counting the segments and taking the LAST one's
             // start covers both rings without hashing the lot (TASK-586).
-            (long X, long Y, int Count)? anchor = segments.Count > 0
-                ? (segments[0].X0, segments[^1].X1, segments.Count)
-                : ((long, long, int)?)null;
+            // The last ring's KIND too: arming a spell over the enemy the yellow ring is on turns the
+            // same four edges cyan, with every coordinate unchanged (TASK-929).
+            (long X, long Y, int Count, ArenaOverlayKind Kind)? anchor = segments.Count > 0
+                ? (segments[0].X0, segments[^1].X1, segments.Count, segments[^1].Kind)
+                : ((long, long, int, ArenaOverlayKind)?)null;
             if (Nullable.Equals(anchor, _actingCellAnchor)) {
                 return;
             }
@@ -234,6 +239,7 @@ namespace BakAgain.World.Encounters {
                     ArenaOverlayKind.Link => "CrystalLink",
                     ArenaOverlayKind.ActingCell => "ActingCellEdge",
                     ArenaOverlayKind.TargetCell => "TargetCellEdge",
+                    ArenaOverlayKind.AimCell => "AimCellEdge",
                     _ => "GridLine",
                 });
                 go.transform.SetParent(transform, worldPositionStays: false);
@@ -251,6 +257,7 @@ namespace BakAgain.World.Encounters {
                     ArenaOverlayKind.TargetCell => TargetCellColour,
                     ArenaOverlayKind.MoveCell => MoveCellColour,
                     ArenaOverlayKind.NoneCell => NoneCellColour,
+                    ArenaOverlayKind.AimCell => AimCellColour,
                     _ => GridColour,
                 };
                 line.startColor = colour;

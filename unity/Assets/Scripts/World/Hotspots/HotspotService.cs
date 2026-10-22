@@ -1690,9 +1690,28 @@ using GameData.Resources.Scene;
             // The cursor's own marker, as the original draws it under the mouse (WORLDHIT.C:490):
             // the move marker on a cell the actor can walk to. The touch aids also mark a chosen
             // cell that is neither (NoneCell), since a finger leaves no cursor to show it.
-            if (CursorCell is (int cc, int cr) && !Nullable.Equals(_targetHighlightCell, CursorCell)) {
+            // *** AN ARMED SHOT OR SPELL MARKS ITS TARGET IN CYAN, AND NOTHING ELSE. *** stateA 4 is face 4,
+            // pen 208, drawn only over a cell combat_arena_disp_spell_action accepts; a refused cell
+            // is stateA -1, no square, and the move marker never shows while armed (TASK-929).
+            bool armed = _pendingCombatMode
+                    == GameData.Resources.Combat.CombatCommandOutcome.PendingMode.TargetSelection
+                || _pendingCombatMode
+                    == GameData.Resources.Combat.CombatCommandOutcome.PendingMode.InspectTarget;
+            (int Column, int Row)? aim = _aimHighlightCell;
+            // A ground-aimed spell (types 5, 6) is answered by the empty cell itself, not by a combatant.
+            if (aim == null && _pendingSpell != null && CursorCell is (int gc, int gr)
+                && GameData.Resources.Spells.SpellTargetingRules.AimOf(_pendingSpell.TargetingType)
+                    == GameData.Resources.Spells.SpellTargetingRules.Aim.ClearGround
+                && Combat.CombatantAtCell(gc, gr) == null && !GroundCellRefused(gc, gr)) {
+                aim = (gc, gr);
+            }
+            if (aim.HasValue) {
+                Ring(aim.Value.Column, aim.Value.Row, Encounters.ArenaOverlayKind.AimCell);
+            }
+            if (CursorCell is (int cc, int cr) && !Nullable.Equals(_targetHighlightCell, CursorCell)
+                && !Nullable.Equals(aim, CursorCell)) {
                 bool empty = Combat.CombatantAtCell(cc, cr) == null;
-                if (empty && Combat.CellMovable(acting, cc, cr)) {
+                if (!armed && empty && Combat.CellMovable(acting, cc, cr)) {
                     Ring(cc, cr, Encounters.ArenaOverlayKind.MoveCell);
                 } else if (CursorCellAlwaysShown) {
                     Ring(cc, cr, Encounters.ArenaOverlayKind.NoneCell);
@@ -1884,6 +1903,9 @@ using GameData.Resources.Scene;
         /// panel's.
         /// </remarks>
         private (int Column, int Row)? _targetHighlightCell;
+
+        /// <summary>The target an armed shot or spell would take, or null — the cyan ring (TASK-929).</summary>
+        private (int Column, int Row)? _aimHighlightCell;
 
         /// <summary>The arena cell under a floor point, or null off the grid — CombatantAtPoint's own pick.</summary>
         public (int Column, int Row)? CellAtPoint(UnityEngine.Vector3 point) {
@@ -2865,6 +2887,10 @@ using GameData.Resources.Scene;
                         held.Value.Name, held.Value.Values), null);
             }
             Combatant acting = fight?.Current;
+            // The cursor carries one marker a pass, the turn loop's stateA: the arms below set the one
+            // that applies, so a marker left from another state cannot linger (TASK-929).
+            _targetHighlightCell = null;
+            _aimHighlightCell = null;
             if (acting == null) {
                 return (null, null);
             }
@@ -2882,6 +2908,7 @@ using GameData.Resources.Scene;
                 // which LineOfFireTo answers here). The monsters' Engaged and TargetingTheLeader roles
                 // read it, so a member who has only aimed still counts as engaged (TASK-540).
                 RecordAim(fight, acting, target, shooting: true);
+                AimAt(fight, acting, target);
                 int[] carried = Combat.QuarrelsFor(acting);
                 int previewed = GameData.Resources.Combat.ShootTargetPanel.PreviewedKind(
                     shoot.HoveredActionId, _selectedQuarrelKind,
@@ -2895,6 +2922,7 @@ using GameData.Resources.Scene;
                     == GameData.Resources.Combat.CombatCommandOutcome.PendingMode.TargetSelection
                 && _pendingCombatItem == null) {
                 RecordAim(fight, acting, target, shooting: false);
+                AimAt(fight, acting, target);
                 // The spell's own panel: "Choose a target", its name, and for a damage spell over a
                 // living enemy the accuracy and damage (COMBAT.C:1092). It was blank here (TASK-821).
                 if (_pendingSpell != null) {
@@ -3072,24 +3100,13 @@ using GameData.Resources.Scene;
             // *** THE PARTY IS NEVER A TARGET. *** combatenc_is_encounter_actor gates every arm of
             // the check, so clicking your own line does not resolve to a shot -- it falls through to
             // the same "nothing aimable here" branch an empty cell takes.
-            bool hasTarget = canShoot
-                && GameData.Resources.Combat.CombatTargetSelection.ShotIsValid(
-                    targetIsEncounterActor: target != null && !target.IsPartyMember,
-                    targetIsDead: target?.IsDead ?? true,
-                    targetIsInLineOfFire: target != null && LineOfFireTo(fight, acting, target),
-                    hasSelectedQuarrel: Combat.QuarrelsFor(acting) is { } packed
-                        && _selectedQuarrelKind >= 0 && _selectedQuarrelKind < packed.Length
-                        && packed[_selectedQuarrelKind] > 0);
+            bool hasTarget = ArmedAimTakes(fight, acting, target, canShoot);
 
             // A chosen spell decides what the cursor may point at; with none, -1 is the original's
             // "no record" and matches none of the ground- or crystal-aimed types.
             int targetingType = _pendingSpell?.TargetingType ?? -1;
             if (!canShoot && target != null && GroundCellRefused(target.X, target.Y)) {
                 return;   // a ground spell on an occupied cell: the cursor refuses, the spell stays armed
-            }
-            if (!canShoot && _pendingSpell != null) {
-                // The spell arm asks SpellTargetingRules rather than the shot's three tests.
-                hasTarget = SpellTargetIsValid(targetingType, target);
             }
 
             var outcome = GameData.Resources.Combat.CombatTargetSelection.ResolveOnField(
@@ -4583,6 +4600,39 @@ using GameData.Resources.Scene;
                     // ClearGround and Crystal are tile questions, answered by the cast itself.
                     return false;
             }
+        }
+
+        /// <summary>Whether an armed click would take this target: the shot's tests, or the spell's aim.</summary>
+        private bool ArmedAimTakes(GameData.Resources.Combat.CombatEncounter fight, Combatant acting,
+            Combatant target, bool canShoot) {
+            if (!canShoot) {
+                // The spell arm asks SpellTargetingRules rather than the shot's three tests.
+                return _pendingSpell != null && SpellTargetIsValid(_pendingSpell.TargetingType, target);
+            }
+            return GameData.Resources.Combat.CombatTargetSelection.ShotIsValid(
+                targetIsEncounterActor: target != null && !target.IsPartyMember,
+                targetIsDead: target?.IsDead ?? true,
+                targetIsInLineOfFire: target != null && LineOfFireTo(fight, acting, target),
+                hasSelectedQuarrel: Combat.QuarrelsFor(acting) is { } packed
+                    && _selectedQuarrelKind >= 0 && _selectedQuarrelKind < packed.Length
+                    && packed[_selectedQuarrelKind] > 0);
+        }
+
+        /// <summary>
+        /// The cyan marker under an armed shot or spell: on the hovered combatant when the click would
+        /// take them, from the same test the click makes (<see cref="ArmedAimTakes"/>), else none.
+        /// </summary>
+        /// <remarks>
+        /// The original's turn loop draws COMBAT.TBL shape 0 with <c>stateA</c> as its face
+        /// (COMBAT.C:2534, WORLDHIT.C:490). Shoot and Cast set it to 4 (COMBAT.C:2026, 2046), face 4 is
+        /// pen 208, and <c>combat_arena_disp_spell_action</c> turns it to -1, no marker, over a cell
+        /// it refuses (COMBAT.C:2246-2256). The yellow of the melee preview is face 0 (TASK-929).
+        /// </remarks>
+        private void AimAt(GameData.Resources.Combat.CombatEncounter fight, Combatant acting, Combatant target) {
+            (bool canShoot, bool _) = Combat.CapabilitiesFor(acting);
+            _aimHighlightCell = target != null && ArmedAimTakes(fight, acting, target, canShoot)
+                ? (target.X, target.Y)
+                : ((int Column, int Row)?)null;
         }
 
         /// <summary>

@@ -42,5 +42,13 @@ namespace BakAgain.World.Encounters {
         /// only shown for touch, where there is no cursor to say which cell is meant.
         /// </summary>
         NoneCell = 5,
+
+        /// <summary>
+        /// The cursor on a target an armed spell or shot would take — the original's COMBAT.TBL marker
+        /// kind 4 (pen 208, cyan). It is the turn loop's <c>stateA</c> 4 (cast, shoot and item use,
+        /// COMBAT.C:2026, 2046, 2119), kept only while <c>combat_arena_disp_spell_action</c> accepts the cell
+        /// and turned to the empty marker (-1) when it does not (COMBAT.C:2246-2256) — TASK-929.
+        /// </summary>
+        AimCell = 6,
     }
 }

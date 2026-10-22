@@ -88,7 +88,7 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
         /// this fixture demonstrated exactly that: the escape test failed one gate run and passed
         /// the next with no file change in between.
         /// </param>
-        private static Rig Build(int roll = 99) {
+        private static Rig Build(int roll = 99, GameData.Resources.Config.StartData start = null) {
             var session = new GameSession();
             session.SetActorStatsForTest(0, StatBlock());
             session.SetActiveParty(1, new byte[] { 0 });
@@ -104,7 +104,7 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
                 byChunk: new Dictionary<(int x, int y), List<TileEventTrigger>> {
                     [(0, 0)] = new List<TileEventTrigger> { CombTrigger() },
                 },
-                comb: CombTable(EncounterNumber));
+                comb: CombTable(EncounterNumber), start: start);
             return rig;
         }
 
@@ -154,6 +154,41 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
 
             rig.Service.CombatPanelContent(acting.PartySlot, partyMember: true);
             Assert.AreSame(enemy, acting.Target, "nor does the caster's own cell");
+        }
+
+        [Test]
+        public void AnArmedSpellOutlinesTheTargetItWouldTakeInCyan_AndNothingWhereItWouldNot() {
+            // TASK-929. With a spell armed the turn loop draws the cursor marker as stateA 4 -- COMBAT.TBL
+            // shape 0's face 4, pen 208, cyan (WORLDHIT.C:490, COMBAT.C:2534) -- only while
+            // combat_arena_disp_spell_action accepts the cell; anywhere else stateA is -1 and no square
+            // is drawn (COMBAT.C:2246-2256). Not the melee preview's yellow face 0.
+            Rig rig = Build(start: new GameData.Resources.Config.StartData("START.DAT") { CombatGridCellSize = 300 });
+            Assert.IsTrue(rig.Service.StartCombat(CombTrigger()));
+            CombatEncounter fight = rig.Service.Combat.Encounter;
+            for (int i = 0; i < 4 && (fight.Current == null || !fight.Current.IsPartyMember); i++) {
+                fight.EndTurn();
+                fight.PickNext();
+            }
+            Combatant acting = fight.Current;
+            Assert.IsTrue(acting?.IsPartyMember ?? false, "the fixture needs a party member's turn");
+            int livingActorAim = System.Linq.Enumerable.First(System.Linq.Enumerable.Range(0, 9),
+                t => GameData.Resources.Spells.SpellTargetingRules.AimOf(t)
+                    == GameData.Resources.Spells.SpellTargetingRules.Aim.LivingActor);
+            rig.Service.ArmSpellForTest(
+                new GameData.Resources.Spells.Spell("S") { TargetingType = livingActorAim }, 0, 5);
+
+            int Edges(BakAgain.World.Encounters.ArenaOverlayKind kind) => System.Linq.Enumerable.Count(
+                rig.Service.ActingCellSegments(), s => s.Kind == kind);
+
+            rig.Service.CombatPanelContent(0, partyMember: false);
+            Assert.AreEqual(4, Edges(BakAgain.World.Encounters.ArenaOverlayKind.AimCell),
+                "the enemy the spell would take is outlined");
+            Assert.AreEqual(0, Edges(BakAgain.World.Encounters.ArenaOverlayKind.TargetCell),
+                "in the aim's colour, not the melee preview's");
+
+            rig.Service.CombatPanelContent(acting.PartySlot, partyMember: true);
+            Assert.AreEqual(0, Edges(BakAgain.World.Encounters.ArenaOverlayKind.AimCell),
+                "the caster's own cell is no target for it, so no outline");
         }
 
         [Test]
