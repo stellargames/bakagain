@@ -134,7 +134,15 @@ namespace BakAgain.UI.Cursor {
             return new Vector2(x, y);
         }
 
-        private VisualElement _touchWord;
+        private VisualElement _touchWord, _touchWordInk;
+
+        /// <summary>The plate under a touch word, in panel units (TASK-975). The words are POINTERG's
+        /// dark gothic letters, drawn for the mouse right under the pointer; a finger's word stands off
+        /// on whatever the scene has there (sky, a dark wall, bright ground), so it sits on a light
+        /// plate with a dark rim that reads on all of them. The mouse cursor stays plain.</summary>
+        internal const float TouchWordPlatePadding = 12f, TouchWordRimWidth = 2f;
+        internal static readonly Color TouchWordPlate = new(0.93f, 0.88f, 0.74f, 0.92f);
+        internal static readonly Color TouchWordRim = new(0.17f, 0.11f, 0.05f, 1f);
 
         /// <inheritdoc/>
         public void ShowTouchWord(string setName, int index, Vector2 panelPosition) {
@@ -160,18 +168,42 @@ namespace BakAgain.UI.Cursor {
                 _cache[key] = entry;
             }
             if (request != _touchWordRequest) return; // hidden or moved on meanwhile
-            _touchWord ??= new VisualElement {
-                name = "touch-word", pickingMode = PickingMode.Ignore, style = { position = Position.Absolute },
-            };
+            PlaceTouchWord(entry.sprite, finger);
+        }
+
+        /// <summary>Puts <paramref name="word"/> on its plate, clear of <paramref name="finger"/>.</summary>
+        internal VisualElement PlaceTouchWord(Sprite word, Vector2 finger) {
+            if (_touchWord == null) {
+                _touchWord = new VisualElement {
+                    name = "touch-word", pickingMode = PickingMode.Ignore,
+                    style = {
+                        position = Position.Absolute, backgroundColor = TouchWordPlate,
+                        paddingLeft = TouchWordPlatePadding, paddingRight = TouchWordPlatePadding,
+                        paddingTop = TouchWordPlatePadding, paddingBottom = TouchWordPlatePadding,
+                    },
+                };
+                _touchWord.style.borderLeftWidth = _touchWord.style.borderRightWidth =
+                    _touchWord.style.borderTopWidth = _touchWord.style.borderBottomWidth = TouchWordRimWidth;
+                _touchWord.style.borderLeftColor = _touchWord.style.borderRightColor =
+                    _touchWord.style.borderTopColor = _touchWord.style.borderBottomColor = TouchWordRim;
+                _touchWord.style.borderTopLeftRadius = _touchWord.style.borderTopRightRadius =
+                    _touchWord.style.borderBottomLeftRadius = _touchWord.style.borderBottomRightRadius = 8f;
+                _touchWordInk = new VisualElement { name = "touch-word-ink", pickingMode = PickingMode.Ignore };
+                _touchWord.Add(_touchWordInk);
+            }
             if (_touchWord.parent != _root) _root.Add(_touchWord);
-            var size = new Vector2(entry.sprite.rect.width, entry.sprite.rect.height);
+            var ink = new Vector2(word.rect.width, word.rect.height);
+            Vector2 size = ink + Vector2.one * 2f * (TouchWordPlatePadding + TouchWordRimWidth);
             Vector2 at = TouchWordPosition(finger, size, _root.layout.size);
-            _touchWord.style.backgroundImage = new StyleBackground(entry.sprite);
+            _touchWordInk.style.backgroundImage = new StyleBackground(word);
+            _touchWordInk.style.width = ink.x;
+            _touchWordInk.style.height = ink.y;
             _touchWord.style.width = size.x;
             _touchWord.style.height = size.y;
             _touchWord.style.left = at.x;
             _touchWord.style.top = at.y;
             _touchWord.style.display = DisplayStyle.Flex;
+            return _touchWord;
         }
 
 
