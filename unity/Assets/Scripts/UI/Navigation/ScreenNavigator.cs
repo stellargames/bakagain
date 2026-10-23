@@ -82,8 +82,12 @@ namespace BakAgain.UI.Navigation {
             // Enhanced, and Preferences then re-copied its working set and lost unsaved picks
             // (TASK-900). The same early return ran a combat pack's command when a character
             // sheet was opened from it.
-            await UniTask.WaitUntil(() => !IsOnStack(screen) && IsIdle);
+            await WhenOffStackAsync(screen);
         }
+
+        /// <inheritdoc />
+        public UniTask WhenOffStackAsync(IScreen screen) =>
+            UniTask.WaitUntil(() => !IsOnStack(screen) && IsIdle);
 
         private bool IsOnStack(IScreen screen) => _stack.Exists(e => ReferenceEquals(e.Screen, screen));
 

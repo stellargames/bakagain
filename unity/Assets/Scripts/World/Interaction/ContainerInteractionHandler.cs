@@ -31,12 +31,17 @@ namespace BakAgain.World.Interaction {
         private readonly BakAgain.UI.Navigation.IScreenNavigator _navigator;
         private readonly BakAgain.Core.Services.GameClock _clock;
         private readonly System.Func<int, int, UniTask> _explode;
+        private readonly System.Func<BakAgain.UI.Navigation.IScreenFade> _fade;
 
+        /// <param name="fade">The screen fade a solved riddle goes to black through (TASK-973);
+        /// a Func because the world screen builds this list before the fade can be resolved.</param>
         public ContainerInteractionHandler(GameSession session, IDialogManager dialog,
             InventoryMenu inventoryMenu, BakAgain.UI.Navigation.IScreenNavigator navigator,
             BakAgain.UI.Puzzle.PuzzleService puzzles, BakAgain.Core.Services.GameClock clock,
-            System.Func<int, int, UniTask> explode) {
+            System.Func<int, int, UniTask> explode,
+            System.Func<BakAgain.UI.Navigation.IScreenFade> fade = null) {
             _explode = explode;
+            _fade = fade;
             _clock = clock;
             _session = session;
             _dialog = dialog;
@@ -415,13 +420,34 @@ namespace BakAgain.World.Interaction {
                 return;
             }
 
-            bool solved = await _puzzles.RunAsync(puzzle);
-            if (!solved || container == null) {
+            // *** RIDDLE, BLACK, LOOT (TASK-973). *** The cipher screen's solved path fades to black
+            // before it returns (CIPHER.C:205-209) and the inventory screen fades the loot in from
+            // black (CMBINV.C:232-240, :269-271); the world is not drawn between them. Closing the
+            // riddle onto the world and pushing the loot showed the world for a moment.
+            BakAgain.UI.Navigation.IScreenFade fade = _fade?.Invoke();
+            bool solved = await _puzzles.RunAsync(puzzle, fade == null ? null : fade.FadeOutAsync);
+            if (!solved) {
                 return;
             }
 
-            container.Unlocked = true;
-            TryOpenLoot(zone, bakX, bakY, entityType, chestMessage: true);
+            bool shown = false;
+            try {
+                if (container != null) {
+                    container.Unlocked = true;
+                    if (PrepareLoot(zone, bakX, bakY, entityType)) {
+                        await _navigator.PushUnfaded(_inventoryMenu);   // returns once it is up
+                        shown = true;
+                    }
+                }
+            } finally {
+                if (fade != null) {
+                    await fade.FadeInAsync();
+                }
+            }
+            if (shown) {
+                await _navigator.WhenOffStackAsync(_inventoryMenu);
+                await SayChestMessageAsync(zone, bakX, bakY);
+            }
         }
 
         /// <summary>

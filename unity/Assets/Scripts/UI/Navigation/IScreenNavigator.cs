@@ -39,6 +39,13 @@ namespace BakAgain.UI.Navigation {
         /// </remarks>
         UniTask PushAndWaitAsync(IScreen screen);
 
+        /// <summary>
+        /// Completes once <paramref name="screen"/>, already pushed, has left the stack — the wait half
+        /// of <see cref="PushAndWaitAsync"/>, for a caller that pushed it itself.
+        /// </summary>
+        UniTask WhenOffStackAsync(IScreen screen) =>
+            UniTask.WaitUntil(() => !ReferenceEquals(Current, screen));
+
         /// <summary>Hide the top screen and re-show the one beneath (iff it was hidden).</summary>
         UniTask Pop();
 

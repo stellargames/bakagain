@@ -69,7 +69,8 @@ namespace BakAgain.UI.Puzzle {
         }
 
         /// <summary>Runs the screen; true when the player solved it.</summary>
-        public UniTask<bool> RunAsync(CipherPuzzle puzzle) =>
-            _screen == null ? UniTask.FromResult(false) : _screen.RunAsync(puzzle);
+        /// <param name="beforeClose">See <see cref="PuzzleScreen.RunAsync"/>.</param>
+        public UniTask<bool> RunAsync(CipherPuzzle puzzle, System.Func<UniTask> beforeClose = null) =>
+            _screen == null ? UniTask.FromResult(false) : _screen.RunAsync(puzzle, beforeClose);
     }
 }

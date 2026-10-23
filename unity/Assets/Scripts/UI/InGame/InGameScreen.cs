@@ -662,7 +662,9 @@ namespace BakAgain.UI.InGame {
                 new BakAgain.World.Interaction.ContainerInteractionHandler(
                     _gameSession, _dialogManager, _inventoryMenu, _navigator, _puzzles, _clock,
                     (x, y) => _resolver?.Resolve<BakAgain.World.WorldRuntime>()
-                        ?.PlayChestExplosionAsync(x, y) ?? UniTask.CompletedTask),
+                        ?.PlayChestExplosionAsync(x, y) ?? UniTask.CompletedTask,
+                    () => _resolver?.Resolve(typeof(BakAgain.UI.Navigation.IScreenFade))
+                        as BakAgain.UI.Navigation.IScreenFade),
                 new BakAgain.World.Interaction.DoorInteractionHandler(
                     _gameSession, _dialogManager, _inventoryMenu, _navigator, _doorVisuals),
                 new BakAgain.World.Interaction.BuildingInteractionHandler(

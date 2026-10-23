@@ -108,7 +108,11 @@ namespace BakAgain.UI.Puzzle {
         /// used to restore — so leaving the riddle theme running after the screen closes would
         /// carry it into wherever the player came from.
         /// </remarks>
-        public async Cysharp.Threading.Tasks.UniTask<bool> RunAsync(CipherPuzzle puzzle) {
+        /// <param name="beforeClose">Run on a solve, after the closing line and before the screen comes
+        /// down: the original fades the riddle to black there (CIPHER.C:205-209), so the caller can
+        /// cover the screen before the riddle goes (TASK-973).</param>
+        public async Cysharp.Threading.Tasks.UniTask<bool> RunAsync(CipherPuzzle puzzle,
+            System.Func<Cysharp.Threading.Tasks.UniTask> beforeClose = null) {
             _outcome = new Cysharp.Threading.Tasks.UniTaskCompletionSource<bool>();
             if (_midi != null && _provider != null) {
                 _trackBeforePuzzle = await _midi.PlayTrackAsync(
@@ -128,6 +132,9 @@ namespace BakAgain.UI.Puzzle {
                 : CipherPuzzleLayout.UnsolvedDialog);
             if (_midi != null && _provider != null) {
                 await _midi.PlayTrackAsync(_trackBeforePuzzle, _provider, owner: this);
+            }
+            if (solved && beforeClose != null) {
+                await beforeClose();
             }
             Close();
 
