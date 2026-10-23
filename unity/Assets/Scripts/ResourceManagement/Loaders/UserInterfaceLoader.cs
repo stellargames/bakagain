@@ -891,6 +891,13 @@ namespace BakAgain.ResourceManagement.Loaders {
             _cursorManager?.HideTouchWord();
             _touchHotspots.Clear();
             RegisterTouchHotspots(root);
+            // A finger that comes down between hotspots must still reach the gesture, which listens
+            // on this root: an ignoring root picked nothing there, so UI Toolkit never sent the
+            // finger to the screen and the word only followed one that landed on a hotspot
+            // (TASK-968). Only for a screen that takes the gesture: a HUD base stays click-through.
+            if (TouchAsksFirst != null) {
+                root.pickingMode = PickingMode.Position;
+            }
             _navWidgets.Clear();
             _builtEntries.Clear();
             _navigableOverrides.Clear();

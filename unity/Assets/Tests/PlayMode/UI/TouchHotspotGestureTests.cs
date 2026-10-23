@@ -102,6 +102,18 @@ namespace BakAgain.Tests.PlayMode.UI {
         }
 
         [UnityTest]
+        public IEnumerator AFingerDownOffEveryHotspot_ShowsTheWordOnceItSlidesOntoOne() {
+            yield return Laid();
+            Send<PointerDownEvent>(OnNothing);
+            CollectionAssert.IsEmpty(_words);
+            Send<PointerMoveEvent>(OnDoor);
+            Assert.AreEqual(Door, _words[^1], "TASK-968: the word follows a finger that came down between hotspots");
+            Send<PointerUpEvent>(OnDoor);
+            yield return null;
+            CollectionAssert.AreEqual(new[] { Door }, _primary);
+        }
+
+        [UnityTest]
         public IEnumerator TheRelease_ActsOnTheHotspotUnderTheFingerThen() {
             yield return Laid();
             Send<PointerDownEvent>(OnDoor);
