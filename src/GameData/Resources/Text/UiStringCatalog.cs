@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Text.Json;
+using System.Threading;
 
 /// <summary>
 /// Player-visible strings lifted out of KRONDOR.EXE. The real catalog will use keys formatted as
@@ -85,30 +86,31 @@ public sealed class UiStringCatalog {
     private static UiStringCatalog? _embedded;
 
     /// <summary>The catalog compiled into this assembly. One copy, nothing to hand-sync.</summary>
-    public static UiStringCatalog Embedded {
-        get {
-            if (_embedded == null) {
-                Assembly asm = typeof(UiStringCatalog).Assembly;
-                string? name = null;
-                foreach (string candidate in asm.GetManifestResourceNames()) {
-                    if (candidate.EndsWith(ResourceId, StringComparison.Ordinal)) {
-                        name = candidate;
-                    }
-                }
-                if (name == null) {
-                    _embedded = new UiStringCatalog(new Dictionary<string, string>());
-                } else {
-                    using Stream s = asm.GetManifestResourceStream(name);
-                    using var r = new StreamReader(s);
-                    _embedded = FromJson(r.ReadToEnd());
-                    // The port's templates, composed from the EXE's own pieces (TASK-776), so a
-                    // pack translates them and the POT lists them like any other entry.
-                    foreach (KeyValuePair<string, string> template in UiTemplates.EnglishFor(_embedded)) {
-                        _embedded._entries[template.Key] = template.Value;
-                    }
-                }
+    /// <remarks>Built whole and only then published, atomically (TASK-901): the first read can come
+    /// from several threads at once (xUnit's parallel collections; a mod install off the main
+    /// thread), and publishing before the templates were added let a second reader see a catalog
+    /// without them, or a Dictionary corrupted mid-insert.</remarks>
+    public static UiStringCatalog Embedded => LazyInitializer.EnsureInitialized(ref _embedded, LoadEmbedded)!;
+
+    private static UiStringCatalog LoadEmbedded() {
+        Assembly asm = typeof(UiStringCatalog).Assembly;
+        string? name = null;
+        foreach (string candidate in asm.GetManifestResourceNames()) {
+            if (candidate.EndsWith(ResourceId, StringComparison.Ordinal)) {
+                name = candidate;
             }
-            return _embedded;
         }
+        if (name == null) {
+            return new UiStringCatalog(new Dictionary<string, string>());
+        }
+        using Stream s = asm.GetManifestResourceStream(name);
+        using var r = new StreamReader(s);
+        UiStringCatalog catalog = FromJson(r.ReadToEnd());
+        // The port's templates, composed from the EXE's own pieces (TASK-776), so a
+        // pack translates them and the POT lists them like any other entry.
+        foreach (KeyValuePair<string, string> template in UiTemplates.EnglishFor(catalog)) {
+            catalog._entries[template.Key] = template.Value;
+        }
+        return catalog;
     }
 }
