@@ -103,6 +103,9 @@ public sealed class SkyClock {
     public GradingKey GradingAt(long ticks) {
         double hour = HourOf(ticks);
         GradingKey[] keys = _layout.Grading;
+        // Every hour of a non-empty table lands inside it; an empty one is the only input that cannot
+        // (only tests make one, to make the sky fail - TASK-955). Say so instead of an index error.
+        if (keys.Length == 0) throw new InvalidOperationException("SkyLayout.Grading is empty: the sky needs at least one grading key");
         int next = 0;   // a plain loop: this runs every frame, and a lambda would allocate its closure
         while (next < keys.Length && keys[next].Hour <= hour) next++;
         if (next == keys.Length) next = -1;

@@ -149,4 +149,28 @@ public class SkyClockTests {
         Assert.True(Math.Abs(a.Temperature - b.Temperature) < 1);
     }
 
+    /// <summary>TASK-955 control: every key's own hour, a tick either side, midnight, the last tick of a
+    /// day, a negative clock and a late one all land inside the shipped table.</summary>
+    [Fact]
+    public void GradingAtEveryBoundaryOfTheShippedTableIsInsideIt() {
+        var ticks = new System.Collections.Generic.List<long> { 0, 1, -1, GameTime.UnitsPerDay - 1, GameTime.UnitsPerDay, -GameTime.UnitsPerDay, At(9999, 23, 59) };
+        foreach (GradingKey k in new SkyLayout().Grading) {
+            long at = (long)(k.Hour * GameTime.UnitsPerHour);
+            ticks.AddRange(new[] { at - 1, at, at + 1, at + GameTime.UnitsPerDay });
+        }
+        foreach (long t in ticks) {
+            GradingKey g = Clock.GradingAt(t);
+            Assert.InRange(g.Temperature, -100, 100);
+        }
+    }
+
+    /// <summary>TASK-955: an empty table is the one input that cannot be graded. Nothing ships one (the
+    /// PlayMode tests use it to make the sky fail); it is refused by name, not with an anonymous index error.</summary>
+    [Fact]
+    public void AnEmptyGradingTableIsRefusedByName() {
+        var clock = new SkyClock(new SkyLayout { Grading = Array.Empty<GradingKey>() });
+        InvalidOperationException e = Assert.Throws<InvalidOperationException>(() => clock.GradingAt(At(0, 7)));
+        Assert.Contains("Grading is empty", e.Message);
+    }
+
 }
