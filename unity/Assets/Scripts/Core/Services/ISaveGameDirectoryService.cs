@@ -56,8 +56,10 @@ namespace BakAgain.Core.Services {
         bool IsValidDirectoryName(string name);
 
         /// <summary>List the per-playthrough save directories under
-        /// <see cref="SaveRoot"/>, in stable (name-sorted) order. Empty list on
-        /// first run.</summary>
+        /// <see cref="SaveRoot"/>, sorted by <c>.G##</c> number. With Enhanced off
+        /// this is the original's list: one directory per number 1..20, the first
+        /// by name winning; with it on, every directory, by number and then name.
+        /// Empty list on first run.</summary>
         UniTask<IReadOnlyList<SaveDirectoryInfo>> ListDirectoriesAsync();
 
         /// <summary>List the <c>SAVE*.GAM</c> slots inside one directory in

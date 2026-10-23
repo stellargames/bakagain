@@ -13,9 +13,7 @@ namespace BakAgain.Core.Services {
     /// <inheritdoc cref="ISaveGameDirectoryService"/>
     public sealed class SaveGameDirectoryService : ISaveGameDirectoryService {
         // Per the original game's naming, "SAVES.G%02d" sub-directories hold
-        // "SAVE%02d.GAM" slots. We don't enforce the patterns when listing —
-        // hand-renamed dirs are still surfaced — but the defaults follow
-        // them so a fresh install matches the DOS layout.
+        // "SAVE%02d.GAM" slots. Which of them are listed: see Listed.
         private const string DefaultRootDirectoryName = "Saves";
         private const string SaveFileSearchPattern = "SAVE*.GAM";
 
@@ -55,7 +53,8 @@ namespace BakAgain.Core.Services {
             SaveRoot = Path.Combine(Application.persistentDataPath, DefaultRootDirectoryName);
         }
 
-        public string SaveRoot { get; }
+        // Settable inside the assembly so tests and probes can point the service at a scratch folder.
+        public string SaveRoot { get; internal set; }
 
         public UniTask EnsureRootAsync() {
             try {
@@ -72,11 +71,8 @@ namespace BakAgain.Core.Services {
         public async UniTask<string> EnsureDefaultDirectoryAsync() {
             await EnsureRootAsync();
             try {
-                string existing = Directory.EnumerateDirectories(SaveRoot)
-                    .Select(Path.GetFileName)
-                    .Where(name => SaveSetDirPattern.IsMatch(name))
-                    .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
-                    .FirstOrDefault();
+                // Only a LISTED directory counts: in Classic an unlisted .G00 cannot be selected.
+                string existing = (await ListDirectoriesAsync()).FirstOrDefault()?.Name;
                 if (existing != null) {
                     return existing;
                 }
@@ -145,7 +141,7 @@ namespace BakAgain.Core.Services {
             // Game numbers run 1..20: the original's mainmenu_savelist_nextfree_key
             // starts at 1, and its directory scan (mainmenu_save_parse_filename)
             // skips anything outside 1..20, so a .G00 would be invisible there.
-            // Existing .G00 dirs are still listed here (ListDirectoriesAsync).
+            // Existing .G00 dirs are listed in Enhanced only (ListDirectoriesAsync).
             for (int n = 1; n <= MaxAllocationNumber; n++) {
                 if (!used.Contains(n)) {
                     return n;
@@ -182,31 +178,41 @@ namespace BakAgain.Core.Services {
         public async UniTask<IReadOnlyList<SaveDirectoryInfo>> ListDirectoriesAsync() {
             await EnsureRootAsync();
             try {
-                var result = new List<SaveDirectoryInfo>();
-                foreach (string p in Directory.EnumerateDirectories(SaveRoot)
-                             .OrderBy(p => Path.GetFileName(p), StringComparer.OrdinalIgnoreCase)) {
-                    string folder = Path.GetFileName(p);
-                    Match m = SaveSetDirPattern.Match(folder);
-                    if (!m.Success) {
-                        continue; // not a "<name>.G##" save-set directory
-                    }
-                    // No Bookmark (SAVE00.GAM) gate: a freshly-seeded, empty
-                    // save-set (see EnsureDefaultDirectoryAsync) must still be
-                    // listed so a fresh install has something to select.
-                    // ".G##" is always the last 4 characters of a match.
-                    int number = int.Parse(folder.Substring(folder.Length - 2));
-                    result.Add(new SaveDirectoryInfo {
-                        Name = folder,
-                        DisplayName = m.Groups["name"].Value.ToUpperInvariant(),
-                        FullPath = p,
-                        Number = number,
-                    });
-                }
-                return result;
+                return Listed(Directory.EnumerateDirectories(SaveRoot), everyDirectory: GameOptions.Enhanced);
             } catch (Exception e) {
                 _logger.LogError(e, "Failed to enumerate save directories under {Path}.", SaveRoot);
                 return Array.Empty<SaveDirectoryInfo>();
             }
+        }
+
+        // Classic is the original's list (MAINMENU.C:1626-1660, :1713-1731): one directory per .G##
+        // number 1..20, sorted by number; a second directory with a number already listed is dropped,
+        // so the first one findfirst returns wins. findfirst's order is the file system's; Spice86
+        // sorts names case-insensitively (DosFileManager), and so does the port. Enhanced (owner,
+        // TASK-948) lists every <name>.G## directory, .G00 included, sorted by number and then name.
+        private static List<SaveDirectoryInfo> Listed(IEnumerable<string> paths, bool everyDirectory) {
+            var result = new List<SaveDirectoryInfo>();
+            foreach (string p in paths.OrderBy(p => Path.GetFileName(p), StringComparer.OrdinalIgnoreCase)) {
+                string folder = Path.GetFileName(p);
+                Match m = SaveSetDirPattern.Match(folder);
+                if (!m.Success) {
+                    continue; // not a "<name>.G##" save-set directory
+                }
+                // ".G##" is always the last 4 characters of a match.
+                int number = int.Parse(folder.Substring(folder.Length - 2));
+                if (!everyDirectory && (number < 1 || number > MaxAllocationNumber || result.Any(d => d.Number == number))) {
+                    continue;
+                }
+                // No Bookmark (SAVE00.GAM) gate: a freshly-seeded, empty save-set
+                // (EnsureDefaultDirectoryAsync) must still be listed.
+                result.Add(new SaveDirectoryInfo {
+                    Name = folder,
+                    DisplayName = m.Groups["name"].Value.ToUpperInvariant(),
+                    FullPath = p,
+                    Number = number,
+                });
+            }
+            return result.OrderBy(d => d.Number).ToList(); // stable: name order within a number
         }
 
         public async UniTask<IReadOnlyList<SaveSlotInfo>> ListSlotsAsync(string directoryName) {
