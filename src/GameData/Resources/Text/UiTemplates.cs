@@ -96,6 +96,7 @@ public static class UiTemplates {
     public const string EnhancedFeatureSky = "port:template:enhanced_feature_sky";
     public const string EnhancedFeatureLighting = "port:template:enhanced_feature_lighting";
     public const string EnhancedFeatureCasting = "port:template:enhanced_feature_casting";
+    public const string EnhancedFeatureContinuousMovement = "port:template:enhanced_feature_continuous_movement";
 
     /// <summary>The Enhanced settings' shadows row: "Shadows: <c>{state}</c>", Off (the On/Off "Off"),
     /// Blobs or Sun.</summary>
@@ -235,6 +236,7 @@ public static class UiTemplates {
         (EnhancedFeatureSky, _ => "Sky"),
         (EnhancedFeatureLighting, _ => "Lighting"),
         (EnhancedFeatureCasting, _ => "Casting"),
+        (EnhancedFeatureContinuousMovement, _ => "Continuous walking"),
         (EnhancedShadowsKey, _ => "Shadows: {state}"),
         (EnhancedShadowsBlobs, _ => "Blobs"),
         (EnhancedShadowsSun, _ => "Sun"),

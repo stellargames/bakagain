@@ -55,7 +55,7 @@ namespace BakAgain.UI.InGame {
         /// emulator — 22 steps in 2.489 s from one patched save — so it matches what that session
         /// saw and is the same on every display. One constant: change it to change the feel.
         /// </remarks>
-        private const float RepeatStepsPerSecond = 8.84f;
+        internal const float RepeatStepsPerSecond = 8.84f;
         private const float RepeatIntervalSeconds = 1f / RepeatStepsPerSecond;
         // REQ_MAIN nav ActionIds = DOS arrow scancodes.
         private const int MoveForward = 72;   // 0x48 Up
@@ -68,7 +68,12 @@ namespace BakAgain.UI.InGame {
         private readonly IGameplayInput _gameplay;
         private readonly IPointer _pointer;
         private readonly System.Func<float> _deltaSeconds;
+        private readonly System.Func<bool> _continuous;
         private int _heldAction = -1;
+        // Enhanced continuous walking: a press commits to one preference step's worth of glide steps,
+        // so a short tap covers the ground a Classic tap does.
+        private int _tapDirection;
+        private int _tapSteps;
         // The held action came from a REQ compass arrow (touch or mouse): that arrow's own click
         // takes a tap's step on release, so the press must not take one too.
         private bool _heldIsReqArrow;
@@ -77,13 +82,66 @@ namespace BakAgain.UI.InGame {
         /// <param name="deltaSeconds">Seconds since the previous tick. Defaults to
         /// <see cref="Time.deltaTime"/>; tests pass their own so the dead time can be driven
         /// without a frame rate.</param>
+        /// <param name="continuous">True while Enhanced continuous walking is on (TASK-966): forward and
+        /// back glide while held instead of stepping. Null is the faithful game.</param>
         public ClassicMovementDriver(UIDocument document, PartyMovement movement,
-            IGameplayInput gameplay, IPointer pointer, System.Func<float> deltaSeconds = null) {
+            IGameplayInput gameplay, IPointer pointer, System.Func<float> deltaSeconds = null,
+            System.Func<bool> continuous = null) {
             _document = document;
             _movement = movement;
             _gameplay = gameplay;
             _pointer = pointer;
             _deltaSeconds = deltaSeconds ?? (() => Time.deltaTime);
+            _continuous = continuous;
+        }
+
+        /// <summary>
+        /// A forward/back click that reached the travel screen without a press the driver saw (a
+        /// sub-frame tap on a compass arrow): under continuous walking it glides one step's ground
+        /// instead of jumping a step. False when continuous walking is off — the click steps as before.
+        /// </summary>
+        public bool TapGlide(int action) {
+            int direction = DirectionOf(action);
+            if (direction == 0 || _movement == null || _continuous?.Invoke() != true) {
+                return false;
+            }
+            _tapDirection = direction;
+            _tapSteps = _movement.GlideStepsPerStep;
+            return true;
+        }
+
+        private static int DirectionOf(int action) =>
+            action == MoveForward ? 1 : action == MoveBackward ? -1 : 0;
+
+        // Continuous walking's share of a tick. True when it handled the tick.
+        private bool TickGlide(int action) {
+            int direction = DirectionOf(action);
+            float dt = _deltaSeconds();
+            if (direction != 0) {
+                if (action != _heldAction) {
+                    _heldAction = action;
+                    _tapDirection = direction;
+                    _tapSteps = _movement.GlideStepsPerStep;
+                }
+                if (_heldIsReqArrow && TouchInputState.Instance is TouchInputState state) {
+                    state.SwallowNextArrowClick = true;   // the glide is the step; the release adds none
+                }
+            } else if (action < 0 && _tapSteps > 0) {
+                direction = _tapDirection;   // a tap shorter than a step still walks one
+            } else {
+                _tapSteps = 0;
+                if (!_movement.IsGliding) {
+                    return false;
+                }
+                _movement.Glide(0, dt, RepeatStepsPerSecond);   // the camera reaches the point paid for
+                return action < 0;
+            }
+            int taken = _movement.Glide(direction, dt, RepeatStepsPerSecond);
+            _tapSteps = direction == _tapDirection ? System.Math.Max(0, _tapSteps - taken) : 0;
+            if (taken == 0 && !_movement.IsGliding) {
+                _tapSteps = 0;   // refused: a tap does not keep pushing at a wall
+            }
+            return true;
         }
 
         // Called once per frame. `active` == the travel surface is the stack's resolved input target
@@ -92,10 +150,14 @@ namespace BakAgain.UI.InGame {
         public void Tick(bool active) {
             if (!active) {
                 _heldAction = -1;
+                _tapSteps = 0;
                 TouchInputState.Instance?.TakeTouchAction();   // a tap under a menu is not a step later
                 return;
             }
             int action = ResolveHeldMovementAction();
+            if (_movement != null && _continuous?.Invoke() == true && TickGlide(action)) {
+                return;
+            }
             if (action < 0) {
                 _heldAction = -1;
                 // *** THIS IS THE WORLD LOOP'S "nothing moved" ARM. *** A dialog sub-action can ask

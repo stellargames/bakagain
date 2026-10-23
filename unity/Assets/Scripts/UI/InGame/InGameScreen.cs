@@ -393,7 +393,8 @@ namespace BakAgain.UI.InGame {
         /// <summary>Provide the movement controller; nav buttons/keys drive it. Call before showing.</summary>
         public void SetMovement(BakAgain.World.PartyMovement movement) {
             _movement = movement;
-            _movementDriver = new ClassicMovementDriver(_document, movement, _gameplay, _pointer);
+            _movementDriver = new ClassicMovementDriver(_document, movement, _gameplay, _pointer,
+                continuous: () => GameOptions.IsOn(EnhancedFeature.ContinuousMovement));
             _look = new MouseLookDriver(_pointer, _enhancedLayout);
             // The world arrives after the REQ is built, so the button's first honest state is here.
             RefreshFollowRoadButton();
@@ -1747,10 +1748,14 @@ namespace BakAgain.UI.InGame {
             }
             switch (menuEntryActionId) {
                 case ActionMoveForward:
-                    _movement?.MoveForward();
+                    if (_movementDriver?.TapGlide(menuEntryActionId) != true) {
+                        _movement?.MoveForward();
+                    }
                     break;
                 case ActionMoveBackward:
-                    _movement?.MoveBackward();
+                    if (_movementDriver?.TapGlide(menuEntryActionId) != true) {
+                        _movement?.MoveBackward();
+                    }
                     break;
                 case ActionTurnLeft:
                     _movement?.TurnLeft();

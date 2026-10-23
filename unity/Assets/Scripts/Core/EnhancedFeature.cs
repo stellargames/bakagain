@@ -23,5 +23,9 @@ namespace BakAgain.Core {
         /// <summary>The cast screen full-window in the original's materials: the ring a stone on a marble
         /// bench, the school figure a dim laser, the known spells holograms in it (TASK-878).</summary>
         Casting,
+
+        /// <summary>Forward and back glide while held instead of stepping, in the original's Small
+        /// steps with the same time per distance and the same per-step rules (TASK-966).</summary>
+        ContinuousMovement,
     }
 }

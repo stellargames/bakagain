@@ -90,8 +90,8 @@ namespace BakAgain.World {
             _eyeZ = cameraHeightZ;
         }
 
-        public void MoveForward() => Step(forward: true);
-        public void MoveBackward() => Step(forward: false);
+        public void MoveForward() => Step(forward: true, _preferences.Current.StepSize);
+        public void MoveBackward() => Step(forward: false, _preferences.Current.StepSize);
         /// <summary>
         /// Enhanced free look (spec 2026-10-08 section 4): true lets the heading be anything and makes road
         /// travel read the nearest compass point. Null or false is the faithful game.
@@ -279,10 +279,12 @@ namespace BakAgain.World {
         public sealed class HeldStep {
             private Action _rollBack;
             private PartyMovement _owner;
+            private readonly StepSize _size;
 
-            internal HeldStep(Action rollBack, PartyMovement owner) {
+            internal HeldStep(Action rollBack, PartyMovement owner, StepSize size) {
                 _rollBack = rollBack;
                 _owner = owner;
+                _size = size;
             }
 
             /// <summary>Puts the party back where it stepped from.</summary>
@@ -301,7 +303,7 @@ namespace BakAgain.World {
                 PartyMovement owner = _owner;
                 _owner = null;
                 if (owner != null) {
-                    (chargedIn ?? owner).AdvanceClockForStep(stepStands: false);
+                    (chargedIn ?? owner).AdvanceClockForStep(stepStands: false, _size);
                 }
             }
         }
@@ -309,6 +311,8 @@ namespace BakAgain.World {
         // Non-null only while a step's hotspot pass runs: how to turn that step back.
         private Action _stepRollBack;
         private bool _stepHeld;
+        // The step size the step in progress was taken at: the preference, or Small for a glide step.
+        private StepSize _stepSize;
 
         /// <summary>
         /// Called from inside a hotspot pass to finish the step being turned back itself. Null when no
@@ -319,7 +323,7 @@ namespace BakAgain.World {
                 return null;
             }
             _stepHeld = true;
-            return new HeldStep(_stepRollBack, this);
+            return new HeldStep(_stepRollBack, this, _stepSize);
         }
 
         /// <summary>
@@ -342,7 +346,7 @@ namespace BakAgain.World {
             _stepHeld = false;
             if (!keep && !held) {
                 rollBack();
-                AdvanceClockForStep(stepStands: false);
+                AdvanceClockForStep(stepStands: false, _stepSize);
             }
             return keep;
         }
@@ -359,7 +363,7 @@ namespace BakAgain.World {
         /// input, one cell — so there is nothing to pace and no tick is kept. Distance per step is
         /// unaffected; only the animation between them differs.</para>
         /// </remarks>
-        private void TravelStep(bool forward) {
+        private bool TravelStep(bool forward, StepSize size) {
             ushort raw = unchecked((ushort)_session.Rotation);
             ushort heading = TravelHeading(raw);
             ushort probeHeading = forward ? heading : unchecked((ushort)(heading + 0x8000));
@@ -396,11 +400,11 @@ namespace BakAgain.World {
                     _session.Rotation = unchecked((short)swept);
                     SyncCamera();
 
-                    return;
+                    return false;
                 }
 
                 _playSfx?.Invoke(BumpSoundId);
-                return;
+                return false;
             }
 
             int savedX = _session.PositionX;
@@ -419,7 +423,7 @@ namespace BakAgain.World {
             // It also keeps `IsOnCellCentre` below meaning what the original's
             // `% 0x640 == 0x320` means: a landing on a cell centre, which now happens every fourth
             // step rather than on every one.
-            int travelStep = _movement.StepDistanceFor(_preferences.Current.StepSize);
+            int travelStep = _movement.StepDistanceFor(size);
             if (_underground) {
                 travelStep >>= 2;
             }
@@ -446,7 +450,7 @@ namespace BakAgain.World {
                     _session.PositionZ = savedEye;
                     SyncCamera();
                 })) {
-                return;
+                return false;
             }
 
             if (RoadTravel.IsOnCellCentre(_session.PositionX, _session.PositionY)) {
@@ -461,8 +465,9 @@ namespace BakAgain.World {
                 // Ending travel here would be the port deciding for the player.
             }
 
-            AdvanceClockForStep(stepStands: true);
+            AdvanceClockForStep(stepStands: true, size);
             SyncCamera();
+            return true;
         }
 
         /// <summary>
@@ -498,7 +503,7 @@ namespace BakAgain.World {
         /// and the two halves of this method treat that differently — which is why it is a required
         /// argument rather than a defaulted one: a new call site has to decide.
         /// </param>
-        private void AdvanceClockForStep(bool stepStands) {
+        private void AdvanceClockForStep(bool stepStands, StepSize size) {
             // *** Raised ABOVE the clock guard. *** This method is the one place every successful
             // move funnels through, which makes it the "a step happened" signal as much as a clock
             // advance — but it returns early without a clock, and a listener that only fires when
@@ -511,27 +516,47 @@ namespace BakAgain.World {
             // returns without touching the tick — while the clock is advanced by the world loop
             // (WORLDLP.C:193) after the pass either way. A single "a step happened" signal driving
             // both would hand the party a cell boundary for a step they did not take.
+            // *** A GLIDE STEP IS A FRACTION OF A PREFERENCE STEP (TASK-966). *** Enhanced
+            // continuous walking moves in Small steps whatever the preference, so `parts` of them
+            // make one preference step. The cell tick and the clock are both kept in preference
+            // steps: the tick advances once per `parts` standing glide steps (exactly a Classic
+            // step's advance, so the saved counter keeps its meaning) and is 0 on the ones between,
+            // and the preference step's time is spread over its parts so `parts` of them cost
+            // exactly one Classic step. A Classic step is one part of one: unchanged.
+            StepSize preference = _preferences.Current.StepSize;
+            int parts = System.Math.Max(1,
+                _movement.StepDistanceFor(preference) / System.Math.Max(1, _movement.StepDistanceFor(size)));
+            int part = _glideParts % parts;
             if (stepStands && _session != null) {
-                // The UNQUARTERED distance on purpose: g_nWorldStepSpeed is what worldmove_dat_load
-                // resolved from the preference, and the underground quartering is applied at the
-                // step site, never to it. So underground the boundary still falls every four presses
-                // — 400 units rather than 1600. That looks like an oversight and is the original's.
-                (int count, int tick) = GameData.Resources.World.WorldStepTick.Advance(
-                    _session.SubTileStepCount,
-                    _movement.StepDistanceFor(_preferences.Current.StepSize));
-                _session.SubTileStepCount = count;
-                _session.TileBoundaryCrossed = tick;
+                if (part + 1 < parts) {
+                    _glideParts = part + 1;
+                    _session.TileBoundaryCrossed = 0;
+                } else {
+                    _glideParts = 0;
+                    // The UNQUARTERED distance on purpose: g_nWorldStepSpeed is what worldmove_dat_load
+                    // resolved from the preference, and the underground quartering is applied at the
+                    // step site, never to it. So underground the boundary still falls every four presses
+                    // — 400 units rather than 1600. That looks like an oversight and is the original's.
+                    (int count, int tick) = GameData.Resources.World.WorldStepTick.Advance(
+                        _session.SubTileStepCount,
+                        _movement.StepDistanceFor(preference));
+                    _session.SubTileStepCount = count;
+                    _session.TileBoundaryCrossed = tick;
+                }
             }
 
             if (_clock == null) {
                 return;
             }
-            long ticks = _movement.SecondsPerStepFor(_preferences.Current.StepSize) / 2;
+            long ticks = _movement.SecondsPerStepFor(preference) / 2;
             if (_underground) {
                 ticks /= 4;
             }
-            _clock.Advance(ticks);
+            _clock.Advance(ticks * (part + 1) / parts - ticks * part / parts);
         }
+
+        // Standing glide steps taken towards the current preference step (0 in Classic).
+        private int _glideParts;
 
         /// <summary>
         /// Runs a hotspot pass a dialog asked for, if one is outstanding and nothing moved.
@@ -554,21 +579,23 @@ namespace BakAgain.World {
             _hotspotPass?.Invoke(_session.PositionX, _session.PositionY);
         }
 
-        private void Step(bool forward) {
+        /// <returns>True when the party moved and KEPT the ground: false for a pivot, a bump, or a
+        /// step a hotspot turned back (or is holding).</returns>
+        private bool Step(bool forward, StepSize size) {
             if (CameraIsAnimating) {
-                return;
+                return false;
             }
+            _stepSize = size;
 
             if (IsTravelling && _collision != null) {
-                TravelStep(forward);
-                return;
+                return TravelStep(forward, size);
             }
 
             // Faithful to the original: step distance is resolved from the config (Preferences), not
             // the save game — Load_movement.dat @ 0x71790 indexes MOVEMENT.DAT by config.stepSize, and
             // dialog_Preferences re-resolves it live. Read Current each move so a Preferences change
-            // takes effect on the very next step.
-            int step = _movement.StepDistanceFor(_preferences.Current.StepSize);
+            // takes effect on the very next step. (A glide passes Small; see Glide.)
+            int step = _movement.StepDistanceFor(size);
             if (_underground) {
                 step >>= 2; // g_game_mode == 2: quarter step underground
             }
@@ -582,9 +609,9 @@ namespace BakAgain.World {
                 var (fdx, fdy) = MovementMath.StepDelta(probeHeading, step);
                 _session.PositionX += fdx;
                 _session.PositionY += fdy;
-                AdvanceClockForStep(stepStands: true);
+                AdvanceClockForStep(stepStands: true, size);
                 SyncCamera();
-                return;
+                return true;
             }
 
             // The candidate list is built from where the party stands, then reused by every probe of
@@ -616,12 +643,12 @@ namespace BakAgain.World {
                     // happened, so the crossing it probed must not drop the party from a tile they
                     // were pushed off.
                     _pendingCrossingKind = crossingKind;
-                    AdvanceClockForStep(stepStands: true);
+                    AdvanceClockForStep(stepStands: true, size);
                     SyncCamera();
-                    return;
+                    return true;
                 }
 
-                return;
+                return false;
             }
 
             if (forward && TrySweepAlternativeHeading(heading, step, out ushort target)) {
@@ -632,10 +659,11 @@ namespace BakAgain.World {
                 BeginSwing();
                 _session.Rotation = unchecked((short)target);
                 SyncCamera();
-                return;
+                return false;
             }
 
             _playSfx?.Invoke(BumpSoundId);
+            return false;
         }
 
         /// <summary>
@@ -684,11 +712,100 @@ namespace BakAgain.World {
         /// belongs beside <see cref="MoveForward"/>, not here.</para>
         /// </remarks>
         public void PlaceAt(int x, int y) {
+            StopGlide();
             _session.PositionX = x;
             _session.PositionY = y;
             SyncCamera();
         }
 
+
+        // ---------------------------------------------------------------- Enhanced continuous walking
+
+        /// <summary>The most glide steps one frame may take; a longer hitch drops the distance.</summary>
+        private const int MaxGlideStepsPerFrame = 8;
+
+        /// <summary>The longest frame a glide advances by.</summary>
+        private const float MaxGlideFrameSeconds = 0.1f;
+
+        // Where the camera glides from (the step point the party left), and how far along it is:
+        // 1 = the camera is on the party's position.
+        private int _glideFromX, _glideFromY, _glideFromEye;
+        private float _glideT = 1f;
+        private float _glideRetrySeconds;
+
+        /// <summary>The camera is between two step points, still catching up with the party.</summary>
+        public bool IsGliding => _glideT < 1f;
+
+        /// <summary>Glide steps in one preference step: 1 at Small, 2 at Medium, 4 at Large.</summary>
+        public int GlideStepsPerStep => System.Math.Max(1,
+            _movement.StepDistanceFor(_preferences.Current.StepSize) / System.Math.Max(1, _movement.StepDistanceFor(StepSize.Small)));
+
+        /// <summary>
+        /// Enhanced continuous walking (TASK-966): moves the party in the original's Small steps, back
+        /// to back while <paramref name="direction"/> is held, and glides the camera between them.
+        /// </summary>
+        /// <param name="direction">+1 forward, -1 backward, 0 to only let the camera finish its glide.</param>
+        /// <param name="deltaSeconds">Seconds since the last call.</param>
+        /// <param name="stepsPerSecond">Preference steps a second — the original's held-walk cadence,
+        /// so the ground speed is its held walk at the player's step size.</param>
+        /// <returns>Glide steps taken this call.</returns>
+        /// <remarks>
+        /// <b>Every rule stays the original's Small-step rule</b>: each glide step is
+        /// <see cref="Step"/> at <see cref="StepSize.Small"/> — the walkability probe, the pivot, the
+        /// bump, the hotspot pass and its roll-back, the crossing kind, road-follow — and costs its
+        /// share of the preference step's time (<see cref="AdvanceClockForStep"/>). Only the camera is
+        /// continuous: the party's position is always a real step point, so a save mid-glide stores
+        /// one, and a refused step or a trigger stops the party on the last point it reached.
+        /// </remarks>
+        public int Glide(int direction, float deltaSeconds, float stepsPerSecond) {
+            if (CameraIsAnimating) {
+                StopGlide();
+                return 0;
+            }
+            // A hitch costs distance rather than replaying it as a jump.
+            deltaSeconds = System.Math.Min(deltaSeconds, MaxGlideFrameSeconds);
+            float glideStepsPerSecond = stepsPerSecond * GlideStepsPerStep;
+            _glideRetrySeconds -= deltaSeconds;
+            float t = _glideT + deltaSeconds * glideStepsPerSecond;
+            if (t < 1f) {
+                _glideT = t;
+                SyncCamera();
+                return 0;
+            }
+            float carry = t - 1f;
+            _glideT = 1f;
+            int taken = 0;
+            while (direction != 0 && _glideRetrySeconds <= 0f && taken < MaxGlideStepsPerFrame) {
+                int fromX = _session.PositionX;
+                int fromY = _session.PositionY;
+                int fromEye = _eyeZ;
+                if (!Step(direction > 0, StepSize.Small)) {
+                    // Blocked, pivoted or turned back by a trigger: stay on the last point, and try
+                    // again at the held walk's cadence rather than every frame.
+                    _glideRetrySeconds = 1f / glideStepsPerSecond;
+                    break;
+                }
+                taken++;
+                (_glideFromX, _glideFromY, _glideFromEye) = (fromX, fromY, fromEye);
+                if (carry < 1f || CameraIsAnimating || PitDescent.Triggers(_pendingCrossingKind, ZoneKind)) {
+                    // A crossing waits for the next frame's descent check, as in Classic.
+                    _glideT = System.Math.Min(carry, 0.999f);
+                    break;
+                }
+                carry -= 1f;
+            }
+            SyncCamera();
+            return taken;
+        }
+
+        /// <summary>Puts the camera on the party's position, ending any glide.</summary>
+        public void StopGlide() {
+            if (_glideT >= 1f) {
+                return;
+            }
+            _glideT = 1f;
+            SyncCamera();
+        }
 
         // ---------------------------------------------------------------- the rope swing
 
@@ -720,6 +837,7 @@ namespace BakAgain.World {
         /// </remarks>
         public async Cysharp.Threading.Tasks.UniTask SwingAcrossAsync(bool crossingAxisIsY,
             int pitX, int pitY, int startAcross, int landingAcross) {
+            StopGlide();
             IsCrossing = true;
             try {
                 int savedEye = _eyeZ;
@@ -848,6 +966,7 @@ namespace BakAgain.World {
         /// geometry looks broken where a 2D raster did not care.</para>
         /// </remarks>
         private void Fall() {
+            StopGlide();
             var conditions = new List<ActorConditions>();
             var pools = new List<(ActorStat Health, ActorStat Stamina)>();
             foreach (byte member in _session.ActivePartyIndices) {
@@ -1211,8 +1330,13 @@ namespace BakAgain.World {
             // Pitch: all three angles go through ConvertRotation's BakAngleToDegrees. The BaK->Unity
             // transform swaps Y<->Z (a reflection), which flips the sense of every rotation axis, not
             // just yaw — so pitch is inverted by the same rule as the play-verified yaw.
-            _camera.transform.position = BakCoordinateConverter.ConvertPosition(
-                _session.PositionX, _session.PositionY, _eyeZ);
+            Vector3 at = BakCoordinateConverter.ConvertPosition(_session.PositionX, _session.PositionY, _eyeZ);
+            if (_glideT < 1f) {
+                // A glide shows the party between the step point it left and the one it is on.
+                at = Vector3.Lerp(BakCoordinateConverter.ConvertPosition(_glideFromX, _glideFromY, _glideFromEye),
+                    at, _glideT);
+            }
+            _camera.transform.position = at;
             _camera.transform.rotation = BakCoordinateConverter.ConvertRotation(
                 unchecked((ushort)(_cameraPitch + LookPitch)), 0, _swingYaw ?? unchecked((ushort)_session.Rotation));
         }
