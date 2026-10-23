@@ -240,6 +240,14 @@ namespace BakAgain.UI.InputCore {
             if (_capturedPointer != pointer || _dragging) {
                 return;
             }
+            // *** A CHILD BUTTON TOOK THE PRESS (TASK-971). *** Its Clickable captures after this
+            // recogniser, and no capture-out reaches the stage for a capture overwritten before it
+            // took effect -- so "pressed" outlived the tap. The quantity picker's Give button removes
+            // itself, and this hold then examined whatever item the grid redrew under the finger.
+            if (!target.HasPointerCapture(pointer)) {
+                Cancel();
+                return;
+            }
             Vector2 at = _pressLocal;
             Cancel();
             SecondaryPressed?.Invoke(at);

@@ -88,15 +88,16 @@ namespace BakAgain.Tests.PlayMode.UI.InputCore {
             if (_host != null) { Object.DestroyImmediate(_host); }
         }
 
-        private void Send<T>(Vector2 at, string type, int button = 0, int pointerId = 1)
+        private void Send<T>(Vector2 at, string type, int button = 0, int pointerId = 1,
+            VisualElement target = null)
             where T : PointerEventBase<T>, new() {
             var stub = new StubPointerEvent {
                 pointerId = pointerId, pointerType = type, button = button,
                 position = new Vector3(at.x, at.y, 0f),
             };
             using (T evt = PointerEventBase<T>.GetPooled(stub)) {
-                evt.target = _stage;
-                _stage.SendEvent(evt);
+                evt.target = target ?? _stage;
+                (target ?? _stage).SendEvent(evt);
             }
         }
 
@@ -198,6 +199,33 @@ namespace BakAgain.Tests.PlayMode.UI.InputCore {
 
             Assert.IsEmpty(_secondary, "a tap is a tap");
             Assert.AreEqual(1, _released.Count, "and it still completes as an ordinary click");
+        }
+
+        /// <summary>
+        /// A finger on a button inside the stage is the button's press, not a resting finger on the
+        /// stage — even when the tap ends with the button gone (TASK-971).
+        /// </summary>
+        /// <remarks>
+        /// The recogniser captures on the way DOWN, the button's <see cref="Clickable"/> captures on
+        /// the way back, and the stage never sees a capture-out for a capture that was overwritten
+        /// before it took effect: measured live on the quantity picker, the gesture still read
+        /// "pressed" with the stage holding no capture. A quantity picker's Give button removes
+        /// itself, so the next half second's hold fired examine on whatever item the grid redrew
+        /// under the finger.
+        /// </remarks>
+        [UnityTest]
+        public IEnumerator AFingerOnAChildButtonThatGoesAwayDoesNot() {
+            var button = new VisualElement { style = { width = 100, height = 100 } };
+            button.AddManipulator(new Clickable(() => button.RemoveFromHierarchy()));
+            _stage.Add(button);
+
+            Send<PointerDownEvent>(new Vector2(50f, 50f), UnityEngine.UIElements.PointerType.touch, target: button);
+            Send<PointerUpEvent>(new Vector2(50f, 50f), UnityEngine.UIElements.PointerType.touch, target: button);
+            Assert.IsNull(button.parent, "sanity: the button took the tap, as the picker's Give does");
+
+            yield return PastTheHoldOnTheRealClock();
+
+            Assert.IsEmpty(_secondary, "a tap on a button is not a hold on whatever lies under it");
         }
     }
 }

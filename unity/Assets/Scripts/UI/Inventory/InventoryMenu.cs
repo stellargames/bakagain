@@ -1623,6 +1623,7 @@ namespace BakAgain.UI.Inventory {
                 return;
             }
             if (_inspectOpen) {
+                _pressSlot = -1; // this press only ends the view (INVINSP.C:424-426); it carries no item
                 if (_inspectStatSlot >= 0 && IsOverMoreInfo(stageLocal)) {
                     ShowItemStats(); // description gives way to the stat block
                 } else {
@@ -1665,6 +1666,10 @@ namespace BakAgain.UI.Inventory {
         /// item-inspect view via <c>UI_showItem</c> @0x5A778.
         /// </summary>
         internal void OnSecondaryPressed(Vector2 stageLocal) {
+            // A finger's hold arrives HERE in place of a release (DragGestureManipulator.FireLongPress),
+            // so the primary press it grew out of ends now: left set, the next press -- the one that
+            // closes the examine view -- dragged this item out of it (TASK-971).
+            _pressSlot = -1;
             if (_descriptionOpen || _inspectOpen || _stage == null || _pickerOpen) {
                 return;
             }

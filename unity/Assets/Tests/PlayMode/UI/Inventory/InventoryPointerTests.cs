@@ -454,5 +454,57 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             Assert.AreEqual(before, ItemCount(menu), "no item was under the press, so none may move");
             Assert.AreEqual(0f, Outline(itemSlot0), "and nothing may be selected either");
         }
+
+        // ---- the examine view (TASK-971) ------------------------------------------------------
+
+        private static int DragSlot(InventoryMenu menu) => (int)typeof(InventoryMenu)
+            .GetField("_dragSlot", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(menu);
+
+        /// <summary>
+        /// A hold that becomes examine has used up its press: nothing of it may arm a later drag.
+        /// In the original the inspect is a blocking loop that any press leaves (INVINSP.C:424-426)
+        /// before the icon flies home, and a drag only ever starts from the cell under the cursor at
+        /// that moment (INVENTOR.C:642-650) -- never from a remembered one.
+        /// </summary>
+        /// <remarks>
+        /// <b>The phone froze here (TASK-971).</b> A long press opens the examine view and ends the
+        /// gesture with no release, so the pressed item's index outlived the press; the next press,
+        /// meant only to close the view, started a drag of that stale item. Dropped on the ground bag
+        /// before the fly-back ended, a stack raised the quantity picker, and the close's re-render
+        /// then drew the grid over it: picker invisible, every button gated on it, music playing on.
+        /// Measured live: <c>_pressSlot=3 _inspectOpen=True</c> after the hold, <c>_dragSlot=3</c>
+        /// after the dismissing press moved. The hold is driven through the recogniser's own timer
+        /// callback, as a finger reaches it.
+        /// </remarks>
+        [Test]
+        public void AHoldThatOpensExamine_LeavesNoPressedItemToDrag() {
+            InventoryMenu menu = BuildMenu(out VisualElement itemSlot0);
+            var gesture = (BakAgain.UI.InputCore.DragGestureManipulator)typeof(InventoryMenu)
+                .GetField("_gesture", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(menu);
+            Send<PointerDownEvent>(Vector2.zero, EventType.MouseDown, button: 0);
+            Assert.AreEqual(0, PressSlot(menu), "sanity: the press landed on the item");
+
+            typeof(BakAgain.UI.InputCore.DragGestureManipulator)
+                .GetMethod("FireLongPress", BindingFlags.NonPublic | BindingFlags.Instance)
+                .Invoke(gesture, new object[] { PointerId.mousePointerId });
+
+            Assert.IsFalse(gesture.IsPressed, "sanity: the hold ended the gesture, as on a phone");
+            Assert.AreEqual(-1, PressSlot(menu), "the hold is the examine; it must not leave a drag armed");
+        }
+
+        private static int PressSlot(InventoryMenu menu) => (int)typeof(InventoryMenu)
+            .GetField("_pressSlot", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(menu);
+
+        /// <summary>The control: the same press and move on the grid, no examine view, does drag.</summary>
+        [Test]
+        public void APressAndMoveOnTheGrid_DragsTheItem() {
+            InventoryMenu menu = BuildMenu(out VisualElement itemSlot0);
+
+            Send<PointerDownEvent>(Vector2.zero, EventType.MouseDown, button: 0);
+            Send<PointerMoveEvent>(new Vector2(400f, 400f), EventType.MouseDrag, button: 0);
+
+            Assert.AreEqual(0, DragSlot(menu), "the instrument must see an ordinary drag");
+            Send<PointerUpEvent>(new Vector2(400f, 400f), EventType.MouseUp, button: 0);
+        }
     }
 }
