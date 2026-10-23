@@ -112,6 +112,7 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
                 .Dispatch(new[] { comb }, new[] { 0 });
 
             Assert.AreEqual(1, result.Fired, "the encounter is handled, not unhandled");
+            Assert.AreEqual(0, result.SlippedPast, "a fight that opens is not a slip-past");
             Assert.AreEqual(0, result.Unhandled);
             Assert.IsTrue(result.Halted, "a fight stops the rest of the pass");
             CollectionAssert.Contains(host.CombatStarted, comb);
@@ -602,6 +603,10 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
                 dispatcher.Dispatch(new List<TileEventTrigger> { Trigger(TileEventType.Comb) }, All(1));
 
             Assert.AreEqual(1, result.Fired);
+            // TASK-946: reported as what it was, so the pass log does not read "fired" for a fight
+            // that never opened.
+            Assert.AreEqual(1, result.SlippedPast);
+            Assert.IsFalse(result.Halted, "walking past stops nothing");
             Assert.AreEqual(0, result.Unhandled);
         }
 

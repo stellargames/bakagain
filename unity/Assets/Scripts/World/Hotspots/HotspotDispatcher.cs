@@ -5,8 +5,9 @@ namespace BakAgain.World.Hotspots {
     /// <summary>What a dispatch pass did.</summary>
     public readonly struct HotspotDispatchResult {
         public HotspotDispatchResult(bool halted, int fired, int unhandled,
-            IReadOnlyList<TileEventType> unhandledKinds = null, int refused = 0) {
+            IReadOnlyList<TileEventType> unhandledKinds = null, int refused = 0, int slippedPast = 0) {
             Halted = halted;
+            SlippedPast = slippedPast;
             Fired = fired;
             Unhandled = unhandled;
             UnhandledKinds = unhandledKinds ?? System.Array.Empty<TileEventType>();
@@ -24,6 +25,18 @@ namespace BakAgain.World.Hotspots {
         /// rule as a missing feature, or a missing feature as work done.
         /// </remarks>
         public int Refused { get; }
+
+        /// <summary>
+        /// The part of <see cref="Fired"/> that was an encounter the party walked past on its
+        /// Stealth roll — no fight, no dialog, and offered again on the next cell step.
+        /// </summary>
+        /// <remarks>
+        /// <b>Counted apart because "fired" reads as "the fight should be up".</b> A pre-scouted
+        /// ambush (dir.G01 SAVE01/SAVE04 load with 5200/5210 set) rolls on every cell step through
+        /// its rect, and the log said "1 fired" for each roll it won — TASK-934 and TASK-945 both
+        /// read that as the trigger failing to open the fight (TASK-946).
+        /// </remarks>
+        public int SlippedPast { get; }
 
         /// <summary>
         /// Whether the pass stopped before visiting every pending hotspot. See
@@ -108,6 +121,7 @@ namespace BakAgain.World.Hotspots {
             var fired = 0;
             var unhandled = 0;
             var refused = 0;
+            var slippedPast = 0;
             // Allocated only when something actually goes unhandled — the common pass has none.
             List<TileEventType> unhandledKinds = null;
 
@@ -194,6 +208,7 @@ namespace BakAgain.World.Hotspots {
                         // slips past is fully handled here — no arena is involved in walking away.
                         if (SlipPast(trigger, index)) {
                             fired++;
+                            slippedPast++;
                         } else if (!_host.EnoughGroundToFight(trigger)) {
                             // *** THE ORIGINAL'S ORDER: stealth gate, THEN this, then the fight. ***
                             // hotspotevt_type1_encounter_run returns outright here — no arena, no
@@ -229,7 +244,7 @@ namespace BakAgain.World.Hotspots {
             }
 
             return new HotspotDispatchResult(halted, fired, unhandled, unhandledKinds,
-                refused);
+                refused, slippedPast);
         }
 
         /// <summary>

@@ -567,7 +567,7 @@ using GameData.Resources.Scene;
                 // hand-matching the party's sub-tile against the chunk's T-file.
                 if (_logger != null) {
                     LoggerExtensions.LogInformation(_logger,
-                        "Hotspots at chunk {Chunk} sub ({X},{Y}): {Fired} fired, {Unhandled} did not act{Kinds}{Refused}{Halted}.",
+                        "Hotspots at chunk {Chunk} sub ({X},{Y}): {Fired} fired, {Unhandled} did not act{Kinds}{Refused}{Halted}{Slipped}.",
                         chunk, subX, subY, dispatched.Fired, dispatched.Unhandled,
                         DescribeKinds(dispatched.UnhandledKinds),
                         // A refusal is neither of the two counts above, so without this the one
@@ -576,7 +576,11 @@ using GameData.Resources.Scene;
                         dispatched.Refused == 0
                             ? string.Empty
                             : $", {dispatched.Refused} refused for want of ground",
-                        dispatched.Halted ? ", pass halted" : string.Empty);
+                        dispatched.Halted ? ", pass halted" : string.Empty,
+                        // TASK-946: a won Stealth roll is a "fired" with no fight behind it.
+                        dispatched.SlippedPast == 0
+                            ? string.Empty
+                            : $" ({dispatched.SlippedPast} slipped past on Stealth: no fight, re-rolled next cell)");
                 }
             }
             return keep;
