@@ -2347,12 +2347,10 @@ namespace BakAgain.UI.Inventory {
         /// them, as it does in the original, and duplicating them would let the copies drift.
         ///
         /// <para><b>*** EVERY USE ASSIGNS THE PENDING ID, INCLUDING THE ONES THAT ARE NOT COMBAT
-        /// ITEMS. ***</b> Using a combat item does NOT close the screen — the player does — and the
-        /// original's loop overwrites its single <c>result</c> on every use, returning only the last
-        /// one. So eating a ration after raising the Horn <b>cancels the Horn</b>, because the
-        /// ration's use puts -1 back. Assigning only on a claim would let a stale item fire when the
-        /// player left the pack, which looks like the game acting on a decision they changed their
-        /// mind about.</para>
+        /// ITEMS. ***</b> The original's loop overwrites its single <c>result</c> on every use and
+        /// ends as soon as it is not negative (CMBINV.C:445), so a claim closes the screen
+        /// (<see cref="HandToTheArenaAsync"/>) and any other use puts -1 back. Assigning only on a
+        /// claim would let a stale item fire when the player left the pack.</para>
         /// </remarks>
         private bool TakeCombatCommand(ObjectInfo obj, RuntimeItem item) {
             if (InCombat && obj.ObjectType == GameData.ObjectType.Staff
@@ -2407,6 +2405,9 @@ namespace BakAgain.UI.Inventory {
             // Note this comes BEFORE the equip branch on purpose: an equipped, unbroken staff in a
             // fight is a weapon to fire, not a weapon to re-equip.
             if (TakeCombatCommand(obj, _displayed.Items[slot])) {
+                if (PendingCombatCommandId != GameData.Resources.Combat.CombatItemUse.NoItemUsed) {
+                    HandToTheArenaAsync(slot, _displayed.Items[slot].ObjectId).Forget();
+                }
                 return;
             }
 
@@ -2432,6 +2433,25 @@ namespace BakAgain.UI.Inventory {
                 return;
             }
             ApplyUseResult(used, slot);
+        }
+
+        /// <summary>The dispatch tail's outcome-1 record, "used", keyed by the item in var 0.</summary>
+        private const int UsedDialogId = 1800002; // 0x1B7742
+
+        /// <summary>
+        /// A combat item claimed for the arena: its "used" text and cue, then the pack closes by itself.
+        /// </summary>
+        /// <remarks>
+        /// <c>itemuse_dispatch_on_target</c> sets outcome 1 and <c>combat_result</c> to the item
+        /// (ITEMUSE.C:142-157, 382-385), so its tail plays 0x1b7742 and the item's use sound and returns
+        /// the id (ITEMUSE.C:486-508); <c>cmbinv_inventory_screen_run</c> loops only while its result is
+        /// negative (CMBINV.C:445), so the screen ends there. Live with the Idol of Lassur and Eliaem's
+        /// Heart: the text, then the arena with no pack (TASK-947).
+        /// </remarks>
+        private async UniTaskVoid HandToTheArenaAsync(int slot, int objectId) {
+            await ShowVar0MessageAsync(UsedDialogId, objectId);
+            PlayItemUseCue(ItemUseOutcome.Applied, slot);
+            Close();
         }
 
         /// <summary>"@ has @1 of @2 total health points." -- the restorative's use-another prompt.</summary>

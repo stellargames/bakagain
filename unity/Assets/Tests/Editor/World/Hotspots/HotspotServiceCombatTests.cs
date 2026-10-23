@@ -89,7 +89,7 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
         /// the next with no file change in between.
         /// </param>
         private static Rig Build(int roll = 99, GameData.Resources.Config.StartData start = null,
-            TrapData traps = null) {
+            TrapData traps = null, System.Func<BakAgain.UI.Combat.CombatMenu> combatMenu = null) {
             var session = new GameSession();
             session.SetActorStatsForTest(0, StatBlock());
             session.SetActiveParty(1, new byte[] { 0 });
@@ -100,7 +100,8 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
             rig.Service = new HotspotService(null, null, session, null,
                 random: _ => roll,
                 setCombatMusic: on => rig.Music.Add(on),
-                resyncCamera: () => rig.CameraResyncs++);
+                resyncCamera: () => rig.CameraResyncs++,
+                combatMenuAccessor: combatMenu);
             rig.Service.SetZoneForTest(Zone,
                 byChunk: new Dictionary<(int x, int y), List<TileEventTrigger>> {
                     [(0, 0)] = new List<TileEventTrigger> { CombTrigger() },
@@ -298,9 +299,10 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
         // ---------------------------------------------------------------- TASK-931: the other markers
 
         /// <summary>A party member's turn in the one-member, one-enemy fixture, with nothing armed.</summary>
-        private static (Rig Rig, CombatEncounter Fight, Combatant Acting) PartyTurn(TrapData traps = null) {
+        private static (Rig Rig, CombatEncounter Fight, Combatant Acting) PartyTurn(TrapData traps = null,
+            System.Func<BakAgain.UI.Combat.CombatMenu> combatMenu = null) {
             Rig rig = Build(start: new GameData.Resources.Config.StartData("START.DAT") { CombatGridCellSize = 300 },
-                traps: traps);
+                traps: traps, combatMenu: combatMenu);
             Assert.IsTrue(rig.Service.StartCombat(CombTrigger()));
             CombatEncounter fight = rig.Service.Combat.Encounter;
             for (int i = 0; i < 4 && (fight.Current == null || !fight.Current.IsPartyMember); i++) {
@@ -466,6 +468,134 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
 
             Assert.IsTrue(enemy.IsDead, "the Idol took the enemy");
             Assert.IsFalse(acting.CanAct(strict: true), "and the turn is spent");
+        }
+
+        // ---------------------------------------------------------------- TASK-947: the HUD while an item aims
+
+        private static string FirstLine(Rig rig, int slot, bool member) {
+            var lines = rig.Service.CombatPanelContent(slot, member).Lines;
+            return lines == null || lines.Count == 0 ? null : lines[0].Text;
+        }
+
+        [Test]
+        public void AnArmedItemsPanelSaysChooseATarget_AndNothingElse() {
+            // combat_arena_pick_target_actor redraws combat_arena_draw_tgt_info_hud(0, -1, 0, 0) on every pass
+            // (COMBAT.C:1751): no spell record, so the prompt alone (COMBAT.C:1099-1121). Live with the Idol of
+            // Lassur: "Choose a target", nothing under it, over E#0, an empty cell and Owyn; the port was blank.
+            (Rig rig, CombatEncounter fight, Combatant acting) = PartyTurn();
+            Assert.AreNotEqual(GameData.Resources.Combat.SpellTargetPanel.Prompt, FirstLine(rig, -1, false),
+                "the control: unarmed, the panel is no prompt");
+
+            rig.Service.UseCombatItemForTest(0x0c);
+
+            foreach ((int slot, bool member) in new[] { (-1, false), (0, false), (acting.PartySlot, true) }) {
+                var lines = rig.Service.CombatPanelContent(slot, member).Lines;
+                Assert.IsNotNull(lines, $"a panel over ({slot},{member})");
+                Assert.AreEqual(1, lines.Count, "the prompt and nothing else");
+                Assert.AreEqual(GameData.Resources.Combat.SpellTargetPanel.Prompt, lines[0].Text);
+            }
+        }
+
+        [Test]
+        public void AnArmedItemKeepsWaitingThroughAClickThatTakesNothing() {
+            // The pick loop ends only on a click with a target, a click whose tile row is past 140, or Escape
+            // (COMBAT.C:1752-1756); any other click leaves it waiting. Live with the Idol: a click on the empty
+            // (2,3) and one on Rest left "Choose a target" up and Owyn ready (flags 0x01). The port disarmed.
+            (Rig rig, CombatEncounter fight, Combatant acting) = PartyTurn();
+            Combatant enemy = fight.Enemies[0];
+            acting.X = 2; acting.Y = 2;
+            enemy.X = 5; enemy.Y = 2;
+            rig.Service.UseCombatItemForTest(0x32);   // adjacent-only: the far enemy is no target
+
+            Assert.IsFalse(rig.Service.CastAcceptedAtCell(5, 2), "touch offers no Cast on the far enemy");
+            rig.Service.ResolveCombatTargetClick(0, partyMember: false, isPrimary: true);
+            rig.Service.ResolveCombatTargetClick(acting.PartySlot, partyMember: true, isPrimary: true);
+            Assert.AreEqual(CombatCommandOutcome.PendingMode.TargetSelection, rig.Service.PendingModeForTest,
+                "a refused click leaves the pick waiting");
+            Assert.IsTrue(acting.CanAct(strict: true), "and spends nothing");
+            Assert.AreEqual(CombatantFlags.None, enemy.Flags & CombatantFlags.Fleeing, "and routs nobody");
+
+            enemy.X = 3;   // the control: orthogonally adjacent, so the same item takes him
+            Assert.IsTrue(rig.Service.CastAcceptedAtCell(3, 2), "touch offers Cast on the adjacent enemy");
+            rig.Service.ResolveCombatTargetClick(0, partyMember: false, isPrimary: true);
+            Assert.AreEqual(CombatantFlags.Fleeing, enemy.Flags & CombatantFlags.Fleeing, "the click took him");
+            Assert.IsFalse(acting.CanAct(strict: true));
+        }
+
+        [Test]
+        public void ASummonItemsTilePickBlanksTheHudButtonsAndThePortrait_UntilItIsPlaced() {
+            // After the pack, combat_arena_view_rstr_disp(1) puts up cframe.scx (COMBAT.C:1696-1702, 879) and
+            // nothing redraws the buttons or the face until case 22's combat_arena_redraw_hud_bufs, after the
+            // dispatch (COMBAT.C:2114). The actor picks redraw them (COMBAT.C:1727-1734); the tile pick does not
+            // (CSPELL.C:671-708). Live with Eliaem's Heart: blank stones, empty socket, blank parchment.
+            var menuObject = new UnityEngine.GameObject("CombatMenuUnderTest");
+            try {
+                BakAgain.UI.Combat.CombatMenu menu = menuObject.AddComponent<BakAgain.UI.Combat.CombatMenu>();
+                (Rig rig, CombatEncounter fight, Combatant acting) = PartyTurn(combatMenu: () => menu);
+                rig.Service.Combat.MonsterTemplates = new Dictionary<int, GameData.Resources.Monster.MonsterStats> {
+                    [0x38] = new GameData.Resources.Monster.MonsterStats("MONST56") {
+                        CreatureId = 0x38,
+                        Health = new GameData.Resources.Monster.StatRange { Min = 40, Max = 40 },
+                        Stamina = new GameData.Resources.Monster.StatRange { Min = 20, Max = 20 },
+                        Speed = new GameData.Resources.Monster.StatRange { Min = 4, Max = 4 },
+                    },
+                };
+                (int, int) free = FreeMovableCell(rig, acting);
+                var issued = 0;
+                menu.CommandIssued += (_, _) => issued++;
+                Assert.IsFalse(menu.IsBlank, "the control: the buttons are up");
+                Assert.AreEqual(acting.ClassId, rig.Service.ActingPortraitHeadId(), "and the face");
+
+                rig.Service.UseCombatItemForTest(0x09);
+
+                Assert.IsTrue(menu.IsBlank, "the pick shows bare stones");
+                menu.PrimaryAction(CombatCommands.RestId);
+                Assert.AreEqual(0, issued, "which answer nothing");
+                Assert.AreEqual(-1, rig.Service.ActingPortraitHeadId(), "and no face");
+                Assert.IsNull(rig.Service.CombatPanelContent(-1, false).Lines, "and an empty parchment");
+
+                rig.Service.ResolveCombatGroundClick(rig.Service.CellCentreWorld(free.Item1, free.Item2).Value);
+                Assert.IsNotNull(rig.Service.Combat.CombatantAtCell(free.Item1, free.Item2), "placed");
+                Assert.IsFalse(menu.IsBlank, "the placement puts the buttons back");
+                menu.PrimaryAction(CombatCommands.RestId);
+                Assert.AreEqual(1, issued, "and they answer again");
+            } finally {
+                UnityEngine.Object.DestroyImmediate(menuObject);
+            }
+        }
+
+        [Test]
+        public void TheDecoysTilePickKeepsTheCastsPanel_AndTheHud() {
+            // Dannon's Delusions asks for its tile inside the cast (cspell_invoke_effect kind 17 ->
+            // cspell_summon_actor -> cspell_select_target_tile, CSPELL.C:743-752, 848-851), which redraws no
+            // panel: the turn loop's last one stays, "Choose a target" and the spell's name, drawn over a party
+            // member so with no rows (COMBAT.C:1105-1125). Live, Owyn on himself: that panel, the buttons and the
+            // face, through the pick. The port's panel was blank.
+            var menuObject = new UnityEngine.GameObject("CombatMenuUnderTest");
+            try {
+                BakAgain.UI.Combat.CombatMenu menu = menuObject.AddComponent<BakAgain.UI.Combat.CombatMenu>();
+                (Rig rig, CombatEncounter fight, Combatant acting) = PartyTurn(combatMenu: () => menu);
+                (int, int) free = FreeMovableCell(rig, acting);
+                rig.Service.ArmSpellForTest(new GameData.Resources.Spells.Spell("S") {
+                    Name = "Dannon's Delusions", TargetingType = 3,
+                    Calculation = GameData.SpellCalculation.CostTimesDamage, Damage = 1, Duration = 1,
+                }, GameData.Resources.Spells.SpellIds.DannonsDelusions, 5);
+                rig.Service.ResolveCombatTargetClick(acting.PartySlot, partyMember: true, isPrimary: true);
+                Assert.IsTrue(acting.CanAct(strict: true), "the control: the cast waits for its tile");
+
+                var lines = rig.Service.CombatPanelContent(-1, false).Lines;
+                Assert.IsNotNull(lines, "the cast's panel stays up");
+                CollectionAssert.AreEqual(
+                    new[] { GameData.Resources.Combat.SpellTargetPanel.Prompt, "Dannon's Delusions" },
+                    System.Linq.Enumerable.Select(lines, l => l.Text));
+                Assert.IsFalse(menu.IsBlank, "the buttons stay");
+                Assert.AreEqual(acting.ClassId, rig.Service.ActingPortraitHeadId(), "and the face");
+
+                rig.Service.ResolveCombatGroundClick(rig.Service.CellCentreWorld(free.Item1, free.Item2).Value);
+                Assert.IsFalse(acting.CanAct(strict: true), "the placement spends the turn");
+            } finally {
+                UnityEngine.Object.DestroyImmediate(menuObject);
+            }
         }
 
         [Test]

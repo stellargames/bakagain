@@ -103,8 +103,43 @@ namespace BakAgain.UI.Combat {
         }
 
         private void OnPanelBuilt(
-            System.Collections.Generic.IReadOnlyList<BakAgain.UI.InputCore.NavWidget> _) =>
+            System.Collections.Generic.IReadOnlyList<BakAgain.UI.InputCore.NavWidget> _) {
             ApplyCapabilitySlot();
+            ApplyBlank();
+        }
+
+        /// <summary>True while every stone is bare and nothing answers — see <see cref="SetBlank"/>.</summary>
+        public bool IsBlank { get; private set; }
+
+        private static readonly int[] StoneIds = {
+            CombatCommands.ShootId, CombatCommands.CastId, CombatCommands.CapabilityLabelId,
+            CombatCommands.BackOrRetreatId, CombatCommands.DefendId, CombatCommands.InspectId,
+            CombatCommands.RestId, CombatCommands.AutoResolveId,
+        };
+
+        /// <summary>
+        /// Bare stones, answering nothing: the HUD while an item summon picks its tile.
+        /// </summary>
+        /// <remarks>
+        /// After the pack the arena puts up <c>cframe.scx</c>, whose stones are bare, and nothing draws
+        /// the buttons until case 22 redraws the HUD after the item's dispatch (COMBAT.C:1696-1702,
+        /// 2114); the tile pick runs the menu and ignores what it returns (CSPELL.C:680-708). The gate's
+        /// sprite is that bare stone, and a gated entry takes no click. Closing the menu instead showed
+        /// the travel buttons beneath it (TASK-947).
+        /// </remarks>
+        public void SetBlank(bool blank) {
+            IsBlank = blank;
+            ApplyBlank();
+        }
+
+        private void ApplyBlank() {
+            if (_ui == null || !_ui.IsBuilt) {
+                return;
+            }
+            foreach (int id in StoneIds) {
+                _ui.SetEntryGate(id, IsBlank);
+            }
+        }
 
         /// <summary>
         /// Shows exactly one of the three entries stacked on the capability cell.
@@ -155,6 +190,9 @@ namespace BakAgain.UI.Combat {
         }
 
         public void PrimaryAction(int actionId) {
+            if (IsBlank) {
+                return;   // the tile pick ignores the menu's result (CSPELL.C:680-708)
+            }
             CombatCommands.Command command = CombatCommands.For(actionId);
             if (command == CombatCommands.Command.None) {
                 _logger.LogDebug("Combat menu: id {Id} is not a combat command.", actionId);

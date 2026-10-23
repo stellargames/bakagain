@@ -1984,8 +1984,8 @@ using GameData.Resources.Scene;
         /// Whether a click on this cell would commit the pending spell — the same tests the ground
         /// and target clicks run (<see cref="SpellTargetIsValid"/>, <see cref="GroundCellRefused"/>,
         /// <see cref="GameData.Resources.Combat.CombatTargetSelection.ResolveOnField"/>). Touch uses
-        /// it to offer "Cast" only where casting would happen (TASK-823). A shot or an armed item
-        /// keeps its own checks and answers true here.
+        /// it to offer "Cast" only where casting would happen (TASK-823). An armed item asks
+        /// <see cref="CombatItemTakes"/>, as its click does (TASK-947); a shot answers true here.
         /// </summary>
         public bool MoveAcceptedAtCell(int column, int row) =>
             Combat?.Encounter?.Current is Combatant acting && Combat.CellMovable(acting, column, row);
@@ -1995,7 +1995,11 @@ using GameData.Resources.Scene;
                 return false;
             }
             Combatant acting = Combat?.Encounter?.Current;
-            if (_pendingCombatItem != null || _pendingSpell == null || acting == null) {
+            if (_pendingCombatItem != null) {
+                return acting != null && CombatItemTakes(Combat.Encounter, acting,
+                    CombatantUnderCursor(column, row), _pendingCombatItem.Value);
+            }
+            if (_pendingSpell == null || acting == null) {
                 return true;
             }
             (bool canShoot, bool _) = Combat.CapabilitiesFor(acting);
@@ -2904,6 +2908,11 @@ using GameData.Resources.Scene;
         /// and nothing in the original depends on it lingering.
         /// </remarks>
         public int ActingPortraitHeadId() {
+            // The item summons pick their tile over cframe.scx with nothing redrawn: an empty socket
+            // until case 22 redraws the HUD after the dispatch (COMBAT.C:1696-1702, 2114) -- TASK-947.
+            if (_pendingSummonsLeft > 0) {
+                return -1;
+            }
             Combatant acting = _autoResolving && _autoPanelActor != null
                 ? _autoPanelActor
                 : Combat?.Encounter?.Current;
@@ -2949,9 +2958,16 @@ using GameData.Resources.Scene;
                 return (null, null);
             }
             // The tile pick (cspell_select_target_tile, CSPELL.C:680-708) is a loop of its own that draws
-            // the tile marker and nothing else: no melee preview, no target ring (TASK-931).
-            if (_pendingSummonsLeft > 0 || _pendingDecoyOf != null) {
+            // the tile marker and nothing else: no melee preview, no target ring (TASK-931). So the panel is
+            // whatever was there before it: for an item summon cframe.scx's empty parchment (COMBAT.C:1696-
+            // 1702); for Dannon's decoy, picked inside the cast (CSPELL.C:752, 848-851), the turn loop's last
+            // "Choose a target" and the spell's name, drawn over a party member so with no rows
+            // (COMBAT.C:1105-1125). Both seen live (TASK-947).
+            if (_pendingSummonsLeft > 0) {
                 return (null, null);
+            }
+            if (_pendingDecoyOf != null) {
+                return (GameData.Resources.Combat.SpellTargetPanel.Lines(_pendingDecoySpellName, false, 0, 0), null);
             }
             Combatant target = TargetAt(fight, rosterSlot, partyMember);
 
@@ -3005,6 +3021,9 @@ using GameData.Resources.Scene;
                     == GameData.Resources.Combat.CombatCommandOutcome.PendingMode.TargetSelection
                 && _pendingCombatItem != null) {
                 AimAt(fight, acting, target);
+                // ...and redraws combat_arena_draw_tgt_info_hud(0, -1, 0, 0) on every pass (COMBAT.C:1751): no
+                // spell record, so "Choose a target" alone (COMBAT.C:1099-1121). Seen live (TASK-947).
+                return (GameData.Resources.Combat.SpellTargetPanel.Lines(null, false, 0, 0), null);
             }
 
             // The melee preview, which the original raises in `stateA == 0` — the state the loop
@@ -3230,6 +3249,7 @@ using GameData.Resources.Scene;
                     && castAt != null) {
                     _pendingDecoyOf = castAt;
                     _pendingDecoyCaster = acting;
+                    _pendingDecoySpellName = _pendingSpell.Name;
                     _pendingDecoyDuration = GameData.Resources.Spells.SpellEffectMagnitude.Calculate(
                         _pendingSpell, _pendingSpellId, _pendingSpellPower);
                 }
@@ -3630,8 +3650,8 @@ using GameData.Resources.Scene;
         /// <b>One read at one moment, not a subscription.</b> The original is
         /// <c>cmdId = cmbinv_inventory_screen_run(...); ... combat_arena_resume_dispatch(cmdId, ...)</c>
         /// — the screen runs to completion and its RETURN VALUE is dispatched. Using a combat item
-        /// does not close the screen, and a later ordinary use overwrites the value, so waiting for
-        /// the screen to close is the only moment at which the answer is final.
+        /// closes the screen by itself after its text (CMBINV.C:445, TASK-947); closing it otherwise
+        /// leaves the value at none, so the close is the moment the answer is final.
         ///
         /// <para>Waiting on the navigator's stack rather than on an event, because a screen has no
         /// "closed" signal and adding one would fire on being pushed OVER as well as on being
@@ -3756,9 +3776,11 @@ using GameData.Resources.Scene;
         /// task warns about getting backwards: read the other way, a Powder Bag flies across the
         /// arena.
         ///
-        /// <para><b>A miss disarms rather than wedging.</b> Clicking empty ground or your own line
-        /// ends target selection and costs the turn nothing — the alternative, returning without
-        /// disarming, is the wedge the cast path documents.</para>
+        /// <para><b>A click that takes nothing leaves the pick waiting.</b> combat_arena_pick_target_actor
+        /// ends only on a click with a target, a click whose tile row is past 140, or Escape
+        /// (COMBAT.C:1752-1756). Live with the Idol, a click on an empty cell and one on Rest left
+        /// "Choose a target" up and the user ready (TASK-947). The HUD's buttons still answer here,
+        /// which is the port's way out.</para>
         ///
         /// <para><b>Nothing is consumed here yet</b>, for the reason the dispatch records: the
         /// arena's tail consumes by kind only after an arm has done something, and only the cast
@@ -3766,15 +3788,10 @@ using GameData.Resources.Scene;
         /// </remarks>
         private void ResolveArmedCombatItem(Combatant acting, Combatant target) {
             GameData.Resources.Combat.CombatItemUse.Use arm = _pendingCombatItem.Value;
-            _pendingCombatItem = null;
-
-            bool aimable = CombatItemTakes(Combat.Encounter, acting, target, arm);
-
-            if (!aimable) {
-                _pendingSpell = null;
-                EndTargetSelection();
+            if (!CombatItemTakes(Combat.Encounter, acting, target, arm)) {
                 return;
             }
+            _pendingCombatItem = null;
 
             var acted = false;
             switch (arm.Effect) {
@@ -3929,6 +3946,9 @@ using GameData.Resources.Scene;
 
         private int _pendingDecoyDuration;
 
+        /// <summary>The cast's name, which the panel keeps showing through the decoy's tile pick.</summary>
+        private string _pendingDecoySpellName;
+
         /// <summary>
         /// The two <c>Effect.Summon</c> arms — <c>combat_arena_resume_dispatch</c> cases 0x0b and 0x09.
         /// </summary>
@@ -3951,6 +3971,9 @@ using GameData.Resources.Scene;
 
             _pendingSummonCreature = arm.SummonCreature;
             _pendingSummonsLeft = arm.SummonCount;
+            // The pick runs over cframe.scx's bare stones; case 22 redraws the buttons after it
+            // (COMBAT.C:1696-1702, 2114). Seen live with Eliaem's Heart (TASK-947).
+            _combatMenuAccessor?.Invoke()?.SetBlank(true);
             SpendCombatItem(acting, arm.ObjectId);
             _logger?.LogDebug($"Summon armed: {arm.SummonCount} x creature "
                 + $"{arm.SummonCreature}; waiting for a tile.");
@@ -4108,8 +4131,10 @@ using GameData.Resources.Scene;
             _pendingSummonsLeft--;
             _redrawArena?.Invoke();
             if (_pendingSummonsLeft == 0 && Combat.Encounter.Current is { } user) {
-                // The last placement ends the pick, and with it the user's turn (TASK-931).
+                // The last placement ends the pick, and with it the user's turn (TASK-931); the HUD
+                // comes back (TASK-947).
                 user.Flags &= ~GameData.Resources.Combat.CombatantFlags.Ready;
+                _combatMenuAccessor?.Invoke()?.SetBlank(false);
                 RefreshCombatHud();
             }
         }

@@ -47,6 +47,14 @@ namespace BakAgain.ResourceManagement.Loaders {
         /// </remarks>
         private readonly System.Func<int, bool> _isGated;
 
+        /// <summary>The face each element was last asked to wear, so a slower earlier load cannot land over it.</summary>
+        /// <remarks>
+        /// A build asks for the lit faces and, before those sprites arrive, a screen can gate the entry;
+        /// the gate's bare stone came back first and the lit face then painted over it (TASK-947, the
+        /// combat menu blanked straight after <c>RaiseCombatHudAgain</c> rebuilt it).
+        /// </remarks>
+        private readonly Dictionary<VisualElement, string> _wanted = new();
+
         public MenuIconLoader(IMenuStateProvider stateProvider, ILogger logger,
             System.Func<int, bool> isGated = null) {
             _stateProvider = stateProvider;
@@ -101,6 +109,7 @@ namespace BakAgain.ResourceManagement.Loaders {
             }
             _spriteHandles.Clear();
             _spriteCache.Clear();
+            _wanted.Clear();
         }
 
         // menu_type_3_4 (0x2b898): a Toggle draws IconBase when on, IconBase+2 when off, and the
@@ -144,11 +153,13 @@ namespace BakAgain.ResourceManagement.Loaders {
                 // Use button kept its hand on screens the original leaves bare — the icon is
                 // rewritten per open, not rebuilt.
                 element.style.backgroundImage = StyleKeyword.None;
+                _wanted.Remove(element);
 
                 return;
             }
 
             string key = IconKeyForCombined(combinedIconIndex);
+            _wanted[element] = key;
             if (_spriteCache.TryGetValue(key, out Sprite cached)) {
                 ApplyIconSprite(element, cached);
                 return;
@@ -162,7 +173,7 @@ namespace BakAgain.ResourceManagement.Loaders {
                 }
                 _spriteCache[key] = op.Result;
                 // The widget may have been re-themed/destroyed while loading.
-                if (element.panel != null) {
+                if (element.panel != null && _wanted.TryGetValue(element, out string latest) && latest == key) {
                     ApplyIconSprite(element, op.Result);
                 }
             };
