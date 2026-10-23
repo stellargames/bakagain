@@ -17,10 +17,17 @@ namespace BakAgain.Tests {
     public class FaithfulOptionsForTheRun {
         private EnhancedPrefsStash _stash;
         private string _language;
+        private (string Game, bool ModsOn, string Mods) _folders;
+
+        // The folder settings are the developer's real, persisted ones. A test that changes one puts
+        // it back itself; this catches one that did not (TASK-949), says so, and restores it.
+        private static (string Game, bool ModsOn, string Mods) Folders =>
+            (BakResourceSettings.GamePath, BakResourceSettings.OverrideEnabled, BakResourceSettings.OverridePath);
 
         [OneTimeSetUp]
         public void Clear() {
             TestSupport.GameViewResolutionScope.OpenOnceWithoutGraphics();
+            _folders = Folders;
             _language = BakResourceSettings.Language;
             BakResourceSettings.Language = "en";
             LanguagePacks.Reload();
@@ -33,6 +40,10 @@ namespace BakAgain.Tests {
 
         [OneTimeTearDown]
         public void Restore() {
+            if (Folders != _folders) {
+                UnityEngine.Debug.LogError($"A test left the folder settings changed: {Folders}, was {_folders}. Restored.");
+                (BakResourceSettings.GamePath, BakResourceSettings.OverrideEnabled, BakResourceSettings.OverridePath) = _folders;
+            }
             BakResourceSettings.Language = _language;
             LanguagePacks.Reload();
             _stash?.Restore();
