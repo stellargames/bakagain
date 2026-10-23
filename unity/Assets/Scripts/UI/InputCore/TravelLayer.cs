@@ -10,7 +10,8 @@ namespace BakAgain.UI.InputCore {
     // input target" (TravelLayerHost.IsInputActive). Movement itself is a separate ClassicMovementDriver,
     // not handled here. Design: docs/superpowers/specs/2026-07-02-ingame-inputcore-cutover-design.md.
     public sealed class TravelLayer : IInputLayer {
-        private readonly IReadOnlyList<NavWidget> _widgets;
+        private IReadOnlyList<NavWidget> _widgets;
+        private bool _isActive = true;
         private readonly Action _onCancel;  // Esc -> open the game/options menu
 
         // A letter the HUD has a button for. REQ_MAIN's action ids ARE DOS scancodes, so the
@@ -53,12 +54,22 @@ namespace BakAgain.UI.InputCore {
             }
         }
 
+        /// <summary>
+        /// Swap in a rebuilt widget list in place; it arrives with the layer's current activity, so a
+        /// HUD rebuilt under a modal stays inert (TASK-915).
+        /// </summary>
+        public void SetWidgets(IReadOnlyList<NavWidget> widgets) {
+            _widgets = widgets ?? Array.Empty<NavWidget>();
+            OnActiveChanged(_isActive);
+        }
+
         public void OnPushed() { }
         public void OnPopped() { }
 
         // Only widget pickability — the movement gate is TravelLayerHost.IsInputActive. An Exclusive
         // layer above (a true modal over the HUD) makes the travel buttons inert; restored on close.
         public void OnActiveChanged(bool isActive) {
+            _isActive = isActive;
             foreach (NavWidget w in _widgets) {
                 if (w.Element == null) {
                     continue;

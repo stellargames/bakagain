@@ -51,7 +51,18 @@ namespace BakAgain.UI.InputCore {
             }
         }
 
-        private void OnBuilt(IReadOnlyList<NavWidget> widgets) => PushLayer(widgets);
+        // *** A REBUILD IS NOT AN OPEN. *** SetEntryState raises Built too, and InGameScreen calls it
+        // from Update whenever follow-road becomes usable or not. Re-pushing landed the travel layer
+        // ABOVE a dialog that was up: [InGameScreen][dialog-choice] became [dialog-choice][InGameScreen]
+        // under LaMut's prompt, with the HUD's buttons pickable again (TASK-915; MenuLayerHost had the
+        // same bug, TASK-563). A genuine rebuild raises Cleared first, which pops, so it still pushes.
+        private void OnBuilt(IReadOnlyList<NavWidget> widgets) {
+            if (_layer != null) {
+                _layer.SetWidgets(widgets);
+                return;
+            }
+            PushLayer(widgets);
+        }
 
         private void OnCleared() => PopLayer();
 
