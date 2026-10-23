@@ -84,6 +84,16 @@ namespace BakAgain.ResourceManagement.Loaders {
                 VisibleRows = Mathf.Max(1, _source.GetVisibleRows(actionId)),
             };
             BuildScrollbar(widget, actionId, view);
+            // The wheel is a port addition (a DOS mouse has none): one notch moves the current row
+            // one, exactly as an arrow does, over the list or its scrollbar.
+            widget.RegisterCallback<WheelEvent>(evt => {
+                if (evt.delta.y == 0f) {
+                    return;
+                }
+                _activePicker = actionId;
+                MoveSelection(actionId, evt.delta.y > 0f ? 1 : -1);
+                evt.StopPropagation();
+            });
 
             parent.Add(widget);
             _pickers[actionId] = view;
@@ -133,6 +143,7 @@ namespace BakAgain.ResourceManagement.Loaders {
             _pickers.Clear();
             _scroll.Clear();
             _activePicker = -1;
+            _lastClickIndex = -1; // a click before the close never pairs with one after the reopen
         }
 
         // The scrollbar column: up-arrow button, a flex-grow track holding the
@@ -163,6 +174,54 @@ namespace BakAgain.ResourceManagement.Loaders {
             view.Thumb = thumb;
             // Position the thumb once the track has a resolved height (and on resize).
             track.RegisterCallback<GeometryChangedEvent>(_ => PositionThumb(view));
+
+            // A press held on the track (the thumb included) sets the current row from the
+            // pointer's place on it, on the press and on every move until release — the original's
+            // track region (widget_hit_test region 3, canassa UI/WIDGET.C:120-131) feeding
+            // widget_scrollbar_update (WIDGET.C:220) every poll the button is held (MENUPAGE.C:331).
+            track.RegisterCallback<PointerDownEvent>(evt => {
+                if (evt.button != 0) {
+                    return;
+                }
+                _activePicker = actionId;
+                track.CapturePointer(evt.pointerId);
+                SelectAtTrack(actionId, view, evt.position);
+                evt.StopPropagation();
+            });
+            track.RegisterCallback<PointerMoveEvent>(evt => {
+                if (track.HasPointerCapture(evt.pointerId)) {
+                    SelectAtTrack(actionId, view, evt.position);
+                }
+            });
+            track.RegisterCallback<PointerUpEvent>(evt => {
+                if (track.HasPointerCapture(evt.pointerId)) {
+                    track.ReleasePointer(evt.pointerId);
+                }
+            });
+        }
+
+        // The row whose thumb position is nearest the pointer (the thumb's centre on it), clamped to
+        // the list — widget_scrollbar_update's (offset + step/2) / step — then centred in the window
+        // as listwidget_set_selection does (canassa UI/LISTWDG.C:207-227).
+        private void SelectAtTrack(int actionId, FilePickerView view, Vector2 pointer) {
+            int count = _source.GetItemCount(actionId);
+            if (count == 0) {
+                return;
+            }
+            float thumb = view.Thumb.resolvedStyle.height;
+            float travel = view.Track.contentRect.height - thumb;
+            float y = view.Track.WorldToLocal(pointer).y - view.Track.resolvedStyle.borderTopWidth - thumb / 2f;
+            int index = travel > 0f ? Mathf.FloorToInt(Mathf.Clamp01(y / travel) * (count - 1) + 0.5f) : 0;
+            if (index == _source.GetSelectedIndex(actionId)) {
+                return;
+            }
+            _source.OnItemSelected(actionId, index);
+            int visible = Mathf.Max(1, view.VisibleRows);
+            int half = visible / 2;
+            _scroll[actionId] = count <= visible || index <= half ? 0
+                : count - index <= half ? count - visible
+                : index - half;
+            Populate(actionId);
         }
 
         private VisualElement MakeArrowButton(bool down, Action onClick) {
