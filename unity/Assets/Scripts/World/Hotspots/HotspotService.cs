@@ -3245,14 +3245,16 @@ using GameData.Resources.Scene;
                     outcome == GameData.Resources.Combat.CombatTargetSelection.Resolution.CastAtGround
                         ? null
                         : target;
-                Combat.ResolveCast(acting, castAt, _pendingSpell, _pendingSpellId,
-                    _pendingSpellPower, _random);
                 // *** DANNON'S DELUSIONS IS NOT DONE WHEN IT RESOLVES. *** Its kind-17 arm
                 // (cspell_invoke_effect, CSPELL.C:848) asks for a TILE and puts a decoy of the target
                 // there, lasting the cast's magnitude — computed before the spell's own post-animation
-                // hook zeroes it (CSPELL.C:1495). The turn is spent on the placement click.
-                if (_pendingSpellId == GameData.Resources.Spells.SpellIds.DannonsDelusions
-                    && castAt != null) {
+                // hook zeroes it (CSPELL.C:1495). The turn is spent on the placement click, and the
+                // caster pays there too: the bill is the resolve's tail (CSPELL.C:1518-1538).
+                bool decoy = _pendingSpellId == GameData.Resources.Spells.SpellIds.DannonsDelusions
+                    && castAt != null;
+                Combat.ResolveCast(acting, castAt, _pendingSpell, _pendingSpellId,
+                    _pendingSpellPower, _random, billOnPlacement: decoy);
+                if (decoy) {
                     _pendingDecoyOf = castAt;
                     _pendingDecoyCaster = acting;
                     _pendingDecoySpellName = _pendingSpell.Name;
@@ -4121,6 +4123,7 @@ using GameData.Resources.Scene;
                 }
                 Combat.SummonDecoy(_pendingDecoyOf, _pendingDecoyDuration,
                     cell.Value.Column, cell.Value.Row);
+                Combat.PayOwedCastBill();
                 Combatant decoyCaster = _pendingDecoyCaster;
                 _pendingDecoyOf = null;
                 _pendingDecoyCaster = null;

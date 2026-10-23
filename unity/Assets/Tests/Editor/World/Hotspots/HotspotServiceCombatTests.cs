@@ -658,8 +658,13 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
                     Name = "Dannon's Delusions", TargetingType = 3,
                     Calculation = GameData.SpellCalculation.CostTimesDamage, Damage = 1, Duration = 1,
                 }, GameData.Resources.Spells.SpellIds.DannonsDelusions, 5);
+                int stamina = acting.Stamina;
+                Assert.GreaterOrEqual(stamina, 5, "the fixture's caster can pay from stamina");
                 rig.Service.ResolveCombatTargetClick(acting.PartySlot, partyMember: true, isPrimary: true);
                 Assert.IsTrue(acting.CanAct(strict: true), "the control: the cast waits for its tile");
+                // The bill is the resolve's tail, after cspell_invoke_effect has placed the decoy
+                // (CSPELL.C:1459, 1518-1538): live, Owyn read 40 through the pick and 35 after it.
+                Assert.AreEqual(stamina, acting.Stamina, "nothing is billed during the tile pick");
 
                 var lines = rig.Service.CombatPanelContent(-1, false).Lines;
                 Assert.IsNotNull(lines, "the cast's panel stays up");
@@ -678,9 +683,26 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
 
                 rig.Service.ResolveCombatGroundClick(rig.Service.CellCentreWorld(free.Item1, free.Item2).Value);
                 Assert.IsFalse(acting.CanAct(strict: true), "the placement spends the turn");
+                Assert.AreEqual(stamina - 5, acting.Stamina, "and bills the cast");
             } finally {
                 UnityEngine.Object.DestroyImmediate(menuObject);
             }
+        }
+
+        [Test]
+        public void ASpellWithNoTileToPickIsBilledByTheClickThatCastsIt() {
+            // The control for the decoy's late bill: every cast is billed at cspell_resolve_cast's tail
+            // (CSPELL.C:1518-1538), which for a spell with no tile pick inside is the click that cast it.
+            (Rig rig, CombatEncounter fight, Combatant acting) = PartyTurn();
+            rig.Service.ArmSpellForTest(new GameData.Resources.Spells.Spell("S") {
+                Name = "Skin of the Dragon", TargetingType = 3,
+                Calculation = GameData.SpellCalculation.NonCostRelated,
+            }, GameData.Resources.Spells.SpellIds.SkinOfTheDragon, 5);
+            int stamina = acting.Stamina;
+            Assert.GreaterOrEqual(stamina, 5, "the fixture's caster can pay from stamina");
+            rig.Service.ResolveCombatTargetClick(acting.PartySlot, partyMember: true, isPrimary: true);
+            Assert.IsFalse(acting.CanAct(strict: true), "the click casts and spends the turn");
+            Assert.AreEqual(stamina - 5, acting.Stamina, "and bills the cast");
         }
 
         [Test]

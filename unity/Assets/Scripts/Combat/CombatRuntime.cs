@@ -2228,9 +2228,16 @@ namespace BakAgain.Combat {
         /// original reads <c>g_cursor_tile_x/y</c> at the moment the handler runs; we carry it in
         /// because our resolve is not on the same call stack as the click.
         /// </param>
+        /// <param name="billOnPlacement">
+        /// The cast still owes a tile (Dannon's Delusions): hold the caster's bill until
+        /// <see cref="PayOwedCastBill"/>. The original bills at the resolve's tail (CSPELL.C:1518-1538),
+        /// after cspell_invoke_effect (:1459) has run the decoy's tile pick (:752, 848-851), and that pick
+        /// has no way out (:680-708) — so the bill always comes, after the placement.
+        /// </param>
         public bool ResolveCast(Combatant caster, Combatant target,
             GameData.Resources.Spells.Spell spell, int spellId, int power,
-            System.Func<int, int> rnd = null, (int Column, int Row)? groundCell = null) {
+            System.Func<int, int> rnd = null, (int Column, int Row)? groundCell = null,
+            bool billOnPlacement = false) {
             // *** A NEGATIVE POWER IS A REAL CALL, NOT A BAD ONE. *** The original's prologue
             // records the sign in a flag and negates the cost, and that flag then gates three
             // separate things — SpellHitResolution.CanMiss (a negated cast never rolls),
@@ -2306,7 +2313,9 @@ namespace BakAgain.Combat {
                     power,
                     SpellCostModifiers.Effective(power, SurchargeNextCast, targetIsWeak: false),
                     spell.TargetingType);
-                if (!handlerEndsTheCast) {
+                if (billOnPlacement) {
+                    _owedCastBill = (caster, billed, roll);
+                } else if (!handlerEndsTheCast) {
                     ChargeCasterForCast(caster, casterStats, billed, roll);
                 }
                 // *** ONLY THE WIND-UP KINDS TEACH, AND NEVER A NEGATED CAST. *** The award pair sits
@@ -2931,6 +2940,16 @@ namespace BakAgain.Combat {
             attacker.Health = paid.Health;
             if (attacker.IsPartyMember) {
                 WriteBack(attacker);
+            }
+        }
+
+        private (Combatant Caster, int Cost, System.Func<int, int> Roll)? _owedCastBill;
+
+        /// <summary>Bills the cast <see cref="ResolveCast"/> held back with <c>billOnPlacement</c>.</summary>
+        public void PayOwedCastBill() {
+            if (_owedCastBill is { } owed) {
+                _owedCastBill = null;
+                ChargeCasterForCast(owed.Caster, null, owed.Cost, owed.Roll);
             }
         }
 
