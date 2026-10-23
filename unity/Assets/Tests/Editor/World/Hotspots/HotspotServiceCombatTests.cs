@@ -88,7 +88,8 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
         /// this fixture demonstrated exactly that: the escape test failed one gate run and passed
         /// the next with no file change in between.
         /// </param>
-        private static Rig Build(int roll = 99, GameData.Resources.Config.StartData start = null) {
+        private static Rig Build(int roll = 99, GameData.Resources.Config.StartData start = null,
+            TrapData traps = null) {
             var session = new GameSession();
             session.SetActorStatsForTest(0, StatBlock());
             session.SetActiveParty(1, new byte[] { 0 });
@@ -104,7 +105,7 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
                 byChunk: new Dictionary<(int x, int y), List<TileEventTrigger>> {
                     [(0, 0)] = new List<TileEventTrigger> { CombTrigger() },
                 },
-                comb: CombTable(EncounterNumber), start: start);
+                comb: CombTable(EncounterNumber), start: start, traps: traps);
             return rig;
         }
 
@@ -292,6 +293,212 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
             f7.Enemies[0].Flags = CombatantFlags.Dead;
             r7.Service.CombatPanelContent(0, partyMember: false);
             Assert.AreEqual(4, AimEdges(r7), "the control: it takes a dead enemy");
+        }
+
+        // ---------------------------------------------------------------- TASK-931: the other markers
+
+        /// <summary>A party member's turn in the one-member, one-enemy fixture, with nothing armed.</summary>
+        private static (Rig Rig, CombatEncounter Fight, Combatant Acting) PartyTurn(TrapData traps = null) {
+            Rig rig = Build(start: new GameData.Resources.Config.StartData("START.DAT") { CombatGridCellSize = 300 },
+                traps: traps);
+            Assert.IsTrue(rig.Service.StartCombat(CombTrigger()));
+            CombatEncounter fight = rig.Service.Combat.Encounter;
+            for (int i = 0; i < 4 && (fight.Current == null || !fight.Current.IsPartyMember); i++) {
+                fight.EndTurn();
+                fight.PickNext();
+            }
+            Assert.IsTrue(fight.Current?.IsPartyMember ?? false, "the fixture needs a party member's turn");
+            return (rig, fight, fight.Current);
+        }
+
+        private static int Edges(Rig rig, BakAgain.World.Encounters.ArenaOverlayKind kind) =>
+            System.Linq.Enumerable.Count(rig.Service.ActingCellSegments(), s => s.Kind == kind);
+
+        /// <summary>A cell nobody stands on that the grid does not block and the acting member can walk to.</summary>
+        private static (int, int) FreeMovableCell(Rig rig, Combatant acting) {
+            for (int y = 0; y < CombatGrid.Height; y++) {
+                for (int x = 0; x < CombatGrid.Width; x++) {
+                    if (!rig.Service.Combat.Grid.IsBlocked(x, y) && rig.Service.Combat.CombatantAtCell(x, y) == null
+                        && rig.Service.Combat.CellMovable(acting, x, y)) {
+                        return (x, y);
+                    }
+                }
+            }
+            Assert.Fail("the fixture has no free movable cell");
+            return (-1, -1);
+        }
+
+        [Test]
+        public void InspectArmed_TheCursorCellIsMarkedNearWhite_WhateverStandsOnIt() {
+            // Inspect is stateA 3 (COMBAT.C:2062-2067); combat_arena_disp_spell_action never refuses it
+            // (its invalid tests skip 3, COMBAT.C:2174-2175, 2240), and only an off-grid cursor (move cost
+            // 1000) turns it to -1 (COMBAT.C:2296-2299). So the turn loop draws face 3, pen 175 near-white,
+            // on every cell under the cursor (COMBAT.C:2534), and no move marker.
+            (Rig rig, CombatEncounter fight, Combatant acting) = PartyTurn();
+            Combatant enemy = fight.Enemies[0];
+            (int, int) free = FreeMovableCell(rig, acting);
+
+            rig.Service.CursorCell = free;
+            Assert.AreEqual(4, Edges(rig, BakAgain.World.Encounters.ArenaOverlayKind.MoveCell),
+                "the control: unarmed, the free cell takes the move marker");
+            Assert.AreEqual(0, Edges(rig, BakAgain.World.Encounters.ArenaOverlayKind.PickCell));
+
+            rig.Service.OnCombatCommandForTest(CombatCommands.Command.Inspect, CombatCommands.InspectId);
+            Assert.AreEqual(CombatCommandOutcome.PendingMode.InspectTarget, rig.Service.PendingModeForTest);
+            foreach ((int, int) cell in new[] { free, (enemy.X, enemy.Y) }) {
+                rig.Service.CursorCell = cell;
+                rig.Service.CombatPanelContent(-1, partyMember: false);
+                Assert.AreEqual(4, Edges(rig, BakAgain.World.Encounters.ArenaOverlayKind.PickCell),
+                    $"Inspect marks {cell} near-white");
+                Assert.AreEqual(0, Edges(rig, BakAgain.World.Encounters.ArenaOverlayKind.MoveCell), "and no move marker");
+                Assert.AreEqual(0, Edges(rig, BakAgain.World.Encounters.ArenaOverlayKind.AimCell));
+            }
+            // On the acting member's own cell the actors' pass draws face 2 over it (CACTOR.C:1364-1366):
+            // live in the original, only the green square shows there.
+            rig.Service.CursorCell = (acting.X, acting.Y);
+            Assert.AreEqual(0, Edges(rig, BakAgain.World.Encounters.ArenaOverlayKind.PickCell), "the green covers it");
+            Assert.AreEqual(4, Edges(rig, BakAgain.World.Encounters.ArenaOverlayKind.ActingCell));
+            rig.Service.CursorCell = null;
+            Assert.AreEqual(0, Edges(rig, BakAgain.World.Encounters.ArenaOverlayKind.PickCell), "off the grid, none");
+        }
+
+        [Test]
+        public void ASummonItemsTilePick_MarksAnUnblockedCellNearWhite_AndNotAnOccupiedOne() {
+            // cspell_select_target_tile (CSPELL.C:680-688), raised by the item summons (COMBAT.C:1815-1821):
+            // face 3 on an in-range cell combatgrid_tile_is_blocked passes, -1 elsewhere.
+            (Rig rig, CombatEncounter fight, Combatant acting) = PartyTurn();
+            Combatant enemy = fight.Enemies[0];
+            (int, int) free = FreeMovableCell(rig, acting);
+            rig.Service.UseCombatItemForTest(0x09);
+
+            rig.Service.CursorCell = free;
+            Assert.AreEqual(4, Edges(rig, BakAgain.World.Encounters.ArenaOverlayKind.PickCell), "the free cell is marked");
+            Assert.AreEqual(0, Edges(rig, BakAgain.World.Encounters.ArenaOverlayKind.MoveCell), "and is no move");
+            rig.Service.CursorCell = (enemy.X, enemy.Y);
+            Assert.AreEqual(0, Edges(rig, BakAgain.World.Encounters.ArenaOverlayKind.PickCell), "the enemy's cell is blocked");
+        }
+
+        [Test]
+        public void AnArmedItemOutlinesTheEnemyItWouldTakeInCyan_AndAnAdjacentOnlyItemOnlyWhenOrthogonal() {
+            // combat_arena_pick_target_actor (COMBAT.C:1714-1759): face 4 under the cursor while it is on an
+            // encounter actor (combat_actor_terr_under_cur: the living only), orthogonally adjacent for the
+            // two arms that ask (0x32, 0x33: requires_action_pred 1); -1 otherwise.
+            (Rig rig, CombatEncounter fight, Combatant acting) = PartyTurn();
+            Combatant enemy = fight.Enemies[0];
+            acting.X = 2; acting.Y = 2;
+            enemy.X = 5; enemy.Y = 2;
+            rig.Service.UseCombatItemForTest(0x0c);
+            Assert.AreEqual(CombatCommandOutcome.PendingMode.TargetSelection, rig.Service.PendingModeForTest);
+
+            rig.Service.CombatPanelContent(0, partyMember: false);
+            Assert.AreEqual(4, Edges(rig, BakAgain.World.Encounters.ArenaOverlayKind.AimCell), "any enemy, for 0x0c");
+            rig.Service.CombatPanelContent(acting.PartySlot, partyMember: true);
+            Assert.AreEqual(0, Edges(rig, BakAgain.World.Encounters.ArenaOverlayKind.AimCell), "not the user");
+
+            (Rig rig2, CombatEncounter fight2, Combatant acting2) = PartyTurn();
+            Combatant enemy2 = fight2.Enemies[0];
+            acting2.X = 2; acting2.Y = 2;
+            enemy2.X = 5; enemy2.Y = 2;
+            rig2.Service.UseCombatItemForTest(0x32);
+            rig2.Service.CombatPanelContent(0, partyMember: false);
+            Assert.AreEqual(0, Edges(rig2, BakAgain.World.Encounters.ArenaOverlayKind.AimCell), "0x32: too far");
+            enemy2.X = 3; enemy2.Y = 3;
+            rig2.Service.CombatPanelContent(0, partyMember: false);
+            Assert.AreEqual(0, Edges(rig2, BakAgain.World.Encounters.ArenaOverlayKind.AimCell), "0x32: diagonal is not adjacent");
+            enemy2.X = 3; enemy2.Y = 2;
+            rig2.Service.CombatPanelContent(0, partyMember: false);
+            Assert.AreEqual(4, Edges(rig2, BakAgain.World.Encounters.ArenaOverlayKind.AimCell), "0x32: orthogonal");
+        }
+
+        [Test]
+        public void ASummonItemHoldsTheTurnUntilItsTileIsPicked_AndNothingElseAnswersMeanwhile() {
+            // The item summons pick their tile inside the pack's dispatch (cspell_summon_monster(id, 1) ->
+            // cspell_select_target_tile, COMBAT.C:1815-1821, CSPELL.C:680-708), a loop that draws only the
+            // tile marker and takes only a tile; case 22 clears CAF_READY after it (COMBAT.C:2115-2128).
+            // Live with Eliaem's Heart: Owyn's green square stayed up, E#0's cell had no marker, and the
+            // placement ended Owyn's turn. The port spent the turn at the pack's close, so the next
+            // member's melee preview drew its yellow ring during the pick.
+            (Rig rig, CombatEncounter fight, Combatant acting) = PartyTurn();
+            Combatant enemy = fight.Enemies[0];
+            acting.X = 3; acting.Y = 3;
+            enemy.X = 4; enemy.Y = 4;
+            rig.Service.CombatPanelContent(0, partyMember: false);
+            Assert.AreEqual(4, Edges(rig, BakAgain.World.Encounters.ArenaOverlayKind.TargetCell),
+                "the control: unarmed, the adjacent enemy takes the melee ring");
+            (int, int) free = FreeMovableCell(rig, acting);
+            rig.Service.Combat.MonsterTemplates = new Dictionary<int, GameData.Resources.Monster.MonsterStats> {
+                [0x38] = new GameData.Resources.Monster.MonsterStats("MONST56") {
+                    CreatureId = 0x38,
+                    Health = new GameData.Resources.Monster.StatRange { Min = 40, Max = 40 },
+                    Stamina = new GameData.Resources.Monster.StatRange { Min = 20, Max = 20 },
+                    Speed = new GameData.Resources.Monster.StatRange { Min = 4, Max = 4 },
+                },
+            };
+
+            rig.Service.UseCombatItemForTest(0x09);
+
+            Assert.AreSame(acting, fight.Current, "the pick happens on the user's turn");
+            Assert.IsTrue(acting.CanAct(strict: true), "which the closing pack did not spend");
+            rig.Service.CombatPanelContent(0, partyMember: false);
+            Assert.AreEqual(0, Edges(rig, BakAgain.World.Encounters.ArenaOverlayKind.TargetCell), "no melee ring meanwhile");
+            int health = enemy.Health;
+            rig.Service.ResolveCombatTargetClick(0, partyMember: false, isPrimary: true);
+            Assert.AreEqual(health, enemy.Health, "a click on the enemy is no attack meanwhile");
+            Assert.IsTrue(acting.CanAct(strict: true));
+
+            rig.Service.ResolveCombatGroundClick(rig.Service.CellCentreWorld(free.Item1, free.Item2).Value);
+            Assert.IsNotNull(rig.Service.Combat.CombatantAtCell(free.Item1, free.Item2), "the tile took the creature");
+            Assert.IsFalse(acting.CanAct(strict: true), "and the placement spent the turn");
+        }
+
+        [Test]
+        public void AnArmedItemThatActsOnItsTargetSpendsTheTurn() {
+            // Case 22 of combat_arena_show_message_by_id: after combat_arena_suspend_char_screen returns
+            // (its resume_dispatch ran the item's pick and effect, COMBAT.C:1762-1849), a use that armed no
+            // spell clears CAF_READY (COMBAT.C:2115-2128). Live: the Idol of Lassur on E#0 left Owyn's flags
+            // 0x00 and the turn went to Locklear; the port kept Owyn ready.
+            (Rig rig, CombatEncounter fight, Combatant acting) = PartyTurn();
+            Combatant enemy = fight.Enemies[0];
+            rig.Service.UseCombatItemForTest(0x0c);
+            Assert.IsTrue(acting.CanAct(strict: true), "the control: arming spends nothing");
+
+            rig.Service.ResolveCombatTargetClick(0, partyMember: false, isPrimary: true);
+
+            Assert.IsTrue(enemy.IsDead, "the Idol took the enemy");
+            Assert.IsFalse(acting.CanAct(strict: true), "and the turn is spent");
+        }
+
+        [Test]
+        public void BlackNimbusMarksACrystalInCyan_AndAnEmptyCellIsNeitherMarkedNorCastAt() {
+            // Type 8 takes a cell whose grid combatant is a crystal, paged_id 7 or 8 (COMBAT.C:2209-2214);
+            // anywhere else is invalid, stateA -1 and move cost 1000 (COMBAT.C:2246-2256), so no marker and
+            // the click is not acted on (COMBAT.C:2411). Over a crystal the click casts with no actor
+            // (COMBAT.C:2412-2413).
+            var traps = new TrapData("TRAPS.DAT");
+            var record = new TrapEncounter { Index = (int)EncounterNumber };
+            record.Elements.Add(new TrapElement { Type = (int)TrapElementType.RedCrystal, GridX = 1, GridY = 8 });
+            traps.Encounters.Add(record);
+            (Rig rig, CombatEncounter fight, Combatant acting) = PartyTurn(traps);
+            Assert.IsNotNull(rig.Service.Combat.Puzzle?.ElementAt(1, 8), "the fixture's crystal is on the field");
+            (int, int) free = FreeMovableCell(rig, acting);
+            rig.Service.ArmSpellForTest(new GameData.Resources.Spells.Spell("S") {
+                Name = "Black Nimbus", TargetingType = 8,
+                Calculation = GameData.SpellCalculation.NonCostRelated,
+            }, GameData.Resources.Spells.SpellIds.BlackNimbus, 5);
+
+            rig.Service.CursorCell = (1, 8);
+            Assert.AreEqual(4, Edges(rig, BakAgain.World.Encounters.ArenaOverlayKind.AimCell), "the crystal is marked cyan");
+            Assert.IsTrue(rig.Service.CastAcceptedAtCell(1, 8));
+            rig.Service.CursorCell = free;
+            Assert.AreEqual(0, Edges(rig, BakAgain.World.Encounters.ArenaOverlayKind.AimCell), "an empty cell is not");
+            Assert.IsFalse(rig.Service.CastAcceptedAtCell(free.Item1, free.Item2), "touch offers no Cast there");
+
+            rig.Service.ResolveCombatGroundClick(rig.Service.CellCentreWorld(free.Item1, free.Item2).Value);
+            Assert.IsTrue(acting.CanAct(strict: true), "the click on the empty cell casts nothing");
+            Assert.AreEqual(CombatCommandOutcome.PendingMode.TargetSelection, rig.Service.PendingModeForTest,
+                "and the spell stays armed");
+            rig.Service.ResolveCombatGroundClick(rig.Service.CellCentreWorld(1, 8).Value);
+            Assert.IsFalse(acting.CanAct(strict: true), "the control: the click on the crystal casts");
         }
 
         /// <summary>A party member's turn, the one enemy dead on (4,3) with a body on the field.</summary>

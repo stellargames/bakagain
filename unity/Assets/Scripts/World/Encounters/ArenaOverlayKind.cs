@@ -50,5 +50,14 @@ namespace BakAgain.World.Encounters {
         /// and turned to the empty marker (-1) when it does not (COMBAT.C:2246-2256) — TASK-929.
         /// </summary>
         AimCell = 6,
+
+        /// <summary>
+        /// The cursor while a cell is being picked rather than aimed at -- the original's COMBAT.TBL
+        /// marker kind 3 (pen 175, near-white): Inspect armed, on every cell of the grid (stateA 3,
+        /// COMBAT.C:2062-2067, never refused by combat_arena_disp_spell_action), and the summon /
+        /// decoy tile pick on an in-range unblocked cell (cspell_select_target_tile, CSPELL.C:680-688).
+        /// TASK-931.
+        /// </summary>
+        PickCell = 7,
     }
 }

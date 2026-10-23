@@ -434,7 +434,8 @@ using GameData.Resources.Scene;
             DefFamilyFile<DefTownEntry> town = null,
             DefFamilyFile<DefZoneEntry> zoneDef = null,
             DefFamilyFile<DefBlocEntry> bloc = null,
-            DefFamilyFile<DefDialEntry> dial = null) {
+            DefFamilyFile<DefDialEntry> dial = null,
+            GameData.Resources.Combat.TrapData traps = null) {
             _zone = zoneNumber;
             _byChunk.Clear();
             if (byChunk != null) {
@@ -454,6 +455,7 @@ using GameData.Resources.Scene;
             _zoneDef = zoneDef;
             _bloc = bloc;
             _dial = dial;
+            _traps = traps;
             _lastChunk = null;
         }
 
@@ -512,6 +514,14 @@ using GameData.Resources.Scene;
         /// </remarks>
         internal void ArmSpellForTest(GameData.Resources.Spells.Spell record, int spellId, int power) =>
             ArmCombatSpell(record, spellId, power);
+
+        /// <summary>Uses an item for the acting member, as closing the combat pack on it does.</summary>
+        /// <remarks>A seam because the production caller reads the claim off a closed inventory screen.</remarks>
+        internal void UseCombatItemForTest(int objectId) {
+            Combatant acting = Combat.Encounter.Current;
+            ResolveCombatItem(acting, objectId);
+            SpendTurnAfterSuspendScreen(acting);   // what the pack's close does next (RunCombatInventoryAsync)
+        }
 
         /// <summary>
         /// The <c>Func&lt;x, y, bool&gt;</c> <see cref="PartyMovement"/> calls after a successful
@@ -1688,22 +1698,40 @@ using GameData.Resources.Scene;
             // *** AN ARMED SHOT OR SPELL MARKS ITS TARGET IN CYAN, AND NOTHING ELSE. *** stateA 4 is face 4,
             // pen 208, drawn only over a cell combat_arena_disp_spell_action accepts; a refused cell
             // is stateA -1, no square, and the move marker never shows while armed (TASK-929).
-            bool armed = _pendingCombatMode
-                    == GameData.Resources.Combat.CombatCommandOutcome.PendingMode.TargetSelection
-                || _pendingCombatMode
-                    == GameData.Resources.Combat.CombatCommandOutcome.PendingMode.InspectTarget;
+            bool inspecting = _pendingCombatMode
+                == GameData.Resources.Combat.CombatCommandOutcome.PendingMode.InspectTarget;
+            // The summon and decoy tile pick (cspell_select_target_tile) is its own loop: face 3 or nothing.
+            bool pickingTile = _pendingSummonsLeft > 0 || _pendingDecoyOf != null;
+            bool armed = inspecting || pickingTile || _pendingCombatMode
+                == GameData.Resources.Combat.CombatCommandOutcome.PendingMode.TargetSelection;
             (int Column, int Row)? aim = _aimHighlightCell;
-            // A ground-aimed spell (types 5, 6) is answered by the empty cell itself, not by a combatant.
-            if (aim == null && _pendingSpell != null && CursorCell is (int gc, int gr)
-                && GameData.Resources.Spells.SpellTargetingRules.AimOf(_pendingSpell.TargetingType)
-                    == GameData.Resources.Spells.SpellTargetingRules.Aim.ClearGround
-                && Combat.CombatantAtCell(gc, gr) == null && !GroundCellRefused(gc, gr)) {
+            // A ground- or crystal-aimed spell (types 5, 6, 8) is answered by the cell itself, not by a
+            // combatant -- the same test the click makes (CellAimTakes).
+            if (aim == null && CursorCell is (int gc, int gr) && CellAimTakes(gc, gr)) {
                 aim = (gc, gr);
             }
-            if (aim.HasValue) {
+            // *** THE ACTING CELL'S GREEN COVERS THE CURSOR'S MARKER. *** The turn loop draws the cursor
+            // marker first and then the actors, whose pass draws the same square in face 2 over
+            // g_current_actor's tile (WORLDHIT.C:489-490, CACTOR.C:1364-1366): seen live with Inspect
+            // over Owyn's own cell, only green. So no second ring there (TASK-931).
+            bool onActing = Nullable.Equals(CursorCell, ((int, int)?)(acting.X, acting.Y));
+            if (aim.HasValue && !Nullable.Equals(aim, ((int, int)?)(acting.X, acting.Y))) {
                 Ring(aim.Value.Column, aim.Value.Row, Encounters.ArenaOverlayKind.AimCell);
             }
-            if (CursorCell is (int cc, int cr) && !Nullable.Equals(_targetHighlightCell, CursorCell)
+            // *** INSPECT AND THE TILE PICK MARK THE CURSOR NEAR-WHITE. *** Face 3, pen 175: Inspect on
+            // every cell of the grid (stateA 3 is never refused, COMBAT.C:2174-2175, 2240; only an
+            // off-grid cursor drops it, COMBAT.C:2296-2299), the tile pick on an in-range unblocked cell
+            // (CSPELL.C:680-688, SummonPlacement.Highlights) -- TASK-931.
+            (int Column, int Row)? pick = null;
+            if (CursorCell is (int pc, int pr)
+                && ((inspecting && GameData.Resources.Combat.CombatGrid.InBounds(pc, pr))
+                    || (pickingTile && GameData.Resources.Combat.SummonPlacement.Highlights(Combat.Grid, pc, pr)))) {
+                pick = (pc, pr);
+                if (!onActing) {
+                    Ring(pc, pr, Encounters.ArenaOverlayKind.PickCell);
+                }
+            }
+            if (CursorCell is (int cc, int cr) && pick == null && !Nullable.Equals(_targetHighlightCell, CursorCell)
                 && !Nullable.Equals(aim, CursorCell)) {
                 bool empty = Combat.CombatantAtCell(cc, cr) == null;
                 if (!armed && empty && Combat.CellMovable(acting, cc, cr)) {
@@ -1970,11 +1998,11 @@ using GameData.Resources.Scene;
             if (canShoot) {
                 return true;
             }
-            if (GroundCellRefused(column, row)) {
-                return false;
+            int type = _pendingSpell.TargetingType;
+            if (GameData.Resources.Spells.SpellTargetingRules.CastsWithoutATarget(type)) {
+                return CellAimTakes(column, row);
             }
             Combatant target = CombatantUnderCursor(column, row);
-            int type = _pendingSpell.TargetingType;
             return GameData.Resources.Combat.CombatTargetSelection.ResolveOnField(
                     false, SpellTargetIsValid(Combat.Encounter, acting, type, target), type)
                 != GameData.Resources.Combat.CombatTargetSelection.Resolution.RevertToMove;
@@ -2916,6 +2944,11 @@ using GameData.Resources.Scene;
             if (acting == null) {
                 return (null, null);
             }
+            // The tile pick (cspell_select_target_tile, CSPELL.C:680-708) is a loop of its own that draws
+            // the tile marker and nothing else: no melee preview, no target ring (TASK-931).
+            if (_pendingSummonsLeft > 0 || _pendingDecoyOf != null) {
+                return (null, null);
+            }
             Combatant target = TargetAt(fight, rosterSlot, partyMember);
 
             // *** THE SHOOT MENU WINS, AND THAT ORDER IS THE ORIGINAL'S. *** The turn loop tests
@@ -2960,6 +2993,14 @@ using GameData.Resources.Scene;
                     return (GameData.Resources.Combat.SpellTargetPanel.Lines(
                         _pendingSpell.Name, rate, accuracy, damage), null);
                 }
+            }
+
+            // An armed item's own pick loop draws face 4 over the enemy it would take
+            // (combat_arena_pick_target_actor, COMBAT.C:1735-1747) -- TASK-931.
+            if (_pendingCombatMode
+                    == GameData.Resources.Combat.CombatCommandOutcome.PendingMode.TargetSelection
+                && _pendingCombatItem != null) {
+                AimAt(fight, acting, target);
             }
 
             // The melee preview, which the original raises in `stateA == 0` — the state the loop
@@ -3085,6 +3126,11 @@ using GameData.Resources.Scene;
                 return;
             }
 
+            // The tile pick takes only a tile; an occupied one is blocked (CSPELL.C:680-708).
+            if (_pendingSummonsLeft > 0 || _pendingDecoyOf != null) {
+                return;
+            }
+
             Combatant target = TargetAt(fight, rosterSlot, partyMember);
 
             // *** WITH NOTHING ARMED, A CLICK ON THE FIELD IS THE MELEE. *** The turn loop's idle
@@ -3131,8 +3177,10 @@ using GameData.Resources.Scene;
             // A chosen spell decides what the cursor may point at; with none, -1 is the original's
             // "no record" and matches none of the ground- or crystal-aimed types.
             int targetingType = _pendingSpell?.TargetingType ?? -1;
-            if (!canShoot && target != null && GroundCellRefused(target.X, target.Y)) {
-                return;   // a ground spell on an occupied cell: the cursor refuses, the spell stays armed
+            if (!canShoot && target != null
+                && GameData.Resources.Spells.SpellTargetingRules.CastsWithoutATarget(targetingType)
+                && !CellAimTakes(target.X, target.Y)) {
+                return;   // a ground or crystal spell on a combatant's cell: the cursor refuses, the spell stays armed
             }
 
             var outcome = GameData.Resources.Combat.CombatTargetSelection.ResolveOnField(
@@ -3615,8 +3663,11 @@ using GameData.Resources.Scene;
             if (Combat?.Encounter == null || acting == null) {
                 return;
             }
+            // A summon item's tile pick is armed too: the original picks inside the pack's dispatch and
+            // clears CAF_READY after it (COMBAT.C:1815-1821, 2115-2128), so the placement spends it.
             bool armed = _pendingCombatMode
-                != GameData.Resources.Combat.CombatCommandOutcome.PendingMode.None;
+                != GameData.Resources.Combat.CombatCommandOutcome.PendingMode.None
+                || _pendingSummonsLeft > 0;
             if (!GameData.Resources.Combat.CombatCommands.SuspendScreenSpendsTheTurn(armed)) {
                 return;
             }
@@ -3713,15 +3764,7 @@ using GameData.Resources.Scene;
             GameData.Resources.Combat.CombatItemUse.Use arm = _pendingCombatItem.Value;
             _pendingCombatItem = null;
 
-            bool aimable = target != null && IsEncounterActor(Combat.Encounter, target) && !target.IsDead;
-            if (aimable
-                && arm.Targeting
-                    == GameData.Resources.Combat.CombatItemUse.Targeting.AdjacentEnemy) {
-                // Orthogonal only: a diagonal is (1,1) and sums to 2. Shared with the melee arms,
-                // which draw the same line -- CombatGrid.OrthogonallyAdjacent.
-                aimable = GameData.Resources.Combat.CombatGrid.OrthogonallyAdjacent(
-                    acting.X, acting.Y, target.X, target.Y);
-            }
+            bool aimable = CombatItemTakes(Combat.Encounter, acting, target, arm);
 
             if (!aimable) {
                 _pendingSpell = null;
@@ -3767,6 +3810,13 @@ using GameData.Resources.Scene;
             }
 
             EndTargetSelection();
+            if (acted) {
+                // *** THE USE SPENDS THE TURN. *** Case 22 clears CAF_READY once the pack's dispatch has
+                // run the item's pick and effect (COMBAT.C:2115-2128); here the pick outlives the screen,
+                // so the spend waits for it. Live: the Idol on E#0 ended Owyn's turn (TASK-931).
+                acting.Flags &= ~GameData.Resources.Combat.CombatantFlags.Ready;
+                RefreshCombatHud();
+            }
         }
 
         /// <summary>
@@ -3993,8 +4043,8 @@ using GameData.Resources.Scene;
             if (_pendingSpell != null
                 && GameData.Resources.Spells.SpellTargetingRules.CastsWithoutATarget(
                     _pendingSpell.TargetingType)) {
-                if (GroundCellRefused(cell.Value.Column, cell.Value.Row)) {
-                    return;
+                if (!CellAimTakes(cell.Value.Column, cell.Value.Row)) {
+                    return;   // refused: no cast, the spell stays armed (COMBAT.C:2246-2256, 2411)
                 }
                 ResolveCellCast(cell.Value.Column, cell.Value.Row);
                 return;
@@ -4053,6 +4103,11 @@ using GameData.Resources.Scene;
 
             _pendingSummonsLeft--;
             _redrawArena?.Invoke();
+            if (_pendingSummonsLeft == 0 && Combat.Encounter.Current is { } user) {
+                // The last placement ends the pick, and with it the user's turn (TASK-931).
+                user.Flags &= ~GameData.Resources.Combat.CombatantFlags.Ready;
+                RefreshCombatHud();
+            }
         }
 
         /// <summary>
@@ -4085,6 +4140,31 @@ using GameData.Resources.Scene;
                 blocked: Combat.Grid.IsBlocked(column, row),
                 hasCrystal: GameData.Resources.Combat.CrystalChain.TilePermitsMovement(
                     Combat.Puzzle, column, row));
+
+        /// <summary>
+        /// Whether the armed ground- or crystal-aimed spell (types 5, 6, 8) takes this cell -- the one
+        /// test the cyan marker, the click and touch's Cast all ask.
+        /// </summary>
+        /// <remarks>
+        /// combat_arena_disp_spell_action: 5/6 an unblocked cell with no crystal (COMBAT.C:2218-2224);
+        /// 8 a cell whose grid combatant is a crystal, paged_id 7 or 8 (COMBAT.C:2209-2214). Anything
+        /// else is invalid -- stateA -1, no marker, and move cost 1000, so the click is not acted on
+        /// (COMBAT.C:2246-2256, 2411). Before TASK-931 a type-8 click cast on any cell.
+        /// </remarks>
+        private bool CellAimTakes(int column, int row) {
+            if (_pendingSpell == null || _pendingCombatItem != null || Combat == null) {
+                return false;
+            }
+            switch (GameData.Resources.Spells.SpellTargetingRules.AimOf(_pendingSpell.TargetingType)) {
+                case GameData.Resources.Spells.SpellTargetingRules.Aim.ClearGround:
+                    return Combat.CombatantAtCell(column, row) == null && !GroundCellRefused(column, row);
+                case GameData.Resources.Spells.SpellTargetingRules.Aim.Crystal:
+                    return Combat.Puzzle?.ElementAt(column, row) is { } element
+                        && GameData.Resources.Combat.CrystalChain.IsCrystalElement(element.ElementId);
+                default:
+                    return false;
+            }
+        }
 
         private void ResolveCellCast(int column, int row) {
             Combatant acting = Combat.Encounter.Current;
@@ -4607,6 +4687,9 @@ using GameData.Resources.Scene;
         /// <summary>Whether an armed click would take this target: the shot's tests, or the spell's aim.</summary>
         private bool ArmedAimTakes(GameData.Resources.Combat.CombatEncounter fight, Combatant acting,
             Combatant target, bool canShoot) {
+            if (_pendingCombatItem != null) {
+                return CombatItemTakes(fight, acting, target, _pendingCombatItem.Value);
+            }
             if (!canShoot) {
                 // The spell arm asks SpellTargetingRules rather than the shot's three tests.
                 return _pendingSpell != null
@@ -4620,6 +4703,20 @@ using GameData.Resources.Scene;
                     && _selectedQuarrelKind >= 0 && _selectedQuarrelKind < packed.Length
                     && packed[_selectedQuarrelKind] > 0);
         }
+
+        /// <summary>
+        /// Whether an armed combat item takes this target -- <c>combat_arena_pick_target_actor</c>
+        /// (COMBAT.C:1714-1759): the living occupant (combat_actor_terr_under_cur reads only the tile
+        /// word, so never a body) that is an encounter actor, orthogonally adjacent for the two arms
+        /// that pass requires_action_pred (0x32, 0x33). The click and the cyan marker both ask this.
+        /// </summary>
+        private static bool CombatItemTakes(GameData.Resources.Combat.CombatEncounter fight, Combatant acting,
+            Combatant target, GameData.Resources.Combat.CombatItemUse.Use arm) =>
+            target != null && !target.IsDead && IsEncounterActor(fight, target)
+            && (arm.Targeting != GameData.Resources.Combat.CombatItemUse.Targeting.AdjacentEnemy
+                // Orthogonal only: a diagonal is (1,1) and sums to 2 -- CombatGrid.OrthogonallyAdjacent,
+                // shared with the melee arms.
+                || GameData.Resources.Combat.CombatGrid.OrthogonallyAdjacent(acting.X, acting.Y, target.X, target.Y));
 
         /// <summary>
         /// The cyan marker under an armed shot or spell: on the hovered combatant when the click would
