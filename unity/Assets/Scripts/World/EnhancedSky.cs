@@ -164,6 +164,21 @@ namespace BakAgain.World {
             }
         }
 
+        /// <summary>
+        /// How far the wind has carried the clouds, in the shader's drift unit (TASK-964). It is the game
+        /// clock's, not Unity's: the original's time moves only with the party (gstate_advance_time from
+        /// the step, WORLDLP.C:193; map travel, MAP.C:216; resting, MODALSCR.C:669/774, ENCAMP.C:149;
+        /// dialogs, DIALOG.C:1511), so the clouds stand still when the party does.
+        /// </summary>
+        /// <remarks>
+        /// Five units a game hour, which at a walking pace (a medium step is 60 ticks, two game minutes)
+        /// is about the drift the real-time sky had. A step moves them a fraction of a texel. A long jump
+        /// (a rest, a map journey) moves them on at once, with the sun and the cover that jump too: an
+        /// ease would be clouds racing past while the clock stands still. Float keeps sub-texel steps for
+        /// years of game time.
+        /// </remarks>
+        public static float CloudDrift(long ticks) => ticks / (GameData.Resources.GameState.GameTime.UnitsPerHour / 5f);
+
         /// <summary>The world is +X east, +Y up, +Z north (BakCoordinateConverter: BaK X→X, Y→Z).</summary>
         private static Vector3 ToVector(SkyDirection d) => new((float)d.East, (float)d.Up, (float)d.North);
 
@@ -189,7 +204,7 @@ namespace BakAgain.World {
 
             float hours = (float)((double)ticks / GameData.Resources.GameState.GameTime.UnitsPerHour);
             Shader.SetGlobalVector(CloudId, new Vector4((float)Clock.CloudCover(_zone, ticks),
-                Application.isMobilePlatform ? 1f : 2f, 0f, 0f));
+                Application.isMobilePlatform ? 1f : 2f, CloudDrift(ticks), 0f));
             Shader.SetGlobalFloat(StarRotId, (hours % 24f) / 24f * 2f * Mathf.PI);
             Shader.SetGlobalVector(HazeId, new Vector4((float)Layout.HazeStrength, (float)Layout.HazeBaseExtra, 0f, 0f));
         }

@@ -225,6 +225,82 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.AreEqual(0f, Shader.GetGlobalVector(SunTintId).w);
         }
 
+        private static readonly int CloudId = Shader.PropertyToID("_BakSkyCloud");
+
+        /// <summary>The dome, looking up at the clouds, rendered once.</summary>
+        private Color[] RenderSky(RenderTexture rt, Texture2D read) {
+            _camera.Render();
+            RenderTexture.active = rt;
+            read.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+            read.Apply();
+            RenderTexture.active = null;
+            return read.GetPixels();
+        }
+
+        /// <summary>
+        /// <b>The clouds stand still while game time does</b> (TASK-964): the original's clock moves only
+        /// with the party's actions (gstate_advance_time, called from the step at WORLDLP.C:193, the map
+        /// travel at MAP.C:216, resting at MODALSCR.C:669/774 and ENCAMP.C:149, dialogs at DIALOG.C:1511),
+        /// so with the clock unchanged two frames seconds apart show the same sky.
+        /// </summary>
+        [UnityTest]
+        [Category("Graphics")]
+        public IEnumerator TheCloudsStandStillWhileTheClockDoes() {
+            var rt = new RenderTexture(64, 64, 24, RenderTextureFormat.ARGBHalf, RenderTextureReadWrite.Linear);
+            var read = new Texture2D(64, 64, TextureFormat.RGBAHalf, false, linear: true);
+            try {
+                _camera.transform.SetPositionAndRotation(Vector3.zero, Quaternion.Euler(-70f, 0f, 0f));
+                _camera.clearFlags = CameraClearFlags.SolidColor;
+                _camera.targetTexture = rt;
+                _sky.Bind(_camera, _env, 1, false);
+                _sky.Apply(At(12), 64, skyOn: true, lightingOn: false);
+                Material dome = Child("EnhancedSkyDome").GetComponent<MeshRenderer>().sharedMaterial;
+                float give = Time.realtimeSinceStartup + 10f;
+                while ((dome.GetTexture("_CloudsA") == null || dome.GetTexture("_CloudsB") == null) && Time.realtimeSinceStartup < give) {
+                    yield return null;
+                }
+                Assert.IsNotNull(dome.GetTexture("_CloudsA"), "fixture: the cloud textures loaded");
+                Assert.IsNotNull(dome.GetTexture("_CloudsB"), "fixture: the cloud textures loaded");
+                Vector4 cloud = Shader.GetGlobalVector(CloudId);
+                cloud.x = 0.8f; // an overcast noon, whatever day 0 says, so there are clouds to see
+                Shader.SetGlobalVector(CloudId, cloud);
+
+                Color[] before = RenderSky(rt, read);
+                float until = Time.realtimeSinceStartup + 2f;
+                while (Time.realtimeSinceStartup < until) {
+                    yield return null;
+                }
+                Color[] after = RenderSky(rt, read);
+
+                float most = 0f;
+                for (int i = 0; i < before.Length; i++) {
+                    most = Mathf.Max(most, Mathf.Abs(before[i].r - after[i].r), Mathf.Abs(before[i].g - after[i].g), Mathf.Abs(before[i].b - after[i].b));
+                }
+                Assert.Less(most, 1e-4f, "the clouds moved over two real seconds with the game clock standing still");
+            } finally {
+                _camera.targetTexture = null;
+                Object.DestroyImmediate(read);
+                Object.DestroyImmediate(rt);
+            }
+        }
+
+        /// <summary>The control: the drift follows the clock, a step at a time, and a long rest moves the
+        /// clouds on at once (they jump with the sun and the cover: the clock jumped).</summary>
+        [Test]
+        public void TheCloudDriftAdvancesWithTheClock() {
+            _sky.Bind(_camera, _env, 1, false);
+            _sky.Apply(At(12), 64, true, false);
+            float noon = Shader.GetGlobalVector(CloudId).z;
+            _sky.Apply(At(12), 64, true, false);
+            Assert.AreEqual(noon, Shader.GetGlobalVector(CloudId).z, "same clock, same drift");
+            _sky.Apply(At(12) + 60, 64, true, false); // one medium step on the surface
+            float step = Shader.GetGlobalVector(CloudId).z - noon;
+            Assert.Greater(step, 0f, "a step moves the clouds on");
+            _sky.Apply(At(20), 64, true, false);
+            Assert.AreEqual(step * (8 * GameTime.UnitsPerHour / 60f), Shader.GetGlobalVector(CloudId).z - noon, 1e-2f,
+                "eight hours' rest moves them as far as the steps that take as long");
+        }
+
         private bool BlobsShown => (_camera.cullingMask & (1 << BakAgain.World.Rendering.ShadowBlobs.Layer)) != 0;
         private Light Sun => Child("Sun")?.GetComponent<Light>();
         private static float SunShadowWeight => Shader.GetGlobalFloat("_BakSunShadow");

@@ -44,7 +44,7 @@ Shader "BakAgain/EnhancedSky" {
             float4 _BakSkyMoonDir2;
             float4 _BakSkyMoonPhase;   // xyz = phase per moon, 0 new .. 0.5 full
             float4 _BakSkyMoonBright;  // xyz = brightness per moon
-            float4 _BakSkyCloud;       // x = cover 0..1, y = layers (1|2)
+            float4 _BakSkyCloud;       // x = cover 0..1, y = layers (1|2), z = drift (EnhancedSky.CloudDrift)
             float4 _BakSkyMoonLight;   // rgb = the Large Moon's light, a = its fullness 0..1 (SkyClock.MoonFullness)
             float4 _Moon0_TexelSize, _Moon1_TexelSize, _Moon2_TexelSize;
             float  _BakSkyStarRot;     // radians the star field has turned with the hour
@@ -153,12 +153,13 @@ Shader "BakAgain/EnhancedSky" {
                 float dm = acos(clamp(dot(v, m0), -1.0, 1.0)) - _BakSkyMoonDir0.w;
                 col += _BakSkyMoonLight.rgb * 0.05 * _BakSkyMoonLight.a * night * exp(-max(dm, 0.0) * 60.0) * step(-0.05, m0.y);
 
-                // Clouds, projected on a flat layer overhead; they drift in real time (wind), while
-                // the cover follows the game day (SkyClock.CloudCover).
+                // Clouds, projected on a flat layer overhead; they drift with the game clock (wind),
+                // standing still when the party does (TASK-964), and the cover follows the game day
+                // (SkyClock.CloudCover).
                 float alpha = 0.0;
                 if (v.y > 0.02) {
                     float2 uv = v.xz / (v.y + 0.08);
-                    float t = _Time.y;
+                    float t = _BakSkyCloud.z;
                     float cover = _BakSkyCloud.x;
                 #if defined(SHADER_API_MOBILE)
                     float coverNoise = SAMPLE_TEXTURE2D(_CloudsB, sampler_CloudsB, uv * 0.07 + t * 0.0006).r;
