@@ -286,7 +286,9 @@ namespace BakAgain.Tests.PlayMode.Inventory {
                 Resolved(narrowGrid, "item_slot_0"), "armor clipped to the grid's single column");
             AssertInsideGrid(narrowGrid, SyntheticLayout(columns: 1, rows: 4));
 
-            // Two rows: there is no row 2 at all, so Armor gets no cell rather than one outside.
+            // Two rows: there is no row 2 at all, so Armor gets no cell rather than one outside —
+            // and the screen says so, because the item is worn and not on it (TASK-66).
+            LogAssert.Expect(LogType.Warning, new Regex(@"could not show 1 of 1 items"));
             var tinyGrid = new VisualElement();
             new ItemGridRenderer().Render(tinyGrid, container, objects, resources: null,
                 onSlotPicked: null, InventoryLayoutMode.Member, SyntheticLayout(rows: 2),
@@ -546,13 +548,15 @@ namespace BakAgain.Tests.PlayMode.Inventory {
                 Resolved(narrow, "item_slot_2"), "unit item under the wide item");
             AssertRect(new Rect(narrowLeft + 3f * SynthCellW, narrowTop + SynthCellH, SynthCellW, SynthCellH),
                 Resolved(narrow, "item_slot_3"), "last free cell of the 4-wide grid");
-            Assert.IsNull(narrow.Q<VisualElement>("item_slot_4"),
-                "a 4x2 grid holds 8 cells — the fifth item has nowhere to go");
+            // A 4x2 grid holds 8 cells, so the fifth item goes below them, on the scrolling strip
+            // (TASK-66): the next band of the same grid, packed the same way, never dropped.
+            AssertRect(new Rect(narrowLeft, narrowTop + 2f * SynthCellH, SynthCellW, SynthCellH),
+                Resolved(narrow, "item_slot_4"), "the overflow item opens the next band, column 0");
 
             // Every cell stays inside four columns: nothing reaches the fifth column's offset.
             VisualElement narrowHost = narrow.Q<VisualElement>("item_grid");
             Assert.IsNotNull(narrowHost, "the general grid host");
-            foreach (VisualElement cell in narrowHost.Children()) {
+            foreach (VisualElement cell in narrowHost.Query<VisualElement>().Where(e => e.name.StartsWith("item_slot_")).ToList()) {
                 Rect r = Resolved(narrow, cell.name);
                 Assert.LessOrEqual(r.xMax, narrowLeft + 4f * SynthCellW + 0.001f,
                     cell.name + " must not spill past the grid's fourth column");
@@ -704,13 +708,72 @@ namespace BakAgain.Tests.PlayMode.Inventory {
         }
 
         [Test]
-        public void Faithful_GridCapacityIsTheDataGridsCellCount() {
+        public void Faithful_AFullGrid_DoesNotScroll_AndKeepsItsCells() {
+            // The control for TASK-66: shipped data fills at most the 7x4 loot and the 5x4 pack (the
+            // room rule, CMBINV.C:624-659), and neither may change by a pixel or grow a strip.
+            var loot = new ItemGridRenderer();
+            var lootRoot = new VisualElement();
+            loot.Render(lootRoot, ContainerOf(28), ObjectsWithSlots(1), resources: null,
+                onSlotPicked: null, InventoryLayoutMode.Loot, FaithfulLayout(), FaithfulFrame());
+            Assert.IsNull(loot.ShelfViewport, "a full 7x4 loot does not scroll");
+            AssertRect(new Rect(1300f, 612f, 200f, 180f), Resolved(lootRoot, "item_slot_27"), "loot, last");
+
+            var pack = new ItemGridRenderer();
+            var packRoot = new VisualElement();
+            pack.Render(packRoot, ContainerOf(20), ObjectsWithSlots(1), resources: null,
+                onSlotPicked: null, InventoryLayoutMode.Member, FaithfulLayout(), FaithfulFrame());
+            Assert.IsNull(pack.ShelfViewport, "a full 20-slot pack does not scroll");
+            AssertRect(new Rect(1330f, 612f, 200f, 180f), Resolved(packRoot, "item_slot_19"), "pack, last");
+        }
+
+        [Test]
+        public void Faithful_AnOverfullContainer_ScrollsPastTheTwentyEighth_InsteadOfHidingIt() {
+            // Unreachable through the room rule, reachable through a save editor or a mod's loot
+            // table: the first 28 stay where the 7x4 grid puts them and the rest scroll in below.
+            var renderer = new ItemGridRenderer();
             var root = new VisualElement();
-            new ItemGridRenderer().Render(root, ContainerOf(30), ObjectsWithSlots(1), resources: null,
+            renderer.Render(root, ContainerOf(30), ObjectsWithSlots(1), resources: null,
                 onSlotPicked: null, InventoryLayoutMode.Loot, FaithfulLayout(), FaithfulFrame());
 
-            Assert.IsNotNull(root.Q<VisualElement>("item_slot_27"), "the 7x4 grid holds 28 items");
-            Assert.IsNull(root.Q<VisualElement>("item_slot_28"), "and no more than 28");
+            AssertRect(new Rect(1300f, 612f, 200f, 180f), Resolved(root, "item_slot_27"),
+                "the 28th is where the full grid puts it");
+            AssertRect(new Rect(100f, 792f, 200f, 180f), Resolved(root, "item_slot_28"),
+                "the 29th opens the next band");
+            AssertRect(new Rect(100f, 972f, 200f, 180f), Resolved(root, "item_slot_29"),
+                "and the 30th goes under it: the band packs column-major like the grid");
+            Assert.IsNotNull(renderer.ShelfViewport, "the grid scrolls");
+            Assert.AreEqual(4, renderer.ShelfVisibleRows, "the viewport is the authored four rows");
+            Assert.AreEqual(6, renderer.ShelfRows);
+            LogAssert.NoUnexpectedReceived(); // nothing hidden, so nothing to warn about
+        }
+
+        [Test]
+        public void Reflow_ASmallMemberGrid_ScrollsItsPack_ThePaperdollStaysInTheAuthoredRows() {
+            var objects = new ObjectInfoSet("objects", new List<ObjectInfo> {
+                new ObjectInfo("mail") { Number = 3, Icon = 0, MaxAmount = 1, InventorySlots = 4, ObjectType = GameData.ObjectType.Armor },
+                new ObjectInfo("loose") { Number = 4, Icon = 0, MaxAmount = 1, InventorySlots = 1 },
+            });
+            var container = new RuntimeContainer();
+            container.Items.Add(new RuntimeItem(3, 1, (ushort)GameData.ItemFlags.Equipped));
+            for (int i = 0; i < 12; i++) container.Items.Add(new RuntimeItem(4, 1, 0));
+            // 4 columns x 3 rows: two paperdoll columns leave 2x3 = 6 general cells for 12 items.
+            var renderer = new ItemGridRenderer();
+            var root = new VisualElement();
+            renderer.Render(root, container, objects, resources: null, onSlotPicked: null,
+                InventoryLayoutMode.Member, SyntheticLayout(columns: 4, rows: 3), SyntheticFrame());
+
+            AssertRect(new Rect(SynthLeft, SynthTop + 2f * SynthCellH, 2f * SynthCellW, SynthCellH),
+                Resolved(root, "item_slot_0"), "armor still clipped to the authored grid's last row");
+            float generalLeft = SynthLeft + SynthShiftX;
+            AssertRect(new Rect(generalLeft + 2f * SynthCellW, SynthTop, SynthCellW, SynthCellH),
+                Resolved(root, "item_slot_1"), "the first loose item, unmoved");
+            AssertRect(new Rect(generalLeft + 2f * SynthCellW, SynthTop + 3f * SynthCellH, SynthCellW, SynthCellH),
+                Resolved(root, "item_slot_7"), "the seventh opens the next band beside the paperdoll's columns");
+            for (int i = 0; i < 13; i++) {
+                Assert.IsNotNull(root.Q<VisualElement>($"item_slot_{i}"), $"item {i} is on the screen");
+            }
+            Assert.AreEqual(3, renderer.ShelfVisibleRows);
+            Assert.AreEqual(6, renderer.ShelfRows);
         }
 
         // ======================================================================================

@@ -355,17 +355,33 @@ namespace BakAgain.UI.Inventory {
                 out int hidden, shelfScrolls);
             // The Enhanced loot never hides loot (TASK-944, cf. TASK-66): a container the game filled
             // past its 28 slots gets more rows of the same grid rather than losing items off it.
-            while (squares && mode == InventoryLayoutMode.Loot && hidden > 0 && grid.Rows < container.Items.Count * 2) {
+            while (squares && hidden > 0 && grid.Rows < container.Items.Count * 2) {
                 grid = grid.Clone();
                 grid.Rows++;
                 placements = Pack(container, objects, mode, grid, firstItem, shopChapter, out hidden, shelfScrolls);
             }
-            // *** SAY SO WHEN AN ITEM IS NOT DRAWN. *** Dropping past the grid's bound matches the
-            // original, but doing it silently does not help anyone: the item is in the container the
-            // screen is showing and simply is not on it — indistinguishable from a save that lost it.
-            // Not reachable on shipped data in a faithful grid (7x4 = 28 and the room rule keeps
-            // every container it fills within that), so this fires for an authored layout or an
-            // overfull save container. One line per pack rather than one per item.
+            // Every other grid SCROLLS rather than hide what the container holds (TASK-66). The
+            // overflow is packed into further bands of the authored grid below it, each band packed
+            // exactly as the grid itself, so whatever fits stays where the authored grid puts it and
+            // only the rest moves onto the strip the shop shelf already scrolls (TASK-890). Shipped
+            // data never gets here: the room rule (CMBINV.C:624-659) keeps a pack within 20 slots
+            // and anything else within 28, the 5x4 and 7x4 the faithful grid has.
+            bool overflowScrolls = false;
+            if (!squares && mode != InventoryLayoutMode.Shop && hidden > 0) {
+                LayoutGrid strip = grid.Clone();
+                for (int before = int.MaxValue; hidden > 0 && hidden < before;) {
+                    before = hidden;
+                    strip.Rows += grid.Rows;
+                    placements = Pack(container, objects, mode, strip, firstItem, shopChapter, out hidden,
+                        bandRows: grid.Rows);
+                }
+                overflowScrolls = placements.Exists(pl => !pl.Equipped && pl.Cell.Row >= grid.Rows);
+            }
+            // *** SAY SO WHEN AN ITEM IS NOT DRAWN. *** After the scroll above, only an item no band
+            // can hold is left: a footprint wider than the grid (a 2-wide item in a 1-column grid),
+            // or an equipped item whose paperdoll row the grid does not have (armour in 2 rows).
+            // It is in the container the screen is showing and simply is not on it —
+            // indistinguishable from a save that lost it — so say so, once per pack.
             if (hidden > 0) {
                 Debug.LogWarning(
                     $"Inventory grid {grid.Columns}x{grid.Rows} could not show {hidden} of " +
@@ -398,16 +414,19 @@ namespace BakAgain.UI.Inventory {
                 } else {
                     host = generalHost ?? (generalHost =
                         CreateGridHost(root, GridHostName, generalOrigin, grid, area));
-                    if (shelfScrolls) {
+                    if (shelfScrolls || overflowScrolls) {
                         // The host clips; the cells go on a strip inside it that ShelfScroller moves.
                         if (ShelfContent == null) {
-                            ShelfContent = new VisualElement { name = ShelfContentName, pickingMode = PickingMode.Ignore };
+                            ShelfContent = new VisualElement {
+                                name = ShelfContentName, pickingMode = PickingMode.Ignore,
+                                style = { position = Position.Absolute, left = 0, top = 0 },
+                            };
                             generalHost.Add(ShelfContent);
                             ShelfViewport = generalHost;
                             ShelfVisibleRows = grid.Rows;
                         }
                         host = ShelfContent;
-                        ShelfRows = Mathf.Max(ShelfRows, pl.Cell.Row + 1);
+                        ShelfRows = Mathf.Max(ShelfRows, pl.Cell.Row + pl.Cell.RowSpan);
                     }
                 }
 
@@ -801,8 +820,9 @@ namespace BakAgain.UI.Inventory {
             foreach (Placement pl in placements) {
                 clusterWidth = Mathf.Max(clusterWidth,
                     (pl.Cell.Column + pl.Cell.ColumnSpan) * grid.CellWidth.Value);
+                // Clamped to the grid: a band scrolled in below it (TASK-66) is not on screen.
                 clusterHeight = Mathf.Max(clusterHeight,
-                    (pl.Cell.Row + pl.Cell.RowSpan) * grid.CellHeight.Value);
+                    Mathf.Min(pl.Cell.Row + pl.Cell.RowSpan, grid.Rows) * grid.CellHeight.Value);
             }
             clusterWidthOut = clusterWidth;
 
@@ -985,11 +1005,14 @@ namespace BakAgain.UI.Inventory {
         // Placements are GRID-RELATIVE — where the grid itself sits is ResolveGridOrigin's job.
         private static List<Placement> Pack(RuntimeContainer container, ObjectInfoSet objects,
             InventoryLayoutMode mode, LayoutGrid grid, int firstItem, int shopChapter, out int hidden,
-            bool shelfScrolls = false) {
+            bool shelfScrolls = false, int bandRows = 0) {
             var placements = new List<Placement>();
             hidden = 0;
             int columns = grid.Columns;
             int rows = grid.Rows;
+            // A scrolling grid is a stack of bands of the authored height (TASK-66); the paperdoll
+            // belongs to the first one only.
+            int visibleRows = bandRows > 0 ? bandRows : rows;
             if (columns <= 0 || rows <= 0) {
                 return placements; // a grid with no cells holds nothing
             }
@@ -1022,7 +1045,8 @@ namespace BakAgain.UI.Inventory {
                     // dropped. On the shipped 7x4 geometry nothing binds:
                     // the deepest slot is Armor at row 2 span 2 (rows 2-3 of 4) and the widest is
                     // 2 of 7 columns, so every canonical rect is unchanged.
-                    if (pdRow >= rows) {
+                    if (pdRow >= visibleRows) {
+                        unplaced++; // an equipped item with no slot in this grid: say so (TASK-66)
                         continue;
                     }
                     placements.Add(new Placement {
@@ -1031,7 +1055,7 @@ namespace BakAgain.UI.Inventory {
                             Column = 0,
                             Row = pdRow,
                             ColumnSpan = Mathf.Min(PaperdollColumns, columns),
-                            RowSpan = Mathf.Min(pdSpan > 2 ? 2 : 1, rows - pdRow),
+                            RowSpan = Mathf.Min(pdSpan > 2 ? 2 : 1, visibleRows - pdRow),
                         },
                         Equipped = true,
                     });
@@ -1089,10 +1113,10 @@ namespace BakAgain.UI.Inventory {
 
                 FootprintSpans(objects?.GetById(container.Items[i].ObjectId)?.InventorySlots ?? 1,
                     out int columnSpan, out int rowSpan);
-                if (!TryFindFreeCell(occupied, columns, rows, columnSpan, rowSpan,
+                if (!TryFindFreeCell(occupied, columns, rows, visibleRows, columnSpan, rowSpan,
                         out int col, out int row)) {
                     unplaced++;
-                    continue; // grid full — item dropped, matching the original bound
+                    continue; // no room — Render scrolls the grid for it, or says so (TASK-66)
                 }
                 for (int c = 0; c < columnSpan; c++) {
                     for (int r = 0; r < rowSpan; r++) {
@@ -1114,14 +1138,18 @@ namespace BakAgain.UI.Inventory {
             return placements;
         }
 
-        private static bool TryFindFreeCell(bool[,] occupied, int columns, int rows,
+        // Column-major within each band of bandRows rows, band after band; one band is the whole grid.
+        private static bool TryFindFreeCell(bool[,] occupied, int columns, int rows, int bandRows,
             int columnSpan, int rowSpan, out int col, out int row) {
-            for (int c = 0; c + columnSpan <= columns; c++) {
-                for (int r = 0; r + rowSpan <= rows; r++) {
-                    if (RegionFree(occupied, c, r, columnSpan, rowSpan)) {
-                        col = c;
-                        row = r;
-                        return true;
+            for (int top = 0; top < rows; top += bandRows) {
+                int bottom = Mathf.Min(rows, top + bandRows);
+                for (int c = 0; c + columnSpan <= columns; c++) {
+                    for (int r = top; r + rowSpan <= bottom; r++) {
+                        if (RegionFree(occupied, c, r, columnSpan, rowSpan)) {
+                            col = c;
+                            row = r;
+                            return true;
+                        }
                     }
                 }
             }

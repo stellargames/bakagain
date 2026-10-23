@@ -48,10 +48,12 @@ namespace BakAgain.UI.Inventory {
 
         /// <summary>
         /// A drag that starts on the shelf and moves mostly up or down scrolls it; mostly sideways —
-        /// towards the portraits — it is the faithful drag that buys.
+        /// towards the portraits — it is the faithful drag that buys. A pack or loot grid that
+        /// scrolls (TASK-66) scrolls only from a press off an item: its portraits may be above it.
         /// </summary>
         private bool BeginShelfDrag(Vector2 stageLocal) {
             if (_shelf == null || !_shelf.Scrolls || _pickerOpen
+                || (!ShowingShopShelf && _pressSlot >= 0)
                 || !_shelf.Contains(_stage.LocalToWorld(_pressPos))) {
                 return false;
             }
