@@ -201,6 +201,27 @@ public class CombatEncounterTests {
     }
 
     [Fact]
+    public void ARoundResetReadiesEveryEnemy_ButOnlyTheLivingParty() {
+        // TASK-959. The round reset is two loops: combat_actor_refresh_all_stats readies a party
+        // member and drops their defend order only when they are neither dead nor fled
+        // (CACTOR.C:1407-1413); combatenc_refresh_actor_flags readies every enemy, the dead included
+        // (CBENC.C:751). A death only ORs CAF_DEAD (COMBAT.C:278), so a corpse keeps whatever Ready it had.
+        Combatant fallen = Member(5);
+        fallen.Flags = CombatantFlags.Dead | CombatantFlags.DefendCommand;
+        Combatant living = Member(4, slot: 2);
+        living.Flags = CombatantFlags.DefendCommand;
+        Combatant corpse = Enemy(4);
+        corpse.Flags = CombatantFlags.Dead;
+        CombatEncounter e = Encounter(new[] { fallen, living }, new[] { corpse, Enemy(3) });
+
+        e.BeginRound();
+
+        Assert.Equal(CombatantFlags.Ready, living.Flags);                        // the control
+        Assert.Equal(CombatantFlags.Dead | CombatantFlags.DefendCommand, fallen.Flags);
+        Assert.Equal(CombatantFlags.Ready | CombatantFlags.Dead, corpse.Flags);
+    }
+
+    [Fact]
     public void ARoundResetStopsAnyonePointingAtACorpse() {
         Combatant enemy = Enemy(4);
         Combatant member = Member(5);

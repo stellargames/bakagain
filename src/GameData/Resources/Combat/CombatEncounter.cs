@@ -187,11 +187,19 @@ public sealed class CombatEncounter {
                 Kill(c, playAnimation: false, grid);
                 continue;
             }
-            c.Flags |= CombatantFlags.Ready;
-            // combatenc_refresh_actor_flags clears CAF_DEFEND_CMD and nothing else. This used to
-            // clear "Defending", which was numbered 0x10 — the FLEE bit — so a routing monster had
-            // its decision wiped every round and never left the field.
-            c.Flags &= ~CombatantFlags.DefendCommand;
+            // *** TWO LOOPS, AND ONLY THE PARTY'S SKIPS THE DEAD. *** combat_actor_refresh_all_stats
+            // readies a party-side actor only when it is neither dead nor fled (CACTOR.C:1407-1413);
+            // combatenc_refresh_actor_flags readies every enemy, corpses included (CBENC.C:751). A
+            // death only ORs CAF_DEAD (COMBAT.C:278), so a corpse keeps whatever Ready it had: a dead
+            // enemy reads Ready|Dead in the original too. CanAct excludes the dead either way (TASK-959).
+            bool partySide = Party.Contains(c);
+            if (!partySide || (c.Flags & (CombatantFlags.Dead | CombatantFlags.Fleeing)) == 0) {
+                c.Flags |= CombatantFlags.Ready;
+                // Both loops clear CAF_DEFEND_CMD and nothing else. This used to clear "Defending",
+                // which was numbered 0x10 — the FLEE bit — so a routing monster had its decision
+                // wiped every round and never left the field.
+                c.Flags &= ~CombatantFlags.DefendCommand;
+            }
             if (c.Target != null && c.Target.IsDead) {
                 c.Target = null;
             }
