@@ -135,6 +135,7 @@ namespace BakAgain.UI.Spells {
             _target = target;
             _closed = new UniTaskCompletionSource();
             gameObject.SetActive(true);
+            BakAgain.UI.Navigation.ScreenBase.TakeEveryClick(this); // nothing beneath takes a click (TASK-960)
             try {
                 await _closed.Task;
             } finally {

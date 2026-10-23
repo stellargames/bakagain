@@ -243,6 +243,8 @@ namespace BakAgain.UI {
             // selection, corpse looting and tile picking all died here, silently, because the stage
             // is not a button and so nothing even logged a rejection. Children keep their own
             // picking mode, so the buttons are unaffected. See TASK-267.
+            // A RAISED screen does cover what is beneath, but at its document root, not here:
+            // ScreenBase.TakeEveryClick (TASK-960) -- the combat HUD and a location stay up under it.
             stage = new VisualElement { name = StageName, pickingMode = PickingMode.Ignore };
             ApplyFrame(stage, effective);
             stage.userData = new StageFrameState { Frame = effective, IsFallback = isFallback };

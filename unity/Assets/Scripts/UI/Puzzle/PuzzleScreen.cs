@@ -144,6 +144,7 @@ namespace BakAgain.UI.Puzzle {
             _solving = false;
             ClearLatches();
             gameObject.SetActive(true);
+            BakAgain.UI.Navigation.ScreenBase.TakeEveryClick(this); // nothing beneath takes a click (TASK-960)
             if (_ui != null && _ui.IsBuilt) {
                 OnPanelBuilt(_ui.CurrentNavWidgets);
             }

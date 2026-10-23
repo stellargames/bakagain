@@ -55,6 +55,7 @@ namespace BakAgain.UI {
 
         public async UniTask ShowAsync() {
             gameObject.SetActive(true);
+            Navigation.ScreenBase.TakeEveryClick(this); // nothing beneath takes a click (TASK-960)
 
             // *** THE DIALOG BRANCHES ON THE ZONE. *** Use_Item writes the current zone into global
             // 30000 immediately before showing this line (0x59292), and the entry picks its wording

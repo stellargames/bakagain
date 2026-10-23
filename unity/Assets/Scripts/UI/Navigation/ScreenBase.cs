@@ -35,7 +35,7 @@ namespace BakAgain.UI.Navigation {
             }
             await OnBeforeShowAsync();
             gameObject.SetActive(true);
-            VisualElement root = GetComponent<UIDocument>()?.rootVisualElement;
+            VisualElement root = TakeEveryClick(this);
             if (root != null) {
                 root.style.opacity = 0f;
             }
@@ -53,6 +53,30 @@ namespace BakAgain.UI.Navigation {
                 await FadeAsync(1f, 0f);
             }
             gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// Makes a raised screen's document take every click in the window, so none reaches a HUD
+        /// beneath it (TASK-960). Call it right after the screen's GameObject is activated: the
+        /// document builds a NEW root on every enable, and that root ignores picking.
+        /// </summary>
+        /// <remarks>
+        /// <para>The combat HUD (tier -1) and a location (tier -3) are not on the navigator's stack, so a
+        /// pushed screen does not hide them; the travel HUD stays up under the overlay panels. And the
+        /// REQ stage ignores picking (TASK-267), so a screen covered only what its own entries
+        /// covered: a click on an empty part of the Enhanced inventory pressed the combat HUD's Defend
+        /// and passed the turn (TASK-960, and TASK-954 for the cast screen). The original runs each
+        /// screen's own menu loop and never hit-tests the HUD while it is up.</para>
+        /// <para>The root fills the window and its children keep their own picking, so the screen's
+        /// controls are unaffected; a click on nothing of the screen now lands on the screen.</para>
+        /// </remarks>
+        /// <returns>The document's root, or null without one.</returns>
+        public static VisualElement TakeEveryClick(Component screen) {
+            VisualElement root = screen.GetComponent<UIDocument>()?.rootVisualElement;
+            if (root != null) {
+                root.pickingMode = PickingMode.Position;
+            }
+            return root;
         }
 
         /// <summary>Fades the screen's <see cref="UIDocument"/> root opacity from/to over

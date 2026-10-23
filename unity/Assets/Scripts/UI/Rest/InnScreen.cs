@@ -58,6 +58,7 @@ namespace BakAgain.UI.Rest {
         public void Open(int wakeHour) {
             _wakeHour = wakeHour;
             gameObject.SetActive(true);
+            BakAgain.UI.Navigation.ScreenBase.TakeEveryClick(this); // nothing beneath takes a click (TASK-960)
             Refresh();
         }
 
