@@ -56,6 +56,34 @@ namespace BakAgain.Core.DI {
             boot.backgroundColor = Color.black;
         }
 
+        /// <summary>
+        /// Ends a boot that Play has stopped under: called after every await, so nothing past it runs
+        /// in a torn-down session.
+        /// </summary>
+        /// <remarks>
+        /// <b>Stopping Play resumes the boot instead of ending it.</b> On exiting Play the Editor
+        /// destroys Addressables' <c>DelayedActionManager</c> first, and its <c>OnDestroy</c> completes
+        /// every load still in flight so that nothing waits forever. That runs this method's pending
+        /// continuation synchronously inside the teardown, with the catalog already gone: GAME.FNT
+        /// and BOOK.FNT had "No Location", <c>GameFonts</c> got null and <c>FntTrueType.Build</c>
+        /// threw, logged as "Error during initialization" (TASK-932). Any PlayMode test run shorter
+        /// than the boot ended that way, since the root scope boots the game in the test scene too.
+        ///
+        /// <para>Measured at that moment: the VContainer token and
+        /// <c>Application.exitCancellationToken</c> are not cancelled yet and
+        /// <c>Application.isPlaying</c> is still true; only
+        /// <c>EditorApplication.isPlayingOrWillChangePlaymode</c> has turned false. The token still
+        /// covers the scope going away in a player.</para>
+        /// </remarks>
+        private static void StopIfPlayEnded(CancellationToken cancellation) {
+            cancellation.ThrowIfCancellationRequested();
+#if UNITY_EDITOR
+            if (!UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode) {
+                throw new System.OperationCanceledException("Play stopped during the boot.");
+            }
+#endif
+        }
+
         public async UniTask StartAsync(CancellationToken cancellation = default) {
             _logger.LogInformation("StartAsync() initiated.");
             BakResourceSettings.ApplyPending(); // folders the Enhanced settings saved for this start
@@ -68,6 +96,7 @@ namespace BakAgain.Core.DI {
             try {
                 // Optionally wait for the loading screen to be fully loaded before proceeding
                 await loadingScreenHandle.Task.AsUniTask();
+                StopIfPlayEnded(cancellation);
                 UnityEngine.UIElements.VisualElement loadingRoot = loadingScreenHandle.Result?
                     .GetComponent<UnityEngine.UIElements.UIDocument>()?.rootVisualElement;
                 UnityEngine.UIElements.Label loadingLabel = loadingRoot == null ? null
@@ -94,6 +123,7 @@ namespace BakAgain.Core.DI {
                         }
 
                         await metaMenu.WaitForDialogAsync();
+                        StopIfPlayEnded(cancellation);
                     } finally {
                         if (metaMenuHandle.IsValid()) {
                             Addressables.ReleaseInstance(metaMenuHandle);
@@ -106,14 +136,18 @@ namespace BakAgain.Core.DI {
 
                 _logger.LogInformation("Initializing Addressables.");
                 await Addressables.InitializeAsync().ToUniTask();
+                StopIfPlayEnded(cancellation);
 
                 _logger.LogInformation("Initializing ResourceManagement.");
                 ResourceManagementInitializer.InitializeResourceManagement();
                 await MidiSynthPlayer.PreloadSoundFontAsync();
+                StopIfPlayEnded(cancellation);
                 await BookSpreadBackdrop.PreloadAsync();
+                StopIfPlayEnded(cancellation);
                 // Always: Enhanced can be switched on in this session, and its screens then lay out
                 // inside load callbacks, where loading the art synchronously throws.
                 await EnhancedArt.PreloadAsync();
+                StopIfPlayEnded(cancellation);
 
                 GameFonts.Install(_gamePanelSettings);
                 // The menus before any game is loaded read the catalog too (the V banner, the
@@ -121,6 +155,9 @@ namespace BakAgain.Core.DI {
                 // only with a loaded game. A load re-installs it with any mod override on top.
                 GameData.Resources.Text.UiStrings.Catalog =
                     GameData.Resources.Text.UiStringCatalog.Embedded.TranslatedBy(LanguagePacks.Current);
+            } catch (System.OperationCanceledException) {
+                _logger.LogInformation("Play stopped before initialization finished; the boot goes no further.");
+                return;
             } catch (System.Exception e) {
                 _logger.LogError(e, "Error during initialization");
 
