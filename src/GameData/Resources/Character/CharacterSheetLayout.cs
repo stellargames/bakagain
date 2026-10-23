@@ -25,7 +25,7 @@ public static class CharacterSheetLayout {
     /// caller redraws. A port that pairs the fade-in with a matching fade-out on close adds a
     /// half-second of black the original never shows — the sheet simply vanishes.
     ///
-    /// <para><b>Deliberately callerless.</b> CharacterSheetScreen fades in over FadeFrames on show only; this pins why there is no fade-out.</para>
+    /// <para><b>Deliberately callerless.</b> The sheet fades in once, through the navigator's show (ScreenBase); this pins why there is no fade-out. TASK-963: it also ran a fade of its own after that one, so it came up twice.</para>
     /// </remarks>
     public static bool FadesInOnEntryOnly => true;
 
@@ -39,6 +39,9 @@ public static class CharacterSheetLayout {
     /// frames is about a seventh of a second, where the full-map screen's own fade is half a second.
     /// A port that reaches for a comfortable default makes the sheet feel sluggish next to the
     /// original.
+    ///
+    /// <para><b>Deliberately callerless.</b> The port's sheet comes up through ScreenBase's 0.15 s
+    /// show fade (about nine frames at 60 Hz) rather than a second fade counted here (TASK-963).</para>
     /// </remarks>
     public const int FadeFrames = 8;
 

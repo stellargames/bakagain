@@ -90,45 +90,16 @@ namespace BakAgain.UI.Character {
             }
 
             _closed = new UniTaskCompletionSource();
+            // *** ONE FADE-IN: THE PUSH'S. *** ScreenBase.ShowAsync already brings the sheet up from
+            // transparent; a second fade here snapped it back to 1/8 and faded it again (TASK-963).
+            // The original fades up once, on the first draw (CHARSCRN.C:303-306).
             await _navigator.Push(this);
             ShowMember();
-            FadeInAsync().Forget();
             await _closed.Task;
             // *** NO FADE HERE. *** charscreen_info_loop fades on the way IN only — the loop ends,
             // the saved palette goes back and the caller redraws. See
             // CharacterSheetLayout.FadesInOnEntryOnly.
             await _navigator.Pop();
-        }
-
-        /// <summary>
-        /// Brings the sheet up out of black, the way the original does.
-        /// </summary>
-        /// <remarks>
-        /// The original fades the OUTGOING screen to black, draws the sheet under a zeroed palette
-        /// and fades that up. Ours is a screen of its own over a hidden one, so fading the sheet's
-        /// own root from transparent lands in the same place with none of the palette machinery —
-        /// the architecture converts indexed to RGBA at load, so a palette fade is not available and
-        /// is not wanted (see memory palette_architecture).
-        ///
-        /// <para><b>Counted in frames, not seconds.</b>
-        /// <see cref="CharacterSheetLayout.FadeFrames"/> is eight presented frames — about a seventh
-        /// of a second, and deliberately much snappier than the half-second the full-map screen
-        /// uses. Stepping per frame rather than over a wall-clock duration keeps that meaning
-        /// whatever the display is doing.</para>
-        /// </remarks>
-        private async UniTaskVoid FadeInAsync() {
-            var document = GetComponent<UIDocument>();
-            VisualElement root = document != null ? document.rootVisualElement : null;
-            if (root == null) {
-                return;
-            }
-            for (var frame = 0; frame < CharacterSheetLayout.FadeFrames; frame++) {
-                root.style.opacity = (frame + 1) / (float)CharacterSheetLayout.FadeFrames;
-                await UniTask.NextFrame();
-            }
-            // Cleared rather than left at 1: an explicit opacity on the root would otherwise sit
-            // there forever, and the next show starts by setting it anyway.
-            root.style.opacity = StyleKeyword.Null;
         }
 
         /// <summary>Choose the member without showing anything — the typed pre-push setter.</summary>
