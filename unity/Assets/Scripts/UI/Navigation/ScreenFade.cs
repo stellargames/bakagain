@@ -50,6 +50,22 @@ namespace BakAgain.UI.Navigation {
         /// </remarks>
         private readonly System.Threading.CancellationToken _session = Application.exitCancellationToken;
 
+        /// <summary>
+        /// The cipher's solved path to black, <c>palette_fade_out(0, 0x100, 4, 0)</c> (CIPHER.C:207):
+        /// 17 DAC writes, each waiting for a vertical retrace and no frame presented between them.
+        /// </summary>
+        /// <remarks>Measured in Spice86 on t802 (the SPIDER wordlock chest), breakpoints on
+        /// <c>palette_fade_out</c> and <c>palette_screen_clear_black</c> reading the timer ISR's
+        /// counter (<c>g_timer_ticks</c>, 305 a second against the wall clock in that session):
+        /// 15 ticks, about 0.05 s.</remarks>
+        public const float CipherFadeOutSeconds = 0.05f;
+
+        /// <summary>
+        /// The inventory screen's fade up from black, <c>palette_fade_in(0, 0x100, 8, 1)</c>
+        /// (CMBINV.C:269-271): 8 steps, a frame presented after each. Same measurement: 14 ticks.
+        /// </summary>
+        public const float InventoryFadeInSeconds = 0.05f;
+
         /// <summary>How long one direction of the fade takes.</summary>
         public static float DurationSeconds =>
             CutScenes.CutsceneTiming.FadeDurationSeconds(FadeRamp.WorldFadePaletteWrites);
@@ -57,6 +73,44 @@ namespace BakAgain.UI.Navigation {
         public UniTask FadeOutAsync() => RampAsync(1f);
 
         public UniTask FadeInAsync() => RampAsync(0f);
+
+        /// <inheritdoc/>
+        public UniTask FadeOutAsync(float seconds) => RampOverAsync(1f, seconds);
+
+        /// <inheritdoc/>
+        public UniTask FadeInAsync(float seconds) => RampOverAsync(0f, seconds);
+
+        /// <summary>
+        /// Ramps to <paramref name="to"/> from the current opacity over <paramref name="seconds"/> of
+        /// real time, a frame at a time; zero sets it at once (TASK-978).
+        /// </summary>
+        /// <remarks>
+        /// By the clock, not by steps: the original ramps these are taken from last a few frames, and
+        /// a per-step wait of at least a frame (<see cref="RampAsync"/>) would stretch them with the
+        /// frame rate.
+        /// </remarks>
+        private async UniTask RampOverAsync(float to, float seconds) {
+            _session.ThrowIfCancellationRequested();
+            VisualElement cover = Cover();
+            if (cover == null) {
+                return;   // no surface to draw on — the transition cuts
+            }
+            float from = _opacity;
+            if (seconds > 0f) {
+                // The clock starts on the next frame: the change a fade covers (a screen pushed under
+                // the black) can make this one long, and the ramp would be spent before it is seen.
+                await UniTask.Yield(PlayerLoopTiming.Update, _session);
+            }
+            float start = Time.realtimeSinceStartup;
+            for (float t = 0f; seconds > 0f && t < 1f; t = (Time.realtimeSinceStartup - start) / seconds) {
+                _opacity = Mathf.Lerp(from, to, t);
+                cover.style.opacity = _opacity;
+                await UniTask.Yield(PlayerLoopTiming.Update, _session);
+            }
+            _opacity = to;
+            cover.style.opacity = to;
+            cover.style.display = to <= 0f ? DisplayStyle.None : DisplayStyle.Flex;
+        }
 
         /// <summary>
         /// A cut: a still of the frame now on screen covers everything while <paramref name="change"/>

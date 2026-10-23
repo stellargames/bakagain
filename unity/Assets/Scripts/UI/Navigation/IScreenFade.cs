@@ -28,6 +28,13 @@ namespace BakAgain.UI.Navigation {
         /// <summary>Clear back to the game. Completes when nothing is covering it.</summary>
         UniTask FadeInAsync();
 
+        /// <summary>Darken to opaque over <paramref name="seconds"/>, for a transition whose original
+        /// ramp is its own rather than the world fade's (TASK-978). Zero is a cut.</summary>
+        UniTask FadeOutAsync(float seconds) => FadeOutAsync();
+
+        /// <summary>Clear over <paramref name="seconds"/>; see <see cref="FadeOutAsync(float)"/>.</summary>
+        UniTask FadeInAsync(float seconds) => FadeInAsync();
+
         /// <summary>
         /// Runs <paramref name="change"/> as a CUT: the frame now on screen stays up until the change
         /// completes, and then the new one replaces it at once — no darkening, and no frame of the

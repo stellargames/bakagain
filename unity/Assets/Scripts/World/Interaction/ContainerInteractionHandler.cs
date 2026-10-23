@@ -425,7 +425,8 @@ namespace BakAgain.World.Interaction {
             // black (CMBINV.C:232-240, :269-271); the world is not drawn between them. Closing the
             // riddle onto the world and pushing the loot showed the world for a moment.
             BakAgain.UI.Navigation.IScreenFade fade = _fade?.Invoke();
-            bool solved = await _puzzles.RunAsync(puzzle, fade == null ? null : fade.FadeOutAsync);
+            bool solved = await _puzzles.RunAsync(puzzle,
+                fade == null ? null : () => fade.FadeOutAsync(BakAgain.UI.Navigation.ScreenFade.CipherFadeOutSeconds));
             if (!solved) {
                 return;
             }
@@ -441,7 +442,8 @@ namespace BakAgain.World.Interaction {
                 }
             } finally {
                 if (fade != null) {
-                    await fade.FadeInAsync();
+                    // The original's own ramps, not the world fade's (TASK-978).
+                    await fade.FadeInAsync(BakAgain.UI.Navigation.ScreenFade.InventoryFadeInSeconds);
                 }
             }
             if (shown) {

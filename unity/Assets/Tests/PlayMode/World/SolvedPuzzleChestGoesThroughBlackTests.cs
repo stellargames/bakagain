@@ -14,6 +14,7 @@ namespace BakAgain.Tests.PlayMode.World {
     using GameData.Resources.Data;
     using GameData.Resources.Inventory;
     using GameData.Resources.Scene;
+    using GameData.Resources.World;
     using NUnit.Framework;
     using UnityEngine;
     using UnityEngine.TestTools;
@@ -61,6 +62,19 @@ namespace BakAgain.Tests.PlayMode.World {
                 LootUpWhenLifted = LootUp();
                 Up = false;
                 return UniTask.CompletedTask;
+            }
+
+            // The ramp each direction asked for (TASK-978); NaN = the world fade's own.
+            public float OutSeconds = float.NaN, InSeconds = float.NaN;
+
+            public UniTask FadeOutAsync(float seconds) {
+                OutSeconds = seconds;
+                return FadeOutAsync();
+            }
+
+            public UniTask FadeInAsync(float seconds) {
+                InSeconds = seconds;
+                return FadeInAsync();
             }
         }
 
@@ -168,9 +182,82 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.IsFalse(_puzzleGo.activeSelf, "the riddle is closed");
             Assert.IsTrue(cover.LootUpWhenLifted, "the black lifts onto the loot, not onto the world");
             Assert.IsFalse(cover.Up, "and it does lift");
+            Assert.AreEqual(ScreenFade.CipherFadeOutSeconds, cover.OutSeconds,
+                "the riddle goes to black at the cipher's own ramp (CIPHER.C:207), not the world fade's");
+            Assert.AreEqual(ScreenFade.InventoryFadeInSeconds, cover.InSeconds,
+                "and the loot comes up at the inventory's (CMBINV.C:269-271)");
             Assert.AreSame(menu, navigator.Current, "the loot screen is up");
             Assert.AreEqual(SaveGameContainerType.Chest, menu.DisplayedContainer?.ContainerType,
                 "showing the chest");
+
+            await navigator.Pop();
+        });
+            // TASK-978: the map's Cheat Central chest (TOWNSCN.C:761-773) runs the same cipher, whose solved
+        // path goes to black (CIPHER.C:205-213: the fade, then the palette put back at once on a black
+        // screen); the menu is drawn on it. The port closed the riddle onto the map.
+        [UnityTest]
+        public IEnumerator CheatCentralsChestGoesThroughBlackToItsMenu() => UniTask.ToCoroutine(async () => {
+            var session = new GameSession();
+            var chest = new SaveGameContainerData(
+                new SaveGameContainerLocationData(zone: 0, minChapter: 0, maxChapter: 10,
+                    worldItemId: 162, x: CheatCentral.ChestX, y: 1, actorNumber: 0),
+                SaveGameContainerType.Chest, numberOfItems: 0, capacity: 4,
+                dataTypes: SaveGameContainerDataType.Lock,
+                items: Array.Empty<SaveGameInventoryItemData>(),
+                lockData: new SaveGameContainerLockData(0, 0, Puzzle, 0),
+                dialogData: null, shopData: null, encounterData: null, timestamp: 0,
+                globalStateIndex: null);
+            session.SetZoneContainersForTest(new SaveGameZoneContainerStateData(new[] {
+                new SaveGameZoneContainerEntryData(0, 0, new[] { chest }),
+            }), chapter: 1);
+
+            var navigator = new ScreenNavigator();
+            await navigator.ResetTo(new Hud());
+
+            _puzzleGo = new GameObject("PuzzleUnderTest");
+            _puzzleGo.SetActive(false);
+            var puzzle = _puzzleGo.AddComponent<PuzzleScreen>();
+
+            _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            _menuGo = new GameObject("CheatCentralUnderTest");
+            _menuGo.AddComponent<UIDocument>().panelSettings = _panelSettings;
+            _menuGo.SetActive(false);
+            var cheat = _menuGo.AddComponent<BakAgain.UI.Cheats.ChestCheatScreen>();
+            cheat.Construct(session, new Stubs.NoOpDialogs(), navigator, null, null, new PuzzleService(puzzle), null);
+            bool MenuUp() => _menuGo.activeSelf;
+            var cover = new Cover { LootUp = MenuUp };
+            cheat.Fade = cover;
+
+            cheat.OpenWithCipherAsync().Forget();
+            float deadline = Time.realtimeSinceStartup + 10f;
+            while (!_puzzleGo.activeSelf && Time.realtimeSinceStartup < deadline) {
+                await UniTask.Yield();
+            }
+            Assert.IsTrue(_puzzleGo.activeSelf, "control: the riddle is up");
+
+            const BindingFlags Private = BindingFlags.NonPublic | BindingFlags.Instance;
+            var cipher = (CipherPuzzle)typeof(PuzzleScreen).GetField("_puzzle", Private).GetValue(puzzle);
+            var rows = (int[])typeof(PuzzleScreen).GetField("_rows", Private).GetValue(puzzle);
+            for (int c = 0; c < cipher.Width; c++) {
+                for (int r = 0; r < cipher.DialRows.Count; r++) {
+                    if (cipher.LetterAt(c, r) == cipher.Target[c]) { rows[c] = r; break; }
+                }
+            }
+            puzzle.PrimaryAction(18);   // Exit, solved
+
+            int mapFrames = 0;
+            deadline = Time.realtimeSinceStartup + 2f;
+            while (Time.realtimeSinceStartup < deadline) {
+                if (!_puzzleGo.activeSelf && !cover.Up && !MenuUp()) { mapFrames++; }
+                await UniTask.Yield();
+            }
+
+            Assert.AreEqual(0, mapFrames, "frames that showed the map between the riddle and the menu");
+            Assert.AreEqual(ScreenFade.CipherFadeOutSeconds, cover.OutSeconds, "to black at the cipher's ramp");
+            Assert.IsTrue(cover.LootUpWhenLifted, "the black lifts onto the menu");
+            Assert.AreEqual(0f, cover.InSeconds, "as a cut: the cipher puts the palette back at once (CIPHER.C:211-213)");
+            Assert.IsFalse(cover.Up);
+            Assert.AreSame(cheat, navigator.Current, "Cheat Central is up");
 
             await navigator.Pop();
         });
