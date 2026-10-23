@@ -351,3 +351,58 @@ public class CombatWalkTests {
     public void AStepTakesTheOriginalsFrameCount(int dx, int dy, int frames) =>
         Assert.Equal(frames, CombatWalk.StepFrames(dx, dy, cellSize: 300));
 }
+
+/// <summary>
+/// A thrust at an enemy that is not beside the attacker: which cell it walks to, and the path.
+/// </summary>
+/// <remarks>
+/// Every case is a path recorded in the ORIGINAL (TASK-970, t931.G01 SAVE02, the chapter-1 fight),
+/// read cell by cell from each combatant's <c>inner->gridX/gridY</c> while the walk ran.
+/// </remarks>
+public class MeleeApproachTests {
+    private static (CombatGrid Grid, Combatant Attacker) Board(int ax, int ay, int speed,
+        params (int X, int Y)[] others) {
+        var grid = new CombatGrid();
+        grid.SetOccupied(ax, ay, true);
+        foreach ((int x, int y) in others) {
+            grid.SetOccupied(x, y, true);
+        }
+        return (grid, new Combatant { PartySlot = 1, X = ax, Y = ay, Health = 40, Speed = speed });
+    }
+
+    private static List<(int X, int Y)> Path(CombatGrid grid, Combatant a, int tx, int ty) {
+        Assert.NotNull(CombatWalk.MeleeApproach(grid, a, tx, ty, a.Speed));
+        return a.WalkedCells;
+    }
+
+    [Fact]
+    public void ADiagonalEnemy_OneStraightStepToTheNearerOrthogonalNeighbour() {
+        // Owyn (4,1) thrusts at E#0 (5,2). Original: (4,1) -> (4,2), and the blow. The port walked
+        // at the enemy's own cell and bounced around it: (4,2) (5,3) (4,2) (5,3).
+        (CombatGrid grid, Combatant owyn) = Board(4, 1, 4, (2, 1), (6, 2), (5, 2), (6, 7));
+        Assert.Equal(new List<(int, int)> { (4, 1), (4, 2) }, Path(grid, owyn, 5, 2));
+    }
+
+    [Fact]
+    public void TheNearestNeighbourTaken_FallsToTheNextInTheOriginalsOrder() {
+        // Locklear (2,1) at E#0 (5,2), Owyn already on (4,2): (4,2) is nearest but held, so the
+        // order for "approach from -x" offers (5,1) next. Original: (3,1) (4,1) (5,1).
+        (CombatGrid grid, Combatant locklear) = Board(2, 1, 4, (4, 2), (6, 2), (5, 2), (6, 7));
+        Assert.Equal(new List<(int, int)> { (2, 1), (3, 1), (4, 1), (5, 1) },
+            Path(grid, locklear, 5, 2));
+    }
+
+    [Fact]
+    public void ATieBetweenNeighbours_GoesToTheFirstInXPlusXMinusYPlusYMinusOrder() {
+        // Gorath (6,2) at E#1 (4,4): (5,4) and (4,3) are both 2 away; +x wins. Original: (5,3) (5,4).
+        (CombatGrid grid, Combatant gorath) = Board(6, 2, 3, (5, 1), (4, 2), (5, 2), (4, 4));
+        Assert.Equal(new List<(int, int)> { (6, 2), (5, 3), (5, 4) }, Path(grid, gorath, 4, 4));
+    }
+
+    [Fact]
+    public void EveryNeighbourHeld_NoApproach() {
+        (CombatGrid grid, Combatant a) = Board(2, 2, 5, (5, 1), (4, 2), (6, 2), (5, 3), (5, 2));
+        Assert.Null(CombatWalk.MeleeApproach(grid, a, 5, 2, a.Speed));
+        Assert.Equal((2, 2), (a.X, a.Y));
+    }
+}

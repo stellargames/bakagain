@@ -318,6 +318,66 @@ public static class CombatWalk {
     }
 
     /// <summary>
+    /// A thrust's walk into contact: <c>combat_actor_melee_approach</c> (CACTOR.C:1727-1749) and
+    /// <c>combat_actor_step_to_tgt_adj</c> (CACTOR.C:1642-1725).
+    /// </summary>
+    /// <remarks>
+    /// <b>The walk aims at one of the target's four orthogonal neighbours, never at the target's own
+    /// cell.</b> Aimed at the occupied cell, the greedy step's slide fallback (CMBTAI.C:144-170)
+    /// steps round the target and back for the rest of the movement — the "strange path" of
+    /// TASK-970.
+    /// <list type="number">
+    /// <item>The neighbour nearest the attacker (Chebyshev) picks the ORDER, ties to the first of
+    /// +x, -x, +y, -y.</item>
+    /// <item>The first neighbour in that order that is free and whose dry-run walk with
+    /// <paramref name="speed"/> answers non-zero is the destination. The dry run's answer is its
+    /// last step's (CMBTAI.C:211), so a route that merely runs out of movement still counts.</item>
+    /// <item>The real walk gets one step more than the probe (<c>g_acting_actor_speed++</c>,
+    /// CACTOR.C:1744).</item>
+    /// </list>
+    /// </remarks>
+    /// <returns>The walk, or null when no neighbour has a route (the turn is not spent).</returns>
+    public static WalkResult? MeleeApproach(CombatGrid grid, Combatant attacker, int targetX,
+        int targetY, int speed, TrapPuzzle? puzzle = null,
+        Action<Combatant, Hazard>? onHazard = null,
+        Func<int, int, bool>? occupiedByLiveCombatant = null) {
+        if (grid == null) {
+            throw new ArgumentNullException(nameof(grid));
+        }
+        if (attacker == null) {
+            throw new ArgumentNullException(nameof(attacker));
+        }
+
+        (int X, int Y)[] neighbours = {
+            (targetX + 1, targetY), (targetX - 1, targetY), (targetX, targetY + 1), (targetX, targetY - 1),
+        };
+        var best = 0;
+        for (var i = 1; i < 4; i++) {
+            if (CombatGrid.ChebyshevDistance(attacker.X, attacker.Y, neighbours[i].X, neighbours[i].Y)
+                < CombatGrid.ChebyshevDistance(attacker.X, attacker.Y, neighbours[best].X, neighbours[best].Y)) {
+                best = i;
+            }
+        }
+
+        // CACTOR.C:1666-1706: the try order for each nearest side, as indexes into `neighbours`.
+        int[] order = best switch {
+            0 => new[] { 0, 2, 3, 1 },
+            1 => new[] { 1, 3, 2, 0 },
+            2 => new[] { 2, 0, 1, 3 },
+            _ => new[] { 3, 1, 0, 2 },
+        };
+        foreach (int i in order) {
+            (int x, int y) = neighbours[i];
+            if (grid.IsBlocked(x, y) || !Walk(grid, attacker, x, y, speed, probe: true).PathClear) {
+                continue;
+            }
+            return Walk(grid, attacker, x, y, speed + 1, puzzle: puzzle, onHazard: onHazard,
+                occupiedByLiveCombatant: occupiedByLiveCombatant);
+        }
+        return null;
+    }
+
+    /// <summary>
     /// Shove the element the step ran into, and step onto the tile it leaves.
     /// </summary>
     /// <remarks>

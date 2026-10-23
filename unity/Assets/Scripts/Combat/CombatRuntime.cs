@@ -1120,29 +1120,31 @@ namespace BakAgain.Combat {
         /// Walk the attacker to a tile beside the target. False when there is no route.
         /// </summary>
         /// <remarks>
-        /// The same <see cref="CombatWalk"/> the monster turn uses, aimed at the target's tile: the
-        /// walk stops at the last free tile before an occupied one, which is the contact square.
+        /// <see cref="CombatWalk.MeleeApproach"/>: the walk aims at one of the target's orthogonal
+        /// neighbours, not at the target's cell (TASK-970). <b>Arriving is not re-checked.</b>
+        /// <c>combat_actor_melee_approach</c> answers 1 once a neighbour had a route, and the thrust
+        /// follows (COMBAT.C:2354-2360) — <c>combat_arena_resolve_melee_swing</c> tests no adjacency.
         /// </remarks>
         private bool StepIntoContact(Combatant mover, Combatant target) {
             int startX = mover.X;
             int startY = mover.Y;
             System.Func<int, int> hazardRoll = n => UnityEngine.Random.Range(0, n);
-            AnnounceShove(CombatWalk.Walk(Grid, mover, target.X, target.Y, mover.Speed,
-                puzzle: Puzzle, occupiedByLiveCombatant: TileHoldsLiveCombatant,
-                onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, hazardRoll)));
+            CombatWalk.WalkResult? walk = CombatWalk.MeleeApproach(Grid, mover, target.X, target.Y,
+                mover.Speed, puzzle: Puzzle, occupiedByLiveCombatant: TileHoldsLiveCombatant,
+                onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, hazardRoll));
+            if (walk == null) {
+                return false;
+            }
+            AnnounceShove(walk.Value);
             int endX = mover.X;
             int endY = mover.Y;
             mover.X = startX;
             mover.Y = startY;
-            if (endX == startX && endY == startY) {
-                return false;
-            }
             MoveTo(mover, endX, endY);
 
-            // A hazard on the way can now kill the mover, which it could not before hazards were
-            // wired. A corpse is not in contact with anything.
-            return !mover.IsDead
-                && CombatGrid.OrthogonallyAdjacent(mover.X, mover.Y, target.X, target.Y);
+            // The original's arm after the approach: a combatant the walk killed does not strike
+            // (COMBAT.C:2355); ThrustSurvivesTheApproach is that test.
+            return true;
         }
 
         /// <summary>
