@@ -742,7 +742,9 @@ namespace BakAgain.UI.InGame {
             }
 
             if (_loader.TryGetElementRect(ActionWorldViewport, out Rect viewportRect)) {
-                _combatFrame = BuildCombatFrame(CanonicalStage.GetOrCreate(root, _loader.Frame), viewportRect.yMax);
+                VisualElement combatStage = CanonicalStage.GetOrCreate(root, _loader.Frame);
+                _combatFrame = BuildCombatFrame(combatStage, viewportRect.yMax);
+                AttachCombatGuard(combatStage, viewportRect.yMax);
             }
             // The compass's arrow buttons are REQ_MAIN widgets, so they sit above the combat frame;
             // the arena's REQ has none, so a fight hides them with the rest of the compass.
@@ -872,6 +874,7 @@ namespace BakAgain.UI.InGame {
             _touchTargeting = null;
             _compass = null;
             _combatFrame = null;
+            _combatGuard = null;
             _compassArrows = System.Array.Empty<VisualElement>();
             _interaction = null;
             _hud?.Revert(); _hud = null;
@@ -1175,7 +1178,41 @@ namespace BakAgain.UI.InGame {
             }
         }
 
-        private void RefreshCombatChrome() {
+        /// <summary>
+        /// Lays a transparent, click-taking band over the travel HUD below the world viewport, shown
+        /// only in a fight (TASK-957).
+        /// </summary>
+        /// <remarks>
+        /// <see cref="RefusedDuringAFight"/> drops the travel actions, but the travel widgets were still
+        /// PICKED: the combat REQ covers only its own stones, which are smaller than the travel ones, and
+        /// the capability stone is blank and unpickable whenever an enemy is adjacent (COMBAT.DAT ships
+        /// entry 14 Disabled). So a click there reached the follow-road toggle, lit its hover face and
+        /// played its press sound; the portraits and the edges of map, bookmark and options were
+        /// reachable the same way. The original never polls REQ_MAIN in a fight (COMBAT.C:118, :1736)
+        /// and a click on a gated entry hits nothing (MENUPAGE.C:446-458), so it makes no sound at all.
+        /// The band is the area <see cref="BuildCombatFrame"/> paints the arena's frame over; the combat
+        /// HUD's own stones (tier -1) sit above this document and keep their clicks, and the viewport
+        /// above the band keeps the arena's.
+        /// </remarks>
+        internal void AttachCombatGuard(VisualElement stage, float splitY) {
+            _combatGuard = new VisualElement {
+                name = "combat_click_guard",
+                pickingMode = PickingMode.Position,
+                style = {
+                    position = Position.Absolute,
+                    left = 0,
+                    top = splitY,
+                    width = BakAgain.Graphics.Canonical.Width,
+                    height = BakAgain.Graphics.Canonical.Height - splitY,
+                    display = DisplayStyle.None,
+                },
+            };
+            stage.Add(_combatGuard);
+        }
+
+        private VisualElement _combatGuard;
+
+        internal void RefreshCombatChrome() {
             bool inCombat = _inCombat?.Invoke() ?? false;
             if (inCombat == _combatChromeShown) {
                 return;
@@ -1183,6 +1220,11 @@ namespace BakAgain.UI.InGame {
             _combatChromeShown = inCombat;
             if (_combatFrame != null) {
                 _combatFrame.style.display = inCombat ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+            if (_combatGuard != null) {
+                _combatGuard.style.display = inCombat ? DisplayStyle.Flex : DisplayStyle.None;
+                // In front of every travel widget, whatever was added to the stage after it.
+                _combatGuard.BringToFront();
             }
             foreach (VisualElement arrow in _compassArrows) {
                 arrow.style.display = inCombat ? DisplayStyle.None : DisplayStyle.Flex;
