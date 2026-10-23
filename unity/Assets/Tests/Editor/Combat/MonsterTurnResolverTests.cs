@@ -306,6 +306,43 @@ namespace BakAgain.Tests.Editor.Combat {
             Assert.AreSame(enc.Party[1], Resolver().Resolve(enc, m).Target);
         }
 
+        [TestCase(true, 0, TestName = "ACorpsesKeptTargetDoesNotCrowdItsVictim")]
+        [TestCase(false, 1, TestName = "ALivingAllysTargetDoesCrowdIt_TheControl")]
+        public void TheAttackerCountSkipsTheDead(bool allyIsDead, int expectedPick) {
+            // A corpse keeps its target (TASK-962: combat_arena_actor_die never clears it), so the
+            // per-target attacker count has to skip it, as CMBTAI.C:351-352 does on CAF_DEAD.
+            // One chooser, one other enemy, two members: the cap is (1 + 2 - 1) / 2 = 1, so an ally
+            // that counts saturates the near member and sends the chooser to the far one.
+            Combatant chooser = Monster(x: 0, y: 0);
+            Combatant ally = Monster(x: 0, y: 5);
+            var enc = new CombatEncounter();
+            enc.Enemies.Add(chooser);
+            enc.Enemies.Add(ally);
+            enc.Party.Add(Member(2, 0));
+            enc.Party.Add(Member(6, 0));
+            enc.BeginRound();
+            ally.Target = enc.Party[0];
+            if (allyIsDead) {
+                enc.Kill(ally);
+            }
+
+            Assert.AreSame(enc.Party[expectedPick], Resolver().Resolve(enc, chooser).Target);
+        }
+
+        [Test]
+        public void AKeptTargetOutOfReachIsDroppedBeforeTheChooserCountsAttackers() {
+            // follow_tgt_check clears the target (CMBTAI.C:412) BEFORE select_target counts who already
+            // aims at each candidate (CMBTAI.C:351), so a monster never counts itself. Since TASK-962 a
+            // monster keeps its target after a short approach walk; counting itself made the cap of
+            // (1 + 2 - 1) / 2 = 1 refuse the member it was walking to. Measured in the chapter-1 fight:
+            // the original's E#1 went on to Gorath, the port's turned to Locklear.
+            Combatant chooser = Monster(x: 0, y: 0);
+            CombatEncounter enc = Fight(chooser, Member(3, 0), Member(6, 0));
+            chooser.Target = enc.Party[0];
+
+            Assert.AreSame(enc.Party[0], Resolver().Resolve(enc, chooser).Target);
+        }
+
         [Test]
         public void ASHOOTERSkipsACandidateCrowdedByTheMONSTERSOwnSide() {
             // *** The clearance rule is about the monsters' positions, not the party's, and it is

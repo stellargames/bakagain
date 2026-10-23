@@ -401,14 +401,20 @@ public class CombatEncounterTests {
     }
 
     [Fact]
-    public void ADeadCombatantStopsPointingAtAnyone() {
+    public void ADeadCombatantKeepsItsTarget() {
+        // combat_arena_actor_die (COMBAT.C:212-288) never writes inner->target, and nor does the
+        // round reset for a target that is still alive (CBENC.C:752-755). Measured: the original's
+        // dead E#0 still read Gorath a round after it died (TASK-962). The corpse cannot act on it
+        // and the attacker count skips it (CMBTAI.C:351-352), so nothing reads it in a fight.
         Combatant hero = Member(5);
         Combatant beast = Enemy(5);
         beast.Target = hero;
+        CombatEncounter e = Encounter(new[] { hero }, new[] { beast });
 
-        new CombatEncounter().Kill(beast);
+        e.Kill(beast);
+        e.BeginRound();
 
-        Assert.Null(beast.Target);
+        Assert.Same(hero, beast.Target);
     }
 
     [Fact]

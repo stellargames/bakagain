@@ -308,7 +308,9 @@ public sealed class CombatEncounter {
         combatant.Health = 0;
         combatant.Stamina = 0;
         combatant.Flags |= CombatantFlags.Dead;
-        combatant.Target = null;
+        // The target is left as it stands: combat_arena_actor_die never writes inner->target
+        // (COMBAT.C:212-288). A corpse cannot act on it, and the attacker count skips it on
+        // CAF_DEAD (CMBTAI.C:351-352). TASK-962.
 
         if (grid != null) {
             // Occupancy goes; terrain stays exactly as it was.

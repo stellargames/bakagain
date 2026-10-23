@@ -385,6 +385,9 @@ namespace BakAgain.Combat {
                 && CombatGrid.OrthogonallyAdjacent(monster.X, monster.Y, current.X, current.Y)) {
                 return new Decision(AiAction.MeleeOrMove, current);
             }
+            // Dropped BEFORE the pick (CMBTAI.C:412): the attacker count (CMBTAI.C:351) must not see
+            // this monster still aiming at the target it kept from a short walk (TASK-962).
+            monster.Target = null;
             monster.Target = PickTarget(encounter, monster, role, AiAction.MeleeOrMove, radiusOverride: radius);
             return monster.Target != null
                 ? new Decision(AiAction.MeleeOrMove, monster.Target)

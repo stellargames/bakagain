@@ -4432,18 +4432,22 @@ namespace BakAgain.Combat {
                 return decision;
             }
 
-            // *** A WALK THAT DID NOT ARRIVE DROPS THE TARGET. ***
-            // combataipath_select_target ends with
+            // *** A REFUSED LAST STEP DROPS THE TARGET; A SHORT WALK KEEPS IT. ***
+            // combataipath_select_target ends
             //     if (target && (gridX != destX || gridY != destY)
             //         && combataipath_actor_walk_path(actor, 0) == 0) target = 0;
-            // (CMBTAI.C:371-376) — the walk IS that call, so a monster that could not reach the cell
-            // beside its target stops aiming at it and picks again next turn. Keeping the target
-            // instead is what leaves one shuffling against an obstacle for the rest of the fight.
+            // (CMBTAI.C:373-377), and walk_path returns its LAST step's result (CMBTAI.C:211):
+            // 0 only when that step was refused outright, 1 for one that moved and for a shove
+            // (CMBTAI.C:131-183). WalkResult.PathClear is that value, the shove aside. So a monster boxed in stops
+            // aiming and picks again next turn, and one that ran out of movement keeps its target:
+            // it faces it at the turn's end (CBENC.C:984) and counts against it in the next
+            // monster's attacker cap (CMBTAI.C:351). This used to drop the target on any short walk;
+            // measured in both games (TASK-962), the original's E#1 stopped short at (5,4) still
+            // aiming at Gorath.
             //
-            // The swing is skipped with it, because follow_tgt_check's attack arm is inside an
-            // `if (target != 0)`. A monster that was ALREADY beside its target has dest == its own
-            // cell, arrives trivially, and is unaffected.
-            if (monster.X != destX || monster.Y != destY) {
+            // The swing below is follow_tgt_check's attack arm, inside `if (target != 0)` and gated
+            // on ortho adjacency, so a short walk swings only if it happens to end beside the target.
+            if (!walk.PathClear && walk.Shove == null) {
                 monster.Target = null;
                 return decision;
             }
@@ -4627,12 +4631,9 @@ namespace BakAgain.Combat {
             // MonsterTurnResolver.WalkMeleeMoveRow -> Follow, in the same turn, before this runs;
             // compared live in both games on dir.G01/SAVE05 (TASK-461).
             //
-            // *** AND THIS GATE CANNOT CURRENTLY FIRE FROM THE MONSTER PATH. *** Since TASK-438's
-            // tail landed, ResolveEnemyTurn returns early unless the monster reached `dest`, and
-            // ApproachCell only ever yields an ORTHOGONAL neighbour of the target — so anything that
-            // gets here is already ortho-adjacent. It is kept because the rule is real and the two
-            // call paths are not permanently welded together, but a reader should not take it for
-            // load-bearing: the behaviour it describes is enforced upstream.
+            // *** LOAD-BEARING FOR A SHORT WALK. *** A monster that ran out of movement keeps its
+            // target (CMBTAI.C:373-377, TASK-962) and reaches this without standing at `dest`, so
+            // this test is what stops it swinging from a cell that is not beside the target.
             if (target == null
                 || !CombatGrid.OrthogonallyAdjacent(monster.X, monster.Y, target.X, target.Y)) {
                 return;

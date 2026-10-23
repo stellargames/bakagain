@@ -545,20 +545,15 @@ namespace BakAgain.Tests.Editor.Combat {
         }
 
         [Test]
-        public void AWalkThatDoesNotArriveDropsTheTargetAndSkipsTheSwing() {
-            // *** THE ORIGINAL DROPS A TARGET IT COULD NOT REACH. *** combataipath_select_target ends
-            // with `if (target && not-at-dest && walk_path(actor, 0) == 0) target = 0;`
-            // (CMBTAI.C:371-376), so a monster that cannot get beside its target stops aiming at it
-            // and picks again next turn. Keeping it is what leaves one shuffling against an obstacle
-            // for the rest of the fight.
+        public void AWalkThatStopsShortKeepsItsTargetAndDoesNotSwing() {
+            // *** ONLY A REFUSED LAST STEP DROPS THE TARGET. *** combataipath_select_target ends
+            // `if (target && not-at-dest && walk_path(actor, 0) == 0) target = 0;` (CMBTAI.C:373-377),
+            // and walk_path returns its LAST step's result (CMBTAI.C:211), which is 1 for every step
+            // that moved. A walk that ran out of movement keeps its target. This test asserted the
+            // opposite until TASK-962; measured in both games, the original's E#1 at (5,4), short of
+            // its dest (5,2), still read Gorath, the port's read nothing.
             // *** ENOUGH SPEED TO SET OFF, NOT ENOUGH TO ARRIVE. *** The party member stands at
-            // (3,4) and the enemy is placed four cells away with one point of movement, so the walk
-            // runs and stops short — which is the case the rule is about.
-            //
-            // Two earlier shapes of this test passed with the rule REMOVED and mutation caught both:
-            // a speed of zero and a pair of walled approach cells each made the resolver choose
-            // nobody, so the target was already null and IsNull proved nothing. The monster has to
-            // genuinely acquire a target and genuinely fail to reach it.
+            // (3,4) and the enemy is placed four cells away with one point of movement.
             (CombatRuntime runtime, CombatEncounter fight) =
                 FightWithEnemiesAt(StatBlock(health: 30), ((byte)7, (byte)7));
             Combatant member = fight.Party[0];
@@ -569,8 +564,27 @@ namespace BakAgain.Tests.Editor.Combat {
             runtime.ResolveEnemyTurn(monster, Melee(), AttacksOnContact());
 
             Assert.AreNotEqual((7, 7), (monster.X, monster.Y), "it did set off");
-            Assert.IsNull(monster.Target, "and stops aiming at what it could not reach");
+            Assert.AreSame(member, monster.Target, "and still aims at what it is walking to");
             Assert.AreEqual(memberBefore, member.Health + member.Stamina, "and does not swing");
+        }
+
+        [Test]
+        public void AWalkWhoseStepIsRefusedDropsTheTarget() {
+            // The control for the test above: the same fight with every cell the first step could
+            // take walled off, so walk_path's last step returns 0 and the target goes
+            // (CMBTAI.C:377). It picks again next turn instead of shuffling against the wall.
+            (CombatRuntime runtime, CombatEncounter fight) =
+                FightWithEnemiesAt(StatBlock(health: 30), ((byte)7, (byte)7));
+            Combatant monster = fight.Enemies[0];
+            monster.Speed = 1;
+            runtime.Grid.SetTerrain(6, 6, CombatTerrain.Wall);
+            runtime.Grid.SetTerrain(7, 6, CombatTerrain.Wall);
+            runtime.Grid.SetTerrain(6, 7, CombatTerrain.Wall);
+
+            runtime.ResolveEnemyTurn(monster, Melee(), AttacksOnContact());
+
+            Assert.AreEqual((7, 7), (monster.X, monster.Y), "it could not move");
+            Assert.IsNull(monster.Target, "and stops aiming at what it could not reach");
         }
 
         [Test]
