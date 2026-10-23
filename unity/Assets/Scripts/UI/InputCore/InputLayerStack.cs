@@ -21,6 +21,16 @@ namespace BakAgain.UI.InputCore {
             Recompute();
         }
 
+        // Under everything already pushed: for the base HUD, which is shown again under overlays that
+        // stayed up while a pushed screen hid it (the combat HUD over the travel HUD, TASK-950).
+        public void PushAtBottom(IInputLayer layer) {
+            if (layer == null) throw new ArgumentNullException(nameof(layer));
+            if (_layers.Contains(layer)) throw new InvalidOperationException("Layer already pushed: " + layer.Id);
+            _layers.Insert(0, layer);
+            layer.OnPushed();
+            Recompute();
+        }
+
         public IInputLayer Pop() {
             if (_layers.Count == 0) return null;
             IInputLayer top = _layers[_layers.Count - 1];

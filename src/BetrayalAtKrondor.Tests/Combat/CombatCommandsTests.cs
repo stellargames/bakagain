@@ -31,6 +31,14 @@ public class CombatCommandsTests {
     }
 
     [Fact]
+    public void EscapesScancodeIsACommand_TheOnePickLoopsKeep() {
+        // Escape reaches the arena as scancode 1: the command switch's case 1 drops an armed spell
+        // (COMBAT.C:2140-2146), and the item pick ends on menuResult == 1 (COMBAT.C:1752-1756).
+        Assert.Equal(1, CombatCommands.EscapeId);
+        Assert.Equal(CombatCommands.Command.Escape, CombatCommands.For(1));
+    }
+
+    [Fact]
     public void AnIdFromAnotherScreenIsNotACombatCommand() {
         Assert.Equal(CombatCommands.Command.None, CombatCommands.For(18));
         Assert.Equal(CombatCommands.Command.None, CombatCommands.For(48));

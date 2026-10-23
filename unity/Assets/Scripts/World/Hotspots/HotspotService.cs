@@ -2615,6 +2615,9 @@ using GameData.Resources.Scene;
             menu.CommandIssued += OnCombatCommand;
             menu.HelpRequested -= OnCombatHelpRequested;
             menu.HelpRequested += OnCombatHelpRequested;
+            // An item's target pick and the decoy's tile pick run the menu and drop what it returns,
+            // Escape excepted for the item (COMBAT.C:1736, 1752-1756; CSPELL.C:680-708).
+            menu.IgnoresButtons = () => _pendingCombatItem != null || _pendingDecoyOf != null;
 
             // *** THE OPENING GOES THROUGH THE SAME SETTLE. *** Enemies faster than the whole
             // party take their turns before the player has touched anything, and this used to run
@@ -2670,6 +2673,9 @@ using GameData.Resources.Scene;
             // defending sets Parry, which MeleeHits already reads. So Defend had no effect at all and
             // Rest was unreachable.
             switch (command) {
+                case GameData.Resources.Combat.CombatCommands.Command.Escape:
+                    ResolveEscape(acting);
+                    return;
                 case GameData.Resources.Combat.CombatCommands.Command.Rest:
                     Combat.ResolveRest(acting);
                     break;
@@ -3766,6 +3772,37 @@ using GameData.Resources.Scene;
         }
 
         /// <summary>
+        /// Escape: the item's pick ends with no target, or an armed spell is dropped.
+        /// </summary>
+        /// <remarks>
+        /// <b>The item pick sits inside case 22, so its Escape still spends the turn.</b>
+        /// combat_arena_pick_target_actor returns on menuResult == 1 (COMBAT.C:1752-1756), the dispatch
+        /// returns before consuming the item (COMBAT.C:1774-1780), and case 22 clears CAF_READY after
+        /// it (COMBAT.C:2115-2127). A spell aimed from the turn loop is case 1 instead: the spell is
+        /// dropped and the same actor goes on (COMBAT.C:2140-2146). The tile picks take no Escape
+        /// (CSPELL.C:680-708), and with nothing armed it does nothing.
+        /// </remarks>
+        private void ResolveEscape(Combatant acting) {
+            if (_pendingCombatItem != null) {
+                _pendingCombatItem = null;
+                _pendingSpell = null;
+                _pendingSpellId = -1;
+                _pendingSpellPower = 0;
+                EndTargetSelection();
+                acting.Flags &= ~GameData.Resources.Combat.CombatantFlags.Ready;
+                RefreshCombatHud();
+                return;
+            }
+            if (AwaitingCombatTarget && _pendingSpell != null) {
+                _pendingSpell = null;
+                _pendingSpellId = -1;
+                _pendingSpellPower = 0;
+                EndTargetSelection();
+                _redrawArena?.Invoke();
+            }
+        }
+
+        /// <summary>
         /// Resolves an armed combat item against the clicked combatant.
         /// </summary>
         /// <remarks>
@@ -3779,8 +3816,8 @@ using GameData.Resources.Scene;
         /// <para><b>A click that takes nothing leaves the pick waiting.</b> combat_arena_pick_target_actor
         /// ends only on a click with a target, a click whose tile row is past 140, or Escape
         /// (COMBAT.C:1752-1756). Live with the Idol, a click on an empty cell and one on Rest left
-        /// "Choose a target" up and the user ready (TASK-947). The HUD's buttons still answer here,
-        /// which is the port's way out.</para>
+        /// "Choose a target" up and the user ready (TASK-947). The HUD's buttons answer nothing meanwhile
+        /// (CombatMenu.IgnoresButtons) and Escape is the way out (ResolveEscape, TASK-950).</para>
         ///
         /// <para><b>Nothing is consumed here yet</b>, for the reason the dispatch records: the
         /// arena's tail consumes by kind only after an arm has done something, and only the cast

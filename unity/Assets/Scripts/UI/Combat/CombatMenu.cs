@@ -108,6 +108,16 @@ namespace BakAgain.UI.Combat {
             ApplyBlank();
         }
 
+        /// <summary>
+        /// While true the buttons stay drawn and answer nothing; only Escape gets through.
+        /// </summary>
+        /// <remarks>
+        /// An item's target pick runs the menu each pass and keeps only Escape (COMBAT.C:1736,
+        /// 1752-1756), and the decoy's tile pick drops the result entirely (CSPELL.C:680-708). Set by
+        /// the fight's owner, which knows what is armed.
+        /// </remarks>
+        public Func<bool> IgnoresButtons { get; set; }
+
         /// <summary>True while every stone is bare and nothing answers — see <see cref="SetBlank"/>.</summary>
         public bool IsBlank { get; private set; }
 
@@ -193,6 +203,9 @@ namespace BakAgain.UI.Combat {
             if (IsBlank) {
                 return;   // the tile pick ignores the menu's result (CSPELL.C:680-708)
             }
+            if (actionId != CombatCommands.EscapeId && IgnoresButtons?.Invoke() == true) {
+                return;
+            }
             CombatCommands.Command command = CombatCommands.For(actionId);
             if (command == CombatCommands.Command.None) {
                 _logger.LogDebug("Combat menu: id {Id} is not a combat command.", actionId);
@@ -210,7 +223,10 @@ namespace BakAgain.UI.Combat {
         public Awaitable SecondaryAction(int actionId) {
             // Right-click DESCRIBES; it never acts. Each case of the original's command switch opens
             // with `if (is_preview) { dialog_play_record(id, 1); return; }`, so no fight state is
-            // touched on this path — see CombatHelp.
+            // touched on this path — see CombatHelp. A pick loop never reaches that switch.
+            if (IsBlank || IgnoresButtons?.Invoke() == true) {
+                return default;
+            }
             int record = CombatActionDispatch.HelpRecordFor(actionId);
             if (record < 0) {
                 // The label and the hidden character-screen zone are the only two, and neither can be

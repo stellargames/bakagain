@@ -76,7 +76,9 @@ namespace BakAgain.UI.InputCore {
                         _actionHandler?.PrimaryAction(action);
                     }
                 });
-            _stack?.Push(_layer);
+            // The travel HUD is the bottom tier (sortingOrder -2), so its layer goes under whatever is
+            // already up: shown again after the cast screen, it went over the combat HUD's (TASK-950).
+            _stack?.PushAtBottom(_layer);
         }
 
         private void PopLayer() {

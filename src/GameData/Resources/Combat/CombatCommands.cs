@@ -82,6 +82,13 @@ public static class CombatCommands {
         /// click, not an action resolved on the spot.
         /// </remarks>
         Inspect,
+
+        /// <summary>
+        /// Escape, scancode 1 — no button carries it. It drops an armed spell and the turn goes on
+        /// (case 1, COMBAT.C:2140-2146), and it is the one input an item's target pick keeps
+        /// (menuResult == 1, COMBAT.C:1752-1756). With nothing armed it does nothing.
+        /// </summary>
+        Escape,
     }
 
     /// <summary>The action id for each command, as COMBAT.DAT ships them.</summary>
@@ -115,6 +122,9 @@ public static class CombatCommands {
     /// <summary>Inspect one enemy — a targeting mode, not an immediate action.</summary>
     public const int InspectId = 47;
 
+    /// <summary>Escape's scancode — <see cref="Command.Escape"/>; also the Cancel id every REQ screen gets.</summary>
+    public const int EscapeId = 1;
+
     /// <summary>Q's scancode — <see cref="Command.AbortGame"/> with Ctrl held.</summary>
     public const int AbortGameId = 0x10;
 
@@ -134,6 +144,7 @@ public static class CombatCommands {
             case DefendId: return Command.Defend;
             case InspectId: return Command.Inspect;
             case AbortGameId: return Command.AbortGame;
+            case EscapeId: return Command.Escape;
             default: return Command.None;
         }
     }

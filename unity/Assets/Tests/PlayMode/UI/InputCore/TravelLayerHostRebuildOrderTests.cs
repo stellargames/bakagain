@@ -69,6 +69,27 @@ namespace BakAgain.Tests.PlayMode.UI.InputCore {
         }
 
         [Test]
+        public void ATravelHudShownAgainGoesUnderTheCombatHud() {
+            // The cast screen deactivates InGameScreen and its close re-enables it, which re-pushed the travel
+            // layer above CombatScreen's: [CombatScreen][InGameScreen], so Escape and the combat letters went
+            // to the travel HUD while a spell aimed (measured live, TASK-950). The travel HUD is the bottom
+            // tier (sortingOrder -2), so its layer belongs at the bottom of the stack too.
+            var stack = new InputLayerStack();
+            TravelLayerHost host = Host(stack);
+            RaiseBuilt(host, new List<NavWidget>());
+            var combat = new NavigableLayer("CombatScreen", CaptureMode.Passive, new List<NavWidget>(), null, null);
+            stack.Push(combat);
+            Assert.AreSame(combat, stack.ResolveInputTarget(), "the control: the fight's menu gets the intents");
+
+            typeof(TravelLayerHost).GetMethod("PopLayer", BindingFlags.NonPublic | BindingFlags.Instance)
+                .Invoke(host, null);                                  // OnDisable, as the cast screen opens
+            RaiseBuilt(host, new List<NavWidget>());                  // shown again as it closes
+
+            Assert.AreEqual(2, stack.Layers.Count);
+            Assert.AreSame(combat, stack.ResolveInputTarget(), "the travel layer went over the fight's menu");
+        }
+
+        [Test]
         public void ARebuildWithNothingAboveLeavesTheHudLive() {
             var stack = new InputLayerStack();
             TravelLayerHost host = Host(stack);

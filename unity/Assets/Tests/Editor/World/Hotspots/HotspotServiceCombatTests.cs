@@ -522,6 +522,80 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
             Assert.IsFalse(acting.CanAct(strict: true));
         }
 
+        // ---------------------------------------------------------------- TASK-950: the way out of an item's pick
+
+        [Test]
+        public void EscapeEndsAnItemsPick_NothingIsTaken_AndTheTurnIsSpent() {
+            // combat_arena_pick_target_actor ends on menuResult == 1, Escape's scancode (COMBAT.C:1752-1756), with
+            // no target, so resume_dispatch returns before itemtbl_inv_consume_one_by_kind (COMBAT.C:1774-1780) and
+            // case 22 then clears CAF_READY (COMBAT.C:2115-2127).
+            (Rig rig, CombatEncounter fight, Combatant acting) = PartyTurn();
+            Combatant enemy = fight.Enemies[0];
+            rig.Service.UseCombatItemForTest(0x0c);
+            Assert.AreEqual(CombatCommandOutcome.PendingMode.TargetSelection, rig.Service.PendingModeForTest);
+            Assert.IsTrue(acting.CanAct(strict: true), "the control: armed, the turn is still his");
+
+            rig.Service.OnCombatCommandForTest(CombatCommands.Command.Escape, CombatCommands.EscapeId);
+
+            Assert.AreEqual(CombatCommandOutcome.PendingMode.None, rig.Service.PendingModeForTest, "Escape ends the pick");
+            Assert.IsFalse(acting.CanAct(strict: true), "and the turn is spent");
+            Assert.IsFalse(enemy.IsDead, "on nobody");
+            Assert.AreNotEqual(SpellTargetPanel.Prompt, FirstLine(rig, 0, false), "and the item's prompt is gone");
+        }
+
+        [Test]
+        public void EscapeDropsAnArmedSpell_AndTheTurnGoesOn() {
+            // Case 1 of the command switch: an armed spell (spell_result != -1) is dropped and the loop goes on with
+            // the same actor (COMBAT.C:2140-2146) -- unlike the item pick, which sits inside case 22.
+            (Rig rig, CombatEncounter fight, Combatant acting) = PartyTurn();
+            rig.Service.ArmSpellForTest(new GameData.Resources.Spells.Spell("S") {
+                Name = "Flamecast", TargetingType = 0,
+                Calculation = GameData.SpellCalculation.CostTimesDamage, Damage = 1, Duration = 1,
+            }, 4, 5);
+            Assert.AreEqual(CombatCommandOutcome.PendingMode.TargetSelection, rig.Service.PendingModeForTest);
+
+            rig.Service.OnCombatCommandForTest(CombatCommands.Command.Escape, CombatCommands.EscapeId);
+
+            Assert.AreEqual(CombatCommandOutcome.PendingMode.None, rig.Service.PendingModeForTest, "Escape drops the aim");
+            Assert.IsTrue(acting.CanAct(strict: true), "and spends nothing");
+            Assert.AreSame(acting, fight.Current);
+            rig.Service.OnCombatCommandForTest(CombatCommands.Command.Escape, CombatCommands.EscapeId);
+            Assert.IsTrue(acting.CanAct(strict: true), "with nothing armed, Escape does nothing");
+        }
+
+        [Test]
+        public void TheHudAnswersNothingDuringAnItemsPick_ButEscape() {
+            // The pick runs menupage_run each pass and keeps only Escape (COMBAT.C:1736, 1752-1756): a button, its
+            // accelerator or a describe right-click gives an id the loop drops. Live (TASK-947): Rest did nothing.
+            var menuObject = new UnityEngine.GameObject("CombatMenuUnderTest");
+            try {
+                BakAgain.UI.Combat.CombatMenu menu = menuObject.AddComponent<BakAgain.UI.Combat.CombatMenu>();
+                (Rig rig, CombatEncounter fight, Combatant acting) = PartyTurn(combatMenu: () => menu);
+                var issued = new List<CombatCommands.Command>();
+                var described = 0;
+                menu.CommandIssued += (command, _) => issued.Add(command);
+                menu.HelpRequested += _ => described++;
+                rig.Service.UseCombatItemForTest(0x0c);
+
+                menu.PrimaryAction(CombatCommands.RestId);
+                menu.PrimaryAction(CombatCommands.DefendId);
+                menu.OnUnmatchedScancode(CombatCommands.AbortGameId);
+                menu.SecondaryAction(CombatCommands.RestId);
+                CollectionAssert.IsEmpty(issued, "no button answers");
+                Assert.AreEqual(0, described, "nor describes itself");
+                Assert.IsTrue(acting.CanAct(strict: true), "and the turn is still his");
+
+                menu.PrimaryAction(CombatCommands.EscapeId);   // MenuLayerHost's Cancel is PrimaryAction(1)
+                CollectionAssert.AreEqual(new[] { CombatCommands.Command.Escape }, issued, "Escape gets through");
+                Assert.AreEqual(CombatCommandOutcome.PendingMode.None, rig.Service.PendingModeForTest,
+                    "and ends the pick");
+                menu.SecondaryAction(CombatCommands.RestId);
+                Assert.AreEqual(1, described, "the control: after the pick the buttons answer again");
+            } finally {
+                UnityEngine.Object.DestroyImmediate(menuObject);
+            }
+        }
+
         [Test]
         public void ASummonItemsTilePickBlanksTheHudButtonsAndThePortrait_UntilItIsPlaced() {
             // After the pack, combat_arena_view_rstr_disp(1) puts up cframe.scx (COMBAT.C:1696-1702, 879) and
@@ -549,8 +623,12 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
                 rig.Service.UseCombatItemForTest(0x09);
 
                 Assert.IsTrue(menu.IsBlank, "the pick shows bare stones");
+                var described = 0;
+                menu.HelpRequested += _ => described++;
                 menu.PrimaryAction(CombatCommands.RestId);
+                menu.SecondaryAction(CombatCommands.RestId);
                 Assert.AreEqual(0, issued, "which answer nothing");
+                Assert.AreEqual(0, described, "nor describe themselves");
                 Assert.AreEqual(-1, rig.Service.ActingPortraitHeadId(), "and no face");
                 Assert.IsNull(rig.Service.CombatPanelContent(-1, false).Lines, "and an empty parchment");
 
@@ -590,6 +668,13 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
                     System.Linq.Enumerable.Select(lines, l => l.Text));
                 Assert.IsFalse(menu.IsBlank, "the buttons stay");
                 Assert.AreEqual(acting.ClassId, rig.Service.ActingPortraitHeadId(), "and the face");
+                // ...but the tile pick drops what the menu returns (CSPELL.C:680-708), Escape too (TASK-950).
+                var issued = 0;
+                menu.CommandIssued += (_, _) => issued++;
+                menu.PrimaryAction(CombatCommands.RestId);
+                menu.PrimaryAction(CombatCommands.EscapeId);
+                Assert.IsTrue(acting.CanAct(strict: true), "Rest and Escape spend nothing during the tile pick");
+                Assert.AreEqual(1, issued, "only Escape reaches the fight, which ignores it here");
 
                 rig.Service.ResolveCombatGroundClick(rig.Service.CellCentreWorld(free.Item1, free.Item2).Value);
                 Assert.IsFalse(acting.CanAct(strict: true), "the placement spends the turn");
