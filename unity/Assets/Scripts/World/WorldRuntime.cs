@@ -708,10 +708,8 @@ namespace BakAgain.World {
                     int pen = dealt > 0 ? 0x88 - left : dealt < 0 ? 0xEF - left : 0x88 + left;
                     pens.Add(pen < palette.Length ? palette[pen] : Color.white);
                 }
-                Renderer r = marker.GetComponent<Renderer>();
-                Vector3 top = r != null ? new Vector3(r.bounds.center.x, r.bounds.max.y, r.bounds.center.z)
-                                        : marker.transform.position;
-                screen.FloatText(top, dealt == 0 ? "miss" : System.Math.Abs(dealt).ToString(), pens);
+                Vector3 top = BillboardSprite.DrawnTopCentre(marker.transform);
+                screen.FloatText(top,dealt == 0 ? "miss" : System.Math.Abs(dealt).ToString(), pens);
             }
         }
 
@@ -2471,6 +2469,7 @@ namespace BakAgain.World {
             // Without this the world looks far too wide-angle. The map screens are NOT this lens —
             // see WorldProjection and ZoneEnvironment.SetOverheadMapMode.
             cam.fieldOfView = TravelFov(null);
+            BillboardSprite.Viewer = cam;
             return cam;
         }
     }
