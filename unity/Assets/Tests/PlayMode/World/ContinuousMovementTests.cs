@@ -148,6 +148,48 @@ namespace BakAgain.Tests.PlayMode.World {
             Object.DestroyImmediate(rig.Camera.gameObject);
         }
 
+        // TASK-977: a town gate holds the step (HotspotService.EnterTownAsync) and asks with the party
+        // on the gate point. The camera glides there like any other step instead of jumping up to a
+        // whole step, no further step is taken while the step is held, and the hold says when the
+        // camera has arrived so the prompt can rise then.
+        [Test]
+        public void AHeldStepGlidesTheCameraOntoTheGatePoint() {
+            var rig = Build(StepSize.Small, camera: true);
+            PartyMovement.HeldStep held = null;
+            bool arrivedAtHold = true;
+            rig.Pass = (_, y) => {
+                if (y < 3200) return true;
+                if (held == null) {
+                    held = rig.Movement.HoldStep();
+                    arrivedAtHold = held.Arrived;   // what the gate sees as it decides to ask
+                }
+                return false;
+            };
+            float maxPerFrame = 400f * Cadence * Frame * 1.05f;
+            float last = 0f, worst = 0f;
+            bool arrivedBeforeCamera = false;
+            for (var i = 0; i < 120; i++) {
+                rig.Movement.Glide(1, Frame, Cadence);
+                float z = rig.Camera.transform.position.z * BakCoordinateConverter.WorldScale;
+                worst = Mathf.Max(worst, Mathf.Abs(z - last));
+                last = z;
+                if (held != null && held.Arrived && Mathf.Abs(z - 3200f) > 0.5f) arrivedBeforeCamera = true;
+            }
+
+            Assert.IsNotNull(held, "the gate held its step");
+            Assert.AreEqual(3200, rig.Session.PositionY, "the party waits on the gate point, nothing beyond");
+            Assert.AreEqual(1, rig.Passes.FindAll(p => p.Y == 3200).Count, "and takes no step while it is held");
+            Assert.LessOrEqual(worst, maxPerFrame, "the camera glides onto the gate point; no frame jumps");
+            Assert.AreEqual(3200f, last, 0.5f, "and arrives there");
+            Assert.IsTrue(held.Arrived, "the hold reports the arrival");
+            Assert.IsFalse(arrivedAtHold, "the gate, asking from inside the step, waits for the glide");
+            Assert.IsFalse(arrivedBeforeCamera, "and the hold does not report it before the camera is there");
+
+            held.Charge();
+            Assert.AreEqual(2800, rig.Session.PositionY, "answered: the step is turned back, as before");
+            Object.DestroyImmediate(rig.Camera.gameObject);
+        }
+
         // ---- collision -------------------------------------------------------------------------------
 
         [Test]

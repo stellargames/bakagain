@@ -279,18 +279,30 @@ namespace BakAgain.World {
         public sealed class HeldStep {
             private Action _rollBack;
             private PartyMovement _owner;
+            private readonly PartyMovement _mover;
             private readonly StepSize _size;
 
             internal HeldStep(Action rollBack, PartyMovement owner, StepSize size) {
                 _rollBack = rollBack;
                 _owner = owner;
+                _mover = owner;
                 _size = size;
             }
+
+            /// <summary>
+            /// The camera is on the point the party stepped onto. Under continuous walking the held
+            /// step glides there like any other (TASK-977), so whoever holds it asks once this is
+            /// true; a Classic step snaps, so it is true at once.
+            /// </summary>
+            public bool Arrived => !_mover._glideStepping && !_mover.IsGliding;
 
             /// <summary>Puts the party back where it stepped from.</summary>
             public void RollBack() {
                 Action a = _rollBack;
                 _rollBack = null;
+                if (_mover._held == this) {
+                    _mover._held = null;
+                }
                 a?.Invoke();
             }
 
@@ -308,6 +320,9 @@ namespace BakAgain.World {
             }
         }
 
+        // The step a gate or a border is holding until it is answered: no step follows it meanwhile.
+        private HeldStep _held;
+
         // Non-null only while a step's hotspot pass runs: how to turn that step back.
         private Action _stepRollBack;
         private bool _stepHeld;
@@ -323,7 +338,7 @@ namespace BakAgain.World {
                 return null;
             }
             _stepHeld = true;
-            return new HeldStep(_stepRollBack, this, _stepSize);
+            return _held = new HeldStep(_stepRollBack, this, _stepSize);
         }
 
         /// <summary>
@@ -732,6 +747,7 @@ namespace BakAgain.World {
         private int _glideFromX, _glideFromY, _glideFromEye;
         private float _glideT = 1f;
         private float _glideRetrySeconds;
+        private bool _glideStepping;
 
         /// <summary>The camera is between two step points, still catching up with the party.</summary>
         public bool IsGliding => _glideT < 1f;
@@ -775,11 +791,25 @@ namespace BakAgain.World {
             float carry = t - 1f;
             _glideT = 1f;
             int taken = 0;
-            while (direction != 0 && _glideRetrySeconds <= 0f && taken < MaxGlideStepsPerFrame) {
+            while (direction != 0 && _held == null && _glideRetrySeconds <= 0f && taken < MaxGlideStepsPerFrame) {
                 int fromX = _session.PositionX;
                 int fromY = _session.PositionY;
                 int fromEye = _eyeZ;
-                if (!Step(direction > 0, StepSize.Small)) {
+                _glideStepping = true;   // a gate holding this step sees the glide still to come
+                bool stood;
+                try {
+                    stood = Step(direction > 0, StepSize.Small);
+                } finally {
+                    _glideStepping = false;
+                }
+                if (!stood) {
+                    if (_held != null) {
+                        // A gate holds the step with the party on its point (TASK-977): the camera
+                        // glides there like any step, and the gate asks once it has arrived.
+                        (_glideFromX, _glideFromY, _glideFromEye) = (fromX, fromY, fromEye);
+                        _glideT = System.Math.Min(carry, 0.999f);
+                        break;
+                    }
                     // Blocked, pivoted or turned back by a trigger: stay on the last point, and try
                     // again at the held walk's cadence rather than every frame.
                     _glideRetrySeconds = 1f / glideStepsPerSecond;

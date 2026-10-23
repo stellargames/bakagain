@@ -783,6 +783,7 @@ using GameData.Resources.Scene;
             try {
                 // The confirm path, not the plain one: the prompt's ANSWER is needed. Its true is the
                 // original's `result == 0`, the same polarity the boundary wants.
+                await ArrivedOn(step);
                 bool accepted = await _dialogs.ShowConfirmById((int)record.DialogId1);
                 step?.RollBack();
                 if (!GameData.Resources.World.ZoneTriggerRules.CrossesAfterPrompt(record.DialogId1, accepted)) {
@@ -809,6 +810,14 @@ using GameData.Resources.Scene;
             } finally {
                 // A crossing to another zone has built a new movement; the step is charged there.
                 step?.Charge(_movementAccessor?.Invoke());
+            }
+        }
+
+        // Under continuous walking the held step's camera is still gliding onto the gate point; the
+        // question rises once it is there (TASK-977). A Classic step has already snapped.
+        private static async UniTask ArrivedOn(BakAgain.World.PartyMovement.HeldStep step) {
+            if (step != null && !step.Arrived) {
+                await UniTask.WaitUntil(() => step.Arrived);
             }
         }
 
@@ -848,6 +857,7 @@ using GameData.Resources.Scene;
             // step's hour raised "Locklear yawned" over this question and knocked it away (TASK-906).
             BakAgain.World.PartyMovement.HeldStep step = _movementAccessor?.Invoke()?.HoldStep();
             try {
+                await ArrivedOn(step);
                 int answer = await _dialogs.ShowChoiceIndexById((int)dialogId);
                 step?.RollBack();
                 if (answer != 0) {
