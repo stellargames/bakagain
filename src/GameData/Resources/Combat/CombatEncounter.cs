@@ -157,8 +157,8 @@ public sealed class CombatEncounter {
     }
 
     /// <summary>
-    /// Starts a new round: everyone becomes ready, defend orders lapse, and anyone whose target died
-    /// stops pointing at a corpse (<c>combatenc_refresh_actor_flags</c>).
+    /// Starts a new round: the living become ready, defend orders lapse, and an enemy whose target died
+    /// stops pointing at a corpse (<c>combatenc_refresh_actor_flags</c>; the party keeps its target).
     /// </summary>
     /// <summary>
     /// The fight's lingering spell effects — the original's <c>p20activeSpellEffects</c>.
@@ -200,7 +200,10 @@ public sealed class CombatEncounter {
                 // wiped every round and never left the field.
                 c.Flags &= ~CombatantFlags.DefendCommand;
             }
-            if (c.Target != null && c.Target.IsDead) {
+            // Only the enemy loop drops a dead target (CBENC.C:752-755); a party member keeps
+            // pointing at the corpse it made, faces it after its next turn (COMBAT.C:1436) and reads
+            // as "target dead" to the AI's role 6 (CMBTAI.C:313). TASK-961.
+            if (!partySide && c.Target != null && c.Target.IsDead) {
                 c.Target = null;
             }
         }

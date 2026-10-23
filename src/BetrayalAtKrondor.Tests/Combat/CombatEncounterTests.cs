@@ -222,17 +222,28 @@ public class CombatEncounterTests {
     }
 
     [Fact]
-    public void ARoundResetStopsAnyonePointingAtACorpse() {
-        Combatant enemy = Enemy(4);
+    public void ARoundResetStopsAnEnemyPointingAtACorpse_ButThePartyKeepsItsTarget() {
+        // TASK-961. Only combatenc_refresh_actor_flags drops a dead target, and it runs over the
+        // enemies alone (CBENC.C:752-755); the party's loop never touches inner->target
+        // (CACTOR.C:1397-1430). A member who killed its target last round still faces the corpse
+        // after its next turn (COMBAT.C:1436 -> CBENC.C:995) and still counts as "target dead" for
+        // the enemy AI's role 6 (CMBTAI.C:313, CBENC.C:592). This test used to pin the member's
+        // target cleared too, which the original never does.
+        Combatant corpse = Enemy(4);
         Combatant member = Member(5);
-        member.Target = enemy;
-        enemy.Flags |= CombatantFlags.Dead;
-        CombatEncounter e = Encounter(new[] { member }, new[] { enemy });
+        member.Target = corpse;
+        corpse.Flags |= CombatantFlags.Dead;
+        Combatant fallen = Member(4, slot: 2);
+        fallen.Flags |= CombatantFlags.Dead;
+        Combatant hunter = Enemy(3);
+        hunter.Target = fallen;
+        CombatEncounter e = Encounter(new[] { member, fallen }, new[] { corpse, hunter });
         e.HasObjective = true;
 
         e.BeginRound();
 
-        Assert.Null(member.Target);
+        Assert.Null(hunter.Target);           // the control: an enemy's dead target is dropped
+        Assert.Same(corpse, member.Target);
     }
 
     [Fact]
