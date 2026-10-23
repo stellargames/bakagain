@@ -98,6 +98,10 @@ namespace BakAgain.UI.Spells {
             _layout = MovedElements.Box("enhanced-cast");
             _layout.name = "enhanced-cast";
             _layout.style.backgroundImage = EnhancedArt.Load("marble"); // dark stone, edge to edge
+            // The screen is opaque to clicks as it is to the eye (TASK-954): the REQ stage that used to
+            // cover the window is hidden below, and over a fight the combat HUD stays up beneath it, so
+            // an Ignore backdrop let a click on the empty strip press Rest, Inspect or Auto-resolve.
+            _layout.pickingMode = PickingMode.Position;
             _left = MovedElements.Box("enhanced-cast__left");
             _well = MovedElements.Box("enhanced-cast__well");
             _well.style.backgroundImage = EnhancedArt.Load("marble");
