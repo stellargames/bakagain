@@ -76,6 +76,30 @@ namespace BakAgain.Tests.PlayMode.UI {
             Object.DestroyImmediate(rt);
         }
 
+        /// <summary>
+        /// TASK-956: the screen camera's only job is the clear. With Main.unity's culling mask
+        /// (Everything) it culled the whole scene every frame from the origin, where the world never is;
+        /// the UI is UI Toolkit and needs no camera. The world camera keeps its own mask.
+        /// </summary>
+        [Test]
+        public void TheScreenCameraRendersNothing_AndTheWorldCameraKeepsItsMask() {
+            Camera screen = MakeCamera("Main Camera", Color.gray);
+            screen.cullingMask = ~0;   // Everything, as Main.unity's was
+            var rt = new RenderTexture(16, 16, 0);
+            Camera world = MakeCamera("WorldCamera", Color.blue, rt);
+            world.cullingMask = ~0;
+
+            GameInitializationService.ClearBehindUiToBlack();
+
+            Assert.That(world.cullingMask, Is.EqualTo(~0), "control: the world camera draws everything it did");
+            Assert.That(screen.cullingMask, Is.EqualTo(0), "the screen camera draws nothing");
+            Assert.That(screen.clearFlags, Is.EqualTo(CameraClearFlags.SolidColor), "and still clears");
+            Assert.That(screen.backgroundColor, Is.EqualTo(Color.black));
+            world.targetTexture = null;
+            rt.Release();
+            Object.DestroyImmediate(rt);
+        }
+
         [Test]
         public void WithNoScreenCamera_OneIsMadeThatClearsTheScreenBlackEveryFrame() {
             Assume.That(Camera.allCameras.Any(c => c.targetTexture == null), Is.False, "no camera draws to the screen");
