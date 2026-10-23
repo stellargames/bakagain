@@ -45,15 +45,33 @@ namespace BakAgain.Core.DI {
         ///
         /// <para>Set in code rather than on the scene camera so it is greppable and survives a scene
         /// edit.</para>
+        ///
+        /// <para><b>Every camera drawing to the screen, not <c>Camera.main</c>.</b> Main.unity's camera is
+        /// untagged, so <c>Camera.main</c> was null, this returned with a warning on every boot and the
+        /// bars showed the scene's brown. A camera with a target texture is the world's and keeps its
+        /// sky. With no screen camera at all (the PlayMode test scene) nothing cleared the screen, and
+        /// the bars kept whatever was drawn there last: the combat pack's fade-out stayed in them after
+        /// it closed (TASK-952). Then one is made that only clears.</para>
         /// </remarks>
-        private void ClearBehindUiToBlack() {
-            Camera boot = Camera.main;
-            if (boot == null) {
-                _logger.LogWarning("No main camera at boot; pillarbox bars will show whatever the scene clears to.");
-                return;
+        internal static void ClearBehindUiToBlack() {
+            var screens = new System.Collections.Generic.List<Camera>();
+            foreach (Camera cam in Camera.allCameras) {
+                if (cam.targetTexture == null) {
+                    screens.Add(cam);
+                }
             }
-            boot.clearFlags = CameraClearFlags.SolidColor;
-            boot.backgroundColor = Color.black;
+            if (screens.Count == 0) {
+                var go = new GameObject("ScreenClearCamera");
+                Object.DontDestroyOnLoad(go);
+                Camera clear = go.AddComponent<Camera>();
+                clear.cullingMask = 0;   // draws nothing: the world has its own camera
+                clear.depth = -100;      // under any screen camera a scene adds later
+                screens.Add(clear);
+            }
+            foreach (Camera cam in screens) {
+                cam.clearFlags = CameraClearFlags.SolidColor;
+                cam.backgroundColor = Color.black;
+            }
         }
 
         /// <summary>
