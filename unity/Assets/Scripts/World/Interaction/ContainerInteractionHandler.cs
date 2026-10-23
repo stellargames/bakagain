@@ -363,25 +363,28 @@ namespace BakAgain.World.Interaction {
                 return;
             }
 
-            if (!_inventoryMenu.SetLock(difficulty)) {
+            // *** A PICKED CHEST BECOMES ITS LOOT IN PLACE (TASK-969). *** The original hands the
+            // chest to picklock_screen_run as its owner (WCURSOR.C:607), and on a successful drop the
+            // inventory loop swaps its actor for the chest and redraws, still inside the same screen
+            // (CMBINV.C:289-295). Popping the lock and pushing the loot showed the world for half a
+            // second between them.
+            bool opened = false;
+            System.Func<bool> openInPlace = container == null ? null : () => {
+                container.Unlocked = true;
+                return opened = PrepareLoot(zone, bakX, bakY, entityType);
+            };
+            if (!_inventoryMenu.SetLock(difficulty, openInPlace)) {
                 await _dialog.ShowById(PicklockWorkingSet.NothingToTryDialog);
 
                 return;
             }
 
-            await _navigator.Push(_inventoryMenu);
-
-            // *** THE PUSH RETURNS WHEN THE SCREEN IS SHOWN, NOT WHEN IT CLOSES. *** Reading
-            // LockOpened on the next line read it a frame after the screen appeared, so it was
-            // always false and a chest the party picked open stayed locked. Wait for the screen's
-            // own answer. A lock the party gave up on comes back false and leaves the chest as it
-            // was.
-            if (!await _inventoryMenu.LockOutcomeAsync() || container == null) {
-                return;
+            // The lock, then the chest in its place, until the player leaves. A lock the party gave
+            // up on leaves the chest as it was.
+            await _navigator.PushAndWaitAsync(_inventoryMenu);
+            if (opened) {
+                await SayChestMessageAsync(zone, bakX, bakY);
             }
-
-            container.Unlocked = true;
-            TryOpenLoot(zone, bakX, bakY, entityType, chestMessage: true);
         }
 
         /// <summary>
@@ -432,16 +435,25 @@ namespace BakAgain.World.Interaction {
         /// </summary>
         private void TryOpenLoot(int zone, int bakX, int bakY,
             GameData.Resources.World.WorldEntityType entityType, bool chestMessage = false) {
+            if (PrepareLoot(zone, bakX, bakY, entityType)) {
+                OpenLootAsync(zone, bakX, bakY, chestMessage).Forget();
+            }
+        }
+
+        /// <summary>Points the inventory screen at the container here; false when there is none.</summary>
+        private bool PrepareLoot(int zone, int bakX, int bakY,
+            GameData.Resources.World.WorldEntityType entityType) {
             RuntimeContainer runtime = _session.GetLiveContainerAt(zone, bakX, bakY);
             // A missing container is the analogue of the original's actor record failing to
             // resolve — there is nothing to show. An empty one is not that.
-            if (runtime != null) {
-                WriteOpenEvent(zone, bakX, bakY);
-                // Robbed while the party was away? Decided now, as the original does (TASK-506).
-                _session.ExposeStashOnOpen?.Invoke(runtime);
-                _inventoryMenu.SetContainer(runtime, entityType);
-                OpenLootAsync(zone, bakX, bakY, chestMessage).Forget();
+            if (runtime == null) {
+                return false;
             }
+            WriteOpenEvent(zone, bakX, bakY);
+            // Robbed while the party was away? Decided now, as the original does (TASK-506).
+            _session.ExposeStashOnOpen?.Invoke(runtime);
+            _inventoryMenu.SetContainer(runtime, entityType);
+            return true;
         }
 
         /// <summary>
@@ -467,6 +479,14 @@ namespace BakAgain.World.Interaction {
             }
             await _navigator.PushAndWaitAsync(_inventoryMenu);
             await _dialog.ShowById((int)message);
+        }
+
+        /// <summary>The chest's own message, once its loot screen has closed; nothing without one.</summary>
+        private async UniTask SayChestMessageAsync(int zone, int bakX, int bakY) {
+            long message = FixedObjectAccess.InteractDialogId(_session.GetContainerAt(zone, bakX, bakY)) ?? 0;
+            if (message != 0) {
+                await _dialog.ShowById((int)message);
+            }
         }
 
         /// <summary>

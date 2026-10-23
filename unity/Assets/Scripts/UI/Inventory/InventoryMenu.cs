@@ -307,6 +307,7 @@ namespace BakAgain.UI.Inventory {
         /// (the typed pre-push setter pattern — see the navigation design doc §3.2).</summary>
         public void SetContainer(RuntimeContainer container, WorldEntityType entityType) {
             _lockScratch = null; // this screen is a singleton; a previous lock must not leak in
+            _openInPlace = null;
             _blessing = null;    // ...nor a previous temple's offer
             // *** SHOP-NESS IS THE CONTAINER'S, NOT THE SCREEN'S. *** The original has no "shop
             // screen" mode to be in: cmbinv_transfer branches on the CONTAINER carrying a shop
@@ -344,6 +345,7 @@ namespace BakAgain.UI.Inventory {
                 return false;
             }
             _lockScratch = null; // see SetContainer
+            _openInPlace = null;
             _shop = null;
             // Cleared on OPEN, not on read: a value left from the last fight would be replayed as
             // this one's item the moment the arena asked.
@@ -371,7 +373,11 @@ namespace BakAgain.UI.Inventory {
         /// A party with keys but no picks still gets the screen and simply cannot pick.</para>
         /// </remarks>
         /// <param name="lockDifficulty">The lock's score, from the container's lock record.</param>
-        public bool SetLock(int lockDifficulty) {
+        /// <param name="openInPlace">For a lock with an owner — a chest, the original's
+        /// <c>g_pPicklockOwnerActor</c> — points this screen at what the lock kept shut, and answers
+        /// whether there was anything; the screen then turns into it rather than closing. Null for a
+        /// door, a crossing or a building, whose screen closes on success.</param>
+        public bool SetLock(int lockDifficulty, Func<bool> openInPlace = null) {
             RuntimeContainer shared = _gameSession.SharedKeysInventory;
             // Packs are keyed by CHARACTER; walking roster positions 0..n-1 read Locklear's pack
             // and skipped James's whenever the party was not characters 0-2.
@@ -410,6 +416,7 @@ namespace BakAgain.UI.Inventory {
             _lockPicker = BestLockPicker().Slot;
             _lockOpened = false;
             _lockClosed = new UniTaskCompletionSource<bool>();
+            _openInPlace = openInPlace;
             _containerImageIndex = ContainerImage.MemberInventoryIndex;
 
             return true;
@@ -3122,6 +3129,7 @@ namespace BakAgain.UI.Inventory {
             // that gave up on the lock is answered rather than left waiting — see LockOutcomeAsync.
             _lockClosed?.TrySetResult(_lockOpened);
             _lockPicker = -1;
+            _openInPlace = null;
             // Drop the scratch container with the screen. It is assembled per lock and holds copies,
             // so keeping it would both leak a stale working set into the next open and leave
             // IsLockMode true for a screen that is no longer showing a lock.
@@ -3698,8 +3706,33 @@ namespace BakAgain.UI.Inventory {
 
             if (opened) {
                 _lockOpened = true;
-                await _navigator.Pop();
+                if (!OpenOwnerInPlace()) {
+                    await _navigator.Pop();
+                }
             }
+        }
+
+        /// <summary>What <see cref="SetLock"/> was told opens in this screen's place; null for none.</summary>
+        private Func<bool> _openInPlace;
+
+        /// <summary>
+        /// The lock's owner takes this screen over, with no close and no fade — CMBINV.C:289-295,
+        /// where a successful drop with <c>g_pPicklockOwnerActor</c> set swaps the screen's actor for
+        /// the owner and redraws inside the same loop (TASK-969).
+        /// </summary>
+        /// <returns>False when there is no owner to show, and the screen closes as before.</returns>
+        private bool OpenOwnerInPlace() {
+            Func<bool> open = _openInPlace;
+            _openInPlace = null;
+            // The lock's caller is answered here: from now on this screen is the owner's.
+            _lockClosed?.TrySetResult(true);
+            if (open == null || !open()) {
+                return false;
+            }
+            _lockPicker = -1;
+            _selectedSlot = -1;
+            RenderCurrent();
+            return true;
         }
 
         /// <summary>
