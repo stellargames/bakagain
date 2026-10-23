@@ -373,10 +373,9 @@ namespace BakAgain.World.Interaction {
             // inventory loop swaps its actor for the chest and redraws, still inside the same screen
             // (CMBINV.C:289-295). Popping the lock and pushing the loot showed the world for half a
             // second between them.
-            bool opened = false;
             System.Func<bool> openInPlace = container == null ? null : () => {
                 container.Unlocked = true;
-                return opened = PrepareLoot(zone, bakX, bakY, entityType);
+                return PrepareLoot(zone, bakX, bakY, entityType);
             };
             if (!_inventoryMenu.SetLock(difficulty, openInPlace)) {
                 await _dialog.ShowById(PicklockWorkingSet.NothingToTryDialog);
@@ -386,10 +385,11 @@ namespace BakAgain.World.Interaction {
 
             // The lock, then the chest in its place, until the player leaves. A lock the party gave
             // up on leaves the chest as it was.
+            //
+            // *** AND THEN NOTHING (TASK-974). *** The lock arm never sets bHandled (WCURSOR.C:606-607),
+            // so the original skips both the second inventory run (:624) and the chest's deferred
+            // message (:626-629, :706-707). No shipped locked chest carries a message anyway.
             await _navigator.PushAndWaitAsync(_inventoryMenu);
-            if (opened) {
-                await SayChestMessageAsync(zone, bakX, bakY);
-            }
         }
 
         /// <summary>

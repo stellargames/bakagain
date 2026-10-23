@@ -32,16 +32,22 @@ namespace BakAgain.Tests.PlayMode.World {
     public class PickedChestOpensInPlaceTests {
         private const int ChestX = 724000;
         private const int ChestY = 730400;
+        private const int ChestMessage = 1900100;   // any interact message; no shipped picked chest has one
 
         private static readonly InteractionProfile ChestProfile = new() {
             ActionableContainerTypes = new[] { SaveGameContainerType.Chest },
             OpensLoot = true, HasLock = true,
         };
 
-        /// <summary>Says yes to the lock prompt; everything else is inert.</summary>
+        /// <summary>Says yes to the lock prompt and notes every line shown; everything else is inert.</summary>
         private sealed class YesDialogs : Stubs.NoOpDialogs {
+            public readonly System.Collections.Generic.List<int> Shown = new();
             public override UniTask<bool> ShowConfirmById(int id, System.Threading.CancellationToken ct = default) =>
                 UniTask.FromResult(true);
+            public override UniTask<int> ShowById(int id, System.Threading.CancellationToken ct = default) {
+                Shown.Add(id);
+                return UniTask.FromResult(0);
+            }
         }
 
         /// <summary>The travel HUD under the lock: what showing it means is the world is on screen.</summary>
@@ -70,10 +76,10 @@ namespace BakAgain.Tests.PlayMode.World {
                 new SaveGameContainerLocationData(zone: 7, minChapter: 0, maxChapter: 10,
                     worldItemId: 162, x: ChestX, y: ChestY, actorNumber: 0),
                 SaveGameContainerType.Chest, numberOfItems: 0, capacity: 4,
-                dataTypes: SaveGameContainerDataType.Lock,
+                dataTypes: SaveGameContainerDataType.Lock | SaveGameContainerDataType.Dialog,
                 items: Array.Empty<SaveGameInventoryItemData>(),
                 lockData: new SaveGameContainerLockData(0, 17, 0, 0),
-                dialogData: null, shopData: null, encounterData: null, timestamp: 0,
+                dialogData: new SaveGameContainerDialogData(0, 0, ChestMessage), shopData: null, encounterData: null, timestamp: 0,
                 globalStateIndex: null);
             session.SetZoneContainersForTest(new SaveGameZoneContainerStateData(new[] {
                 new SaveGameZoneContainerEntryData(7, 0, new[] { chest }),
@@ -115,7 +121,8 @@ namespace BakAgain.Tests.PlayMode.World {
             entity.Interaction = ChestProfile;
             entity.transform.position = BakCoordinateConverter.ConvertPosition(ChestX, ChestY, 0);
 
-            var handler = new ContainerInteractionHandler(session, new YesDialogs(), menu, navigator,
+            var dialogs = new YesDialogs();
+            var handler = new ContainerInteractionHandler(session, dialogs, menu, navigator,
                 puzzles: null, clock: null, explode: null);
             handler.HandleAsync(entity, isPrimary: true).Forget();
 
@@ -164,6 +171,12 @@ namespace BakAgain.Tests.PlayMode.World {
 
             await navigator.Pop();
             Assert.IsFalse(_menuGo.activeSelf, "Exit closes the loot as usual");
+
+            // *** AND THE CHEST SAYS NOTHING (TASK-974). *** The lock arm leaves bHandled 0
+            // (WCURSOR.C:606-607), so neither the second inventory run (:624) nor deferred_msg (:626-629,
+            // :706-707) happens: a picked chest's message is not played.
+            for (int i = 0; i < 10; i++) { await UniTask.Yield(); }
+            Assert.IsFalse(dialogs.Shown.Contains(ChestMessage), "a picked chest plays no message after its loot");
         });
     }
 }
