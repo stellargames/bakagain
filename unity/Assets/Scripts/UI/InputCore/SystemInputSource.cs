@@ -120,6 +120,24 @@ namespace BakAgain.UI.InputCore {
         }
         IPointerButton IPointer.Primary => _primary;
         IPointerButton IPointer.Secondary => _secondary;
+
+        private readonly System.Collections.Generic.List<PointerFinger> _fingers = new System.Collections.Generic.List<PointerFinger>();
+
+        System.Collections.Generic.IReadOnlyList<PointerFinger> IPointer.Fingers {
+            get {
+                _fingers.Clear();
+                Touchscreen ts = Touchscreen.current;
+                if (ts == null) {
+                    return _fingers;
+                }
+                foreach (TouchControl t in ts.touches) {
+                    if (t.press.isPressed) {
+                        _fingers.Add(new PointerFinger(t.touchId.ReadValue(), t.position.ReadValue(), t.delta.ReadValue()));
+                    }
+                }
+                return _fingers;
+            }
+        }
     }
 
     public sealed partial class SystemInputSource : IGameplayInput {

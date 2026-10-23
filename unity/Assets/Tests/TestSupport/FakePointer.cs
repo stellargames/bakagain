@@ -28,5 +28,7 @@ namespace BakAgain.UI.InputCore {
         public Button Secondary { get; } = new Button();
         IPointerButton IPointer.Primary => Primary;
         IPointerButton IPointer.Secondary => Secondary;
+        public System.Collections.Generic.List<PointerFinger> Fingers { get; } = new System.Collections.Generic.List<PointerFinger>();
+        System.Collections.Generic.IReadOnlyList<PointerFinger> IPointer.Fingers => Fingers;
     }
 }

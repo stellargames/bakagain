@@ -31,9 +31,28 @@ namespace BakAgain.UI.InputCore {
         IPointerButton Primary { get; }     // left mouse / touch
         IPointerButton Secondary { get; }   // right mouse / (mobile) long-press
 
+        /// <summary>
+        /// Every finger now on the screen, each with its own id; empty without a touchscreen.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="ScreenPosition"/>/<see cref="Primary"/> follow the touchscreen's PRIMARY touch
+        /// only, so a gesture read from them belongs to whichever finger went down first. A gesture
+        /// that must ignore a finger held elsewhere (the look drag beside a held pad, TASK-967)
+        /// follows its own finger here.
+        /// </remarks>
+        System.Collections.Generic.IReadOnlyList<PointerFinger> Fingers { get; }
+
         /// <summary>Moves the OS mouse pointer (screen coords). A no-op in the Editor, whose warp
         /// origin is the desktop rather than the Game View, and without a mouse.</summary>
         void WarpOsPointer(Vector2 screenPosition);
+    }
+
+    /// <summary>One finger down: its touch id, screen position (bottom-left origin) and this frame's move.</summary>
+    public readonly struct PointerFinger {
+        public readonly int Id;
+        public readonly Vector2 Position;
+        public readonly Vector2 Delta;
+        public PointerFinger(int id, Vector2 position, Vector2 delta) { Id = id; Position = position; Delta = delta; }
     }
 
     public interface IPointerButton {

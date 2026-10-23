@@ -82,11 +82,11 @@ namespace BakAgain.Tests.Editor.UI {
         }
 
         [Test]
-        public void OnTouchTheFingerIsThePrimaryButton() {
+        public void OnTouchTheFingerLooks() {
             _p.IsPresent = false; _p.CanPointOverride = true;
-            _p.Primary.SetDown(true, pressedThisFrame: true);
+            _p.Fingers.Add(new PointerFinger(1, Vector2.zero, Vector2.zero));
             _d.Tick(true, World);
-            _p.Primary.SetDown(true); _p.Delta = new Vector2(0, 40);
+            _p.Fingers[0] = new PointerFinger(1, new Vector2(0, 40), new Vector2(0, 40));
             Vector2 look = _d.Tick(true, World);
             Assert.Greater(Mathf.Abs(look.y), 0f);
         }
