@@ -258,6 +258,10 @@ namespace BakAgain.World {
         /// </summary>
         public int WorldStepSpeed => _movement.StepDistanceFor(_preferences.Current.StepSize);
 
+        /// <summary><c>g_nWorldGridStride</c>: the Preferences turn angle, which the town approach
+        /// walk turns by one frame at a time (WORLDMOV.C:161-170).</summary>
+        public int WorldTurnStride => _movement.TurnAngleFor(_preferences.Current.TurnSize);
+
         /// <summary>Whether this zone is an underground one (<c>g_game_mode == 2</c>).</summary>
         public bool Underground => _underground;
 

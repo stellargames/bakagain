@@ -114,31 +114,64 @@ public static class TownApproach {
     private const int MaxWalkCells = 1000;
 
     /// <summary>
-    /// Seconds one world step of the walk takes on screen.
+    /// Seconds one frame of the walk takes on screen.
     /// </summary>
     /// <remarks>
-    /// The original renders one frame per step and has no clock in the loop, so its pace is the
-    /// machine's: LaMut's approach took about 205 BIOS ticks (~11 s) of emulated time under Spice86
-    /// and about 5.5 s of wall clock in the TASK-904 capture. This pace (~5.9 s for LaMut) follows the
-    /// wall-clock reading; it is a feel choice, not a measured constant (TASK-906).
+    /// The original renders one overhead frame per step and per turn increment and has no clock in
+    /// the loop (MAP.C:537-549, WORLDMOV.C:161-170), so its pace is the machine's. What does not
+    /// depend on the machine is what a frame costs against a held step in the world loop, which the
+    /// port already paces at 8.84 steps a second (<c>ClassicMovementDriver.RepeatStepsPerSecond</c>,
+    /// TASK-431). Measured on one Spice86 run (t926 SAVE01, TASK-965): an approach frame cost 0.664M
+    /// cycles and a held step 1.164M, so a frame is 0.570 of a step: 0.0645 s. LaMut's walk is 52
+    /// frames, 3.35 s. (Until TASK-965 this was 0.23 s a step from a wall-clock capture, 5.9 s.)
     /// </remarks>
-    public const double SecondsPerStep = 0.23;
+    public const double SecondsPerFrame = 0.0645;
 
-    /// <summary>How long the walk lasts: one <see cref="SecondsPerStep"/> per world step.</summary>
+    /// <summary>The walk's frames: the first and last (MAP.C:534-536, :550-553), one per world step,
+    /// and one per <paramref name="turnStride"/> of each bend (<c>worldmove_animate_hdg_tgt</c>).</summary>
     /// <param name="step">The world step, already through <see cref="StepFor"/>.</param>
-    public static double SecondsFor(List<(int X, int Y, ushort Heading)> path, int step) =>
-        step <= 0 ? 0 : (path.Count - 1) * ((double)RoadTravel.CellSize / step) * SecondsPerStep;
-
-    /// <summary>The walk's position and heading after <paramref name="cells"/> cells of it.</summary>
-    public static (int X, int Y, ushort Heading) PoseAt(List<(int X, int Y, ushort Heading)> path, double cells) {
-        int last = path.Count - 1;
-        if (cells >= last) {
-            return path[last];
+    /// <param name="turnStride">The Preferences turn angle (<c>g_nWorldGridStride</c>); 0 turns at once.</param>
+    public static int FramesFor(List<(int X, int Y, ushort Heading)> path, int step, int turnStride) {
+        if (step <= 0) {
+            return 0;
         }
-        int i = Math.Max(0, (int)Math.Floor(cells));
-        double t = cells - i;
-        (int ax, int ay, ushort heading) = path[i];
-        (int bx, int by, _) = path[i + 1];
-        return ((int)Math.Round(ax + ((bx - ax) * t)), (int)Math.Round(ay + ((by - ay) * t)), heading);
+        int frames = 2 + ((path.Count - 1) * StepsPerCell(step));
+        for (int i = 1; i < path.Count; i++) {
+            frames += TurnFrames(path[i - 1].Heading, path[i].Heading, turnStride);
+        }
+        return frames;
     }
+
+    /// <summary>How long the walk lasts: <see cref="FramesFor"/> at <see cref="SecondsPerFrame"/>.</summary>
+    public static double SecondsFor(List<(int X, int Y, ushort Heading)> path, int step, int turnStride) =>
+        FramesFor(path, step, turnStride) * SecondsPerFrame;
+
+    /// <summary>The walk's position and heading <paramref name="frames"/> frames into it: a hold
+    /// frame, then per cell the steps there and the turn frames at its centre, then a hold frame.</summary>
+    public static (int X, int Y, ushort Heading) PoseAt(List<(int X, int Y, ushort Heading)> path,
+        int step, int turnStride, double frames) {
+        frames -= 1;   // the first frame, drawn before the first step
+        int perCell = StepsPerCell(Math.Max(1, step));
+        for (int i = 1; i < path.Count; i++) {
+            (int ax, int ay, ushort heading) = path[i - 1];
+            (int bx, int by, ushort next) = path[i];
+            if (frames < perCell) {
+                double t = Math.Max(0, frames) / perCell;
+                return ((int)Math.Round(ax + ((bx - ax) * t)), (int)Math.Round(ay + ((by - ay) * t)), heading);
+            }
+            frames -= perCell;
+            int turn = TurnFrames(heading, next, turnStride);
+            if (frames < turn) {
+                int sign = Math.Sign(unchecked((short)(next - heading)));
+                return (bx, by, unchecked((ushort)(heading + (sign * turnStride * (int)Math.Floor(frames)))));
+            }
+            frames -= turn;
+        }
+        return path[path.Count - 1];
+    }
+
+    private static int StepsPerCell(int step) => Math.Max(1, RoadTravel.CellSize / step);
+
+    private static int TurnFrames(ushort from, ushort to, int turnStride) =>
+        turnStride <= 0 ? 0 : Math.Abs((int)unchecked((short)(to - from))) / turnStride;
 }

@@ -218,7 +218,7 @@ namespace BakAgain.UI.InGame {
         /// <remarks>
         /// <b>The original moves the party's own camera</b>, so the walk moves the party's pose and
         /// this screen's camera, marker and compass follow it as they follow any step. One world step
-        /// per <see cref="GameData.Resources.Scene.TownApproach.SecondsPerStep"/>, at the Preferences step halved underground
+        /// per <see cref="GameData.Resources.Scene.TownApproach.SecondsPerFrame"/> frame, and a frame per turn stride at a bend, at the Preferences step halved underground
         /// (MAP.C:528-530), glided rather than jumped. The caller puts the party back afterwards.
         ///
         /// <para>Opened over the travel screen it cuts in, as the original's first map frame does
@@ -235,16 +235,16 @@ namespace BakAgain.UI.InGame {
             try {
                 int step = GameData.Resources.Scene.TownApproach.StepFor(Movement?.WorldStepSpeed ?? RoadTravel.CellSize,
                     Movement?.Underground ?? false);
-                double seconds = GameData.Resources.Scene.TownApproach.SecondsFor(path, step);
+                int stride = Movement?.WorldTurnStride ?? 0;
+                int total = GameData.Resources.Scene.TownApproach.FramesFor(path, step, stride);
                 float start = Time.unscaledTime;
                 while (this != null) {
-                    double cells = seconds <= 0 ? path.Count
-                        : (Time.unscaledTime - start) / seconds * (path.Count - 1);
-                    (int x, int y, ushort heading) = GameData.Resources.Scene.TownApproach.PoseAt(path, cells);
+                    double frames = (Time.unscaledTime - start) / GameData.Resources.Scene.TownApproach.SecondsPerFrame;
+                    (int x, int y, ushort heading) = GameData.Resources.Scene.TownApproach.PoseAt(path, step, stride, frames);
                     _session.PositionX = x;
                     _session.PositionY = y;
                     _session.Rotation = unchecked((short)heading);
-                    if (cells >= path.Count - 1) {
+                    if (frames >= total) {
                         break;
                     }
                     await UniTask.Yield();
