@@ -101,6 +101,6 @@ public class MeleeStatsPanelTests {
         Assert.Equal(2, rules.Count);
         Assert.Equal(rules[0].Y + rules[0].Height, rules[1].Y);   // one original row apart
         Assert.NotEqual(rules[0].Pen, rules[1].Pen);
-        Assert.All(rules, r => Assert.Equal(MeleeStatsPanel.ThrustX * 5, r.X));
+        Assert.All(rules, r => Assert.Equal(0x53 * 5, r.X));
     }
 }

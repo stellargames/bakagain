@@ -103,6 +103,50 @@ namespace BakAgain.Tests.PlayMode.UI.Localization {
             Assert.IsFalse(TextOverflowReport.Entries.Any(e => e.Text.Contains("Health:")));
         }
 
+        /// <summary>
+        /// The report measures the columns the panel is drawn at, so a pack that moves a value
+        /// column clear of a long label stops the collision being reported (TASK-825).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AMovedValueColumnIsWhatTheCollisionIsMeasuredAgainst() {
+            const string key = "base:uistring:combat.creature_health_label";
+            const string longLabel = "Lebensenergie:";
+            GameData.Resources.Text.UiStringCatalog saved = GameData.Resources.Text.UiStrings.Catalog;
+            GameData.Resources.Text.UiStrings.Catalog = GameData.Resources.Text.UiStringCatalog.Embedded.TranslatedBy(
+                new GameData.Resources.Text.LanguagePack("xx",
+                    new System.Collections.Generic.Dictionary<string, string> { [key] = longLabel }));
+            try {
+                UIDocument doc = Doc();
+                yield return null;
+                VisualElement Draw(GameData.Resources.Combat.CombatPanelLayout layout) {
+                    var panel = new VisualElement { style = { width = 1600, height = 1200, position = Position.Absolute } };
+                    doc.rootVisualElement.Add(panel);
+                    foreach (GameData.Resources.Combat.HudPanelLine line in
+                             GameData.Resources.Combat.ActorStatsPanel.Lines("Locklear", new[] { 41, 33, 7, 25 }, layout)) {
+                        panel.Add(BakAgain.UI.Combat.HudParchmentPanelView.LineLabel(line, line.X, line.Y));
+                    }
+                    TextOverflowReport.CheckRows(panel);
+                    return panel;
+                }
+
+                VisualElement shipped = Draw(new GameData.Resources.Combat.CombatPanelLayout());
+                yield return new WaitForSecondsRealtime(0.5f);
+                Assert.IsTrue(TextOverflowReport.Entries.Any(e => e.Kind == TextOverflowReport.Collision
+                    && e.Text.StartsWith(longLabel)), "at the original's column the long label runs into its value");
+
+                shipped.RemoveFromHierarchy();
+                TextOverflowReport.Clear();
+                Draw(new GameData.Resources.Combat.CombatPanelLayout {
+                    StatsValueX = GameData.Resources.Layout.LayoutLength.Px(1000),
+                });
+                yield return new WaitForSecondsRealtime(0.5f);
+                Assert.IsFalse(TextOverflowReport.Entries.Any(e => e.Kind == TextOverflowReport.Collision),
+                    "moved clear, nothing collides");
+            } finally {
+                GameData.Resources.Text.UiStrings.Catalog = saved;
+            }
+        }
+
         [UnityTest]
         public IEnumerator AShopNameRunningIntoTheNextCellIsReported() {
             // A shelf cell's name is centred and allowed to overhang (DisplayText @0x5634d), so a

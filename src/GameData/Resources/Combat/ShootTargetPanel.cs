@@ -48,14 +48,8 @@ public static class ShootTargetPanel {
     /// <summary>Extra gap between the name and the stat block.</summary>
     public const int StatsGap = 12;
 
-    /// <summary>Left edge of the stat labels.</summary>
-    public const int LabelX = 0x4e;
-
-    /// <summary>Left edge of the stat values.</summary>
-    public const int ValueX = 0x99;
-
-    /// <summary>Left edge of the quarrel-count line, which is indented five past the labels.</summary>
-    public const int NoTargetX = LabelX + 5;
+    /// <summary>How far the quarrel-count line is indented past the label column, in original px.</summary>
+    public const int NoTargetIndent = 5;
 
     /// <summary>The heading, centred on <see cref="CentreX"/>.</summary>
     public static string Prompt => Text.UiStrings.Get("base:uistring:combat.choose_target_ranged"); // TASK-775: the EXE's own entry, so a pack translates it
@@ -132,8 +126,10 @@ public static class ShootTargetPanel {
     /// Shared shape with <see cref="MeleeStatsPanel.Lines"/> so one view draws either — the panels
     /// differ in content, not in how they are rendered.
     /// </remarks>
+    /// <param name="layout">The columns; <see cref="CombatPanelLayout.Current"/> when null.</param>
     public static System.Collections.Generic.IReadOnlyList<HudPanelLine> Lines(
-        ShootTargetPanelContent content) {
+        ShootTargetPanelContent content, CombatPanelLayout? layout = null) {
+        layout ??= CombatPanelLayout.Current;
         var lines = new System.Collections.Generic.List<HudPanelLine> {
             new HudPanelLine(Prompt, CentreX, PromptY, HudPanelAlign.Centre),
         };
@@ -150,15 +146,16 @@ public static class ShootTargetPanel {
             lines.Add(new HudPanelLine(
                 // "7 quarrels remaining", through a template a translation can reorder (TASK-776).
                 Text.UiTemplates.Format(Text.UiTemplates.QuarrelsRemaining, ("count", content.QuarrelsRemaining)),
-                NoTargetX, statsTop));
+                Layout.LayoutLength.Px(layout.TargetLabelX.Value + NoTargetIndent * Layout.OriginalPixel.Width),
+                statsTop));
             return lines;
         }
 
-        lines.Add(new HudPanelLine(AccuracyLabel, LabelX, statsTop));
-        lines.Add(new HudPanelLine(Text.UiTemplates.Percent(content.Accuracy), ValueX, statsTop));
+        lines.Add(new HudPanelLine(AccuracyLabel, layout.TargetLabelX, statsTop));
+        lines.Add(new HudPanelLine(Text.UiTemplates.Percent(content.Accuracy), layout.TargetValueX, statsTop));
         int damageTop = DamageTop(content.NameLines.Count);
-        lines.Add(new HudPanelLine(DamageLabel, LabelX, damageTop));
-        lines.Add(new HudPanelLine(content.Damage.ToString(), ValueX, damageTop));
+        lines.Add(new HudPanelLine(DamageLabel, layout.TargetLabelX, damageTop));
+        lines.Add(new HudPanelLine(content.Damage.ToString(), layout.TargetValueX, damageTop));
         return lines;
     }
 

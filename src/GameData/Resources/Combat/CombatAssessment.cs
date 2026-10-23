@@ -63,9 +63,6 @@ public static class CombatAssessment {
     /// <summary>Top of the first row.</summary>
     public const int FirstRowY = 0x44;
 
-    /// <summary>Distance from a label to its number.</summary>
-    public const int ValueOffsetX = 50;
-
     /// <summary>Distance from a label to the "%" that follows a percentage row.</summary>
     /// <remarks><b>Deliberately callerless.</b> Every port panel writes the sign into the value string through the percent template (UiTemplates.Percent) rather than placing it on its own.</remarks>
     public const int PercentOffsetX = 61;
@@ -124,6 +121,12 @@ public static class CombatAssessment {
         rows.Add(new Row(ActorAttribute.Defense, Text.UiStrings.Get("base:uistring:combat.assess_defense_label"), true));
         return rows;
     }
+
+    /// <summary>A revealed row's number, <see cref="CombatPanelLayout.AssessmentValueOffsetX"/> right of
+    /// its label at <paramref name="labelX"/>,<paramref name="y"/> (original px, from <see cref="Reveal"/>).</summary>
+    public static HudPanelLine ValueLine(string text, int labelX, int y, CombatPanelLayout? layout = null) =>
+        new(text, Layout.LayoutLength.Px(labelX * Layout.OriginalPixel.Width
+            + (layout ?? CombatPanelLayout.Current).AssessmentValueOffsetX.Value), y);
 
     /// <summary>Whether one offered row survives its roll.</summary>
     /// <param name="roll">A roll in <c>[0, 100)</c>.</param>

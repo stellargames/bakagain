@@ -22,7 +22,10 @@ public static class SpellTargetPanel {
     public static bool ShowsTargetStats(bool liveEnemy, int spellKind, int spellId) =>
         liveEnemy && spellKind == 0 && spellId != UnratedSpellId;
 
-    public static IReadOnlyList<HudPanelLine> Lines(string? spellName, bool showStats, int accuracy, int damage) {
+    /// <param name="layout">The columns (the shoot panel's); <see cref="CombatPanelLayout.Current"/> when null.</param>
+    public static IReadOnlyList<HudPanelLine> Lines(string? spellName, bool showStats, int accuracy, int damage,
+        CombatPanelLayout? layout = null) {
+        layout ??= CombatPanelLayout.Current;
         int y = ShootTargetPanel.PromptY;
         var lines = new List<HudPanelLine> {
             new HudPanelLine(Prompt, ShootTargetPanel.CentreX, y, HudPanelAlign.Centre),
@@ -36,11 +39,11 @@ public static class SpellTargetPanel {
             return lines;
         }
         // The spell panel prints the chance as computed: no 2% floor, unlike the shot's.
-        lines.Add(new HudPanelLine(AccuracyLabel, ShootTargetPanel.LabelX, y));
-        lines.Add(new HudPanelLine(Text.UiTemplates.Percent(accuracy), ShootTargetPanel.ValueX, y));
+        lines.Add(new HudPanelLine(AccuracyLabel, layout.TargetLabelX, y));
+        lines.Add(new HudPanelLine(Text.UiTemplates.Percent(accuracy), layout.TargetValueX, y));
         y += ShootTargetPanel.LineStep;
-        lines.Add(new HudPanelLine(DamageLabel, ShootTargetPanel.LabelX, y));
-        lines.Add(new HudPanelLine(damage.ToString(), ShootTargetPanel.ValueX, y));
+        lines.Add(new HudPanelLine(DamageLabel, layout.TargetLabelX, y));
+        lines.Add(new HudPanelLine(damage.ToString(), layout.TargetValueX, y));
         return lines;
     }
 }

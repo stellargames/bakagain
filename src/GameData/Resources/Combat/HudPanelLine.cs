@@ -1,5 +1,7 @@
 namespace GameData.Resources.Combat;
 
+using GameData.Resources.Layout;
+
 /// <summary>
 /// One piece of text on the combat HUD's parchment, placed in canonical units (TASK-765).
 /// </summary>
@@ -19,6 +21,14 @@ public readonly struct HudPanelLine {
         X = x * 5;
         Y = y * 6;
         Align = align;
+    }
+
+    /// <summary>A line at a column of <see cref="CombatPanelLayout"/>.</summary>
+    /// <param name="x">The column, already in canonical units.</param>
+    /// <param name="y">The original's y, as above.</param>
+    public HudPanelLine(string text, LayoutLength x, int y, HudPanelAlign align = HudPanelAlign.Left)
+        : this(text, 0, y, align) {
+        X = (int)System.Math.Round(x.Value);
     }
 
     /// <summary>The text drawn.</summary>
@@ -65,6 +75,12 @@ public readonly struct HudPanelRule {
         Y = y * 6;
         Width = width * 5;
         Pen = pen;
+    }
+
+    /// <summary>A rule starting at a column of <see cref="CombatPanelLayout"/> (canonical units);
+    /// y and width are the original's.</summary>
+    public HudPanelRule(LayoutLength x, int y, int width, int pen) : this(0, y, width, pen) {
+        X = (int)System.Math.Round(x.Value);
     }
 
     /// <summary>One original pixel row.</summary>

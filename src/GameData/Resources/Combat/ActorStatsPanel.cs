@@ -40,16 +40,6 @@ public static class ActorStatsPanel {
     /// <inheritdoc cref="PortraitImage"/>
     public const int PortraitY = 0x8f * 6;
 
-    /// <summary>Left edge of the stat labels.</summary>
-    public const int LabelX = 0x4e;
-
-    /// <summary>Left edge of the stat values.</summary>
-    /// <remarks>
-    /// <b>0x85, not the shoot panel's 0x99.</b> The two panels put their values in different
-    /// columns; sharing one constant would move this one 20 pixels right.
-    /// </remarks>
-    public const int ValueX = 0x85;
-
     /// <summary>Baseline of the character's name, centred on <see cref="ShootTargetPanel.CentreX"/>.</summary>
     public const int NameY = 0x84;
 
@@ -83,8 +73,11 @@ public static class ActorStatsPanel {
     /// </summary>
     /// <param name="name">The character's name.</param>
     /// <param name="values">One value per <see cref="Rows"/> entry, in the same order.</param>
+    /// <param name="layout">The columns; <see cref="CombatPanelLayout.Current"/> when null.</param>
     /// <returns>The lines, or an empty list when there is nothing to draw.</returns>
-    public static IReadOnlyList<HudPanelLine> Lines(string? name, IReadOnlyList<int>? values) {
+    public static IReadOnlyList<HudPanelLine> Lines(string? name, IReadOnlyList<int>? values,
+        CombatPanelLayout? layout = null) {
+        layout ??= CombatPanelLayout.Current;
         var lines = new List<HudPanelLine>();
         if (name == null || values == null || values.Count < Rows.Length) {
             return lines;
@@ -93,8 +86,8 @@ public static class ActorStatsPanel {
             name, ShootTargetPanel.CentreX, NameY, HudPanelAlign.Centre));
         for (var row = 0; row < Rows.Length; row++) {
             int top = RowTop(row);
-            lines.Add(new HudPanelLine(Rows[row].Label, LabelX, top));
-            lines.Add(new HudPanelLine(values[row].ToString(), ValueX, top));
+            lines.Add(new HudPanelLine(Rows[row].Label, layout.StatsLabelX, top));
+            lines.Add(new HudPanelLine(values[row].ToString(), layout.StatsValueX, top));
         }
         return lines;
     }

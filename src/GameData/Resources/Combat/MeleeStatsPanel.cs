@@ -1,6 +1,7 @@
 namespace GameData.Resources.Combat;
 
 using System.Collections.Generic;
+using GameData.Resources.Layout;
 
 /// <summary>
 /// The melee attack preview — <c>combat_arena_hud_melee_panel</c> (canassa COMBAT.C:1240).
@@ -28,12 +29,6 @@ using System.Collections.Generic;
 /// every character in the game.</para>
 /// </remarks>
 public static class MeleeStatsPanel {
-    /// <summary>Left edge of the thrust column, and of the two row labels under it.</summary>
-    public const int ThrustX = 0x53;
-
-    /// <summary>Right edge the swing column's headings grow leftward from — <c>0x73 + 0x3f</c>.</summary>
-    public const int SwingRightX = 0xb2;
-
     /// <summary>Top of the column headings.</summary>
     public const int HeadingY = 0x86;
 
@@ -48,22 +43,6 @@ public static class MeleeStatsPanel {
 
     /// <summary>Rows between the accuracy row and the button row.</summary>
     public const int ButtonRowOffset = 0xc;
-
-    /// <summary>x the row labels ("Damage", "Accuracy") centre on.</summary>
-    public const int RowLabelCentreX = ShootTargetPanel.CentreX;
-
-    /// <summary>
-    /// x the swing DAMAGE value centres on.
-    /// </summary>
-    /// <remarks>
-    /// <b>The two swing values do not share a centre</b> — damage centres on 0xad and accuracy on
-    /// 0xa5, eight pixels apart, because the accuracy arm subtracts a further 0x17 from a 0xbc
-    /// origin. Reproduced rather than tidied: the columns really are not aligned with each other.
-    /// </remarks>
-    public const int SwingDamageCentreX = 0xad;
-
-    /// <inheritdoc cref="SwingDamageCentreX"/>
-    public const int SwingAccuracyCentreX = 0xbc - 0x17;
 
     /// <summary>Column headings.</summary>
     public static string ThrustHeading => Text.UiStrings.Get("base:uistring:combat.weapon_table_thrust"); // TASK-775: the EXE's own entry, so a pack translates it
@@ -125,40 +104,45 @@ public static class MeleeStatsPanel {
 
     /// <summary>What the panel puts on the parchment.</summary>
     /// <param name="showSwing">From <see cref="ShowsSwingColumn"/>.</param>
+    /// <param name="layout">The columns; <see cref="CombatPanelLayout.Current"/> when null.</param>
     public static IReadOnlyList<HudPanelLine> Lines(
-        bool showSwing, int thrustDamage, int thrustAccuracy, int swingDamage, int swingAccuracy) {
+        bool showSwing, int thrustDamage, int thrustAccuracy, int swingDamage, int swingAccuracy,
+        CombatPanelLayout? layout = null) {
+        layout ??= CombatPanelLayout.Current;
+        LayoutLength thrustX = layout.MeleeThrustX, swingRightX = layout.MeleeSwingRightX;
         int damageY = HeadingY + DamageRowOffset;
         int accuracyY = damageY + AccuracyRowOffset;
         int buttonY = accuracyY + ButtonRowOffset;
 
         var lines = new List<HudPanelLine> {
-            new HudPanelLine(ThrustHeading, ThrustX, HeadingY),
-            new HudPanelLine(DamageLabel, RowLabelCentreX, damageY, HudPanelAlign.Centre),
-            new HudPanelLine(thrustDamage.ToString(), ThrustX, damageY),
-            new HudPanelLine(AccuracyLabel, RowLabelCentreX, accuracyY, HudPanelAlign.Centre),
+            new HudPanelLine(ThrustHeading, thrustX, HeadingY),
+            new HudPanelLine(DamageLabel, layout.MeleeRowLabelCentreX, damageY, HudPanelAlign.Centre),
+            new HudPanelLine(thrustDamage.ToString(), thrustX, damageY),
+            new HudPanelLine(AccuracyLabel, layout.MeleeRowLabelCentreX, accuracyY, HudPanelAlign.Centre),
             new HudPanelLine(
-                Text.UiTemplates.Percent(thrustAccuracy), ThrustX, accuracyY),
-            new HudPanelLine(ThrustButton, ThrustX, buttonY),
+                Text.UiTemplates.Percent(thrustAccuracy), thrustX, accuracyY),
+            new HudPanelLine(ThrustButton, thrustX, buttonY),
         };
         if (!showSwing) {
             return lines;
         }
 
-        lines.Add(new HudPanelLine(SwingHeading, SwingRightX, HeadingY, HudPanelAlign.Right));
+        lines.Add(new HudPanelLine(SwingHeading, swingRightX, HeadingY, HudPanelAlign.Right));
         lines.Add(new HudPanelLine(
-            swingDamage.ToString(), SwingDamageCentreX, damageY, HudPanelAlign.Centre));
+            swingDamage.ToString(), layout.MeleeSwingDamageCentreX, damageY, HudPanelAlign.Centre));
         lines.Add(new HudPanelLine(Text.UiTemplates.Percent(swingAccuracy),
-            SwingAccuracyCentreX, accuracyY, HudPanelAlign.Centre));
-        lines.Add(new HudPanelLine(SwingButton, SwingRightX, buttonY, HudPanelAlign.Right));
+            layout.MeleeSwingAccuracyCentreX, accuracyY, HudPanelAlign.Centre));
+        lines.Add(new HudPanelLine(SwingButton, swingRightX, buttonY, HudPanelAlign.Right));
         return lines;
     }
 
     /// <summary>The bevelled underline below the thrust heading. Always drawn, both rows.</summary>
-    public static IReadOnlyList<HudPanelRule> Rules() {
+    public static IReadOnlyList<HudPanelRule> Rules(CombatPanelLayout? layout = null) {
+        layout ??= CombatPanelLayout.Current;
         var rules = new List<HudPanelRule>();
         for (var row = 0; row < RulePens.Length; row++) {
             rules.Add(new HudPanelRule(
-                ThrustX, HeadingY + 0xa + row, RuleWidth, RulePens[row]));
+                layout.MeleeThrustX, HeadingY + 0xa + row, RuleWidth, RulePens[row]));
         }
         return rules;
     }

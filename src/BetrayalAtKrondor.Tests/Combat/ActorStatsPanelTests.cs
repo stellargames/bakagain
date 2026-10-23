@@ -34,16 +34,17 @@ public class ActorStatsPanelTests {
             HudPanelLine value = lines.Single(l => l.Text == Values[row].ToString());
             Assert.Equal(label.Y, value.Y);
             // The original's columns, placed in canonical units (TASK-765).
-            Assert.Equal(ActorStatsPanel.LabelX * 5, label.X);
-            Assert.Equal(ActorStatsPanel.ValueX * 5, value.X);
+            Assert.Equal(0x4e * 5, label.X);
+            Assert.Equal(0x85 * 5, value.X);
         }
     }
 
     [Fact]
     public void TheValueCOLUMNIsNotTheShootPanels() {
         // 0x85 here against 0x99 there. Sharing one constant would move this column 20px right.
-        Assert.NotEqual(ShootTargetPanel.ValueX, ActorStatsPanel.ValueX);
-        Assert.Equal(0x85, ActorStatsPanel.ValueX);
+        var layout = new CombatPanelLayout();
+        Assert.NotEqual(layout.TargetValueX, layout.StatsValueX);
+        Assert.Equal(0x85 * 5, layout.StatsValueX.Value);
     }
 
     [Fact]

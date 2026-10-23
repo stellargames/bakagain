@@ -61,6 +61,7 @@ delete the pack folder.
 | `SCX/<NAME>.png` | a whole screen (backdrop) with lettering, replaced | no |
 | `BMX/<NAME>/<n>.png` | one picture from a picture set, replaced | no |
 | `TTM/<NAME>.json` | an animation script, to move a replaced picture | no |
+| `JSON/combatpanels.json` | moved columns for the combat panels, when a translation cannot fit (see step 4) | no |
 
 Anything the pack does not translate stays in English, so a half-finished pack is a working pack.
 
@@ -128,6 +129,30 @@ font's size. Three things help:
 - **The pseudo language** (development builds only): a built-in "Pseudo" language that makes every
   string about a third longer, accented and bracketed, to find the places that will break before
   translating. Text without brackets is not translatable yet.
+
+**The combat panels' columns, as a last resort.** The panels under the combat view (the acting
+character's stats, the shoot and spell target panels, the melee table and the Inspect assessment) put
+each label and number at a fixed x, so a long label runs into its number and the report says
+`collision`. Shorten the label first. If your language really cannot, the pack can move the columns:
+put `JSON/combatpanels.json` in the pack, naming only the columns you move, in px of the 1600×1200
+space (see [laying out screens](laying-out-screens.md)). The rest keep the original's:
+
+```json
+{ "StatsValueX": "780px" }
+```
+
+| column | original | what sits there |
+|---|---|---|
+| `StatsLabelX`, `StatsValueX` | `390px`, `665px` | the stats panel's labels and numbers |
+| `TargetLabelX`, `TargetValueX` | `390px`, `765px` | Accuracy / Damage on the shoot and spell panels (the quarrel count follows the label column) |
+| `MeleeThrustX` | `415px` | the melee thrust column: heading, numbers, button and its underline |
+| `MeleeRowLabelCentreX` | `650px` | the centre of the melee row labels (Damage, Accuracy) |
+| `MeleeSwingRightX` | `890px` | the right edge of the swing heading and button |
+| `MeleeSwingDamageCentreX`, `MeleeSwingAccuracyCentreX` | `865px`, `825px` | the centres of the swing numbers |
+| `AssessmentValueOffsetX` | `250px` | how far right of its label an Inspect number sits |
+
+Only px works here; anything else is refused with an error in the log and that column stays where it
+was. Play the fight again with the report: a moved column is checked like any other.
 
 ### 5. Letters the fonts do not have
 

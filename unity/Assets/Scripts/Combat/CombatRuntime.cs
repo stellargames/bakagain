@@ -881,9 +881,9 @@ namespace BakAgain.Combat {
                          attribute => CombatStat(target, attribute),
                          rnd ?? (n => UnityEngine.Random.Range(0, n)))) {
                 lines.Add(new HudPanelLine(row.Label, x, y));
-                lines.Add(new HudPanelLine(
+                lines.Add(CombatAssessment.ValueLine(
                     row.Percent ? GameData.Resources.Text.UiTemplates.Percent(value) : value.ToString(),
-                    x + CombatAssessment.ValueOffsetX, y));
+                    x, y));
             }
             return lines;
         }
