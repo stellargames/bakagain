@@ -112,6 +112,20 @@ namespace BakAgain.Tests.PlayMode.UI {
                 + "lineGapExtra was dropped, which is the 9%-tight text task-80 fixed");
         }
 
+        // TASK-953: a line drawn wider than its box (there the wrap measured Alegreya while the panel
+        // drew GAME.FNT) re-broke inside its one-pitch label, and the dropped word sat on the next
+        // line's glyphs ("they" over "flickered"). GameFontText.Apply had overwritten the line's Pre.
+        [UnityTest]
+        public IEnumerator TheBodyLines_AreNeverReBrokenByTheTextEngine() {
+            VisualElement body = null;
+            yield return BuildAndFlow(result => body = result);
+
+            foreach (VisualElement child in body.Children()) {
+                Assert.That(child.resolvedStyle.whiteSpace, Is.EqualTo(WhiteSpace.Pre),
+                    "a wrapped line keeps its spaces and never breaks again: the wrap decided where it ends");
+            }
+        }
+
         [UnityTest]
         public IEnumerator ABorderedBoxCentresItsLines_TheWayTheOriginalDoes() {
             VisualElement body = null;

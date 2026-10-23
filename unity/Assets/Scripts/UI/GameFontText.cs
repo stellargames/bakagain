@@ -110,7 +110,11 @@ namespace BakAgain.UI {
             // and trims the leading ones (CSS `white-space: normal`, which UI Toolkit began
             // honouring in 6.5) deletes every paragraph indent in the game. PreWrap preserves the
             // run and still allows wrapping for the surfaces that want it.
-            element.style.whiteSpace = WhiteSpace.PreWrap;
+            // Only where the caller has not chosen: GameTextBlock's lines set Pre so an over-wide
+            // line cannot re-break onto the next line's glyphs, and overwriting it did (TASK-953).
+            if (element.style.whiteSpace.keyword == StyleKeyword.Null) {
+                element.style.whiteSpace = WhiteSpace.PreWrap;
+            }
         }
 
         /// <summary>
