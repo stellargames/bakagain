@@ -228,6 +228,11 @@ namespace BakAgain.World.Scenes {
             // raised after the bind now (TASK-904), but a location whose layout fails to load is
             // never bound at all.
             scene ??= _scene;
+            // The loop tail's idle replay (TOWNSCN.C:630): a hotspot may have drawn the scene
+            // without its keeper. A no-op when the idle picture is already the one up.
+            if (scene != null && ResolveOptional<LocationScenePlayer>() is { } player) {
+                await player.ShowAnimationAsync(scene, scene.IdleAnimationTag);
+            }
             if (_dialogs == null || (scene?.SceneDialogId ?? 0) == 0) {
                 return;
             }
@@ -510,6 +515,9 @@ namespace BakAgain.World.Scenes {
                 // without having any handle on the container. Bracketing the one place a location
                 // plays a hotspot dialog is the same seam.
                 LoadEstablishmentFund();
+                // TOWNSCN.C:462: the actor's own animation first — the keeper leaves the picture,
+                // he is the one talking now (TASK-981). ShowSceneDescriptionAsync puts him back.
+                await PlayHotspotAnimationAsync(hotspot);
                 // *** THE SIGN GOES WITH THE PICTURE THE HOTSPOT REPLAYS. *** TOWNSCN.C:462 plays the
                 // actor's animation channel before the dialog, and townscene_anim_channel_play_sync
                 // opens with a full-screen copy of the clean picture — the sign bubble drawn over it
@@ -595,6 +603,17 @@ namespace BakAgain.World.Scenes {
             }
         }
 
+        /// <summary>
+        /// Redraws the picture with the hotspot's own animation (TOWNSCN.C:462 and :534), under a
+        /// cut. A hotspot with none leaves the picture as it is: the original's fallback channel is
+        /// the last one played, which is the idle one already up.
+        /// </summary>
+        private UniTask PlayHotspotAnimationAsync(GdsHotspot hotspot) =>
+            hotspot.AnimationSceneId != 0 && _scene != null
+                && ResolveOptional<LocationScenePlayer>() is { } player
+                ? ScreenFade().CutAsync(() => player.ShowAnimationAsync(_scene, hotspot.AnimationSceneId))
+                : UniTask.CompletedTask;
+
         /// <summary>Whether an action leaves the party where they were.</summary>
         /// <remarks>
         /// Every arm but the two that move them: a sub-scene transition and the end of a chapter.
@@ -656,6 +675,8 @@ namespace BakAgain.World.Scenes {
                     return;
 
                 case GdsActionDispatch.ActionKind.Barding:
+                    // TOWNSCN.C:534: the lute's own channel ("BW-LUTE GONE") before the outcome.
+                    await PlayHotspotAnimationAsync(hotspot);
                     await RunBardingAsync();
                     return;
 

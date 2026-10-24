@@ -399,6 +399,7 @@ namespace BakAgain.World.Scenes {
             // by the next sub-scene. PlayEntryAnimation swallows its own errors, so nothing is
             // lost by not observing it here.
             var held = new UniTaskCompletionSource();
+            _heldAnimationId = scene.IdleAnimationTag;
             _animation = PlayEntryAnimation(scene, tags, () => held.TrySetResult()).Preserve();
             await ShowHotspotsAsync(scene, sceneNumber, sub);
 
@@ -415,6 +416,53 @@ namespace BakAgain.World.Scenes {
             // continuation registered here on the still-holding animation made the next
             // sub-scene's await of it throw "Already continuation registered".
             await UniTask.WhenAny(described,
+                UniTask.Delay(TimeSpan.FromSeconds(HoldTimeoutSeconds), ignoreTimeScale: true));
+        }
+
+        /// <summary>The scene animation the held picture was last drawn with.</summary>
+        private int _heldAnimationId;
+
+        /// <summary>
+        /// Redraws the held picture with another of the scene's animations: a hotspot's own, played
+        /// before its dialog, or the idle one, which puts the scene back afterwards.
+        /// </summary>
+        /// <remarks>
+        /// <b>The keeper leaves the counter while you talk to him.</b> TOWNSCN.C:462 plays the
+        /// hotspot's animation channel (<see cref="GdsHotspot.AnimationSceneId"/>) before its dialog,
+        /// and the loop tail replays the idle one (:630). TVRN2's "BW-SUMANI GONE" and "BW-DUBAL
+        /// GONE" are the Blue Wheel drawn without the man you are talking to, who is the speaker
+        /// on the dialog instead (TASK-981). Like the first show, the picture needs the entry script
+        /// that loads it before the one that draws it (see ResolveTagsAsync). A no-op when that
+        /// picture is already up.
+        /// </remarks>
+        public async UniTask ShowAnimationAsync(GdsScene scene, int animationId) {
+            if (scene == null || _presenter == null || _view == null || _resources == null
+                || !GdsSceneRules.HasAnimation(animationId) || animationId == _heldAnimationId) {
+                return;
+            }
+            var ads = await _resources.GetOrLoadAsync<AnimatorResource>($"{scene.AnimationResource}.ADS");
+            if (ads == null) {
+                return;
+            }
+            var tags = new List<string>(2);
+            AddTag(tags, ads, scene.EntryAnimationTag);
+            int loading = tags.Count;
+            AddTag(tags, ads, animationId);
+            if (tags.Count == loading) {
+                return;
+            }
+
+            _showing?.Cancel();
+            if (_animation.HasValue) {
+                await _animation.Value.SuppressCancellationThrow();
+                _animation = null;
+            }
+            _showing?.Dispose();
+            _showing = new CancellationTokenSource();
+            _heldAnimationId = animationId;
+            var held = new UniTaskCompletionSource();
+            _animation = PlayEntryAnimation(scene, tags, () => held.TrySetResult()).Preserve();
+            await UniTask.WhenAny(held.Task,
                 UniTask.Delay(TimeSpan.FromSeconds(HoldTimeoutSeconds), ignoreTimeScale: true));
         }
 
