@@ -86,6 +86,22 @@ namespace BakAgain.World {
         private readonly System.Collections.Generic.List<Renderer> _mapOnly = new();
 
         /// <summary>
+        /// Hides <paramref name="root"/> on the road and draws it on the overhead map with the kind-7
+        /// records: the open-edge filler (<see cref="ZoneSceneBuilder.OpenNeighbours"/>), which only
+        /// <c>world_render_frame_full</c> draws (WORLDHIT.C:215-224).
+        /// </summary>
+        public void AddMapOnly(GameObject root) {
+            if (root == null) return;
+            foreach (Renderer r in root.GetComponentsInChildren<Renderer>(true)) {
+                r.enabled = false;
+                _mapOnly.Add(r);
+            }
+            foreach (Collider c in root.GetComponentsInChildren<Collider>(true)) {
+                c.enabled = false;
+            }
+        }
+
+        /// <summary>
         /// Draws the kind-7 records while the overhead map is up, and hides them again after: the
         /// travel scan skips kind 7 (<c>proxscan_run</c>, PROXSCAN.C:90), the map's full frame
         /// (<c>world_render_frame_full</c>, WORLDHIT.C:192) draws from

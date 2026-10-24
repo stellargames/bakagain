@@ -2337,6 +2337,9 @@ namespace BakAgain.World {
                 WorldEntityVisibility visibility = _zoneRoot.GetComponent<WorldEntityVisibility>()
                     ?? _zoneRoot.AddComponent<WorldEntityVisibility>();
                 visibility.Apply(filter, _partyMovement.DetailLevel);
+                foreach (GameObject mapOnly in _zoneSceneBuilder.MapOnlyRoots) {
+                    visibility.AddMapOnly(mapOnly);
+                }
             }
             // *** RESIDENCY RIDES EVERY RELOCATION, NOT JUST A STEP. *** Subscribing to Stepped
             // covered walking and nothing else — a pit crossing, a pit fall, a snap and a blocked

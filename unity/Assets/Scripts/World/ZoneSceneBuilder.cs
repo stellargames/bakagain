@@ -77,6 +77,48 @@ namespace BakAgain.World {
         /// <summary>Chunk names (<c>Tzzxxyy</c>) the last build loaded, in zone-map order.</summary>
         public IReadOnlyList<string> LoadedChunks { get; private set; } = System.Array.Empty<string>();
 
+        /// <summary>The zone map the last build read, kept for the open-edge filler.</summary>
+        private ZoneMap _zoneMap;
+
+        /// <summary>
+        /// Objects drawn on the overhead map and nowhere else: the open-edge filler ground
+        /// (<see cref="OpenNeighbours"/>). <see cref="WorldEntityVisibility.AddMapOnly"/> takes them.
+        /// </summary>
+        public IReadOnlyList<GameObject> MapOnlyRoots => _mapOnlyRoots;
+        private readonly List<GameObject> _mapOnlyRoots = new();
+
+        /// <summary><c>genmtn</c>, the flat 64000-square ground the original lays on an open tile.</summary>
+        public const int OpenEdgeShapeId = 0xB5;
+
+        /// <summary>
+        /// The tiles around (<paramref name="tileX"/>, <paramref name="tileY"/>) that are not in the
+        /// zone map, in the original's order.
+        /// </summary>
+        /// <remarks>
+        /// With <see cref="ZoneFlags.DrawEdgeObjects"/> set, <c>czone</c> records each of the eight
+        /// tiles around the party that <c>zone_grid_bit_get</c> says is absent (CZONE.C:177-205), and
+        /// <c>world_render_frame_full</c> draws shape 0xB5 centred on each before the visible list
+        /// (WORLDHIT.C:215-224). That frame is the overhead map's (<c>g_full_redraw_needed</c>,
+        /// MAP.C:117), so the travel view never shows it; on the map it fills what would otherwise
+        /// be the flat map pen. Measured in the original at dir:1:1 (TASK-993): the four recorded
+        /// tiles are (11,13), (9,12), (11,12), (9,11), and clearing the count blanks them on the map.
+        /// </remarks>
+        public static List<(int X, int Y)> OpenNeighbours(ZoneMap map, int tileX, int tileY) {
+            int[] dx = { -1, 0, 1, -1, 1, -1, 0, 1 };
+            int[] dy = { 1, 1, 1, 0, 0, -1, -1, -1 };
+            var open = new List<(int X, int Y)>();
+            for (var i = 0; i < dx.Length; i++) {
+                int x = tileX + dx[i], y = tileY + dy[i];
+                // zone_grid_bit_get answers 0 past the 50x50 grid; a negative tile is not a place.
+                bool inZone = x >= 0 && y >= 0 && x < 50 && y < 50 && x < ZoneMap.Width
+                    && y < ZoneMap.Height && map.IsTileInZone(x, y);
+                if (!inZone && x >= 0 && y >= 0) {
+                    open.Add((x, y));
+                }
+            }
+            return open;
+        }
+
         /// <summary>
         /// Which tiles are active, keyed off the party's own — TASK-130 option (b).
         /// </summary>
@@ -287,6 +329,8 @@ namespace BakAgain.World {
                         }
                     }
                 }
+
+                await BuildOpenEdgesAsync(zoneDef, tbl, terrainParent, renderCtx, modelLoader);
 
                 // Dropped bags are not in any WLD — they are runtime state in the save's container
                 // records — so they are spawned from the session after the authored tiles are up,
@@ -555,11 +599,53 @@ namespace BakAgain.World {
             return wld;
         }
 
+        /// <summary>
+        /// Lays <see cref="OpenEdgeShapeId"/> on every tile that is open next to a zone tile, one
+        /// per tile, map-only and under residency (see <see cref="OpenNeighbours"/>).
+        /// </summary>
+        /// <remarks>
+        /// The original picks the open tiles around the party each time it changes tile; the port
+        /// builds them all once and lets <see cref="TileResidency"/>'s ring (the party's tile and the
+        /// eight around it) pick the same ones. Not a collision candidate: the original draws it,
+        /// it does not scan it.
+        /// </remarks>
+        private async UniTask BuildOpenEdgesAsync(ZoneDefinition zoneDef, ZoneTable tbl,
+            GameObject terrainParent, WorldEntityRenderContext renderCtx, WorldModelLoader modelLoader) {
+            _mapOnlyRoots.Clear();
+            if (_zoneMap == null || zoneDef == null || (zoneDef.Flags & ZoneFlags.DrawEdgeObjects) == 0
+                || tbl.Entries.Count <= OpenEdgeShapeId || tbl.Entries[OpenEdgeShapeId] == null) {
+                return;
+            }
+
+            var done = new HashSet<(int X, int Y)>();
+            for (var x = 0; x < ZoneMap.Width; x++) {
+                for (var y = 0; y < ZoneMap.Height; y++) {
+                    if (!_zoneMap.IsTileInZone(x, y)) {
+                        continue;
+                    }
+                    foreach ((int X, int Y) open in OpenNeighbours(_zoneMap, x, y)) {
+                        if (!done.Add(open)) {
+                            continue;
+                        }
+                        GameObject parent = CreateChild(terrainParent, $"Open{open.X:D2}{open.Y:D2}");
+                        Vector3 centre = BakCoordinateConverter.ConvertPosition(
+                            open.X * 64000 + 32000, open.Y * 64000 + 32000, 0);
+                        await WorldEntityBuilder.Build(tbl.Entries[OpenEdgeShapeId], OpenEdgeShapeId,
+                            centre, Quaternion.identity, parent.transform, parent.transform, renderCtx,
+                            modelLoader);
+                        Residency.Register(open.X, open.Y, parent);
+                        _mapOnlyRoots.Add(parent);
+                    }
+                }
+            }
+        }
+
         private async UniTask<List<string>> GetWldFilesAsync(int zoneNumber, GameObject owner) {
             // Load the zone map bitmap — each set bit indicates a tile exists at (x,y)
             // The original game uses ZxxMAP.DAT (a 50x8-byte bitmap for a 50x50 grid)
             string mapAddress = $"Z{zoneNumber:D2}MAP.DAT";
             var zoneMap = await _resourceProvider.LoadAssetAsync<ZoneMap>(mapAddress, owner);
+            _zoneMap = zoneMap;
 
             var wldFiles = new List<string>();
             if (zoneMap == null) {
