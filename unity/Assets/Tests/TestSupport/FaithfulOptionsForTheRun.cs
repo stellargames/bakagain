@@ -18,6 +18,7 @@ namespace BakAgain.Tests {
         private EnhancedPrefsStash _stash;
         private string _language;
         private (string Game, bool ModsOn, string Mods) _folders;
+        private BakAgain.Audio.MenuSoundService _sounds;
 
         // The folder settings are the developer's real, persisted ones. A test that changes one puts
         // it back itself; this catches one that did not (TASK-949), says so, and restores it.
@@ -32,6 +33,12 @@ namespace BakAgain.Tests {
             BakResourceSettings.Language = "en";
             LanguagePacks.Reload();
             _stash = EnhancedPrefsStash.Take();
+            // The root scope (VContainerSettings) builds on entering Play and publishes the real
+            // sound service, so every PlayMode test that raises a cue would load it. Tests watch
+            // MenuSoundService.CueRequested instead; a load without the game data (CI) makes
+            // Addressables log an InvalidKeyException error into whichever test raised it.
+            _sounds = BakAgain.Audio.MenuSoundService.Instance;
+            BakAgain.Audio.MenuSoundService.Instance = null;
             // The fonts outlive a test run: the Editor does not reload the domain on Play.
             if (BakAgain.UI.GameFonts.IsBookFont) {
                 BakAgain.UI.GameFonts.Build(bookFont: false);
@@ -47,6 +54,7 @@ namespace BakAgain.Tests {
             BakResourceSettings.Language = _language;
             LanguagePacks.Reload();
             _stash?.Restore();
+            BakAgain.Audio.MenuSoundService.Instance = _sounds;
             bool book = BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.BookFont);
             if (BakAgain.UI.GameFonts.Game != null && BakAgain.UI.GameFonts.IsBookFont != book) {
                 BakAgain.UI.GameFonts.Build(book);
