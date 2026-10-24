@@ -60,6 +60,9 @@ namespace BakAgain.World.Scenes {
             return await _resources.GetOrLoadAsync<GdsScene>(ResourceName(sceneNumber, resolved));
         }
 
+        /// <summary>The hotspot the scene runs as it opens, in this chapter; see <see cref="GdsSceneRules.ArrivalHotspot"/>.</summary>
+        public int? ArrivalHotspot(GdsScene scene) => GdsSceneRules.ArrivalHotspot(scene, Math.Max(_session.Chapter, 1));
+
         /// <summary>
         /// The hotspots a player can currently interact with, in scene order.
         /// </summary>

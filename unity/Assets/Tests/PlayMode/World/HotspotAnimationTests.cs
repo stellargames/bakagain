@@ -79,6 +79,66 @@ namespace BakAgain.Tests.PlayMode.World {
                 }
             });
 
+        /// <summary>
+        /// A hotspot flagged to run on arrival talks as the scene opens, with no click, over its own
+        /// animation (TOWNSCN.C:384-392 then :455-463). Queen's Row (GDS3B hotspot 1, "QR-IVAN GONE")
+        /// opens on Ivan's conversation in the original; the port opened on the bare description.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AnArrivalHotspotTalksAsTheSceneOpensWithoutTheSpeakerInThePicture() =>
+            UniTask.ToCoroutine(async () => {
+                var processor = new RecordingProcessor();
+                var dialogs = new TalkDialogs(processor);
+                (LocationScenePlayer player, LocationScreen screen) = Rig(processor, dialogs,
+                    new GdsHotspot {
+                        ActionCode = 2, ActionDialogId = TalkDialog, AnimationSceneId = SumaniGone,
+                        CanBeDefaultTarget = true,
+                    });
+                try {
+                    await Arrive(player, screen, processor, dialogs);
+                    await Until(() => dialogs.PictureDuringTalk != 0, "the arrival dialog never played");
+                    for (int i = 0; i < 30; i++) { await UniTask.Yield(); }
+
+                    Assert.That(dialogs.PictureDuringTalk, Is.EqualTo(SumaniGone));
+                    Assert.That(processor.Played[^1], Is.EqualTo(Idle), "the idle picture is back afterwards");
+                } finally {
+                    player.Hide();
+                }
+            });
+
+        /// <summary>The control: the same hotspot hidden in this chapter does not run (TOWNSCN.C:387).</summary>
+        [UnityTest]
+        public IEnumerator AnArrivalHotspotHiddenInThisChapterDoesNotRun() =>
+            UniTask.ToCoroutine(async () => {
+                var processor = new RecordingProcessor();
+                var dialogs = new TalkDialogs(processor);
+                (LocationScenePlayer player, LocationScreen screen) = Rig(processor, dialogs,
+                    new GdsHotspot {
+                        ActionCode = 2, ActionDialogId = TalkDialog, AnimationSceneId = SumaniGone,
+                        CanBeDefaultTarget = true, HiddenInChapters = new List<int> { 1 },
+                    });
+                try {
+                    await Arrive(player, screen, processor, dialogs);
+                    for (int i = 0; i < 60; i++) { await UniTask.Yield(); }
+
+                    Assert.That(dialogs.PictureDuringTalk, Is.EqualTo(0), "no dialog without a click");
+                    Assert.That(processor.Played[^1], Is.EqualTo(Idle));
+                } finally {
+                    player.Hide();
+                }
+            });
+
+        /// <summary>Enters the scene with the screen already bound to it (the rig builds no hotspot layout).</summary>
+        private static async UniTask Arrive(LocationScenePlayer player, LocationScreen screen,
+            RecordingProcessor processor, TalkDialogs dialogs) {
+            screen.Bind(new GdsScene(GdsSceneLoader.ResourceName(1, 2)) {
+                AnimationResource = "TVRN2", EntryAnimationTag = Entry, IdleAnimationTag = Idle,
+                Hotspots = new[] { dialogs.Hotspot },
+            }, 1, 2);
+            player.RunAsync(1, 2).Forget();
+            await Until(() => processor.Played.Contains(Idle), "the scene never drew");
+        }
+
         /// <summary>Enters the scene, clicks hotspot 0 and waits for the redraw after it.</summary>
         private static async UniTask<int> Act(LocationScenePlayer player, LocationScreen screen,
             RecordingProcessor processor, TalkDialogs dialogs) {

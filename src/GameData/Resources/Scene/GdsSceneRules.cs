@@ -49,6 +49,26 @@ public static class GdsSceneRules {
     }
 
     /// <summary>
+    /// The hotspot a scene runs by itself as it opens, before any click: the LAST one flagged
+    /// <see cref="GdsHotspot.CanBeDefaultTarget"/> that this chapter does not hide. Null for none.
+    /// </summary>
+    /// <remarks>
+    /// TOWNSCN.C:384-392: on every scene load the loop picks it as the action and skips both the
+    /// description and the menu, so the scene opens on that hotspot's dialog (Queen's Row opens on
+    /// Ivan's conversation). The flag gate is not consulted there, only the chapter mask.
+    /// </remarks>
+    public static int? ArrivalHotspot(GdsScene scene, int chapter) {
+        int? found = null;
+        for (var i = 0; i < (scene?.Hotspots?.Length ?? 0); i++) {
+            GdsHotspot hotspot = scene.Hotspots[i];
+            if (hotspot.CanBeDefaultTarget && hotspot.HiddenInChapters?.Contains(chapter) != true) {
+                found = i;
+            }
+        }
+        return found;
+    }
+
+    /// <summary>
     /// Whether a hotspot is interactive right now.
     /// </summary>
     /// <param name="chapter">The current chapter, 1-based.</param>

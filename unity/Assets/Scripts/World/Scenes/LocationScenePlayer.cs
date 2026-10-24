@@ -187,6 +187,12 @@ namespace BakAgain.World.Scenes {
                         return;
                     }
                     cut = true;
+                    // TOWNSCN.C:384-392: a hotspot flagged to run on arrival is the action, with no
+                    // click (Queen's Row opens on Ivan's conversation). PresentAsync left the
+                    // description out for it; the hotspot's own redraw puts it up afterwards.
+                    if (_loader.ArrivalHotspot(scene) is int arrival) {
+                        _screen?.PrimaryAction(GdsSceneRules.ActionIdFor(arrival));
+                    }
                     next = await WaitForTransitionAsync();
 
                     // A teleport redirects the loop to a DIFFERENT LOCATION rather than to another
@@ -407,8 +413,10 @@ namespace BakAgain.World.Scenes {
             // picture: every script clears the dialog panel as it ends. After the hotspots, so
             // their build (which clears the stage) cannot wipe the sign off it.
             // The SCENE, not the screen's binding: see LocationScreen.ShowSceneDescriptionAsync.
-            UniTask described = held.Task.ContinueWith(() =>
-                _screen?.ShowSceneDescriptionAsync(scene) ?? UniTask.CompletedTask);
+            // Not when a hotspot runs on arrival (TOWNSCN.C:393): the scene opens on its dialog.
+            UniTask described = _loader.ArrivalHotspot(scene) != null
+                ? held.Task
+                : held.Task.ContinueWith(() => _screen?.ShowSceneDescriptionAsync(scene) ?? UniTask.CompletedTask);
             // ponytail: a fixed bound, so a script that never reaches its hold (or fails) fades
             // in without its description rather than staying black; its text still lands if
             // the hold comes later.

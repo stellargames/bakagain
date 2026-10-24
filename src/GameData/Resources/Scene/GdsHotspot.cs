@@ -31,7 +31,10 @@ public class GdsHotspot {
     /// </summary>
     public List<int> HiddenInChapters { get; set; } = [];
 
-    /// <summary>Whether this hotspot is eligible to be the scene's default/auto-target (on-disk bit 0x8000).</summary>
+    /// <summary>
+    /// Whether this hotspot runs by itself when the scene opens (on-disk bit 0x8000); see
+    /// <see cref="GdsSceneRules.ArrivalHotspot"/>.
+    /// </summary>
     public bool CanBeDefaultTarget { get; set; }
 
     /// <summary>
