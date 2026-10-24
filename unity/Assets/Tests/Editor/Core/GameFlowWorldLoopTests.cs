@@ -61,4 +61,33 @@ namespace BakAgain.Tests.Editor.Core {
             Assert.AreEqual(0, session.ChapterTransitionPending, "the world loop runs again");
         }
     }
+
+    /// <summary>
+    /// Chapter 4's setup arm lights the torch it hands Gorath: SAVEGAME.C:200's
+    /// <c>palette_fade_run_scheduled(palette_fade_schedule(0, 0x2a30))</c> is a kind-1 (light) timer on
+    /// key 0, the carried light, for six game hours. The port skipped it as a fade (TASK-995).
+    /// </summary>
+    public class ChapterSetupArmTests {
+        [Test]
+        public void ChapterFourLightsTheTorchForSixHours() {
+            var session = new GameSession();
+            var clock = new GameClock(session);
+
+            GameFlow.ApplyChapterSetupArm(session, clock, 4);
+
+            Assert.AreEqual(0x2a30, clock.RemainingTicks(
+                GameData.Resources.Dialog.Actions.TimerType.Light, GameData.Resources.Inventory.ItemLight.TimerKey));
+        }
+
+        [Test]
+        public void AnotherChapterLightsNothing() {
+            var session = new GameSession();
+            var clock = new GameClock(session);
+
+            GameFlow.ApplyChapterSetupArm(session, clock, 5);
+
+            Assert.AreEqual(0, clock.RemainingTicks(
+                GameData.Resources.Dialog.Actions.TimerType.Light, GameData.Resources.Inventory.ItemLight.TimerKey));
+        }
+    }
 }

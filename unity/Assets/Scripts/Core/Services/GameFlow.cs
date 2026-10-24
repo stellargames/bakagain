@@ -269,7 +269,7 @@ namespace BakAgain.Core.Services {
             // (chapter 1 = Locklear, Owyn, Gorath), which STARTUP.GAM's [0,1,2] template does not.
             // GMAIN.C:203 runs the same savegame_chapter_start_dispatch for a new game.
             BeginChapterStart(_session.Chapter);
-            ApplyChapterSetupArm(_session.Chapter);
+            ApplyChapterSetupArm(_session, _resolver.Resolve<GameClock>(), _session.Chapter);
             await _dialogExecutor.RunChapterSetupAsync(_session.Chapter);
             _session.PartyDirtyFlags = 0;
 
@@ -331,7 +331,7 @@ namespace BakAgain.Core.Services {
             }
 
             _session.ClearChapterGlobals();
-            ApplyChapterSetupArm(chapter);
+            ApplyChapterSetupArm(_session, _resolver.Resolve<GameClock>(), chapter);
             await _dialogExecutor.RunChapterSetupAsync(chapter);
             _session.PartyDirtyFlags = 0;
             await ShowMapAndChapterDialogAsync();
@@ -367,29 +367,34 @@ namespace BakAgain.Core.Services {
         /// party heal every chapter gets.
         /// </summary>
         /// <remarks>
-        /// ponytail: chapter 4's palette fade (<c>palette_fade_run_scheduled</c>) is presentation and is
-        /// not played. The setup dialog (0x1e8497) is RunChapterSetupAsync, already called after this.
+        /// Chapter 4's <c>palette_fade_run_scheduled(palette_fade_schedule(0, 0x2a30))</c>
+        /// (SAVEGAME.C:200) is the lit torch's light timer, not a fade (TASK-995). The setup dialog
+        /// (0x1e8497) is RunChapterSetupAsync, already called after this.
         /// </remarks>
-        private void ApplyChapterSetupArm(int chapter) {
+        internal static void ApplyChapterSetupArm(GameSession session, GameClock clock, int chapter) {
             switch (GameData.Resources.GameState.ChapterTransition.ArmFor(chapter)) {
                 case GameData.Resources.GameState.ChapterSetupArm.LocklearInventoryToZone15:
-                    CloneInventory(_session.GetActorInventory(CharacterLocklear),
-                        _session.GetRuntimeContainerAt(15, 2, 2));
+                    CloneInventory(session.GetActorInventory(CharacterLocklear),
+                        session.GetRuntimeContainerAt(15, 2, 2));
                     break;
                 case GameData.Resources.GameState.ChapterSetupArm.OwynAndGorathInventoryToZone12:
-                    CloneInventory(_session.GetActorInventory(CharacterOwyn),
-                        _session.GetRuntimeContainerAt(12, 0xa9a10, 0xab180));
-                    CloneInventory(_session.GetActorInventory(CharacterGorath),
-                        _session.GetRuntimeContainerAt(12, 0xaa820, 0xaa1e0));
+                    CloneInventory(session.GetActorInventory(CharacterOwyn),
+                        session.GetRuntimeContainerAt(12, 0xa9a10, 0xab180));
+                    CloneInventory(session.GetActorInventory(CharacterGorath),
+                        session.GetRuntimeContainerAt(12, 0xaa820, 0xaa1e0));
                     // for (i = 1; i <= 2; i++): characters[1] is Gorath and gets the lit one.
-                    GiveOnlyATorch(_session.GetActorInventory(CharacterGorath), lit: true);
-                    GiveOnlyATorch(_session.GetActorInventory(CharacterOwyn), lit: false);
-                    _session.PartyGold = 0;
+                    GiveOnlyATorch(session.GetActorInventory(CharacterGorath), lit: true);
+                    GiveOnlyATorch(session.GetActorInventory(CharacterOwyn), lit: false);
+                    // palette_fade_run_scheduled(palette_fade_schedule(0, 0x2a30)): not a fade, the
+                    // carried-light timer (kind 1, key 0, mode 0x80 = add) that the lit torch burns on.
+                    clock?.ScheduleTimer(GameData.Resources.Dialog.Actions.TimerType.Light,
+                        GameData.Resources.Inventory.ItemLight.TimerKey, ChapterFourTorchTicks, accumulate: true);
+                    session.PartyGold = 0;
                     break;
                 case GameData.Resources.GameState.ChapterSetupArm.ZoneZeroContainerIntoLocklearsPack: {
                     // Locklear's pack is refilled from the zone-0 container at (10, 0), verbatim.
-                    GameData.Resources.Inventory.RuntimeContainer source = _session.GetRuntimeContainerAt(0, 10, 0);
-                    GameData.Resources.Inventory.RuntimeContainer locklear = _session.GetActorInventory(CharacterLocklear);
+                    GameData.Resources.Inventory.RuntimeContainer source = session.GetRuntimeContainerAt(0, 10, 0);
+                    GameData.Resources.Inventory.RuntimeContainer locklear = session.GetActorInventory(CharacterLocklear);
                     if (source != null && locklear != null) {
                         locklear.Items.Clear();
                         foreach (GameData.Resources.Inventory.RuntimeItem item in source.Items) {
@@ -400,26 +405,26 @@ namespace BakAgain.Core.Services {
                     break;
                 }
                 case GameData.Resources.GameState.ChapterSetupArm.TwoZoneZeroContainersToZone15:
-                    CloneInventory(_session.GetRuntimeContainerAt(0, 20, 1), _session.GetRuntimeContainerAt(15, 0x3c, 3));
-                    CloneInventory(_session.GetRuntimeContainerAt(0, 30, 1), _session.GetRuntimeContainerAt(15, 0x40, 3));
+                    CloneInventory(session.GetRuntimeContainerAt(0, 20, 1), session.GetRuntimeContainerAt(15, 0x3c, 3));
+                    CloneInventory(session.GetRuntimeContainerAt(0, 30, 1), session.GetRuntimeContainerAt(15, 0x40, 3));
                     // #ifdef V102CD, the build we target.
-                    _session.SetGlobalFlag(0x1959, false);
-                    _session.SetGlobalFlag(0x195a, false);
+                    session.SetGlobalFlag(0x1959, false);
+                    session.SetGlobalFlag(0x195a, false);
                     break;
             }
 
             // Cases 5 and 6 have no break and fall into case 7: case 8:, so all four restore the purse.
-            _session.PartyGold = _session.ChapterFinishingGold.PurseAfterRestore(chapter, _session.PartyGold);
+            session.PartyGold = session.ChapterFinishingGold.PurseAfterRestore(chapter, session.PartyGold);
 
             if (chapter == 3) {
-                _session.SetGlobalFlag(0x1fbc, false);
+                session.SetGlobalFlag(0x1fbc, false);
             }
             if (chapter == 7) {
-                _session.SetGlobalFlag(0x1ab1, true);
+                session.SetGlobalFlag(0x1ab1, true);
             }
 
             // stat_party_heal_all(100): the active party, each through stat_combatant_heal.
-            _session.HealActiveParty(GameData.Resources.Character.CharacterHeal.FullHealAmount);
+            session.HealActiveParty(GameData.Resources.Character.CharacterHeal.FullHealAmount);
         }
 
         /// <summary>
@@ -452,6 +457,9 @@ namespace BakAgain.Core.Services {
         }
 
         private const byte ChapterFourTorch = 0x54;
+
+        /// <summary>0x2a30 ticks, six game hours, of light for the lit torch (SAVEGAME.C:200).</summary>
+        internal const long ChapterFourTorchTicks = 0x2a30;
 
         private const byte ChapterFourTorchCondition = 6;
 
@@ -510,7 +518,7 @@ namespace BakAgain.Core.Services {
                     return;
                 }
                 BeginChapterStart(_session.Chapter);
-                ApplyChapterSetupArm(_session.Chapter);
+                ApplyChapterSetupArm(_session, _resolver.Resolve<GameClock>(), _session.Chapter);
                 await _dialogExecutor.RunChapterSetupAsync(_session.Chapter);
                 _session.PartyDirtyFlags = 0;
             }
