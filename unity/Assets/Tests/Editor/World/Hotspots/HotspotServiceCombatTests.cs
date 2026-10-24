@@ -1420,6 +1420,32 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
     }
 
     [Test]
+    public void AWiderTurnAngleSnapsThePartysHeadingToIt() {
+        // worldmove_rgn_chap_trans_apply: a grown grid stride (the TURN preference) runs
+        // worldmove_plr_hdg_align_grid on the party's yaw (WORLDMOV.C:78-82, :173-175) (TASK-994).
+        Rig rig = PlacementRig();
+        rig.Session.LastSeenGridStride = 2048;
+        rig.Session.Rotation = 2048;
+
+        rig.Service.OnStepSizeChanged(rig.Session.LastSeenStepSpeed, 4096);
+
+        Assert.AreEqual(4096, rig.Session.Rotation);
+        Assert.AreEqual(4096, rig.Session.LastSeenGridStride);
+    }
+
+    [Test]
+    public void ANarrowerTurnAngleLeavesTheHeadingAlone() {
+        Rig rig = PlacementRig();
+        rig.Session.LastSeenGridStride = 4096;
+        rig.Session.Rotation = 3000;
+
+        rig.Service.OnStepSizeChanged(rig.Session.LastSeenStepSpeed, 1024);
+
+        Assert.AreEqual(3000, rig.Session.Rotation, "only a grown stride aligns (WORLDMOV.C:79)");
+        Assert.AreEqual(1024, rig.Session.LastSeenGridStride);
+    }
+
+    [Test]
     public void AStepSizeResetReportsItselfAndTheRePlacementStoresThePoseAgain() {
         // rgnenc_reset_and_save zeroes a roamer's pose and re-places it at once (RGNENC.C:457-476).
         // The true return is what makes WorldRuntime do the re-placing; before, nothing did, and a

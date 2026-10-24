@@ -4653,12 +4653,9 @@ using GameData.Resources.Scene;
         /// the placement cache, because <c>PlaceEncounterActors</c> seeds as part of rebuilding it
         /// and is deliberately cached against being run twice.</para>
         ///
-        /// <para><b>The grid-stride arm is NOT implemented.</b> Its action is a party-heading snap
-        /// (<c>worldmove_plr_hdg_align_grid</c>) which the port does not have, so the stride
-        /// baseline is stored and nothing else — stated rather than silently half-done. Storing it
-        /// still matters, because the baseline is a SAVED field: a save written with the wrong one
-        /// is not the save the original would have written, and the whole differential harness rests
-        /// on one .GAM meaning the same thing to both games.</para>
+        /// <para><b>The grid-stride arm snaps the party's heading</b> to the new, wider turn angle
+        /// (<c>worldmove_plr_hdg_align_grid</c>, WORLDMOV.C:78-82). The stride baseline is a SAVED
+        /// field as well, so it is stored either way.</para>
         /// </remarks>
         public bool OnStepSizeChanged(int stepDistance, int gridStride) {
             if (_session == null) {
@@ -4668,7 +4665,9 @@ using GameData.Resources.Scene;
             // Both baselines move on ANY change, fired or not — see StepSizeChange.NewBaseline.
             if (GameData.Resources.World.StepSizeChange.AlignsHeading(
                     _session.LastSeenGridStride, gridStride)) {
-                // worldmove_plr_hdg_align_grid() would go here; see the remarks.
+                // worldmove_plr_hdg_align_grid (WORLDMOV.C:173-175); the caller re-syncs the camera.
+                _session.Rotation = unchecked((short)GameData.Resources.World.StepSizeChange.AlignedHeading(
+                    unchecked((ushort)_session.Rotation), gridStride));
             }
             _session.LastSeenGridStride = (short)GameData.Resources.World.StepSizeChange.NewBaseline(
                 _session.LastSeenGridStride, gridStride);

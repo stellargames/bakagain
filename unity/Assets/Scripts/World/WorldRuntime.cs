@@ -1801,6 +1801,8 @@ namespace BakAgain.World {
                 // worldmove_dat_load seeks (combat_step_speed + 3) * 2 into movement.dat, which is
                 // the TurnAngles third of the file.
                 _movementTable.TurnAngleFor(_preferences.Current.TurnSize));
+            // A grown turn angle may have snapped the heading; show it.
+            _partyMovement?.SyncToCamera();
             // rgnenc_reset_and_save re-places the reset roamers at once (RGNENC.C:476). Not over a
             // fight: its actors are hidden, and leaving it redraws the chunk anyway.
             if (reset && _hotspots.Combat?.Encounter == null) {

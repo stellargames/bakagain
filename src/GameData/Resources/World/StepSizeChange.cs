@@ -38,4 +38,29 @@ public static class StepSizeChange {
     /// outside the increase check, and reproducing that by accident is unlikely.
     /// </remarks>
     public static int NewBaseline(int lastSeen, int current) => current;
+
+    /// <summary>
+    /// The heading snapped to the nearest multiple of the turn angle, a half rounding up —
+    /// <c>worldmove_align_to_grid_stride</c> (WORLDMOV.C:438-460), which
+    /// <c>worldmove_plr_hdg_align_grid</c> runs on the party's yaw when the turn angle grows.
+    /// </summary>
+    /// <remarks>A heading of 0xF800 at stride 0x1000 rounds up to 0x10000, which wraps to north.</remarks>
+    public static ushort AlignedHeading(ushort yaw, int stride) {
+        if (stride <= 0) {
+            return yaw;
+        }
+        long candidate = 0;
+        int steps = (int)(0x10000L / stride) + 1;
+        for (var i = 0; i < steps; i++) {
+            if (candidate == yaw) {
+                return yaw;
+            }
+            if (yaw < candidate) {
+                long snapped = yaw < candidate - (stride >> 1) ? candidate - stride : candidate;
+                return (ushort)snapped;
+            }
+            candidate += stride;
+        }
+        return yaw;
+    }
 }

@@ -40,4 +40,15 @@ public class StepSizeChangeTests {
         Assert.True(StepSizeChange.AlignsHeading(1024, 2048));
         Assert.False(StepSizeChange.AlignsHeading(2048, 1024));
     }
+
+    // worldmove_align_to_grid_stride (WORLDMOV.C:438-460): nearest multiple of the stride, a half up.
+    [Theory]
+    [InlineData(2048, 4096, 4096)]   // exactly half way rounds up
+    [InlineData(2047, 4096, 0)]
+    [InlineData(5000, 4096, 4096)]
+    [InlineData(8192, 4096, 8192)]   // already aligned
+    [InlineData(65000, 4096, 0)]     // rounds up past 0xF000 and wraps to north
+    [InlineData(3000, 1024, 3072)]
+    public void THEHEADINGSnapsToTheNearestStride(int yaw, int stride, int expected) =>
+        Assert.Equal(expected, StepSizeChange.AlignedHeading((ushort)yaw, stride));
 }
