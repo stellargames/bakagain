@@ -2598,19 +2598,21 @@ namespace BakAgain.UI.Inventory {
             }
 
             RuntimeItem item = _displayed.Items[slot];
+            long price = TempleBlessing.Price(obj.Price, _blessing.MaxHagglingDiscount,
+                _blessing.MarkupPercentage);
+            // Item and cost are published BEFORE the already-blessed page (MODALSCR.C:458-462): its
+            // "@ presented the @1 to a priest" names the item (TASK-990).
+            _gameSession.SetDialogKeyObjectId(item.ObjectId);
+            _gameSession.SetGlobalValue(DialogSlotPopulator.QuotedAmountGlobalKey, (int)price);
             if (TempleBlessing.IsBlessed((GameData.ItemFlags)item.ItemFlags)
                 && !await _dialogs.ShowConfirmById((int)TempleBlessing.AlreadyBlessedDialogId)) {
                 return;
             }
 
-            long price = TempleBlessing.Price(obj.Price, _blessing.MaxHagglingDiscount,
-                _blessing.MarkupPercentage);
             // The offer's wording differs for armour, and the dialog reads which from the same
             // global the rest of this screen publishes its subject through.
-            _gameSession.SetDialogKeyObjectId(item.ObjectId);
             _gameSession.SetGlobalValue(DialogArgCountGlobal,
                 TempleBlessing.OfferWordingFor(obj.ObjectType));
-            _gameSession.SetGlobalValue(DialogSlotPopulator.QuotedAmountGlobalKey, (int)price);
             // *** THE OFFER OWNS THE RULE, SO RUN THE WHOLE DIALOG. *** MODALSCR.C:471 is
             // `dialog_play_record(0x13d670, 0); if (gstate_event_read(0x104) != 0) { gold -= cost;
             // ... }` — the same shape as the mender's quote, and with no gold test in C either.
