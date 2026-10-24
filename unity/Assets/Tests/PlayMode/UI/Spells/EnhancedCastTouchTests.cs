@@ -152,6 +152,7 @@ namespace BakAgain.Tests.PlayMode.UI.Spells {
         // A. "Tapping Scent of Sarig casts it immediately": a fixed cost had nothing to choose, so the
         // pick committed on the spot. On touch the tap chooses; the Cast tablet casts.
         [UnityTest]
+        [RequiresShippedGameData]
         public IEnumerator Finger_ATapOnAFixedCostSpell_ChoosesItAndCastsNothing() {
             (CastScreen screen, FakePointer p, List<(int, int)> cast) = Open(finger: true);
 
@@ -165,6 +166,7 @@ namespace BakAgain.Tests.PlayMode.UI.Spells {
 
         // The mouse keeps the original's flow: a click on a fixed-cost symbol casts it.
         [UnityTest]
+        [RequiresShippedGameData]
         public IEnumerator Mouse_AClickOnAFixedCostSpell_StillCastsIt() {
             (CastScreen screen, FakePointer p, List<(int, int)> cast) = Open(finger: false);
 
@@ -176,6 +178,7 @@ namespace BakAgain.Tests.PlayMode.UI.Spells {
         // B. A tap on another symbol leaves the power choice and chooses that spell instead, as a
         // school tap leaves it and switches school.
         [UnityTest]
+        [RequiresShippedGameData]
         public IEnumerator Finger_ATapOnAnotherSymbol_CancelsTheChoiceAndChoosesThatSpell() {
             (CastScreen screen, FakePointer p, List<(int, int)> cast) = Open(finger: true);
             OpenPowerChoice(screen, Wide, 1, 20);
@@ -187,6 +190,7 @@ namespace BakAgain.Tests.PlayMode.UI.Spells {
         }
 
         [UnityTest]
+        [RequiresShippedGameData]
         public IEnumerator Mouse_AClickOnAnotherSymbol_CancelsTheChoiceAndChoosesThatSpell() {
             (CastScreen screen, FakePointer p, List<(int, int)> cast) = Open(finger: false);
             OpenPowerChoice(screen, Wide, 1, 20);
@@ -198,6 +202,7 @@ namespace BakAgain.Tests.PlayMode.UI.Spells {
         }
 
         [UnityTest]
+        [RequiresShippedGameData]
         public IEnumerator ATapOffTheRing_CancelsThePowerChoice([Values(true, false)] bool finger) {
             (CastScreen screen, FakePointer p, List<(int, int)> cast) = Open(finger);
             OpenPowerChoice(screen, Wide, 1, 20);
@@ -211,6 +216,7 @@ namespace BakAgain.Tests.PlayMode.UI.Spells {
         // The control: a finger that chose a power on the ring and lifted off it keeps the choice
         // (the Enhanced screen's "keep" rule); only a tap that STARTED off the ring cancels.
         [UnityTest]
+        [RequiresShippedGameData]
         public IEnumerator Finger_SlidingOffTheRingAfterChoosingAPower_KeepsTheChoice() {
             (CastScreen screen, FakePointer p, List<(int, int)> cast) = Open(finger: true);
             OpenPowerChoice(screen, Wide, 1, 20);

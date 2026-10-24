@@ -26,6 +26,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
     /// it and popped, then the pack itself popped. The visit must survive the first pop and end on
     /// the second, exactly once.</para>
     /// </remarks>
+    [BakAgain.Tests.TestSupport.RequiresShippedGameData]
     public class InventoryCoveredIsNotClosedTests {
         private GameObject _go;
         private PanelSettings _panelSettings;

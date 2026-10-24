@@ -497,6 +497,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
 
         /// <summary>The control: the same press and move on the grid, no examine view, does drag.</summary>
         [Test]
+        [BakAgain.Tests.TestSupport.RequiresShippedGameData]
         public void APressAndMoveOnTheGrid_DragsTheItem() {
             InventoryMenu menu = BuildMenu(out VisualElement itemSlot0);
 

@@ -646,6 +646,7 @@ namespace BakAgain.Tests.PlayMode.World {
         /// opened over the bare chapel (Malac's Cross, t917 SAVE02).
         /// </remarks>
         [UnityTest]
+        [BakAgain.Tests.TestSupport.RequiresShippedGameData]
         public IEnumerator AFullScreenPageOpensOverThePageLeftDrawnNotOverTheLocation() =>
             UniTask.ToCoroutine(async () => {
                 BakAgain.UI.DialogManager dialogs = RealDialogs();
