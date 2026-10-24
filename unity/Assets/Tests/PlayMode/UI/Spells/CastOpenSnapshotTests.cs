@@ -16,6 +16,7 @@ namespace BakAgain.Tests.PlayMode.UI.Spells {
     /// curtains, exactly the sRGB encoding of the real value. The original wipes over the travel view
     /// itself (CSPELL.C:2114-2117 copies the front page).
     /// </remarks>
+    [Category("Graphics")] // waits for a rendered frame and reads it back: CI runs these in the job with graphics
     public class CastOpenSnapshotTests {
         [UnityTest]
         public IEnumerator TheOpeningStillIsAnOpaqueSrgbTexture() => UniTask.ToCoroutine(async () => {
