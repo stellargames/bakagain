@@ -4248,10 +4248,10 @@ namespace BakAgain.UI.Inventory {
         /// </summary>
         /// <remarks>
         /// The offer is a real question: <c>BuyItem</c> seeds the quoted price into global 30014,
-        /// shows ddx 1800023 ("That will be @1") and reads global 260 for the answer. Declining is
-        /// where haggling begins — <b>not implemented yet</b>, so a refusal simply ends the offer
-        /// rather than opening the haggle loop (ddx 1800020/1800021, and a Magical Scroll's
-        /// suppliers who will not haggle at all, ddx 1800031).
+        /// shows ddx 1800023 ("That will be @1") and reads global 260 for the answer, or 262 for
+        /// Haggle, which opens the haggle loop (<see cref="HaggleForAsync"/>: ddx 1800020/1800021,
+        /// and a Magical Scroll's suppliers who will not haggle at all, ddx 1800031). Any other
+        /// answer ends the offer.
         ///
         /// <para>The money and the stock are <see cref="ShopStock.Buy"/>'s business, including the
         /// rule that infinite stock is COPIED rather than moved.</para>

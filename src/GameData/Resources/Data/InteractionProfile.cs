@@ -35,6 +35,7 @@ public sealed record InteractionProfile {
     /// <summary>Left-click opens the loot/transfer screen when the container has items.</summary>
     public bool OpensLoot { get; init; }
 
-    /// <summary>Entity has a lock/trap stage (chest). Not yet implemented; corpse = false.</summary>
+    /// <summary>Entity has a lock/trap stage (chest), handled by the port's
+    /// <c>ContainerInteractionHandler</c>; corpse = false.</summary>
     public bool HasLock { get; init; }
 }

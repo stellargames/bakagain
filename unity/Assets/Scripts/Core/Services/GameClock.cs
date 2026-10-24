@@ -22,9 +22,10 @@ namespace BakAgain.Core.Services {
     /// step hour by hour, which is what the rest loop does (<c>gstate_advance_half_hours</c>,
     /// called once per increment from ENCAMP.C / MODALSCR.C).</para>
     ///
-    /// <para>Not yet modelled, deliberately: the sleep/last-action snapshot
-    /// (<c>dwLastActionTimeSnapshot</c>), which only feeds the rest branch inside the hourly
-    /// tick, and rehydrating pending timers from a loaded save's timer block.</para>
+    /// <para>Owned elsewhere: the last-rest snapshot (<c>dwLastActionTimeSnapshot</c>) is
+    /// <see cref="GameSession.LastRestTicks"/>, read by <c>PartyUpkeepService</c> for the hourly
+    /// exhaustion check, and a loaded save's timer block is put back by
+    /// <c>GameStateLoader.RestoreTimers</c>.</para>
     /// </summary>
     public sealed class GameClock {
         // The unit arithmetic itself lives in GameData so the extractors, the save reader and this
