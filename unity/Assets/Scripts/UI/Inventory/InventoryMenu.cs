@@ -2587,6 +2587,9 @@ namespace BakAgain.UI.Inventory {
             RenderCurrent();
         }
 
+        /// <summary>62_BLESS, once the blessing is paid for (MODALSCR.C:478).</summary>
+        private const int BlessCue = 62;
+
         private async UniTaskVoid BlessAsync(int slot, ObjectInfo obj) {
             if (!TempleBlessing.CanBless(obj.ObjectType)) {
                 await _dialogs.ShowById((int)TempleBlessing.CannotBlessDialogId);
@@ -2626,6 +2629,7 @@ namespace BakAgain.UI.Inventory {
             _gameSession.PartyGold -= (int)price;
             item.ItemFlags = (ushort)TempleBlessing.Bless((GameData.ItemFlags)item.ItemFlags,
                 _blessing.MarkDownPercentage);
+            Audio.MenuSoundService.Cue(BlessCue);
             _displayed.Dirty = true;
             RenderCurrent();
         }

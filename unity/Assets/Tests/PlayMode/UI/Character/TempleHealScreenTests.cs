@@ -5,8 +5,12 @@ namespace BakAgain.Tests.PlayMode.UI.Character {
     using GameData;
     using GameData.Resources.Character;
     using NUnit.Framework;
+    using System.Collections;
+    using System.Collections.Generic;
     using System.Reflection;
+    using Cysharp.Threading.Tasks;
     using UnityEngine;
+    using UnityEngine.TestTools;
 
     /// <summary>
     /// The temple healing screen's loop — <c>charscreen_temple_heal_menu</c> @0x5877e. The pricing
@@ -41,6 +45,7 @@ namespace BakAgain.Tests.PlayMode.UI.Character {
 
         [TearDown]
         public void TearDown() {
+            if (_cueSpy != null) { BakAgain.Audio.MenuSoundService.CueRequested -= _cueSpy; _cueSpy = null; }
             if (_go != null) { Object.DestroyImmediate(_go); }
         }
 
@@ -123,6 +128,74 @@ namespace BakAgain.Tests.PlayMode.UI.Character {
             // One function, two jobs: the multiplier the temple charges with is the same one the
             // needs-healing test is asked with.
             Assert.That(Bill(0), Is.LessThan(full));
+        }
+
+        // ---- the cure itself (CHARSCRN.C:512-525) ----------------------------------------------
+
+        /// <summary>
+        /// A paid cure restarts the awake clock from NOW: <c>dwLastActionTimeSnapshot = game_time</c>
+        /// (CHARSCRN.C:519), as the inn does. Zero would make the whole game's age read as time awake,
+        /// and the next hourly tick would drain the party (GSTATE.C:304-317).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ACureRestartsTheRestClockFromNowNotFromZero() => UniTask.ToCoroutine(async () => {
+            var log = new List<string>();
+            Curing(log);
+            _session.GameTimeIn2Seconds = 123456;
+            _session.LastRestTicks = 1000;
+
+            await Cure();
+
+            Assert.That(_session.LastRestTicks, Is.EqualTo(123456));
+        });
+
+        /// <summary>
+        /// The cure's sound, 12_SPELL2, after the "cured" dialog (CHARSCRN.C:517-518).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ACurePlaysItsSoundAfterTheCuredDialog() => UniTask.ToCoroutine(async () => {
+            var log = new List<string>();
+            Curing(log);
+
+            await Cure();
+
+            Assert.That(log, Is.EqualTo(new[] { "dialog " + TempleHealMenu.CuredDialog, "cue 12" }));
+        });
+
+        /// <summary>Control: a purse that cannot pay hears the refusal and no cure sound.</summary>
+        [UnityTest]
+        public IEnumerator ARefusedCurePlaysNoSound() => UniTask.ToCoroutine(async () => {
+            var log = new List<string>();
+            Curing(log);
+            _session.PartyGold = 0;
+
+            await Cure();
+
+            Assert.That(log, Is.EqualTo(new[] { "dialog " + TempleHealMenu.CannotAffordDialog }));
+        });
+
+        private System.Action<int> _cueSpy;
+
+        private void Curing(List<string> log) {
+            _screen.Construct(null, null, new LoggingDialogs(log), _session,
+                new BakAgain.Core.Services.GameClock(_session));
+            Afflict(character: 0, ActorCondition.Sick, 30);
+            _screen.SetService(FullPrice, PlainMode);
+            SetSlot(0);
+            _cueSpy = id => log.Add("cue " + id);
+            BakAgain.Audio.MenuSoundService.CueRequested += _cueSpy;
+        }
+
+        private UniTask Cure() =>
+            (UniTask)_screen.GetType().GetMethod("CureAsync", Flags).Invoke(_screen, null);
+
+        private sealed class LoggingDialogs : BakAgain.Tests.PlayMode.UI.Inventory.NoOpDialogs {
+            private readonly List<string> _log;
+            public LoggingDialogs(List<string> log) => _log = log;
+            public override UniTask<int> ShowById(int id, System.Threading.CancellationToken ct = default) {
+                _log.Add("dialog " + id);
+                return base.ShowById(id, ct);
+            }
         }
 
         // ---- reaching the screen's own state ----------------------------------------------------

@@ -359,6 +359,19 @@ namespace BakAgain.UI.Teleport {
         /// the same number of frames. The bow is <see cref="TeleportMenu.FlightArcOffset"/>.
         /// </remarks>
         private async UniTask FlyAsync(int from, int to) {
+            // 12_SPELL2 for the whole flight: started as the spark leaves, stopped when it lands
+            // (MODALSCR.C:294, :341-342).
+            Audio.MenuSoundService.Cue(FlightCue);
+            try {
+                await FlySparkAsync(from, to);
+            } finally {
+                Audio.MenuSoundService.StopCue(FlightCue);
+            }
+        }
+
+        private const int FlightCue = 12;
+
+        private async UniTask FlySparkAsync(int from, int to) {
             VisualElement stage = Stage();
             if (stage == null) {
                 return;
@@ -392,8 +405,14 @@ namespace BakAgain.UI.Teleport {
                 await UniTask.Yield(PlayerLoopTiming.Update);
             }
 
+            // The landed spark holds for 0x78 presents before the flight sound stops and the map ends
+            // (MODALSCR.C:337-342). A present waits for the 70 Hz retrace.
+            await UniTask.Delay(System.TimeSpan.FromSeconds(LandingHoldPresents / RetraceHz));
             Clear(stage, SparkClass);
         }
+
+        private const int LandingHoldPresents = 0x78;
+        private const double RetraceHz = 70.0;
 
         private const string SparkClass = "teleport-spark";
 

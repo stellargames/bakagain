@@ -31,6 +31,28 @@ namespace BakAgain.Audio {
             _cache = cache;
         }
 
+        /// <summary>Plays a cue through <see cref="Instance"/>, telling <see cref="CueRequested"/> first.</summary>
+        /// <remarks>
+        /// The static path a screen uses when a test has to see the cue: a test has no
+        /// <see cref="Instance"/> (it needs the audio owner), so <c>Instance?.Play</c> alone is invisible.
+        /// </remarks>
+        public static void Cue(int soundId) {
+            CueRequested?.Invoke(soundId);
+            Instance?.Play(soundId);
+        }
+
+        /// <summary>Stops a held cue through <see cref="Instance"/>, telling <see cref="CueStopped"/> first.</summary>
+        public static void StopCue(int soundId) {
+            CueStopped?.Invoke(soundId);
+            Instance?.Stop(soundId);
+        }
+
+        /// <summary>Test seam: every <see cref="Cue"/> request, by sound id.</summary>
+        internal static event Action<int> CueRequested;
+
+        /// <summary>Test seam: every <see cref="StopCue"/> request, by sound id.</summary>
+        internal static event Action<int> CueStopped;
+
         // Fire-and-forget: load (cached) the AudioResource for soundId and play it as a one-shot SFX.
         public void Play(int soundId) {
             PlayAsync(soundId, extraRepeats: 0).Forget();

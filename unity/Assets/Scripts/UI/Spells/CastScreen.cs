@@ -2029,9 +2029,10 @@ namespace BakAgain.UI.Spells {
                 return;
             }
 
+            bool isASwitch = _school >= 0;   // the first school chosen is not (CSPELL.C:2332-2345)
             _morphFrom = _school;
             _school = school;
-            LoadSchoolAsync(school).Forget();
+            LoadSchoolAsync(school, isASwitch).Forget();
         }
 
         /// <summary>
@@ -2050,7 +2051,10 @@ namespace BakAgain.UI.Spells {
         /// <summary>The symbol set currently resident - one at a time, as the original keeps it.</summary>
         public SpellSymbolLayout Symbols { get; private set; }
 
-        private async UniTask LoadSchoolAsync(int school) {
+        /// <summary>27_MORPH, between the new symbols' load and the morph (CSPELL.C:2344-2346).</summary>
+        private const int MorphCue = 27;
+
+        private async UniTask LoadSchoolAsync(int school, bool isASwitch) {
             // The old school's symbols stay on the ring for one symbol pass before anything changes:
             // cspell_menu_animate_hilite(0x85, 1) runs over them BEFORE the free/load and the morph
             // (CSPELL.C:2341-2348). Its pen never reaches SPELL.FNT's glyphs, so it reads as a hold.
@@ -2065,6 +2069,9 @@ namespace BakAgain.UI.Spells {
                 _logger.LogError("CastScreen: SYMBOL{File}.DAT did not load.", school + 1);
 
                 return;
+            }
+            if (isASwitch) {
+                Audio.MenuSoundService.Cue(MorphCue);
             }
 
             // Switching school is a load AND a redraw: the symbols on the ring are the school's,

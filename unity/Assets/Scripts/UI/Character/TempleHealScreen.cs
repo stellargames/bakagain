@@ -354,6 +354,11 @@ namespace BakAgain.UI.Character {
 
             _session.PartyGold -= (int)bill;
             await _dialogs.ShowById(TempleHealMenu.CuredDialog);
+            Audio.MenuSoundService.Cue(CureCue);
+            // The awake clock restarts NOW (CHARSCRN.C:519, dwLastActionTimeSnapshot = game_time), as
+            // the inn's does. Not through event key 30006: that key CLEARS the snapshot to zero
+            // (GSTATE.C:159-160), which made the whole game's age read as time awake.
+            _session.LastRestTicks = _session.GameTimeIn2Seconds;
 
             int character = CharacterIndex(_slot);
             ActorConditions conditions = _session.ConditionsOf(character);
@@ -366,9 +371,6 @@ namespace BakAgain.UI.Character {
                 // full" however far down they were.
                 CharacterHeal.Apply(_session.StatsOf(character), conditions, HealToFull);
             }
-            // The visit is stamped on the game clock, as the original does at the end of the cure.
-            _session.SetGlobalValue(LastServiceTimeKey, (int)(_clock?.Ticks ?? 0));
-
             Advance();
         }
 
@@ -489,8 +491,8 @@ namespace BakAgain.UI.Character {
         /// <summary>Where the described member goes for the right-click description dialog.</summary>
         private const int DescribedCharacterKey = 30000;
 
-        /// <summary>Where the visit's time is stamped.</summary>
-        private const int LastServiceTimeKey = 30006;
+        /// <summary>12_SPELL2, after the "cured" dialog (CHARSCRN.C:518).</summary>
+        private const int CureCue = 12;
 
         /// <summary>
         /// The dialog state the heal loop runs under — <c>g_dialog_in_char_screen</c> set (CHARSCRN.C:463).

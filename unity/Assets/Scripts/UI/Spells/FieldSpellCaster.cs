@@ -65,19 +65,18 @@ namespace BakAgain.UI.Spells {
                 return;
             }
 
-            // *** AFTER the zone refusal, deliberately. *** A refused cast is documented above as
-            // silent and free; cueing before the check would give it a sound the original does not.
-            // A spell with no mapped cue stays silent rather than borrowing another's — see
-            // SpellCastSound, which keeps "verified silent" apart from "not yet mapped".
-            if (SpellCastSound.ForCast(spellNumber) is { } castCue) {
-                Audio.MenuSoundService.Instance?.Play(castCue);
-            }
-
+            // A locator's cue is its SUCCESS sound and plays only on a won roll (SPELLFX.C:164-191).
             if (FieldSpells.IsLocatorRoll(spellNumber)) {
                 await CastLocatorAsync(casterId, spellNumber, power);
 
                 return;
             }
+
+            // *** AFTER the zone refusal, deliberately. *** A refused cast is documented above as
+            // silent and free; cueing before the check would give it a sound the original does not.
+            // A spell with no mapped cue stays silent rather than borrowing another's — see
+            // SpellCastSound, which keeps "verified silent" apart from "not yet mapped".
+            PlayCastCue(spellNumber);
 
             await ShowDialogAsync(FieldSpells.DialogFor(spellNumber));
 
@@ -123,10 +122,17 @@ namespace BakAgain.UI.Spells {
                 return;
             }
 
+            PlayCastCue(spellNumber);
             FieldSpells.LocatorTarget target = FieldSpells.TargetOf(spellNumber);
             // The cast is already paid for and the roll already made, so the screen is the last
             // thing that happens — it returns when the player closes it and the spell is over.
             await _locatorMap.RunAsync(target);
+        }
+
+        private static void PlayCastCue(int spellNumber) {
+            if (SpellCastSound.ForCast(spellNumber) is { } castCue) {
+                Audio.MenuSoundService.Cue(castCue);
+            }
         }
 
         /// <summary>"A complete waste of time" — what a failed locator says.</summary>

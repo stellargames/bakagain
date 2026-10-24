@@ -44,8 +44,26 @@ namespace BakAgain.Tests.PlayMode.World {
         private GameObject _dialogGo;
         private PanelSettings _panelSettings;
 
+        /// <summary>Every cue played ("play 12") and stopped ("stop 12"), in order.</summary>
+        private readonly System.Collections.Generic.List<string> _sounds = new();
+        private readonly System.Action<int> _played, _stopped;
+
+        public TownEntryFadeOrderTests() {
+            _played = id => _sounds.Add("play " + id);
+            _stopped = id => _sounds.Add("stop " + id);
+        }
+
+        [SetUp]
+        public void ListenForCues() {
+            _sounds.Clear();
+            BakAgain.Audio.MenuSoundService.CueRequested += _played;
+            BakAgain.Audio.MenuSoundService.CueStopped += _stopped;
+        }
+
         [TearDown]
         public void TearDown() {
+            BakAgain.Audio.MenuSoundService.CueRequested -= _played;
+            BakAgain.Audio.MenuSoundService.CueStopped -= _stopped;
             foreach (GameObject go in new[] { _hudGo, _screenGo, _canvasGo, _dialogGo, _teleportGo, _menuGo }) {
                 if (go != null) { Object.DestroyImmediate(go); }
             }
@@ -302,6 +320,9 @@ namespace BakAgain.Tests.PlayMode.World {
                     Assert.That(arrival.panel, Is.Null, "the destination temple replaces it at the cut");
                     Assert.That(teleport.HasAnything, Is.True,
                         "the world half waits for the loop's exit; nothing drained it");
+                    Assert.That(_sounds, Is.EqualTo(new[] { "play 12", "stop 12" }),
+                        "the spark's flight sounds 12_SPELL2 from take-off and stops it on landing "
+                        + "(MODALSCR.C:294, :341-342)");
                 } finally {
                     player.Hide();
                 }
@@ -359,6 +380,7 @@ namespace BakAgain.Tests.PlayMode.World {
                     Assert.That(dialogs.Moments, Is.EqualTo(new[] { "frozen, hud down" }),
                         "the description is drawn once, under the cut that takes the page down and "
                         + "after the HUD the pop revealed is down again (TOWNSCN.C:612-633)");
+                    Assert.That(_sounds, Is.Empty, "a declined teleport has no flight and no flight sound");
                 } finally {
                     player.Hide();
                 }
