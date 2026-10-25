@@ -44,9 +44,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: 10.0.x  # global.json pins 10.0.0, not a real SDK version; setup-dotnet takes it literally
+      # No setup-dotnet: the runner images ship .NET 10 SDKs, which src/global.json accepts. Its download
+      # host returned 409 for every version on 2026-10-25 (actions/setup-dotnet#794).
       - run: dotnet build src/ResourceExtraction/ResourceExtraction.csproj -c Unity
       - run: dotnet test src/BakAgain.slnx
 
@@ -67,9 +66,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: 10.0.x  # global.json pins 10.0.0, not a real SDK version; setup-dotnet takes it literally
+      # No setup-dotnet: the runner images ship .NET 10 SDKs, which src/global.json accepts. Its download
+      # host returned 409 for every version on 2026-10-25 (actions/setup-dotnet#794).
       - name: Build the plugin libraries into the Unity project
         run: dotnet build src/ResourceExtraction/ResourceExtraction.csproj -c Unity
       - uses: actions/cache@v6
