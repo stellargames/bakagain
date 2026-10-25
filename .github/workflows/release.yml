@@ -34,6 +34,8 @@ jobs:
       - name: Free disk space for the Android toolchain
         if: matrix.target == 'Android'
         uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # v2.0.0
+        with:
+          dotnet: false # the plugin build below uses the runner's preinstalled SDK
       # No setup-dotnet: the runner images ship .NET 10 SDKs, which src/global.json accepts. Its download
       # host returned 409 for every version on 2026-10-25 (actions/setup-dotnet#794).
       - name: Build the plugin libraries into the Unity project
