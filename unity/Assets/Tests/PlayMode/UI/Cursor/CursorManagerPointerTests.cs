@@ -126,6 +126,43 @@ namespace BakAgain.Tests.PlayMode.UI.Cursor {
             }
         }
 
+        // GitHub #3 (TASK-998): a screen with no visible stage (the Enhanced inventory hides its own,
+        // the full map is uGUI) drew the cursor at raw screen pixels in panel units, so at a panel
+        // scale other than 1 the drawn cursor and the click disagreed. Scale 2 makes that a 2x miss.
+        [UnityTest]
+        public IEnumerator PumpPointer_WithNoStage_TracksThePointerInPanelUnits() {
+            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            settings.scaleMode = PanelScaleMode.ConstantPixelSize;
+            settings.scale = 2f;
+            var cursorHost = new GameObject("CursorHost");
+            try {
+                UIDocument cursorDoc = cursorHost.AddComponent<UIDocument>();
+                cursorDoc.panelSettings = settings;
+                var cm = cursorHost.AddComponent<CursorManager>();
+                var el = new VisualElement();
+                cm.SetCursorElementForTest(el);
+
+                yield return null;
+                yield return null;
+
+                Assert.IsNull(cm.ResolveActiveStageForTest(), "sanity: no stage on this panel");
+                IPanel panel = cursorDoc.rootVisualElement.panel;
+                Vector2 a = new Vector2(100, Screen.height - 100), b = new Vector2(300, Screen.height - 200);
+                cm.PumpPointer(new FakePointer { IsPresent = true, Delta = Vector2.one, ScreenPosition = a });
+                Vector2 drawA = new Vector2(el.style.left.value.value, el.style.top.value.value);
+                cm.PumpPointer(new FakePointer { IsPresent = true, Delta = Vector2.one, ScreenPosition = b });
+                Vector2 drawB = new Vector2(el.style.left.value.value, el.style.top.value.value);
+
+                Vector2 expected = RuntimePanelUtils.ScreenToPanel(panel, new Vector2(300, 200))
+                    - RuntimePanelUtils.ScreenToPanel(panel, new Vector2(100, 100));
+                Assert.AreEqual(expected.x, drawB.x - drawA.x, 0.5f);
+                Assert.AreEqual(expected.y, drawB.y - drawA.y, 0.5f);
+            } finally {
+                UnityEngine.Object.DestroyImmediate(cursorHost);
+                UnityEngine.Object.DestroyImmediate(settings);
+            }
+        }
+
         // Fixture helper: a UIDocument on its own GameObject, sharing settings' runtime panel with
         // whatever else is under test, hosting a CanonicalStage built from a distinctive frame.
         private static VisualElement MakeStage(

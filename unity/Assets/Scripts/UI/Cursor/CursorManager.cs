@@ -283,8 +283,13 @@ namespace BakAgain.UI.Cursor {
             // than assuming a fixed 1600×1200 frame, so this tracks whatever fit/frame the active
             // screen actually built its stage with (Contain at any size, or a full-panel Fill).
             VisualElement stage = FindActiveStage();
-            Vector2 canonicalPointer = CanonicalConversion.ScreenToCanonical(
-                pointer.ScreenPosition, new Vector2(Screen.width, Screen.height), stage);
+            // No visible stage (the Enhanced inventory hides its own, the full map is uGUI): place the
+            // cursor in panel units, or it is drawn at screen pixels and misses the click (TASK-998).
+            Vector2 canonicalPointer = stage == null && _root?.panel != null
+                ? RuntimePanelUtils.ScreenToPanel(_root.panel,
+                    new Vector2(pointer.ScreenPosition.x, Screen.height - pointer.ScreenPosition.y))
+                : CanonicalConversion.ScreenToCanonical(
+                    pointer.ScreenPosition, new Vector2(Screen.width, Screen.height), stage);
             _arbiter.OnPointerMoved(pointer.Delta, canonicalPointer);
             Vector2 draw = _arbiter.Position - _hotspot + StageOrigin(stage);
             _cursorElement.style.left = draw.x;
