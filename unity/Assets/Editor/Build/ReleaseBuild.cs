@@ -65,6 +65,11 @@ namespace BakAgain.Editor.Build {
 
         private static void ConfigureAndroid(Dictionary<string, string> args) {
             EditorUserBuildSettings.buildAppBundle = false; // an APK players can sideload
+            // The CI restores an old Library, whose Gradle project kept the values-en/values-nl app names the
+            // removed Localization package wrote: v0.3.0's launcher said "Loading Betrayal at Krondor...".
+            if (Directory.Exists("Library/Bee/Android")) {
+                Directory.Delete("Library/Bee/Android", true);
+            }
             if (args.TryGetValue("androidVersionCode", out string code) && int.TryParse(code, out int versionCode)) {
                 PlayerSettings.Android.bundleVersionCode = versionCode;
             }
