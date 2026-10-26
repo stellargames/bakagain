@@ -154,12 +154,19 @@ namespace BakAgain.Combat {
             /// </summary>
             public readonly bool RollsToHit;
 
+            /// <summary>
+            /// A <see cref="AiAction.Rest"/> that also raises a guard — the wandering routine's give-up
+            /// on a roll over 0x32 (<c>combatenc_set_flag8_clear_flag1</c>, CBTAIACT.C:66-68).
+            /// </summary>
+            public readonly bool Braces;
+
             public Decision(AiAction action, Combatant target,
                 int spellId = OpportunisticCasts.NoSpell,
                 MonsterTurnRoutines.RangedTurn ranged = default, int? castPower = null,
                 bool clearsTargetAfterTurn = false, AiAction? fallback = null, int? maxSteps = null,
-                bool rollsToHit = false) {
+                bool rollsToHit = false, bool braces = false) {
                 RollsToHit = rollsToHit;
+                Braces = braces;
                 ClearsTargetAfterTurn = clearsTargetAfterTurn;
                 Fallback = fallback;
                 MaxSteps = maxSteps;
@@ -575,8 +582,9 @@ namespace BakAgain.Combat {
                     (x, y) => ActorAt(encounter, x, y), monster));
 
             AiAction action = SpeciesAction(routine.Value, monster, distance, lineOfFire,
-                out MonsterTurnRoutines.RangedTurn ranged, out int spellId, out int? castPower);
-            return new Decision(action, nearest, spellId, ranged, castPower);
+                out MonsterTurnRoutines.RangedTurn ranged, out int spellId, out int? castPower,
+                out bool braces);
+            return new Decision(action, nearest, spellId, ranged, castPower, braces: braces);
         }
 
         /// <summary>
@@ -626,10 +634,11 @@ namespace BakAgain.Combat {
         /// </remarks>
         private AiAction SpeciesAction(CombatAi.SpeciesRoutine routine, Combatant monster,
             int distance, bool lineOfFire, out MonsterTurnRoutines.RangedTurn ranged,
-            out int spellId, out int? castPower) {
+            out int spellId, out int? castPower, out bool braces) {
             ranged = default;
             spellId = OpportunisticCasts.NoSpell;
             castPower = null;
+            braces = false;
             switch (routine) {
                 case CombatAi.SpeciesRoutine.MeleeAdjacentElseCastOrShoot: {
                     // *** A CAST NAMES ITS SPELL, OR NOTHING CASTS IT. *** RunEnemyTurn only resolves a
@@ -654,6 +663,13 @@ namespace BakAgain.Combat {
                         // half-stat itself, not the AI's full-strength cost.
                         spellId = wander.SpellKind;
                         castPower = monster.Health / 2;
+                    }
+                    // *** GIVING UP IS A REST, NOT THE PARTY'S DEFEND. *** combatenc_actor_enter_defense
+                    // heals and sets DEFEND_CMD; the parry flag follows only on a roll over 0x32
+                    // (CBTAIACT.C:65-68). Translate's Defend parried every time and never healed.
+                    if (wander.Move == MonsterMove.Defend) {
+                        braces = wander.Braces;
+                        return AiAction.Rest;
                     }
                     return Translate(wander.Move);
 

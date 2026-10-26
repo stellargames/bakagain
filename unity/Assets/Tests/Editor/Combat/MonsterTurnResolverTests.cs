@@ -235,6 +235,30 @@ namespace BakAgain.Tests.Editor.Combat {
         }
 
         [Test]
+        public void AWandererThatGivesUpRestsAndBracesOnAHighRoll() {
+            // CBTAIACT.C:64-69 -- combatenc_actor_enter_defense (the REST path), then the parry flag
+            // only when 0x32 < roll. It used to take the party's Defend: parry always, no heal.
+            Combatant wanderer = Monster(0x31);
+            CombatEncounter enc = Fight(wanderer, Member(2, 0));
+            MonsterTurnResolver.Decision d = Resolver(roll: 99).Resolve(enc, wanderer);
+
+            Assert.AreEqual(AiAction.Rest, d.Action);
+            Assert.IsTrue(d.Braces);
+        }
+
+        [Test]
+        public void AWandererThatCannotCastRestsWithoutBracingOnALowRoll() {
+            // halfStat == 1 never casts, so a roll under 0x32 gives up too -- and does not brace.
+            Combatant wanderer = Monster(0x31);
+            wanderer.Health = 2;
+            CombatEncounter enc = Fight(wanderer, Member(2, 0));
+            MonsterTurnResolver.Decision d = Resolver(roll: 40).Resolve(enc, wanderer);
+
+            Assert.AreEqual(AiAction.Rest, d.Action);
+            Assert.IsFalse(d.Braces);
+        }
+
+        [Test]
         public void THEWANDERINGClassCastsItsRolledSpellAtHalfItsHealth() {
             // CBTAIACT.C:71 -- roll < 0x32 picks spell 5, the power is halfStat, not the AI cost.
             const int WanderingSpeciesClass = 0x31;

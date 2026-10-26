@@ -4388,6 +4388,9 @@ namespace BakAgain.Combat {
             // monster turns as outcomes of their own (TASK-528).
             if (decision.Action == AiAction.Rest) {
                 ResolveRest(monster);
+                if (decision.Braces) {
+                    ResolveDefend(monster);
+                }
                 return decision;
             }
             if (decision.Action == AiAction.Defend) {
@@ -5337,6 +5340,9 @@ namespace BakAgain.Combat {
         /// the melee, ranged and spell resolvers, and driving a real swing to a guaranteed kill
         /// would test the damage roll rather than what a death settles.
         /// </remarks>
+        internal MonsterTurnResolver.Decision CarryOutEnemyTurnForTest(Combatant monster,
+            MonsterTurnResolver.Decision decision) => CarryOutEnemyTurn(monster, decision, null);
+
         internal DeathOutcome KillForTest(Combatant victim) => KillAndSettle(victim);
 
         private DeathOutcome KillAndSettle(Combatant victim, bool playAnimation = true) {

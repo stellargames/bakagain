@@ -510,6 +510,25 @@ namespace BakAgain.Tests.Editor.Combat {
         }
 
         [Test]
+        public void ABracingRestRecoversAndParries() {
+            // The wanderer's give-up (CBTAIACT.C:65-68): enter_defense, then set_flag8_clear_flag1.
+            var session = new GameSession();
+            var runtime = new CombatRuntime(session);
+            session.SetRosterActorForTest(400, StatBlock(health: 20), gridX: 5, gridY: 5);
+            CombatEncounter fight = runtime.EnterRoster(new short[] { 400 });
+            Combatant monster = fight.Enemies[0];
+            monster.Health -= 10;
+            int before = monster.Health + monster.Stamina;
+
+            runtime.CarryOutEnemyTurnForTest(monster,
+                new MonsterTurnResolver.Decision(AiAction.Rest, null, braces: true));
+
+            Assert.Greater(monster.Health + monster.Stamina, before, "it rests");
+            Assert.IsTrue((monster.Flags & CombatantFlags.DefendCommand) != 0);
+            Assert.IsTrue((monster.Flags & CombatantFlags.Parry) != 0, "and braces");
+        }
+
+        [Test]
         public void WalkingOntoCrystalGroundHurtsTheWalkerAndStopsTheWalk() {
             // *** EVERY HAZARD A WALK FIRED USED TO BE DISCARDED. *** All three CombatWalk.Walk
             // sites passed the puzzle and the cover predicate but no onHazard, so crystal ground,
