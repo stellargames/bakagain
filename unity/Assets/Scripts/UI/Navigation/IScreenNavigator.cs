@@ -10,7 +10,7 @@ namespace BakAgain.UI.Navigation {
     /// Operations are serialized (FIFO): a Pop issued while a Push is still showing runs after
     /// it, so the stack can never interleave half-finished transitions.
     ///
-    /// See docs/superpowers/specs/2026-07-12-screen-navigation-architecture-design.md.
+    /// See docs/specs/2026-07-12-screen-navigation-architecture-design.md.
     /// </summary>
     public interface IScreenNavigator {
         /// <summary>Clear the stack (hiding everything) and show <paramref name="root"/> —

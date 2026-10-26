@@ -22,7 +22,7 @@ namespace BakAgain.UI.InputCore {
         /// The split exists because <see cref="IsPresent"/> was answering two questions and only one
         /// of them is about cursors: of its five readers, the cursor and both hover queries were
         /// right to exclude touch, while the world click and the compass press were not. See
-        /// <c>docs/superpowers/specs/2026-09-21-touch-input-design.md</c>.
+        /// <c>docs/specs/2026-09-21-touch-input-design.md</c>.
         /// </remarks>
         bool CanPoint { get; }
         Vector2 ScreenPosition { get; }     // Input System screen coords (bottom-left origin)

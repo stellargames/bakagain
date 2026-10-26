@@ -1,7 +1,7 @@
 namespace GameData.Resources.Layout;
 
 /// <summary>
-/// Tuning for Enhanced full-screen travel (docs/superpowers/specs/2026-10-08-enhanced-mode-travel-design.md
+/// Tuning for Enhanced full-screen travel (docs/specs/2026-10-08-enhanced-mode-travel-design.md
 /// in the private workspace). Fractions and rates only, no coordinates; the HUD's geometry is in
 /// the theme's <c>.enhanced-hud*</c> classes. The defaults are the shipped values.
 /// </summary>

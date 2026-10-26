@@ -35,7 +35,7 @@ namespace BakAgain.World {
         public Dictionary<TerrainPen, Material> TerrainMaterials;
 
         // Per-(pen, DrawPriority) painter's-order material cache (DrawPriority 8=ground/bottom,
-        // 7=road/path, 6=river/top). See docs/superpowers/specs/2026-06-29-world-render-draw-order-design.md.
+        // 7=road/path, 6=river/top). See docs/specs/2026-06-29-world-render-draw-order-design.md.
         public readonly Dictionary<(TerrainPen, byte), Material> LayeredTerrainCache = new();
 
         // The provider used to load sprite billboard images (index-0 transparent). Set alongside

@@ -16,7 +16,7 @@ namespace GameData.Resources.Data;
 /// </list>
 /// A semantic, modder-friendly reshape (composable <c>Establishment</c> services) is designed but
 /// deferred until establishments enter gameplay — see
-/// <c>docs/superpowers/specs/2026-06-28-establishment-semantic-shape-design.md</c> and
+/// <c>docs/specs/2026-06-28-establishment-semantic-shape-design.md</c> and
 /// <c>docs/shop-pricing.md</c>.
 /// </remarks>
 public class SaveGameContainerShopData {

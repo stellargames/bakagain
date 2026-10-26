@@ -9,7 +9,7 @@ namespace BakAgain.Tests.PlayMode.UI.InputCore {
         /// </summary>
         /// <remarks>
         /// <b>This pair IS the design</b> — see
-        /// <c>docs/superpowers/specs/2026-09-21-touch-input-design.md</c>. If only one half holds,
+        /// <c>docs/specs/2026-09-21-touch-input-design.md</c>. If only one half holds,
         /// the split is wrong: both true is a mouse, both false is a pure gamepad, and
         /// <c>CanPoint</c> without <c>IsPresent</c> is the case that had no representation at all
         /// and made the whole UI a no-op on a touch device (TASK-67).

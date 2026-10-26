@@ -163,7 +163,7 @@ namespace BakAgain.Core.DI {
 
             // Screen navigation: the single owner of "which screen is visible" — one stack of
             // IScreens; screens never SetActive each other. See
-            // docs/superpowers/specs/2026-07-12-screen-navigation-architecture-design.md.
+            // docs/specs/2026-07-12-screen-navigation-architecture-design.md.
             // *** THE NAVIGATOR NO LONGER FADES EVERY TRANSITION. *** TASK-214 put a fade on every
             // Push/Pop/ResetTo/Replace. In practice it collided with the transitions that already
             // fade themselves — cutscene scripts open with their own FadeOut/FadeIn — and produced a

@@ -9,7 +9,7 @@ namespace BakAgain.Audio {
     // Plays short UI SFX (button select / toggle flip) by sound id. Reuses MidiPlaybackManager.PlaySfx
     // (the audio owner) and IResourceCache (the session resource cache) — sounds live in FRP.SX, keyed
     // by numeric id string, the same path cutscenes use. Default menu select cue is sound_pound (id 83).
-    // See docs/superpowers/specs/2026-06-24-ui-select-sounds-design.md.
+    // See docs/specs/2026-06-24-ui-select-sounds-design.md.
     public sealed class MenuSoundService {
         // Composition seam: set once at container build by RootLifetimeScope, mirroring
         // UiDriver (and MidiPlaybackManager.Instance in this same layer). UserInterfaceLoader

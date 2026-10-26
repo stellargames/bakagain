@@ -5,7 +5,7 @@ using System.Globalization;
 
 /// <summary>Content identity keys: canonical <c>base:&lt;catalog&gt;:&lt;index&gt;</c> for original
 /// game content, <c>&lt;mod&gt;:&lt;key&gt;</c> for mod-authored content. See the additive content
-/// registry design (docs/superpowers/specs/2026-07-21-additive-content-registry-design.md §5.1).</summary>
+/// registry design (docs/specs/2026-07-21-additive-content-registry-design.md §5.1).</summary>
 public static class ContentKey {
     public const string BaseNamespace = "base";
 

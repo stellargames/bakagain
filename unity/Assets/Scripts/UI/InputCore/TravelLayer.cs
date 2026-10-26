@@ -8,7 +8,7 @@ namespace BakAgain.UI.InputCore {
     // focus-navigate, so it never does focus nav. It sits on the stack so (a) a modal above makes
     // its buttons inert (OnActiveChanged) and (b) movement can be gated on "travel is the resolved
     // input target" (TravelLayerHost.IsInputActive). Movement itself is a separate ClassicMovementDriver,
-    // not handled here. Design: docs/superpowers/specs/2026-07-02-ingame-inputcore-cutover-design.md.
+    // not handled here. Design: docs/specs/2026-07-02-ingame-inputcore-cutover-design.md.
     public sealed class TravelLayer : IInputLayer {
         private IReadOnlyList<NavWidget> _widgets;
         private bool _isActive = true;

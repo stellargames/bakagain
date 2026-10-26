@@ -11,7 +11,7 @@ using System.Threading;
 /// Player-visible strings lifted out of KRONDOR.EXE. The real catalog will use keys formatted as
 /// <c>base:uistring:&lt;group&gt;.&lt;name&gt;</c>, but Get/TryGet are key-format-agnostic and will work with any string key.
 /// Shipped as an embedded resource rather than read from the executable at runtime — see
-/// docs/superpowers/specs/2026-08-07-exe-ui-string-catalog-design.md.
+/// docs/specs/2026-08-07-exe-ui-string-catalog-design.md.
 /// </summary>
 public sealed class UiStringCatalog {
     public const string ResourceId = "uistrings.json";

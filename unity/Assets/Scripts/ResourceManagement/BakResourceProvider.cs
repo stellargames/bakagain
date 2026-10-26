@@ -115,7 +115,7 @@ namespace BakAgain.ResourceManagement {
                     if (resource is GameData.Resources.World.ZoneTable zoneTable) {
                         // Runtime re-extracts ZoneTable from the binary, so stamp texture keys here using the
                         // BASE archive's slot counts (_resourceProvider is the un-overridden KRONDOR.001), keeping
-                        // keys frozen against the original bitmaps. See docs/superpowers/specs/2026-07-15-world-model-atlas-texturing-design.md.
+                        // keys frozen against the original bitmaps. See docs/specs/2026-07-15-world-model-atlas-texturing-design.md.
                         ResourceExtraction.Extractors.ZoneTableExtractor.StampTextureKeys(
                             zoneTable, resourceId, _resourceProvider);
                     }

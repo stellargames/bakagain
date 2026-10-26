@@ -79,7 +79,7 @@
 
 ### E. Core flow, DI, world, audio  (`Assets/Scripts/Core/`, `World/`, `Audio/`)
 - **GameInitializationService** (`IAsyncStartable`) — real bootstrap: loading screen → MetaMenu path prompt → `ResourceManagementInitializer` → `GameManager.StartGame`.
-- **NO state machine** (deleted 2026-07-12, see `docs/superpowers/specs/2026-07-12-screen-navigation-architecture-design.md`). The former `StateMachine`/`IState`/6 states are gone. In their place three owners:
+- **NO state machine** (deleted 2026-07-12, see `docs/specs/2026-07-12-screen-navigation-architecture-design.md`). The former `StateMachine`/`IState`/6 states are gone. In their place three owners:
   - **`GameSession`** = the state, as data (no session vs. session loaded; later "in combat").
   - **`WorldRuntime`** (`Core/Services/`, file under `World/`) = the single owner of the zone-scene + world-camera + party-movement build/teardown (`BuildAsync`/`TeardownAsync`). Nothing else may build/destroy the world.
   - **`GameFlow` / `IGameFlow`** (`Core/Services/`) = the transitions: `Boot` (attract loop → menu), `ShowMainMenu`, `StartNewGame`, `LoadSave`, `EnterWorld`. Serialized (one flow at a time), the only mutators of "what is loaded", the only place a screen-tree + world lifecycle are sequenced. Screens trigger flows; only flows change configuration.

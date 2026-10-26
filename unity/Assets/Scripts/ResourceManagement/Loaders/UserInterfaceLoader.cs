@@ -307,7 +307,7 @@ namespace BakAgain.ResourceManagement.Loaders {
         // silent only when both are suppressed: inventory slots, the world-viewport hotspot, GDS
         // zones, file-picker rows. MainMenu (release suppressed) still pounds and REQ_PUZL (press
         // suppressed) still plays its 18=swoosh, because both cues resolve to the same sound.
-        // See docs/superpowers/specs/2026-06-24-ui-select-sounds-design.md.
+        // See docs/specs/2026-06-24-ui-select-sounds-design.md.
         public static int? ResolveSelectSound(UiElement entry) =>
             entry.PressSound ?? entry.ReleaseSound;
 

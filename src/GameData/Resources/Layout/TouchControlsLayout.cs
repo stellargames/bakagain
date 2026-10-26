@@ -2,7 +2,7 @@ namespace GameData.Resources.Layout;
 
 /// <summary>
 /// Where the Android touch aids sit inside the pillarbox side bars
-/// (docs/superpowers/specs/2026-09-29-android-touch-aids-design.md in the private workspace).
+/// (docs/specs/2026-09-29-android-touch-aids-design.md in the private workspace).
 /// Fractions of the bar's own width/height unless noted, so the same numbers fit any phone.
 /// The defaults are the shipped values.
 /// </summary>

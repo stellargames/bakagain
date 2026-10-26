@@ -2,7 +2,7 @@ namespace GameData.Resources.Layout;
 
 /// <summary>
 /// Tuning for the open book drawn around a full-screen parchment
-/// (docs/superpowers/specs/2026-10-11-book-spread-pillars-design.md in the private workspace).
+/// (docs/specs/2026-10-11-book-spread-pillars-design.md in the private workspace).
 /// Fractions of the shown page's height, so the book scales with the stage. The defaults are the
 /// shipped values.
 /// </summary>
