@@ -36,8 +36,12 @@ public static class MonsterMeleeTurn {
     /// </summary>
     public const int LandingCue = 0x1d;
 
-    /// <summary>Knockback applied by the hit.</summary>
+    /// <summary>The hit-tint ramp the blow passes (see MonsterHeavyRangedTurn.Knockback).</summary>
     public const int Knockback = 1;
+
+    /// <summary>What flies — <c>world_rndr_ranged_attack_anim(.., 0x3b, 0x15e, -1)</c>, COMBAT.TBL
+    /// <c>spell6</c> (CBTAIACT.C:157).</summary>
+    public const int ProjectileShape = 0x3b;
 
     /// <summary>
     /// How many frames the knockback animation steps through.

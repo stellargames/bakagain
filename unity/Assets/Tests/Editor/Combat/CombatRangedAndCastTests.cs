@@ -517,6 +517,84 @@ namespace BakAgain.Tests.Editor.Combat {
                 "its crossbow is found in the same body");
         }
 
+        [Test]
+        public void AMonsterShooterArmsItsBoltToFly() {
+            // combataiturn_ranged_attack flies action 1, the bolt, before the damage (CBTAITRN.C:139);
+            // the port resolved the shot and drew nothing (TASK-1008).
+            var (runtime, _, _, monster, _) = MonsterShooterFight(creatureType: 12, quarrels: 10);
+
+            runtime.ResolveEnemyTurn(monster, Shooter(_ => 0), AlwaysLow);
+
+            Assert.AreEqual(CombatEffectSprite.Arrow, monster.FlightEffectId);
+        }
+
+        [Test]
+        public void TheSpitterArmsItsGlobAndTintsItsVictimThroughRampFour() {
+            // combataiact_ranged_attack (CBTAIACT.C:235-257): shape 4 flies, then
+            // combat_arena_apply_damage(target, n, 0, 4, 0x200, 0) -- the 4 is the hit tint's ramp,
+            // markActorHit's remap, where a plain blow passes 1 (TASK-1008).
+            var (runtime, _, member, monster, _) = MonsterShooterFight(
+                creatureType: 0x36, quarrels: 0, crossbow: false);
+
+            MonsterTurnResolver.Decision decision = runtime.ResolveEnemyTurn(monster, Shooter(_ => 0), AlwaysLow);
+
+            Assert.AreEqual(AiAction.Shoot, decision.Action, "the control: it attacks from range");
+            Assert.AreEqual(MonsterHeavyRangedTurn.ProjectileShape, monster.FlightEffectId);
+            Assert.AreEqual(MonsterHeavyRangedTurn.Knockback, member.HitReactionRemap);
+        }
+
+        [Test]
+        public void TheSpittersGlobBurstsOnItsVictim() {
+            // g_nVfxParticleColor = 0xe8; worldfx_combat_damage_ptcl_burst(target, 0x23) (CBTAIACT.C:249-251).
+            var (runtime, _, member, monster, _) = MonsterShooterFight(
+                creatureType: 0x36, quarrels: 0, crossbow: false);
+            var visuals = new List<(SpellVisual Visual, Combatant To)>();
+            runtime.PlaySpellVisual = (v, _, to) => visuals.Add((v, to));
+
+            runtime.ResolveEnemyTurn(monster, Shooter(_ => 0), AlwaysLow);
+
+            CollectionAssert.Contains(visuals,
+                (new SpellVisual(SpellVisualKind.SparkBurst, 0xe8, 0x23), member));
+        }
+
+        [Test]
+        public void AShadesHeavyShotFliesItsOwnShapeAndBurstsThroughItsRamp() {
+            // 0x39 always takes the heavy shot: shape 0x32 flies, the target is tinted through ramp 3 while
+            // sparks of 0xa0 burst at spread 0x2d, and the damage call passes 3 (CBTAIACT.C:95-131).
+            var (runtime, _, member, monster, _) = MonsterShooterFight(
+                creatureType: 0x39, quarrels: 0, crossbow: false);
+            var visuals = new List<(SpellVisual Visual, Combatant To)>();
+            runtime.PlaySpellVisual = (v, _, to) => visuals.Add((v, to));
+
+            MonsterTurnResolver.Decision decision =
+                runtime.ResolveEnemyTurn(monster, Shooter(n => n - 1), n => n - 1);
+
+            Assert.AreEqual(AiAction.Shoot, decision.Action, "the control: it attacks from range");
+            Assert.AreEqual(0x32, monster.FlightEffectId);
+            CollectionAssert.Contains(visuals,
+                (new SpellVisual(SpellVisualKind.SparkBurst, 0xa0, 0x2d, Tint: 3,
+                    TintFrames: SpellVisuals.TintThroughBurst), member));
+            Assert.AreEqual(3, member.HitReactionRemap);
+        }
+
+        [Test]
+        public void TheRusalkasShotSweepsItsVictimsTintThroughFourRamps() {
+            // CBTAIACT.C:157-168: shape 0x3b flies, then knockbackFrame 1..4 is drawn a frame each before
+            // the damage.
+            var (runtime, _, member, monster, _) = MonsterShooterFight(
+                creatureType: 0x38, quarrels: 0, crossbow: false);
+            var visuals = new List<(SpellVisual Visual, Combatant To)>();
+            runtime.PlaySpellVisual = (v, _, to) => visuals.Add((v, to));
+
+            MonsterTurnResolver.Decision decision =
+                runtime.ResolveEnemyTurn(monster, Shooter(n => n - 1), n => n - 1);
+
+            Assert.AreEqual(AiAction.Shoot, decision.Action, "the control: it attacks from range");
+            Assert.AreEqual(MonsterMeleeTurn.ProjectileShape, monster.FlightEffectId);
+            CollectionAssert.Contains(visuals,
+                (new SpellVisual(SpellVisualKind.KnockbackSweep, Spread: MonsterMeleeTurn.KnockbackFrames), member));
+        }
+
         // combat_ai_take_turn's tail (CBTAI.C:373-381): a caster whose slots cast nothing advances
         // through combataipath_select_target, which walks and never swings (CMBTAI.C). Timirianya's
         // Pantathians, who cannot cast there, used to punch the party to death on arrival.

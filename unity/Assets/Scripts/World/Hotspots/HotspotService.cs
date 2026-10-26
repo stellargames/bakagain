@@ -2114,7 +2114,7 @@ using GameData.Resources.Scene;
 
         /// <summary>Give a pending thrown-rock flight its arc, if that is what is flying.</summary>
         /// <remarks>
-        /// Only <see cref="GameData.Resources.Combat.CombatEffectSprite.Shot"/> arcs — it is the
+        /// Only <see cref="GameData.Resources.Combat.CombatEffectSprite.Rock"/> arcs — it is the
         /// original's <c>action_id 0x14</c>, the one branch of the flight routine that carries a
         /// vertical delta and skips off the ground. Every other effect flies flat, and leaving the
         /// two arc fields at zero is what says so.
@@ -2122,7 +2122,7 @@ using GameData.Resources.Scene;
         private void ArmRockArc(GameData.Resources.Combat.Combatant from,
             GameData.Resources.Combat.Combatant to, bool hit) {
             if (from == null || to == null
-                || from.FlightEffectId != GameData.Resources.Combat.CombatEffectSprite.Shot) {
+                || from.FlightEffectId != GameData.Resources.Combat.CombatEffectSprite.Rock) {
                 return;
             }
             (int steps, int delta) = GameData.Resources.Combat.ThrownRockFlight.Launch(
@@ -3253,7 +3253,7 @@ using GameData.Resources.Scene;
                 // resolve-then-draw gap on the shooter, the same way SwingPending carries a melee
                 // blow — the model has no arena to fly anything through.
                 ArmFlight(fight, acting, target,
-                    GameData.Resources.Combat.CombatEffectSprite.Shot);
+                    GameData.Resources.Combat.CombatEffectSprite.ForShot(_selectedQuarrelKind, acting.ClassId));
                 // *** THE ARC IS DECIDED HERE BECAUSE A MISS ROLLS FOR IT. *** ThrownRockFlight's
                 // launch takes the combat RNG, and a miss's delta can be negative — which is what
                 // drops the rock early and starts it skipping. Resolving it in the draw would put
@@ -4963,6 +4963,15 @@ using GameData.Resources.Scene;
             int fromY = monster?.Y ?? 0;
             BakAgain.Combat.MonsterTurnResolver.Decision decision =
                 Combat.ResolveEnemyTurn(monster, ai, _random);
+            // A monster's ranged attack left its shape on the monster; aim it for the redraw (TASK-1008).
+            if (monster != null && monster.FlightEffectId != 0) {
+                int shape = monster.FlightEffectId;
+                monster.FlightEffectId = 0;
+                ArmFlight(Combat?.Encounter, monster, decision.Target, shape);
+                if (monster.FlightEffectId == 0) {
+                    monster.FlightArcSteps = monster.FlightArcDelta = 0;   // nobody to fly at: no stale arc
+                }
+            }
             // One line per AI turn, so a fight can be replayed turn by turn against the original's
             // (TASK-528): who acted, from where to where, what it decided and on whom.
             GameData.Resources.Combat.CombatEncounter fight = Combat?.Encounter;

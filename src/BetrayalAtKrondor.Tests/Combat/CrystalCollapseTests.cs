@@ -154,7 +154,7 @@ public class CrystalCollapseTests {
         // nothing. Pinned as a value comparison because the arm is a caller-side `if` and this is
         // the constant it tests.
         Assert.Equal(2, CombatEffectSprite.Flamecast);
-        Assert.NotEqual(CombatEffectSprite.Flamecast, CombatEffectSprite.Shot);
+        Assert.NotEqual(CombatEffectSprite.Flamecast, CombatEffectSprite.Rock);
         Assert.NotEqual(CombatEffectSprite.Flamecast, CombatEffectSprite.BaneOfBlackSlayers);
         Assert.NotEqual(CombatEffectSprite.Flamecast, CombatEffectSprite.GenericSpell);
     }

@@ -695,7 +695,7 @@ namespace BakAgain.World {
             }
             foreach (Encounters.ArenaCombatant marker in _arenaRoot.GetComponentsInChildren<Encounters.ArenaCombatant>()) {
                 GameData.Resources.Combat.Combatant c = _hotspots.CombatantFor(marker.RosterSlot, marker.PartyMember);
-                if (c?.DamageFloat is not { } dealt) {
+                if (c?.DamageFloat is not { } dealt || _landing.Contains((marker.RosterSlot, marker.PartyMember))) {
                     continue;
                 }
                 c.DamageFloat = null;
@@ -736,20 +736,73 @@ namespace BakAgain.World {
         /// picture. A failed build is silent — a missing bitmap must not cost the player their shot.
         /// </remarks>
         private async UniTaskVoid FlyEffectAsync(int effectId, Vector3 from, Vector3 to,
-            int arcSteps, int arcDelta, float seconds = Encounters.ProjectileFlight.Seconds) {
+            int arcSteps, int arcDelta, float seconds = Encounters.ProjectileFlight.Seconds,
+            (int Slot, bool Party)? landingOn = null) {
             if (_arenaRoot == null || _zoneSceneBuilder?.RenderContext == null) {
                 return;
             }
+            // *** THE ARENA IS BUSY UNTIL THE SHOT LANDS. *** The original flies it inside the attack, so the
+            // next turn cannot start under it; here the next turn's redraw destroyed the arrow a frame
+            // after launch (TASK-1008). Counted before the first await, so no gap reads as idle.
+            _arenaWork++;
+            try {
+                await FlyEffectInnerAsync(effectId, from, to, arcSteps, arcDelta, seconds);
+            } finally {
+                if (landingOn is { } target && _landing.Remove(target) && _arenaRoot != null) {
+                    FloatDamageNumbers();
+                }
+                _arenaWork--;
+            }
+        }
+
+        /// <summary>Targets of shots still in the air: their damage numbers wait for the landing.</summary>
+        private readonly HashSet<(int Slot, bool Party)> _landing = new();
+
+        /// <summary>Where shots fly: beside the arena, not in it, because a redraw replaces the arena
+        /// and the shot it launched must survive the next one (TASK-1008). Same space as the arena root.</summary>
+        private GameObject _flightRoot;
+
+        private Transform FlightRoot() {
+            if (_flightRoot == null) {
+                _flightRoot = new GameObject("CombatFlights");
+                _flightRoot.transform.SetParent(_zoneRoot.transform, worldPositionStays: false);
+            }
+            return _flightRoot.transform;
+        }
+
+        private void ClearFlights() {
+            if (_flightRoot != null) {
+                Object.Destroy(_flightRoot);
+                _flightRoot = null;
+            }
+            _landing.Clear();
+        }
+
+        private async UniTask FlyEffectInnerAsync(int effectId, Vector3 from, Vector3 to,
+            int arcSteps, int arcDelta, float seconds) {
             GameObject sprite = await _encounterSprites.BuildEffectSpriteAsync(
-                effectId, _gameSession.CurrentZone, _arenaRoot.transform,
+                effectId, _gameSession.CurrentZone, FlightRoot(),
                 _zoneSceneBuilder.RenderContext, this);
             if (sprite == null) {
                 return;
             }
+            // The ground shadow under it (world_render_combat_grid_sprite, WORLDHIT.C:743-760).
+            int shadowShape = GameData.Resources.Combat.CombatEffectSprite.ShadowFor(effectId);
+            GameObject shadow = shadowShape == GameData.Resources.Combat.CombatEffectSprite.NoShadow
+                ? null
+                : await _encounterSprites.BuildEffectSpriteAsync(shadowShape, _gameSession.CurrentZone,
+                    FlightRoot(), _zoneSceneBuilder.RenderContext, this);
+            if (sprite == null) {   // the fight ended while the shadow loaded
+                if (shadow != null) {
+                    Object.Destroy(shadow);
+                }
+                return;
+            }
+            float groundY = from.y;
             // *** A SPELL FLIES AT CHEST HEIGHT, NOT ALONG THE GROUND. *** world_rndr_ranged_attack_anim
             // starts every shape at z=200 except the growing whirlwind (4) and a flying creature
             // (WORLDHIT.C:641-645); the thrown rock keeps its own arc (ThrownRockFlight).
-            if (effectId != GameData.Resources.Combat.CombatEffectSprite.Shot && effectId != 4) {
+            if (effectId != GameData.Resources.Combat.CombatEffectSprite.Rock && effectId != 4) {
                 Vector3 lift = Vector3.up * (GameData.Resources.Combat.SpellHeights.Flight / BakCoordinateConverter.WorldScale);
                 from += lift;
                 to += lift;
@@ -765,7 +818,8 @@ namespace BakAgain.World {
                 arcSteps > 0
                     ? GameData.Resources.Combat.ThrownRockFlight.Arc(arcSteps, arcDelta)
                     : null;
-            sprite.AddComponent<Encounters.ProjectileFlight>().Play(from, to, point => {
+            Encounters.ProjectileFlight flight = sprite.AddComponent<Encounters.ProjectileFlight>();
+            flight.Play(from, to, point => {
                 if (_hotspots.ProjectilePassedOver(point, effectId)) {
                     // The collapse changed the puzzle's elements and ground, and the arena is drawn
                     // from those — so it has to be rebuilt rather than left showing a chain that no
@@ -773,7 +827,9 @@ namespace BakAgain.World {
                     DrawCombatantsAsync().Forget();
                 }
             }, arc, () => MenuSoundService.Instance?.Play(
-                GameData.Resources.Combat.ThrownRockFlight.SkipCue), seconds);
+                GameData.Resources.Combat.ThrownRockFlight.SkipCue), seconds,
+                shadow != null ? shadow.transform : null, groundY);
+            await UniTask.WaitUntil(() => flight == null);
         }
 
         /// <summary>A FRACTIONAL arena cell (cell units, .5 = a centre) in the arena root's space —
@@ -1076,7 +1132,20 @@ namespace BakAgain.World {
             }
         }
 
+        /// <summary>Redraws and flights in progress; the fight hands the turn on only at zero.</summary>
+        private int _arenaWork;
+
         private async UniTask SlideThenRedrawAsync() {
+            // The whole redraw counts, so a flight it launches is already counted when it ends.
+            _arenaWork++;
+            try {
+                await SlideThenRedrawInnerAsync();
+            } finally {
+                _arenaWork--;
+            }
+        }
+
+        private async UniTask SlideThenRedrawInnerAsync() {
             if (_sliding || _arenaRoot == null || _hotspots == null) {
                 ForgetWalkedCells();
                 await DrawCombatantsAsync();
@@ -1421,7 +1490,6 @@ namespace BakAgain.World {
 
             AttachLingeringSpellVisuals();
             await DrawSpellTilesAsync();
-            FloatDamageNumbers();
 
             // *** A SWING ARMED BY THE MODEL IS PLAYED HERE. *** The attack resolves in one call
             // and the arena catches up on the next redraw, so the flag is what carries the event
@@ -1496,9 +1564,14 @@ namespace BakAgain.World {
                 if (to == null) {
                     continue;
                 }
+                // The target's number floats when the shot lands, as the original applies the damage
+                // after the flight (TASK-1008).
+                var landingOn = (shooter.FlightToSlot, shooter.FlightToParty);
+                _landing.Add(landingOn);
                 FlyEffectAsync(effect, marker.transform.localPosition, to.localPosition,
-                    arcSteps, arcDelta).Forget();
+                    arcSteps, arcDelta, landingOn: landingOn).Forget();
             }
+            FloatDamageNumbers();
 
             // *** THE LIVE COMBATANTS BREATHE. *** The idle is the walk cycle played in place —
             // slot 0 asks for the same three frames — and its delay is re-rolled to 8..15 ticks
@@ -2176,6 +2249,7 @@ namespace BakAgain.World {
                         await DrawCombatantsAsync();
                     } else {
                         ClearArena();
+                        ClearFlights();
                         ClearCombatBackdrop();
                         ReleaseUndergroundBackdrop();
                         SetArenaSceneryCull(false);
@@ -2233,7 +2307,7 @@ namespace BakAgain.World {
                 redrawArena: () => SlideThenRedrawAsync().Forget(),
                 // A spell's effect is part of its turn: the original plays it inside the cast
                 // (cspell_invoke_effect, CSPELL.C:786), so the turn passes only once it is over (TASK-1011).
-                arenaBusy: () => _sliding || (_spellVfx?.Playing ?? false),
+                arenaBusy: () => _sliding || _arenaWork > 0 || (_spellVfx?.Playing ?? false),
                 // The loot screen is the travel HUD's, so the service asks rather than reaching for
                 // it. Same shape as showArena: a callback into whoever owns the UI.
                 openCorpseLoot: OpenCorpseLoot,

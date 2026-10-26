@@ -65,8 +65,20 @@ namespace BakAgain.World.Encounters {
         /// <param name="onSkip">Raised once per ground contact, for the skip cue.</param>
         public void Play(Vector3 from, Vector3 to, System.Action<Vector3> passedOver = null,
             IReadOnlyList<ThrownRockFlight.Step> arc = null, System.Action onSkip = null,
-            float seconds = Seconds) {
+            float seconds = Seconds, Transform shadow = null, float groundY = 0f) {
             transform.localPosition = from;
+            // Yawed toward the target, as world_rndr_ranged_attack_anim sets orientation.yaw (WORLDHIT.C:654);
+            // a billboard turns back to the camera on its own.
+            Vector3 heading = new(to.x - from.x, 0f, to.z - from.z);
+            if (heading.sqrMagnitude > 0f) {
+                transform.localRotation = Quaternion.LookRotation(heading);
+            }
+            _shadow = shadow;
+            _groundY = groundY;
+            if (_shadow != null) {
+                _shadow.localRotation = transform.localRotation;
+                _shadow.localPosition = new Vector3(from.x, groundY, from.z);
+            }
             _seconds = Mathf.Max(0.05f, seconds);
             RunAsync(from, to, passedOver, arc, onSkip).Forget();
         }
@@ -74,6 +86,10 @@ namespace BakAgain.World.Encounters {
         /// <summary>This flight's duration — <see cref="Seconds"/>, or longer for a missed spell that
         /// flies on past its target at the original's speed.</summary>
         private float _seconds = Seconds;
+
+        /// <summary>The ground shadow that runs under the flight (WORLDHIT.C:743-760), or null.</summary>
+        private Transform _shadow;
+        private float _groundY;
 
         private async UniTaskVoid RunAsync(Vector3 from, Vector3 to, System.Action<Vector3> passedOver,
             IReadOnlyList<ThrownRockFlight.Step> arc, System.Action onSkip) {
@@ -96,6 +112,9 @@ namespace BakAgain.World.Encounters {
                     lastStep = step;
                 }
                 transform.localPosition = at;
+                if (_shadow != null) {
+                    _shadow.localPosition = new Vector3(at.x, _groundY, at.z);
+                }
                 passedOver?.Invoke(transform.position);
                 await UniTask.Yield();
                 if (this == null) {
@@ -104,6 +123,9 @@ namespace BakAgain.World.Encounters {
             }
             Progress = 1f;
             transform.localPosition = to;
+            if (_shadow != null) {
+                Destroy(_shadow.gameObject);
+            }
             Destroy(gameObject);
         }
     }

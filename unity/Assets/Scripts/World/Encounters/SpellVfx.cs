@@ -137,7 +137,8 @@ namespace BakAgain.World.Encounters {
         private UniTask PlayAsync(SpellVisual v, Combatant from, Combatant to) => v.Kind switch {
             SpellVisualKind.PaletteFlash => PaletteFlashAsync(to, v.Colour),
             SpellVisualKind.StormFlash => StormAsync(to),
-            SpellVisualKind.SparkBurst => SparkBurstAsync(to, v.Colour, v.Spread, v.Tint),
+            SpellVisualKind.SparkBurst => SparkBurstAsync(to, v.Colour, v.Spread, v.Tint, v.TintFrames),
+            SpellVisualKind.KnockbackSweep => KnockbackSweepAsync(to, v.Spread),
             SpellVisualKind.FluxVortex => OrbitAsync(to, SpellParticles.Orbit.Vortex(Rnd), v.Colour),
             SpellVisualKind.ParticleBlast => ParticleBlastAsync(to, v.Colour),
             SpellVisualKind.Sink => SinkAsync(to),
@@ -246,14 +247,32 @@ namespace BakAgain.World.Encounters {
             } while (burst.Step());
         }
 
-        private async UniTask SparkBurstAsync(Combatant target, int colour, int spread, int tint) {
+        private async UniTask SparkBurstAsync(Combatant target, int colour, int spread, int tint,
+            int tintFrames = 0) {
             // The burst is the impact: wait for the projectile ProjectileFlight is flying to land.
             await UniTask.Delay(TimeSpan.FromSeconds(ProjectileFlight.Seconds));
             // The struck target glows through its remap for ten frames while the sparks fly —
             // seen in the original as a solid red Flamecast victim.
-            if (tint != 0) {
-                TintFor(target, RemapTint(tint, _palette()), SpellVisuals.ImpactTintFrames);
+            bool throughBurst = tintFrames == SpellVisuals.TintThroughBurst;
+            Renderer held = null;
+            if (tint != 0 && throughBurst) {
+                held = RendererOf(target);   // cleared two frames after the burst, below
+                if (held != null) {
+                    SetSpriteFlash(held, RemapTint(tint, _palette()));
+                }
+            } else if (tint != 0) {
+                TintFor(target, RemapTint(tint, _palette()), tintFrames > 0 ? tintFrames : SpellVisuals.ImpactTintFrames);
             }
+            try {
+                await SparksAsync(target, colour, spread);
+            } finally {
+                if (held != null) {
+                    ClearAfterAsync(held, 2).Forget();
+                }
+            }
+        }
+
+        private async UniTask SparksAsync(Combatant target, int colour, int spread) {
             var burst = new SpellParticles.SparkBurst(spread, Rnd);
             using var cloud = new GlowCloud(_root(), "SparkBurst");
             using var shadows = new GlowCloud(_root(), "SparkShadows", GlowCloud.ShadowMaterial);
@@ -268,6 +287,21 @@ namespace BakAgain.World.Encounters {
                 shadows.Draw(burst.Shadows, _ => shadow, SparkSize * 0.6f);
                 await Frames();
             } while (burst.Step());
+        }
+
+        /// <summary>The Rusalka's shove (CBTAIACT.C:160-166): once the shot lands, the victim is drawn
+        /// through knockbackFrame 1..<paramref name="ramps"/>, one redraw each.</summary>
+        private async UniTask KnockbackSweepAsync(Combatant target, int ramps) {
+            await UniTask.Delay(TimeSpan.FromSeconds(ProjectileFlight.Seconds));
+            Renderer r = RendererOf(target);
+            if (r == null) {
+                return;
+            }
+            for (int ramp = 1; ramp <= ramps; ramp++) {
+                SetSpriteFlash(r, RemapTint(ramp, _palette()));
+                await Frames();
+            }
+            SetSpriteFlash(r, Color.clear);
         }
 
         private async UniTask OrbitAsync(Combatant target, SpellParticles.Orbit orbit, int colour) {

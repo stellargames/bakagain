@@ -34,8 +34,20 @@ public static class MonsterHeavyRangedTurn {
     /// </remarks>
     public static readonly (int Min, int Max) Damage = (0x2d, 0x4a);
 
-    /// <summary>Knockback applied — the strongest shove in the file.</summary>
+    /// <summary>The hit-tint ramp — the damage call's fourth argument, <c>markActorHit</c>'s remap
+    /// (a plain blow passes 1; see HitReaction). Named "knockback" by canassa; it moves nobody.</summary>
     public const int Knockback = 4;
+
+    /// <summary>What flies — <c>world_rndr_ranged_attack_anim(.., 4, 100, -1)</c>, COMBAT.TBL <c>spell3</c>
+    /// (CBTAIACT.C:246).</summary>
+    public const int ProjectileShape = 4;
+
+    /// <summary>The spit's spark burst — <c>g_nVfxParticleColor = 0xe8</c>,
+    /// <c>worldfx_combat_damage_ptcl_burst(target, 0x23)</c> (CBTAIACT.C:249-251), no tint meanwhile.</summary>
+    public const int BurstColour = 0xe8;
+
+    /// <summary>See <see cref="BurstColour"/>.</summary>
+    public const int BurstSpread = 0x23;
 
     /// <summary>Damage flags.</summary>
     public const int DamageFlags = 0x200;

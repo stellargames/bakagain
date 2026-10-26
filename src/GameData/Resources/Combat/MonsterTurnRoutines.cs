@@ -170,6 +170,14 @@ public static class MonsterTurnRoutines {
     /// </remarks>
     public const int HeavyShotImpactCue = 0x15;
 
+    /// <summary>The heavy shot's spark burst on the target — <c>g_nVfxParticleColor = 0xa0</c>,
+    /// <c>worldfx_combat_damage_ptcl_burst(target, 0x2d)</c> (CBTAIACT.C:126-128); the target glows through
+    /// its knockback ramp meanwhile (:123-125). The light shot has none.</summary>
+    public const int HeavyShotBurstColour = 0xa0;
+
+    /// <summary>See <see cref="HeavyShotBurstColour"/>.</summary>
+    public const int HeavyShotBurstSpread = 0x2d;
+
     /// <summary>Damage flags both shots pass — <c>combat_arena_apply_damage(..., 0x200, 0)</c>.</summary>
     public const int RangedTurnDamageFlags = 0x200;
 

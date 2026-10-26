@@ -4499,8 +4499,10 @@ namespace BakAgain.Combat {
         /// and cues (CBTAIACT.C:85-257) — see <see cref="StrikeFromRange"/>.</item>
         /// </list>
         ///
-        /// <para><b>Not drawn:</b> the projectile, the status-4 particle burst and the knockback frames.
-        /// The damage, the cues and the recoil are the rule; the picture is VFX work (TASK-117).</para>
+        /// <para><b>Every one of them flies something first</b> (<c>world_rndr_ranged_attack_anim</c>): the
+        /// shape is left on the monster's <c>FlightEffectId</c> for the redraw to fly, and the damage
+        /// call's fourth argument is the hit tint's ramp. The heavy shot and the spit burst sparks on the
+        /// target, and 0x38's shot sweeps its victim's tint through four ramps (TASK-1008).</para>
         /// </remarks>
         private bool FireMonsterShot(Combatant monster, MonsterTurnResolver.Decision decision,
             System.Func<int, int> rnd) {
@@ -4513,31 +4515,39 @@ namespace BakAgain.Combat {
                     if (kind == QuarrelInventory.NoKind) {
                         return false;
                     }
-                    ResolveShot(monster, target, kind, rnd);
+                    FlyShot(monster, target, kind, ResolveShot(monster, target, kind, rnd), roll);
                     return true;
                 }
 
                 case CombatAi.SpeciesRoutine.MeleeAdjacentElseCastOrShoot:
                 case CombatAi.SpeciesRoutine.ShootAtRangeElseDelegate:
-                    ResolveShot(monster, target, RangedShotSound.ThrownRockKind, rnd);
+                    FlyShot(monster, target, RangedShotSound.ThrownRockKind,
+                        ResolveShot(monster, target, RangedShotSound.ThrownRockKind, rnd), roll);
                     return true;
 
                 case CombatAi.SpeciesRoutine.RangedAttackTurn: {
                     MonsterTurnRoutines.RangedTurn shot = decision.Ranged;
+                    monster.FlightEffectId = shot.ActionId;
                     if (shot.Choice == MonsterTurnRoutines.RangedChoice.HeavyShot) {
                         _playSfx?.Invoke(MonsterTurnRoutines.HeavyShotLaunchCue);
                         _playSfx?.Invoke(MonsterTurnRoutines.HeavyShotImpactCue);
+                        PlaySpellVisual?.Invoke(new SpellVisual(SpellVisualKind.SparkBurst,
+                            MonsterTurnRoutines.HeavyShotBurstColour, MonsterTurnRoutines.HeavyShotBurstSpread,
+                            Tint: shot.KnockbackFrames, TintFrames: SpellVisuals.TintThroughBurst), monster, target);
                     }
                     StrikeFromRange(target, Between(shot.MinDamage, shot.MaxDamage, roll),
-                        MonsterTurnRoutines.RangedTurnDamageFlags, roll);
+                        MonsterTurnRoutines.RangedTurnDamageFlags, shot.KnockbackFrames, roll);
                     return true;
                 }
 
                 case CombatAi.SpeciesRoutine.RangedKnockbackElseCloseIn:
                     _playSfx?.Invoke(MonsterMeleeTurn.LaunchCue);
+                    monster.FlightEffectId = MonsterMeleeTurn.ProjectileShape;
+                    PlaySpellVisual?.Invoke(new SpellVisual(SpellVisualKind.KnockbackSweep,
+                        Spread: MonsterMeleeTurn.KnockbackFrames), monster, target);
                     StrikeFromRange(target,
                         Between(MonsterMeleeTurn.Damage.Min, MonsterMeleeTurn.Damage.Max, roll),
-                        MonsterMeleeTurn.DamageFlags, roll);
+                        MonsterMeleeTurn.DamageFlags, MonsterMeleeTurn.Knockback, roll);
                     _playSfx?.Invoke(MonsterMeleeTurn.LandingCue);
                     return true;
 
@@ -4546,21 +4556,39 @@ namespace BakAgain.Combat {
                         roll(MonsterVariantAttackTurn.Variants.Length));
                     int healthMax = StatsFor(monster)?[(int)ActorAttribute.Health].Max ?? 0;
                     int healthPercent = healthMax > 0 ? monster.Health * 100 / healthMax : 0;
+                    monster.FlightEffectId = variant.ActionId;
                     StrikeFromRange(target, MonsterVariantAttackTurn.ScaleByHealth(
                             Between(variant.DamageMin, variant.DamageMax, roll), healthPercent),
-                        MonsterVariantAttackTurn.DamageFlags, roll);
+                        MonsterVariantAttackTurn.DamageFlags, variant.Knockback, roll);
                     return true;
                 }
 
                 case CombatAi.SpeciesRoutine.RangedPoisonAttack:
                     _playSfx?.Invoke(MonsterHeavyRangedTurn.ImpactCue);
+                    monster.FlightEffectId = MonsterHeavyRangedTurn.ProjectileShape;
+                    PlaySpellVisual?.Invoke(new SpellVisual(SpellVisualKind.SparkBurst,
+                        MonsterHeavyRangedTurn.BurstColour, MonsterHeavyRangedTurn.BurstSpread), monster, target);
                     StrikeFromRange(target,
                         Between(MonsterHeavyRangedTurn.Damage.Min, MonsterHeavyRangedTurn.Damage.Max, roll),
-                        MonsterHeavyRangedTurn.DamageFlags, roll);
+                        MonsterHeavyRangedTurn.DamageFlags, MonsterHeavyRangedTurn.Knockback, roll);
                     return true;
 
                 default:
                     return false;
+            }
+        }
+
+        /// <summary>
+        /// A monster's shot leaves its shape for the redraw to fly — <c>world_rndr_ranged_attack_anim</c>
+        /// in <c>combataiturn_ranged_attack</c> (CBTAITRN.C:121-139) — and a thrown rock its arc, which
+        /// a miss rolls for, as the party's does (HotspotService.ArmRockArc).
+        /// </summary>
+        private void FlyShot(Combatant monster, Combatant target, int quarrelKind, bool hit,
+            System.Func<int, int> roll) {
+            monster.FlightEffectId = CombatEffectSprite.ForShot(quarrelKind, monster.ClassId);
+            if (monster.FlightEffectId == CombatEffectSprite.Rock && target != null) {
+                (monster.FlightArcSteps, monster.FlightArcDelta) = ThrownRockFlight.Launch(
+                    monster.X - target.X, monster.Y - target.Y, ArenaCellSize, hit, roll);
             }
         }
 
@@ -4575,7 +4603,7 @@ namespace BakAgain.Combat {
         /// argument is 0, which skips the defence term a crossbow shot pays; the sixth is 0, a direct
         /// attack, so an absorb shield takes it the way it takes a blow.
         /// </remarks>
-        private void StrikeFromRange(Combatant target, int damage, int damageFlags,
+        private void StrikeFromRange(Combatant target, int damage, int damageFlags, int tintRamp,
             System.Func<int, int> roll) {
             if (target == null || target.IsDead) {
                 return;
@@ -4590,7 +4618,7 @@ namespace BakAgain.Combat {
             target.Stamina = outcome.Stamina;
             target.Health = outcome.Health;
             CommitAbsorb(target, outcome.AbsorbPool);
-            MarkHit(target, outcome.Landed, outcome.DamageDealt);
+            MarkHit(target, outcome.Landed, outcome.DamageDealt, tintRamp);
 
             if (target.Health <= 0) {
                 KillAndSettle(target);

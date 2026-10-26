@@ -13,6 +13,9 @@ public enum SpellVisualKind {
     /// <summary>Four lightning frames on the target, then a flash toward colour 3 (CSPELL.C:609).</summary>
     StormFlash,
     /// <summary>25 sparks with gravity and one bounce at the target (WORLDFX.C:281).</summary>
+    /// <summary>The target's hit tint stepped through ramps 1..Spread, a redraw each — the Rusalka's
+    /// shot (CBTAIACT.C:160-166).</summary>
+    KnockbackSweep,
     SparkBurst,
     /// <summary>25 motes spiralling in on the target (WORLDFX.C:137).</summary>
     FluxVortex,
@@ -72,8 +75,10 @@ public enum LingeringVisualKind {
 /// <param name="Cells">Combat-grid cells a board visual plays over, for a visual with no combatant
 /// to anchor to (see <see cref="SpellVisualKind.DiamondFired"/>); null otherwise.</param>
 /// <param name="Shape">A <c>COMBAT.TBL</c> row the visual draws; 0 for none.</param>
+/// <remarks><paramref name="TintFrames"/>: how long a burst's tint holds — 0 is
+/// <see cref="SpellVisuals.ImpactTintFrames"/>, <see cref="SpellVisuals.TintThroughBurst"/> the whole burst.</remarks>
 public readonly record struct SpellVisual(SpellVisualKind Kind, int Colour = 0, int Spread = 0, int Tint = 0,
-    System.Collections.Generic.IReadOnlyList<(int X, int Y)>? Cells = null, int Shape = 0) {
+    System.Collections.Generic.IReadOnlyList<(int X, int Y)>? Cells = null, int Shape = 0, int TintFrames = 0) {
     public static readonly SpellVisual None = new(SpellVisualKind.None);
 }
 
@@ -168,6 +173,10 @@ public static class SpellVisuals {
 
     /// <summary>Frames the impact tint holds — <c>knockbackTimer = 10</c> (CSPELL.C:435).</summary>
     public const int ImpactTintFrames = 10;
+
+    /// <summary>A tint that holds for the whole burst and two redraws after: a monster's heavy shot sets
+    /// <c>knockbackTimer = 100</c> before its burst and the damage call then sets 2 (CBTAIACT.C:125, COMBAT.C:380).</summary>
+    public const int TintThroughBurst = -1;
 
     /// <summary>What an actor carrying a lingering effect of this spell shows each frame.</summary>
     /// <remarks>Kinds 3/19 (burst particles), 9/13 (orbit), 12 and 16 also have per-frame arms, but

@@ -37,7 +37,7 @@ public class EffectSpriteBitmapTests {
     /// </remarks>
     private static readonly int[] SpriteEffectEntries = {
         CombatEffectSprite.Flamecast,
-        CombatEffectSprite.Shot,
+        CombatEffectSprite.Rock,
         CombatEffectSprite.GenericSpell,
     };
 
