@@ -269,22 +269,28 @@ namespace BakAgain.UI.InGame {
         /// only other way in is <see cref="HandleClick"/>, which needs a camera, a pointer and a
         /// real physics pick to reach one line of diagnostics.</remarks>
         internal void ReportMissingBehavior(WorldEntity entity) {
+            (UnityEngine.LogType level, string message) = MissingBehaviorReport(entity);
+            UnityEngine.Debug.unityLogger.Log(level, message);
+        }
+
+        /// <summary>What <see cref="ReportMissingBehavior"/> logs, without logging it — so the tests
+        /// pin the verdict and a green run leaves no warning in the log (TASK-1004).</summary>
+        internal (UnityEngine.LogType Level, string Message) MissingBehaviorReport(WorldEntity entity) {
             float d = PlanarDistanceTo(entity);
             string where = $"'{entity.EntityName}' ({entity.EntityType}) at distance "
                 + $"{d:F1}u / {d * BakCoordinateConverter.WorldScale:F0} fine";
 
             if (ResourceExtraction.InteractionProfileTable.TryGet(entity.EntityType, out _, out _)) {
-                UnityEngine.Debug.LogWarning(
+                return (UnityEngine.LogType.Warning,
                     $"WorldInteraction: picked {where} — this type HAS an interaction profile, so "
                     + "this entity was built without one. Behavior/Interaction are runtime-only "
                     + "([NonSerialized]) and do not survive a scene-serialization round-trip: the "
                     + "usual cause is a stale zone root left in the edit-mode scene, which entering "
                     + "play mode carries over stripped. Delete any leftover 'Zone_*' object and "
                     + "rebuild the zone.");
-                return;
             }
 
-            UnityEngine.Debug.Log(
+            return (UnityEngine.LogType.Log,
                 $"WorldInteraction: picked {where} — no interaction handler for this type yet.");
         }
 

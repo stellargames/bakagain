@@ -197,9 +197,9 @@ namespace BakAgain.Tests.PlayMode.World {
                 ResourceExtraction.InteractionProfileTable.TryGet(e.EntityType, out _, out _),
                 "fixture precondition: Corn must HAVE a profile row, or this test proves nothing");
             try {
-                LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex(
-                    "HAS an interaction profile, so this entity was built without one"));
-                c.ReportMissingBehavior(e);
+                (LogType level, string message) = c.MissingBehaviorReport(e);
+                Assert.AreEqual(LogType.Warning, level);
+                StringAssert.Contains("HAS an interaction profile, so this entity was built without one", message);
             } finally { Object.DestroyImmediate(e.gameObject); }
         }
 
@@ -230,9 +230,9 @@ namespace BakAgain.Tests.PlayMode.World {
                 // Together with the sibling test this is discriminating: an implementation that
                 // always warned would fail the expected-Log assertion here, and one that never
                 // warned would fail the expected-Warning assertion there.
-                LogAssert.Expect(LogType.Log, new System.Text.RegularExpressions.Regex(
-                    "no interaction handler for this type yet"));
-                c.ReportMissingBehavior(e);
+                (LogType level, string message) = c.MissingBehaviorReport(e);
+                Assert.AreEqual(LogType.Log, level);
+                StringAssert.Contains("no interaction handler for this type yet", message);
             } finally { Object.DestroyImmediate(e.gameObject); }
         }
     }
