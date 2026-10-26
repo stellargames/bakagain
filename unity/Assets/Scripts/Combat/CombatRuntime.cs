@@ -3684,16 +3684,17 @@ namespace BakAgain.Combat {
         ///
         /// <para>In the original's order (CMBTGRID.C:878-883): the run lights for the short cine,
         /// the first of whose ten zaps sounds here, as a walker's does; the visual plays the other
-        /// nine, then the tile burst plays its cue and sparks on the cell the diamond landed on.</para>
+        /// nine, then the tile burst's cue and sparks on the cell the diamond landed on, and keeps
+        /// the diamond drawn there until the burst ends.</para>
         /// </remarks>
         private void AnnounceShove(Combatant shover, CombatWalk.WalkResult walk) {
             if (walk.Shove is { Result: PushResult.CrystalFired } fired) {
                 _playSfx?.Invoke(CombatWalk.CrystalGroundSoundId);
+                var cells = new List<(int X, int Y)> { (fired.ToX, fired.ToY) };
+                cells.AddRange(fired.FiredRun);
                 PlaySpellVisual?.Invoke(
-                    new SpellVisual(SpellVisualKind.CrystalZap, Cells: fired.FiredRun), shover, null);
-                PlaySpellVisual?.Invoke(
-                    new SpellVisual(SpellVisualKind.TileBurst, TrapPuzzle.FiredBurstColour,
-                        TrapPuzzle.FiredBurstSpread, Cells: new[] { (fired.ToX, fired.ToY) }),
+                    new SpellVisual(SpellVisualKind.DiamondFired, TrapPuzzle.FiredBurstColour,
+                        TrapPuzzle.FiredBurstSpread, Cells: cells, Shape: fired.ElementId),
                     shover, null);
             }
 

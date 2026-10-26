@@ -68,8 +68,9 @@ public static class CombatWalk {
     /// <summary>An element the walk shoved out of its way.</summary>
     public readonly struct Shove {
         internal Shove(PushResult result, int fromX, int fromY, int toX, int toY,
-            int cannonsFired = 0, IReadOnlyList<(int X, int Y)>? firedRun = null) {
+            int cannonsFired = 0, IReadOnlyList<(int X, int Y)>? firedRun = null, int elementId = 0) {
             Result = result;
+            ElementId = elementId;
             FiredRun = firedRun ?? Array.Empty<(int, int)>();
             FromX = fromX;
             FromY = fromY;
@@ -94,6 +95,9 @@ public static class CombatWalk {
         /// <summary>The crystal run a fired diamond lit, in order; empty unless
         /// <see cref="Result"/> is <see cref="PushResult.CrystalFired"/>.</summary>
         public IReadOnlyList<(int X, int Y)> FiredRun { get; }
+
+        /// <summary>The shoved element's id, which is also its <c>COMBAT.TBL</c> model.</summary>
+        public int ElementId { get; }
 
         /// <summary>What the shove did.</summary>
         public PushResult Result { get; }
@@ -425,6 +429,7 @@ public static class CombatWalk {
 
         int dx = step.X - actor.X;
         int dy = step.Y - actor.Y;
+        int elementId = puzzle.ElementAt(step.X, step.Y)?.ElementId ?? 0;
         PushResult result = puzzle.TryPush(step.X, step.Y, dx, dy, out IReadOnlyList<(int X, int Y)> firedRun);
         var cannons = 0;
         // Occupancy is the caller's, exactly as it is for an ordinary step — CombatRuntime puts the
@@ -449,7 +454,7 @@ public static class CombatWalk {
                 puzzle, step.X + dx, step.Y + dy, occupiedByLiveCombatant);
         }
 
-        return new Shove(result, step.X, step.Y, step.X + dx, step.Y + dy, cannons, firedRun);
+        return new Shove(result, step.X, step.Y, step.X + dx, step.Y + dy, cannons, firedRun, elementId);
     }
 
     /// <summary>

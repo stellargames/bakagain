@@ -169,7 +169,16 @@ namespace BakAgain.Audio {
 
                 return;
             }
-            MidiSynthPlayer availablePlayer = _sfxPlayers.Find(p => !p.IsPlaying);
+            // A cue sounded again while it still plays restarts on its own player rather than taking
+            // another: the crystal cine sounds the same zap every frame, ten in a row, and used to
+            // exhaust the pool of four and log a warning per zap.
+            MidiSynthPlayer availablePlayer =
+                _activeSfxPlayers.TryGetValue(audioResource.Id, out MidiSynthPlayer same) && same && same.IsPlaying
+                    ? same
+                    : _sfxPlayers.Find(p => !p.IsPlaying);
+            if (availablePlayer == same && same) {
+                same.Stop();
+            }
 
             if (availablePlayer) {
                 availablePlayer.MidiName = audioResource.Name;

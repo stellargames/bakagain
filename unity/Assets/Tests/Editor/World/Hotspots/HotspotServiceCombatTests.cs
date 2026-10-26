@@ -761,6 +761,23 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
         }
 
         [Test]
+        public void AFiredDiamondIsNoLongerDrawnAsAProp() {
+            var traps = new TrapData("TRAPS.DAT");
+            var record = new TrapEncounter { Index = (int)EncounterNumber };
+            record.Elements.Add(new TrapElement { Type = (int)TrapElementType.DiamondSolid, GridX = 3, GridY = 9 });
+            traps.Encounters.Add(record);
+            (Rig rig, CombatEncounter fight, Combatant acting) = PartyTurn(traps);
+            rig.Service.Combat.Puzzle.Grid.SetTerrain(4, 9, CombatTerrain.Crystal);
+            acting.X = 2; acting.Y = 9;
+            Assert.AreEqual(1, rig.Service.PlaceTrapProps().Count, "the control: the diamond is drawn");
+
+            rig.Service.ResolveCombatGroundClick(rig.Service.CellCentreWorld(3, 9).Value);
+
+            Assert.IsFalse(rig.Service.Combat.Puzzle.Elements[0].IsOnGrid, "the push fired it");
+            Assert.AreEqual(0, rig.Service.PlaceTrapProps().Count, "and nothing draws it off the board");
+        }
+
+        [Test]
         public void ADiamondTwoCellsAwayIsNotAMove() {
             // The control: the success exit needs the target ADJACENT (g_bActorAdjacentToTarget,
             // CMBTAI.C:205-209); further off, the dry walk stops at the diamond like any other block.

@@ -260,6 +260,7 @@ public class CombatWalkTests {
 
         Assert.Equal(PushResult.CrystalFired, result.Shove!.Value.Result);
         Assert.Equal(new[] { (5, 5), (6, 5), (7, 5) }, result.Shove.Value.FiredRun);
+        Assert.Equal(9, result.Shove.Value.ElementId);   // the model the arena keeps drawing until the burst ends
     }
 
     [Fact]

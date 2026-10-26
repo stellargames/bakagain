@@ -1437,7 +1437,9 @@ using GameData.Resources.Scene;
             }
 
             foreach (GameData.Resources.Combat.TrapGridElement e in puzzle.Elements) {
-                if (e == null || !HasPropModel(e.ElementId)) {
+                // A spent diamond stays in the list off the grid; drawn, it stood a model ~1000 units
+                // off the board (TASK-1004).
+                if (e == null || !e.IsOnGrid || !HasPropModel(e.ElementId)) {
                     continue;
                 }
                 (int across, int away) =

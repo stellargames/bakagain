@@ -57,12 +57,9 @@ namespace BakAgain.UI.Cursor {
             SelectSet("POINTER");   // sets the active BMX name only — no resource load
         }
 
-        // The first image load is deferred to Start: [Inject] field injection runs AFTER Awake for a
-        // prefab-instantiated component, so loading in Awake would deref a null _resources (ApplyAsync
-        // also guards defensively). Start runs after injection, so the arrow loads correctly.
-        private void Start() {
-            SetByIndex(0);          // default arrow
-        }
+        // No first load here: POINTER.BMX is the player's file, and before GameInitializationService
+        // has mounted the game data every load failed with "No Location found for Key=POINTER.BMX#0".
+        // GameInitializationService sets the arrow once resource management is up.
 
         public void SelectSet(string setName) => _activeSetFile = setName + ".BMX";
 

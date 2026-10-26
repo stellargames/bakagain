@@ -18,12 +18,14 @@ namespace BakAgain.Core.DI {
         private readonly ILogger<GameInitializationService> _logger;
         private readonly GameManager _gameManager;
         private readonly UnityEngine.UIElements.PanelSettings _gamePanelSettings;
+        private readonly BakAgain.UI.Cursor.ICursorManager _cursor;
 
         public GameInitializationService(ILogger<GameInitializationService> logger, GameManager gameManager,
-            UnityEngine.UIElements.PanelSettings gamePanelSettings) {
+            UnityEngine.UIElements.PanelSettings gamePanelSettings, BakAgain.UI.Cursor.ICursorManager cursor) {
             _logger = logger;
             _gameManager = gameManager;
             _gamePanelSettings = gamePanelSettings;
+            _cursor = cursor;
         }
 
         /// <summary>
@@ -171,6 +173,8 @@ namespace BakAgain.Core.DI {
                 StopIfPlayEnded(cancellation);
 
                 GameFonts.Install(_gamePanelSettings);
+                // The arrow comes from the player's POINTER.BMX, which only loads from here on.
+                _cursor.SetByIndex(0);
                 // The menus before any game is loaded read the catalog too (the V banner, the
                 // language button, the restore screen's lines), and the installer otherwise runs
                 // only with a loaded game. A load re-installs it with any mod override on top.

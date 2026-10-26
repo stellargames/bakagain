@@ -141,8 +141,8 @@ namespace BakAgain.World.Encounters {
             // Nightfingers' stolen item: shape 5, target to caster, speed 0x78 (CSPELL.C:1104).
             SpellVisualKind.StolenItemFlight => FlyAsync(5, from, to, 0x78),
             // A walker's zap names the walker; a fired diamond's names its cells and the shover.
-            SpellVisualKind.CrystalZap => v.Cells == null ? CrystalZapAsync(to, to, null) : CrystalZapAsync(null, from, v.Cells),
-            SpellVisualKind.TileBurst => TileBurstAsync(from, v.Cells, v.Colour, v.Spread),
+            SpellVisualKind.CrystalZap => CrystalZapAsync(to, _crystalRun?.Invoke(to, null)),
+            SpellVisualKind.DiamondFired => DiamondFiredAsync(from, v.Cells, v.Shape, v.Colour, v.Spread),
             _ => UniTask.CompletedTask,
         };
 
@@ -196,19 +196,40 @@ namespace BakAgain.World.Encounters {
         // ------------------------------------------------------------------ particles
 
         /// <summary>
-        /// <c>combatgrid_apply_tile_status_fx</c> (CMBTGRID.C:795): cue 0x1d, then a spark burst on a
-        /// grid cell no combatant stands on.
+        /// A diamond shoved onto crystal ground (CMBTGRID.C:878-885): the short cine over the run it
+        /// lit, then <c>combatgrid_apply_tile_status_fx</c> (CMBTGRID.C:795) — cue 0x1d and a spark
+        /// burst on its cell. The rules have already taken the diamond off, but the original draws it
+        /// until the burst ends (seen in the original, 2026-10-26), so a stand-in holds its cell.
         /// </summary>
-        private async UniTask TileBurstAsync(Combatant floor, IReadOnlyList<(int X, int Y)> cells, int colour, int spread) {
-            MenuSoundService.Instance?.Play(TrapPuzzle.FiredSoundId);
-            IReadOnlyList<Vector3> at = cells == null ? null : _crystalRun?.Invoke(floor, cells);
-            if (at is not { Count: > 0 }) {
+        /// <param name="floor">Whose sprite gives the arena floor's height.</param>
+        /// <param name="cells">Where the diamond landed, then the lit run.</param>
+        private async UniTask DiamondFiredAsync(Combatant floor, IReadOnlyList<(int X, int Y)> cells, int shape,
+            int colour, int spread) {
+            IReadOnlyList<Vector3> points = cells == null ? null : _crystalRun?.Invoke(floor, cells);
+            if (points is not { Count: > 0 }) {
+                MenuSoundService.Instance?.Play(TrapPuzzle.FiredSoundId);
                 return;
             }
+            GameObject diamond = shape > 0 ? await _buildEffect(shape, _root()) : null;
+            try {
+                if (diamond != null) {
+                    diamond.transform.position = points[0];
+                }
+                await CrystalZapAsync(null, System.Linq.Enumerable.ToList(System.Linq.Enumerable.Skip(points, 1)));
+                MenuSoundService.Instance?.Play(TrapPuzzle.FiredSoundId);
+                await TileBurstAsync(points[0], colour, spread);
+            } finally {
+                if (diamond != null) {
+                    UnityEngine.Object.Destroy(diamond);
+                }
+            }
+        }
+
+        private async UniTask TileBurstAsync(Vector3 at, int colour, int spread) {
             var burst = new SpellParticles.SparkBurst(spread, Rnd);
             using var cloud = new GlowCloud(_root(), "TileBurst");
             using var shadows = new GlowCloud(_root(), "TileBurstShadows", GlowCloud.ShadowMaterial);
-            cloud.Root.position = shadows.Root.position = at[0];
+            cloud.Root.position = shadows.Root.position = at;
             Color shadow = PaletteColour(SpellParticles.SparkBurst.ShadowPen);
             shadow.a = 0.8f;
             do {
@@ -371,14 +392,14 @@ namespace BakAgain.World.Encounters {
 
         /// <summary>
         /// Crystal ground discharging (CACTOR.C:1078, WORLDFX.C:539): ten frames of the walker in
-        /// white with the run crackling at z=235 in pen 0xAF — each middle point jittered ±200
-        /// across the run every frame — and a zap per frame. The rules sounded the first zap.
+        /// white with the run crackling at z=235 in pen 0xAF, and a zap per frame. The rules sounded
+        /// the first zap. Each tile draws its half-segments through its centre, the end tiles only
+        /// their inner half, and only a MIDDLE tile's centre is jittered, ±200 across the run, anew
+        /// every frame (<c>worldfx_draw_path_segment</c>'s shapes 1/2/0) — so the ends stay level.
         /// A fired diamond's cine (CMBTGRID.C:880) is the same with no walker to flash.
         /// </summary>
-        /// <param name="floor">Whose sprite gives the arena floor's height.</param>
-        /// <param name="cells">The run, when there is no walker to trace it from.</param>
-        private async UniTask CrystalZapAsync(Combatant walker, Combatant floor, IReadOnlyList<(int X, int Y)> cells) {
-            IReadOnlyList<Vector3> run = _crystalRun?.Invoke(floor, cells);
+        /// <param name="run">The run's cell centres, in order.</param>
+        private async UniTask CrystalZapAsync(Combatant walker, IReadOnlyList<Vector3> run) {
             using var beam = new GlowCloud(_root(), "CrystalBeam");
             var line = new GameObject("Line").AddComponent<LineRenderer>();
             line.transform.SetParent(beam.Root, false);
@@ -401,10 +422,11 @@ namespace BakAgain.World.Encounters {
                     Vector3 side = Vector3.Cross(along, Vector3.up);
                     var pts = new List<Vector3>();
                     for (var i = 0; i < run.Count; i++) {
-                        pts.Add(run[i] + Vector3.up * z);
+                        bool middle = i > 0 && i + 1 < run.Count;
+                        pts.Add(run[i] + Vector3.up * z
+                            + (middle ? side * UnityEngine.Random.Range(-jitter, jitter) : Vector3.zero));
                         if (i + 1 < run.Count) {
-                            Vector3 mid = (run[i] + run[i + 1]) / 2f + Vector3.up * z;
-                            pts.Add(mid + side * UnityEngine.Random.Range(-jitter, jitter));
+                            pts.Add((run[i] + run[i + 1]) / 2f + Vector3.up * z);
                         }
                     }
                     line.positionCount = pts.Count;
