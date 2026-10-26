@@ -77,6 +77,7 @@ public static class ConditionEngine {
     }
 
     /// <summary>What applying a delta did, for the caller that owns the party-wide bookkeeping.</summary>
+    /// <remarks><b>Deliberately unread</b>: a report of what Apply did. Apply itself raises the CONDITION event (EventRaised) and the near-death change, so callers only need the rank; TASK-1006.</remarks>
     public readonly struct ConditionChange {
         public ConditionChange(int rank, bool appeared, bool cleared, bool raisesEvent,
             bool collapsed) {

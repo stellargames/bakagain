@@ -423,9 +423,11 @@ public readonly struct DamageOutcome {
     public int? AbsorbPool { get; }
 
     /// <summary>The absorb shield was exhausted by this hit and should be removed.</summary>
+    /// <remarks><b>Deliberately unread</b>: the port acts on <see cref="AbsorbPool"/> being null, which says the same (CombatRuntime.CommitAbsorb); TASK-1006.</remarks>
     public bool ShieldBroken { get; }
 
     /// <summary>Health reached 0.</summary>
+    /// <remarks><b>Deliberately unread</b>: every caller tests the health it writes back (<c>Health &lt;= 0</c>), the same fact; TASK-1006.</remarks>
     public bool Died { get; }
 
     // Died stays false: nothing happened, so a caller must not run death handling off this.

@@ -122,6 +122,7 @@ public static class StatEngine {
         public int Value { get; }
 
         /// <summary>Did the stored value move at all?</summary>
+        /// <remarks><b>Deliberately unread</b>: callers read the before/after values and Increased; this is the same fact; TASK-1006.</remarks>
         public bool Changed { get; }
 
         /// <summary>Did it move up? (The party "something improved" flag keys off this.)</summary>

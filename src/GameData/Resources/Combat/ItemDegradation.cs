@@ -92,6 +92,7 @@ public static class ItemDegradation {
         public bool Snapped { get; }
 
         /// <summary>The item is now <see cref="ItemFlags.Broken"/>.</summary>
+        /// <remarks><b>Deliberately unread</b>: <see cref="Flags"/> carries <see cref="ItemFlags.Broken"/>, and the caller writes the flags back; TASK-1006.</remarks>
         public bool Broke { get; }
     }
 

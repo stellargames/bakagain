@@ -15,15 +15,18 @@ public sealed class ActiveSpellEffect {
     public int SpellNumber { get; set; } = ActiveSpellEffectPool.None;
 
     /// <summary>The power the caster invested, which is what the effect scales from.</summary>
+    /// <remarks><b>Deliberately unread</b>: the original never reads nSource either — CSPELL.C:175 writes it and nothing else touches it; TASK-1006.</remarks>
     public int InvestedCost { get; set; }
 
     /// <summary>How long the effect lasts.</summary>
     public int Duration { get; set; }
 
     /// <summary>Ticks elapsed. Zeroed when the effect is registered.</summary>
+    /// <remarks><b>Deliberately unread</b>: nAge_ticks only phases the wire box's colour cycle (CACTOR.C:920/1036/1044); the port's WireBox cycles on its own frame count; TASK-1006.</remarks>
     public int Age { get; set; }
 
     /// <summary>The effect's byte payload (<c>field_A</c>); its meaning is per-spell.</summary>
+    /// <remarks><b>Deliberately unread</b>: written by the effect's registration and never read by the original's effect code; TASK-1006.</remarks>
     public byte Flag { get; set; }
 
     /// <summary>Next slot in this actor's chain, or <see cref="ActiveSpellEffectPool.None"/>.</summary>
