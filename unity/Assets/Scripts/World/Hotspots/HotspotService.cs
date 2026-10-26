@@ -3474,6 +3474,9 @@ using GameData.Resources.Scene;
         private bool _assessing;
         internal bool AssessingForTest { set => _assessing = value; }
 
+        /// <summary>The spell catalogue, which production loads from SPELLS.DAT with the zone.</summary>
+        internal GameData.Resources.Spells.SpellList SpellsForTest { set => _spells = value; }
+
         /// <summary>
         /// A click on the field with no command armed: melee, or the actor's own two self-commands.
         /// </summary>
@@ -3861,7 +3864,11 @@ using GameData.Resources.Scene;
             switch (arm.Effect) {
                 case GameData.Resources.Combat.CombatItemUse.Effect.CastSpell:
                     if (_pendingSpell != null) {
-                        Combat.ResolveCast(acting, target, _pendingSpell, _pendingSpellId,
+                        // Roric's Seal goes off in the user's own hand: RND(100) < 0x1e casts it at
+                        // g_current_actor instead of the pick (COMBAT.C:1804-1807).
+                        Combatant castAt = arm.BackfirePercent > 0 && _random(100) < arm.BackfirePercent
+                            ? acting : target;
+                        Combat.ResolveCast(acting, castAt, _pendingSpell, _pendingSpellId,
                             _pendingSpellPower, _random);
                         acted = true;
                     }

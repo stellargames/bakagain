@@ -470,6 +470,38 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
             Assert.IsFalse(acting.CanAct(strict: true), "and the turn is spent");
         }
 
+        [TestCase(0, true)]
+        [TestCase(29, true)]
+        [TestCase(30, false)]
+        [TestCase(99, false)]
+        public void RoricsSealGoesOffInTheUsersOwnHandBelowThirty(int roll, bool backfires) {
+            // TASK-1007. Case 0x0f (COMBAT.C:1800-1808): after the pick, RND(100) < 0x1e casts Mind Melt
+            // (0x16, -0xf) at g_current_actor instead of the picked target.
+            var rig = Build(roll: roll, start: new GameData.Resources.Config.StartData("START.DAT") { CombatGridCellSize = 300 });
+            Assert.IsTrue(rig.Service.StartCombat(CombTrigger()));
+            CombatEncounter fight = rig.Service.Combat.Encounter;
+            for (int i = 0; i < 4 && (fight.Current == null || !fight.Current.IsPartyMember); i++) {
+                fight.EndTurn();
+                fight.PickNext();
+            }
+            Combatant acting = fight.Current;
+            Assert.IsTrue(acting?.IsPartyMember ?? false, "the fixture needs a party member's turn");
+            Combatant enemy = fight.Enemies[0];
+            var spells = new GameData.Resources.Spells.SpellList("SPELLS.DAT");
+            spells.Spells[0x16] = new GameData.Resources.Spells.Spell("Mind Melt") {
+                MinimumCost = 5, MaximumCost = 15, IsMartial = true, TargetingType = 1,
+                Calculation = GameData.SpellCalculation.CostTimesDamage, Damage = 3,
+            };
+            rig.Service.SpellsForTest = spells;
+            int userHealth = acting.Health, enemyHealth = enemy.Health;
+
+            rig.Service.UseCombatItemForTest(0x0f);
+            rig.Service.ResolveCombatTargetClick(0, partyMember: false, isPrimary: true);
+
+            Assert.AreEqual(backfires, acting.Health < userHealth, "the user is hit only on a backfire");
+            Assert.AreEqual(!backfires, enemy.Health < enemyHealth, "the target is hit only without one");
+        }
+
         // ---------------------------------------------------------------- TASK-947: the HUD while an item aims
 
         private static string FirstLine(Rig rig, int slot, bool member) {
