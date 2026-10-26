@@ -32,8 +32,12 @@ public enum SpellVisualKind {
     HopBurst,
     /// <summary>Stepping onto crystal ground: the crystal run lights up as a crackling beam for ten
     /// frames while the walker flashes white, cue 0x45 each frame — the terrain-3 arm's short cine
-    /// (CMBTAI.C:221-225, CACTOR.C:1078, beam WORLDFX.C:539).</summary>
+    /// (CMBTAI.C:221-225, CACTOR.C:1078, beam WORLDFX.C:539). With <see cref="SpellVisual.Cells"/>
+    /// it is a pushed diamond's: the same cine over that run, with no walker (CMBTGRID.C:878-882).</summary>
     CrystalZap,
+    /// <summary>The tile fx after a fired diamond: cue 0x1d and a spark burst on the cell in
+    /// <see cref="SpellVisual.Cells"/> (<c>combatgrid_apply_tile_status_fx</c>, CMBTGRID.C:795).</summary>
+    TileBurst,
     /// <summary>Strength Drain: shape 0x26 rolls to the target, which turns white, and rolls back
     /// (CSPELL.C:441-454).</summary>
     Rebound,
@@ -63,7 +67,10 @@ public enum LingeringVisualKind {
 /// <param name="Spread">The spark burst's velocity spread, in world units per frame.</param>
 /// <param name="Tint">The remap the struck target is drawn through while the burst plays (1 red,
 /// 3 white; 0 none) — <c>cspell_apply_hit_at</c>'s knockback frame, held 10 frames (CSPELL.C:411-435).</param>
-public readonly record struct SpellVisual(SpellVisualKind Kind, int Colour = 0, int Spread = 0, int Tint = 0) {
+/// <param name="Cells">Combat-grid cells a board visual plays over, for the visuals that have no
+/// combatant to anchor to (a fired diamond's run and its tile burst); null otherwise.</param>
+public readonly record struct SpellVisual(SpellVisualKind Kind, int Colour = 0, int Spread = 0, int Tint = 0,
+    System.Collections.Generic.IReadOnlyList<(int X, int Y)>? Cells = null) {
     public static readonly SpellVisual None = new(SpellVisualKind.None);
 }
 

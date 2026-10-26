@@ -33,7 +33,7 @@ namespace BakAgain.World.Encounters {
         private readonly Func<Camera> _camera;
         private readonly Func<int, Transform, UniTask<GameObject>> _buildEffect;
         private readonly Func<Quaternion> _arenaRotation;
-        private readonly Func<Combatant, IReadOnlyList<Vector3>> _crystalRun;
+        private readonly Func<Combatant, IReadOnlyList<(int X, int Y)>, IReadOnlyList<Vector3>> _crystalRun;
         private readonly Queue<(SpellVisual Visual, Combatant From, Combatant To)> _queue = new();
         private bool _draining;
 
@@ -47,7 +47,8 @@ namespace BakAgain.World.Encounters {
 
         public SpellVfx(Func<Combatant, Transform> anchorOf, Func<Transform> root, Func<Color[]> palette,
             Func<Camera> camera, Func<int, Transform, UniTask<GameObject>> buildEffect,
-            Func<Quaternion> arenaRotation, Func<Combatant, IReadOnlyList<Vector3>> crystalRun) {
+            Func<Quaternion> arenaRotation,
+            Func<Combatant, IReadOnlyList<(int X, int Y)>, IReadOnlyList<Vector3>> crystalRun) {
             _arenaRotation = arenaRotation;
             _crystalRun = crystalRun;
             _anchorOf = anchorOf;
@@ -83,7 +84,7 @@ namespace BakAgain.World.Encounters {
 
         /// <summary>Queue a visual raised by the rules.</summary>
         public void Enqueue(SpellVisual visual, Combatant from, Combatant to) {
-            if (visual.Kind == SpellVisualKind.None || to == null) {
+            if (visual.Kind == SpellVisualKind.None || to == null && visual.Cells == null) {
                 return;
             }
             if (HoldsTheBoard(visual.Kind)) {
@@ -139,7 +140,9 @@ namespace BakAgain.World.Encounters {
             SpellVisualKind.Rebound => ReboundAsync(from, to),
             // Nightfingers' stolen item: shape 5, target to caster, speed 0x78 (CSPELL.C:1104).
             SpellVisualKind.StolenItemFlight => FlyAsync(5, from, to, 0x78),
-            SpellVisualKind.CrystalZap => CrystalZapAsync(to),
+            // A walker's zap names the walker; a fired diamond's names its cells and the shover.
+            SpellVisualKind.CrystalZap => v.Cells == null ? CrystalZapAsync(to, to, null) : CrystalZapAsync(null, from, v.Cells),
+            SpellVisualKind.TileBurst => TileBurstAsync(from, v.Cells, v.Colour, v.Spread),
             _ => UniTask.CompletedTask,
         };
 
@@ -191,6 +194,29 @@ namespace BakAgain.World.Encounters {
         }
 
         // ------------------------------------------------------------------ particles
+
+        /// <summary>
+        /// <c>combatgrid_apply_tile_status_fx</c> (CMBTGRID.C:795): cue 0x1d, then a spark burst on a
+        /// grid cell no combatant stands on.
+        /// </summary>
+        private async UniTask TileBurstAsync(Combatant floor, IReadOnlyList<(int X, int Y)> cells, int colour, int spread) {
+            MenuSoundService.Instance?.Play(TrapPuzzle.FiredSoundId);
+            IReadOnlyList<Vector3> at = cells == null ? null : _crystalRun?.Invoke(floor, cells);
+            if (at is not { Count: > 0 }) {
+                return;
+            }
+            var burst = new SpellParticles.SparkBurst(spread, Rnd);
+            using var cloud = new GlowCloud(_root(), "TileBurst");
+            using var shadows = new GlowCloud(_root(), "TileBurstShadows", GlowCloud.ShadowMaterial);
+            cloud.Root.position = shadows.Root.position = at[0];
+            Color shadow = PaletteColour(SpellParticles.SparkBurst.ShadowPen);
+            shadow.a = 0.8f;
+            do {
+                cloud.Draw(burst.Points, _ => PaletteColour(colour), SparkSize);
+                shadows.Draw(burst.Shadows, _ => shadow, SparkSize * 0.6f);
+                await Frames();
+            } while (burst.Step());
+        }
 
         private async UniTask SparkBurstAsync(Combatant target, int colour, int spread, int tint) {
             // The burst is the impact: wait for the projectile ProjectileFlight is flying to land.
@@ -347,9 +373,12 @@ namespace BakAgain.World.Encounters {
         /// Crystal ground discharging (CACTOR.C:1078, WORLDFX.C:539): ten frames of the walker in
         /// white with the run crackling at z=235 in pen 0xAF — each middle point jittered ±200
         /// across the run every frame — and a zap per frame. The rules sounded the first zap.
+        /// A fired diamond's cine (CMBTGRID.C:880) is the same with no walker to flash.
         /// </summary>
-        private async UniTask CrystalZapAsync(Combatant walker) {
-            IReadOnlyList<Vector3> run = _crystalRun?.Invoke(walker);
+        /// <param name="floor">Whose sprite gives the arena floor's height.</param>
+        /// <param name="cells">The run, when there is no walker to trace it from.</param>
+        private async UniTask CrystalZapAsync(Combatant walker, Combatant floor, IReadOnlyList<(int X, int Y)> cells) {
+            IReadOnlyList<Vector3> run = _crystalRun?.Invoke(floor, cells);
             using var beam = new GlowCloud(_root(), "CrystalBeam");
             var line = new GameObject("Line").AddComponent<LineRenderer>();
             line.transform.SetParent(beam.Root, false);
@@ -361,7 +390,9 @@ namespace BakAgain.World.Encounters {
             const float z = SpellHeights.CrystalBeam / BakCoordinateConverter.WorldScale;
             const float jitter = 200f / BakCoordinateConverter.WorldScale;
             for (var frame = 0; frame < 10; frame++) {
-                TintFor(walker, TintWhite, 1);
+                if (walker != null) {
+                    TintFor(walker, TintWhite, 1);
+                }
                 if (frame > 0) {
                     MenuSoundService.Instance?.Play(CombatWalk.CrystalGroundSoundId);
                 }

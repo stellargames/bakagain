@@ -738,6 +738,42 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
             Assert.IsFalse(acting.CanAct(strict: true), "the control: the click on the crystal casts");
         }
 
+        [Test]
+        public void AClickOnAnAdjacentDiamondPushesIt() {
+            // The move map's dry walk counts an adjacent pushable as reached: combataipath_step_to_target
+            // jumps to its success exit on terrain 5 when the target is adjacent and the walk is the dry
+            // one (CMBTAI.C:130-133), so combatgrid_build_move_attack_map marks the cell and the click
+            // moves the actor into it, shoving the diamond (TASK-1003).
+            var traps = new TrapData("TRAPS.DAT");
+            var record = new TrapEncounter { Index = (int)EncounterNumber };
+            record.Elements.Add(new TrapElement { Type = (int)TrapElementType.DiamondSolid, GridX = 3, GridY = 9 });
+            traps.Encounters.Add(record);
+            (Rig rig, CombatEncounter fight, Combatant acting) = PartyTurn(traps);
+            Assert.IsNull(rig.Service.Combat.CombatantAtCell(2, 9), "the fixture's (2,9) is free");
+            Assert.IsNull(rig.Service.Combat.CombatantAtCell(4, 9), "and so is the diamond's landing cell");
+            acting.X = 2; acting.Y = 9;
+
+            Assert.IsTrue(rig.Service.MoveAcceptedAtCell(3, 9), "the diamond's cell is a move");
+            rig.Service.ResolveCombatGroundClick(rig.Service.CellCentreWorld(3, 9).Value);
+
+            Assert.AreEqual((3, 9), (acting.X, acting.Y), "the actor stepped into the diamond's cell");
+            Assert.IsNotNull(rig.Service.Combat.Puzzle.ElementAt(4, 9), "and shoved the diamond on");
+        }
+
+        [Test]
+        public void ADiamondTwoCellsAwayIsNotAMove() {
+            // The control: the success exit needs the target ADJACENT (g_bActorAdjacentToTarget,
+            // CMBTAI.C:205-209); further off, the dry walk stops at the diamond like any other block.
+            var traps = new TrapData("TRAPS.DAT");
+            var record = new TrapEncounter { Index = (int)EncounterNumber };
+            record.Elements.Add(new TrapElement { Type = (int)TrapElementType.DiamondSolid, GridX = 4, GridY = 9 });
+            traps.Encounters.Add(record);
+            (Rig rig, CombatEncounter fight, Combatant acting) = PartyTurn(traps);
+            acting.X = 2; acting.Y = 9;
+
+            Assert.IsFalse(rig.Service.MoveAcceptedAtCell(4, 9));
+        }
+
         /// <summary>A party member's turn, the one enemy dead on (4,3) with a body on the field.</summary>
         private static (Rig Rig, CombatEncounter Fight, Combatant Acting, Combatant Body) FightWithABody() {
             Rig rig = Build(roll: 0, start: new GameData.Resources.Config.StartData("START.DAT") { CombatGridCellSize = 300 });

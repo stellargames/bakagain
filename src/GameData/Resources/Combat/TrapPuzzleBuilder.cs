@@ -1,5 +1,6 @@
 namespace GameData.Resources.Combat;
 
+using System;
 using System.Collections.Generic;
 
 /// <summary>An element standing on the puzzle grid. Elements block movement wherever they stand.</summary>
@@ -99,10 +100,16 @@ public sealed class TrapPuzzle {
     /// <para>Note the crystal case is only reachable once the crystal's own element has gone, because
     /// any element blocks and a blocked destination refuses the push. The terrain outlives the
     /// element, which is what leaves the ground armed.</para>
-    /// <para>The caller runs the consequences of <see cref="PushResult.CrystalFired"/> — the line
-    /// spreads along the crystal run and damages what it reaches. Not modelled here yet.</para>
+    /// <para>The caller runs the consequences of <see cref="PushResult.CrystalFired"/>: the run
+    /// lights up for the short cine, then the tile fx plays. <c>firedRun</c> is that run, traced
+    /// with the diamond still on the cell it landed on (CMBTGRID.C:878-880), because the trace
+    /// starts at the first trap element along it. Empty for any other result.</para>
     /// </remarks>
-    public PushResult TryPush(int fromX, int fromY, int dx, int dy) {
+    public PushResult TryPush(int fromX, int fromY, int dx, int dy) => TryPush(fromX, fromY, dx, dy, out _);
+
+    /// <inheritdoc cref="TryPush(int, int, int, int)"/>
+    public PushResult TryPush(int fromX, int fromY, int dx, int dy, out IReadOnlyList<(int X, int Y)> firedRun) {
+        firedRun = Array.Empty<(int, int)>();
         int toX = fromX + dx;
         int toY = fromY + dy;
 
@@ -119,6 +126,9 @@ public sealed class TrapPuzzle {
         Grid.SetOccupied(fromX, fromY, false);
 
         if (Grid.TerrainAt(toX, toY) == CombatTerrain.Crystal) {
+            element.X = toX;
+            element.Y = toY;
+            firedRun = TraceCrystalLine(toX, toY);
             element.RemoveFromGrid();
             return PushResult.CrystalFired;
         }
@@ -270,7 +280,8 @@ public sealed class TrapPuzzle {
     ///
     /// <para>The walk is: find the axis the run lies on, back up to its start, advance to the first
     /// tile holding an element, then collect consecutive crystal tiles from there.</para>
-    /// <para>Callerless on purpose for now: it drives the crystal light sweep, which the port does not animate (a feedback gap, not a rule — see the remarks).</para>
+    /// <para>Called by <c>TryPush</c>
+    /// for a fired diamond; the arena draws the sweep over the run it returns (TASK-1002).</para>
     /// </remarks>
     public IReadOnlyList<(int X, int Y)> TraceCrystalLine(int x, int y) {
         var run = new List<(int X, int Y)>();
@@ -367,6 +378,13 @@ public sealed class TrapPuzzle {
     /// <c>_clearFiring</c>) is what <see cref="TraceCrystalLine"/> returns the run for.</para>
     /// </remarks>
     public const int FiredSoundId = 0x1d;
+
+    /// <summary>The fired diamond's spark burst: <c>g_nVfxParticleColor = 0x6f</c>, then
+    /// <c>worldfx_combat_damage_ptcl_burst(.., 0x19)</c> (CMBTGRID.C:811-814).</summary>
+    public const int FiredBurstColour = 0x6f;
+
+    /// <inheritdoc cref="FiredBurstColour"/>
+    public const int FiredBurstSpread = 0x19;
 
     /// <summary>The element standing on a tile, or null.</summary>
     public TrapGridElement? ElementAt(int x, int y) {

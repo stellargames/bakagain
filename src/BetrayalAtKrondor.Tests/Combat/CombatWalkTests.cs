@@ -247,6 +247,22 @@ public class CombatWalkTests {
     }
 
     [Fact]
+    public void AShoveThatFiresACrystalCarriesTheRunItLit() {
+        // What the arena draws the crystal beam over (TASK-1002).
+        TrapPuzzle puzzle = TrapPuzzleBuilder.Build(new[] { (9, 4, 5) });
+        puzzle.Grid.SetTerrain(5, 5, CombatTerrain.Crystal);
+        puzzle.Grid.SetTerrain(6, 5, CombatTerrain.Crystal);
+        puzzle.Grid.SetTerrain(7, 5, CombatTerrain.Crystal);
+        var actor = new Combatant { X = 3, Y = 5, Speed = 1 };
+
+        CombatWalk.WalkResult result =
+            CombatWalk.Walk(puzzle.Grid, actor, 4, 5, actor.Speed, puzzle: puzzle);
+
+        Assert.Equal(PushResult.CrystalFired, result.Shove!.Value.Result);
+        Assert.Equal(new[] { (5, 5), (6, 5), (7, 5) }, result.Shove.Value.FiredRun);
+    }
+
+    [Fact]
     public void AShoveThatCannotMoveLeavesTheActorWhereItWas() {
         // The original backs the actor out and shows "the path is blocked". We never advance it in
         // the first place, which reaches the same end state with one fewer way to get it wrong.

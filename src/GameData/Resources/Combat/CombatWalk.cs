@@ -68,8 +68,9 @@ public static class CombatWalk {
     /// <summary>An element the walk shoved out of its way.</summary>
     public readonly struct Shove {
         internal Shove(PushResult result, int fromX, int fromY, int toX, int toY,
-            int cannonsFired = 0) {
+            int cannonsFired = 0, IReadOnlyList<(int X, int Y)>? firedRun = null) {
             Result = result;
+            FiredRun = firedRun ?? Array.Empty<(int, int)>();
             FromX = fromX;
             FromY = fromY;
             ToX = toX;
@@ -90,7 +91,11 @@ public static class CombatWalk {
         /// </remarks>
         public int CannonsFired { get; }
 
-        /// <summary>What the shove did. <see cref="PushResult.CrystalFired"/> needs a caller.</summary>
+        /// <summary>The crystal run a fired diamond lit, in order; empty unless
+        /// <see cref="Result"/> is <see cref="PushResult.CrystalFired"/>.</summary>
+        public IReadOnlyList<(int X, int Y)> FiredRun { get; }
+
+        /// <summary>What the shove did.</summary>
         public PushResult Result { get; }
 
         /// <summary>The tile the element was on — where the actor now stands, if it moved.</summary>
@@ -420,7 +425,7 @@ public static class CombatWalk {
 
         int dx = step.X - actor.X;
         int dy = step.Y - actor.Y;
-        PushResult result = puzzle.TryPush(step.X, step.Y, dx, dy);
+        PushResult result = puzzle.TryPush(step.X, step.Y, dx, dy, out IReadOnlyList<(int X, int Y)> firedRun);
         var cannons = 0;
         // Occupancy is the caller's, exactly as it is for an ordinary step — CombatRuntime puts the
         // combatant back and re-applies through MoveTo. TryPush has already cleared the ELEMENT's
@@ -444,7 +449,7 @@ public static class CombatWalk {
                 puzzle, step.X + dx, step.Y + dy, occupiedByLiveCombatant);
         }
 
-        return new Shove(result, step.X, step.Y, step.X + dx, step.Y + dy, cannons);
+        return new Shove(result, step.X, step.Y, step.X + dx, step.Y + dy, cannons, firedRun);
     }
 
     /// <summary>

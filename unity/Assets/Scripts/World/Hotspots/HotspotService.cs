@@ -1828,6 +1828,19 @@ using GameData.Resources.Scene;
             return segments;
         }
 
+        /// <summary>World points of combat-grid cells (cell centres, in the order given).</summary>
+        public List<(long X, long Y)> CellCentres(IEnumerable<(int X, int Y)> cells) {
+            var points = new List<(long, long)>();
+            int cellSize = _start?.CombatGridCellSize ?? 0;
+            if (_session == null || cellSize <= 0) {
+                return points;
+            }
+            foreach ((int x, int y) in cells) {
+                points.Add(CellCentre(x, y, cellSize));
+            }
+            return points;
+        }
+
         private (long X, long Y) CellCentre(int column, int row, int cellSize) {
             (int across, int away) =
                 GameData.Resources.Combat.CombatArenaPlacement.CellOffset(column, row, cellSize);

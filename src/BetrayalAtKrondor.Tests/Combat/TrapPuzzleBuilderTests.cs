@@ -317,6 +317,31 @@ public class TrapPuzzleBuilderTests {
     }
 
     [Fact]
+    public void AFiredDiamondLightsTheRunFromWhereItLanded() {
+        // combatgrid_place_actor_on_tile (CMBTGRID.C:867) moves the diamond onto the crystal FIRST
+        // and only then traces the run, so the trace starts at the diamond (its advance stops at
+        // the first combatant). Traced after the diamond is gone, the run's start is lost.
+        TrapPuzzle puzzle = TrapPuzzleBuilder.Build(Elements((9, 3, 3)));
+        puzzle.Grid.SetTerrain(3, 4, CombatTerrain.Crystal);
+        puzzle.Grid.SetTerrain(3, 5, CombatTerrain.Crystal);
+        puzzle.Grid.SetTerrain(3, 6, CombatTerrain.Crystal);
+
+        PushResult result = puzzle.TryPush(3, 3, 0, 1, out IReadOnlyList<(int X, int Y)> run);
+
+        Assert.Equal(PushResult.CrystalFired, result);
+        Assert.Equal(new[] { (3, 4), (3, 5), (3, 6) }, run);
+        Assert.False(puzzle.Elements[0].IsOnGrid);
+    }
+
+    [Fact]
+    public void APushThatDoesNotFireLightsNothing() {
+        TrapPuzzle puzzle = TrapPuzzleBuilder.Build(Elements((9, 3, 3)));
+
+        Assert.Equal(PushResult.Moved, puzzle.TryPush(3, 3, 0, 1, out IReadOnlyList<(int X, int Y)> run));
+        Assert.Empty(run);
+    }
+
+    [Fact]
     public void PushingADiamondIntoACrystalDealsNoDamageItselfItOnlySweeps() {
         // Pinned because it is easy to assume otherwise: the push's only other effect is a sound and
         // a particle burst. The 100 damage belongs to a party member WALKING onto crystal ground.

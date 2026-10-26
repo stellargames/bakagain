@@ -25,7 +25,7 @@ namespace BakAgain.Tests.PlayMode.World {
         }
 
         private static SpellVfx Vfx() => new SpellVfx(_ => null, () => null, () => null, () => null,
-            (_, _) => UniTask.FromResult<GameObject>(null), () => Quaternion.identity, _ => null);
+            (_, _) => UniTask.FromResult<GameObject>(null), () => Quaternion.identity, (_, _) => null);
 
         [UnityTest]
         public IEnumerator AWhirlwindHoldsTheMoversUntilItHasFlown() {

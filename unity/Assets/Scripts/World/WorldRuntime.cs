@@ -613,9 +613,9 @@ namespace BakAgain.World {
                 : _encounterSprites.BuildEffectSpriteAsync(id, _gameSession.CurrentZone, parent,
                     _zoneSceneBuilder.RenderContext, this),
             () => BakCoordinateConverter.ConvertRotation(0, 0, unchecked((ushort)_gameSession.Rotation)),
-            who => {
+            (who, cells) => {
                 var points = new List<Vector3>();
-                foreach ((long x, long y) in _hotspots.CrystalRunThrough(who)) {
+                foreach ((long x, long y) in cells == null ? _hotspots.CrystalRunThrough(who) : _hotspots.CellCentres(cells)) {
                     Vector3 p = _zoneRoot.transform.TransformPoint(BakCoordinateConverter.ConvertPosition((int)x, (int)y, 0));
                     // The arena floor is under the zone root; sample it rather than assume 0.
                     p.y = SpriteOf(who) is { } s ? s.position.y : p.y;

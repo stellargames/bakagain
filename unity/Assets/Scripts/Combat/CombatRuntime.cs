@@ -1088,7 +1088,7 @@ namespace BakAgain.Combat {
             System.Func<int, int> roll = rnd ?? (n => UnityEngine.Random.Range(0, n));
             int startX = acting.X;
             int startY = acting.Y;
-            AnnounceShove(CombatWalk.Walk(Grid, acting, x, y, acting.Speed, puzzle: Puzzle,
+            AnnounceShove(acting, CombatWalk.Walk(Grid, acting, x, y, acting.Speed, puzzle: Puzzle,
                 occupiedByLiveCombatant: TileHoldsLiveCombatant,
                 onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, roll)));
 
@@ -1135,7 +1135,7 @@ namespace BakAgain.Combat {
             if (walk == null) {
                 return false;
             }
-            AnnounceShove(walk.Value);
+            AnnounceShove(mover, walk.Value);
             int endX = mover.X;
             int endY = mover.Y;
             mover.X = startX;
@@ -3142,7 +3142,7 @@ namespace BakAgain.Combat {
                 CombatGrid.ChebyshevDistance(caster.X, caster.Y, target.X, target.Y), power);
             int startX = target.X;
             int startY = target.Y;
-            AnnounceShove(CombatWalk.Walk(Grid, target, caster.X, caster.Y, steps,
+            AnnounceShove(target, CombatWalk.Walk(Grid, target, caster.X, caster.Y, steps,
                 puzzle: Puzzle, occupiedByLiveCombatant: TileHoldsLiveCombatant,
                 onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, roll)));
             int endX = target.X;
@@ -3464,10 +3464,18 @@ namespace BakAgain.Combat {
         /// movement (CMBTGRID.C:1419-1431), and which picks the cursor's move marker
         /// (<c>combatgrid_cursor_tile_movable</c>, CMBTGRID.C:1445; COMBAT.C:2324-2326).
         /// </summary>
+        /// <remarks>
+        /// <b>An adjacent diamond is a move.</b> The dry run takes its success exit on a pushable
+        /// (terrain 5) when the target is adjacent (CMBTAI.C:130-133), before it tries the push, so
+        /// the click goes through and the real walk shoves it. Our dry walk stops at a pushable
+        /// without arriving, which refused every push by mouse (TASK-1003).
+        /// </remarks>
         public bool CellMovable(Combatant actor, int x, int y) =>
             actor != null && Grid != null && CombatGrid.InBounds(x, y)
-            && CombatWalk.Walk(Grid, actor, x, y, actor.Speed, probe: true, puzzle: Puzzle,
-                occupiedByLiveCombatant: TileHoldsLiveCombatant).Arrived;
+            && (Puzzle != null && Grid.TerrainAt(x, y) == CombatTerrain.Pushable
+                    && CombatGrid.ChebyshevDistance(actor.X, actor.Y, x, y) == 1
+                || CombatWalk.Walk(Grid, actor, x, y, actor.Speed, probe: true, puzzle: Puzzle,
+                    occupiedByLiveCombatant: TileHoldsLiveCombatant).Arrived);
 
         /// <summary>
         /// The body lying on a tile, or null — <c>g_active_combatants</c>, which a death with its
@@ -3674,12 +3682,19 @@ namespace BakAgain.Combat {
         /// burst on a phantom actor. Then it takes the diamond off the grid: each shove SPENDS a
         /// diamond to clear a run, which is the puzzle.
         ///
-        /// <para>The run itself is <see cref="TrapPuzzle.TraceCrystalLine"/> and the burst is not
-        /// modelled — neither has anywhere to be drawn yet. The sound does, so it plays.</para>
+        /// <para>In the original's order (CMBTGRID.C:878-883): the run lights for the short cine,
+        /// the first of whose ten zaps sounds here, as a walker's does; the visual plays the other
+        /// nine, then the tile burst plays its cue and sparks on the cell the diamond landed on.</para>
         /// </remarks>
-        private void AnnounceShove(CombatWalk.WalkResult walk) {
-            if (walk.Shove?.Result == PushResult.CrystalFired) {
-                _playSfx?.Invoke(TrapPuzzle.FiredSoundId);
+        private void AnnounceShove(Combatant shover, CombatWalk.WalkResult walk) {
+            if (walk.Shove is { Result: PushResult.CrystalFired } fired) {
+                _playSfx?.Invoke(CombatWalk.CrystalGroundSoundId);
+                PlaySpellVisual?.Invoke(
+                    new SpellVisual(SpellVisualKind.CrystalZap, Cells: fired.FiredRun), shover, null);
+                PlaySpellVisual?.Invoke(
+                    new SpellVisual(SpellVisualKind.TileBurst, TrapPuzzle.FiredBurstColour,
+                        TrapPuzzle.FiredBurstSpread, Cells: new[] { (fired.ToX, fired.ToY) }),
+                    shover, null);
             }
 
             // *** A CANNON FIRED AT A CRYSTAL IS A CUE AND NOTHING ELSE. *** The original runs the
@@ -4315,7 +4330,7 @@ namespace BakAgain.Combat {
             CombatWalk.WalkResult walk = CombatWalk.Walk(Grid, monster, destX, destY, monster.Speed,
                 puzzle: Puzzle, occupiedByLiveCombatant: TileHoldsLiveCombatant,
                 onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, pick));
-            AnnounceShove(walk);
+            AnnounceShove(monster, walk);
 
             // Walk moved the combatant itself; put it back and re-apply through MoveTo so the
             // grid's occupancy follows it — the same two-step the approach walk below uses.
@@ -4419,7 +4434,7 @@ namespace BakAgain.Combat {
                 decision.MaxSteps ?? monster.Speed, puzzle: Puzzle,
                 occupiedByLiveCombatant: TileHoldsLiveCombatant,
                 onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, hazardRoll));
-            AnnounceShove(walk);
+            AnnounceShove(monster, walk);
 
             // Walk moved the combatant itself; put it back and re-apply through MoveTo so the grid's
             // occupancy follows it.
@@ -4721,7 +4736,7 @@ namespace BakAgain.Combat {
             int steps = monster.Speed > 0 ? monster.Speed : 1;
 
             System.Func<int, int> hazardRoll = rnd ?? (n => UnityEngine.Random.Range(0, n));
-            AnnounceShove(CombatWalk.Walk(Grid, monster, destination.X, destination.Y, steps,
+            AnnounceShove(monster, CombatWalk.Walk(Grid, monster, destination.X, destination.Y, steps,
                 puzzle: Puzzle, occupiedByLiveCombatant: TileHoldsLiveCombatant,
                 onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, hazardRoll)));
 
@@ -4818,7 +4833,7 @@ namespace BakAgain.Combat {
             int startX = monster.X;
             int startY = monster.Y;
             System.Func<int, int> hazardRoll = rnd ?? (n => UnityEngine.Random.Range(0, n));
-            AnnounceShove(CombatWalk.Walk(Grid, monster, bestX, bestY, budget,
+            AnnounceShove(monster, CombatWalk.Walk(Grid, monster, bestX, bestY, budget,
                 puzzle: Puzzle, occupiedByLiveCombatant: TileHoldsLiveCombatant,
                 onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, hazardRoll)));
 
