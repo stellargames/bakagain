@@ -324,14 +324,14 @@ namespace BakAgain.World.Encounters {
                 corpse.SetName = setName;
                 corpse.Face = face;
                 corpse.Extent = entry.Dat.Extent;
-                WorldEntityBuilder.AddInteractionCollider(go, quad.center, quad.size);
+                PickCollider.Add(go, quad.center, quad.size);
             } else if (arena) {
                 ArenaCombatant marker = go.AddComponent<ArenaCombatant>();
                 marker.RosterSlot = actor.RosterSlot;
                 marker.PartyMember = actor.PartyMember;
                 marker.Face = face;
                 marker.Extent = entry.Dat.Extent;
-                WorldEntityBuilder.AddInteractionCollider(go, quad.center, quad.size);
+                PickCollider.Add(go, quad.center, quad.size);
             }
             // An actor that walks a route needs identity on the transform, or the ported tick has
             // nothing to move: BuildAsync returns a count, so after this method there is no way back
@@ -351,7 +351,7 @@ namespace BakAgain.World.Encounters {
                 // The billboard quad has no depth, and a ray misses a zero-thickness box; give it
                 // as much depth as width so the click lands whichever way the quad has turned.
                 Vector3 size = quad.size;
-                WorldEntityBuilder.AddInteractionCollider(go, quad.center,
+                PickCollider.Add(go, quad.center,
                     new Vector3(size.x, size.y, Mathf.Max(size.z, size.x)));
             }
             ctx.TrackMesh(mesh);

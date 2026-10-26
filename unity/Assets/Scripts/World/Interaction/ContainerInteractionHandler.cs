@@ -134,6 +134,24 @@ namespace BakAgain.World.Interaction {
             if (profile == null) {
                 return;
             }
+            // *** ONE CLICK AT A TIME. *** The original's handler runs its screen modally, so a click
+            // cannot reach a container whose previous click is still being answered. Ours awaits:
+            // a second click during the ~1 s the riddle's music loads started a second run of the
+            // same puzzle, whose Open reset the first run's resolved script (TASK-1005).
+            if (_busy) {
+                return;
+            }
+            _busy = true;
+            try {
+                await HandleOneAsync(entity, profile, isPrimary);
+            } finally {
+                _busy = false;
+            }
+        }
+
+        private bool _busy;
+
+        private async UniTask HandleOneAsync(WorldEntity entity, InteractionProfile profile, bool isPrimary) {
 
             // *** EVERY WORLD-OBJECT CLICK MAKES THIS NOISE, AND THIS HANDLER IS SEVENTEEN OF THEM. ***
             // Swept all 27 DOS handle_* handlers for their audio_PlaySound argument: 24 of the 30

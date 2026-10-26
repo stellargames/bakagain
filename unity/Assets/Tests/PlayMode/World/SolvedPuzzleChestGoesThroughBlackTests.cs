@@ -196,6 +196,51 @@ namespace BakAgain.Tests.PlayMode.World {
         // path goes to black (CIPHER.C:205-213: the fade, then the palette put back at once on a black
         // screen); the menu is drawn on it. The port closed the riddle onto the map.
         [UnityTest]
+        public IEnumerator ASecondClickWhileTheChestIsBusyIsIgnored() => UniTask.ToCoroutine(async () => {
+            // TASK-1005, owner 2026-10-26: a second click on the chest while its riddle was still
+            // loading (the music takes ~1 s) started a second run of the same puzzle, whose Open
+            // reset the resolved flag after the first run had dissolved to the readable face, so the
+            // next turn of a wheel drew it in the alien script. The original's handler is modal.
+            var session = new GameSession();
+            var chest = new SaveGameContainerData(
+                new SaveGameContainerLocationData(zone: 7, minChapter: 0, maxChapter: 10,
+                    worldItemId: 162, x: ChestX, y: ChestY, actorNumber: 0),
+                SaveGameContainerType.Chest, numberOfItems: 0, capacity: 4,
+                dataTypes: SaveGameContainerDataType.Lock,
+                items: Array.Empty<SaveGameInventoryItemData>(),
+                lockData: new SaveGameContainerLockData(0, 0, Puzzle, 0),
+                dialogData: null, shopData: null, encounterData: null, timestamp: 0,
+                globalStateIndex: null);
+            session.SetZoneContainersForTest(new SaveGameZoneContainerStateData(new[] {
+                new SaveGameZoneContainerEntryData(7, 0, new[] { chest }),
+            }), chapter: 1);
+            session.CurrentZone = 7;
+
+            _puzzleGo = new GameObject("PuzzleUnderTest");
+            _puzzleGo.SetActive(false);
+            var puzzle = _puzzleGo.AddComponent<PuzzleScreen>();
+            _entityGo = new GameObject("chest");
+            var entity = _entityGo.AddComponent<WorldEntity>();
+            entity.Behavior = "container";
+            entity.EntityType = GameData.Resources.World.WorldEntityType.Container;
+            entity.Interaction = ChestProfile;
+            entity.transform.position = BakCoordinateConverter.ConvertPosition(ChestX, ChestY, 0);
+            var handler = new ContainerInteractionHandler(session, new Stubs.NoOpDialogs(), null,
+                new ScreenNavigator(), new PuzzleService(puzzle), clock: null, explode: null);
+
+            handler.HandleAsync(entity, isPrimary: true).Forget();
+            UniTask second = handler.HandleAsync(entity, isPrimary: true);
+            float deadline = Time.realtimeSinceStartup + 10f;
+            while (!_puzzleGo.activeSelf && Time.realtimeSinceStartup < deadline) {
+                await UniTask.Yield();
+            }
+            Assert.IsTrue(_puzzleGo.activeSelf, "control: the riddle is up");
+
+            Assert.IsTrue(second.Status.IsCompleted(), "the second click started nothing of its own");
+            puzzle.PrimaryAction(18);   // Exit
+        });
+
+        [UnityTest]
         public IEnumerator CheatCentralsChestGoesThroughBlackToItsMenu() => UniTask.ToCoroutine(async () => {
             var session = new GameSession();
             var chest = new SaveGameContainerData(
