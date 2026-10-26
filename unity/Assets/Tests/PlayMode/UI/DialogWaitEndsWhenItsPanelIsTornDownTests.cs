@@ -39,7 +39,7 @@ namespace BakAgain.Tests.PlayMode.UI {
         public IEnumerator WaitForDismiss_EndsWhenItsScrimIsDetached_NotOnlyOnItsOwnDismissal() =>
             UniTask.ToCoroutine(async () => {
                 var go = new GameObject("DialogManagerUnderTest");
-                PanelSettings panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+                PanelSettings panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
                 try {
                     UIDocument document = go.AddComponent<UIDocument>();
                     document.panelSettings = panelSettings;

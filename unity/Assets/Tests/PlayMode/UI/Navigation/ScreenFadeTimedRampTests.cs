@@ -30,7 +30,7 @@ namespace BakAgain.Tests.PlayMode.UI.Navigation {
 
         [UnityTest]
         public IEnumerator ATimedRampTakesItsOwnTime_AndTheWorldFadeKeepsItsSteps() => UniTask.ToCoroutine(async () => {
-            _settings = ScriptableObject.CreateInstance<PanelSettings>();
+            _settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             _host = new GameObject("PanelToBorrow");
             _host.AddComponent<UIDocument>().panelSettings = _settings;
             await UniTask.Yield();

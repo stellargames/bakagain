@@ -153,7 +153,7 @@ namespace BakAgain.Tests.PlayMode.Inventory {
         private VisualElement PaintFill(LayoutHint hint) {
             _panelGo = new GameObject("PaperdollFillUnderTest");
             var document = _panelGo.AddComponent<UIDocument>();
-            _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            _panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             document.panelSettings = _panelSettings;
 
             var stage = new VisualElement {
@@ -199,7 +199,7 @@ namespace BakAgain.Tests.PlayMode.Inventory {
                 "a drop on the painted paperdoll must equip");
             // ...and the same point read from the hint's bare numbers would not have — which is the
             // bug. That path also refuses out loud rather than answering from a percentage.
-            LogAssert.Expect(LogType.Error, new Regex("PaperdollBox is authored in percent"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, new Regex("PaperdollBox is authored in percent"));
             Assert.IsFalse(MemberEquip.IsPaperdollDrop(new Vector2(270f, 400f), percent),
                 "reading the hint's percent numbers as px is what this fix removes");
         }
@@ -224,7 +224,7 @@ namespace BakAgain.Tests.PlayMode.Inventory {
                 Width = LayoutLength.Percent(25.625f), Height = LayoutLength.Percent(60.5f),
             };
 
-            LogAssert.Expect(LogType.Error, new Regex("PaperdollBox is authored in percent"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, new Regex("PaperdollBox is authored in percent"));
             Assert.AreEqual(Rect.zero, MemberEquip.PaperdollDropZone(null, percent));
         }
 

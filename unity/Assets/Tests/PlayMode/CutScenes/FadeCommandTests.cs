@@ -51,7 +51,6 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
 
         [TearDown]
         public void TearDown() {
-            LogAssert.ignoreFailingMessages = false;
             _state?.Dispose();
             if (_host != null) {
                 Object.DestroyImmediate(_host);
@@ -78,7 +77,7 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
             UniTask.ToCoroutine(async () => {
                 // A malformed script must not throw and must not half-apply. The guard returns before
                 // any entry is written, which is what makes "refused" different from "clamped".
-                LogAssert.ignoreFailingMessages = true;
+                BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, "Invalid fade start index: 266");
                 await Fade(speed: 1, start: FullPalette + 10, length: 4, color: 3).ToAction()(_state);
 
                 AssertPaletteIsTheUntouchedRamp(_state.CurrentPalette);
@@ -87,7 +86,7 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
         [UnityTest]
         public IEnumerator ANegativeStartIndexIsRefusedTheSameWay() =>
             UniTask.ToCoroutine(async () => {
-                LogAssert.ignoreFailingMessages = true;
+                BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, "Invalid fade start index: -1");
                 await Fade(speed: 1, start: -1, length: 4, color: 3).ToAction()(_state);
 
                 AssertPaletteIsTheUntouchedRamp(_state.CurrentPalette);
@@ -98,7 +97,7 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
             UniTask.ToCoroutine(async () => {
                 // The target is read OUT of the current palette, so an out-of-range colour index is
                 // an index error rather than a colour that simply cannot be shown.
-                LogAssert.ignoreFailingMessages = true;
+                BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, "Target color index 257 out of range");
                 await Fade(speed: 1, start: 0, length: 4, color: FullPalette + 1).ToAction()(_state);
 
                 AssertPaletteIsTheUntouchedRamp(_state.CurrentPalette);
@@ -110,6 +109,7 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
                 // Unlike a bad start, an over-long length is recoverable: the original's own range
                 // is trimmed and the fade happens. Refusing it would drop a fade the script asked
                 // for; throwing would kill the cutscene.
+                BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, "Fade length exceeds palette size, clamping to 4");
                 await Fade(speed: 1, start: FullPalette - 4, length: 64, color: 3).ToAction()(_state);
 
                 // It ran to completion, and the restore put the state back — see the class remark.
@@ -198,7 +198,9 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
             UniTask.ToCoroutine(async () => {
                 // The guards are duplicated between the two handlers rather than shared, so each
                 // one has to be asserted separately -- a fix to one does not fix the other.
-                LogAssert.ignoreFailingMessages = true;
+                BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, "FadeIn.*Invalid fade start index: 266");
+                BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, "FadeIn.*Invalid fade start index: -1");
+                BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, "FadeIn.*Target color index 257 out of range");
 
                 await FadeUp(speed: 1, start: FullPalette + 10, length: 4, color: 3).ToAction()(_state);
                 AssertPaletteIsTheUntouchedRamp(_state.CurrentPalette);

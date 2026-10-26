@@ -33,7 +33,7 @@ namespace BakAgain.Tests.PlayMode.UI.Localization {
         private UIDocument Doc() {
             _go = new GameObject("Overflow");
             var doc = _go.AddComponent<UIDocument>();
-            _panel = ScriptableObject.CreateInstance<PanelSettings>();
+            _panel = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             doc.panelSettings = _panel;
             return doc;
         }

@@ -114,13 +114,13 @@ namespace BakAgain.Tests.PlayMode.UI.Localization {
 
         [Test]
         public void AColumnThatIsNotPxIsRefused_AndABrokenFileMovesNothing() {
-            UnityEngine.TestTools.LogAssert.Expect(UnityEngine.LogType.Error,
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(UnityEngine.LogType.Error,
                 new System.Text.RegularExpressions.Regex("StatsValueX cannot be resolved"));
             var layout = UiStringLoader.ReadPanelLayout("{ \"StatsValueX\": \"50%\", \"TargetValueX\": \"800px\" }");
             Assert.AreEqual(0x85 * 5, layout.StatsValueX.Value);
             Assert.AreEqual(800, layout.TargetValueX.Value);
 
-            UnityEngine.TestTools.LogAssert.Expect(UnityEngine.LogType.Warning,
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(UnityEngine.LogType.Warning,
                 new System.Text.RegularExpressions.Regex("combatpanels.json skipped"));
             Assert.AreEqual(0x99 * 5, UiStringLoader.ReadPanelLayout("{ \"TargetValueX\": 800 ").TargetValueX.Value);
         }

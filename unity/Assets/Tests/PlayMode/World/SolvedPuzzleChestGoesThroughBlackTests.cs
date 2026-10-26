@@ -117,7 +117,7 @@ namespace BakAgain.Tests.PlayMode.World {
             var navigator = new ScreenNavigator();
             await navigator.ResetTo(new Hud());
 
-            _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            _panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             _menuGo = new GameObject("InventoryMenuUnderTest");
             _menuGo.AddComponent<UIDocument>().panelSettings = _panelSettings;
             _menuGo.SetActive(false);
@@ -263,7 +263,7 @@ namespace BakAgain.Tests.PlayMode.World {
             _puzzleGo.SetActive(false);
             var puzzle = _puzzleGo.AddComponent<PuzzleScreen>();
 
-            _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            _panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             _menuGo = new GameObject("CheatCentralUnderTest");
             _menuGo.AddComponent<UIDocument>().panelSettings = _panelSettings;
             _menuGo.SetActive(false);

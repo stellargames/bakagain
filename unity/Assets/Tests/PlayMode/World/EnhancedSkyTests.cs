@@ -171,7 +171,7 @@ namespace BakAgain.Tests.PlayMode.World {
             GameData.Resources.World.GradingKey[] grading = EnhancedSky.Layout.Grading;
             EnhancedSky.Layout.Grading = System.Array.Empty<GameData.Resources.World.GradingKey>();
             try {
-                LogAssert.Expect(LogType.Exception, new System.Text.RegularExpressions.Regex("Grading is empty"));
+                BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Exception, new System.Text.RegularExpressions.Regex("Grading is empty"));
                 Assert.DoesNotThrow(() => lighting.Refresh());
                 Assert.DoesNotThrow(() => lighting.Refresh());
             } finally {
@@ -196,7 +196,7 @@ namespace BakAgain.Tests.PlayMode.World {
             GameData.Resources.World.GradingKey[] grading = EnhancedSky.Layout.Grading;
             EnhancedSky.Layout.Grading = System.Array.Empty<GameData.Resources.World.GradingKey>();
             try {
-                LogAssert.Expect(LogType.Exception, new System.Text.RegularExpressions.Regex("Grading is empty"));
+                BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Exception, new System.Text.RegularExpressions.Regex("Grading is empty"));
                 lighting.Refresh();
                 Assert.IsNotNull(Child("Sun"), "fixture: the sky had made its light before it failed");
             } finally {

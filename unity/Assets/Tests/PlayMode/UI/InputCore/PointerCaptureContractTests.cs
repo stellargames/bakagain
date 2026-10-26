@@ -68,7 +68,7 @@ namespace BakAgain.Tests.PlayMode.UI.InputCore {
         private VisualElement BuildCell() {
             _go = new GameObject("PointerCaptureContract");
             var document = _go.AddComponent<UIDocument>();
-            _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            _panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             document.panelSettings = _panelSettings;
 
             var cell = new VisualElement {

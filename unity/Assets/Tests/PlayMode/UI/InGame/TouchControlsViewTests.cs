@@ -23,7 +23,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             System.Action<TouchControlsView, VisualElement, TouchInputState> check) {
             var host = new GameObject("TouchDoc");
             var doc = host.AddComponent<UIDocument>();
-            doc.panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            doc.panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             var root = new VisualElement { name = "test-root" };
             root.style.position = Position.Absolute;
             root.style.width = width;

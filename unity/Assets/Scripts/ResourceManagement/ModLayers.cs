@@ -60,7 +60,9 @@ namespace BakAgain.ResourceManagement {
             }
 
             if (GameVersion == null) {
-                Logger.LogWarning("Mods' game versions are not checked: this is the Editor or a development build ({Version}).", Application.version);
+                // Information, not a warning: an Editor or development build is expected to skip the
+                // check, and a warning on every start kept the log from ever being clean (TASK-1004).
+                Logger.LogInformation("Mods' game versions are not checked: this is the Editor or a development build ({Version}).", Application.version);
             }
             string mode = Mode.ToString().ToLowerInvariant();
             string active = Current.Active.Count == 0

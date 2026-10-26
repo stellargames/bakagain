@@ -64,6 +64,12 @@ namespace BakAgain.UI.InGame {
             if (panelRoot == null) {
                 return;
             }
+            // A panel with no REQ hotspots at all has not been built (its REQ did not load, which
+            // the loader reports itself); there is nothing to attach to and nothing new to say. The
+            // warning below is for a BUILT panel that lacks a portrait's area (TASK-1004).
+            if (panelRoot.Query<VisualElement>().Where(e => e.name != null && e.name.StartsWith("hotspot_")).First() == null) {
+                return;
+            }
             for (int i = 0; i < SlotCount; i++) {
                 VisualElement hotspot = panelRoot.Q(name: $"hotspot_{_firstActionId + i}");
                 if (hotspot == null) {

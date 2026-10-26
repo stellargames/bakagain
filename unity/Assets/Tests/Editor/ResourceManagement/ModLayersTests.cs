@@ -128,7 +128,7 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
             Directory.CreateDirectory(_mods);
             string zip = Path.Combine(_mods, "broken.zip");
             File.WriteAllText(zip, "not a zip");
-            LogAssert.Expect(LogType.Error, new Regex("broken\\.zip"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, new Regex("broken\\.zip"));
 
             ModLayers.Initialize();
 
@@ -141,7 +141,7 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
         public void Initialize_CorruptStateFile_ContinuesWithEmptyState() {
             Mod("a-mod");
             File.WriteAllText(Path.Combine(_mods, "mods.json"), "{");
-            LogAssert.Expect(LogType.Error, new Regex("mods\\.json"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, new Regex("mods\\.json"));
 
             Assert.DoesNotThrow(ModLayers.Initialize);
 
@@ -195,7 +195,7 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
             Directory.CreateDirectory(Path.Combine(_mods, "a-mod.old"));
             File.WriteAllText(Path.Combine(_mods, "a-mod"), "a file where the folder goes");
             Order("a-mod", "b-mod");
-            LogAssert.Expect(LogType.Warning, new Regex("a-mod\\.old could not be restored"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new Regex("a-mod\\.old could not be restored"));
 
             ModLayers.Initialize();
 
@@ -210,7 +210,7 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
                 using var w = new StreamWriter(archive.CreateEntry("mod.json").Open());
                 w.Write(Manifest("big-mod") + new string(' ', 1024 * 1024)); // past the 1 MiB cap
             }
-            LogAssert.Expect(LogType.Error, new Regex("big\\.zip could not be installed: mod\\.json is larger than"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, new Regex("big\\.zip could not be installed: mod\\.json is larger than"));
 
             ModLayers.Initialize();
 
@@ -224,7 +224,7 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
             string copy = Path.Combine(_mods, "a-mod-copy");
             Directory.CreateDirectory(copy);
             File.WriteAllText(Path.Combine(copy, "mod.json"), Manifest("a-mod"));
-            LogAssert.Expect(LogType.Warning, new Regex("Mod a-mod \\(Conflict\\): installed twice; 'a-mod-copy' is ignored"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new Regex("Mod a-mod \\(Conflict\\): installed twice; 'a-mod-copy' is ignored"));
 
             ModLayers.Initialize();
 
@@ -239,7 +239,7 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
                 Directory.CreateDirectory(source);
                 File.WriteAllText(Path.Combine(source, "mod.json"), Manifest("new-mod"));
                 string zip = ModArchive.Pack(source, _mods);
-                LogAssert.Expect(LogType.Warning, new Regex("new-mod is installed, but the mod order and on/off state could not be saved"));
+                BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new Regex("new-mod is installed, but the mod order and on/off state could not be saved"));
 
                 ModLayers.Initialize(); // a "could not be installed" error would fail the test
 
@@ -341,7 +341,7 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
             Mod("hi-mod", ("DAT/DIALSTYL.json", "{\"Rows\":[null,null,{\"DefaultArea\":{\"Left\":\"13.75%\"}}]}"));
             Order("hi-mod", "lo-mod");
             ModLayers.Initialize();
-            LogAssert.Expect(LogType.Error, new Regex("lo-mod.*DIALSTYL\\.json skipped"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, new Regex("lo-mod.*DIALSTYL\\.json skipped"));
 
             var table = (DialogStyleTable)OverrideResourceProvider.LoadOverrideObject(
                 Located(DialogStyleTable.ResourceId, typeof(DialogStyleTable)), typeof(DialogStyleTable),
@@ -354,7 +354,7 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
         [Test]
         public void Initialize_FolderWithoutValidManifest_IsLoggedAndSkipped() {
             Directory.CreateDirectory(Path.Combine(_mods, "no-manifest"));
-            LogAssert.Expect(LogType.Warning, new Regex("no-manifest has no valid mod\\.json"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new Regex("no-manifest has no valid mod\\.json"));
 
             ModLayers.Initialize();
 

@@ -31,7 +31,7 @@ namespace BakAgain.Tests.Editor.Graphics {
         // Contain stage must be the frame the conversion measures against, not 1600x1200.
         [UnityTest]
         public IEnumerator ScreenToCanonical_UsesStagesRealGeometry_NotHardcodedCanonicalConstant() {
-            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            var settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             var host = new GameObject("CanonicalConversionTestHost");
             try {
                 UIDocument document = host.AddComponent<UIDocument>();
@@ -84,7 +84,7 @@ namespace BakAgain.Tests.Editor.Graphics {
         // sheet, so the conversion has to undo the scale too, not only the offset.
         [UnityTest]
         public IEnumerator ScreenToCanonical_ThroughAScaledSheet_LandsInSheetUnits() {
-            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            var settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             var host = new GameObject("CanonicalConversionScaledHost");
             try {
                 UIDocument document = host.AddComponent<UIDocument>();

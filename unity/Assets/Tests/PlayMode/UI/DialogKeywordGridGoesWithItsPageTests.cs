@@ -45,7 +45,7 @@ namespace BakAgain.Tests.PlayMode.UI {
             var stack = new InputLayerStack();
             _go = new GameObject("DialogKeywordGridUnderTest");
             var document = _go.AddComponent<UIDocument>();
-            _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            _panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             document.panelSettings = _panelSettings;
             document.sortingOrder = 10;
             var session = new GameSession();

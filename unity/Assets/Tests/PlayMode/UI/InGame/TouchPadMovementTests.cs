@@ -21,7 +21,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
         public IEnumerator AHeldTouchPadTurnsLikeTheCompassArrow() {
             var host = new GameObject("TouchPadDoc");
             var doc = host.AddComponent<UIDocument>();
-            doc.panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            doc.panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             var pad = new VisualElement {
                 name = "touchpad_77", pickingMode = PickingMode.Position,
                 style = { position = Position.Absolute, left = 0, top = 0, width = 200, height = 200 },
@@ -65,7 +65,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             // one click walked 2264 per axis where the original walks 1132 (TASK-739).
             var host = new GameObject("ArrowDoc");
             var doc = host.AddComponent<UIDocument>();
-            doc.panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            doc.panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             var arrow = new VisualElement {
                 name = "imagebutton_75", pickingMode = PickingMode.Position,
                 style = { position = Position.Absolute, left = 0, top = 0, width = 200, height = 200 },

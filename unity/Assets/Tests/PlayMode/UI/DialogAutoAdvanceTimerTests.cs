@@ -82,7 +82,7 @@ namespace BakAgain.Tests.PlayMode.UI {
         private UniTask<int> Show(DialogEntryFlags flags) {
             _go = new GameObject("DialogAutoAdvanceUnderTest");
             var document = _go.AddComponent<UIDocument>();
-            _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            _panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             document.panelSettings = _panelSettings;
             document.sortingOrder = 10;   // the modal-dialog tier, as DialogOverlay sits
 

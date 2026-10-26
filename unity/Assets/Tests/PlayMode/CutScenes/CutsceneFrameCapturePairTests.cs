@@ -4,6 +4,7 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
     using BakAgain.CutScenes;
     using NUnit.Framework;
     using UnityEngine;
+    using UnityEngine.TestTools;
 
     /// <summary>
     /// One request writes one matched pair — TASK-299 item (c).
@@ -25,8 +26,12 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
             _buffer.Create();
         }
 
-        [TearDown]
-        public void TearDown() {
+        // *** A FRAME BEFORE THE DIRECTORY GOES. *** The pair's screen half is a ScreenCapture, which
+        // writes at the END of the frame; deleting its directory straight away made Unity log "Failed
+        // to store screen shot" into every run (TASK-1004).
+        [UnityTearDown]
+        public System.Collections.IEnumerator TearDown() {
+            yield return null;
             CutsceneFrameCapture.End();
             if (_buffer != null) {
                 _buffer.Release();

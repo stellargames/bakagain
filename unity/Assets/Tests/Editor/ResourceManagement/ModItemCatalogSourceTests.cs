@@ -88,6 +88,7 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
                 overrides.Write(ModItemCatalogSource.Directory, "aaa-broken.json", "{\"Number\":3,");
                 overrides.Write(ModItemCatalogSource.Directory, "zzz-good.json",
                     "{\"Number\":3,\"Name\":\"Survivor\"}");
+                ExpectedLog.Expect(UnityEngine.LogType.Warning, "is not valid JSON");
 
                 Assert.AreEqual("Survivor", Fold(Shipped()).GetById(ShippedNumber).Name,
                     "a malformed file must be logged and skipped, not fail the whole catalog");
@@ -101,6 +102,7 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
             using (var overrides = new TempOverrideDirectory()) {
                 overrides.Write(ModItemCatalogSource.Directory, "nameless.json",
                     "{\"Name\":\"Unaddressed\"}");
+                ExpectedLog.Expect(UnityEngine.LogType.Warning, "has no integer Number");
 
                 Assert.AreEqual("Shipped Blade", Fold(Shipped()).GetById(ShippedNumber).Name);
             }

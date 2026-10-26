@@ -47,7 +47,7 @@ namespace BakAgain.Tests.PlayMode.UI {
             var cursor = new RecordingCursor();
             loader.Construct(cursor, null);
             typeof(UserInterfaceLoader).GetField("_userInterface", BindingFlags.NonPublic | BindingFlags.Instance)
-                .SetValue(loader, new UserInterface("REQ_TEST") { MenuEntries = System.Array.Empty<UiElement>() });
+                .SetValue(loader, new UserInterface("REQ_TEST") { MenuEntries = System.Array.Empty<UiElement>(), Frame = new GameData.Resources.Layout.DesignFrame { Width = 1600, Height = 1200 } });
             cursor.SetByIndex(7);   // "Tavern", as the hover over the door left it
 
             // The rest of the build needs a whole screen (layout, icons, labels) and fails here; the

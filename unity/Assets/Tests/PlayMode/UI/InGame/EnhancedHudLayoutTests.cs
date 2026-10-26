@@ -170,7 +170,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             VisualElement head = _root.Q("hotspot_2");
             VisualElement parent = head.parent;
 
-            LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex("EnhancedHud"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex("EnhancedHud"));
             var hud = new EnhancedHudLayout(_root, session: null, clock: null, statusFontFraction: 0.024f, EnhancedHudLayout.Travel);
             Assert.IsFalse(hud.Apply());
             Assert.IsFalse(hud.Apply(), "a retry (the compass builds late) stays quiet: one warning");

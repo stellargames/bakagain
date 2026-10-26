@@ -44,6 +44,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             Assume.That(_go.activeSelf, Is.True, "the stray state is an ACTIVE GameObject");
             Assume.That(_hud.IsVisible, Is.False, "...whose flag already says hidden");
 
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, "InGameScreen was hidden but still active");
             _hud.HideAsync();
 
             Assert.That(_go.activeSelf, Is.False,

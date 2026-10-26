@@ -188,10 +188,25 @@ namespace BakAgain.CutScenes
         ///
         /// <para>Letting the load throw took the whole animation with it: GDS40K rendered nothing and
         /// reported only "error animating". Preloading is an optimisation, so a name that resolves to
-        /// nothing is worth a line in the log and no more.</para>
+        /// nothing is a note in the log and no more.</para>
+        ///
+        /// <para><b>Asked before the load, not caught after it.</b> Addressables logs its own error
+        /// for a key with no location before it throws, so catching left a red line in the log every
+        /// time g_misc played, for a gap in the shipped data rather than a fault (TASK-1004).</para>
         /// </remarks>
         private async UniTask PreloadOptional<T>(string filename, CutsceneState state, IResourceCache cache) where T : class {
             if (string.IsNullOrEmpty(filename) || state.Resources.ContainsKey(filename)) {
+                return;
+            }
+
+            var locations = UnityEngine.AddressableAssets.Addressables.LoadResourceLocationsAsync(filename);
+            // Synchronous on purpose: the Editor walk runs this through GetResult, and a location
+            // lookup is an in-memory query against the catalogue.
+            bool present = locations.ResultOrWait() is { Count: > 0 };
+            UnityEngine.AddressableAssets.Addressables.Release(locations);
+            if (!present) {
+                BakAgain.Core.ConditionalLoggingExtensions.LogInformation(_logger,
+                    "Frame names {Filename}, which this game does not contain; skipped.", filename);
                 return;
             }
 

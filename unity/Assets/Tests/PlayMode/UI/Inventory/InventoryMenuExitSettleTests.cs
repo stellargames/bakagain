@@ -90,7 +90,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             InputLayerStack inputStack = null) {
             _go = new GameObject("InventoryMenuUnderTest");
             var document = _go.AddComponent<UIDocument>();
-            _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            _panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             document.panelSettings = _panelSettings;
 
             var menu = _go.AddComponent<InventoryMenu>();

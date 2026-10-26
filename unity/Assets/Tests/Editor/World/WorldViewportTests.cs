@@ -193,7 +193,7 @@ namespace BakAgain.Tests.Editor.World {
                 GameViewResolutionScope.Force(1280, 1024);
             yield return null;
 
-            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            var settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             settings.scaleMode = PanelScaleMode.ScaleWithScreenSize;
             settings.screenMatchMode = PanelScreenMatchMode.MatchWidthOrHeight;
             settings.match = 1f;

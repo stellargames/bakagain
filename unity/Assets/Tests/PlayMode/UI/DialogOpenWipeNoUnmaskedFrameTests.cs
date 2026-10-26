@@ -67,7 +67,7 @@ namespace BakAgain.Tests.PlayMode.UI {
                 using (new IsolatedResourceLocators()) {
                     ResourceManagementInitializer.InitializeResourceManagement();
 
-                    var settings = ScriptableObject.CreateInstance<PanelSettings>();
+                    var settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
                     settings.scaleMode = PanelScaleMode.ScaleWithScreenSize;
                     settings.screenMatchMode = PanelScreenMatchMode.MatchWidthOrHeight;
                     settings.match = 1f;

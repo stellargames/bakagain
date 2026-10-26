@@ -53,8 +53,15 @@ namespace BakAgain.Tests.PlayMode.World {
             _stopped = id => _sounds.Add("stop " + id);
         }
 
+        // TravelHud() builds an active HUD that was never shown (its _visible is false), which is the
+        // TASK-620 state the HUD's guard is there to warn about; here the fixture made it, so the
+        // line is taken out of the log rather than read as a fault (TASK-1004).
+        private BakAgain.Tests.TestSupport.ExpectedLog.Capture _fixtureHudGuard;
+
         [SetUp]
         public void ListenForCues() {
+            _fixtureHudGuard = BakAgain.Tests.TestSupport.ExpectedLog.CaptureAll(
+                new System.Text.RegularExpressions.Regex("InGameScreen was hidden but still active"));
             _sounds.Clear();
             BakAgain.Audio.MenuSoundService.CueRequested += _played;
             BakAgain.Audio.MenuSoundService.CueStopped += _stopped;
@@ -62,6 +69,7 @@ namespace BakAgain.Tests.PlayMode.World {
 
         [TearDown]
         public void TearDown() {
+            _fixtureHudGuard?.Dispose();
             BakAgain.Audio.MenuSoundService.CueRequested -= _played;
             BakAgain.Audio.MenuSoundService.CueStopped -= _stopped;
             foreach (GameObject go in new[] { _hudGo, _screenGo, _canvasGo, _dialogGo, _teleportGo, _menuGo }) {
@@ -748,7 +756,7 @@ namespace BakAgain.Tests.PlayMode.World {
             IScreenNavigator navigator) {
             _menuGo = new GameObject("InventoryMenu");
             var document = _menuGo.AddComponent<UIDocument>();
-            _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            _panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             document.panelSettings = _panelSettings;
             var menu = _menuGo.AddComponent<BakAgain.UI.Inventory.InventoryMenu>();
             menu.Construct(session, new BakAgain.Tests.PlayMode.UI.Inventory.NoOpResources(), navigator,
@@ -887,7 +895,7 @@ namespace BakAgain.Tests.PlayMode.World {
         private BakAgain.UI.DialogManager RealDialogs() {
             _dialogGo = new GameObject("DialogOverlay");
             var document = _dialogGo.AddComponent<UIDocument>();
-            _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            _panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             document.panelSettings = _panelSettings;
             document.sortingOrder = 10;
 

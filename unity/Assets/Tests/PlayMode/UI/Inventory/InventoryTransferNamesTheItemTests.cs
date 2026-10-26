@@ -32,7 +32,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         public void SetUp() {
             _go = new GameObject("InventoryTransferUnderTest");
             var document = _go.AddComponent<UIDocument>();
-            _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            _panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             document.panelSettings = _panelSettings;
 
             _menu = _go.AddComponent<InventoryMenu>();

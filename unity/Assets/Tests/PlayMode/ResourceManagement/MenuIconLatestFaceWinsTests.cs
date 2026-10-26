@@ -26,7 +26,7 @@ namespace BakAgain.Tests.PlayMode.ResourceManagement {
             ShippedGameData.RequireOrIgnore();
             ResourceManagementInitializer.InitializeResourceManagement();
             var host = new GameObject("~MenuIconHost");
-            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            var settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             try {
                 var document = host.AddComponent<UIDocument>();
                 document.panelSettings = settings;

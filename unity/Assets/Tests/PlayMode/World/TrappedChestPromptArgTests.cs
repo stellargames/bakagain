@@ -71,7 +71,7 @@ namespace BakAgain.Tests.PlayMode.World {
             session.CurrentZone = 2;
 
             _menuGo = new UnityEngine.GameObject("InventoryMenuUnderTest");
-            _panelSettings = UnityEngine.ScriptableObject.CreateInstance<UnityEngine.UIElements.PanelSettings>();
+            _panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             _menuGo.AddComponent<UnityEngine.UIElements.UIDocument>().panelSettings = _panelSettings;
             var menu = _menuGo.AddComponent<BakAgain.UI.Inventory.InventoryMenu>();
             menu.Construct(session, new NoOpResources(), new NoOpNavigator(),

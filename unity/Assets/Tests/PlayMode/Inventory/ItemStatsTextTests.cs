@@ -269,7 +269,7 @@ namespace BakAgain.Tests.PlayMode.Inventory {
                     Top = LayoutLength.Percent(25f),
                 },
             };
-            LogAssert.Expect(LogType.Error, new Regex("InventoryLayout.StatsOrigin"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, new Regex("InventoryLayout.StatsOrigin"));
 
             var lines = ItemStatsText.Build(Item(), Obj(ObjectType.Potion, race: (Race)2),
                 affecting: true, percent);

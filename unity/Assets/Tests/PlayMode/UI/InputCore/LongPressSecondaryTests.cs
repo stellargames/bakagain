@@ -69,7 +69,7 @@ namespace BakAgain.Tests.PlayMode.UI.InputCore {
             // A panel is required: the scheduler only runs for an element attached to one.
             _host = new GameObject("LongPressTestDoc");
             UIDocument doc = _host.AddComponent<UIDocument>();
-            doc.panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            doc.panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             _stage = new VisualElement { style = { width = 400, height = 400 } };
             doc.rootVisualElement.Add(_stage);
 

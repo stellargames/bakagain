@@ -122,7 +122,7 @@ namespace BakAgain.Tests.Editor.World {
             Png("Z01SLOT0", "3.front.png");
             Png("Z01SLOT0", "3.left.png");
             File.WriteAllText(Path.Combine(_mods.Root, "aliases.json"), "{ \"BMX/Z02SLOT1/4\": \"BMX/Z01SLOT0/3\" }");
-            LogAssert.Expect(LogType.Warning, new Regex("has 2 of the four sun-lit versions"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new Regex("has 2 of the four sun-lit versions"));
 
             Assert.IsTrue(HdFrames.TryLoad("Z01SLOT0.BMX#3", out HdFrame frame));
             Assert.IsTrue(HdFrames.TryLoad("Z02SLOT1.BMX#4", out _), "the same file by another key: not logged again");
@@ -148,7 +148,7 @@ namespace BakAgain.Tests.Editor.World {
                 Png("Z01SLOT0", $"9137.{side}.png");
             }
             File.WriteAllText(Path.Combine(_mods.Root, "BMX", "Z01SLOT0", "9137.right.png"), "not a png");
-            LogAssert.Expect(LogType.Error, new Regex("HD frame for Z01SLOT0.BMX#9137 skipped"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, new Regex("HD frame for Z01SLOT0.BMX#9137 skipped"));
 
             Assert.IsFalse(HdFrames.TryLoad("Z01SLOT0.BMX#9137", out _));
             yield return null; // Destroy lands at the end of the frame

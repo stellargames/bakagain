@@ -21,7 +21,7 @@ namespace BakAgain.Tests.PlayMode.UI {
         public void SetUp() {
             _host = new GameObject("TouchLongPressHotspotDoc");
             UIDocument doc = _host.AddComponent<UIDocument>();
-            doc.panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            doc.panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             _hotspot = new VisualElement { style = { width = 100, height = 100 } };
             doc.rootVisualElement.Add(_hotspot);
             _fired = 0;

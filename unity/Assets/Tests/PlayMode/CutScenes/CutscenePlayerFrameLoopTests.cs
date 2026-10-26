@@ -128,6 +128,7 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
             // either way must not derail the sequence.
             var frames = new List<Frame> { Frame(1), Frame(2) };
             _processor.OnFrame[0] = s => s.GotoTag = 99;
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(UnityEngine.LogType.Warning, "jump to tag 99, which no frame carries");
 
             Assert.IsTrue(Play(frames));
             Assert.AreEqual(new[] { 1, 2 }, _processor.Processed);

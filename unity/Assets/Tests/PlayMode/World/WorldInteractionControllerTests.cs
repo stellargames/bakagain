@@ -13,6 +13,17 @@ namespace BakAgain.Tests.PlayMode.World {
     using UnityEngine.TestTools;
 
     public class WorldInteractionControllerTests {
+        // The controllers here have no stage (no panel at all), so a click maps through the Contain
+        // fallback and says so once per controller; that is the fixture, not a fault (TASK-1004).
+        private BakAgain.Tests.TestSupport.ExpectedLog.Capture _noStage;
+
+        [SetUp]
+        public void NoStageHere() => _noStage = BakAgain.Tests.TestSupport.ExpectedLog.CaptureAll(
+            new System.Text.RegularExpressions.Regex("WorldInteractionController: stage not resolved"));
+
+        [TearDown]
+        public void StageNoteGone() => _noStage?.Dispose();
+
         private sealed class FakeHandler : IWorldInteractionHandler {
             private readonly string _behavior;
             public int Calls;

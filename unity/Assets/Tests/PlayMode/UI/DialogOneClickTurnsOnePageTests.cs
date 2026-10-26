@@ -95,7 +95,7 @@ namespace BakAgain.Tests.PlayMode.UI {
         private (DialogManager, UniTask<int>) Show(InputLayerStack stack) {
             _go = new GameObject("DialogOneClickUnderTest");
             var document = _go.AddComponent<UIDocument>();
-            _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            _panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             document.panelSettings = _panelSettings;
             document.sortingOrder = 10;
 

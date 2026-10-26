@@ -27,7 +27,7 @@ namespace BakAgain.Tests.PlayMode.UI {
         private IEnumerator Build(bool gesture) {
             _doc = new GameObject("TouchReachDoc");
             UIDocument doc = _doc.AddComponent<UIDocument>();
-            doc.panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            doc.panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             VisualElement root = doc.rootVisualElement;
             yield return null;
 
@@ -36,7 +36,7 @@ namespace BakAgain.Tests.PlayMode.UI {
             var loader = _loaderGo.AddComponent<UserInterfaceLoader>();
             loader.Construct(null, null);
             typeof(UserInterfaceLoader).GetField("_userInterface", BindingFlags.NonPublic | BindingFlags.Instance)
-                .SetValue(loader, new UserInterface("REQ_TEST") { MenuEntries = System.Array.Empty<UiElement>() });
+                .SetValue(loader, new UserInterface("REQ_TEST") { MenuEntries = System.Array.Empty<UiElement>(), Frame = new GameData.Resources.Layout.DesignFrame { Width = 1600, Height = 1200 } });
             if (gesture) loader.TouchAsksFirst = _ => false;   // what LocationScreen.Bind sets
             try {
                 var build = (UniTask)typeof(UserInterfaceLoader)

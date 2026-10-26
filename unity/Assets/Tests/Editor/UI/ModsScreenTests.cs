@@ -215,6 +215,7 @@ namespace BakAgain.Tests.Editor.UI {
         public void Draft_ProblemsSurface() {
             Mod("aa");
             Mod("bb", ",\"dependencies\":{\"zz\":\">=1.0.0\"}");
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(UnityEngine.LogType.Warning, "Mod bb not active \\(MissingDependency\\)");
             ModLayers.Initialize();
             ModsDraft draft = ModsDraft.Load();
 

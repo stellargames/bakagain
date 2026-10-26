@@ -64,9 +64,9 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
         /// </remarks>
         [Test]
         public void BothStopCommandsRunWithNoPlayerWired() {
-            UnityEngine.TestTools.LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(
                 "MidiPlaybackManager is not available.*Cannot stop sound ID 3"));
-            UnityEngine.TestTools.LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(
                 "MidiPlaybackManager is not available.*Cannot stop playback of sound ID 3"));
 
             Assert.DoesNotThrow(() => AnimationCommandMap.GetAction(new StopSound { SoundId = 3 })(_state),

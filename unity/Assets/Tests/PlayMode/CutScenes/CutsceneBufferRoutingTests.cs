@@ -33,7 +33,7 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
         public void SetUp() {
             _host = new GameObject("CutsceneBufferHost");
             RawImage raw = _host.AddComponent<RawImage>();
-            raw.texture = new Texture2D(64, 64);
+            raw.texture = new Texture2D(64, 64, TextureFormat.RGBA32, false);   // no mips: the canvas's present copies 1:1
             _state = new CutsceneState(new UiImage(raw), Palette());
         }
 
@@ -181,9 +181,6 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
                 new GameData.Resources.Animation.FrameCommands.SetFramesDuration { Amount = 0 },
             };
             int? durationWhenShown = null;
-            // The fixture's 64x64 canvas has mips, so the frame's final present logs a CopyTexture
-            // mismatch; that render is not what this test is about.
-            UnityEngine.TestTools.LogAssert.ignoreFailingMessages = true;
 
             await processor.ProcessFrameRuntimeAsync(commands, _state, System.Threading.CancellationToken.None,
                 showDialogs: () => {

@@ -222,7 +222,7 @@ namespace BakAgain.Tests.PlayMode.UI {
         [UnityTest]
         public IEnumerator AUiToolkitStage_IsFollowedUntilItsDocumentGoes() {
             _host = new GameObject("StageHost");
-            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            var settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             try {
                 var document = _host.AddComponent<UIDocument>();
                 document.panelSettings = settings;
@@ -253,7 +253,7 @@ namespace BakAgain.Tests.PlayMode.UI {
             BookSpreadBackdrop.Show(Surface("Location"), Page(leftStraight: true, rightStraight: false));
             var screen = new GameObject("ShopScreen");
             screen.transform.SetParent(_host.transform, false);
-            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            var settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             try {
                 var document = screen.AddComponent<UIDocument>();
                 document.panelSettings = settings;
@@ -285,7 +285,7 @@ namespace BakAgain.Tests.PlayMode.UI {
         [UnityTest]
         public IEnumerator AStageFadingOut_TakesTheBookWithIt() {
             _host = new GameObject("StageHost");
-            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            var settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             try {
                 var document = _host.AddComponent<UIDocument>();
                 document.panelSettings = settings;
@@ -323,7 +323,7 @@ namespace BakAgain.Tests.PlayMode.UI {
         [UnityTest]
         public IEnumerator AStageNotYetLaidOut_DrawsNothing() {
             _host = new GameObject("StageHost");
-            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            var settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             try {
                 var document = _host.AddComponent<UIDocument>();
                 document.panelSettings = settings;
@@ -374,7 +374,7 @@ namespace BakAgain.Tests.PlayMode.UI {
         public IEnumerator TheMainMenusBackground_ShowsTheBook_UntilTheScreenCloses() {
             _host = new GameObject("MenuHost");
             _host.SetActive(false);
-            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            var settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             try {
                 _host.AddComponent<UIDocument>().panelSettings = settings;
                 _host.AddComponent<BakAgain.ResourceManagement.Loaders.BackgroundImageLoader>();   // OPTIONS0.SCX by default

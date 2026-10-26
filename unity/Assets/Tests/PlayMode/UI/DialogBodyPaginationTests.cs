@@ -187,7 +187,7 @@ namespace BakAgain.Tests.PlayMode.UI {
             float panelHeight = ShortPanelHeight, DialogStyle style = null) {
             _go = new GameObject("DialogBodyPaginationUnderTest");
             var document = _go.AddComponent<UIDocument>();
-            _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            _panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             document.panelSettings = _panelSettings;
 
             VisualElement panel = DialogPanelBuilder.BuildPanel(

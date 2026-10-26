@@ -171,16 +171,10 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
             state.ImageSlots = new Dictionary<int, string>();
             state.Resources = new ResourceSet();
 
-            // Addressables logs its own Error before throwing InvalidKeyException, so the console
-            // carries one red line per dangling name even though the walk shrugs it off. That is
-            // current Studio behaviour, not something this test is asserting away.
-            UnityEngine.TestTools.LogAssert.ignoreFailingMessages = true;
-            try {
-                Assert.DoesNotThrow(() => _processor.PreloadFrameResourcesEditor(
-                    new FrameCommand[] { new LoadPaletteResource { Filename = "G_BKLIAL.PAL" } }, state));
-            } finally {
-                UnityEngine.TestTools.LogAssert.ignoreFailingMessages = false;
-            }
+            // The walk asks for the name's location first, so Addressables never gets to log its own
+            // error for it: a dangling name is a note, and the run's log stays clean (TASK-1004).
+            Assert.DoesNotThrow(() => _processor.PreloadFrameResourcesEditor(
+                new FrameCommand[] { new LoadPaletteResource { Filename = "G_BKLIAL.PAL" } }, state));
 
             // And it returned rather than parked: GetResult on a still-pending walk would not have
             // got here. Nothing was recorded, because the name resolves to nothing.

@@ -27,7 +27,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             GameViewResolutionScope gameView = GameViewResolutionScope.Force(1920, 1080);
             yield return null;
 
-            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            var settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             settings.scaleMode = PanelScaleMode.ScaleWithScreenSize;
             settings.screenMatchMode = PanelScreenMatchMode.MatchWidthOrHeight;
             settings.match = 1f;
@@ -94,7 +94,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             GameViewResolutionScope gameView = GameViewResolutionScope.Force(1920, 1080);
             yield return null;
 
-            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            var settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             settings.scaleMode = PanelScaleMode.ScaleWithScreenSize;
             settings.screenMatchMode = PanelScreenMatchMode.MatchWidthOrHeight;
             settings.match = 1f;

@@ -197,7 +197,7 @@ namespace BakAgain.Tests.PlayMode.UI {
             using (new IsolatedResourceLocators()) {
                 ResourceManagementInitializer.InitializeResourceManagement();
                 var host = new GameObject("DialogOverlayUnderTest", typeof(UIDocument));
-                PanelSettings settings = ScriptableObject.CreateInstance<PanelSettings>();
+                PanelSettings settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
                 try {
                     host.GetComponent<UIDocument>().panelSettings = settings;
                     DialogManager manager = host.AddComponent<DialogManager>();

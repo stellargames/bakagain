@@ -288,7 +288,7 @@ namespace BakAgain.Tests.PlayMode.Inventory {
 
             // Two rows: there is no row 2 at all, so Armor gets no cell rather than one outside —
             // and the screen says so, because the item is worn and not on it (TASK-66).
-            LogAssert.Expect(LogType.Warning, new Regex(@"could not show 1 of 1 items"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new Regex(@"could not show 1 of 1 items"));
             var tinyGrid = new VisualElement();
             new ItemGridRenderer().Render(tinyGrid, container, objects, resources: null,
                 onSlotPicked: null, InventoryLayoutMode.Member, SyntheticLayout(rows: 2),
@@ -372,7 +372,7 @@ namespace BakAgain.Tests.PlayMode.Inventory {
             var root = new VisualElement();
             var renderer = new ItemGridRenderer();
 
-            LogAssert.Expect(LogType.Error, new Regex("loot grid's centring inputs"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, new Regex("loot grid's centring inputs"));
             renderer.Render(root, ContainerOf(1), ObjectsWithSlots(1), resources: null,
                 onSlotPicked: null, InventoryLayoutMode.Loot, PercentCellLayout(), SyntheticFrame());
 
@@ -393,7 +393,7 @@ namespace BakAgain.Tests.PlayMode.Inventory {
             InventoryLayout layout = SyntheticLayout();
             layout.MemberShiftX = LayoutLength.Percent(12f);
 
-            LogAssert.Expect(LogType.Error, new Regex("MemberShiftX"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, new Regex("MemberShiftX"));
             renderer.Render(root, BuildContainer(), BuildObjects(), resources: null,
                 onSlotPicked: null, InventoryLayoutMode.Member, layout, SyntheticFrame());
 
@@ -435,7 +435,7 @@ namespace BakAgain.Tests.PlayMode.Inventory {
                 },
             };
 
-            LogAssert.Expect(LogType.Error, new Regex("CellWidth/CellHeight"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, new Regex("CellWidth/CellHeight"));
             renderer.Render(root, BuildContainer(), BuildObjects(), resources: null,
                 onSlotPicked: null, InventoryLayoutMode.Loot, layout, SyntheticFrame());
 
@@ -450,11 +450,11 @@ namespace BakAgain.Tests.PlayMode.Inventory {
             var root = new VisualElement();
             var renderer = new ItemGridRenderer();
 
-            LogAssert.Expect(LogType.Error, new Regex("loot grid's centring inputs"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, new Regex("loot grid's centring inputs"));
             renderer.Render(root, ContainerOf(1), ObjectsWithSlots(1), resources: null,
                 onSlotPicked: null, InventoryLayoutMode.Loot, PercentCellLayout(), SyntheticFrame());
 
-            LogAssert.Expect(LogType.Error, new Regex("CellWidth/CellHeight"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, new Regex("CellWidth/CellHeight"));
             Assert.AreEqual(Vector2.zero, renderer.CellSizeCanonical(1));
         }
 
@@ -823,7 +823,7 @@ namespace BakAgain.Tests.PlayMode.Inventory {
         private (UIDocument document, VisualElement stage) BuildFillStage(float stageWidth, DesignFrame frame) {
             var go = new GameObject("ItemGridRendererFillStage");
             _spawned.Add(go);
-            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            var settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             _scratchAssets.Add(settings);
             var document = go.AddComponent<UIDocument>();
             document.panelSettings = settings;
@@ -1070,7 +1070,7 @@ namespace BakAgain.Tests.PlayMode.Inventory {
         // needs an actual panel (a throwaway UIDocument+PanelSettings), not just a bare
         // VisualElement tree.
         private void AttachToRuntimePanel(VisualElement root, DesignFrame frame) {
-            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            var settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             _scratchAssets.Add(settings);
 
             // *** THE PANEL MUST NOT TAKE ITS SIZE FROM Screen. *** A UIDocument's runtime panel is

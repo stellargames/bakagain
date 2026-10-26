@@ -28,7 +28,7 @@ namespace BakAgain.Tests.PlayMode.UI.Localization {
         public IEnumerator ACaptionWiderThanItsButtonShrinks_AndOneThatFitsDoesNot() {
             _go = new GameObject("CaptionFit");
             var doc = _go.AddComponent<UIDocument>();
-            _panel = ScriptableObject.CreateInstance<PanelSettings>();
+            _panel = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             doc.panelSettings = _panel;
             // The roomy caption is on a screen of its own: captions on one screen share one size.
             _otherScreen = new GameObject("CaptionFitOtherScreen");

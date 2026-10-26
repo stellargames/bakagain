@@ -150,7 +150,7 @@ namespace BakAgain.Tests.PlayMode.Inventory {
             var go = new UnityEngine.GameObject("InventoryMenuUnderTest");
             try {
                 var document = go.AddComponent<UnityEngine.UIElements.UIDocument>();
-                var panelSettings = UnityEngine.ScriptableObject.CreateInstance<UnityEngine.UIElements.PanelSettings>();
+                var panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
                 document.panelSettings = panelSettings;
                 var menu = go.AddComponent<BakAgain.UI.Inventory.InventoryMenu>();
                 // Selection also refreshes the container image, so the menu needs its

@@ -45,7 +45,7 @@ namespace BakAgain.Tests.PlayMode.UI.Navigation {
             // TASK-569's defect: a pop that removes the screen ResetTo installed.
             var nav = new ScreenNavigator();
             await nav.ResetTo(new RecordingScreen("travel", new List<string>()));
-            LogAssert.Expect(UnityEngine.LogType.Warning,
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(UnityEngine.LogType.Warning,
                 new System.Text.RegularExpressions.Regex("Pop emptied the stack"));
             await nav.Pop();
         });
@@ -69,12 +69,12 @@ namespace BakAgain.Tests.PlayMode.UI.Navigation {
                 await nav.Pop();
                 Assert.AreEqual(0, warnings, "popping your own pushed screen is not TASK-569");
 
-                // Control: the same counter does see the real defect.
+                // Control: the real defect is still reported (ExpectedLog swallows the line it expects,
+                // so it no longer reaches the counter).
                 await nav.ResetTo(new RecordingScreen("travel", new List<string>()));
-                LogAssert.Expect(UnityEngine.LogType.Warning,
+                BakAgain.Tests.TestSupport.ExpectedLog.Expect(UnityEngine.LogType.Warning,
                     new System.Text.RegularExpressions.Regex("Pop emptied the stack"));
-                await nav.Pop();
-                Assert.AreEqual(1, warnings, "and the base pop is still reported");
+                await nav.Pop();   // the expectation fails the test if the warning does not come
             } finally {
                 UnityEngine.Application.logMessageReceived -= Count;
             }
@@ -168,7 +168,7 @@ namespace BakAgain.Tests.PlayMode.UI.Navigation {
 
                 await nav.ResetTo(travel);
                 await nav.Push(inventory);          // opener one: a corpse loot
-                LogAssert.Expect(UnityEngine.LogType.Warning, new System.Text.RegularExpressions.Regex(
+                BakAgain.Tests.TestSupport.ExpectedLog.Expect(UnityEngine.LogType.Warning, new System.Text.RegularExpressions.Regex(
                     "pushed while already on the stack"));
                 await nav.Push(inventory);          // opener two: the same singleton again
 
@@ -177,7 +177,7 @@ namespace BakAgain.Tests.PlayMode.UI.Navigation {
                 // The second pop empties the stack, which the navigator now reports with a stack
                 // trace -- that warning IS the TASK-569 instrument, and expecting it here is what
                 // proves it fires on this shape.
-                LogAssert.Expect(UnityEngine.LogType.Warning, new System.Text.RegularExpressions.Regex(
+                BakAgain.Tests.TestSupport.ExpectedLog.Expect(UnityEngine.LogType.Warning, new System.Text.RegularExpressions.Regex(
                     "Pop emptied the stack"));
                 await nav.Pop();
 

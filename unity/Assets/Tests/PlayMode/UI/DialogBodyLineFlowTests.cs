@@ -155,7 +155,7 @@ namespace BakAgain.Tests.PlayMode.UI {
         private IEnumerator BuildAndFlow(System.Action<VisualElement> report) {
             _go = new GameObject("DialogBodyFlowUnderTest");
             var document = _go.AddComponent<UIDocument>();
-            _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            _panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             document.panelSettings = _panelSettings;
 
             VisualElement panel = DialogPanelBuilder.BuildPanel(

@@ -34,7 +34,7 @@ namespace BakAgain.Tests.PlayMode.UI.Cursor {
         public IEnumerator TheTouchWord_SitsOnALightPlate_AndTheMouseCursorDoesNot() {
             _host = new GameObject("TouchWordPlate");
             UIDocument doc = _host.AddComponent<UIDocument>();
-            doc.panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            doc.panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             var cm = _host.AddComponent<CursorManager>();
             _ink = new Texture2D(120, 40);
             var cache = new OneSprite { Sprite = Sprite.Create(_ink, new Rect(0, 0, 120, 40), Vector2.zero) };

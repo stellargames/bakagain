@@ -180,20 +180,15 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
 
         /// <summary>Runs <paramref name="body"/> and returns the log messages containing <paramref name="mark"/>;
         /// Addressables' own logs of the failed load are not under test.</summary>
-        private static async UniTask<List<string>> Logged(string mark, Func<UniTask> body) {
-            var logged = new List<string>();
-            void Collect(string message, string stack, LogType type) {
-                if (message.Contains(mark)) logged.Add(message);
-            }
-            LogAssert.ignoreFailingMessages = true;
-            Application.logMessageReceived += Collect;
-            try {
-                await body();
-            } finally {
-                Application.logMessageReceived -= Collect;
-                LogAssert.ignoreFailingMessages = false;
-            }
-            return logged;
+        /// <param name="alsoSwallow">Other lines the broken file provokes (the loader's own exception),
+        /// kept out of the log but not counted.</param>
+        private static async UniTask<List<string>> Logged(string mark, Func<UniTask> body, string alsoSwallow = null) {
+            using var counted = ExpectedLog.CaptureAll(
+                new System.Text.RegularExpressions.Regex(System.Text.RegularExpressions.Regex.Escape(mark)));
+            using var other = ExpectedLog.CaptureAll(new System.Text.RegularExpressions.Regex(
+                alsoSwallow == null ? "(?!)" : System.Text.RegularExpressions.Regex.Escape(alsoSwallow)));
+            await body();
+            return counted.Lines;
         }
 
         [UnityTest]
@@ -205,7 +200,8 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
             try {
                 StartWithMod(Path.Combine("Resources", "Enhanced", "Stone", "marble.png"), NotAFile);
 
-                List<string> errors = await Logged("Enhanced art", EnhancedArt.PreloadAsync);
+                List<string> errors = await Logged("Enhanced art", EnhancedArt.PreloadAsync,
+                    alsoSwallow: "is not a decodable PNG/JPG");
 
                 // Once per preload; a focused run's scene boots the game, whose own preload can see the mod too.
                 Assert.IsNotEmpty(errors);

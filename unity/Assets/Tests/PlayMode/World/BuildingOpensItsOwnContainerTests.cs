@@ -72,7 +72,7 @@ namespace BakAgain.Tests.PlayMode.World {
             session.CurrentZone = 1;
 
             var menuGo = new GameObject("InventoryMenuUnderTest");
-            var panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            var panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             var entity = new GameObject("inn").AddComponent<WorldEntity>();
             try {
                 menuGo.AddComponent<UIDocument>().panelSettings = panelSettings;

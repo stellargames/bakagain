@@ -173,7 +173,7 @@ namespace BakAgain.Tests.PlayMode.UI {
             GameFontText.Apply(reference);
 
             var host = new GameObject("DialogBodyFontUnderTest");
-            var panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            var panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             Label body = null;
             try {
                 var document = host.AddComponent<UIDocument>();
@@ -241,8 +241,8 @@ namespace BakAgain.Tests.PlayMode.UI {
             GameFontText.Apply(label);
             label.style.unityFontDefinition = new StyleFontDefinition(_font);
             label.style.fontSize = fontSize;
-            return label.MeasureTextSize(text, 100000f, VisualElement.MeasureMode.AtMost,
-                0f, VisualElement.MeasureMode.Undefined);
+            using var panel = new BakAgain.Tests.TestSupport.TextMeasurePanel();
+            return panel.Measure(label, text);
         }
 
         private static DialogStyle BorderlessStyle() => new DialogStyle {

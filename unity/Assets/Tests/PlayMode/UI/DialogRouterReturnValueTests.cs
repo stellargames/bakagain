@@ -104,7 +104,7 @@ namespace BakAgain.Tests.PlayMode.UI {
         private IEnumerator Show(GameSession session, System.Action<int> report, Dialog dialog = null) {
             _go = new GameObject("DialogRouterUnderTest");
             var document = _go.AddComponent<UIDocument>();
-            _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            _panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             document.panelSettings = _panelSettings;
 
             var executor = new DialogExecutor(

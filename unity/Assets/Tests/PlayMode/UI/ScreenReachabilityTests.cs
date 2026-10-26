@@ -87,6 +87,9 @@ namespace BakAgain.Tests.PlayMode.UI {
 
             var unreachable = new List<string>();
             var unbuilt = new List<string>();
+            // Every screen is switched on with no world to show; the world-view ones say so (TASK-1004).
+            using var noWorld = BakAgain.Tests.TestSupport.ExpectedLog.CaptureAll(
+                new System.Text.RegularExpressions.Regex("WorldViewportView: no world camera set"));
 
             foreach (UserInterfaceLoader loader in loaders) {
                 GameObject go = loader.gameObject;

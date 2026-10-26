@@ -19,6 +19,7 @@ namespace BakAgain.Tests {
         private string _language;
         private (string Game, bool ModsOn, string Mods) _folders;
         private BakAgain.Audio.MenuSoundService _sounds;
+        private TestSupport.ExpectedLog.Capture _overflowReport;
 
         // The folder settings are the developer's real, persisted ones. A test that changes one puts
         // it back itself; this catches one that did not (TASK-949), says so, and restores it.
@@ -28,6 +29,15 @@ namespace BakAgain.Tests {
         [OneTimeSetUp]
         public void Clear() {
             TestSupport.GameViewResolutionScope.OpenOnceWithoutGraphics();
+            // Only in Play: an Edit-mode run has no audio frame to complain in, and cannot keep a
+            // DontDestroyOnLoad object.
+            if (UnityEngine.Application.isPlaying) {
+                TestSupport.StandbyAudioListener.Create();   // kept until Play ends: the run's last frames play audio too
+            }
+            // TextOverflowReport's log line is a play-session diagnostic; tests read its Entries. And
+            // the game boots in the runner's scene, so a test that leaves a language behind can make
+            // the live main menu's captions report too (TASK-1004).
+            _overflowReport = TestSupport.ExpectedLog.CaptureAll(new System.Text.RegularExpressions.Regex(@"^\[TextOverflow\]"));
             _folders = Folders;
             _language = BakResourceSettings.Language;
             BakResourceSettings.Language = "en";
@@ -47,6 +57,7 @@ namespace BakAgain.Tests {
 
         [OneTimeTearDown]
         public void Restore() {
+            _overflowReport?.Dispose();
             if (Folders != _folders) {
                 UnityEngine.Debug.LogError($"A test left the folder settings changed: {Folders}, was {_folders}. Restored.");
                 (BakResourceSettings.GamePath, BakResourceSettings.OverrideEnabled, BakResourceSettings.OverridePath) = _folders;

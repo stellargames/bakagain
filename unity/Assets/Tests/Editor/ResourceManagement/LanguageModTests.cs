@@ -90,7 +90,7 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
         [Test]
         public void ActiveFontPath_NoPack_IsNull() {
             BakResourceSettings.Language = "zz";
-            LogAssert.Expect(LogType.Warning, new Regex("Language 'zz' selected but no pack"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new Regex("Language 'zz' selected but no pack"));
             LanguagePacks.Reload();
 
             Assert.IsNull(LanguagePacks.ActiveFontPath("GAME.FNT"));

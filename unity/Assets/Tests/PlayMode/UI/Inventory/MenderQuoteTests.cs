@@ -88,7 +88,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         private (InventoryMenu, GameSession, RecordingDialogs) Build(int gold) {
             _go = new GameObject("MenderUnderTest");
             var document = _go.AddComponent<UIDocument>();
-            _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            _panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             document.panelSettings = _panelSettings;
 
             var menu = _go.AddComponent<InventoryMenu>();

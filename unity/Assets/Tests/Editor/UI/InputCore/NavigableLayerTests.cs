@@ -276,7 +276,7 @@ namespace BakAgain.Tests.Editor.UI.InputCore {
         // failure below can only mean the Cyclic/Spatial skip logic is wrong, not a setup fluke.
         private (NavigableLayer layer, int[] fired, List<VisualElement> elements) MakeRowOnPanel(
             string[] labels, bool[] hidden) {
-            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            var settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             var go = new GameObject("NavigableLayerHiddenWidgetTestPanel");
             var document = go.AddComponent<UIDocument>();
             document.panelSettings = settings;
@@ -390,7 +390,7 @@ namespace BakAgain.Tests.Editor.UI.InputCore {
 
         [Test]
         public void SetWidgets_WithALiveRectWidget_ResolvesFocusAfterLayoutCatchesUp_NotAtSwapTime() {
-            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            var settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             var go = new GameObject("NavigableLayerLiveRectTestPanel");
             var document = go.AddComponent<UIDocument>();
             document.panelSettings = settings;

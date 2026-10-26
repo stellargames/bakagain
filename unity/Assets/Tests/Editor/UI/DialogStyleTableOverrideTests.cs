@@ -253,7 +253,7 @@ namespace BakAgain.Tests.Editor.UI {
         /// </summary>
         [Test]
         public void AnOverrideNamingAFieldTheResourceDoesNotHave_IsReported() {
-            LogAssert.Expect(LogType.Warning, new Regex(
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new Regex(
                 @"FillPenColour.*not a field of the shipped resource"));
 
             DialogStyleTable table = LoadThroughTheRealOverridePath(
@@ -275,7 +275,7 @@ namespace BakAgain.Tests.Editor.UI {
         /// </summary>
         [Test]
         public void AnOverrideNamingADerivedReadOnlyProperty_IsReported() {
-            LogAssert.Expect(LogType.Warning, new Regex(
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new Regex(
                 @"HasBorder.*not a field of the shipped resource"));
 
             DialogStyleTable table = LoadThroughTheRealOverridePath(
@@ -296,7 +296,7 @@ namespace BakAgain.Tests.Editor.UI {
         /// </summary>
         [Test]
         public void AnOverrideWithMoreRowsThanTheShippedTable_IsReported() {
-            LogAssert.Expect(LogType.Warning, new Regex(@"Rows.*10 entries.*shipped resource has 7"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new Regex(@"Rows.*10 entries.*shipped resource has 7"));
 
             DialogStyleTable table = LoadThroughTheRealOverridePath(
                 "{\"Rows\":[null,null,null,null,null,null,null,null,null,{\"FillPenColor\":3}]}");
@@ -318,7 +318,7 @@ namespace BakAgain.Tests.Editor.UI {
         /// </summary>
         [Test]
         public void AnOverrideWritingIntoTheShippedNullRow_IsReported() {
-            LogAssert.Expect(LogType.Warning, new Regex(
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new Regex(
                 @"Rows\[0\].*ships as null"));
 
             DialogStyleTable table = LoadThroughTheRealOverridePath(
@@ -371,7 +371,7 @@ namespace BakAgain.Tests.Editor.UI {
         /// </summary>
         [Test]
         public void AnOverridePuttingAScalarWhereTheResourceHasAnObject_IsReported() {
-            LogAssert.Expect(LogType.Warning, new Regex(
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new Regex(
                 @"Rows\[2\].*Integer where the shipped resource has Object"));
 
             DialogStyleTable table = LoadThroughTheRealOverridePath("{\"Rows\":[null,null,5]}");
@@ -402,7 +402,7 @@ namespace BakAgain.Tests.Editor.UI {
         /// </summary>
         [Test]
         public void AnOverrideNamingType_IsReportedAndDoesNotSilentlyMatch() {
-            LogAssert.Expect(LogType.Warning, new Regex(
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new Regex(
                 @"Type.*not a field of the shipped resource"));
 
             DialogStyleTable table = LoadThroughTheRealOverridePath("{\"Type\":\"REQ\"}");

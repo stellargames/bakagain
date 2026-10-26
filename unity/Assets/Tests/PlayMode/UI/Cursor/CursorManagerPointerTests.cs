@@ -29,7 +29,7 @@ namespace BakAgain.Tests.PlayMode.UI.Cursor {
         // unmistakable, non-canonical 800×600 Contain stage must be what StageOrigin() measures.
         [UnityTest]
         public IEnumerator PumpPointer_StageOrigin_ReadsTheActiveStagesRealGeometry_NotHardcodedCanonicalSize() {
-            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            var settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             var stageHost = new GameObject("StageHost");
             var cursorHost = new GameObject("CursorHost");
             try {
@@ -88,7 +88,7 @@ namespace BakAgain.Tests.PlayMode.UI.Cursor {
         // so neither stage can pass by coincidence.
         [UnityTest]
         public IEnumerator PumpPointer_ResolvesAgainstTheTopmostStage_NotTheFirstOneInTheTree() {
-            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            var settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             var screenHost = new GameObject("ScreenHost");
             var dialogHost = new GameObject("DialogHost");
             var cursorHost = new GameObject("CursorHost");
@@ -131,7 +131,7 @@ namespace BakAgain.Tests.PlayMode.UI.Cursor {
         // scale other than 1 the drawn cursor and the click disagreed. Scale 2 makes that a 2x miss.
         [UnityTest]
         public IEnumerator PumpPointer_WithNoStage_TracksThePointerInPanelUnits() {
-            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            var settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             settings.scaleMode = PanelScaleMode.ConstantPixelSize;
             settings.scale = 2f;
             var cursorHost = new GameObject("CursorHost");

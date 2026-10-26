@@ -20,7 +20,7 @@ namespace BakAgain.Tests.PlayMode.UI {
         // 1600x1200.
         [UnityTest]
         public IEnumerator RevealCont2_CoversTheStagesRealSize_NotHardcodedCanonicalSize() {
-            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            var settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             var stageHost = new GameObject("StageHost");
             // Created inactive so the ContentsChapterOverlay/UserInterfaceLoader RequireComponent
             // pair never runs Awake/OnEnable (which would try to load a real REQ via Addressables) —

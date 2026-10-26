@@ -152,7 +152,7 @@ namespace BakAgain.Tests.Editor.UI {
         [Test]
         public void Apply_PositionInFlowWithExplicitInsets_DoesNotWriteInsetsAndWarns() {
             var element = new VisualElement();
-            LogAssert.Expect(LogType.Warning, new Regex("InFlow.*ignoring|ignoring.*Anchor", RegexOptions.IgnoreCase));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new Regex("InFlow.*ignoring|ignoring.*Anchor", RegexOptions.IgnoreCase));
 
             LayoutApplier.Apply(element, new LayoutHint {
                 Position = LayoutPosition.InFlow,
@@ -169,7 +169,7 @@ namespace BakAgain.Tests.Editor.UI {
         [Test]
         public void Apply_PositionInFlowWithNonDefaultAnchor_Warns() {
             var element = new VisualElement();
-            LogAssert.Expect(LogType.Warning, new Regex("InFlow.*ignoring|ignoring.*Anchor", RegexOptions.IgnoreCase));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new Regex("InFlow.*ignoring|ignoring.*Anchor", RegexOptions.IgnoreCase));
 
             LayoutApplier.Apply(element, new LayoutHint {
                 Position = LayoutPosition.InFlow,
@@ -210,7 +210,7 @@ namespace BakAgain.Tests.Editor.UI {
             // table says ignore the aspect and warn once, rather than let one axis fight UI
             // Toolkit's own aspect-ratio solver.
             var element = new VisualElement();
-            LogAssert.Expect(LogType.Warning, new Regex("AspectRatio.*ignoring|ignoring.*AspectRatio", RegexOptions.IgnoreCase));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new Regex("AspectRatio.*ignoring|ignoring.*AspectRatio", RegexOptions.IgnoreCase));
 
             LayoutApplier.Apply(element, new LayoutHint {
                 Width = LayoutLength.Px(1400f),
@@ -356,7 +356,7 @@ namespace BakAgain.Tests.Editor.UI {
         [Test]
         public void Apply_WithDefaultAspectRatio_DoesNotThrow() {
             var element = new VisualElement();
-            LogAssert.Expect(LogType.Warning, new Regex("AspectRatio", RegexOptions.IgnoreCase));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new Regex("AspectRatio", RegexOptions.IgnoreCase));
 
             Assert.DoesNotThrow(() => LayoutApplier.Apply(element, new LayoutHint {
                 Width = LayoutLength.Percent(50f),
@@ -750,7 +750,7 @@ namespace BakAgain.Tests.Editor.UI {
             var grid = new LayoutGrid { Columns = 4, Rows = 4 };
             var placement = new LayoutGridPlacement { Column = 2, Row = 1 };
 
-            LogAssert.Expect(LogType.Error, new Regex("cell size is Auto"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, new Regex("cell size is Auto"));
             LayoutApplier.ApplyGridPlacement(child, grid, placement);
 
             Assert.AreEqual(StyleKeyword.Null, child.style.left.keyword, "left must be left alone");
@@ -768,7 +768,7 @@ namespace BakAgain.Tests.Editor.UI {
             var child = new VisualElement();
             var grid = new LayoutGrid { CellWidth = LayoutLength.Px(40f), Columns = 4, Rows = 4 };
 
-            LogAssert.Expect(LogType.Error, new Regex("cell size is Auto"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, new Regex("cell size is Auto"));
             LayoutApplier.ApplyGridPlacement(child, grid, new LayoutGridPlacement { Column = 1 });
 
             Assert.AreEqual(StyleKeyword.Null, child.style.left.keyword);
@@ -786,7 +786,7 @@ namespace BakAgain.Tests.Editor.UI {
         public void Slice_WhenAuthored_IsRefusedLoudly() {
             // Nine-slice is in the authoring vocabulary and has no implementation: no extractor
             // writes one and nothing renders one. An author who sets it used to get silence.
-            LogAssert.Expect(LogType.Error, new Regex(@"LayoutHint\.Slice cannot be resolved"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, new Regex(@"LayoutHint\.Slice cannot be resolved"));
 
             LayoutApplier.Apply(new VisualElement(), SliceHint(4, 4, 4, 4));
         }
@@ -805,7 +805,7 @@ namespace BakAgain.Tests.Editor.UI {
         public void Slice_WithOneEdgeSet_IsStillRefused() {
             // A slice is refused on ANY non-zero edge, not only when all four are set — a border
             // with one sliced edge is as unimplemented as a fully sliced one.
-            LogAssert.Expect(LogType.Error, new Regex(@"LayoutHint\.Slice cannot be resolved"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, new Regex(@"LayoutHint\.Slice cannot be resolved"));
 
             LayoutApplier.Apply(new VisualElement(), SliceHint(0, 0, 3, 0));
         }
@@ -814,7 +814,7 @@ namespace BakAgain.Tests.Editor.UI {
         public void Slice_IsRefusedButTheElementIsStillPlaced() {
             // Degrade to "no border artwork", not "no layout": the refusal must not cost the
             // element its size and position.
-            LogAssert.Expect(LogType.Error, new Regex(@"LayoutHint\.Slice cannot be resolved"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, new Regex(@"LayoutHint\.Slice cannot be resolved"));
             var element = new VisualElement();
             LayoutHint hint = SliceHint(2, 2, 2, 2);
             hint.Left = LayoutLength.Px(40f);
@@ -841,7 +841,7 @@ namespace BakAgain.Tests.Editor.UI {
         public void Gap_WhenAuthored_IsRefusedLoudly() {
             // This Unity's UI Toolkit has no flex-gap property at all, so the spacing cannot be
             // honoured. An author who sets it used to get silence.
-            LogAssert.Expect(LogType.Error, new Regex(@"LayoutFlow\.Gap cannot be resolved"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, new Regex(@"LayoutFlow\.Gap cannot be resolved"));
 
             LayoutApplier.Apply(new VisualElement(), FlowHint(LayoutLength.Px(24f)));
         }
@@ -858,7 +858,7 @@ namespace BakAgain.Tests.Editor.UI {
         [Test]
         public void Gap_AuthoredAsAPercentage_IsAlsoRefused() {
             // The unit does not rescue it: there is no property to put either form into.
-            LogAssert.Expect(LogType.Error, new Regex(@"LayoutFlow\.Gap cannot be resolved"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, new Regex(@"LayoutFlow\.Gap cannot be resolved"));
 
             LayoutApplier.Apply(new VisualElement(), FlowHint(LayoutLength.Percent(5f)));
         }
@@ -867,7 +867,7 @@ namespace BakAgain.Tests.Editor.UI {
         public void Gap_DoesNotStopTheRestOfTheFlowBeingApplied() {
             // Refusing is not abandoning: direction and justification are perfectly resolvable and
             // must still land, so the screen degrades to "no spacing" rather than "no layout".
-            LogAssert.Expect(LogType.Error, new Regex(@"LayoutFlow\.Gap cannot be resolved"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, new Regex(@"LayoutFlow\.Gap cannot be resolved"));
             var element = new VisualElement();
 
             LayoutApplier.Apply(element, FlowHint(LayoutLength.Px(24f)));

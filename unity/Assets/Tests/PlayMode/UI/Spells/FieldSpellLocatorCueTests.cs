@@ -18,14 +18,20 @@ namespace BakAgain.Tests.PlayMode.UI.Spells {
         private readonly List<int> _cues = new();
         private GameObject _mapGo;
 
+        // The locator screen is raised with no world to show; its view says so (TASK-1004).
+        private BakAgain.Tests.TestSupport.ExpectedLog.Capture _noWorld;
+
         [SetUp]
         public void SetUp() {
             _cues.Clear();
             BakAgain.Audio.MenuSoundService.CueRequested += _cues.Add;
+            _noWorld = BakAgain.Tests.TestSupport.ExpectedLog.CaptureAll(
+                new System.Text.RegularExpressions.Regex("WorldViewportView: no world camera set"));
         }
 
         [TearDown]
         public void TearDown() {
+            _noWorld?.Dispose();
             BakAgain.Audio.MenuSoundService.CueRequested -= _cues.Add;
             if (_mapGo != null) { Object.DestroyImmediate(_mapGo); }
         }

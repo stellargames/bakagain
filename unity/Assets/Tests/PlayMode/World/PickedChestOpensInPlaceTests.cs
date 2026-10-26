@@ -103,7 +103,7 @@ namespace BakAgain.Tests.PlayMode.World {
             await navigator.ResetTo(hud);
 
             _menuGo = new GameObject("InventoryMenuUnderTest");
-            _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            _panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             _menuGo.AddComponent<UIDocument>().panelSettings = _panelSettings;
             _menuGo.SetActive(false);
             var menu = _menuGo.AddComponent<InventoryMenu>();

@@ -163,6 +163,7 @@ namespace BakAgain.Tests.PlayMode.UI {
         public void On_AWrappedLineNeverRunsPastItsBox_MeasuredByTheTextEngine() {
             GameFonts.Build(bookFont: true);
             float em = GameFontText.FontSizePx;
+            using var panel = new BakAgain.Tests.TestSupport.TextMeasurePanel();
             foreach (float width in new[] { 1370f, 1446f }) {      // the narrative and spoken bodies
                 foreach (string raw in Hardest) {
                     string text = DialogTextFormatter.Prepare(raw, centered: false);
@@ -172,8 +173,7 @@ namespace BakAgain.Tests.PlayMode.UI {
                         var label = new Label(rich);
                         GameFontText.Apply(label);
                         label.style.unityFontDefinition = new StyleFontDefinition(GameFonts.Game);
-                        float measured = label.MeasureTextSize(rich, 100000f, VisualElement.MeasureMode.AtMost,
-                            0f, VisualElement.MeasureMode.Undefined).x;
+                        float measured = panel.Measure(label, rich).x;
                         Assert.That(measured, Is.LessThanOrEqualTo(width + 0.5f), $"\"{rich}\" in a {width} px box");
                     }
                 }
@@ -204,7 +204,7 @@ namespace BakAgain.Tests.PlayMode.UI {
         private static IEnumerator CaptionSizes(bool bookFont, List<float> sizes) {
             GameFonts.Build(bookFont);
             var host = new GameObject("CaptionScreenUnderTest");
-            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            var settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             try {
                 var document = host.AddComponent<UIDocument>();
                 document.panelSettings = settings;

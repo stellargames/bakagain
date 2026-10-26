@@ -20,7 +20,7 @@ namespace BakAgain.Tests.PlayMode.UI {
         public IEnumerator HoverLeavesTheFaceAndAPressLightsIt() {
             var host = new GameObject("PressFaceDoc");
             var doc = host.AddComponent<UIDocument>();
-            doc.panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            doc.panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             var button = new VisualElement();
             doc.rootVisualElement.Add(button);
             yield return null;

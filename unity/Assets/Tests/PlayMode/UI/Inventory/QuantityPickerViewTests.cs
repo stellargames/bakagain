@@ -53,7 +53,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         private VisualElement BuildStage() {
             _go = new GameObject("QuantityPickerUnderTest");
             var document = _go.AddComponent<UIDocument>();
-            _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            _panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             _panelTexture = new RenderTexture(PanelWidth, PanelHeight, 0);
             _panelSettings.targetTexture = _panelTexture;
             _panelSettings.scaleMode = PanelScaleMode.ConstantPixelSize;

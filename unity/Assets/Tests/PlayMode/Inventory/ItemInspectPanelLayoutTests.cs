@@ -101,7 +101,7 @@ namespace BakAgain.Tests.PlayMode.Inventory {
         private VisualElement BuildPanelRoot() {
             _go = new GameObject("InspectPanelUnderTest");
             var document = _go.AddComponent<UIDocument>();
-            _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            _panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             document.panelSettings = _panelSettings;
             return document.rootVisualElement;
         }
@@ -319,7 +319,7 @@ namespace BakAgain.Tests.PlayMode.Inventory {
 
             // The wording is LayoutApplier.RefuseUnresolvable's, shared with every other refusal
             // across the UI; what this test pins is that the refusal names THIS field.
-            LogAssert.Expect(LogType.Error,
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error,
                 new Regex("InventoryLayout.InspectIcon cannot be resolved as authored"));
             panel.Render(root, Item(), Obj(wordWrap: 0), affecting: true,
                 resources: BuildResources(), layout: layout, from: new Vector2(137f, 219f));
@@ -346,7 +346,7 @@ namespace BakAgain.Tests.PlayMode.Inventory {
                 Left = LayoutLength.Percent(18.125f), Top = LayoutLength.Percent(35.5f),
             };
 
-            LogAssert.Expect(LogType.Error, new Regex("TextShadowOffset"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, new Regex("TextShadowOffset"));
             panel.Render(root, Item(), Obj(wordWrap: 0), affecting: true,
                 resources: null, layout: layout, from: Vector2.zero);
 

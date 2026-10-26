@@ -31,7 +31,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         private InventoryMenu Build(GameSession session = null) {
             _go = new GameObject("InventoryMenuUnderTest");
             var document = _go.AddComponent<UIDocument>();
-            _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            _panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             document.panelSettings = _panelSettings;
             var menu = _go.AddComponent<InventoryMenu>();
             session ??= new GameSession();
@@ -94,7 +94,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             _root.Q("imagebutton_1").RemoveFromHierarchy();
             var layout = new EnhancedInventoryLayout(_root, new GameSession());
 
-            LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex("imagebutton_1"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex("imagebutton_1"));
             Assert.IsFalse(layout.Apply(_reqStage, ItemBox));
 
             Assert.IsNull(_root.Q("enhanced-inv"), "nothing half-moved");
@@ -108,7 +108,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             Build();
             var layout = new EnhancedInventoryLayout(_root, new GameSession());
 
-            LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex("px item box"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex("px item box"));
             Assert.IsFalse(layout.Apply(_reqStage, Rect.zero));
 
             Assert.IsNull(_root.Q("enhanced-inv"), "nothing half-moved");

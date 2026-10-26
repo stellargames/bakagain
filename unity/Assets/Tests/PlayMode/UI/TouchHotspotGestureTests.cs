@@ -28,7 +28,7 @@ namespace BakAgain.Tests.PlayMode.UI {
         public void SetUp() {
             _host = new GameObject("TouchHotspotGestureDoc");
             UIDocument doc = _host.AddComponent<UIDocument>();
-            doc.panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            doc.panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             _root = doc.rootVisualElement;
             _hotspots.Clear();
             Add(Door, 0, 0);

@@ -62,7 +62,7 @@ namespace BakAgain.Tests.PlayMode.UI {
                 // The warning is the point of the guard — a silent skip would hide the next
                 // instance of this bug — so the fixture expects it rather than letting it fail the
                 // run as an unexpected log.
-                LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex(
+                BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex(
                     "DialogOpenWipe: asked to wipe with no panel"));
 
                 // If this throws, UniTask.ToCoroutine surfaces it and the test fails. That IS the
@@ -86,7 +86,7 @@ namespace BakAgain.Tests.PlayMode.UI {
                 var panel = new VisualElement();
                 var cts = new CancellationTokenSource();
 
-                LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex(
+                BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex(
                     "DialogOpenWipe: asked to wipe with no stage"));
 
                 await DialogOpenWipe.PlayAsync(null, panel, AnyArea(), AnyRect, 0.05f, cts.Token);

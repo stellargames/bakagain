@@ -74,7 +74,7 @@ namespace BakAgain.Tests.Editor.UI {
         private sealed class NullLayoutResourceCache : IResourceCache {
             public UniTask<T> GetOrLoadAsync<T>(string key) where T : class {
                 if (key == "CRED.DAT" && typeof(T) == typeof(CreditsData)) {
-                    var data = new CreditsData("CRED.DAT") { Title = "TITLE_PROBE", Layout = null };
+                    var data = new CreditsData("CRED.DAT") { Frame = CanonicalFrame, Title = "TITLE_PROBE", Layout = null };
                     data.Lines.Add(new CreditLine { Role = "ROLE_PROBE", Name = "NAME_PROBE" });
                     return UniTask.FromResult(data as T);
                 }
@@ -131,7 +131,7 @@ namespace BakAgain.Tests.Editor.UI {
         };
 
         private static CreditsData DistinctiveData() {
-            var data = new CreditsData("CRED.DAT") {
+            var data = new CreditsData("CRED.DAT") { Frame = CanonicalFrame,
                 Title = "TITLE_PROBE",
                 Layout = DistinctiveLayout(),
             };
@@ -144,7 +144,7 @@ namespace BakAgain.Tests.Editor.UI {
         // GameObject — exactly as it does in the running game — so the test re-activates it before
         // driving BuildLayout, the same way PlayAsync does before calling it.
         private CreditsView SpawnView() {
-            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            var settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             _scratchAssets.Add(settings);
             var go = new GameObject("CreditsViewTestHost");
             _spawned.Add(go);
@@ -173,6 +173,11 @@ namespace BakAgain.Tests.Editor.UI {
             FieldInfo field = typeof(CreditsView).GetField("_layout", BindingFlags.NonPublic | BindingFlags.Instance);
             field.SetValue(view, layout);
         }
+
+        // The extractor always gives credits a frame; a test's data without one stood the stage up from
+        // a 0x0 frame and logged the fallback warning into every run (TASK-1004).
+        private static readonly GameData.Resources.Layout.DesignFrame CanonicalFrame =
+            new() { Width = 1600, Height = 1200 };
 
         private static void InvokeBuildLayout(CreditsView view, CreditsData data, bool revealRare = false) {
             MethodInfo method = typeof(CreditsView).GetMethod("BuildLayout", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -255,7 +260,7 @@ namespace BakAgain.Tests.Editor.UI {
                     },
                 },
             };
-            var data = new CreditsData("CRED.DAT") { Title = "TITLE_PROBE", Layout = layout };
+            var data = new CreditsData("CRED.DAT") { Frame = CanonicalFrame, Title = "TITLE_PROBE", Layout = layout };
             data.Lines.Add(new CreditLine { Role = "ROLE_PROBE", Name = "NAME_PROBE" });
             SetLayout(view, layout);
 
@@ -293,7 +298,7 @@ namespace BakAgain.Tests.Editor.UI {
         [UnityTest]
         public IEnumerator BuildLayout_LeaderResolvesNearTheRowsBottom_NotAboveTheRow() {
             CreditsView view = SpawnView();
-            var data = new CreditsData("CRED.DAT") { Title = "TITLE_PROBE" };
+            var data = new CreditsData("CRED.DAT") { Frame = CanonicalFrame, Title = "TITLE_PROBE" };
             data.Lines.Add(new CreditLine { Role = "ROLE_PROBE", Name = "NAME_PROBE" });
             // The faithful defaults (CreditsLayout()'s own field initializers): Row.Height = 66,
             // LeaderDotRadius = 2.5 -> leader height 5. Baseline span (absolute bottom = 16.5,
@@ -364,7 +369,7 @@ namespace BakAgain.Tests.Editor.UI {
             // was set, which put a full-width dotted rule under every continuation line: the
             // original's "Raymond E. Feist" under "ORIGINAL STORY:" sits bare, ours was underlined.
             CreditsView view = SpawnView();
-            var data = new CreditsData("CRED.DAT") { Title = "T", Layout = DistinctiveLayout() };
+            var data = new CreditsData("CRED.DAT") { Frame = CanonicalFrame, Title = "T", Layout = DistinctiveLayout() };
             data.Lines.Add(new CreditLine { Role = "ORIGINAL STORY:", Name = "Neal Hallford" });
             data.Lines.Add(new CreditLine { Role = string.Empty, Name = "Raymond E. Feist" });
             SetLayout(view, data.Layout);
@@ -382,7 +387,7 @@ namespace BakAgain.Tests.Editor.UI {
         public void ARoleWithNoNameGetsNoLeaderEither() {
             // The same guard's other half. A heading-only line has nothing to lead TO.
             CreditsView view = SpawnView();
-            var data = new CreditsData("CRED.DAT") { Title = "T", Layout = DistinctiveLayout() };
+            var data = new CreditsData("CRED.DAT") { Frame = CanonicalFrame, Title = "T", Layout = DistinctiveLayout() };
             data.Lines.Add(new CreditLine { Role = "SPECIAL THANKS:", Name = string.Empty });
             SetLayout(view, data.Layout);
 

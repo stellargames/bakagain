@@ -59,7 +59,7 @@ namespace BakAgain.Tests.Editor.UI {
         // yielded frames so Yoga runs before reading .layout (the resolved rect).
         [UnityTest]
         public IEnumerator Fill_ReallySpansTheAttachedPanel_NotJustStyleIntent() {
-            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            var settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             var host = new GameObject("CanonicalStageFillTestHost");
             try {
                 UIDocument document = host.AddComponent<UIDocument>();
@@ -95,7 +95,7 @@ namespace BakAgain.Tests.Editor.UI {
             var root = new VisualElement();
             var frame = new DesignFrame(); // default-constructed: Width = Height = 0
 
-            LogAssert.Expect(LogType.Warning, new Regex("DesignFrame.*non-positive", RegexOptions.IgnoreCase));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new Regex("DesignFrame.*non-positive", RegexOptions.IgnoreCase));
             VisualElement stage = CanonicalStage.GetOrCreate(root, frame);
 
             Assert.AreEqual((float)Canonical.Width, stage.style.width.value.value);
@@ -107,7 +107,7 @@ namespace BakAgain.Tests.Editor.UI {
             var root = new VisualElement();
             var frame = new DesignFrame { Width = 0, Height = 600, Fit = LayoutFit.Contain };
 
-            LogAssert.Expect(LogType.Warning, new Regex("DesignFrame.*non-positive", RegexOptions.IgnoreCase));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new Regex("DesignFrame.*non-positive", RegexOptions.IgnoreCase));
             VisualElement stage = CanonicalStage.GetOrCreate(root, frame);
 
             Assert.AreEqual((float)Canonical.Width, stage.style.width.value.value);
@@ -119,7 +119,7 @@ namespace BakAgain.Tests.Editor.UI {
             var root = new VisualElement();
             var frame = new DesignFrame { Width = 800, Height = 0, Fit = LayoutFit.Contain };
 
-            LogAssert.Expect(LogType.Warning, new Regex("DesignFrame.*non-positive", RegexOptions.IgnoreCase));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new Regex("DesignFrame.*non-positive", RegexOptions.IgnoreCase));
             VisualElement stage = CanonicalStage.GetOrCreate(root, frame);
 
             Assert.AreEqual((float)Canonical.Width, stage.style.width.value.value);
@@ -131,7 +131,7 @@ namespace BakAgain.Tests.Editor.UI {
             var root = new VisualElement();
             var frame = new DesignFrame { Width = -100, Height = 600, Fit = LayoutFit.Contain };
 
-            LogAssert.Expect(LogType.Warning, new Regex("DesignFrame.*non-positive", RegexOptions.IgnoreCase));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new Regex("DesignFrame.*non-positive", RegexOptions.IgnoreCase));
             VisualElement stage = CanonicalStage.GetOrCreate(root, frame);
 
             Assert.AreEqual((float)Canonical.Width, stage.style.width.value.value);
@@ -195,7 +195,7 @@ namespace BakAgain.Tests.Editor.UI {
             CanonicalStage.GetOrCreate(root, first);
 
             var second = new DesignFrame { Width = 640, Height = 480, Fit = LayoutFit.Contain };
-            LogAssert.Expect(LogType.Warning, new Regex("conflicting.*DesignFrame", RegexOptions.IgnoreCase));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Warning, new Regex("conflicting.*DesignFrame", RegexOptions.IgnoreCase));
             VisualElement stage = CanonicalStage.GetOrCreate(root, second);
 
             Assert.AreEqual(800f, stage.style.width.value.value,
@@ -243,7 +243,7 @@ namespace BakAgain.Tests.Editor.UI {
                 GameViewResolutionScope.Force(1280, 1024);
             yield return null;
 
-            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            var settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             settings.scaleMode = PanelScaleMode.ScaleWithScreenSize;
             settings.screenMatchMode = PanelScreenMatchMode.MatchWidthOrHeight;
             settings.match = 1f;
@@ -372,7 +372,7 @@ namespace BakAgain.Tests.Editor.UI {
             var inner = new VisualElement { name = "hotspot_192" };
             stage.Add(inner);
 
-            LogAssert.Expect(LogType.Error, new Regex("inside the stage", RegexOptions.IgnoreCase));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, new Regex("inside the stage", RegexOptions.IgnoreCase));
 
             Assert.AreSame(stage, CanonicalStage.Find(inner),
                 "an element inside the stage must resolve the stage it is inside, not null");
@@ -395,7 +395,7 @@ namespace BakAgain.Tests.Editor.UI {
             var inner = new VisualElement { name = "hotspot_192" };
             stage.Add(inner);
 
-            LogAssert.Expect(LogType.Error, new Regex("inside the stage", RegexOptions.IgnoreCase));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Error, new Regex("inside the stage", RegexOptions.IgnoreCase));
 
             VisualElement resolved = CanonicalStage.GetOrCreate(inner, frame);
 
@@ -417,7 +417,7 @@ namespace BakAgain.Tests.Editor.UI {
                 GameViewResolutionScope.Force(1280, 1024);
             yield return null;
 
-            var settings = ScriptableObject.CreateInstance<PanelSettings>();
+            var settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             settings.scaleMode = PanelScaleMode.ScaleWithScreenSize;
             settings.screenMatchMode = PanelScreenMatchMode.MatchWidthOrHeight;
             settings.match = 1f;

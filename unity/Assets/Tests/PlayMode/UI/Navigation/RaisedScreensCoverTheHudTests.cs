@@ -50,11 +50,22 @@ namespace BakAgain.Tests.PlayMode.UI.Navigation {
 
         private EnhancedPrefsStash _stash;
 
+        // The sweep raises the world-view screens (overhead map, locator) with no world to show,
+        // so their views say "no world camera set"; true here and beside the point (TASK-1004).
+        private BakAgain.Tests.TestSupport.ExpectedLog.Capture _noWorld;
+
         [SetUp]
-        public void SetUp() => _stash = EnhancedPrefsStash.Take();
+        public void SetUp() {
+            _stash = EnhancedPrefsStash.Take();
+            _noWorld = BakAgain.Tests.TestSupport.ExpectedLog.CaptureAll(
+                new System.Text.RegularExpressions.Regex("WorldViewportView: no world camera set"));
+        }
 
         [TearDown]
-        public void TearDown() => _stash.Restore();
+        public void TearDown() {
+            _noWorld?.Dispose();
+            _stash.Restore();
+        }
 
         [UnityTest]
         [RequiresShippedGameData]

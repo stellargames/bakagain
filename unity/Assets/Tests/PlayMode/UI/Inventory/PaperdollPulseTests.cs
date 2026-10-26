@@ -117,7 +117,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             SaveGameContainerType containerType = SaveGameContainerType.Inventory) {
             _go = new GameObject("InventoryMenuUnderTest");
             var document = _go.AddComponent<UIDocument>();
-            _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            _panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             document.panelSettings = _panelSettings;
 
             var menu = _go.AddComponent<InventoryMenu>();
