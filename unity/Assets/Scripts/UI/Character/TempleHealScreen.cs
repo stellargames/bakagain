@@ -449,11 +449,10 @@ namespace BakAgain.UI.Character {
         /// Whether switching character is refused because a fight is on.
         /// </summary>
         /// <remarks>
-        /// <b>Always false for now, because there is no combat to be in.</b> The rule is real —
-        /// both the portrait row and Next are gated on it, so in combat the screen shows one
-        /// combatant and the only ways out are curing them or Done — but nothing in this project
-        /// tracks that state yet (TASK-94). Named here so the gate is a lookup waiting for its
-        /// source rather than a rule nobody wrote down.
+        /// <b>Always false: this screen only opens from a <c>LocationScreen</c>, where no fight is
+        /// on.</b> The rule is real — both the portrait row and Next are gated on it, so in combat
+        /// the screen shows one combatant and the only ways out are curing them or Done — and is
+        /// named here so the gate stays written down.
         /// </remarks>
         private bool InCombat => TempleHealMenu.SelectionIsLockedInCombat && false;
 

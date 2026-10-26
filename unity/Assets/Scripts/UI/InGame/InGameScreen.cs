@@ -24,9 +24,8 @@ namespace BakAgain.UI.InGame {
     /// <para>The ActionIds come straight from <c>req_main.dat</c> and equal the DOS
     /// arrow-key scancodes for movement (0x48/0x50/0x4B/0x4D). Right-click shows the
     /// per-button help text (DDX 223–232, same ids the original passed to
-    /// <c>dialog_Show</c>). Left-click and keyboard movement are intentionally
-    /// <b>stubbed</b> here — they log their intent; real MoveParty/TurnParty
-    /// (@0x71902 / @0x71a88) and the option/encamp/cast transitions land in a later pass.</para>
+    /// <c>dialog_Show</c>). Left-clicks dispatch in
+    /// <see cref="PrimaryAction"/> to movement, follow-road, map, cast, bookmark and encamp.</para>
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class InGameScreen : MonoBehaviour, BakAgain.UI.Navigation.IScreen, IActionHandler, IMenuStateProvider {
@@ -1736,8 +1735,7 @@ namespace BakAgain.UI.InGame {
             return null;
         }
 
-        // Left-click / key dispatch. STUBBED: each branch logs its intent. The real
-        // movement, encamp, cast, map, options and party-screen transitions plug in here.
+        // Left-click / key dispatch.
         public void PrimaryAction(int menuEntryActionId) {
             if (menuEntryActionId == ActionWorldViewport && _look != null && _look.ConsumeClick()) {
                 return;   // the release of a touch look-drag

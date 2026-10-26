@@ -266,8 +266,8 @@ public enum SubActionType {
     /// also clear the flag on ENTRY (WORLDLP.C:86, MAP.C:115), so a request never survives into a
     /// new loop.</para>
     ///
-    /// <para><b>Not implemented</b>: reaching the hotspot pass needs a collaborator
-    /// <c>DialogExecutor</c> does not have — the same seam subtypes 3 and 4 need. See TASK-304.</para>
+    /// <para><c>DialogExecutor</c> sets <c>GameSession.HotspotPassRequested</c>; <c>PartyMovement</c>
+    /// runs the pass once no dialog is playing, and clears the request.</para>
     ///
     /// <para>Name frozen by JSON serialisation, as with <see cref="CountArmorState" />.</para>
     /// </remarks>
@@ -306,8 +306,7 @@ public enum SubActionType {
     /// accumulator, and only the whole part carries into <c>base</c> (STAT.C:185). So this is two
     /// points of skill, awarded through the same machinery every other skill gain uses.
     ///
-    /// <para><b>NOT IMPLEMENTED, and it is the one subtype that genuinely needs a system built.</b>
-    /// The routine is more than an add: it applies the SKILL_SELECTED training multiplier
+    /// <para>Executed by <c>DialogExecutor.BoostEventActorSkill</c>. The routine is more than an add: it applies the SKILL_SELECTED training multiplier
     /// (<c>delta += delta * trainRate / 0x34</c>), carries the fraction, clamps to the per-stat
     /// min/max tables, raises <c>max</c> to meet a base that passed it, and raises the
     /// SKILL_IMPROVED event plus the party-dirty flag on an increase. Two other places in this port

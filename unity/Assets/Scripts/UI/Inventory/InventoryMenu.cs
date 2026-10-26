@@ -4627,8 +4627,8 @@ namespace BakAgain.UI.Inventory {
         /// the item says so (ddx 1800025), a shop with no slot it is willing to displace says so
         /// (ddx 1800008), and only then does the shopkeeper name an offer the player may turn down
         /// (ddx 1800022, answered through global 260 like every other confirm). Declining simply
-        /// ends the offer — haggling (ddx 1800020/1800021) is not implemented on either side of the
-        /// counter yet.</para>
+        /// ends the offer: the original's sell path (canassa SHOP.C:238, global 0x104) has no haggle;
+        /// haggling is buy-only (<see cref="HaggleForAsync"/>).</para>
         ///
         /// <para>The move itself is <see cref="ShopStock.Sell"/>'s, including the rule that a full
         /// shop overwrites its DEAREST stock and loses it.</para>
