@@ -173,7 +173,10 @@ namespace BakAgain.UI {
             _material.SetVector("_Bar", new Vector4(band * sx, middleX < 0f ? -1f : (middleX - r.x) * sx, 0f, 0f));
             _material.SetVector("_Tile", new Vector4(720f * sx, 480f * sy, 0f, 0f)); // the slab at the theme's tile size
             _material.SetVector("_Shadow", new Vector4(8f * sx, 10f * sy, 14f * sx, 0.7f));
+            // Blit leaves its destination active; releasing it on the next resize then warned.
+            RenderTexture active = RenderTexture.active;
             Graphics.Blit(EnhancedArt.Texture("slab"), _texture, _material);
+            RenderTexture.active = active;
             _art.MarkDirtyRepaint();
         }
 

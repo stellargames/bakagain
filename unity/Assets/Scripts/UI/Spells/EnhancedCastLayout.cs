@@ -483,7 +483,10 @@ namespace BakAgain.UI.Spells {
             _benchMaterial.SetInt("_LightCount", _lights.Count);
             _benchMaterial.SetVectorArray("_LightPos", _lightPos);
             _benchMaterial.SetVectorArray("_LightColor", _lightColor);
+            // Blit leaves its destination active, and ReleaseBench would then release it active.
+            RenderTexture active = RenderTexture.active;
             Graphics.Blit(_marble, _benchTexture, _benchMaterial);
+            RenderTexture.active = active;
             _bench.MarkDirtyRepaint();
         }
 
