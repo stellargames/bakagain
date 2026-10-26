@@ -1,4 +1,5 @@
 namespace BakAgain.CutScenes {
+    using BakAgain.ResourceManagement;
     using Cysharp.Threading.Tasks;
     using System;
     using System.Collections.Generic;
@@ -30,6 +31,21 @@ namespace BakAgain.CutScenes {
             T asset = await handle.ToUniTask();
             _handles[cacheKey] = handle;
             return asset;
+        }
+
+        public bool Contains(string key) => HasLocation(key);
+
+        /// <summary>
+        /// Whether the Addressables catalogue has a location for this key — asked, not loaded, because
+        /// Addressables logs its own error for a missing key before it throws.
+        /// </summary>
+        /// <remarks>Synchronous on purpose: the Editor walk runs through GetResult, and a location
+        /// lookup is an in-memory query against the catalogue.</remarks>
+        internal static bool HasLocation(string key) {
+            var locations = Addressables.LoadResourceLocationsAsync(key);
+            bool present = locations.ResultOrWait() is { Count: > 0 };
+            Addressables.Release(locations);
+            return present;
         }
 
         /// <summary>Release every cached Addressables handle and empty the cache.</summary>

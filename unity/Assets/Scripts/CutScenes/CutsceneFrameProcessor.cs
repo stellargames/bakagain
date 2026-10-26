@@ -192,19 +192,16 @@ namespace BakAgain.CutScenes
         ///
         /// <para><b>Asked before the load, not caught after it.</b> Addressables logs its own error
         /// for a key with no location before it throws, so catching left a red line in the log every
-        /// time g_misc played, for a gap in the shipped data rather than a fault (TASK-1004).</para>
+        /// time g_misc played, for a gap in the shipped data rather than a fault (TASK-1004). The
+        /// cache answers, not Addressables directly: asked here, a run with no game data (CI) read
+        /// every name as absent.</para>
         /// </remarks>
         private async UniTask PreloadOptional<T>(string filename, CutsceneState state, IResourceCache cache) where T : class {
             if (string.IsNullOrEmpty(filename) || state.Resources.ContainsKey(filename)) {
                 return;
             }
 
-            var locations = UnityEngine.AddressableAssets.Addressables.LoadResourceLocationsAsync(filename);
-            // Synchronous on purpose: the Editor walk runs this through GetResult, and a location
-            // lookup is an in-memory query against the catalogue.
-            bool present = locations.ResultOrWait() is { Count: > 0 };
-            UnityEngine.AddressableAssets.Addressables.Release(locations);
-            if (!present) {
+            if (!cache.Contains(filename)) {
                 BakAgain.Core.ConditionalLoggingExtensions.LogInformation(_logger,
                     "Frame names {Filename}, which this game does not contain; skipped.", filename);
                 return;
@@ -260,6 +257,8 @@ namespace BakAgain.CutScenes
         private sealed class AddressablesBlockingCache : IResourceCache {
             public UniTask<T> GetOrLoadAsync<T>(string key) where T : class =>
                 UniTask.FromResult(Addressables.LoadAssetAsync<T>(key).ResultOrWait());
+
+            public bool Contains(string key) => ResourceCache.HasLocation(key);
 
             public void Clear() { }
         }

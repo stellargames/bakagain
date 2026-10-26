@@ -28,6 +28,9 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
         private sealed class RecordingCache : IResourceCache {
             public readonly List<string> Requested = new();
             public string ThrowsFor;
+            public string Absent;
+
+            public bool Contains(string key) => key != Absent;
 
             public UniTask<T> GetOrLoadAsync<T>(string key) where T : class {
                 Requested.Add(key);
@@ -119,6 +122,19 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
 
             Assert.Contains("G_BKLIBR.PAL", _cache.Requested,
                 "and the walk carries on to the next command");
+        }
+
+        [Test]
+        public void WhetherANameExistsIsTheCachesAnswer_notTheCatalogues() {
+            // The v0.3.2-beta release run failed here: the walk asked Addressables itself, and CI
+            // has no game data, so every name read as absent and the cache was never asked.
+            Walk(new LoadPaletteResource { Filename = "NOT_IN_ANY_CATALOGUE.PAL" });
+            Assert.Contains("NOT_IN_ANY_CATALOGUE.PAL", _cache.Requested);
+
+            _cache.Requested.Clear();
+            _cache.Absent = "NOT_IN_ANY_CATALOGUE.PAL";
+            Walk(new LoadPaletteResource { Filename = "NOT_IN_ANY_CATALOGUE.PAL" });
+            Assert.IsEmpty(_cache.Requested, "a name the cache does not have is skipped, not loaded");
         }
 
         [Test]
