@@ -285,8 +285,16 @@ namespace BakAgain.UI.InGame {
         // Contain, full-window under Fill. Falls back to the canonical Contain box (logged once) if
         // the stage hasn't resolved a layout yet, rather than mapping the viewport against garbage.
         private Rect CurrentStageScreenRect() {
-            Rect rect = CanonicalStage.ScreenRect(ResolveStage(), out bool isFallback);
-            if (isFallback && !_loggedStageFallback) {
+            VisualElement stage = ResolveStage();
+            Rect rect = CanonicalStage.ScreenRect(stage, out bool isFallback);
+            // *** BEFORE THE FIRST LAYOUT THE FALLBACK IS EXPECTED, NOT A FAULT. *** Attach sizes
+            // the texture the moment the screen is shown, a frame before UI Toolkit lays the stage
+            // out; Tick measures again on the next frame and reallocates at the real size. Warning
+            // there logged once per world entry for a state that heals itself (TASK-1004). A stage
+            // that is missing, or measured and still unusable, is still worth the warning.
+            bool preLayout = stage?.panel != null
+                && (float.IsNaN(stage.layout.width) || stage.panel.visualTree.layout.height <= 0f);
+            if (isFallback && !preLayout && !_loggedStageFallback) {
                 _logger.LogWarning(
                     "WorldViewportView: stage not resolved (missing or pre-layout); falling back to "
                     + "the canonical Contain box for the world viewport mapping.");
