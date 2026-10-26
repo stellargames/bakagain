@@ -72,6 +72,13 @@ namespace BakAgain.World.Encounters {
         private int _holding;
 
         /// <summary>
+        /// Whether a visual is queued or on screen. The original plays every effect inside the cast
+        /// (<c>cspell_invoke_effect</c>, CSPELL.C:786-870), so the fight hands the turn on only once
+        /// this is false (TASK-1011).
+        /// </summary>
+        public bool Playing => _draining;
+
+        /// <summary>
         /// The sequences the original finishes before the board shows what they did: Winds' flight
         /// before the walk, Evil Seek's hops before its damage floats. Not every kind — Flamecast's
         /// sparks follow a projectile the redraw itself flies, so holding the redraw would put the

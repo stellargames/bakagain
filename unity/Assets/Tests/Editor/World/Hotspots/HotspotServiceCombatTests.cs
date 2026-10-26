@@ -89,7 +89,8 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
         /// the next with no file change in between.
         /// </param>
         private static Rig Build(int roll = 99, GameData.Resources.Config.StartData start = null,
-            TrapData traps = null, System.Func<BakAgain.UI.Combat.CombatMenu> combatMenu = null) {
+            TrapData traps = null, System.Func<BakAgain.UI.Combat.CombatMenu> combatMenu = null,
+            System.Func<bool> arenaBusy = null) {
             var session = new GameSession();
             session.SetActorStatsForTest(0, StatBlock());
             session.SetActiveParty(1, new byte[] { 0 });
@@ -101,7 +102,8 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
                 random: _ => roll,
                 setCombatMusic: on => rig.Music.Add(on),
                 resyncCamera: () => rig.CameraResyncs++,
-                combatMenuAccessor: combatMenu);
+                combatMenuAccessor: combatMenu,
+                arenaBusy: arenaBusy);
             rig.Service.SetZoneForTest(Zone,
                 byChunk: new Dictionary<(int x, int y), List<TileEventTrigger>> {
                     [(0, 0)] = new List<TileEventTrigger> { CombTrigger() },
@@ -300,9 +302,9 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
 
         /// <summary>A party member's turn in the one-member, one-enemy fixture, with nothing armed.</summary>
         private static (Rig Rig, CombatEncounter Fight, Combatant Acting) PartyTurn(TrapData traps = null,
-            System.Func<BakAgain.UI.Combat.CombatMenu> combatMenu = null) {
+            System.Func<BakAgain.UI.Combat.CombatMenu> combatMenu = null, System.Func<bool> arenaBusy = null) {
             Rig rig = Build(start: new GameData.Resources.Config.StartData("START.DAT") { CombatGridCellSize = 300 },
-                traps: traps, combatMenu: combatMenu);
+                traps: traps, combatMenu: combatMenu, arenaBusy: arenaBusy);
             Assert.IsTrue(rig.Service.StartCombat(CombTrigger()));
             CombatEncounter fight = rig.Service.Combat.Encounter;
             for (int i = 0; i < 4 && (fight.Current == null || !fight.Current.IsPartyMember); i++) {
@@ -500,6 +502,39 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
 
             Assert.AreEqual(backfires, acting.Health < userHealth, "the user is hit only on a backfire");
             Assert.AreEqual(!backfires, enemy.Health < enemyHealth, "the target is hit only without one");
+        }
+
+        [UnityEngine.TestTools.UnityTest]
+        public System.Collections.IEnumerator AMonstersTurnEndsOnlyOnceTheArenaHasPlayedIt() {
+            // TASK-1011. cspell_invoke_effect plays the effect inside the cast (CSPELL.C:786-870), so a
+            // turn ends only once its effect has landed. The party's settle already waited on the
+            // arena; a monster's paced turn handed on after its fixed beat whatever was still playing.
+            var busy = false;
+            (Rig rig, CombatEncounter fight, Combatant member) = PartyTurn(arenaBusy: () => busy);
+            // Adjacent, so it strikes where it stands and its own beat is the short one.
+            fight.Enemies[0].X = member.X + 1;
+            fight.Enemies[0].Y = member.Y;
+            Cysharp.Threading.Tasks.UniTask turn = rig.Service.RunEnemyTurnPacedForTest(fight.Enemies[0]);
+            float until = UnityEngine.Time.realtimeSinceStartup + 3f;
+            while (UnityEngine.Time.realtimeSinceStartup < until && (turn.Status == Cysharp.Threading.Tasks.UniTaskStatus.Pending)) {
+                yield return null;
+            }
+            Assert.AreEqual(Cysharp.Threading.Tasks.UniTaskStatus.Succeeded, turn.Status, "the control: an idle arena lets the turn end");
+
+            busy = true;
+            turn = rig.Service.RunEnemyTurnPacedForTest(fight.Enemies[0]);
+            until = UnityEngine.Time.realtimeSinceStartup + 3f;
+            while (UnityEngine.Time.realtimeSinceStartup < until) {
+                yield return null;
+            }
+            Assert.IsFalse((turn.Status != Cysharp.Threading.Tasks.UniTaskStatus.Pending), "the turn waits while the arena plays");
+
+            busy = false;
+            until = UnityEngine.Time.realtimeSinceStartup + 3f;
+            while (UnityEngine.Time.realtimeSinceStartup < until && !(turn.Status != Cysharp.Threading.Tasks.UniTaskStatus.Pending)) {
+                yield return null;
+            }
+            Assert.IsTrue((turn.Status != Cysharp.Threading.Tasks.UniTaskStatus.Pending), "and ends once it has played");
         }
 
         // ---------------------------------------------------------------- TASK-947: the HUD while an item aims

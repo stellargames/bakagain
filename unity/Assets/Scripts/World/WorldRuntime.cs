@@ -2231,7 +2231,9 @@ namespace BakAgain.World {
                 // Each turn changes the board — someone moved, someone fell. Without this the
                 // sprites stay exactly as the fight opened.
                 redrawArena: () => SlideThenRedrawAsync().Forget(),
-                arenaBusy: () => _sliding,
+                // A spell's effect is part of its turn: the original plays it inside the cast
+                // (cspell_invoke_effect, CSPELL.C:786), so the turn passes only once it is over (TASK-1011).
+                arenaBusy: () => _sliding || (_spellVfx?.Playing ?? false),
                 // The loot screen is the travel HUD's, so the service asks rather than reaching for
                 // it. Same shape as showArena: a callback into whoever owns the UI.
                 openCorpseLoot: OpenCorpseLoot,

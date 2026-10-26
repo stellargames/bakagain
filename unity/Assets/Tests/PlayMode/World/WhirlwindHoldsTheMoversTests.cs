@@ -66,5 +66,17 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.IsFalse(vfx.HoldsMovers);
             yield return Drain(vfx, 1);
         }
+
+        [UnityTest]
+        public IEnumerator AnyVisualKeepsTheArenaPlayingUntilItHasPlayed() {
+            // cspell_invoke_effect plays every effect inside the cast (CSPELL.C:786-870), so the turn
+            // cannot pass while one is on screen; the fight waits on Playing (TASK-1011).
+            SpellVfx vfx = Vfx();
+            Assert.IsFalse(vfx.Playing, "the control: nothing queued");
+            vfx.Enqueue(new SpellVisual(SpellVisualKind.Rebound), new Combatant(), new Combatant());
+            Assert.IsTrue(vfx.Playing, "a visual that holds no movers still plays");
+            yield return Drain(vfx, 1);
+            Assert.IsFalse(vfx.Playing, "and stops once it has played");
+        }
     }
 }

@@ -515,6 +515,10 @@ using GameData.Resources.Scene;
         internal void ArmSpellForTest(GameData.Resources.Spells.Spell record, int spellId, int power) =>
             ArmCombatSpell(record, spellId, power);
 
+        /// <summary>One monster's paced turn, as the advance runs it.</summary>
+        internal Cysharp.Threading.Tasks.UniTask RunEnemyTurnPacedForTest(Combatant monster) =>
+            RunEnemyTurnPacedAsync(monster, EnemyAi());
+
         /// <summary>Uses an item for the acting member, as closing the combat pack on it does.</summary>
         /// <remarks>A seam because the production caller reads the claim off a closed inventory screen.</remarks>
         internal void UseCombatItemForTest(int objectId) {
@@ -4933,6 +4937,9 @@ using GameData.Resources.Scene;
                 System.TimeSpan.FromSeconds(
                     GameData.Resources.Combat.ArenaPacing.SecondsFor(walked)),
                 DelayType.DeltaTime);
+            // A monster's cast plays its effect inside the cast (cspell_invoke_effect, CSPELL.C:786),
+            // so the next turn waits for whatever the arena is still playing (TASK-1011).
+            await Cysharp.Threading.Tasks.UniTask.WaitWhile(() => _arenaBusy?.Invoke() ?? false);
         }
 
         /// <summary>
