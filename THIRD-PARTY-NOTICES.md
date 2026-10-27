@@ -18,6 +18,7 @@ Bundled or build-time components and their licenses:
 | [Simple File Browser](https://github.com/yasirkula/UnitySimpleFileBrowser) 1.7.7 | picking the game folder | MIT |
 | [Karambolo.PO](https://github.com/adams85/po) 1.13.0 + Karambolo.Common 3.4.1 | reading gettext PO language packs | MIT |
 | [MessageFormat](https://github.com/jeffijoe/messageformat.net) 8.0.0 | ICU MessageFormat templates (plurals, reordering) in translations | MIT |
+| [LZMA SDK](https://www.7-zip.org/sdk.html) 26.05 by Igor Pavlov (decoder-side C# vendored in `src/GameData/Setup/Lzma/`) | reading the GOG installer's compressed data | Public domain |
 | [Victor Mono](https://rubjo.github.io/victor-mono/) | debug/monospace text | SIL OFL 1.1 |
 | [Alegreya](https://github.com/huertatipografica/Alegreya) Medium + Medium Italic (static instances of the Google Fonts variable font, wght 500) | Enhanced-mode game font and the data-files (meta) menu | SIL OFL 1.1 |
 | Liberation Sans (TextMesh Pro default) | fallback text | SIL OFL 1.1 |
