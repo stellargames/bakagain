@@ -101,6 +101,82 @@ public class LzmaTests {
     }
 
     [Fact]
+    public void DecodeToEndStopsAtTheEndMarker() {
+        var (props, payload) = Fixture();
+        var output = new MemoryStream();
+        Lzma1.DecodeToEnd(new MemoryStream(payload), output, props, 1 << 20);
+        Assert.Equal(PlainSha256, Convert.ToHexString(SHA256.HashData(output.ToArray())).ToLowerInvariant());
+    }
+
+    [Fact]
+    public void DecodeToEndRefusesMoreThanItsCap() {
+        var (props, payload) = Fixture();
+        Assert.Throws<InvalidDataException>(() => Lzma1.DecodeToEnd(new MemoryStream(payload), new MemoryStream(), props, 4000));
+    }
+
+    // python3: a copy chunk "Betrayal at Krondor\n" (control 1, dictionary reset), then
+    // lzma.compress(Lzma2Text(), FORMAT_RAW, LZMA2, 64 KiB dictionary) with its first control byte changed from
+    // "reset everything" to "reset state + new properties": an LZMA chunk, an LZMA chunk continuing its state, the end.
+    private const string Lzma2Hex =
+        "010013426574726179616c206174204b726f6e646f720adfff5101ad5d0021194a874638e64ad2a01d51f3c01c7edc7f5e9b5f37c8837680ff86565a" +
+        "8510a78dbf039042f9e220ab79d9f2ff024efdbf61ac1fe790bb91fc09a5c6ae2dbc31699a74b5a14e591c39c97808e16c23fc97affcafc28e9d2254" +
+        "43bf3d3204368a14c1ce0e88aeab25d1180986818f18050201b4d4d14df573586d35fe8a5de1ea62e14cda1ac599405943091b677387917bcfb27ecf" +
+        "6a881712fd63e579edd32dfe619706035fc9703b14c0323798a51501a5e8a3092aecaaff5a26ac720c1692a7be398f24e1709ea7235fec28cb85d195" +
+        "988a7e2a91f22775f719c006984d98fdd8afd5900fc42553f8f591363105a5b0ee6fc1704d470cd19111aaad601dbaceb127185c5986e9665258bee9" +
+        "76ac59e4e55b0508f9c7daadfcfb522b74cd1e5b2042f9dd533df82964093b80cb2a6cdfb53bf0c4bd2e5faa0f3e4b664290130eff1093f8717859f8" +
+        "0bcdff9528460fa9fc7cdefb9a302e56c08f85f38381c065c42553f8f591363105a5b0ee6fc1704d470cd19111aaad601dbaceb127185c5986e96652" +
+        "58bee976ac59e4e55b0508f9c7daadfcfb522b74cd1e5b2042f9dd533df82964093b80c31f6137801435000b0017b0bd82aca6a4d45cc80000";
+
+    private static byte[] Lzma2Plain() {
+        byte[] text = System.Text.Encoding.ASCII.GetBytes("Betrayal at Krondor - the GOG installer's file chunks are LZMA2. ");
+        byte[] head = System.Text.Encoding.ASCII.GetBytes("Betrayal at Krondor\n");
+        const int Big = 2 * 1024 * 1024; // (text * 40000)[:2 MiB] + (text * 100)[:5000]
+        var plain = new byte[head.Length + Big + 5000];
+        head.CopyTo(plain, 0);
+        for (int k = 0; k < Big + 5000; k++) {
+            plain[head.Length + k] = text[(k < Big ? k : k - Big) % text.Length];
+        }
+        return plain;
+    }
+
+    private static byte[] DecodeLzma2(byte[] stream, long size) {
+        var output = new MemoryStream();
+        Lzma1.DecodeLzma2(new MemoryStream(stream), output, 1 << 16, size);
+        return output.ToArray();
+    }
+
+    [Fact]
+    public void DecodesAnLzma2StreamOfCopyAndLzmaChunks() {
+        byte[] plain = Lzma2Plain();
+        Assert.Equal(plain, DecodeLzma2(Convert.FromHexString(Lzma2Hex), plain.Length));
+    }
+
+    [Fact]
+    public void Lzma2StopsAtTheClaimedSize() {
+        byte[] plain = Lzma2Plain();
+        Assert.Equal(plain[..3000], DecodeLzma2(Convert.FromHexString(Lzma2Hex), 3000));
+    }
+
+    [Fact]
+    public void Lzma2EndingBeforeTheClaimedSizeThrowsInvalidData() {
+        Assert.Throws<InvalidDataException>(() => DecodeLzma2(Convert.FromHexString(Lzma2Hex), Lzma2Plain().Length + 1));
+    }
+
+    [Fact]
+    public void ATruncatedLzma2StreamThrowsInvalidData() {
+        Assert.Throws<InvalidDataException>(() => DecodeLzma2(Convert.FromHexString(Lzma2Hex)[..300], Lzma2Plain().Length));
+    }
+
+    [Theory]
+    [InlineData(0)] // the copy chunk becomes "copy, no dictionary reset" before any reset
+    [InlineData(23)] // the first LZMA chunk becomes "no reset" after the copy chunk's dictionary reset
+    public void Lzma2ChunksMustStartWithTheirResets(int at) {
+        byte[] stream = Convert.FromHexString(Lzma2Hex);
+        stream[at] = at == 0 ? (byte)2 : (byte)(stream[at] & 0x9F);
+        Assert.Throws<InvalidDataException>(() => DecodeLzma2(stream, Lzma2Plain().Length));
+    }
+
+    [Fact]
     public void ANegativeSizeIsRefused() {
         var (props, payload) = Fixture();
         Assert.Throws<ArgumentOutOfRangeException>(() => Decode(props, payload, -1));

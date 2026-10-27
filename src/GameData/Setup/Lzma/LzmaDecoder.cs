@@ -1,5 +1,6 @@
 // LZMA SDK 26.05 by Igor Pavlov, public domain (https://www.7-zip.org/sdk.html).
-// Vendored edits: namespace, internal, Train() and the commented-out Stream stubs removed.
+// Vendored edits: namespace, internal, Train() and the commented-out Stream stubs removed; Code()'s loop split
+// into DecodeRun() with its state in fields, and CodeLzma2() added (LZMA2 framing, after Lzma2Dec.c).
 // LzmaDecoder.cs
 
 using System;
@@ -201,6 +202,11 @@ namespace GameData.Setup.Lzma.Compression.LZMA
 		{
 			m_RangeDecoder.Init(inStream);
 			m_OutWindow.Init(outStream, _solid);
+			InitState();
+		}
+
+		void InitState()
+		{
 
 			uint i;
 			for (i = 0; i < Base.kNumStates; i++)
@@ -227,28 +233,33 @@ namespace GameData.Setup.Lzma.Compression.LZMA
 			m_LenDecoder.Init();
 			m_RepLenDecoder.Init();
 			m_PosAlignDecoder.Init();
+			_state.Init();
+			_rep0 = _rep1 = _rep2 = _rep3 = 0;
 		}
+
+		// Edit: the match state lives in fields, so an LZMA2 chunk can continue the previous one's.
+		Base.State _state;
+		uint _rep0, _rep1, _rep2, _rep3;
 
 		public void Code(System.IO.Stream inStream, System.IO.Stream outStream,
 			Int64 inSize, Int64 outSize, ICodeProgress progress)
 		{
 			Init(inStream, outStream);
-
-			Base.State state = new Base.State();
-			state.Init();
-			uint rep0 = 0, rep1 = 0, rep2 = 0, rep3 = 0;
-
 			UInt64 nowPos64 = 0;
-			UInt64 outSize64 = (UInt64)outSize;
-			if (nowPos64 < outSize64)
-			{
-				if (m_IsMatchDecoders[state.Index << Base.kNumPosStatesBitsMax].Decode(m_RangeDecoder) != 0)
-					throw new DataErrorException();
-				state.UpdateChar();
-				byte b = m_LiteralDecoder.DecodeNormal(m_RangeDecoder, 0, 0);
-				m_OutWindow.PutByte(b);
-				nowPos64++;
-			}
+			DecodeRun(ref nowPos64, (UInt64)outSize);
+			m_OutWindow.Flush();
+			m_OutWindow.ReleaseStream();
+			m_RangeDecoder.ReleaseStream();
+		}
+
+		// Edit: Code()'s loop, split out for LZMA2. nowPos64 counts from the last dictionary reset; the first
+		// byte's special case is folded in (position 0 decodes with previous byte 0, a match there is an error).
+		// Returns true when it stops at an end marker.
+		bool DecodeRun(ref UInt64 nowPos64, UInt64 outSize64)
+		{
+			Base.State state = _state;
+			uint rep0 = _rep0, rep1 = _rep1, rep2 = _rep2, rep3 = _rep3;
+			bool ended = false;
 			while (nowPos64 < outSize64)
 			{
 				// UInt64 next = Math.Min(nowPos64 + (1 << 18), outSize64);
@@ -258,7 +269,7 @@ namespace GameData.Setup.Lzma.Compression.LZMA
 					if (m_IsMatchDecoders[(state.Index << Base.kNumPosStatesBitsMax) + posState].Decode(m_RangeDecoder) == 0)
 					{
 						byte b;
-						byte prevByte = m_OutWindow.GetByte(0);
+						byte prevByte = nowPos64 == 0 ? (byte)0 : m_OutWindow.GetByte(0);
 						if (!state.IsCharState())
 							b = m_LiteralDecoder.DecodeWithMatchByte(m_RangeDecoder,
 								(uint)nowPos64, prevByte, m_OutWindow.GetByte(rep0));
@@ -277,6 +288,8 @@ namespace GameData.Setup.Lzma.Compression.LZMA
 							{
 								if (m_IsRep0LongDecoders[(state.Index << Base.kNumPosStatesBitsMax) + posState].Decode(m_RangeDecoder) == 0)
 								{
+									if (nowPos64 == 0)
+										throw new DataErrorException();
 									state.UpdateShortRep();
 									m_OutWindow.PutByte(m_OutWindow.GetByte(rep0));
 									nowPos64++;
@@ -335,7 +348,10 @@ namespace GameData.Setup.Lzma.Compression.LZMA
 						if (rep0 >= nowPos64 || rep0 >= m_DictionarySizeCheck)
 						{
 							if (rep0 == 0xFFFFFFFF)
+							{
+								ended = true;
 								break;
+							}
 							throw new DataErrorException();
 						}
 						m_OutWindow.CopyBlock(rep0, len);
@@ -343,9 +359,9 @@ namespace GameData.Setup.Lzma.Compression.LZMA
 					}
 				}
 			}
-			m_OutWindow.Flush();
-			m_OutWindow.ReleaseStream();
-			m_RangeDecoder.ReleaseStream();
+			_state = state;
+			_rep0 = rep0; _rep1 = rep1; _rep2 = rep2; _rep3 = rep3;
+			return ended;
 		}
 
 		public void SetDecoderProperties(byte[] properties)
@@ -364,6 +380,102 @@ namespace GameData.Setup.Lzma.Compression.LZMA
 			SetDictionarySize(dictionarySize);
 			SetLiteralProperties(lp, lc);
 			SetPosBitsProperties(pb);
+		}
+
+		// Edit: LZMA2 (Inno Setup 5.5 file chunks): a series of chunks, each copied or LZMA-coded with its own
+		// range coder, that reset the dictionary, the state or the properties as their control byte says
+		// (Lzma2Dec.c's rules). Decodes outSize bytes, then stops, even inside a chunk.
+		public void CodeLzma2(System.IO.Stream inStream, System.IO.Stream outStream, uint dictionarySize, long outSize)
+		{
+			// Matches never reach further back than the output, so the window need not exceed it.
+			SetDictionarySize((uint)Math.Min(dictionarySize, Math.Max(outSize, 1)));
+			m_OutWindow.Init(outStream, false);
+			UInt64 nowPos64 = 0, total = 0, size64 = (UInt64)outSize;
+			bool needDictReset = true, needProps = true, needState = true;
+			byte[] packed = new byte[1 << 16];
+			while (total < size64)
+			{
+				int control = ReadByte(inStream);
+				if (control == 0)
+					break;
+				if (control == 1 || control == 2)
+				{
+					if (control == 1)
+					{
+						nowPos64 = 0;
+						needDictReset = false;
+						needProps = needState = true;
+					}
+					else if (needDictReset)
+						throw new DataErrorException();
+					uint copy = ReadBE16(inStream) + 1;
+					for (uint i = 0; i < copy; i++)
+						m_OutWindow.PutByte((byte)ReadByte(inStream));
+					nowPos64 += copy;
+					total += copy;
+				}
+				else if (control >= 0x80)
+				{
+					int mode = (control >> 5) & 3;
+					uint unpacked = ((uint)(control & 0x1F) << 16) + ReadBE16(inStream) + 1;
+					int packSize = (int)ReadBE16(inStream) + 1;
+					if (mode == 3)
+						nowPos64 = 0;
+					else if (needDictReset)
+						throw new DataErrorException();
+					if (mode >= 2)
+					{
+						int props = ReadByte(inStream);
+						int lc = props % 9, lp = props / 9 % 5, pb = props / 45;
+						if (props >= 9 * 5 * 5 || lc + lp > 4)
+							throw new DataErrorException();
+						SetLiteralProperties(lp, lc);
+						SetPosBitsProperties(pb);
+						needProps = false;
+					}
+					else if (needProps)
+						throw new DataErrorException();
+					if (mode >= 1)
+						InitState();
+					else if (needState)
+						throw new DataErrorException();
+					needDictReset = needState = false;
+					ReadExactly(inStream, packed, packSize);
+					m_RangeDecoder.Init(new System.IO.MemoryStream(packed, 0, packSize, false));
+					UInt64 stop = Math.Min(unpacked, size64 - total);
+					UInt64 end = nowPos64 + stop;
+					if (DecodeRun(ref nowPos64, end) || (stop == unpacked && nowPos64 != end))
+						throw new DataErrorException();
+					total += stop;
+				}
+				else
+					throw new DataErrorException();
+				m_OutWindow.Flush();
+			}
+			m_OutWindow.Flush();
+			m_OutWindow.ReleaseStream();
+			m_RangeDecoder.ReleaseStream();
+		}
+
+		static int ReadByte(System.IO.Stream s)
+		{
+			int b = s.ReadByte();
+			if (b < 0)
+				throw new DataErrorException();
+			return b;
+		}
+
+		static uint ReadBE16(System.IO.Stream s) => (uint)(ReadByte(s) << 8 | ReadByte(s));
+
+		static void ReadExactly(System.IO.Stream s, byte[] buffer, int count)
+		{
+			for (int n = 0; n < count; )
+			{
+				int r = s.Read(buffer, n, count - n);
+				if (r <= 0)
+					throw new DataErrorException();
+				n += r;
+			}
 		}
 	}
 }
