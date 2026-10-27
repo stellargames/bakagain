@@ -83,6 +83,14 @@ namespace BakAgain.Core {
         /// <summary>The shadows to draw: the choice under the master switch, Off in the faithful game.</summary>
         public static ShadowMode ShadowsShown => Enhanced ? Shadows : ShadowMode.Off;
 
+        private const string CheckForUpdatesKey = "check for updates";
+
+        /// <summary>Whether the main menu asks bakagain.org for a newer release (TASK-1017). On by default.</summary>
+        public static bool CheckForUpdates {
+            get => PlayerPrefs.GetInt(CheckForUpdatesKey, 1) == 1;
+            set => Store(CheckForUpdatesKey, value);
+        }
+
         private static void Store(string key, bool value) {
             PlayerPrefs.SetInt(key, value ? 1 : 0);
             PlayerPrefs.Save();

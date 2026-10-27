@@ -54,5 +54,15 @@ public readonly record struct SemVersion(int Major, int Minor, int Patch, string
         return c != 0 ? c : Patch.CompareTo(other.Patch);
     }
 
+    /// <summary>Release order, prerelease included: a release outranks its own prereleases (0.4.0 &gt;
+    /// 0.4.0-beta). For the update check (TASK-1017), not for ranges.</summary>
+    // ponytail: prereleases compare as plain text, so "beta.10" < "beta.2"; SemVer 11.4's per-identifier order if tags ever count up.
+    public bool IsNewerThan(SemVersion other) {
+        int c = CompareCore(other);
+        if (c != 0) return c > 0;
+        if (Prerelease == other.Prerelease) return false;
+        return Prerelease == null || (other.Prerelease != null && string.CompareOrdinal(Prerelease, other.Prerelease) > 0);
+    }
+
     public override string ToString() => $"{Major}.{Minor}.{Patch}" + (Prerelease == null ? "" : "-" + Prerelease);
 }

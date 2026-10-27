@@ -177,6 +177,8 @@ namespace BakAgain.UI {
             folders.Add(Text(Templates.Format(Templates.EnhancedModsFolder), "enhanced-settings__label"));
             folders.Add(PathLine(() => Shown(_modsPath), () => _modsOn && _modsPath != BakResourceSettings.OverridePath));
             if (FoldersPickable) Row(folders, () => Templates.Format(Templates.EnhancedBrowse), () => _modsOn, BrowseModsFolder);
+            Row(folders, () => BoxText(Templates.EnhancedCheckForUpdates, _draft.CheckForUpdates), () => true,
+                () => _draft.CheckForUpdates = !_draft.CheckForUpdates);
 
             VisualElement buttons = MovedElements.Box("enhanced-settings__buttons");
             Row(buttons, () => Templates.Format(Templates.EnhancedSave), () => true, Save);

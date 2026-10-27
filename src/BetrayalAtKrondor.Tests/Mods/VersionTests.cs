@@ -22,6 +22,20 @@ public class VersionTests {
     public void Parse_Invalid(string s) => Assert.False(SemVersion.TryParse(s, out _));
 
     [Theory]
+    [InlineData("0.4.1-beta", "0.4.0-beta", true)]
+    [InlineData("0.4.0", "0.4.0-beta", true)] // a release outranks its own prerelease
+    [InlineData("0.4.0-beta", "0.4.0", false)]
+    [InlineData("0.4.0-beta", "0.4.0-beta", false)]
+    [InlineData("0.4.0-rc", "0.4.0-beta", true)]
+    [InlineData("0.3.2-beta", "0.4.0-beta", false)]
+    [InlineData("1.0.0", "0.9.9", true)]
+    public void IsNewerThan(string latest, string current, bool expected) {
+        Assert.True(SemVersion.TryParse(latest, out SemVersion l));
+        Assert.True(SemVersion.TryParse(current, out SemVersion c));
+        Assert.Equal(expected, l.IsNewerThan(c));
+    }
+
+    [Theory]
     [InlineData(">=0.3.0", "0.3.0-beta", true)] // core-only compare (spec 4.1)
     [InlineData(">=0.3.0", "0.2.9", false)]
     [InlineData("^1.2.0", "1.9.0", true)]

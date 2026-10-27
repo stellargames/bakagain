@@ -46,7 +46,7 @@
    shows. */
 .keyword-asked {
     color: var(--ui-shadow);
-    text-shadow: none;
+    text-shadow: 0 0 0 rgba(0, 0, 0, 0);
 }
 
 .bevel-raised {
@@ -248,6 +248,26 @@
     font-size: 33px;
     -unity-text-align: middle-center;
     color: var(--ui-ink);
+}
+
+/* "v0.4.1-beta is available" on the main menu (MainMenu.AddUpdateNotice, TASK-1017): a link along
+   the top edge, not in the original. */
+.update-notice {
+    position: absolute;
+    left: 50%;
+    top: 12px;
+    translate: -50% 0;
+    margin: 0;
+    padding: 4px 12px;
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+    font-size: 33px;
+    -unity-text-align: middle-center;
+    color: rgb(28, 40, 92); /* the title's blue */
+}
+
+.update-notice:hover {
+    color: rgb(140, 30, 30);
 }
 
 /* Android touch aids (spec 2026-09-29-android-touch-aids-design.md): stone-coloured side-bar buttons. */

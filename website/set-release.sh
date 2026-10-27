@@ -6,6 +6,8 @@ tag=$1 dist=$2
 page="$(dirname "$0")/index.html"
 old=$(grep -o 'data-release="[^"]*"' "$page" | cut -d'"' -f2)
 sed -i "s/${old//./\\.}/$tag/g" "$page"
+# What the game asks at start-up to tell the player a newer release is out (TASK-1017).
+echo "$tag" > "$(dirname "$0")/latest.txt"
 for kind in windows-x64 linux-x64 apk; do
   case $kind in apk) f="$dist/BaK-Again-$tag.apk" ;; *) f="$dist/BaK-Again-$tag-$kind.zip" ;; esac
   mb=$(( ($(stat -c%s "$f") + 500000) / 1000000 ))

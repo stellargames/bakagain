@@ -186,6 +186,11 @@ public static class UiTemplates {
     public const string EnhancedSave = "port:template:enhanced_save";
     public const string EnhancedCancel = "port:template:enhanced_cancel";
 
+    /// <summary>The update notice (TASK-1017): the Enhanced settings' switch, and the main menu's line
+    /// "<c>{version}</c> is available", a link to the download page.</summary>
+    public const string EnhancedCheckForUpdates = "port:template:enhanced_check_for_updates";
+    public const string UpdateAvailable = "port:template:update_available";
+
     /// <summary>The Mods screen (mod system spec 4.6): a row per installed mod, "[<c>{on}</c>] <c>{name}</c>
     /// <c>{version}</c>", its buttons and a line per problem (<c>{other}</c>: the mod or game version it
     /// names); and the missing-mods dialog on load, a line per mod the save was made with.</summary>
@@ -318,6 +323,8 @@ public static class UiTemplates {
         (EnhancedNotSet, _ => "not set"),
         (EnhancedBadGameFolder, _ => "That folder does not hold the game's files."),
         (EnhancedSave, _ => "Save"),
+        (EnhancedCheckForUpdates, _ => "Check for updates"),
+        (UpdateAvailable, _ => "{version} is available: click to download"),
         (EnhancedCancel, _ => "Cancel"),
         (ModsTitle, _ => "Mods"),
         (ModsInstalled, _ => "Installed mods"),

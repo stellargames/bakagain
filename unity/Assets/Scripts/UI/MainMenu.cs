@@ -4,6 +4,7 @@ namespace BakAgain.UI {
     using BakAgain.UI.Navigation;
     using Cysharp.Threading.Tasks;
     using UnityEngine;
+    using UnityEngine.UIElements;
     using VContainer;
 
     /// <summary>
@@ -66,11 +67,37 @@ namespace BakAgain.UI {
         /// from Contents does not restart the theme.</para>
         /// </remarks>
         protected override void OnAfterShow() {
+            ShowUpdateNoticeAsync().Forget();
             if (_midi == null || _resources == null) {
                 return;
             }
             _midi.PlayTrackAsync(
                 GameData.Resources.Audio.MusicSelection.MainMenuTrack, _resources, owner: this).Forget();
+        }
+
+        private const string UpdateNoticeName = "update-notice";
+
+        /// <summary>
+        /// "v0.4.1-beta is available" along the top edge when bakagain.org has a newer release
+        /// (TASK-1017); a click opens the download page. Not in the original. Re-added on every show:
+        /// the document builds a new root whenever the screen is reactivated.
+        /// </summary>
+        private async UniTaskVoid ShowUpdateNoticeAsync() {
+            string tag = await BakAgain.Core.UpdateCheck.NewerReleaseAsync();
+            VisualElement root = GetComponent<UIDocument>()?.rootVisualElement;
+            if (tag == null || root == null || !isActiveAndEnabled || root.Q(UpdateNoticeName) != null) {
+                return;
+            }
+            AddUpdateNotice(root, tag);
+        }
+
+        internal static void AddUpdateNotice(VisualElement root, string tag) {
+            var notice = new Button(() => Application.OpenURL(BakAgain.Core.UpdateCheck.DownloadUrl)) {
+                name = UpdateNoticeName,
+                text = "<u>" + GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.UpdateAvailable, ("version", tag)) + "</u>",
+            };
+            notice.AddToClassList(UpdateNoticeName);
+            root.Add(notice);
         }
 
         public void PrimaryAction(int menuEntryActionId) => _handler.Primary(menuEntryActionId);
