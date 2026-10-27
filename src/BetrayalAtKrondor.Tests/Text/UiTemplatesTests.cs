@@ -94,6 +94,9 @@ public class UiTemplatesTests {
         foreach (string n in new[] { "1. ", "2. ", "3. ", "4. " }) Assert.Contains(n, android);
         Assert.DoesNotContain("5. ", android);
         foreach (string key in keys) Assert.DoesNotContain("C:\\KRONDOR", UiTemplates.Format(key));
-        Assert.Contains("can't be read here", UiTemplates.Format(UiTemplates.BootInstallerUnreadableAndroid));
+        Assert.Contains("can't be read yet", UiTemplates.Format(UiTemplates.BootInstallerUnreadableAndroid));
+        Assert.Contains("C:\\GOG Games\\Betrayal at Krondor", android);
+        Assert.Equal("KRONDOR.001 is cut short: your copy is damaged. Reinstall or download the game again from GOG.",
+            UiTemplates.Format(UiTemplates.BootDamagedInPlace, ("file", "KRONDOR.001")));
     }
 }

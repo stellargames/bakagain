@@ -143,6 +143,21 @@ namespace BakAgain.Tests.PlayMode.UI {
         public void ResetPlatform() => MetaMenu.PlatformForTest = null;
 
         [Test]
+        public void TheAndroidStepsOfferPhoneHelpAsAButtonAndStackTheirLinks() {
+            MetaMenu.PlatformForTest = RuntimePlatform.Android;
+            _view.Show(null);
+            _view.Flow.Next();
+            _view.Render();
+
+            Assert.That(Buttons("setup-outline").Select(b => b.text), Is.EqualTo(new[] { Text(UiTemplates.BootPhoneHelpLink) }));
+            Assert.That(Root.Q("Links").ClassListContains("setup-links-stacked"), Is.True);
+            Assert.That(Buttons("setup-link").Select(b => b.text), Has.Some.Contains(Text(UiTemplates.BootPickOtherAndroid)));
+
+            _view.Show(Report(GameFileState.Ok, GameFileState.Ok, GameFileState.Missing));
+            Assert.That(Buttons("setup-outline").Select(b => b.text), Is.EqualTo(new[] { Text(UiTemplates.BootPhoneHelpLink) }), "the Check step too");
+        }
+
+        [Test]
         public void HelpIsPlatformSpecific() {
             foreach (RuntimePlatform platform in new[] { RuntimePlatform.Android, RuntimePlatform.WindowsPlayer, RuntimePlatform.LinuxPlayer }) {
                 MetaMenu.PlatformForTest = platform;

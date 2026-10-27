@@ -7,6 +7,7 @@ namespace BakAgain.Tests.PlayMode.UI {
     using System.IO;
     using System.IO.Compression;
     using System.Linq;
+    using System.Reflection;
     using UnityEngine;
     using UnityEngine.UIElements;
 
@@ -191,6 +192,50 @@ namespace BakAgain.Tests.PlayMode.UI {
 
             Assert.That(_view.Flow.Step, Is.EqualTo(SetupStep.Check));
             Assert.That(_view.Flow.Report.AllOk, Is.True);
+        }
+
+        [Test]
+        public void ADamagedFileUsedInPlaceIsCutShortNotFound() {
+            foreach ((string name, byte[] bytes) in GameFiles()) File.WriteAllBytes(Path.Combine(_dir, name), bytes);
+            byte[] cut = GameFiles()[0].Bytes;
+            cut[13] = 100; // the entry claims more data than the file holds
+            File.WriteAllBytes(Path.Combine(_dir, "KRONDOR.001"), cut);
+
+            _view.UsePick(_dir);
+
+            Assert.That(Root.Q<Label>(className: "setup-title").text, Is.EqualTo(Text(UiTemplates.BootOkCount, ("ok", 2))));
+            Assert.That(Note, Is.EqualTo(Text(UiTemplates.BootDamagedInPlace, ("file", "KRONDOR.001"))));
+            Assert.That(Note, Does.Not.Contain("Copy it again"), "nothing was copied");
+        }
+
+        [Test]
+        public void ARarSaysToUnzipItFirst() {
+            string rar = Path.Combine(_dir, "bak.rar");
+            File.WriteAllBytes(rar, new byte[] { 1 });
+
+            _view.UsePick(rar);
+
+            Assert.That(Note, Is.EqualTo(Text(UiTemplates.BootNotAZip)));
+        }
+
+        [Test]
+        public void ACopyErrorUnderFoundYourGameSaysTryUseThisAgain() {
+            string zip = Path.Combine(_dir, "bak.zip");
+            using (ZipArchive archive = ZipFile.Open(zip, ZipArchiveMode.Create)) {
+                foreach ((string name, byte[] bytes) in GameFiles()) {
+                    using Stream s = archive.CreateEntry(name).Open();
+                    s.Write(bytes, 0, bytes.Length);
+                }
+            }
+            typeof(MetaMenu).GetField("_found", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(_view, _dir);
+            File.WriteAllBytes(Original, new byte[] { 1 }); // a file where the copy's folder goes: the copy fails
+            try {
+                _view.UsePick(zip);
+            } finally {
+                File.Delete(Original);
+            }
+
+            Assert.That(Note, Is.EqualTo(Text(UiTemplates.BootCopyErrorFound)));
         }
 
         [Test]

@@ -26,6 +26,7 @@ namespace BakAgain.UI {
         private const string ForumUrl = "https://forum.bakagain.org/viewforum.php?f=4";
         private const string HelpUrl = "https://bakagain.org/setup.html#";
         private const int CopyNeedsMb = 14;
+        private static readonly string[] OtherArchives = { ".rar", ".7z", ".tar", ".gz", ".tgz" };
 
         private readonly AwaitableCompletionSource _completionSource = new();
         private VisualElement _top;
@@ -132,6 +133,8 @@ namespace BakAgain.UI {
             _buttons = root.Q("Buttons");
             _links = root.Q("Links");
             foreach (VisualElement e in new[] { _top, _body, _buttons, _links }) e.Clear();
+            // On a phone two links side by side are two small targets next to each other: one per row.
+            _links.EnableInClassList("setup-links-stacked", Android);
 
             int n = Flow.Step switch { SetupStep.Welcome => 1, SetupStep.Find => 2, SetupStep.Check => 3, _ => 0 };
             Label stepLine = root.Q<Label>("StepLine");
@@ -148,7 +151,9 @@ namespace BakAgain.UI {
                     Text(UiTemplates.BootWelcomeBody);
                     Text(UiTemplates.BootNoGame, "setup-text", "setup-dim");
                     Primary(UiTemplates.BootFindFiles, FindFiles);
-                    Link(UiTemplates.BootWhereLink, Flow.OpenHelp);
+                    // On a phone the links stack, one row each: the help one becomes the outline button instead.
+                    if (Android) AddButton(UiTemplates.BootWhereLink, "setup-outline", Flow.OpenHelp, _buttons);
+                    else Link(UiTemplates.BootWhereLink, Flow.OpenHelp);
                     Link(UiTemplates.BootBuyLink, () => Application.OpenURL(GogUrl));
                     Link(UiTemplates.BootStuckLink, Flow.OpenStuck);
                     break;
@@ -159,10 +164,11 @@ namespace BakAgain.UI {
                     if (_picking) Text(UiTemplates.BootCopying);
                     else Note(Flow.Message);
                     Text(UiTemplates.BootChooseFolderBodyAndroid);
-                    if (string.IsNullOrEmpty(Flow.Message)) Text(UiTemplates.BootDownloadNote, "setup-text", "setup-dim");
+                    if (KeepSideRemark) Text(UiTemplates.BootDownloadNote, "setup-text", "setup-dim");
                     Primary(UiTemplates.BootChooseFolder, () => PickAndroidAsync(AndroidSetupPicker.PickFolderAsync, UiTemplates.BootNoFolderPicker, false).Forget());
+                    // Most players do not have the files on the phone yet: the way there is a button, not a link.
+                    AddButton(UiTemplates.BootPhoneHelpLink, "setup-outline", Flow.OpenHelp, _buttons);
                     Link(UiTemplates.BootPickOtherAndroid, () => PickAndroidAsync(AndroidSetupPicker.PickFilesAsync, UiTemplates.BootNoFilePicker, true).Forget());
-                    Link(UiTemplates.BootPhoneHelpLink, Flow.OpenHelp);
                     Link(UiTemplates.BootStuckLink, Flow.OpenStuck);
                     // Nothing to tap while a pick is copied in: the result renders the next step.
                     foreach (VisualElement e in _buttons.Children().Concat(_links.Children())) e.SetEnabled(!_picking);
@@ -181,7 +187,7 @@ namespace BakAgain.UI {
                     Text(UiTemplates.BootChooseFolderTitle, "setup-title");
                     Note(Flow.Message);
                     Text(UiTemplates.BootChooseFolderBodyDesktop);
-                    if (string.IsNullOrEmpty(Flow.Message)) Text(UiTemplates.BootCaseNote, "setup-text", "setup-dim");
+                    if (KeepSideRemark) Text(UiTemplates.BootCaseNote, "setup-text", "setup-dim");
                     Primary(UiTemplates.BootBrowse, Browse);
                     Link(UiTemplates.BootWhereLink, Flow.OpenHelp);
                     Link(UiTemplates.BootStuckLink, Flow.OpenStuck);
@@ -192,7 +198,7 @@ namespace BakAgain.UI {
                 case SetupStep.Help:
                     AddButton(UiTemplates.BootBack, "setup-link", Flow.Back, _top);
                     Text(Android ? UiTemplates.BootHelpTitleAndroid : UiTemplates.BootHelpTitleDesktop, "setup-title");
-                    Text(Android ? UiTemplates.BootHelpBodyAndroid
+                    HelpBody(Android ? UiTemplates.BootHelpBodyAndroid
                         : Platform is RuntimePlatform.WindowsPlayer or RuntimePlatform.WindowsEditor
                             ? UiTemplates.BootHelpBodyWindows : UiTemplates.BootHelpBodyLinux);
                     AddButton(UiTemplates.BootMoreHelpWeb, "setup-outline", () => Application.OpenURL(HelpUrl + HelpAnchor), _buttons);
@@ -220,6 +226,8 @@ namespace BakAgain.UI {
                     }
                     break;
             }
+            // A rule under "‹ Back": the scrolled text slides under it instead of leaving half a line loose.
+            _top.EnableInClassList("setup-top-rule", _top.childCount > 0);
         }
 
         private void RenderCheck() {
@@ -228,7 +236,9 @@ namespace BakAgain.UI {
             if (report.AllOk) {
                 Text(UiTemplates.BootAllSet, "setup-title");
             } else {
-                _body.Add(MakeLabel(T(UiTemplates.BootFoundCount, ("found", ok)), "setup-title"));
+                // A file that is there but cut short is not "found": count what is OK instead.
+                bool broken = report.Files.Values.Any(s => s is GameFileState.Damaged or GameFileState.Empty);
+                _body.Add(MakeLabel(broken ? T(UiTemplates.BootOkCount, ("ok", ok)) : T(UiTemplates.BootFoundCount, ("found", ok)), "setup-title"));
             }
             foreach (string name in GameFolder.Required) {
                 var row = new VisualElement();
@@ -238,29 +248,40 @@ namespace BakAgain.UI {
                 _body.Add(row);
             }
             if (!report.AllOk) {
-                Note(ProblemText(report));
+                Note(ProblemText(report, InPlace));
                 Primary(UiTemplates.BootChooseAgain, () => {
                     Flow.ChooseAgain();
                     _found = null;
                     Render();
                 });
+                if (Android) AddButton(UiTemplates.BootPhoneHelpLink, "setup-outline", Flow.OpenHelp, _buttons);
+                else Link(UiTemplates.BootWhereLink, Flow.OpenHelp);
             } else {
                 if (Android) Text(UiTemplates.BootCopiedNote);
                 else if (_chosen != null) Secondary(_chosen);
                 Primary(UiTemplates.BootPlay, Play).SetEnabled(Flow.CanPlay);
+                // The files are in: on a phone, where to get them is no longer the question (and the stacked links need the room).
+                if (!Android) Link(UiTemplates.BootWhereLink, Flow.OpenHelp);
             }
-            Link(Android ? UiTemplates.BootPhoneHelpLink : UiTemplates.BootWhereLink, Flow.OpenHelp);
             Link(UiTemplates.BootStuckLink, Flow.OpenStuck);
         }
 
+        /// <summary>A desktop folder used where it is: nothing was copied, so "copy it again" means nothing.</summary>
+        private bool InPlace => !Android && _chosen != null && _chosen != Original;
+
+        /// <summary>The dim side remark stays under a note that it still helps with.</summary>
+        private bool KeepSideRemark => string.IsNullOrEmpty(Flow.Message)
+            || Flow.Message == T(UiTemplates.BootPermission) || Flow.Message == T(UiTemplates.BootNothingHere);
+
         /// <summary>What is wrong, by file name and in words; never a path.</summary>
-        private static string ProblemText(GameFilesReport report) {
+        private static string ProblemText(GameFilesReport report, bool inPlace) {
             List<string> problems = report.Problems.ToList();
             if (problems.Count == GameFolder.Required.Length && problems.All(p => report.Files[p] == GameFileState.Missing)) {
                 return T(UiTemplates.BootNothingHere);
             }
             IEnumerable<string> lines = problems.Select(p => T(report.Files[p] switch {
                 GameFileState.Missing => UiTemplates.BootMissing,
+                _ when inPlace => UiTemplates.BootDamagedInPlace,
                 GameFileState.Empty => UiTemplates.BootEmpty,
                 _ => UiTemplates.BootDamaged,
             }, ("file", p)));
@@ -308,7 +329,8 @@ namespace BakAgain.UI {
                     ImportResult result = GameFilesImport.FromZip(path, Original);
                     if (result.Error != null) {
                         Logger.LogInformation("Zip import failed: {Error}", result.Error);
-                        Flow.PickFailed(ImportErrorText(result.Error));
+                        Flow.PickFailed(_found != null && result.Error == "io" && !Android
+                            ? T(UiTemplates.BootCopyErrorFound) : ImportErrorText(result.Error));
                     } else {
                         _chosen = Original;
                         Flow.Picked(name, result.Report);
@@ -325,7 +347,8 @@ namespace BakAgain.UI {
                         UseFolder(Path.GetFileName(folder), folder);
                         return;
                     }
-                    Flow.PickFailed(T(UiTemplates.BootNothingHere));
+                    Flow.PickFailed(T(OtherArchives.Contains(Path.GetExtension(name), StringComparer.OrdinalIgnoreCase)
+                        ? UiTemplates.BootNotAZip : UiTemplates.BootNothingHere));
                     break;
             }
             Render();
@@ -421,6 +444,19 @@ namespace BakAgain.UI {
                 }
             } else if (!string.IsNullOrEmpty(Application.consoleLogPath)) {
                 Application.OpenURL("file://" + Path.GetDirectoryName(Application.consoleLogPath));
+            }
+        }
+
+        /// <summary>A help body: a numbered section's first line ("1. With a USB cable") is its heading.</summary>
+        private void HelpBody(string key) {
+            foreach (string section in T(key).Split("\n\n")) {
+                int br = section.IndexOf('\n');
+                if (br > 0 && char.IsDigit(section[0])) {
+                    _body.Add(MakeLabel(section[..br], "setup-text", "setup-help-head"));
+                    _body.Add(MakeLabel(section[(br + 1)..], "setup-text"));
+                } else {
+                    _body.Add(MakeLabel(section, "setup-text"));
+                }
             }
         }
 
