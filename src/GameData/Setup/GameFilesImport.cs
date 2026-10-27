@@ -8,7 +8,7 @@ using System.Linq;
 using GameData.Mods;
 using ZipLimits = GameData.Mods.ModArchive.ZipLimits;
 
-/// <param name="Error">Null, or a short reason for the UI to map to text: "corrupt-zip", "too-large" or "io";
+/// <param name="Error">Null, or a short reason for the UI to map to text: "corrupt-zip", "too-large", "space" (the disk is full) or "io";
 /// from <see cref="GameFilesImport.FromGogInstaller"/> also "not-installer" (not a supported installer) or "corrupt".</param>
 public sealed record ImportResult(GameFilesReport Report, string? Error);
 
@@ -86,7 +86,7 @@ public static class GameFilesImport {
             }))).ToList();
             return Run(destination, ZipLimits.Default, () => (files, null), "corrupt");
         } catch (Exception e) when (e is IOException or UnauthorizedAccessException) {
-            return new ImportResult(GameFilesCheck.Check(destination), "io");
+            return new ImportResult(GameFilesCheck.Check(destination), e is IOException io && IsDiskFull(io) ? "space" : "io");
         } finally {
             exe?.Dispose();
         }
@@ -97,6 +97,13 @@ public static class GameFilesImport {
         public Progress(Action<long> report) => _report = report;
         public void Report(long value) => _report(value);
     }
+
+    /// <summary>A write failed for want of space: Windows' ERROR_DISK_FULL / ERROR_HANDLE_DISK_FULL, ENOSPC as .NET on Unix reports it (the raw errno), or Mono's wording.</summary>
+    internal static bool IsDiskFull(IOException e) =>
+        e.HResult is unchecked((int)0x80070070) or unchecked((int)0x80070027) or 28
+        || e.Message.Contains("No space left", StringComparison.OrdinalIgnoreCase)
+        || e.Message.Contains("not enough space", StringComparison.OrdinalIgnoreCase)
+        || e.Message.Contains("Disk full", StringComparison.OrdinalIgnoreCase);
 
     private static bool SameFolder(string a, string b) =>
         string.Equals(Path.GetFullPath(a).TrimEnd('/', '\\'), Path.GetFullPath(b).TrimEnd('/', '\\'), StringComparison.Ordinal);
@@ -127,7 +134,7 @@ public static class GameFilesImport {
         } catch (TooLargeException) {
             error = "too-large";
         } catch (Exception e) when (e is IOException or UnauthorizedAccessException) {
-            error = "io";
+            error = e is IOException io && IsDiskFull(io) ? "space" : "io";
         } finally {
             foreach ((string part, string _) in parts) {
                 try { File.Delete(part); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }

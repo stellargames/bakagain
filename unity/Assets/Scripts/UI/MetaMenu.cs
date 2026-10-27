@@ -341,8 +341,7 @@ namespace BakAgain.UI {
                     ImportResult result = GameFilesImport.FromZip(path, Original);
                     if (result.Error != null) {
                         Logger.LogInformation("Zip import failed: {Error}", result.Error);
-                        Flow.PickFailed(_found != null && result.Error == "io" && !Android
-                            ? T(UiTemplates.BootCopyErrorFound) : ImportErrorText(result.Error));
+                        Flow.PickFailed(CopyFailedText(result.Error, path));
                     } else {
                         _chosen = Original;
                         Flow.Picked(name, result.Report);
@@ -399,7 +398,8 @@ namespace BakAgain.UI {
                     Flow.PickFailed(T(UiTemplates.BootInstallerDamaged));
                     break;
                 case "io":
-                    Flow.PickFailed(ImportErrorText("io"));
+                case "space":
+                    Flow.PickFailed(CopyFailedText(result.Error, path));
                     break;
                 default: // "not-installer", or "too-large": not the installer this reads
                     Flow.PickFailed(T(Android ? UiTemplates.BootInstallerUnreadableAndroid : UiTemplates.BootInstallerUnreadable));
@@ -407,12 +407,21 @@ namespace BakAgain.UI {
             }
         }
 
+        /// <summary>
+        /// A zip or installer that failed to import. Under "Found your game" a failed write points back to
+        /// Use this, which copies nothing. On Android the picked file still sits in the staging folder
+        /// beside the copy, so a full disk needs room for both.
+        /// </summary>
+        private string CopyFailedText(string error, string path) =>
+            _found != null && !Android && error is "io" or "space" ? T(UiTemplates.BootCopyErrorFound)
+            : ImportErrorText(error, error == "space" && Android ? (int)(new FileInfo(path).Length >> 20) + CopyNeedsMb : CopyNeedsMb);
+
         /// <param name="mb">For "space": the MB the copy needs, when not the game files' own size.</param>
         internal static string ImportErrorText(string error, int mb = CopyNeedsMb) => error switch {
             "corrupt-zip" => T(UiTemplates.BootZipDamaged),
             "too-large" => T(UiTemplates.BootZipTooLarge),
             "space" => T(Android ? UiTemplates.BootCopyFailed : UiTemplates.BootCopyFailedDesktop, ("mb", mb)),
-            // "io" and anything else: a read or write failed, cause unknown (a full disk reports "space" only from Android's copy).
+            // "io" and anything else: a read or write failed, cause unknown.
             _ => T(Android ? UiTemplates.BootCopyError : UiTemplates.BootCopyErrorDesktop),
         };
 

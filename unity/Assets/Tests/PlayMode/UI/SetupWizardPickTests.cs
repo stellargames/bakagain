@@ -297,7 +297,8 @@ namespace BakAgain.Tests.PlayMode.UI {
         [UnityTest]
         public IEnumerator ADamagedInstallerSaysSo() => UniTask.ToCoroutine(async () => {
             string installer = InstallerPath();
-            if (installer == null) return;
+            // The flipped offset is measured in setup_betrayal_at_krondor_2.1.0.19.exe; another installer is skipped.
+            if (installer == null || new FileInfo(installer).Length != 114992104) return;
             string copy = Path.Combine(_dir, Path.GetFileName(installer));
             File.Copy(installer, copy);
             using (FileStream f = File.Open(copy, FileMode.Open)) {
@@ -313,6 +314,68 @@ namespace BakAgain.Tests.PlayMode.UI {
             Assert.That(_view.Flow.Step, Is.EqualTo(SetupStep.Find));
             Assert.That(Note, Is.EqualTo(Text(UiTemplates.BootInstallerDamaged)));
         });
+
+        [System.Runtime.InteropServices.DllImport("libc", SetLastError = true)]
+        private static extern int symlink(string target, string link); // File.CreateSymbolicLink is not in .NET Standard 2.1
+
+        /// <summary>Linux: every write into the copy's .part files fails with ENOSPC, as on a full disk.</summary>
+        private static bool FillTheDisk() {
+            if (!File.Exists("/dev/full")) return false;
+            Directory.CreateDirectory(Original);
+            foreach (string name in GameFolder.Required.Append("RESOURCE.CFG")) {
+                Assert.That(symlink("/dev/full", Path.Combine(Original, name + ".part")), Is.Zero);
+            }
+            return true;
+        }
+
+        [Test]
+        public void AFullDiskWhileImportingAZipSaysSo() {
+            if (!FillTheDisk()) return;
+            string zip = Path.Combine(_dir, "bak.zip");
+            using (ZipArchive archive = ZipFile.Open(zip, ZipArchiveMode.Create)) {
+                foreach ((string name, byte[] bytes) in GameFiles()) {
+                    using Stream s = archive.CreateEntry(name).Open();
+                    s.Write(bytes, 0, bytes.Length);
+                }
+            }
+
+            _view.UsePick(zip);
+
+            Assert.That(Note, Is.EqualTo(MetaMenu.ImportErrorText("space")));
+        }
+
+        [UnityTest]
+        public IEnumerator AFullDiskWhileExtractingOnAPhoneCountsTheStagedInstaller() => UniTask.ToCoroutine(async () => {
+            string installer = InstallerPath();
+            if (installer == null || !FillTheDisk()) return;
+            MetaMenu.PlatformForTest = RuntimePlatform.Android;
+            try {
+                await _view.UsePick(installer);
+
+                int mb = (int)(new FileInfo(installer).Length >> 20) + 14; // the staged installer, then the game files
+                Assert.That(Note, Is.EqualTo(MetaMenu.ImportErrorText("space", mb)));
+                Assert.That(Note, Does.Contain(mb + " MB"));
+            } finally {
+                MetaMenu.PlatformForTest = null;
+            }
+        });
+
+        [Test]
+        public void AFullDiskUnderFoundYourGamePointsBackToIt() {
+            if (!FillTheDisk()) return;
+            string zip = Path.Combine(_dir, "bak.zip");
+            using (ZipArchive archive = ZipFile.Open(zip, ZipArchiveMode.Create)) {
+                foreach ((string name, byte[] bytes) in GameFiles()) {
+                    using Stream s = archive.CreateEntry(name).Open();
+                    s.Write(bytes, 0, bytes.Length);
+                }
+            }
+            _view.FoundForTest = _dir;
+
+            _view.UsePick(zip);
+
+            Assert.That(Note, Is.EqualTo(Text(UiTemplates.BootCopyErrorFound)));
+        }
 
         [Test]
         public void ACopyFailureOnTheDesktopNeverSaysPhone() {

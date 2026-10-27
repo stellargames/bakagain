@@ -120,4 +120,30 @@ public class GameFilesImportTests : IDisposable {
         Assert.Equal(GameFileState.Ok, r.Report.Files["KRONDOR.001"]);
         Assert.Equal(GameFileState.Missing, r.Report.Files["FRP.SX"]);
     }
+
+    [Theory]
+    [InlineData(unchecked((int)0x80070070), "x", true)] // Windows ERROR_DISK_FULL
+    [InlineData(unchecked((int)0x80070027), "x", true)] // Windows ERROR_HANDLE_DISK_FULL
+    [InlineData(28, "x", true)] // .NET on Linux and Android: the raw errno, ENOSPC
+    [InlineData(0, "No space left on device : '/x/KRONDOR.001.part'", true)]
+    [InlineData(0, "There is not enough space on the disk.", true)]
+    [InlineData(0, "Disk full. Path /x/KRONDOR.001.part", true)] // Mono's wording
+    [InlineData(unchecked((int)0x80070005), "Access to the path is denied.", false)]
+    [InlineData(13, "x", false)] // EACCES
+    [InlineData(0, "The process cannot access the file because it is being used by another process.", false)]
+    public void ADiskFullIOExceptionIsTold(int hresult, string message, bool full) =>
+        Assert.Equal(full, GameFilesImport.IsDiskFull(new IOException(message, hresult)));
+
+    [Fact]
+    public void AFullDiskIsSpaceNotIo() {
+        if (!File.Exists("/dev/full")) {
+            return; // Linux only: every write to /dev/full fails with ENOSPC
+        }
+        MakeZip(Three(""));
+        Directory.CreateDirectory(Dest);
+        foreach (string name in GameFolder.Required) {
+            File.CreateSymbolicLink(Path.Combine(Dest, name + ".part"), "/dev/full");
+        }
+        Assert.Equal("space", GameFilesImport.FromZip(Zip, Dest).Error);
+    }
 }
