@@ -25,6 +25,7 @@ Where every committed binary asset comes from, so the public release carries not
 | `Assets/Localization/*.asset` | the port's own UI strings (loading screen, game-folder prompt), English and Dutch | project (MIT) |
 | `Assets/Tests/Editor/World/Fixtures/cube.glb` | hand-made 684-byte test cube (8c2bb6b8) | project (MIT) |
 | `website/img/hero.jpg`, `website/img/og.jpg` (monorepo, not the Unity project) | original artwork generated for the project with Google Gemini (2026-09-27, prompt: dusk road to a walled port city, no text/logos/game art); title text set in Liberation Serif | project (CC-BY-4.0, as docs/) |
+| `website/img/setup/*.jpg` | screenshots of the port's own setup cards (Alegreya text on the parchment card over the BuiltIn table texture), taken 2026-10-27; no original game art | project (CC-BY-4.0, as docs/) |
 | `website/favicon.ico`, `website/img/apple-touch-icon.png` (monorepo) | scaled down from `Assets/Custom/Icons/Icon.png` (2026-10-07) | as `Icon.png` |
 
 ## Removed: derived from the original game
