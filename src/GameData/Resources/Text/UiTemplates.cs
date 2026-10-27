@@ -81,6 +81,8 @@ public static class UiTemplates {
     public const string BootFoundBodyOther = "port:template:boot_found_body_other";
     public const string BootPermission = "port:template:boot_permission";
     public const string BootCopying = "port:template:boot_copying";
+    public const string BootCopyError = "port:template:boot_copy_error";
+    public const string BootCopyErrorDesktop = "port:template:boot_copy_error_desktop";
     public const string BootNoFolderPicker = "port:template:boot_no_folder_picker";
     public const string BootNoFilePicker = "port:template:boot_no_file_picker";
     public const string BootChooseAgain = "port:template:boot_choose_again";
@@ -390,6 +392,8 @@ public static class UiTemplates {
         (BootFoundBodyOther, _ => Literal("Betrayal at Krondor is installed on this computer.")),
         (BootPermission, _ => Literal("The app isn't allowed to read that place. Choose it again and allow access, or use the other way to pick your files.")),
         (BootCopying, _ => Literal("Copying the files…")),
+        (BootCopyError, _ => Literal("Couldn't copy the files. Choose them again; if it keeps failing, copy them to the phone first.")),
+        (BootCopyErrorDesktop, _ => Literal("Couldn't copy the files. Choose them again.")),
         (BootNoFolderPicker, _ => Literal("This phone has no folder picker. Try “Pick files, a .zip or the GOG installer” instead.")),
         (BootNoFilePicker, _ => Literal("This phone has no file picker. Try Choose folder instead.")),
         (BootChooseAgain, _ => Literal("Choose again")),

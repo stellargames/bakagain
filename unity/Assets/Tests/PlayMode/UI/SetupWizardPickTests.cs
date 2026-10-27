@@ -145,7 +145,8 @@ namespace BakAgain.Tests.PlayMode.UI {
             _view.Render();
 
             Assert.That(_view.Flow.Step, Is.EqualTo(SetupStep.Find));
-            Assert.That(Note, Is.EqualTo(MetaMenu.ImportErrorText("io")));
+            Assert.That(Note, Is.EqualTo(Text(UiTemplates.BootCopyErrorDesktop))); // the Editor is the desktop
+            Assert.That(Note, Does.Not.Contain("MB"), "a read failure is not a space problem");
             Assert.That(Directory.Exists(Original), Is.False, "nothing imported");
         }
 

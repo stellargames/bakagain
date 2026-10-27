@@ -296,7 +296,9 @@ namespace BakAgain.UI {
         internal static string ImportErrorText(string error) => error switch {
             "corrupt-zip" => T(UiTemplates.BootZipDamaged),
             "too-large" => T(UiTemplates.BootZipTooLarge),
-            _ => T(Android ? UiTemplates.BootCopyFailed : UiTemplates.BootCopyFailedDesktop, ("mb", CopyNeedsMb)),
+            "space" => T(Android ? UiTemplates.BootCopyFailed : UiTemplates.BootCopyFailedDesktop, ("mb", CopyNeedsMb)),
+            // "io" and anything else: a read or write failed, cause unknown (a full disk reports "space" only from Android's copy).
+            _ => T(Android ? UiTemplates.BootCopyError : UiTemplates.BootCopyErrorDesktop),
         };
 
         /// <summary>A desktop folder is used where it is: nothing is copied.</summary>
