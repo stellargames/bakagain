@@ -113,6 +113,29 @@ namespace BakAgain.Tests.PlayMode.UI {
         }
 
         [Test]
+        public void LooseAndroidFilesSayTheSelectedFilesNotTheFirstName() {
+            foreach ((string name, byte[] bytes) in GameFiles()) File.WriteAllBytes(Path.Combine(_dir, name), bytes);
+
+            _view.UseAndroidPick(new AndroidSetupPicker.PickResult("FRP.SX", _dir, null), looseFiles: true);
+            _view.Render();
+
+            string stepLine = Root.Q<Label>("StepLine").text;
+            Assert.That(stepLine, Does.Contain(Text(UiTemplates.BootFromFiles)));
+            Assert.That(stepLine, Does.Not.Contain("FRP.SX"));
+        }
+
+        [Test]
+        public void AFindStepNoteComesRightUnderTheTitle() {
+            string gog = Path.Combine(_dir, "bak.gog");
+            File.WriteAllBytes(gog, new byte[] { 1 });
+
+            _view.UsePick(gog);
+
+            // The body scrolls; on a phone a note at its end showed one line above the button.
+            Assert.That(Root.Q<ScrollView>("Body").contentContainer.ElementAt(1).ClassListContains("setup-note"), Is.True);
+        }
+
+        [Test]
         public void AnAndroidPickOfOneZipIsImportedAsAZip() {
             using (ZipArchive archive = ZipFile.Open(Path.Combine(_dir, "bak-files.zip"), ZipArchiveMode.Create)) {
                 foreach ((string name, byte[] bytes) in GameFiles()) {

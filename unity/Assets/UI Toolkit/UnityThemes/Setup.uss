@@ -18,26 +18,30 @@
 
 .setup-card {
     width: 100%;
-    max-width: 640px;
+    max-width: 760px; /* wide enough that a small phone (840x472 units) shows the Android Find step unscrolled */
     max-height: 100%;
     border-radius: 6px;
     background-image: url("project://database/Assets/BuiltIn/Enhanced/Stone/parchment.jpg");
     -unity-background-scale-mode: scale-and-crop;
 }
 
-/* parchment.jpg is a mid brown (median #936736): ink on it alone is 3.6:1. A cream wash lifts it past 4.5:1. */
+/* parchment.jpg is a mid brown (median #936736, darkest 24px block #916234): ink on it alone is 3.1:1. The cream
+   wash is the least that keeps every text colour at 4.5:1 over the darkest block. The panel blends in linear
+   colour, so 0.35 gives #bda38a there: dim #4a3826 4.65:1, link #6d1c14 4.8:1, ink 6.8:1 (measured on the render). */
 .setup-sheet {
     flex-shrink: 1;
-    padding: 12px 28px 8px 28px;
+    padding: 12px 28px 12px 28px;
     border-radius: 6px;
-    background-color: rgba(246, 234, 212, 0.6);
+    background-color: rgba(246, 234, 212, 0.35);
 }
 
 .setup-top {
     flex-direction: row;
+    flex-shrink: 0; /* only the body gives way: a squeezed row let the Back link overlap the scrolled text */
 }
 
 .setup-step {
+    flex-shrink: 0;
     font-size: 21px;
     letter-spacing: 2px;
     color: #4a3826;
@@ -160,7 +164,7 @@ Button {
 }
 
 .setup-ok {
-    color: #2f6b2a;
+    color: #265a22; /* 3.4:1 over the darkest washed parchment: a mark needs 3:1 */
 }
 
 .setup-bad {

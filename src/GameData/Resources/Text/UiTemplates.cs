@@ -45,6 +45,7 @@ public static class UiTemplates {
     // The game-files setup wizard (TASK-1014).
     public const string BootStepOf = "port:template:boot_step_of";
     public const string BootFrom = "port:template:boot_from";
+    public const string BootFromFiles = "port:template:boot_from_files";
     public const string BootWelcomeTitle = "port:template:boot_welcome_title";
     public const string BootWelcomeBody = "port:template:boot_welcome_body";
     public const string BootNoGame = "port:template:boot_no_game";
@@ -103,6 +104,7 @@ public static class UiTemplates {
     public const string BootOpenLogFolder = "port:template:boot_open_log_folder";
     public const string BootCopied = "port:template:boot_copied";
     public const string BootVersionCopy = "port:template:boot_version_copy";
+    public const string BootVersion = "port:template:boot_version";
     public const string BootExtracting = "port:template:boot_extracting";
 
     // The touch controls' own words; the original had no touch screen.
@@ -357,6 +359,7 @@ public static class UiTemplates {
         (BootLoading, _ => Literal("Loading Betrayal at Krondor... please wait.")),
         (BootStepOf, _ => "STEP {n} OF 3"),
         (BootFrom, _ => "from “{name}”"),
+        (BootFromFiles, _ => Literal("from the selected files")),
         (BootWelcomeTitle, _ => Literal("Welcome to BaK-Again")),
         (BootWelcomeBody, _ => Literal("BaK-Again plays Betrayal at Krondor with the files from your own copy of the game. Point it at them once and you're ready.")),
         (BootNoGame, _ => Literal("Don't own the game? It's on GOG for a few euros.")),
@@ -415,6 +418,7 @@ public static class UiTemplates {
         (BootOpenLogFolder, _ => Literal("Open log folder")),
         (BootCopied, _ => Literal("Copied")),
         (BootVersionCopy, _ => Literal("Tap or click the version to copy it.")),
+        (BootVersion, _ => "BaK-Again {version}"),
         (BootExtracting, _ => "Extracting… {percent}%"),
         (Farewell, _ => "GoodBye"),
         (Ok, _ => "OK"),

@@ -38,6 +38,7 @@ namespace BakAgain.UI {
         private bool _done;
         private bool _copied; // the Still stuck? version line was just copied
         private bool _picking; // Android: a system picker or its copy is under way
+        private bool _fromFiles; // Android: the pick was loose files, so there is no one name to show
 
         private static readonly ILogger Logger = LogManager.LoggerFactory.CreateLogger<MetaMenu>();
 
@@ -55,7 +56,24 @@ namespace BakAgain.UI {
 
         private static string T(string key, params (string Name, object Value)[] args) => LanguagePacks.BootText(key, args);
 
-        private void OnEnable() => FileBrowser.SingleClickMode = true;
+        private void OnEnable() {
+            FileBrowser.SingleClickMode = true;
+            if (Application.platform == RuntimePlatform.Android) KeepTouchSizeOnSmallPhones();
+        }
+
+        /// <summary>
+        /// The panel scales with the screen height, so on a small phone (1280x720 at 320 dpi) a 64-unit
+        /// button is only 43dp. Scale the panel up until one unit is at least 48/63 dp: the layout then
+        /// has fewer units to fill, and the body scrolls.
+        /// </summary>
+        private void KeepTouchSizeOnSmallPhones() {
+            PanelSettings panel = GetComponent<UIDocument>().panelSettings;
+            if (Screen.dpi <= 0 || panel.scaleMode != PanelScaleMode.ScaleWithScreenSize) return;
+            float pxPerUnit = Math.Min(Screen.width, Screen.height) / (float)panel.referenceResolution.y;
+            float wantedPxPerUnit = 48f / 63f * Screen.dpi / 160f;
+            panel.scale = Math.Max(1f, wantedPxPerUnit / pxPerUnit);
+            Logger.LogInformation("Setup panel: {Width}x{Height} at {Dpi} dpi, scale {Scale}", Screen.width, Screen.height, Screen.dpi, panel.scale);
+        }
 
         /// <summary>Opens on Welcome, or on Check with <paramref name="existing"/> when the stored folder failed it.</summary>
         public void Show(GameFilesReport existing) {
@@ -118,8 +136,10 @@ namespace BakAgain.UI {
             int n = Flow.Step switch { SetupStep.Welcome => 1, SetupStep.Find => 2, SetupStep.Check => 3, _ => 0 };
             Label stepLine = root.Q<Label>("StepLine");
             stepLine.style.display = n == 0 ? DisplayStyle.None : DisplayStyle.Flex;
-            stepLine.text = n == 3 && Flow.SourceName != null
-                ? T(UiTemplates.BootStepOf, ("n", n)) + " · " + T(UiTemplates.BootFrom, ("name", Flow.SourceName))
+            string from = _fromFiles ? T(UiTemplates.BootFromFiles)
+                : Flow.SourceName != null ? T(UiTemplates.BootFrom, ("name", Flow.SourceName)) : null;
+            stepLine.text = n == 3 && from != null
+                ? T(UiTemplates.BootStepOf, ("n", n)) + " · " + from
                 : T(UiTemplates.BootStepOf, ("n", n));
 
             switch (Flow.Step) {
@@ -134,12 +154,14 @@ namespace BakAgain.UI {
                     break;
                 case SetupStep.Find when Android:
                     Text(UiTemplates.BootChooseFolderTitle, "setup-title");
-                    Text(UiTemplates.BootChooseFolderBodyAndroid);
-                    Text(UiTemplates.BootDownloadNote, "setup-text", "setup-dim");
-                    Note(Flow.Message);
+                    // What just happened goes first: the body scrolls, and a note below it was cut off on a phone.
+                    // A copy under way replaces the last pick's note, and a note replaces the dim side remark.
                     if (_picking) Text(UiTemplates.BootCopying);
-                    Primary(UiTemplates.BootChooseFolder, () => PickAndroidAsync(AndroidSetupPicker.PickFolderAsync, UiTemplates.BootNoFolderPicker).Forget());
-                    Link(UiTemplates.BootPickOtherAndroid, () => PickAndroidAsync(AndroidSetupPicker.PickFilesAsync, UiTemplates.BootNoFilePicker).Forget());
+                    else Note(Flow.Message);
+                    Text(UiTemplates.BootChooseFolderBodyAndroid);
+                    if (string.IsNullOrEmpty(Flow.Message)) Text(UiTemplates.BootDownloadNote, "setup-text", "setup-dim");
+                    Primary(UiTemplates.BootChooseFolder, () => PickAndroidAsync(AndroidSetupPicker.PickFolderAsync, UiTemplates.BootNoFolderPicker, false).Forget());
+                    Link(UiTemplates.BootPickOtherAndroid, () => PickAndroidAsync(AndroidSetupPicker.PickFilesAsync, UiTemplates.BootNoFilePicker, true).Forget());
                     Link(UiTemplates.BootPhoneHelpLink, Flow.OpenHelp);
                     Link(UiTemplates.BootStuckLink, Flow.OpenStuck);
                     // Nothing to tap while a pick is copied in: the result renders the next step.
@@ -147,9 +169,9 @@ namespace BakAgain.UI {
                     break;
                 case SetupStep.Find when _found != null:
                     Text(UiTemplates.BootFoundTitle, "setup-title");
+                    Note(Flow.Message);
                     Text(_foundGog ? UiTemplates.BootFoundBody : UiTemplates.BootFoundBodyOther);
                     Secondary(_found);
-                    Note(Flow.Message);
                     Primary(UiTemplates.BootUseThis, () => UseFolder(Path.GetFileName(_found), _found));
                     AddButton(UiTemplates.BootChooseAnother, "setup-outline", Browse, _buttons);
                     Link(UiTemplates.BootWhereLink, Flow.OpenHelp);
@@ -157,9 +179,9 @@ namespace BakAgain.UI {
                     break;
                 case SetupStep.Find:
                     Text(UiTemplates.BootChooseFolderTitle, "setup-title");
-                    Text(UiTemplates.BootChooseFolderBodyDesktop);
-                    Text(UiTemplates.BootCaseNote, "setup-text", "setup-dim");
                     Note(Flow.Message);
+                    Text(UiTemplates.BootChooseFolderBodyDesktop);
+                    if (string.IsNullOrEmpty(Flow.Message)) Text(UiTemplates.BootCaseNote, "setup-text", "setup-dim");
                     Primary(UiTemplates.BootBrowse, Browse);
                     Link(UiTemplates.BootWhereLink, Flow.OpenHelp);
                     Link(UiTemplates.BootStuckLink, Flow.OpenStuck);
@@ -181,7 +203,9 @@ namespace BakAgain.UI {
                     Text(UiTemplates.BootStuckTitle, "setup-title");
                     Text(UiTemplates.BootStuckBody);
                     Text(UiTemplates.BootVersionCopy, "setup-text", "setup-dim");
-                    string version = BuildInfo.Describe(Application.version, Application.consoleLogPath);
+                    // Android has no log file, and "adb logcat" means nothing to a player: Share log sends it instead.
+                    string version = Android ? T(UiTemplates.BootVersion, ("version", Application.version))
+                        : BuildInfo.Describe(Application.version, Application.consoleLogPath);
                     _body.Add(LinkButton(_copied ? T(UiTemplates.BootCopied) : version, () => {
                         GUIUtility.systemCopyBuffer = version;
                         _copied = true;
@@ -323,7 +347,7 @@ namespace BakAgain.UI {
         }
 
         /// <summary>Android: the system picker, its copy into the staging folder, then the import from there.</summary>
-        private async UniTaskVoid PickAndroidAsync(Func<UniTask<AndroidSetupPicker.PickResult>> pick, string noPickerKey) {
+        private async UniTaskVoid PickAndroidAsync(Func<UniTask<AndroidSetupPicker.PickResult>> pick, string noPickerKey, bool looseFiles) {
             if (_picking) return;
             _picking = true;
             try {
@@ -333,7 +357,7 @@ namespace BakAgain.UI {
                 } else if (picked.Error == "no-picker") {
                     Flow.PickFailed(T(noPickerKey));
                 } else {
-                    UseAndroidPick(picked);
+                    UseAndroidPick(picked, looseFiles);
                 }
             } catch (Exception e) { // whatever the Java side or the copy throws ends as a message, never a wizard left waiting
                 Logger.LogError(e, "The Android pick failed");
@@ -352,10 +376,12 @@ namespace BakAgain.UI {
         /// <summary>
         /// What the Java side copied: the game's files (imported, then checked), or one other file, a zip
         /// or an installer, used like a desktop pick. A failed copy imports nothing, unless only the
-        /// optional RESOURCE.CFG failed after all three game files were copied.
+        /// optional RESOURCE.CFG failed after all three game files were copied. <paramref name="looseFiles"/>:
+        /// picked as loose files, whose display name is only the first file's.
         /// </summary>
-        internal void UseAndroidPick(AndroidSetupPicker.PickResult picked) {
+        internal void UseAndroidPick(AndroidSetupPicker.PickResult picked, bool looseFiles = false) {
             Logger.LogInformation("Setup pick: {Name}, copy error {Error}", picked.DisplayName, picked.Error);
+            _fromFiles = false;
             switch (picked.Error) {
                 case "permission":
                     Flow.PickFailed(T(UiTemplates.BootPermission));
@@ -378,6 +404,7 @@ namespace BakAgain.UI {
                 Flow.PickFailed(ImportErrorText(result.Error));
             } else {
                 _chosen = Original;
+                _fromFiles = looseFiles;
                 Flow.Picked(picked.DisplayName, result.Report);
             }
         }
