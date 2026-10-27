@@ -385,7 +385,8 @@ namespace BakAgain.Tests.PlayMode.UI {
 
             _view.UsePick(zip);
 
-            Assert.That(Note, Is.EqualTo(Text(UiTemplates.BootCopyErrorFound)));
+            Assert.That(Note, Is.EqualTo(Text(UiTemplates.BootCopyFailedFound, ("mb", 14))));
+            Assert.That(Note, Does.Contain("14 MB"));
         }
 
         [Test]

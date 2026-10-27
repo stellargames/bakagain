@@ -181,6 +181,31 @@ namespace BakAgain.Tests.PlayMode.UI {
         }
 
         [Test]
+        public void TheVersionHintAndPhoneButtonAndHelpPathReadRightPerPlatform() {
+            foreach (RuntimePlatform platform in new[] { RuntimePlatform.Android, RuntimePlatform.LinuxPlayer }) {
+                MetaMenu.PlatformForTest = platform;
+                _view.Show(null);
+                _view.Flow.OpenStuck();
+                _view.Render();
+                string[] labels = Root.Query<Label>().ToList().Select(l => l.text).ToArray();
+                bool android = platform == RuntimePlatform.Android;
+                Assert.That(labels, Has.Member(android ? "Tap the version to copy it." : "Click the version to copy it."), platform.ToString());
+                Assert.That(labels, Has.No.Member(Text(android ? UiTemplates.BootVersionCopy : UiTemplates.BootVersionCopyAndroid)), platform.ToString());
+            }
+
+            MetaMenu.PlatformForTest = RuntimePlatform.Android;
+            _view.Show(null);
+            _view.Flow.Next();
+            _view.Render();
+            Assert.That(Buttons("setup-outline").Select(b => b.text), Is.EqualTo(new[] { "Get them on my phone" }));
+
+            _view.Flow.OpenHelp();
+            _view.Render();
+            string[] help = Root.Query<Label>().ToList().SelectMany(l => l.text.Split('\n')).ToArray();
+            Assert.That(help, Has.Member("C:\\GOG Games\\Betrayal at Krondor"), "the path stands on its own line");
+        }
+
+        [Test]
         public void HelpIsPlatformSpecific() {
             foreach (RuntimePlatform platform in new[] { RuntimePlatform.Android, RuntimePlatform.WindowsPlayer, RuntimePlatform.LinuxPlayer }) {
                 MetaMenu.PlatformForTest = platform;

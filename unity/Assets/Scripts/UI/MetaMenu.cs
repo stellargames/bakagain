@@ -226,7 +226,7 @@ namespace BakAgain.UI {
                     AddButton(UiTemplates.BootBack, "setup-link", Flow.Back, _top);
                     Text(UiTemplates.BootStuckTitle, "setup-title");
                     Text(UiTemplates.BootStuckBody);
-                    Text(UiTemplates.BootVersionCopy, "setup-text", "setup-dim");
+                    Text(Android ? UiTemplates.BootVersionCopyAndroid : UiTemplates.BootVersionCopy, "setup-text", "setup-dim");
                     // Android has no log file, and "adb logcat" means nothing to a player: Share log sends it instead.
                     string version = Android ? T(UiTemplates.BootVersion, ("version", Application.version))
                         : BuildInfo.Describe(Application.version, Application.consoleLogPath);
@@ -432,7 +432,8 @@ namespace BakAgain.UI {
         /// beside the copy, so a full disk needs room for both.
         /// </summary>
         private string CopyFailedText(string error, string path) =>
-            _found != null && !Android && error is "io" or "space" ? T(UiTemplates.BootCopyErrorFound)
+            _found != null && !Android && error == "io" ? T(UiTemplates.BootCopyErrorFound)
+            : _found != null && !Android && error == "space" ? T(UiTemplates.BootCopyFailedFound, ("mb", CopyNeedsMb))
             : ImportErrorText(error, error == "space" && Android ? (int)(new FileInfo(path).Length >> 20) + CopyNeedsMb : CopyNeedsMb);
 
         /// <param name="mb">For "space": the MB the copy needs, when not the game files' own size.</param>

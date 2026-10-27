@@ -97,7 +97,12 @@ public class UiTemplatesTests {
         Assert.Equal("1 of 3 is OK.", UiTemplates.Format(UiTemplates.BootOkCount, ("ok", 1)));
         Assert.Equal("2 of 3 are OK.", UiTemplates.Format(UiTemplates.BootOkCount, ("ok", 2)));
         Assert.Contains("can't be read yet", UiTemplates.Format(UiTemplates.BootInstallerUnreadableAndroid));
-        Assert.Contains("C:\\GOG Games\\Betrayal at Krondor", android);
+        Assert.Contains("\nC:\\GOG Games\\Betrayal at Krondor\n", android);
+        Assert.Equal("Tap the version to copy it.", UiTemplates.Format(UiTemplates.BootVersionCopyAndroid));
+        Assert.Equal("Click the version to copy it.", UiTemplates.Format(UiTemplates.BootVersionCopy));
+        Assert.Equal("Get them on my phone", UiTemplates.Format(UiTemplates.BootPhoneHelpLink));
+        Assert.Equal("Couldn't copy the files: this computer needs about 14 MB free. Use this, or choose something else.",
+            UiTemplates.Format(UiTemplates.BootCopyFailedFound, ("mb", 14)));
         Assert.Equal("KRONDOR.001 is cut short: your copy is damaged. Reinstall or download the game again from GOG.",
             UiTemplates.Format(UiTemplates.BootDamagedInPlace, ("file", "KRONDOR.001")));
     }
