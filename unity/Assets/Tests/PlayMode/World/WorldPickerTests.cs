@@ -28,6 +28,11 @@ namespace BakAgain.Tests.PlayMode.World {
             var cam = new GameObject("cam").AddComponent<Camera>();
             cam.transform.position = new Vector3(0, 10, -10);
             cam.transform.LookAt(Vector3.zero);
+            // The arena camera renders into a texture, so this one does too. Left on the Game view,
+            // it inherited that view's size: a fractional 1003.31x451.49 on the -nographics runner,
+            // where WorldToViewportPoint came back off by ~0.0005 and the round trip missed by 0.018.
+            var target = new RenderTexture(1600, 1200, 16);
+            cam.targetTexture = target;
             var stage = new Rect(300, 50, 800, 600);   // a viewport that is NOT the whole screen
             try {
                 var floor = new Vector3(2.5f, 0f, 1.5f);
@@ -38,7 +43,9 @@ namespace BakAgain.Tests.PlayMode.World {
                 Assert.IsTrue(back.HasValue);
                 Assert.Less(Vector3.Distance(floor, back.Value), 0.01f);
             } finally {
+                cam.targetTexture = null;
                 Object.DestroyImmediate(cam.gameObject);
+                Object.DestroyImmediate(target);
             }
         }
 
