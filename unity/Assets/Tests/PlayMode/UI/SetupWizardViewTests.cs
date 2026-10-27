@@ -138,5 +138,22 @@ namespace BakAgain.Tests.PlayMode.UI {
                 }
             }
         }
+
+        [TearDown]
+        public void ResetPlatform() => MetaMenu.PlatformForTest = null;
+
+        [Test]
+        public void HelpIsPlatformSpecific() {
+            foreach (RuntimePlatform platform in new[] { RuntimePlatform.Android, RuntimePlatform.WindowsPlayer, RuntimePlatform.LinuxPlayer }) {
+                MetaMenu.PlatformForTest = platform;
+                _view.Show(null);
+                _view.Flow.OpenHelp();
+                _view.Render();
+                string text = string.Join("\n", Root.Query<Label>().ToList().Select(l => l.text)
+                    .Concat(Root.Query<Button>().ToList().Select(b => b.text)));
+                if (platform == RuntimePlatform.Android) Assert.That(text, Does.Not.Contain("Browse…"), platform.ToString());
+                else Assert.That(text, Does.Not.Contain("phone"), platform.ToString());
+            }
+        }
     }
 }

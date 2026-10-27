@@ -36,6 +36,7 @@ namespace BakAgain.UI {
         private bool _foundGog; // ...and whether it is GOG's own install (not a Heroic, Wine or Lutris one)
         private string _chosen; // the folder Play stores as GamePath
         private bool _done;
+        private bool _copied; // the Still stuck? version line was just copied
         private bool _picking; // Android: a system picker or its copy is under way
 
         private static readonly ILogger Logger = LogManager.LoggerFactory.CreateLogger<MetaMenu>();
@@ -44,7 +45,11 @@ namespace BakAgain.UI {
 
         internal static string DefaultOverridePath => Path.Join(Application.persistentDataPath, "overrides");
 
-        private static bool Android => Application.platform == RuntimePlatform.Android;
+        internal static RuntimePlatform? PlatformForTest;
+
+        private static RuntimePlatform Platform => PlatformForTest ?? Application.platform;
+
+        private static bool Android => Platform == RuntimePlatform.Android;
 
         private static string Original => Path.Combine(Application.persistentDataPath, "original");
 
@@ -166,7 +171,7 @@ namespace BakAgain.UI {
                     AddButton(UiTemplates.BootBack, "setup-link", Flow.Back, _top);
                     Text(Android ? UiTemplates.BootHelpTitleAndroid : UiTemplates.BootHelpTitleDesktop, "setup-title");
                     Text(Android ? UiTemplates.BootHelpBodyAndroid
-                        : Application.platform is RuntimePlatform.WindowsPlayer or RuntimePlatform.WindowsEditor
+                        : Platform is RuntimePlatform.WindowsPlayer or RuntimePlatform.WindowsEditor
                             ? UiTemplates.BootHelpBodyWindows : UiTemplates.BootHelpBodyLinux);
                     AddButton(UiTemplates.BootMoreHelpWeb, "setup-outline", () => Application.OpenURL(HelpUrl + HelpAnchor), _buttons);
                     Link(UiTemplates.BootStuckLink, Flow.OpenStuck);
@@ -177,9 +182,18 @@ namespace BakAgain.UI {
                     Text(UiTemplates.BootStuckBody);
                     Text(UiTemplates.BootVersionCopy, "setup-text", "setup-dim");
                     string version = BuildInfo.Describe(Application.version, Application.consoleLogPath);
-                    _body.Add(LinkButton(version, () => GUIUtility.systemCopyBuffer = version));
+                    _body.Add(LinkButton(_copied ? T(UiTemplates.BootCopied) : version, () => {
+                        GUIUtility.systemCopyBuffer = version;
+                        _copied = true;
+                        _body.schedule.Execute(() => {
+                            _copied = false;
+                            if (Flow.Step == SetupStep.Stuck) Render();
+                        }).StartingIn(1500);
+                    }));
                     Primary(UiTemplates.BootAskForum, () => Application.OpenURL(ForumUrl));
-                    AddButton(Android ? UiTemplates.BootShareLog : UiTemplates.BootOpenLogFolder, "setup-outline", ShareOrOpenLog, _buttons);
+                    if (Android || !string.IsNullOrEmpty(Application.consoleLogPath)) {
+                        AddButton(Android ? UiTemplates.BootShareLog : UiTemplates.BootOpenLogFolder, "setup-outline", ShareOrOpenLog, _buttons);
+                    }
                     break;
             }
         }
@@ -231,7 +245,7 @@ namespace BakAgain.UI {
         }
 
         private static string HelpAnchor => Android ? "android"
-            : Application.platform is RuntimePlatform.WindowsPlayer or RuntimePlatform.WindowsEditor ? "windows" : "linux";
+            : Platform is RuntimePlatform.WindowsPlayer or RuntimePlatform.WindowsEditor ? "windows" : "linux";
 
         private void FindFiles() {
             Flow.Next();

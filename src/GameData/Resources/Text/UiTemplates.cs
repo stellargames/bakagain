@@ -101,6 +101,7 @@ public static class UiTemplates {
     public const string BootAskForum = "port:template:boot_ask_forum";
     public const string BootShareLog = "port:template:boot_share_log";
     public const string BootOpenLogFolder = "port:template:boot_open_log_folder";
+    public const string BootCopied = "port:template:boot_copied";
     public const string BootVersionCopy = "port:template:boot_version_copy";
     public const string BootExtracting = "port:template:boot_extracting";
 
@@ -412,6 +413,7 @@ public static class UiTemplates {
         (BootAskForum, _ => Literal("Ask on the forum")),
         (BootShareLog, _ => Literal("Share log")),
         (BootOpenLogFolder, _ => Literal("Open log folder")),
+        (BootCopied, _ => Literal("Copied")),
         (BootVersionCopy, _ => Literal("Tap or click the version to copy it.")),
         (BootExtracting, _ => "Extracting… {percent}%"),
         (Farewell, _ => "GoodBye"),

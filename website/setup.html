@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Setting up BaK-Again</title>
+<meta name="description" content="How to point BaK-Again at your own copy of Betrayal at Krondor on Windows, Linux and Android, and what to do if it does not work.">
+<meta name="theme-color" content="#121a28">
+<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<link rel="stylesheet" href="style.css">
+<style>.setup-shot { margin: 1rem 0; } .setup-shot img { display: block; width: 100%; max-width: 30rem; height: auto; border: 2px solid var(--paper-edge); border-radius: 3px; } .setup-shot figcaption { font-size: 0.88rem; color: var(--muted); margin-top: 0.3rem; }</style>
+</head>
+<body>
+<main>
+<h1 style="color: var(--accent); margin-bottom: 0">Setting up BaK-Again</h1>
+<p><a href="/">&larr; Back to BaK-Again</a></p>
+<p>BaK-Again plays <cite>Betrayal at Krondor</cite> with the files from your own copy of the game.
+It needs three: <code>KRONDOR.001</code>, <code>FRP.SX</code> and <code>STARTUP.GAM</code>. Upper or
+lower case does not matter. You point the game at them once, on its first start.</p>
+<p><a href="#windows">Windows</a> · <a href="#linux">Linux</a> · <a href="#android">Android</a> ·
+<a href="#gog">GOG</a> · <a href="#cd">CD or DOS install</a> · <a href="#trouble">Still stuck?</a></p>
+
+<figure class="setup-shot">
+  <img src="/img/setup/choose-folder.jpg" width="1000" height="750" alt="The setup card on Android: &ldquo;Choose your game folder&rdquo;, with a Choose folder button and links to pick files, a zip or the GOG installer.">
+  <figcaption>The first-run setup on a phone.</figcaption>
+</figure>
+
+<section id="windows">
+  <h2>Windows</h2>
+  <p>If you bought the game on GOG, pick the installer itself, or the folder GOG installed the game
+  to. By default that is <code>C:\GOG Games\Betrayal at Krondor</code>. BaK-Again also looks for a GOG install
+  by itself and offers it first.</p>
+  <p>If you have the CD or an old DOS install, pick the folder you installed the game to, the one with
+  <code>KRONDOR.001</code> in it. A <code>.zip</code> that holds the three files works as well.</p>
+</section>
+
+<section id="linux">
+  <h2>Linux</h2>
+  <p>If you bought the game on GOG, pick the installer itself (no Wine needed), or the folder GOG
+  installed the game to. Installs made by Heroic, Wine or Lutris are found too.</p>
+  <p>If you have the CD or an old DOS install, pick the folder you installed the game to, the one with
+  <code>KRONDOR.001</code> in it.</p>
+</section>
+
+<section id="android">
+  <h2>Android</h2>
+  <p>Android will not let an app use your Download folder itself, so put the files in a folder of
+  their own, for example <code>Download/BaK</code>. Then tap <strong>Choose folder</strong>, pick that
+  folder, and tap <em>Use this folder</em> and <em>Allow</em>. The files are copied into the app, so
+  you can delete the originals afterwards.</p>
+  <figure class="setup-shot">
+    <img src="/img/setup/all-set.jpg" width="1000" height="656" alt="The setup card showing three green ticks for KRONDOR.001, FRP.SX and STARTUP.GAM, and a Play button.">
+    <figcaption>When all three files are found, Play opens the game.</figcaption>
+  </figure>
+  <p>Four ways to get the files onto the phone:</p>
+  <ol>
+    <li><strong>With a USB cable.</strong> Connect the phone to your PC and choose &ldquo;File transfer&rdquo;
+      on the phone. On the PC, make a folder named <code>BaK</code> inside the phone's Download folder and
+      copy the three files into it. Then tap Choose folder, Download, BaK.</li>
+    <li><strong>With Google Drive, Dropbox or OneDrive.</strong> Upload the three files, or a .zip with them,
+      to your drive. Then tap &ldquo;Pick files, a .zip or the GOG installer&rdquo; and choose them from the
+      drive.</li>
+    <li><strong>With a USB stick or SD card.</strong> Copy the three files into a folder on it and plug it into
+      the phone (many phones need a USB OTG adapter for a stick, and an SD card needs a card slot). Then
+      tap Choose folder and pick that folder.</li>
+    <li><strong>With the GOG installer.</strong> Download the installer from your GOG library onto the phone.
+      Then tap &ldquo;Pick files, a .zip or the GOG installer&rdquo; and choose it. If it cannot be read there,
+      install the game on a PC and copy its three files to the phone.</li>
+  </ol>
+</section>
+
+<section id="gog">
+  <h2>GOG</h2>
+  <p>You do not need to install the GOG version first. BaK-Again can read the files straight out of the
+  GOG installer, on Windows, Linux and Android. Choose the
+  installer when it asks for your files. Only the installer version it was tested with is supported; with
+  any other, the game says to install it first and then choose the folder it installed to.</p>
+</section>
+
+<section id="cd">
+  <h2>CD or DOS install</h2>
+  <p>Copy the game's folder off the old install, or pick it where it is. It is the folder with
+  <code>KRONDOR.001</code> in it. The 1.02 CD version is the one BaK-Again is tested against. If one of
+  the three files is missing, the game says which, and where it normally sits.</p>
+</section>
+
+<section id="trouble">
+  <h2>Still stuck?</h2>
+  <p>Ask on the <a href="https://forum.bakagain.org/viewforum.php?f=4">forum</a>. People there have set it
+  up on the same kind of device. A log helps them see what went wrong, and the version line tells them which
+  build you have.</p>
+  <figure class="setup-shot">
+    <img src="/img/setup/still-stuck.jpg" width="1000" height="610" alt="The Still stuck card: a link to the forum, the version line to copy, and a Share log button.">
+    <figcaption>The Still stuck? card: tap the version to copy it.</figcaption>
+  </figure>
+  <ul>
+    <li><strong>Android:</strong> on the Still stuck? card, tap <strong>Share log</strong> and send it to
+      yourself or paste it into your forum post.</li>
+    <li><strong>Windows and Linux:</strong> on the same card, click <strong>Open log folder</strong> and
+      attach the log file in it (<code>Player.log</code>) to your post.</li>
+    <li>Click or tap the version line to copy it, and paste it into your post too.</li>
+  </ul>
+</section>
+</main>
+</body>
+</html>
