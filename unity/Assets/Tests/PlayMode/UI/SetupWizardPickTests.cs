@@ -137,6 +137,39 @@ namespace BakAgain.Tests.PlayMode.UI {
         }
 
         [Test]
+        public void AFailedAndroidCopyImportsNothing() {
+            // What a short copy can leave behind: all three names, the files cut short.
+            foreach ((string name, byte[] bytes) in GameFiles()) File.WriteAllBytes(Path.Combine(_dir, name), bytes);
+
+            _view.UseAndroidPick(new AndroidSetupPicker.PickResult("BaK", _dir, "io", new[] { "KRONDOR.001" }));
+            _view.Render();
+
+            Assert.That(_view.Flow.Step, Is.EqualTo(SetupStep.Find));
+            Assert.That(Note, Is.EqualTo(MetaMenu.ImportErrorText("io")));
+            Assert.That(Directory.Exists(Original), Is.False, "nothing imported");
+        }
+
+        [Test]
+        public void AnAndroidPickTheAppMayNotReadSaysSo() {
+            _view.UseAndroidPick(new AndroidSetupPicker.PickResult("BaK", _dir, "permission"));
+            _view.Render();
+
+            Assert.That(_view.Flow.Step, Is.EqualTo(SetupStep.Find));
+            Assert.That(Note, Is.EqualTo(Text(UiTemplates.BootPermission)));
+            Assert.That(Directory.Exists(Original), Is.False);
+        }
+
+        [Test]
+        public void OnlyResourceCfgFailingStillImportsTheGameFiles() {
+            foreach ((string name, byte[] bytes) in GameFiles()) File.WriteAllBytes(Path.Combine(_dir, name), bytes);
+
+            _view.UseAndroidPick(new AndroidSetupPicker.PickResult("BaK", _dir, "io", GameFolder.Required.ToArray()));
+
+            Assert.That(_view.Flow.Step, Is.EqualTo(SetupStep.Check));
+            Assert.That(_view.Flow.Report.AllOk, Is.True);
+        }
+
+        [Test]
         public void ACopyFailureOnTheDesktopNeverSaysPhone() {
             Assert.That(MetaMenu.ImportErrorText("io"), Does.Not.Contain("phone"));
             Assert.That(MetaMenu.ImportErrorText("too-large"), Is.EqualTo(Text(UiTemplates.BootZipTooLarge)));

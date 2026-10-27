@@ -11,24 +11,30 @@ namespace BakAgain.UI {
     /// </summary>
     internal static class AndroidSetupPicker {
         private const string JavaClass = "org.bakagain.setup.BakSetupPicker";
-        private const int LogTailChars = 200 * 1024;
+        private const int LogTailChars = 100 * 1024; // a share intent travels in one binder transaction (~1 MB, UTF-16)
 
-        /// <summary>What a pick left in the staging folder. <see cref="Error"/>: null, "space", "permission" or "io".</summary>
+        /// <summary>
+        /// What a pick left in the staging folder. <see cref="Error"/>: null, "space", "permission",
+        /// "no-picker" or "io"; <see cref="Copied"/> names the files copied before it.
+        /// </summary>
         internal sealed class PickResult {
-            public PickResult(string displayName, string stagingDir, string error) {
+            public PickResult(string displayName, string stagingDir, string error, string[] copied = null) {
                 DisplayName = displayName;
                 StagingDir = stagingDir;
                 Error = error;
+                Copied = copied ?? Array.Empty<string>();
             }
 
             public string DisplayName { get; }
             public string StagingDir { get; }
             public string Error { get; }
+            public string[] Copied { get; }
         }
 
         [Serializable]
         private sealed class Reply {
             public string name;
+            public string[] copied;
             public string error;
         }
 
@@ -47,12 +53,15 @@ namespace BakAgain.UI {
             ClearStaging();
             Directory.CreateDirectory(StagingDir);
             var done = new UniTaskCompletionSource<PickResult>();
-            using (var picker = new AndroidJavaClass(JavaClass)) {
-                picker.CallStatic(method, Activity(), StagingDir, new Callback(done, StagingDir));
+            using (var picker = new AndroidJavaClass(JavaClass))
+            using (AndroidJavaObject activity = Activity()) {
+                picker.CallStatic(method, activity, StagingDir, new Callback(done, StagingDir));
             }
-            PickResult result = await done.Task;
-            await UniTask.SwitchToMainThread(); // the copy calls back from its worker thread
-            return result;
+            try {
+                return await done.Task;
+            } finally {
+                await UniTask.SwitchToMainThread(); // the copy calls back from its worker thread, a result or a failure
+            }
         }
 
         /// <summary>Sends the end of the log as text through the system share sheet.</summary>
@@ -68,7 +77,9 @@ namespace BakAgain.UI {
             using var picker = new AndroidJavaClass(JavaClass);
             // An Android player writes no log file: its log is this app's logcat.
             text ??= picker.CallStatic<string>("readLog", LogTailChars);
-            picker.CallStatic("shareText", Activity(), "BaK-Again log " + Application.version, text);
+            if (text.Length > LogTailChars) text = text.Substring(text.Length - LogTailChars);
+            using AndroidJavaObject activity = Activity();
+            picker.CallStatic("shareText", activity, "BaK-Again log " + Application.version, text);
         }
 
         private static AndroidJavaObject Activity() {
@@ -90,7 +101,7 @@ namespace BakAgain.UI {
                 try {
                     Reply reply = JsonUtility.FromJson<Reply>(json);
                     _done.TrySetResult(new PickResult(reply.name ?? "", _staging,
-                        string.IsNullOrEmpty(reply.error) ? null : reply.error));
+                        string.IsNullOrEmpty(reply.error) ? null : reply.error, reply.copied));
                 } catch (Exception e) {
                     _done.TrySetException(e); // never leave the wizard waiting
                 }

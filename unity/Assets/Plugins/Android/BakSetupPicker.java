@@ -55,7 +55,8 @@ public class BakSetupPicker extends Fragment {
         pending = callback;
         pickingFolder = folder;
         destination = destDir;
-        activity.getFragmentManager().beginTransaction().add(new BakSetupPicker(), "BakSetupPicker").commitAllowingStateLoss();
+        activity.runOnUiThread(() ->
+            activity.getFragmentManager().beginTransaction().add(new BakSetupPicker(), "BakSetupPicker").commitAllowingStateLoss());
     }
 
     @Override
@@ -76,7 +77,10 @@ public class BakSetupPicker extends Fragment {
         try {
             startActivityForResult(intent, 1);
         } catch (ActivityNotFoundException e) {
-            onActivityResult(1, Activity.RESULT_CANCELED, null);
+            Callback callback = pending;
+            pending = null;
+            getFragmentManager().beginTransaction().remove(this).commitAllowingStateLoss();
+            if (callback != null) callback.onPicked(result(null, new JSONArray(), 0, "no-picker"));
         }
     }
 
@@ -88,6 +92,10 @@ public class BakSetupPicker extends Fragment {
         if (callback == null) return;
         if (resultCode != Activity.RESULT_OK || data == null) {
             callback.onCancelled();
+            return;
+        }
+        if (getActivity() == null) { // detached before the result came: nothing to copy with
+            callback.onPicked(result(null, new JSONArray(), 0, "io"));
             return;
         }
         Context context = getActivity().getApplicationContext();
@@ -104,9 +112,15 @@ public class BakSetupPicker extends Fragment {
             callback.onCancelled();
             return;
         }
-        new Thread(() -> callback.onPicked(folder
-            ? copyTree(context, uris.get(0), dest)
-            : copyUris(context, uris.toArray(new String[0]), dest))).start();
+        new Thread(() -> {
+            String json;
+            try {
+                json = folder ? copyTree(context, uris.get(0), dest) : copyUris(context, uris.toArray(new String[0]), dest);
+            } catch (Throwable t) { // exactly one callback, whatever happens: C# waits for it
+                json = result(null, new JSONArray(), 0, "io");
+            }
+            callback.onPicked(json);
+        }).start();
     }
 
     private static final class Doc {
@@ -266,8 +280,14 @@ public class BakSetupPicker extends Fragment {
         return new String[] { null, null };
     }
 
-    /** Null, "space" when the disk is full, or "io"; a copy whose length differs from the source's size is an "io". */
+    /** Null, "space" when the disk is full, or "io"; a copy whose length differs from the source's size is an "io". A failed copy leaves no file. */
     private static String copy(ContentResolver resolver, Uri from, long size, File to) {
+        String error = copyStream(resolver, from, size, to);
+        if (error != null) to.delete();
+        return error;
+    }
+
+    private static String copyStream(ContentResolver resolver, Uri from, long size, File to) {
         long total = 0;
         try (InputStream in = resolver.openInputStream(from); OutputStream out = new FileOutputStream(to)) {
             if (in == null) return "io";

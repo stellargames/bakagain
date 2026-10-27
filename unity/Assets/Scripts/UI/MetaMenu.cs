@@ -132,10 +132,13 @@ namespace BakAgain.UI {
                     Text(UiTemplates.BootChooseFolderBodyAndroid);
                     Text(UiTemplates.BootDownloadNote, "setup-text", "setup-dim");
                     Note(Flow.Message);
-                    Primary(UiTemplates.BootChooseFolder, () => PickAndroidAsync(AndroidSetupPicker.PickFolderAsync).Forget());
-                    Link(UiTemplates.BootPickOtherAndroid, () => PickAndroidAsync(AndroidSetupPicker.PickFilesAsync).Forget());
+                    if (_picking) Text(UiTemplates.BootCopying);
+                    Primary(UiTemplates.BootChooseFolder, () => PickAndroidAsync(AndroidSetupPicker.PickFolderAsync, UiTemplates.BootNoFolderPicker).Forget());
+                    Link(UiTemplates.BootPickOtherAndroid, () => PickAndroidAsync(AndroidSetupPicker.PickFilesAsync, UiTemplates.BootNoFilePicker).Forget());
                     Link(UiTemplates.BootPhoneHelpLink, Flow.OpenHelp);
                     Link(UiTemplates.BootStuckLink, Flow.OpenStuck);
+                    // Nothing to tap while a pick is copied in: the result renders the next step.
+                    foreach (VisualElement e in _buttons.Children().Concat(_links.Children())) e.SetEnabled(!_picking);
                     break;
                 case SetupStep.Find when _found != null:
                     Text(UiTemplates.BootFoundTitle, "setup-title");
@@ -304,13 +307,15 @@ namespace BakAgain.UI {
         }
 
         /// <summary>Android: the system picker, its copy into the staging folder, then the import from there.</summary>
-        private async UniTaskVoid PickAndroidAsync(Func<UniTask<AndroidSetupPicker.PickResult>> pick) {
+        private async UniTaskVoid PickAndroidAsync(Func<UniTask<AndroidSetupPicker.PickResult>> pick, string noPickerKey) {
             if (_picking) return;
             _picking = true;
             try {
                 AndroidSetupPicker.PickResult picked = await pick();
                 if (picked == null) {
                     Flow.Cancelled();
+                } else if (picked.Error == "no-picker") {
+                    Flow.PickFailed(T(noPickerKey));
                 } else {
                     UseAndroidPick(picked);
                 }
@@ -329,17 +334,21 @@ namespace BakAgain.UI {
         }
 
         /// <summary>
-        /// What the Java side copied: the game's files (imported, then checked: an interrupted copy shows
-        /// as missing or incomplete files), or one other file, a zip or an installer, used like a desktop pick.
+        /// What the Java side copied: the game's files (imported, then checked), or one other file, a zip
+        /// or an installer, used like a desktop pick. A failed copy imports nothing, unless only the
+        /// optional RESOURCE.CFG failed after all three game files were copied.
         /// </summary>
         internal void UseAndroidPick(AndroidSetupPicker.PickResult picked) {
             Logger.LogInformation("Setup pick: {Name}, copy error {Error}", picked.DisplayName, picked.Error);
             switch (picked.Error) {
-                case "space":
-                    Flow.PickFailed(ImportErrorText("space"));
-                    return;
                 case "permission":
                     Flow.PickFailed(T(UiTemplates.BootPermission));
+                    return;
+                case "io" when GameFolder.Required.All(picked.Copied.Contains):
+                    break;
+                case "space":
+                case "io":
+                    Flow.PickFailed(ImportErrorText(picked.Error));
                     return;
             }
             string[] files = Directory.GetFiles(picked.StagingDir);
