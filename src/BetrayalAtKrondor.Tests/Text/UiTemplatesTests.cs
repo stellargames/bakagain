@@ -2,6 +2,7 @@ namespace BetrayalAtKrondor.Tests.Text;
 
 using GameData.Resources.Text;
 using System.Collections.Generic;
+using System.Linq;
 using Xunit;
 
 /// <summary>
@@ -73,5 +74,18 @@ public class UiTemplatesTests {
     [Fact]
     public void TheTemplatesAreCatalogEntries_SoAPackAndTheTemplateReachThem() {
         Assert.Equal("{name} asked about:", UiStringCatalog.Embedded.Get(UiTemplates.AskedAbout));
+    }
+    [Fact]
+    public void EveryBootKeyHasAnEnglishDefault_AndTheApostrophesSurvive() {
+        var english = new Dictionary<string, string>(UiTemplates.EnglishFor(UiStringCatalog.Embedded));
+        var keys = typeof(UiTemplates).GetFields().Where(f => f.Name.StartsWith("Boot")).Select(f => (string)f.GetValue(null)!);
+        foreach (string key in keys) {
+            Assert.False(string.IsNullOrWhiteSpace(english.GetValueOrDefault(key)), key);
+        }
+        Assert.Equal("Couldn't copy the files: the phone needs about 14 MB free.",
+            UiTemplates.Format(UiTemplates.BootCopyFailed, ("mb", 14)));
+        Assert.Equal("STEP 2 OF 3", UiTemplates.Format(UiTemplates.BootStepOf, ("n", 2)));
+        Assert.Contains("C:\\GOG Games\\Betrayal at Krondor", UiTemplates.Format(UiTemplates.BootHelpBodyWindows));
+        Assert.DoesNotContain("phone", UiTemplates.Format(UiTemplates.BootHelpBodyLinux));
     }
 }
