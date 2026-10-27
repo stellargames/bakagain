@@ -187,7 +187,7 @@ public static class UiTemplates {
     public const string EnhancedCancel = "port:template:enhanced_cancel";
 
     /// <summary>The update notice (TASK-1017): the Enhanced settings' switch, and the main menu's line
-    /// "<c>{version}</c> is available", a link to the download page.</summary>
+    /// "Update <c>{version}</c> available. Click to download.", a link to the download page.</summary>
     public const string EnhancedCheckForUpdates = "port:template:enhanced_check_for_updates";
     public const string UpdateAvailable = "port:template:update_available";
 
@@ -324,7 +324,7 @@ public static class UiTemplates {
         (EnhancedBadGameFolder, _ => "That folder does not hold the game's files."),
         (EnhancedSave, _ => "Save"),
         (EnhancedCheckForUpdates, _ => "Check for updates"),
-        (UpdateAvailable, _ => "{version} is available: click to download"),
+        (UpdateAvailable, _ => "Update {version} available. Click to download."),
         (EnhancedCancel, _ => "Cancel"),
         (ModsTitle, _ => "Mods"),
         (ModsInstalled, _ => "Installed mods"),

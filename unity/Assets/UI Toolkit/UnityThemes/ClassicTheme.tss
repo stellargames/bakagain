@@ -250,24 +250,33 @@
     color: var(--ui-ink);
 }
 
-/* "v0.4.1-beta is available" on the main menu (MainMenu.AddUpdateNotice, TASK-1017): a link along
-   the top edge, not in the original. */
+/* "Update v0.4.1 available. Click to download." between the main menu's title and Start New Game
+   (UpdateNoticeView, TASK-1017); not in the original. Its colour and glow are animated in code; the
+   dark outline keeps the ice-blue text readable on the parchment. Placed by the view from the REQ. */
 .update-notice {
-    position: absolute;
-    left: 50%;
-    top: 12px;
-    translate: -50% 0;
     margin: 0;
-    padding: 4px 12px;
+    padding: 0;
     border-width: 0;
     background-color: rgba(0, 0, 0, 0);
-    font-size: 33px;
+    font-size: 44px;
     -unity-text-align: middle-center;
-    color: rgb(28, 40, 92); /* the title's blue */
+    -unity-font-style: bold;
+    color: rgb(220, 235, 255);
+    -unity-text-outline-width: 1.5px;
+    -unity-text-outline-color: rgb(18, 32, 78);
 }
 
-.update-notice:hover {
-    color: rgb(140, 30, 30);
+/* A twinkle: a small white diamond, grown and faded by the view. */
+.update-notice__sparkle {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    margin-left: -5px;
+    margin-top: -5px;
+    rotate: 45deg;
+    background-color: rgb(245, 250, 255);
+    border-width: 2px;
+    border-color: rgb(150, 200, 255);
 }
 
 /* Android touch aids (spec 2026-09-29-android-touch-aids-design.md): stone-coloured side-bar buttons. */
