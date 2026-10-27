@@ -1,5 +1,5 @@
 // LZMA SDK 26.05 by Igor Pavlov, public domain (https://www.7-zip.org/sdk.html).
-// Vendored: namespace and visibility changed, truncated input throws DataErrorException.
+// Vendored edits: namespace, internal, Train()/TrainSize removed.
 // LzOutWindow.cs
 
 namespace GameData.Setup.Lzma.Compression.LZ
@@ -11,8 +11,6 @@ namespace GameData.Setup.Lzma.Compression.LZ
 		uint _windowSize = 0;
 		uint _streamPos;
 		System.IO.Stream _stream;
-
-		public uint TrainSize = 0;
 
 		public void Create(uint windowSize)
 		{
@@ -34,34 +32,9 @@ namespace GameData.Setup.Lzma.Compression.LZ
 			{
 				_streamPos = 0;
 				_pos = 0;
-				TrainSize = 0;
 			}
 		}
 	
-		public bool Train(System.IO.Stream stream)
-		{
-			long len = stream.Length;
-			uint size = (len < _windowSize) ? (uint)len : _windowSize;
-			TrainSize = size;
-			stream.Position = len - size;
-			_streamPos = _pos = 0;
-			while (size > 0)
-			{
-				uint curSize = _windowSize - _pos;
-				if (size < curSize)
-					curSize = size;
-				int numReadBytes = stream.Read(_buffer, (int)_pos, (int)curSize);
-				if (numReadBytes == 0)
-					return false;
-				size -= (uint)numReadBytes;
-				_pos += (uint)numReadBytes;
-				_streamPos += (uint)numReadBytes;
-				if (_pos == _windowSize)
-					_streamPos = _pos = 0;
-			}
-			return true;
-		}
-
 		public void ReleaseStream()
 		{
 			Flush();

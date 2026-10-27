@@ -1,5 +1,5 @@
 // LZMA SDK 26.05 by Igor Pavlov, public domain (https://www.7-zip.org/sdk.html).
-// Vendored: namespace and visibility changed, truncated input throws DataErrorException.
+// Vendored edits: namespace, internal.
 // LzmaBase.cs
 
 namespace GameData.Setup.Lzma.Compression.LZMA

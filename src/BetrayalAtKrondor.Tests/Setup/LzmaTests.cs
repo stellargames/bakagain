@@ -74,6 +74,33 @@ public class LzmaTests {
     }
 
     [Fact]
+    public void AnEndMarkerBeforeTheClaimedSizeThrowsInvalidData() {
+        var (props, payload) = Fixture(); // the stream has an end marker after 4096 bytes
+        Assert.Throws<InvalidDataException>(() => Decode(props, payload, 8192));
+    }
+
+    [Fact]
+    public void AClaimedSizeSmallerThanTheDataThrowsAndWritesNothingPastIt() {
+        var (props, payload) = Fixture();
+        var output = new MemoryStream();
+        // 1100 falls inside the first match after the 1 KiB of random bytes, so the match overshoots
+        Assert.Throws<InvalidDataException>(() => Lzma1.Decode(new MemoryStream(payload), output, props, 1100));
+        Assert.True(output.Length <= 1100);
+    }
+
+    [Theory]
+    [InlineData(225, 5)] // lc/lp/pb byte with pb = 5
+    [InlineData(0x5d, 4)] // too short
+    [InlineData(0x5d, 6)] // too long
+    public void BadPropertiesThrowInvalidData(byte first, int length) {
+        var (_, payload) = Fixture();
+        var props = new byte[length];
+        props[0] = first;
+        if (length > 4) props[3] = 1;
+        Assert.Throws<InvalidDataException>(() => Decode(props, payload));
+    }
+
+    [Fact]
     public void ANegativeSizeIsRefused() {
         var (props, payload) = Fixture();
         Assert.Throws<ArgumentOutOfRangeException>(() => Decode(props, payload, -1));

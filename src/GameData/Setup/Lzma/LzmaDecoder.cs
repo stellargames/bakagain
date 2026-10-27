@@ -1,5 +1,5 @@
 // LZMA SDK 26.05 by Igor Pavlov, public domain (https://www.7-zip.org/sdk.html).
-// Vendored: namespace and visibility changed, truncated input throws DataErrorException.
+// Vendored edits: namespace, internal, Train() and the commented-out Stream stubs removed.
 // LzmaDecoder.cs
 
 using System;
@@ -332,7 +332,7 @@ namespace GameData.Setup.Lzma.Compression.LZMA
 							else
 								rep0 = posSlot;
 						}
-						if (rep0 >= m_OutWindow.TrainSize + nowPos64 || rep0 >= m_DictionarySizeCheck)
+						if (rep0 >= nowPos64 || rep0 >= m_DictionarySizeCheck)
 						{
 							if (rep0 == 0xFFFFFFFF)
 								break;
@@ -365,36 +365,5 @@ namespace GameData.Setup.Lzma.Compression.LZMA
 			SetLiteralProperties(lp, lc);
 			SetPosBitsProperties(pb);
 		}
-
-		public bool Train(System.IO.Stream stream)
-		{
-			_solid = true;
-			return m_OutWindow.Train(stream);
-		}
-
-		/*
-		public override bool CanRead { get { return true; }}
-		public override bool CanWrite { get { return true; }}
-		public override bool CanSeek { get { return true; }}
-		public override long Length { get { return 0; }}
-		public override long Position
-		{
-			get { return 0;	}
-			set { }
-		}
-		public override void Flush() { }
-		public override int Read(byte[] buffer, int offset, int count) 
-		{
-			return 0;
-		}
-		public override void Write(byte[] buffer, int offset, int count)
-		{
-		}
-		public override long Seek(long offset, System.IO.SeekOrigin origin)
-		{
-			return 0;
-		}
-		public override void SetLength(long value) {}
-		*/
 	}
 }
