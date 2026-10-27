@@ -55,6 +55,7 @@ public static class UiTemplates {
     public const string BootStuckLink = "port:template:boot_stuck_link";
     public const string BootChooseFolderTitle = "port:template:boot_choose_folder_title";
     public const string BootChooseFolderBodyAndroid = "port:template:boot_choose_folder_body_android";
+    public const string BootChooseFolderBodyShortAndroid = "port:template:boot_choose_folder_body_short_android";
     public const string BootDownloadNote = "port:template:boot_download_note";
     public const string BootChooseFolder = "port:template:boot_choose_folder";
     public const string BootPickOtherAndroid = "port:template:boot_pick_other_android";
@@ -373,6 +374,7 @@ public static class UiTemplates {
         (BootStuckLink, _ => Literal("Still stuck?")),
         (BootChooseFolderTitle, _ => Literal("Choose your game folder")),
         (BootChooseFolderBodyAndroid, _ => Literal("The game folder holds KRONDOR.001, FRP.SX and STARTUP.GAM. Choose the folder with those three files, then tap Use this folder and Allow.")),
+        (BootChooseFolderBodyShortAndroid, _ => Literal("Choose the folder with KRONDOR.001, FRP.SX and STARTUP.GAM.")),
         (BootDownloadNote, _ => Literal("Android won't let an app use the Download folder itself, so put the files in a folder of their own, for example Download/BaK.")),
         (BootChooseFolder, _ => Literal("Choose folder")),
         (BootPickOtherAndroid, _ => Literal("Pick files, a .zip or the GOG installer")),
@@ -390,9 +392,9 @@ public static class UiTemplates {
         (BootDamaged, _ => "{file}" + Literal(" is cut short. Copy it again; if that doesn't help, your copy is damaged: reinstall or download the game again from GOG.")),
         (BootEmpty, _ => "{file} is empty. Copy it again."),
         (BootDamagedInPlace, _ => "{file} is cut short: your copy is damaged. Reinstall or download the game again from GOG."),
-        (BootOkCount, _ => "{ok} of 3 are OK."),
+        (BootOkCount, _ => "{ok, plural, one {# of 3 is OK.} other {# of 3 are OK.}}"),
         (BootNotAZip, _ => Literal("BaK-Again reads .zip files only. Unzip it first, then choose the folder.")),
-        (BootCopyErrorFound, _ => Literal("Couldn't copy the files. Try Use this again, or choose another folder.")),
+        (BootCopyErrorFound, _ => Literal("Couldn't copy the files from that zip. Use this, or choose something else.")),
         (BootInstallerUnreadable, _ => Literal("This is the installer, not the game files. Install it first, then choose the folder it installed to.")),
         (BootInstallerUnreadableAndroid, _ => Literal("This version of the installer can't be read yet. Tap Still stuck? and ask on the forum, or install the game on a PC and copy its three files.")),
         (BootNothingHere, _ => Literal("No game files here.")),

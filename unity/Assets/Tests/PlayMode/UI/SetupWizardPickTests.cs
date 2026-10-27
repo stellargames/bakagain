@@ -7,7 +7,6 @@ namespace BakAgain.Tests.PlayMode.UI {
     using System.IO;
     using System.IO.Compression;
     using System.Linq;
-    using System.Reflection;
     using UnityEngine;
     using UnityEngine.UIElements;
 
@@ -219,7 +218,7 @@ namespace BakAgain.Tests.PlayMode.UI {
         }
 
         [Test]
-        public void ACopyErrorUnderFoundYourGameSaysTryUseThisAgain() {
+        public void AFailedZipUnderFoundYourGameNamesTheZip() {
             string zip = Path.Combine(_dir, "bak.zip");
             using (ZipArchive archive = ZipFile.Open(zip, ZipArchiveMode.Create)) {
                 foreach ((string name, byte[] bytes) in GameFiles()) {
@@ -227,7 +226,7 @@ namespace BakAgain.Tests.PlayMode.UI {
                     s.Write(bytes, 0, bytes.Length);
                 }
             }
-            typeof(MetaMenu).GetField("_found", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(_view, _dir);
+            _view.FoundForTest = _dir;
             File.WriteAllBytes(Original, new byte[] { 1 }); // a file where the copy's folder goes: the copy fails
             try {
                 _view.UsePick(zip);
@@ -236,6 +235,7 @@ namespace BakAgain.Tests.PlayMode.UI {
             }
 
             Assert.That(Note, Is.EqualTo(Text(UiTemplates.BootCopyErrorFound)));
+            Assert.That(Note, Does.Contain("zip").And.Not.Contain("Use this again"), "Use this never copies; the zip did");
         }
 
         [Test]

@@ -153,6 +153,12 @@ namespace BakAgain.Tests.PlayMode.UI {
             Assert.That(Root.Q("Links").ClassListContains("setup-links-stacked"), Is.True);
             Assert.That(Buttons("setup-link").Select(b => b.text), Has.Some.Contains(Text(UiTemplates.BootPickOtherAndroid)));
 
+            _view.Flow.PickFailed(Text(UiTemplates.BootNoFolderPicker));
+            _view.Render();
+            string[] body = Root.Q<ScrollView>("Body").Query<Label>().ToList().Select(l => l.text).ToArray();
+            Assert.That(body, Has.Member(Text(UiTemplates.BootChooseFolderBodyShortAndroid)), "under a note, the short body");
+            Assert.That(body, Has.No.Member(Text(UiTemplates.BootChooseFolderBodyAndroid)));
+
             _view.Show(Report(GameFileState.Ok, GameFileState.Ok, GameFileState.Missing));
             Assert.That(Buttons("setup-outline").Select(b => b.text), Is.EqualTo(new[] { Text(UiTemplates.BootPhoneHelpLink) }), "the Check step too");
         }

@@ -49,6 +49,9 @@ namespace BakAgain.UI {
 
         internal static RuntimePlatform? PlatformForTest;
 
+        /// <summary>Test seam: an install "found" without searching the home folder.</summary>
+        internal string FoundForTest { set => _found = value; }
+
         private static RuntimePlatform Platform => PlatformForTest ?? Application.platform;
 
         private static bool Android => Platform == RuntimePlatform.Android;
@@ -163,8 +166,15 @@ namespace BakAgain.UI {
                     // A copy under way replaces the last pick's note, and a note replaces the dim side remark.
                     if (_picking) Text(UiTemplates.BootCopying);
                     else Note(Flow.Message);
-                    Text(UiTemplates.BootChooseFolderBodyAndroid);
-                    if (KeepSideRemark) Text(UiTemplates.BootDownloadNote, "setup-text", "setup-dim");
+                    // Under a note one line of help at most, so a small phone shows it all without scrolling:
+                    // the Download remark where it is the likely cause, else the short body.
+                    if (string.IsNullOrEmpty(Flow.Message) || _picking) {
+                        Text(UiTemplates.BootChooseFolderBodyAndroid);
+                        Text(UiTemplates.BootDownloadNote, "setup-text", "setup-dim");
+                    } else {
+                        if (KeepSideRemark) Text(UiTemplates.BootDownloadNote, "setup-text", "setup-dim");
+                        else Text(UiTemplates.BootChooseFolderBodyShortAndroid);
+                    }
                     Primary(UiTemplates.BootChooseFolder, () => PickAndroidAsync(AndroidSetupPicker.PickFolderAsync, UiTemplates.BootNoFolderPicker, false).Forget());
                     // Most players do not have the files on the phone yet: the way there is a button, not a link.
                     AddButton(UiTemplates.BootPhoneHelpLink, "setup-outline", Flow.OpenHelp, _buttons);
@@ -269,9 +279,8 @@ namespace BakAgain.UI {
         /// <summary>A desktop folder used where it is: nothing was copied, so "copy it again" means nothing.</summary>
         private bool InPlace => !Android && _chosen != null && _chosen != Original;
 
-        /// <summary>The dim side remark stays under a note that it still helps with.</summary>
-        private bool KeepSideRemark => string.IsNullOrEmpty(Flow.Message)
-            || Flow.Message == T(UiTemplates.BootPermission) || Flow.Message == T(UiTemplates.BootNothingHere);
+        /// <summary>The dim side remark stays under a note it still helps with: "No game files here" is often the Download folder itself.</summary>
+        private bool KeepSideRemark => string.IsNullOrEmpty(Flow.Message) || Flow.Message == T(UiTemplates.BootNothingHere);
 
         /// <summary>What is wrong, by file name and in words; never a path.</summary>
         private static string ProblemText(GameFilesReport report, bool inPlace) {
