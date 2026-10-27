@@ -4,6 +4,7 @@ using GameData.Resources;
 using GameData.Resources.Data;
 using GameData.Resources.Dialog;
 using GameData.Resources.Image;
+using GameData.Setup;
 using ResourceExtraction.Extensions;
 using System;
 using System.Collections.Generic;
@@ -17,9 +18,11 @@ public class GeneralResourceProvider : IResourceProvider {
 
     private readonly IDictionary<string, (long, uint)> _dictionary;
     private readonly string _resourceFilePath;
+    private readonly string _gameDirectory;
 
     public GeneralResourceProvider(string gameDirectory) {
-        _resourceFilePath = Path.Combine(gameDirectory, ResourceFileName);
+        _gameDirectory = gameDirectory;
+        _resourceFilePath = GameFolder.Find(gameDirectory, ResourceFileName) ?? Path.Combine(gameDirectory, ResourceFileName);
         _dictionary = GetDictionary();
     }
 
@@ -65,13 +68,11 @@ public class GeneralResourceProvider : IResourceProvider {
         if (BookParchment.IsVariant(resourceId)) {
             return CanProvideResource(BookParchment.Source);
         }
-        string filePath = Path.Combine(Path.GetDirectoryName(_resourceFilePath)!, resourceId);
-        return File.Exists(filePath) || _dictionary.ContainsKey(resourceId.ToUpper());
+        return GameFolder.Find(_gameDirectory, resourceId) != null || _dictionary.ContainsKey(resourceId.ToUpper());
     }
 
     public Stream GetResourceStream(string filename) {
-        string filePath = Path.Combine(Path.GetDirectoryName(_resourceFilePath)!, filename);
-        if (File.Exists(filePath)) {
+        if (GameFolder.Find(_gameDirectory, filename) is { } filePath) {
             return File.OpenRead(filePath);
         }
         if (_dictionary.TryGetValue(filename.ToUpper(), out (long offset, uint size) entry)) {

@@ -1,5 +1,6 @@
 namespace ResourceExtraction.Providers;
 
+using GameData.Setup;
 using GameData.Resources;
 using GameData.Resources.Audio;
 using ResourceExtraction;
@@ -23,7 +24,7 @@ public class AudioResourceProvider : IResourceProvider {
     }
 
     public AudioResourceProvider(string gameDirectory) {
-        _audioFilePath = Path.Combine(gameDirectory, ResourceFileName);
+        _audioFilePath = GameFolder.Find(gameDirectory, ResourceFileName) ?? Path.Combine(gameDirectory, ResourceFileName);
         Initialize();
     }
 

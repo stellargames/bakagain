@@ -84,20 +84,12 @@ namespace BakAgain.ResourceManagement {
         /// (CFGPARSE.C). A missing file reads as the defaults.
         /// </summary>
         public static GameData.Resources.Config.ResourceConfig ResourceConfig =>
-            _resourceConfig ??= GameData.Resources.Config.ResourceConfig.Parse(ReadGameFile("RESOURCE.CFG"));
+            _resourceConfig ??= GameData.Resources.Config.ResourceConfig.Parse(ReadResourceConfig());
 
-        /// <summary>A file in the game folder, matched without regard to case (DOS names it in capitals).</summary>
-        private static string ReadGameFile(string name) {
+        private static string ReadResourceConfig() {
             try {
-                string dir = GamePath;
-                if (string.IsNullOrEmpty(dir) || !System.IO.Directory.Exists(dir)) {
-                    return null;
-                }
-                foreach (string file in System.IO.Directory.EnumerateFiles(dir)) {
-                    if (string.Equals(System.IO.Path.GetFileName(file), name, StringComparison.OrdinalIgnoreCase)) {
-                        return System.IO.File.ReadAllText(file);
-                    }
-                }
+                string path = string.IsNullOrEmpty(GamePath) ? null : GameData.Setup.GameFolder.FindResourceConfig(GamePath);
+                return path == null ? null : System.IO.File.ReadAllText(path);
             } catch (System.IO.IOException) {
             } catch (UnauthorizedAccessException) {
             }

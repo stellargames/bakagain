@@ -59,8 +59,7 @@ namespace BakAgain.ResourceManagement {
             // then fails to load.
             if (!isChapterCatalog && !isDialogStyleTable && !isBookVariant && !_dictionary.ContainsKey(keyName)) {
                 // Check for standalone files in the game directory (e.g., STARTUP.GAM, save files)
-                string filePath = System.IO.Path.Combine(BakResourceSettings.GamePath, keyName);
-                if (!System.IO.File.Exists(filePath)) {
+                if (GameData.Setup.GameFolder.Find(BakResourceSettings.GamePath, keyName) == null) {
                     _logger.LogDebug("keyName '{KeyName}' not found in BaK resource dictionary or game directory", keyName);
                     return false;
                 }
