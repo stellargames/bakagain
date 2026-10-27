@@ -10,7 +10,7 @@ namespace BakAgain.Tests.PlayMode.UI {
     using UnityEngine;
     using UnityEngine.UIElements;
 
-    /// <summary>What a desktop Browse pick does (TASK-1014): a folder, a zip, an installer.</summary>
+    /// <summary>What a pick does (TASK-1014): a desktop folder, zip or installer, and what the Android copy staged.</summary>
     public class SetupWizardPickTests {
         private static readonly string Original = Path.Combine(Application.persistentDataPath, "original");
         private static readonly string Stash = Original + "-stashed-by-test";
@@ -99,6 +99,41 @@ namespace BakAgain.Tests.PlayMode.UI {
             _view.UsePick(zip);
 
             Assert.That(Note, Is.EqualTo(Text(UiTemplates.BootZipDamaged)));
+        }
+
+        [Test]
+        public void AnAndroidPickOfTheFilesIsImportedUnderItsName() {
+            foreach ((string name, byte[] bytes) in GameFiles()) File.WriteAllBytes(Path.Combine(_dir, name), bytes);
+
+            _view.UseAndroidPick(new AndroidSetupPicker.PickResult("BaK", _dir, null));
+
+            Assert.That(_view.Flow.Report.AllOk, Is.True);
+            Assert.That(_view.Flow.SourceName, Is.EqualTo("BaK"));
+            Assert.That(GameFolder.Required.All(n => File.Exists(Path.Combine(Original, n))), Is.True);
+        }
+
+        [Test]
+        public void AnAndroidPickOfOneZipIsImportedAsAZip() {
+            using (ZipArchive archive = ZipFile.Open(Path.Combine(_dir, "bak-files.zip"), ZipArchiveMode.Create)) {
+                foreach ((string name, byte[] bytes) in GameFiles()) {
+                    using Stream s = archive.CreateEntry(name).Open();
+                    s.Write(bytes, 0, bytes.Length);
+                }
+            }
+
+            _view.UseAndroidPick(new AndroidSetupPicker.PickResult("bak-files.zip", _dir, null));
+
+            Assert.That(_view.Flow.Report.AllOk, Is.True);
+            Assert.That(_view.Flow.SourceName, Is.EqualTo("bak-files.zip"));
+        }
+
+        [Test]
+        public void AnAndroidCopyThatRanOutOfSpaceSaysSo() {
+            _view.UseAndroidPick(new AndroidSetupPicker.PickResult("BaK", _dir, "space"));
+            _view.Render();
+
+            Assert.That(_view.Flow.Step, Is.EqualTo(SetupStep.Find));
+            Assert.That(Note, Is.EqualTo(MetaMenu.ImportErrorText("space")));
         }
 
         [Test]

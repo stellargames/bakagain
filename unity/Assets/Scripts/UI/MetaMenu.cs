@@ -1,6 +1,7 @@
 namespace BakAgain.UI {
     using BakAgain.Core;
     using BakAgain.ResourceManagement;
+    using Cysharp.Threading.Tasks;
     using GameData.Resources.Text;
     using GameData.Setup;
     using Microsoft.Win32;
@@ -35,6 +36,7 @@ namespace BakAgain.UI {
         private bool _foundGog; // ...and whether it is GOG's own install (not a Heroic, Wine or Lutris one)
         private string _chosen; // the folder Play stores as GamePath
         private bool _done;
+        private bool _picking; // Android: a system picker or its copy is under way
 
         private static readonly ILogger Logger = LogManager.LoggerFactory.CreateLogger<MetaMenu>();
 
@@ -130,7 +132,8 @@ namespace BakAgain.UI {
                     Text(UiTemplates.BootChooseFolderBodyAndroid);
                     Text(UiTemplates.BootDownloadNote, "setup-text", "setup-dim");
                     Note(Flow.Message);
-                    Primary(UiTemplates.BootChooseFolder, PickAndroidFolder);
+                    Primary(UiTemplates.BootChooseFolder, () => PickAndroidAsync(AndroidSetupPicker.PickFolderAsync).Forget());
+                    Link(UiTemplates.BootPickOtherAndroid, () => PickAndroidAsync(AndroidSetupPicker.PickFilesAsync).Forget());
                     Link(UiTemplates.BootPhoneHelpLink, Flow.OpenHelp);
                     Link(UiTemplates.BootStuckLink, Flow.OpenStuck);
                     break;
@@ -272,7 +275,7 @@ namespace BakAgain.UI {
                     break;
                 case PickKind.GogInstaller:
                 case PickKind.CdImage:
-                    Flow.PickFailed(T(UiTemplates.BootInstallerUnreadable));
+                    Flow.PickFailed(T(Android ? UiTemplates.BootInstallerUnreadableAndroid : UiTemplates.BootInstallerUnreadable));
                     break;
                 default:
                     // One of the game's own files picked: its folder is the pick.
@@ -300,44 +303,71 @@ namespace BakAgain.UI {
             Render();
         }
 
-        // ponytail: Android stand-in until the system folder picker (Task 8): SimpleFileBrowser's own
-        // folder pick, the folder's top level only, copied in through a staging folder.
-        private void PickAndroidFolder() =>
-            Pick(_ => true, FileBrowser.PickMode.Folders, null, null, T(UiTemplates.BootChooseFolder), CopyAndroidFolder, () => {
-                Flow.Cancelled();
-                Render();
-            });
-
-        private void CopyAndroidFolder(string uri) {
-            string staging = Path.Combine(Application.temporaryCachePath, "pick");
+        /// <summary>Android: the system picker, its copy into the staging folder, then the import from there.</summary>
+        private async UniTaskVoid PickAndroidAsync(Func<UniTask<AndroidSetupPicker.PickResult>> pick) {
+            if (_picking) return;
+            _picking = true;
             try {
-                if (Directory.Exists(staging)) Directory.Delete(staging, true);
-                Directory.CreateDirectory(staging);
-                foreach (FileSystemEntry entry in FileBrowserHelpers.GetEntriesInDirectory(uri, false)) {
-                    if (!entry.IsDirectory && (GameFolder.Required.Contains(entry.Name, StringComparer.OrdinalIgnoreCase)
-                                               || entry.Name.Equals("RESOURCE.CFG", StringComparison.OrdinalIgnoreCase))) {
-                        FileBrowserHelpers.CopyFile(entry.Path, Path.Combine(staging, entry.Name));
-                    }
+                AndroidSetupPicker.PickResult picked = await pick();
+                if (picked == null) {
+                    Flow.Cancelled();
+                } else {
+                    UseAndroidPick(picked);
                 }
-            } catch (Exception e) {
-                Logger.LogError(e, "Copying the picked folder failed");
-            }
-            ImportResult result = GameFilesImport.FromFolder(staging, Original);
-            if (result.Error != null) {
-                Flow.PickFailed(ImportErrorText(result.Error));
-            } else {
-                _chosen = Original;
-                Flow.Picked(FileBrowserHelpers.GetFilename(uri), result.Report);
+            } catch (Exception e) { // whatever the Java side or the copy throws ends as a message, never a wizard left waiting
+                Logger.LogError(e, "The Android pick failed");
+                Flow.PickFailed(ImportErrorText("io"));
+            } finally {
+                _picking = false;
+                try {
+                    AndroidSetupPicker.ClearStaging();
+                } catch (IOException e) {
+                    Logger.LogWarning(e, "The setup staging folder stays behind");
+                }
             }
             Render();
         }
 
         /// <summary>
-        /// The Still stuck? card's log button: "Open log folder" on desktop. Android's "Share log" needs
-        /// the intent bridge that comes with the Android picker, so it does nothing there yet.
+        /// What the Java side copied: the game's files (imported, then checked: an interrupted copy shows
+        /// as missing or incomplete files), or one other file, a zip or an installer, used like a desktop pick.
+        /// </summary>
+        internal void UseAndroidPick(AndroidSetupPicker.PickResult picked) {
+            Logger.LogInformation("Setup pick: {Name}, copy error {Error}", picked.DisplayName, picked.Error);
+            switch (picked.Error) {
+                case "space":
+                    Flow.PickFailed(ImportErrorText("space"));
+                    return;
+                case "permission":
+                    Flow.PickFailed(T(UiTemplates.BootPermission));
+                    return;
+            }
+            string[] files = Directory.GetFiles(picked.StagingDir);
+            if (files.Length == 1 && !GameFolder.Required.Contains(Path.GetFileName(files[0]))
+                                  && Path.GetFileName(files[0]) != "RESOURCE.CFG") {
+                UsePick(files[0]);
+                return;
+            }
+            ImportResult result = GameFilesImport.FromFolder(picked.StagingDir, Original);
+            if (result.Error != null) {
+                Flow.PickFailed(ImportErrorText(result.Error));
+            } else {
+                _chosen = Original;
+                Flow.Picked(picked.DisplayName, result.Report);
+            }
+        }
+
+        /// <summary>
+        /// The Still stuck? card's log button: "Share log" on Android, "Open log folder" on desktop.
         /// </summary>
         private static void ShareOrOpenLog() {
-            if (!Android && !string.IsNullOrEmpty(Application.consoleLogPath)) {
+            if (Android) {
+                try {
+                    AndroidSetupPicker.ShareLog();
+                } catch (Exception e) when (e is AndroidJavaException or IOException) {
+                    Logger.LogError(e, "Sharing the log failed");
+                }
+            } else if (!string.IsNullOrEmpty(Application.consoleLogPath)) {
                 Application.OpenURL("file://" + Path.GetDirectoryName(Application.consoleLogPath));
             }
         }
