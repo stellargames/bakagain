@@ -87,6 +87,33 @@ public class GameFilesImportTests : IDisposable {
     }
 
     [Fact]
+    public void AZipWithoutTheFilesNeverShowsAnOldCopyAsAllSet() {
+        Directory.CreateDirectory(Dest);
+        File.WriteAllBytes(Path.Combine(Dest, "KRONDOR.001"), Krondor());
+        File.WriteAllBytes(Path.Combine(Dest, "FRP.SX"), new byte[] { 1 });
+        File.WriteAllBytes(Path.Combine(Dest, "STARTUP.GAM"), new byte[] { 1 });
+        MakeZip(("readme.txt", new byte[] { 1 }));
+        ImportResult r = GameFilesImport.FromZip(Zip, Dest);
+        Assert.Null(r.Error);
+        Assert.All(r.Report.Files.Values, s => Assert.Equal(GameFileState.Missing, s));
+        Assert.Equal(new byte[] { 1 }, File.ReadAllBytes(Path.Combine(Dest, "FRP.SX"))); // the old copy is left alone
+    }
+
+    [Fact]
+    public void AFolderWithoutTheFilesNeverShowsAnOldCopyAsAllSet() {
+        string src = Path.Combine(_root, "src");
+        Directory.CreateDirectory(src);
+        File.WriteAllBytes(Path.Combine(src, "photo.jpg"), new byte[] { 1 });
+        Directory.CreateDirectory(Dest);
+        File.WriteAllBytes(Path.Combine(Dest, "KRONDOR.001"), Krondor());
+        File.WriteAllBytes(Path.Combine(Dest, "FRP.SX"), new byte[] { 1 });
+        File.WriteAllBytes(Path.Combine(Dest, "STARTUP.GAM"), new byte[] { 1 });
+        ImportResult r = GameFilesImport.FromFolder(src, Dest);
+        Assert.Null(r.Error);
+        Assert.All(r.Report.Files.Values, s => Assert.Equal(GameFileState.Missing, s));
+    }
+
+    [Fact]
     public void ACorruptZipGivesAnErrorNotAnException() {
         File.WriteAllText(Zip, "this is not a zip");
         ImportResult r = GameFilesImport.FromZip(Zip, Dest);

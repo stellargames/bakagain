@@ -90,6 +90,20 @@ public class GameFilesCheckTests : IDisposable {
     }
 
     [Fact]
+    public void AFileThatCannotBeReadIsDamagedNotAnException() {
+        if (OperatingSystem.IsWindows() || Environment.UserName == "root") return; // chmod 000 blocks nothing there
+        WriteOthers();
+        WriteArchive(("A.BMX", 10));
+        string frp = Path.Combine(_dir, "FRP.SX");
+        File.SetUnixFileMode(frp, UnixFileMode.None);
+        try {
+            Assert.Equal(GameFileState.Damaged, GameFilesCheck.Check(_dir).Files["FRP.SX"]);
+        } finally {
+            File.SetUnixFileMode(frp, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        }
+    }
+
+    [Fact]
     public void LowerCaseNamesPass() {
         WriteArchive(("A.BMX", 10));
         File.Move(Path.Combine(_dir, "KRONDOR.001"), Path.Combine(_dir, "krondor.001"));

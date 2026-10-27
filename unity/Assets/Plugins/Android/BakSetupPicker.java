@@ -220,8 +220,8 @@ public class BakSetupPicker extends Fragment {
                 if (error == null) copied.put(upper);
             }
             for (long size : sizes) bytes = bytes < 0 || size < 0 ? -1 : bytes + size;
-            if (copied.length() == 0 && error == null && uris.length == 1 && !name.isEmpty()) {
-                String safe = new File(name).getName();
+            String safe = new File(name).getName(); // a provider's name is untrusted: never a path, "." or ".."
+            if (copied.length() == 0 && error == null && uris.length == 1 && !safe.isEmpty() && !safe.equals(".") && !safe.equals("..")) {
                 error = copy(resolver, Uri.parse(uris[0]), sizes.get(0), new File(destDir, safe));
                 if (error == null) copied.put(safe);
             }

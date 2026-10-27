@@ -45,8 +45,25 @@ namespace BakAgain.Tests.PlayMode.UI {
 
         [TearDown]
         public void TearDown() {
-            Object.DestroyImmediate(_go);
+            if (_go != null) Object.DestroyImmediate(_go);
             _gameView.Restore();
+        }
+
+        [Test]
+        public void ThePhoneScaleIsUndoneOnTheSharedPanelSettings() {
+            PanelSettings panel = _go.GetComponent<UIDocument>().panelSettings;
+            float before = panel.scale;
+            try {
+                panel.scale = 0.5f;
+                _view.KeepTouchSizeOnSmallPhones(320); // a small phone's density
+                Assert.That(panel.scale, Is.GreaterThanOrEqualTo(1f));
+
+                Object.DestroyImmediate(_go); // BackgroundLoading.prefab uses the same asset
+
+                Assert.That(panel.scale, Is.EqualTo(0.5f));
+            } finally {
+                panel.scale = before;
+            }
         }
 
         [Test]

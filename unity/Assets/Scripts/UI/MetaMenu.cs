@@ -41,6 +41,7 @@ namespace BakAgain.UI {
         private bool _picking; // Android: a system picker or its copy is under way
         private bool _fromFiles; // Android: the pick was loose files, so there is no one name to show
         private int? _extracting; // the percent of the GOG installer extracted so far, while it runs
+        private float? _scaleBefore; // the shared panel settings' scale before a phone scaled them up
 
         private static readonly ILogger Logger = LogManager.LoggerFactory.CreateLogger<MetaMenu>();
 
@@ -63,7 +64,14 @@ namespace BakAgain.UI {
 
         private void OnEnable() {
             FileBrowser.SingleClickMode = true;
-            if (Application.platform == RuntimePlatform.Android) KeepTouchSizeOnSmallPhones();
+            if (Application.platform == RuntimePlatform.Android) KeepTouchSizeOnSmallPhones(Screen.dpi);
+        }
+
+        // The panel settings are an asset shared with BackgroundLoading.prefab: the phone scale is this screen's alone.
+        private void OnDisable() {
+            if (_scaleBefore is not { } scale) return;
+            GetComponent<UIDocument>().panelSettings.scale = scale;
+            _scaleBefore = null;
         }
 
         /// <summary>
@@ -71,13 +79,14 @@ namespace BakAgain.UI {
         /// button is only 43dp. Scale the panel up until one unit is at least 48/63 dp: the layout then
         /// has fewer units to fill, and the body scrolls.
         /// </summary>
-        private void KeepTouchSizeOnSmallPhones() {
+        internal void KeepTouchSizeOnSmallPhones(float dpi) {
             PanelSettings panel = GetComponent<UIDocument>().panelSettings;
-            if (Screen.dpi <= 0 || panel.scaleMode != PanelScaleMode.ScaleWithScreenSize) return;
+            if (dpi <= 0 || panel.scaleMode != PanelScaleMode.ScaleWithScreenSize) return;
             float pxPerUnit = Math.Min(Screen.width, Screen.height) / (float)panel.referenceResolution.y;
-            float wantedPxPerUnit = 48f / 63f * Screen.dpi / 160f;
+            float wantedPxPerUnit = 48f / 63f * dpi / 160f;
+            _scaleBefore ??= panel.scale;
             panel.scale = Math.Max(1f, wantedPxPerUnit / pxPerUnit);
-            Logger.LogInformation("Setup panel: {Width}x{Height} at {Dpi} dpi, scale {Scale}", Screen.width, Screen.height, Screen.dpi, panel.scale);
+            Logger.LogInformation("Setup panel: {Width}x{Height} at {Dpi} dpi, scale {Scale}", Screen.width, Screen.height, dpi, panel.scale);
         }
 
         /// <summary>Opens on Welcome, or on Check with <paramref name="existing"/> when the stored folder failed it.</summary>
@@ -329,6 +338,16 @@ namespace BakAgain.UI {
 
         /// <summary>A desktop pick: a folder (searched two levels down), a zip (copied in), or an installer.</summary>
         internal async UniTask UsePick(string path) {
+            try {
+                await UsePickUnguarded(path);
+            } catch (Exception e) { // whatever a pick throws ends as a message, never lost in UniTask's log
+                Logger.LogError(e, "The setup pick failed");
+                Flow.PickFailed(ImportErrorText("io"));
+                Render();
+            }
+        }
+
+        private async UniTask UsePickUnguarded(string path) {
             string name = Path.GetFileName(path.TrimEnd('/', '\\'));
             Logger.LogInformation("Setup pick: {Path}", path);
             if (Directory.Exists(path)) {

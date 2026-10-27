@@ -1,5 +1,6 @@
 namespace GameData.Setup;
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -36,7 +37,7 @@ public static class GameFilesCheck {
                 return GameFileState.Empty;
             }
             return name != "KRONDOR.001" || ArchiveIsIntact(f) ? GameFileState.Ok : GameFileState.Damaged;
-        } catch (IOException) {
+        } catch (Exception e) when (e is IOException or UnauthorizedAccessException) {
             return GameFileState.Damaged;
         }
     }

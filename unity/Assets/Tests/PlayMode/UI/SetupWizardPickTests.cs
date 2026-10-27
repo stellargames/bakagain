@@ -1,5 +1,6 @@
 namespace BakAgain.Tests.PlayMode.UI {
     using BakAgain.ResourceManagement;
+    using BakAgain.Tests.TestSupport;
     using BakAgain.UI;
     using Cysharp.Threading.Tasks;
     using GameData.Resources.Text;
@@ -249,6 +250,16 @@ namespace BakAgain.Tests.PlayMode.UI {
 
             Assert.That(Note, Is.EqualTo(Text(UiTemplates.BootCopyErrorFound)));
             Assert.That(Note, Does.Contain("zip").And.Not.Contain("Use this again"), "Use this never copies; the zip did");
+        }
+
+        [Test]
+        public void AnUnexpectedFailureInAPickEndsAsAMessage() {
+            ExpectedLog.Expect(LogType.Error, "The setup pick failed");
+
+            _view.UsePick(null); // anything UsePick did not foresee, not lost in UniTask's log
+
+            Assert.That(_view.Flow.Step, Is.EqualTo(SetupStep.Find));
+            Assert.That(Note, Is.EqualTo(MetaMenu.ImportErrorText("io")));
         }
 
         /// <summary>GOG's setup_betrayal_at_krondor_2.1.0.19.exe, from $BAK_GOG_INSTALLER; the tests that need it pass without it.</summary>

@@ -114,6 +114,10 @@ public static class GameFilesImport {
         try {
             (List<(string Name, Func<Stream> Open)> files, ZipArchive? zip) = select();
             using (zip) {
+                if (!files.Any(f => GameFolder.Required.Contains(f.Name))) {
+                    // Nothing of the game picked: an old copy in destination must not read as this pick's files.
+                    return new ImportResult(new GameFilesReport(GameFolder.Required.ToDictionary(n => n, _ => GameFileState.Missing)), null);
+                }
                 Directory.CreateDirectory(destination);
                 long total = 0;
                 foreach ((string name, Func<Stream> open) in files) {
