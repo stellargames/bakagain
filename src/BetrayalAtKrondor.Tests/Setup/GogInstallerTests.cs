@@ -151,10 +151,22 @@ public class GogInstallerTests : IDisposable {
         using (FileStream f = File.OpenRead(path)) {
             f.ReadExactly(head);
         }
-        try {
-            Assert.Null(GogInstaller.TryOpen(new MemoryStream(head)));
-        } catch (InvalidDataException) {
+        Assert.Null(GogInstaller.TryOpen(new MemoryStream(head)));
+    }
+
+    [Fact]
+    public void AFileDeclaredTooLargeIsRefusedBeforeDecoding() {
+        string? path = Installer();
+        if (path == null) {
+            return;
         }
+        string dest = Path.Combine(_root, "dest");
+        // The real KRONDOR.001 is 11.5 MB; a 1 MB cap stands in for a crafted size over the 64 MiB one.
+        double last = 0;
+        ImportResult r = GameFilesImport.FromGogInstaller(path, dest, new Progress<double>(p => last = p), 1 << 20);
+        Assert.Equal("too-large", r.Error);
+        Assert.Equal(0, last);
+        Assert.False(Directory.Exists(dest) && Directory.EnumerateFileSystemEntries(dest).Any());
     }
 
     [Fact]

@@ -80,7 +80,7 @@ public class BakSetupPicker extends Fragment {
             Callback callback = pending;
             pending = null;
             getFragmentManager().beginTransaction().remove(this).commitAllowingStateLoss();
-            if (callback != null) callback.onPicked(result(null, new JSONArray(), 0, "no-picker"));
+            if (callback != null) callback.onPicked(result(null, new JSONArray(), 0, "no-picker", -1));
         }
     }
 
@@ -95,7 +95,7 @@ public class BakSetupPicker extends Fragment {
             return;
         }
         if (getActivity() == null) { // detached before the result came: nothing to copy with
-            callback.onPicked(result(null, new JSONArray(), 0, "io"));
+            callback.onPicked(result(null, new JSONArray(), 0, "io", -1));
             return;
         }
         Context context = getActivity().getApplicationContext();
@@ -117,7 +117,7 @@ public class BakSetupPicker extends Fragment {
             try {
                 json = folder ? copyTree(context, uris.get(0), dest) : copyUris(context, uris.toArray(new String[0]), dest);
             } catch (Throwable t) { // exactly one callback, whatever happens: C# waits for it
-                json = result(null, new JSONArray(), 0, "io");
+                json = result(null, new JSONArray(), 0, "io", -1);
             }
             callback.onPicked(json);
         }).start();
@@ -190,7 +190,7 @@ public class BakSetupPicker extends Fragment {
                 // Never taken.
             }
         }
-        return result(name, copied, Math.max(bestFound, 0), error);
+        return result(name, copied, Math.max(bestFound, 0), error, -1);
     }
 
     /** Picked files: the game's own by name, upper-cased; else one file (a zip or an installer) as it is. */
@@ -200,6 +200,7 @@ public class BakSetupPicker extends Fragment {
         String error = null;
         JSONArray copied = new JSONArray();
         int found = 0;
+        long bytes = 0; // the picked files' size, -1 when one is unknown
         try {
             List<String> names = new ArrayList<>();
             List<Long> sizes = new ArrayList<>();
@@ -218,6 +219,7 @@ public class BakSetupPicker extends Fragment {
                 error = copy(resolver, Uri.parse(uris[i]), sizes.get(i), new File(destDir, upper));
                 if (error == null) copied.put(upper);
             }
+            for (long size : sizes) bytes = bytes < 0 || size < 0 ? -1 : bytes + size;
             if (copied.length() == 0 && error == null && uris.length == 1 && !name.isEmpty()) {
                 String safe = new File(name).getName();
                 error = copy(resolver, Uri.parse(uris[0]), sizes.get(0), new File(destDir, safe));
@@ -228,7 +230,7 @@ public class BakSetupPicker extends Fragment {
         } catch (RuntimeException e) {
             error = "io";
         }
-        return result(name, copied, found, error);
+        return result(name, copied, found, error, bytes);
     }
 
     public static void shareText(Activity activity, String subject, String text) {
@@ -304,10 +306,10 @@ public class BakSetupPicker extends Fragment {
         return size >= 0 && total != size ? "io" : null;
     }
 
-    private static String result(String name, JSONArray copied, int found, String error) {
+    private static String result(String name, JSONArray copied, int found, String error, long bytes) {
         try {
             return new JSONObject().put("name", name == null ? JSONObject.NULL : name).put("copied", copied)
-                .put("found", found).put("error", error == null ? JSONObject.NULL : error).toString();
+                .put("found", found).put("bytes", bytes).put("error", error == null ? JSONObject.NULL : error).toString();
         } catch (org.json.JSONException e) {
             return "{\"error\":\"io\"}";
         }

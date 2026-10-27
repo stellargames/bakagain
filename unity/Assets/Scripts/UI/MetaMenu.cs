@@ -40,6 +40,7 @@ namespace BakAgain.UI {
         private bool _copied; // the Still stuck? version line was just copied
         private bool _picking; // Android: a system picker or its copy is under way
         private bool _fromFiles; // Android: the pick was loose files, so there is no one name to show
+        private int? _extracting; // the percent of the GOG installer extracted so far, while it runs
 
         private static readonly ILogger Logger = LogManager.LoggerFactory.CreateLogger<MetaMenu>();
 
@@ -164,8 +165,8 @@ namespace BakAgain.UI {
                     Text(UiTemplates.BootChooseFolderTitle, "setup-title");
                     // What just happened goes first: the body scrolls, and a note below it was cut off on a phone.
                     // A copy under way replaces the last pick's note, and a note replaces the dim side remark.
-                    if (_picking) Text(UiTemplates.BootCopying);
-                    else Note(Flow.Message);
+                    if (_picking && _extracting == null) Text(UiTemplates.BootCopying);
+                    else StatusOrNote();
                     // Under a note one line of help at most, so a small phone shows it all without scrolling:
                     // the Download remark where it is the likely cause, else the short body.
                     if (string.IsNullOrEmpty(Flow.Message) || _picking) {
@@ -180,12 +181,10 @@ namespace BakAgain.UI {
                     AddButton(UiTemplates.BootPhoneHelpLink, "setup-outline", Flow.OpenHelp, _buttons);
                     Link(UiTemplates.BootPickOtherAndroid, () => PickAndroidAsync(AndroidSetupPicker.PickFilesAsync, UiTemplates.BootNoFilePicker, true).Forget());
                     Link(UiTemplates.BootStuckLink, Flow.OpenStuck);
-                    // Nothing to tap while a pick is copied in: the result renders the next step.
-                    foreach (VisualElement e in _buttons.Children().Concat(_links.Children())) e.SetEnabled(!_picking);
                     break;
                 case SetupStep.Find when _found != null:
                     Text(UiTemplates.BootFoundTitle, "setup-title");
-                    Note(Flow.Message);
+                    StatusOrNote();
                     Text(_foundGog ? UiTemplates.BootFoundBody : UiTemplates.BootFoundBodyOther);
                     Secondary(_found);
                     Primary(UiTemplates.BootUseThis, () => UseFolder(Path.GetFileName(_found), _found));
@@ -195,7 +194,7 @@ namespace BakAgain.UI {
                     break;
                 case SetupStep.Find:
                     Text(UiTemplates.BootChooseFolderTitle, "setup-title");
-                    Note(Flow.Message);
+                    StatusOrNote();
                     Text(UiTemplates.BootChooseFolderBodyDesktop);
                     if (KeepSideRemark) Text(UiTemplates.BootCaseNote, "setup-text", "setup-dim");
                     Primary(UiTemplates.BootBrowse, Browse);
@@ -235,6 +234,10 @@ namespace BakAgain.UI {
                         AddButton(Android ? UiTemplates.BootShareLog : UiTemplates.BootOpenLogFolder, "setup-outline", ShareOrOpenLog, _buttons);
                     }
                     break;
+            }
+            // Nothing to tap while a pick is copied in or extracted: the result renders the next step.
+            if (Flow.Step == SetupStep.Find && (_picking || _extracting != null)) {
+                foreach (VisualElement e in _buttons.Children().Concat(_links.Children())) e.SetEnabled(false);
             }
             // A rule under "‹ Back": the scrolled text slides under it instead of leaving half a line loose.
             _top.EnableInClassList("setup-top-rule", _top.childCount > 0);
@@ -319,13 +322,13 @@ namespace BakAgain.UI {
 
         private void Browse() =>
             Pick(_ => true, FileBrowser.PickMode.FilesAndFolders,
-                _found ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), null, T(UiTemplates.BootBrowse), UsePick, () => {
+                _found ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), null, T(UiTemplates.BootBrowse), p => UsePick(p).Forget(), () => {
                 Flow.Cancelled();
                 Render();
             });
 
         /// <summary>A desktop pick: a folder (searched two levels down), a zip (copied in), or an installer.</summary>
-        internal void UsePick(string path) {
+        internal async UniTask UsePick(string path) {
             string name = Path.GetFileName(path.TrimEnd('/', '\\'));
             Logger.LogInformation("Setup pick: {Path}", path);
             if (Directory.Exists(path)) {
@@ -346,6 +349,8 @@ namespace BakAgain.UI {
                     }
                     break;
                 case PickKind.GogInstaller:
+                    await UseInstaller(name, path);
+                    break;
                 case PickKind.CdImage:
                     Flow.PickFailed(T(Android ? UiTemplates.BootInstallerUnreadableAndroid : UiTemplates.BootInstallerUnreadable));
                     break;
@@ -363,13 +368,59 @@ namespace BakAgain.UI {
             Render();
         }
 
-        internal static string ImportErrorText(string error) => error switch {
+        /// <summary>GOG's installer: the game files extracted from it into the app, off the main thread (~1 s on a desktop, 2 s in the emulator).</summary>
+        private async UniTask UseInstaller(string name, string path) {
+            string original = Original; // Unity's paths are main-thread only
+            _extracting = 0;
+            Render();
+            // Created here, so its reports come back on the main thread.
+            var progress = new Progress<double>(p => {
+                int percent = (int)(p * 100);
+                if (_extracting == null || percent == _extracting) return; // a late report, or no change to show
+                _extracting = percent;
+                Render();
+            });
+            ImportResult result;
+            try {
+                result = await UniTask.RunOnThreadPool(() => GameFilesImport.FromGogInstaller(path, original, progress));
+            } catch (Exception e) { // whatever else the extract throws ends as a message, never a wizard left waiting
+                Logger.LogError(e, "Extracting the GOG installer failed");
+                result = new ImportResult(GameFilesCheck.Check(original), "io");
+            } finally {
+                _extracting = null;
+            }
+            Logger.LogInformation("Installer import: {Error}", result.Error ?? "ok");
+            switch (result.Error) {
+                case null:
+                    _chosen = original;
+                    Flow.Picked(name, result.Report);
+                    break;
+                case "corrupt":
+                    Flow.PickFailed(T(UiTemplates.BootInstallerDamaged));
+                    break;
+                case "io":
+                    Flow.PickFailed(ImportErrorText("io"));
+                    break;
+                default: // "not-installer", or "too-large": not the installer this reads
+                    Flow.PickFailed(T(Android ? UiTemplates.BootInstallerUnreadableAndroid : UiTemplates.BootInstallerUnreadable));
+                    break;
+            }
+        }
+
+        /// <param name="mb">For "space": the MB the copy needs, when not the game files' own size.</param>
+        internal static string ImportErrorText(string error, int mb = CopyNeedsMb) => error switch {
             "corrupt-zip" => T(UiTemplates.BootZipDamaged),
             "too-large" => T(UiTemplates.BootZipTooLarge),
-            "space" => T(Android ? UiTemplates.BootCopyFailed : UiTemplates.BootCopyFailedDesktop, ("mb", CopyNeedsMb)),
+            "space" => T(Android ? UiTemplates.BootCopyFailed : UiTemplates.BootCopyFailedDesktop, ("mb", mb)),
             // "io" and anything else: a read or write failed, cause unknown (a full disk reports "space" only from Android's copy).
             _ => T(Android ? UiTemplates.BootCopyError : UiTemplates.BootCopyErrorDesktop),
         };
+
+        /// <summary>Find: the extract under way, else the last pick's note.</summary>
+        private void StatusOrNote() {
+            if (_extracting != null) _body.Add(MakeLabel(T(UiTemplates.BootExtracting, ("percent", _extracting)), "setup-text"));
+            else Note(Flow.Message);
+        }
 
         /// <summary>A desktop folder is used where it is: nothing is copied.</summary>
         private void UseFolder(string name, string folder) {
@@ -389,7 +440,7 @@ namespace BakAgain.UI {
                 } else if (picked.Error == "no-picker") {
                     Flow.PickFailed(T(noPickerKey));
                 } else {
-                    UseAndroidPick(picked, looseFiles);
+                    await UseAndroidPick(picked, looseFiles);
                 }
             } catch (Exception e) { // whatever the Java side or the copy throws ends as a message, never a wizard left waiting
                 Logger.LogError(e, "The Android pick failed");
@@ -411,7 +462,7 @@ namespace BakAgain.UI {
         /// optional RESOURCE.CFG failed after all three game files were copied. <paramref name="looseFiles"/>:
         /// picked as loose files, whose display name is only the first file's.
         /// </summary>
-        internal void UseAndroidPick(AndroidSetupPicker.PickResult picked, bool looseFiles = false) {
+        internal async UniTask UseAndroidPick(AndroidSetupPicker.PickResult picked, bool looseFiles = false) {
             Logger.LogInformation("Setup pick: {Name}, copy error {Error}", picked.DisplayName, picked.Error);
             _fromFiles = false;
             switch (picked.Error) {
@@ -420,6 +471,10 @@ namespace BakAgain.UI {
                     return;
                 case "io" when GameFolder.Required.All(picked.Copied.Contains):
                     break;
+                case "space" when GameFilesSearch.Classify(new[] { picked.DisplayName }) == PickKind.GogInstaller && picked.Bytes > 0:
+                    // The installer is copied in whole, then the game files are extracted beside it.
+                    Flow.PickFailed(ImportErrorText("space", (int)(picked.Bytes >> 20) + CopyNeedsMb));
+                    return;
                 case "space":
                 case "io":
                     Flow.PickFailed(ImportErrorText(picked.Error));
@@ -428,7 +483,7 @@ namespace BakAgain.UI {
             string[] files = Directory.GetFiles(picked.StagingDir);
             if (files.Length == 1 && !GameFolder.Required.Contains(Path.GetFileName(files[0]))
                                   && Path.GetFileName(files[0]) != "RESOURCE.CFG") {
-                UsePick(files[0]);
+                await UsePick(files[0]);
                 return;
             }
             ImportResult result = GameFilesImport.FromFolder(picked.StagingDir, Original);

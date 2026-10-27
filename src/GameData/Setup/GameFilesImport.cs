@@ -50,7 +50,11 @@ public static class GameFilesImport {
 
     /// <summary>Extracts the game files from GOG's installer (see <see cref="GogInstaller"/>); RESOURCE.CFG comes from <c>{app}\__support\save</c>.</summary>
     /// <param name="progress">0..1 over the bytes of the files extracted.</param>
-    public static ImportResult FromGogInstaller(string exePath, string destination, IProgress<double>? progress) {
+    public static ImportResult FromGogInstaller(string exePath, string destination, IProgress<double>? progress) =>
+        FromGogInstaller(exePath, destination, progress, 64 << 20);
+
+    /// <param name="maxFileBytes">The largest size an installer may declare for a wanted file (the real KRONDOR.001 is 11.5 MB): each is held in memory, so a crafted size must not reach the allocation.</param>
+    internal static ImportResult FromGogInstaller(string exePath, string destination, IProgress<double>? progress, long maxFileBytes) {
         FileStream? exe = null;
         try {
             exe = File.OpenRead(exePath);
@@ -67,10 +71,13 @@ public static class GameFilesImport {
                     picked.Add((name, file));
                 }
             }
+            if (picked.Any(p => p.File.Size > maxFileBytes)) {
+                return new ImportResult(GameFilesCheck.Check(destination), "too-large");
+            }
             double total = Math.Max(1, picked.Sum(p => (double)p.File.Size));
             long done = 0;
             var files = picked.Select(p => (p.Name, (Func<Stream>)(() => {
-                var bytes = new MemoryStream();
+                var bytes = new MemoryStream((int)p.File.Size);
                 long before = done;
                 installer.Extract(p.File, bytes, progress == null ? null : new Progress(n => progress.Report((before + n) / total)));
                 done += p.File.Size;

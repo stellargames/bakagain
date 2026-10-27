@@ -15,20 +15,23 @@ namespace BakAgain.UI {
 
         /// <summary>
         /// What a pick left in the staging folder. <see cref="Error"/>: null, "space", "permission",
-        /// "no-picker" or "io"; <see cref="Copied"/> names the files copied before it.
+        /// "no-picker" or "io"; <see cref="Copied"/> names the files copied before it; <see cref="Bytes"/> is
+        /// the picked files' size (-1 unknown), so a full disk can be told how much the copy needs.
         /// </summary>
         internal sealed class PickResult {
-            public PickResult(string displayName, string stagingDir, string error, string[] copied = null) {
+            public PickResult(string displayName, string stagingDir, string error, string[] copied = null, long bytes = -1) {
                 DisplayName = displayName;
                 StagingDir = stagingDir;
                 Error = error;
                 Copied = copied ?? Array.Empty<string>();
+                Bytes = bytes;
             }
 
             public string DisplayName { get; }
             public string StagingDir { get; }
             public string Error { get; }
             public string[] Copied { get; }
+            public long Bytes { get; }
         }
 
         [Serializable]
@@ -36,6 +39,7 @@ namespace BakAgain.UI {
             public string name;
             public string[] copied;
             public string error;
+            public long bytes = -1;
         }
 
         internal static string StagingDir => Path.Combine(Application.temporaryCachePath, "setup-pick");
@@ -101,7 +105,7 @@ namespace BakAgain.UI {
                 try {
                     Reply reply = JsonUtility.FromJson<Reply>(json);
                     _done.TrySetResult(new PickResult(reply.name ?? "", _staging,
-                        string.IsNullOrEmpty(reply.error) ? null : reply.error, reply.copied));
+                        string.IsNullOrEmpty(reply.error) ? null : reply.error, reply.copied, reply.bytes));
                 } catch (Exception e) {
                     _done.TrySetException(e); // never leave the wizard waiting
                 }

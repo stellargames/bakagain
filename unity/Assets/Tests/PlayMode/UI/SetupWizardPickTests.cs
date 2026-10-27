@@ -1,13 +1,16 @@
 namespace BakAgain.Tests.PlayMode.UI {
     using BakAgain.ResourceManagement;
     using BakAgain.UI;
+    using Cysharp.Threading.Tasks;
     using GameData.Resources.Text;
     using GameData.Setup;
     using NUnit.Framework;
+    using System.Collections;
     using System.IO;
     using System.IO.Compression;
     using System.Linq;
     using UnityEngine;
+    using UnityEngine.TestTools;
     using UnityEngine.UIElements;
 
     /// <summary>What a pick does (TASK-1014): a desktop folder, zip or installer, and what the Android copy staged.</summary>
@@ -160,6 +163,16 @@ namespace BakAgain.Tests.PlayMode.UI {
         }
 
         [Test]
+        public void AnInstallerCopyThatRanOutOfSpaceNamesWhatItNeeds() {
+            _view.UseAndroidPick(new AndroidSetupPicker.PickResult("setup_betrayal_at_krondor_2.1.0.19.exe", _dir, "space", bytes: 114992104));
+            _view.Render();
+
+            // 109 MB of installer staged, then the 14 MB of game files beside it.
+            Assert.That(Note, Is.EqualTo(MetaMenu.ImportErrorText("space", 123)));
+            Assert.That(Note, Does.Contain("123"));
+        }
+
+        [Test]
         public void AFailedAndroidCopyImportsNothing() {
             // What a short copy can leave behind: all three names, the files cut short.
             foreach ((string name, byte[] bytes) in GameFiles()) File.WriteAllBytes(Path.Combine(_dir, name), bytes);
@@ -237,6 +250,69 @@ namespace BakAgain.Tests.PlayMode.UI {
             Assert.That(Note, Is.EqualTo(Text(UiTemplates.BootCopyErrorFound)));
             Assert.That(Note, Does.Contain("zip").And.Not.Contain("Use this again"), "Use this never copies; the zip did");
         }
+
+        /// <summary>GOG's setup_betrayal_at_krondor_2.1.0.19.exe, from $BAK_GOG_INSTALLER; the tests that need it pass without it.</summary>
+        private static string InstallerPath() {
+            string path = System.Environment.GetEnvironmentVariable("BAK_GOG_INSTALLER");
+            return string.IsNullOrEmpty(path) || !File.Exists(path) ? null : path;
+        }
+
+        [UnityTest]
+        public IEnumerator PickingTheInstallerImportsTheFiles() => UniTask.ToCoroutine(async () => {
+            string installer = InstallerPath();
+            if (installer == null) return;
+            string kept = BakResourceSettings.GamePath;
+            try {
+                UniTask pick = _view.UsePick(installer);
+                // Extracting runs off the main thread: the step says so, and nothing can be clicked meanwhile.
+                Assert.That(Root.Query<Label>().ToList().Select(l => l.text), Has.Member(Text(UiTemplates.BootExtracting, ("percent", 0))));
+                Assert.That(Root.Query<Button>().ToList().Where(b => b.enabledSelf), Is.Empty);
+                await pick;
+
+                Assert.That(_view.Flow.Step, Is.EqualTo(SetupStep.Check));
+                Assert.That(_view.Flow.Report.AllOk, Is.True);
+                Button play = Root.Query<Button>().ToList().Single(b => b.text == Text(UiTemplates.BootPlay));
+                using (NavigationSubmitEvent submit = NavigationSubmitEvent.GetPooled()) {
+                    submit.target = play;
+                    play.SendEvent(submit);
+                }
+                Assert.That(BakResourceSettings.GamePath, Is.EqualTo(Original));
+            } finally {
+                BakResourceSettings.GamePath = kept;
+            }
+        });
+
+        [UnityTest]
+        public IEnumerator ARenamedFileThatIsNoInstallerSaysItIsTheInstaller() => UniTask.ToCoroutine(async () => {
+            string exe = Path.Combine(_dir, "setup_betrayal_at_krondor_x.exe");
+            using (ZipArchive archive = ZipFile.Open(exe, ZipArchiveMode.Create)) archive.CreateEntry("readme.txt");
+
+            await _view.UsePick(exe);
+
+            Assert.That(_view.Flow.Step, Is.EqualTo(SetupStep.Find));
+            Assert.That(Note, Is.EqualTo(Text(UiTemplates.BootInstallerUnreadable)));
+            Assert.That(Directory.Exists(Original) && Directory.EnumerateFileSystemEntries(Original).Any(), Is.False);
+        });
+
+        [UnityTest]
+        public IEnumerator ADamagedInstallerSaysSo() => UniTask.ToCoroutine(async () => {
+            string installer = InstallerPath();
+            if (installer == null) return;
+            string copy = Path.Combine(_dir, Path.GetFileName(installer));
+            File.Copy(installer, copy);
+            using (FileStream f = File.Open(copy, FileMode.Open)) {
+                // Measured: KRONDOR.001's chunk starts at data offset 0x3B400 + 57304709; flip a bit 3 MB into it.
+                f.Position = 0x3B400 + 57304709 + 3_000_000;
+                int b = f.ReadByte();
+                f.Position--;
+                f.WriteByte((byte)(b ^ 0x10));
+            }
+
+            await _view.UsePick(copy);
+
+            Assert.That(_view.Flow.Step, Is.EqualTo(SetupStep.Find));
+            Assert.That(Note, Is.EqualTo(Text(UiTemplates.BootInstallerDamaged)));
+        });
 
         [Test]
         public void ACopyFailureOnTheDesktopNeverSaysPhone() {

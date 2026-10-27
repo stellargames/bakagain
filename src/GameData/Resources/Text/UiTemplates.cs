@@ -111,6 +111,7 @@ public static class UiTemplates {
     public const string BootVersionCopy = "port:template:boot_version_copy";
     public const string BootVersion = "port:template:boot_version";
     public const string BootExtracting = "port:template:boot_extracting";
+    public const string BootInstallerDamaged = "port:template:boot_installer_damaged";
 
     // The touch controls' own words; the original had no touch screen.
     public const string TouchMove = "port:template:touch_move";
@@ -417,7 +418,7 @@ public static class UiTemplates {
         (BootBack, _ => Literal("‹ Back")),
         (BootHelpTitleAndroid, _ => Literal("How do I get them on my phone?")),
         (BootHelpTitleDesktop, _ => Literal("Where do I get them?")),
-        (BootHelpBodyAndroid, _ => Literal("1. With a USB cable\nConnect the phone to your PC. On the phone, swipe down from the top and tap the USB notification, then choose “File transfer”. On the PC, make a folder named BaK inside the phone's Download folder and copy KRONDOR.001, FRP.SX and STARTUP.GAM into it (on the PC they are in C:\\GOG Games\\Betrayal at Krondor, or wherever you installed the game). Then tap Choose folder, Download, BaK.\n\n2. With Google Drive, Dropbox or OneDrive\nUpload the three files, or a .zip with them, to your drive. Then tap “Pick files, a .zip or the GOG installer” and choose them from the drive.\n\n3. With a USB stick or SD card\nCopy the three files into a folder on it and plug it into the phone (many phones need a small USB adapter for a stick, and an SD card needs a card slot). Then tap Choose folder and pick that folder.\n\n4. Only a phone? Use the GOG installer\nDownload the Windows installer (setup_betrayal_at_krondor….exe) from your GOG library onto the phone. Then tap “Pick files, a .zip or the GOG installer” and choose it.")),
+        (BootHelpBodyAndroid, _ => Literal("1. With a USB cable\nConnect the phone to your PC. On the phone, swipe down from the top and tap the USB notification, then choose “File transfer”. On the PC, make a folder named BaK inside the phone's Download folder and copy KRONDOR.001, FRP.SX and STARTUP.GAM into it (on the PC they are in C:\\GOG Games\\Betrayal at Krondor, or wherever you installed the game). Then tap Choose folder, Download, BaK.\n\n2. With Google Drive, Dropbox or OneDrive\nUpload the three files, or a .zip with them, to your drive. Then tap “Pick files, a .zip or the GOG installer” and choose them from the drive.\n\n3. With a USB stick or SD card\nCopy the three files into a folder on it and plug it into the phone (many phones need a small USB adapter for a stick, and an SD card needs a card slot). Then tap Choose folder and pick that folder.\n\n4. With the GOG installer\nDownload the Windows installer (setup_betrayal_at_krondor….exe) from your GOG library, on a PC or in the phone's browser, and put it on the phone. Then tap “Pick files, a .zip or the GOG installer” and choose it.")),
         (BootHelpBodyWindows, _ => Literal("BaK-Again needs three files from your own copy of Betrayal at Krondor: KRONDOR.001, FRP.SX and STARTUP.GAM.\n\nIf you bought it on GOG, pick the installer itself, or the folder GOG installed the game to. By default that is C:\\GOG Games\\Betrayal at Krondor.\n\nIf you have the CD or an old DOS install, pick the folder you installed the game to, the one with KRONDOR.001 in it.")),
         (BootHelpBodyLinux, _ => Literal("BaK-Again needs three files from your own copy of Betrayal at Krondor: KRONDOR.001, FRP.SX and STARTUP.GAM. Upper or lower case doesn't matter.\n\nIf you bought it on GOG, pick the installer itself (no Wine needed), or the folder GOG installed the game to. With Heroic it is usually ~/Games/Heroic/Betrayal at Krondor.\n\nIf you have the CD or an old DOS install, pick the folder you installed the game to, the one with KRONDOR.001 in it.")),
         (BootMoreHelpWeb, _ => Literal("More help with pictures on bakagain.org")),
@@ -430,6 +431,7 @@ public static class UiTemplates {
         (BootVersionCopy, _ => Literal("Tap or click the version to copy it.")),
         (BootVersion, _ => "BaK-Again {version}"),
         (BootExtracting, _ => "Extracting… {percent}%"),
+        (BootInstallerDamaged, _ => Literal("This installer file is damaged. Download it again from your GOG library.")),
         (Farewell, _ => "GoodBye"),
         (Ok, _ => "OK"),
         (QuantityGive, c => Literal(c.Get("base:uistring:quantity.give_prefix")) + "{n}{max, select, yes {"
