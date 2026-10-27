@@ -28,9 +28,6 @@ namespace BakAgain.Tests.PlayMode.World {
             var cam = new GameObject("cam").AddComponent<Camera>();
             cam.transform.position = new Vector3(0, 10, -10);
             cam.transform.LookAt(Vector3.zero);
-            // Pin the aspect rather than inherit the screen's: on the -nographics CI runner (screen
-            // 1003x451 there) the round trip missed by 0.018, twice, for v0.4.0-beta; why is unknown.
-            cam.aspect = 4f / 3f;
             var stage = new Rect(300, 50, 800, 600);   // a viewport that is NOT the whole screen
             try {
                 var floor = new Vector3(2.5f, 0f, 1.5f);

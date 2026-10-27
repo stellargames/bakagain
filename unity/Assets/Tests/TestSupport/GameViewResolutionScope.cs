@@ -44,6 +44,7 @@ namespace BakAgain.Tests.TestSupport {
         private uint _originalHeight;
         private int _originalSizeIndex;
         private bool _haveSizeIndex;
+        private int _sharedSizeIndex;
 
         /// <summary>Force the Game view to <paramref name="width"/> x <paramref name="height"/>.</summary>
         public static GameViewResolutionScope Force(uint width, uint height) {
@@ -55,6 +56,7 @@ namespace BakAgain.Tests.TestSupport {
 
             PlayModeWindow.SetCustomRenderingResolution(width, height, SharedPresetName);
             PlayModeWindow.SetViewType(PlayModeWindow.PlayModeViewTypes.GameView);
+            if (!TryGetSelectedSizeIndex(out scope._sharedSizeIndex)) scope._sharedSizeIndex = -1;
             return scope;
         }
 
@@ -85,6 +87,15 @@ namespace BakAgain.Tests.TestSupport {
             // Restoring the INDEX is what avoids minting a second preset. The fallback does mint,
             // but only ever under the one shared name, so the worst case is still a single entry.
             if (!_haveSizeIndex || !TrySetSelectedSizeIndex(_originalSizeIndex)) {
+                PlayModeWindow.SetCustomRenderingResolution(
+                    _originalWidth, _originalHeight, SharedPresetName);
+            }
+            // The index alone is not enough when it IS the shared preset: Force just rewrote that
+            // preset's size, so reselecting it keeps the forced size. That is the -nographics case,
+            // where OpenOnceWithoutGraphics leaves the shared preset selected: SetupWizardViewTests'
+            // 2400x1080 outlived its fixture, and WorldPickerTests then ran on a fractional
+            // 1003.31x451.49 screen and missed its round trip by 0.018 (v0.4.0-beta CI, 2026-10-27).
+            if (_haveSizeIndex && _originalSizeIndex == _sharedSizeIndex) {
                 PlayModeWindow.SetCustomRenderingResolution(
                     _originalWidth, _originalHeight, SharedPresetName);
             }
