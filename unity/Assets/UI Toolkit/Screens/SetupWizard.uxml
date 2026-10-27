@@ -1,0 +1,14 @@
+<engine:UXML xmlns:engine="UnityEngine.UIElements" editor-extension-mode="False">
+    <Style src="project://database/Assets/UI%20Toolkit/UnityThemes/Setup.uss" />
+    <engine:VisualElement name="Table" class="setup-table">
+        <engine:VisualElement name="Card" class="setup-card">
+            <engine:VisualElement name="Sheet" class="setup-sheet">
+                <engine:VisualElement name="Top" class="setup-top" />
+                <engine:Label name="StepLine" class="setup-step" />
+                <engine:ScrollView name="Body" class="setup-body" />
+                <engine:VisualElement name="Buttons" class="setup-buttons" />
+                <engine:VisualElement name="Links" class="setup-links" />
+            </engine:VisualElement>
+        </engine:VisualElement>
+    </engine:VisualElement>
+</engine:UXML>

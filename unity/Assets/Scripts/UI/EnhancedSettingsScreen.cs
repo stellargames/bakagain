@@ -238,7 +238,7 @@ namespace BakAgain.UI {
         private void BrowseGameFolder() {
             string initial = string.IsNullOrEmpty(_gamePath) ? Application.persistentDataPath : _gamePath;
             MetaMenu.PickGameArchiveFolder(initial, Templates.Format(Templates.EnhancedBrowse), folder => {
-                bool ok = MetaMenu.AreRequiredGameFilesPresentIn(folder);
+                bool ok = GameData.Setup.GameFilesCheck.Check(folder).AllOk;
                 _folderError.text = ok ? string.Empty : Templates.Format(Templates.EnhancedBadGameFolder);
                 if (ok) _gamePath = folder;
                 Refresh();

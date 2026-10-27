@@ -41,11 +41,6 @@ public static class UiTemplates {
 
     // The boot screens, shown before the game data is found (TASK-775, decision 5: one system).
     public const string BootLoading = "port:template:boot_loading";
-    public const string BootDataFiles = "port:template:boot_data_files";
-    public const string BootEnableOverrides = "port:template:boot_enable_overrides";
-    public const string BootOverrideDirectory = "port:template:boot_override_directory";
-    public const string BootGameDirectory = "port:template:boot_game_directory";
-    public const string BootContinue = "port:template:boot_continue";
 
     // The game-files setup wizard (TASK-1014).
     public const string BootStepOf = "port:template:boot_step_of";
@@ -349,14 +344,6 @@ public static class UiTemplates {
         (VersionBannerKey, _ => "Version {version}"),
         (BuildInfoKey, _ => "BaK-Again {version}   Log: {log}"),
         (BootLoading, _ => Literal("Loading Betrayal at Krondor... please wait.")),
-        (BootDataFiles, _ => Literal("This game requires the original data files of the \"Betrayal at Krondor\" game. "
-            + "If you do not have a copy of that game you can buy one at "
-            + "<a href=\"https://www.gog.com/game/betrayal_at_krondor\"><u>GOG</u> (https://www.gog.com/game/betrayal_at_krondor)</a>"
-            + "\n\nIt is possible to customize/mod/override all the game data by placing files in an override folder.")),
-        (BootEnableOverrides, _ => "Enable overrides"),
-        (BootOverrideDirectory, _ => "Override directory"),
-        (BootGameDirectory, _ => "Game files directory"),
-        (BootContinue, _ => "Continue"),
         (BootStepOf, _ => "STEP {n} OF 3"),
         (BootFrom, _ => "from “{name}”"),
         (BootWelcomeTitle, _ => Literal("Welcome to BaK-Again")),

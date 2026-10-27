@@ -47,11 +47,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_PanelSettings: {fileID: 11400000, guid: f3359fd843cb40544bfa7f899060ab15, type: 2}
   m_ParentUI: {fileID: 0}
-  sourceAsset: {fileID: 9197481963319205126, guid: 19fe9eaa93bc4d740b17fc957d3b90e2, type: 3}
+  sourceAsset: {fileID: 9197481963319205126, guid: 7d733c40b7c61a34092b5395fe554687, type: 3}
   m_SortingOrder: 1
+  m_Position: 0
   m_WorldSpaceSizeMode: 1
   m_WorldSpaceWidth: 1920
   m_WorldSpaceHeight: 1080
+  m_PivotReferenceSize: 0
+  m_Pivot: 0
+  m_WorldSpaceCollider: {fileID: 0}
 --- !u!114 &5428062947902307802
 MonoBehaviour:
   m_ObjectHideFlags: 0

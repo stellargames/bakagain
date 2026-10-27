@@ -4,8 +4,8 @@ namespace BakAgain.Core.DI {
     using BakAgain.ResourceManagement;
     using BakAgain.UI;
     using Cysharp.Threading.Tasks;
+    using GameData.Setup;
     using Microsoft.Extensions.Logging;
-    using System.IO;
     using System.Threading;
     using UnityEngine;
     using UnityEngine.AddressableAssets;
@@ -107,6 +107,17 @@ namespace BakAgain.Core.DI {
 #endif
         }
 
+        /// <summary>
+        /// Whether the setup must run before the game: no folder stored yet (<paramref name="report"/> is
+        /// null, the setup opens on Welcome), or the stored one fails the file check (it opens on Check
+        /// with that report). Run at every start: a file deleted or damaged after the setup booted to the
+        /// title screen and failed silently at New Game.
+        /// </summary>
+        internal static bool NeedsSetup(string gamePath, out GameFilesReport report) {
+            report = string.IsNullOrEmpty(gamePath) ? null : GameFilesCheck.Check(gamePath);
+            return report is not { AllOk: true };
+        }
+
         public async UniTask StartAsync(CancellationToken cancellation = default) {
             _logger.LogInformation("StartAsync() initiated.");
             BakResourceSettings.ApplyPending(); // folders the Enhanced settings saved for this start
@@ -130,8 +141,9 @@ namespace BakAgain.Core.DI {
                 }
 
                 // Check and prompt for game path if necessary
-                while (string.IsNullOrEmpty(BakResourceSettings.GamePath) || !Directory.Exists(BakResourceSettings.GamePath)) {
-                    _logger.LogInformation("Game path not set or invalid. Loading MetaMenu to prompt user.");
+                while (NeedsSetup(BakResourceSettings.GamePath, out GameFilesReport report)) {
+                    _logger.LogInformation("Game files not set up or not intact. Loading MetaMenu to prompt user.");
+                    if (loadingLabel != null) loadingLabel.visible = false; // it showed beside the setup card
 
                     AsyncOperationHandle<GameObject> metaMenuHandle = default;
                     try {
@@ -145,6 +157,7 @@ namespace BakAgain.Core.DI {
                             throw new System.InvalidOperationException("MetaMenu component not found on prefab.");
                         }
 
+                        metaMenu.Show(report);
                         await metaMenu.WaitForDialogAsync();
                         StopIfPlayEnded(cancellation);
                     } finally {
@@ -155,6 +168,7 @@ namespace BakAgain.Core.DI {
                     _logger.LogInformation("MetaMenu dialog completed. GamePath attempt: '{GamePath}'", BakResourceSettings.GamePath);
                 }
 
+                if (loadingLabel != null) loadingLabel.visible = true;
                 _logger.LogInformation("Using GamePath: {GamePath}", BakResourceSettings.GamePath);
 
                 _logger.LogInformation("Initializing Addressables.");

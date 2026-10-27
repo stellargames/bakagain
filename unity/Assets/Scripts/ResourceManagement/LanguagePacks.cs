@@ -30,8 +30,8 @@ namespace BakAgain.ResourceManagement {
         /// A boot screen's text: shown before the game data — and so before the UI string catalog
         /// — is installed, it reads the embedded catalog through the active pack itself.
         /// </summary>
-        public static string BootText(string key) =>
-            UiTemplates.Format(UiStringCatalog.Embedded.TranslatedBy(Current), key);
+        public static string BootText(string key, params (string Name, object Value)[] args) =>
+            UiTemplates.Format(UiStringCatalog.Embedded.TranslatedBy(Current), key, args);
 
         /// <summary>
         /// The locales with a pack installed: every <c>Lang/&lt;locale&gt;/&lt;locale&gt;.po</c> under the
