@@ -138,7 +138,7 @@ jobs:
       # Cloudflare keeps the home page up to 10 minutes, so v0.3.1-beta's page said v0.3.0-beta after the release.
       # Once the VPS serves the new page (it pulls main every 5 minutes), drop Cloudflare's copy.
       # CLOUDFLARE_PURGE_TOKEN: an API token with only Zone > Cache Purge on bakagain.org. Without it, skipped.
-      - name: Purge the home page from Cloudflare's cache
+      - name: Purge the home page and latest.txt (the game's update check) from Cloudflare's cache
         env:
           CF_TOKEN: ${{ secrets.CLOUDFLARE_PURGE_TOKEN }}
           CF_ZONE: a26f3858a496c8a163c23a1b95506a93 # bakagain.org
@@ -151,4 +151,4 @@ jobs:
           done
           curl -fsS -X POST "https://api.cloudflare.com/client/v4/zones/$CF_ZONE/purge_cache" \
             -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" \
-            --data '{"files":["https://bakagain.org/","https://bakagain.org/index.html"]}' | grep -q '"success":true'
+            --data '{"files":["https://bakagain.org/","https://bakagain.org/index.html","https://bakagain.org/latest.txt"]}' | grep -q '"success":true'
