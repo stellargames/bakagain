@@ -75,6 +75,7 @@ public class UiTemplatesTests {
     public void TheTemplatesAreCatalogEntries_SoAPackAndTheTemplateReachThem() {
         Assert.Equal("{name} asked about:", UiStringCatalog.Embedded.Get(UiTemplates.AskedAbout));
     }
+
     [Fact]
     public void EveryBootKeyHasAnEnglishDefault_AndTheApostrophesSurvive() {
         var english = new Dictionary<string, string>(UiTemplates.EnglishFor(UiStringCatalog.Embedded));
@@ -87,5 +88,12 @@ public class UiTemplatesTests {
         Assert.Equal("STEP 2 OF 3", UiTemplates.Format(UiTemplates.BootStepOf, ("n", 2)));
         Assert.Contains("C:\\GOG Games\\Betrayal at Krondor", UiTemplates.Format(UiTemplates.BootHelpBodyWindows));
         Assert.DoesNotContain("phone", UiTemplates.Format(UiTemplates.BootHelpBodyLinux));
+        Assert.DoesNotContain("phone", UiTemplates.Format(UiTemplates.BootHelpBodyWindows));
+        string android = UiTemplates.Format(UiTemplates.BootHelpBodyAndroid);
+        Assert.DoesNotContain("Browse", android);
+        foreach (string n in new[] { "1. ", "2. ", "3. ", "4. " }) Assert.Contains(n, android);
+        Assert.DoesNotContain("5. ", android);
+        foreach (string key in keys) Assert.DoesNotContain("C:\\KRONDOR", UiTemplates.Format(key));
+        Assert.Contains("can't be read here", UiTemplates.Format(UiTemplates.BootInstallerUnreadableAndroid));
     }
 }

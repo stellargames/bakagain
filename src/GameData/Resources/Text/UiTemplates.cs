@@ -76,6 +76,7 @@ public static class UiTemplates {
     public const string BootDamaged = "port:template:boot_damaged";
     public const string BootEmpty = "port:template:boot_empty";
     public const string BootInstallerUnreadable = "port:template:boot_installer_unreadable";
+    public const string BootInstallerUnreadableAndroid = "port:template:boot_installer_unreadable_android";
     public const string BootNothingHere = "port:template:boot_nothing_here";
     public const string BootCopyFailed = "port:template:boot_copy_failed";
     public const string BootPermission = "port:template:boot_permission";
@@ -384,6 +385,7 @@ public static class UiTemplates {
         (BootDamaged, _ => "{file} looks incomplete. Copy it again."),
         (BootEmpty, _ => "{file} is empty. Copy it again."),
         (BootInstallerUnreadable, _ => Literal("This is the installer, not the game files. Install it first, then choose the folder it installed to.")),
+        (BootInstallerUnreadableAndroid, _ => Literal("This installer can't be read here. Install the game on a PC, then copy its three files to your phone.")),
         (BootNothingHere, _ => Literal("No game files here.")),
         (BootCopyFailed, _ => Literal("Couldn't copy the files: the phone needs about ") + "{mb} MB free."),
         (BootPermission, _ => Literal("The app isn't allowed to read that place. Choose it again and allow access, or use the other way to pick your files.")),
@@ -394,9 +396,9 @@ public static class UiTemplates {
         (BootBack, _ => Literal("‹ Back")),
         (BootHelpTitleAndroid, _ => Literal("How do I get them on my phone?")),
         (BootHelpTitleDesktop, _ => Literal("Where do I get them?")),
-        (BootHelpBodyAndroid, _ => Literal("1. With a USB cable\nConnect the phone to your PC and choose “File transfer” on the phone. On the PC, make a folder named BaK inside the phone's Download folder and copy KRONDOR.001, FRP.SX and STARTUP.GAM into it. Then tap Choose folder, Download, BaK.\n\n2. With Google Drive, Dropbox or OneDrive\nUpload the three files, or a .zip with them, to your drive. Then tap “Pick files, a .zip or the GOG installer” and choose them from the drive.\n\n3. With a USB stick or SD card\nCopy the three files into a folder on it and plug it into the phone. Then tap Choose folder and pick that folder.\n\n4. With the GOG installer\nDownload the installer from your GOG library onto the phone. Then tap “Pick files, a .zip or the GOG installer” and choose it.")),
-        (BootHelpBodyWindows, _ => Literal("BaK-Again needs three files from your own copy of Betrayal at Krondor: KRONDOR.001, FRP.SX and STARTUP.GAM.\n\nIf you bought it on GOG, pick the installer itself, or the folder GOG installed the game to. By default that is C:\\GOG Games\\Betrayal at Krondor.\n\nIf you have the CD or an old DOS install, pick the game's folder on your hard disk. By default that is C:\\KRONDOR.")),
-        (BootHelpBodyLinux, _ => Literal("BaK-Again needs three files from your own copy of Betrayal at Krondor: KRONDOR.001, FRP.SX and STARTUP.GAM. Upper or lower case doesn't matter.\n\nIf you bought it on GOG, pick the installer itself (no Wine needed), or the folder GOG installed the game to.\n\nIf you have the CD or an old DOS install, pick the game's folder on your hard disk.")),
+        (BootHelpBodyAndroid, _ => Literal("1. With a USB cable\nConnect the phone to your PC and choose “File transfer” on the phone. On the PC, make a folder named BaK inside the phone's Download folder and copy KRONDOR.001, FRP.SX and STARTUP.GAM into it. Then tap Choose folder, Download, BaK.\n\n2. With Google Drive, Dropbox or OneDrive\nUpload the three files, or a .zip with them, to your drive. Then tap “Pick files, a .zip or the GOG installer” and choose them from the drive.\n\n3. With a USB stick or SD card\nCopy the three files into a folder on it and plug it into the phone (many phones need a USB OTG adapter for a stick, and an SD card needs a card slot). Then tap Choose folder and pick that folder.\n\n4. With the GOG installer\nDownload the installer from your GOG library onto the phone. Then tap “Pick files, a .zip or the GOG installer” and choose it.")),
+        (BootHelpBodyWindows, _ => Literal("BaK-Again needs three files from your own copy of Betrayal at Krondor: KRONDOR.001, FRP.SX and STARTUP.GAM.\n\nIf you bought it on GOG, pick the installer itself, or the folder GOG installed the game to. By default that is C:\\GOG Games\\Betrayal at Krondor.\n\nIf you have the CD or an old DOS install, pick the folder you installed the game to, the one with KRONDOR.001 in it.")),
+        (BootHelpBodyLinux, _ => Literal("BaK-Again needs three files from your own copy of Betrayal at Krondor: KRONDOR.001, FRP.SX and STARTUP.GAM. Upper or lower case doesn't matter.\n\nIf you bought it on GOG, pick the installer itself (no Wine needed), or the folder GOG installed the game to.\n\nIf you have the CD or an old DOS install, pick the folder you installed the game to, the one with KRONDOR.001 in it.")),
         (BootMoreHelpWeb, _ => Literal("More help with pictures on bakagain.org")),
         (BootStuckTitle, _ => Literal("Still stuck?")),
         (BootStuckBody, _ => Literal("Ask on the forum. People there have set it up on the same kind of device. A log helps them see what went wrong.")),
