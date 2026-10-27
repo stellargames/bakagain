@@ -76,6 +76,15 @@ namespace BakAgain.Tests.PlayMode.UI {
         }
 
         [Test]
+        public void TheCheckStepOffersBothHelpLinks() {
+            _view.Show(Report(GameFileState.Ok, GameFileState.Ok, GameFileState.Missing));
+
+            string[] links = Buttons("setup-link").Select(b => b.text).ToArray();
+            Assert.That(links, Has.Some.Contains(Text(UiTemplates.BootWhereLink)));
+            Assert.That(links, Has.Some.Contains(Text(UiTemplates.BootStuckLink)));
+        }
+
+        [Test]
         public void AMissingFileIsNamedInTheNote() {
             _view.Show(Report(GameFileState.Ok, GameFileState.Ok, GameFileState.Missing));
 

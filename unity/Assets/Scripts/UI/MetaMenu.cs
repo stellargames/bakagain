@@ -32,6 +32,7 @@ namespace BakAgain.UI {
         private VisualElement _buttons;
         private VisualElement _links;
         private string _found;  // desktop: an install found without asking, offered on the Find step
+        private bool _foundGog; // ...and whether it is GOG's own install (not a Heroic, Wine or Lutris one)
         private string _chosen; // the folder Play stores as GamePath
         private bool _done;
 
@@ -80,8 +81,24 @@ namespace BakAgain.UI {
             return list;
         }
 
-        private static string FindInstalled() =>
-            DesktopCandidates().Select(c => GameFilesSearch.FindGameFolder(c)).FirstOrDefault(f => f != null && GameFilesCheck.Check(f).AllOk);
+        /// <summary>GOG's own install: the registry's folder or a "GOG Games" folder, not one inside a Wine prefix.</summary>
+        private static bool IsGogInstall(string candidate) =>
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
+            true;
+#else
+            candidate == Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "GOG Games", "Betrayal at Krondor");
+#endif
+
+        private void FindInstalled() {
+            (_found, _foundGog) = (null, false);
+            foreach (string candidate in DesktopCandidates()) {
+                string folder = GameFilesSearch.FindGameFolder(candidate);
+                if (folder != null && GameFilesCheck.Check(folder).AllOk) {
+                    (_found, _foundGog) = (folder, IsGogInstall(candidate));
+                    return;
+                }
+            }
+        }
 
         internal void Render() {
             VisualElement root = GetComponent<UIDocument>().rootVisualElement;
@@ -119,7 +136,7 @@ namespace BakAgain.UI {
                     break;
                 case SetupStep.Find when _found != null:
                     Text(UiTemplates.BootFoundTitle, "setup-title");
-                    Text(UiTemplates.BootFoundBody);
+                    Text(_foundGog ? UiTemplates.BootFoundBody : UiTemplates.BootFoundBodyOther);
                     Secondary(_found);
                     Note(Flow.Message);
                     Primary(UiTemplates.BootUseThis, () => UseFolder(Path.GetFileName(_found), _found));
@@ -188,6 +205,7 @@ namespace BakAgain.UI {
                 else if (_chosen != null) Secondary(_chosen);
                 Primary(UiTemplates.BootPlay, Play).SetEnabled(Flow.CanPlay);
             }
+            Link(Android ? UiTemplates.BootPhoneHelpLink : UiTemplates.BootWhereLink, Flow.OpenHelp);
             Link(UiTemplates.BootStuckLink, Flow.OpenStuck);
         }
 
@@ -211,7 +229,8 @@ namespace BakAgain.UI {
 
         private void FindFiles() {
             Flow.Next();
-            _found = Android ? null : FindInstalled();
+            if (Android) _found = null;
+            else FindInstalled();
             Render();
         }
 
@@ -244,7 +263,7 @@ namespace BakAgain.UI {
                     // ponytail: imported on the main thread; ~14 MB takes well under a second. A worker if a slow disk shows it.
                     ImportResult result = GameFilesImport.FromZip(path, Original);
                     if (result.Error != null) {
-                        Logger.LogWarning("Zip import failed: {Error}", result.Error);
+                        Logger.LogInformation("Zip import failed: {Error}", result.Error);
                         Flow.PickFailed(ImportErrorText(result.Error));
                     } else {
                         _chosen = Original;
@@ -268,8 +287,11 @@ namespace BakAgain.UI {
             Render();
         }
 
-        private static string ImportErrorText(string error) =>
-            error == "io" ? T(UiTemplates.BootCopyFailed, ("mb", CopyNeedsMb)) : T(UiTemplates.BootNothingHere);
+        internal static string ImportErrorText(string error) => error switch {
+            "corrupt-zip" => T(UiTemplates.BootZipDamaged),
+            "too-large" => T(UiTemplates.BootZipTooLarge),
+            _ => T(Android ? UiTemplates.BootCopyFailed : UiTemplates.BootCopyFailedDesktop, ("mb", CopyNeedsMb)),
+        };
 
         /// <summary>A desktop folder is used where it is: nothing is copied.</summary>
         private void UseFolder(string name, string folder) {
@@ -322,7 +344,8 @@ namespace BakAgain.UI {
 
         private void Text(string key, params string[] classes) => _body.Add(MakeLabel(T(key), classes.Length == 0 ? new[] { "setup-text" } : classes));
 
-        private void Secondary(string text) => _body.Add(MakeLabel(text, "setup-text", "setup-dim"));
+        /// <summary>The folder, as secondary detail under the main message (desktop only).</summary>
+        private void Secondary(string folder) => _body.Add(MakeLabel(T(UiTemplates.BootFolder, ("path", folder)), "setup-text", "setup-dim"));
 
         private void Note(string text) {
             if (!string.IsNullOrEmpty(text)) _body.Add(MakeLabel(text, "setup-note"));

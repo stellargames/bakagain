@@ -74,6 +74,11 @@ public static class UiTemplates {
     public const string BootInstallerUnreadableAndroid = "port:template:boot_installer_unreadable_android";
     public const string BootNothingHere = "port:template:boot_nothing_here";
     public const string BootCopyFailed = "port:template:boot_copy_failed";
+    public const string BootCopyFailedDesktop = "port:template:boot_copy_failed_desktop";
+    public const string BootFolder = "port:template:boot_folder";
+    public const string BootZipDamaged = "port:template:boot_zip_damaged";
+    public const string BootZipTooLarge = "port:template:boot_zip_too_large";
+    public const string BootFoundBodyOther = "port:template:boot_found_body_other";
     public const string BootPermission = "port:template:boot_permission";
     public const string BootChooseAgain = "port:template:boot_choose_again";
     public const string BootAllSet = "port:template:boot_all_set";
@@ -375,6 +380,11 @@ public static class UiTemplates {
         (BootInstallerUnreadableAndroid, _ => Literal("This installer can't be read here. Install the game on a PC, then copy its three files to your phone.")),
         (BootNothingHere, _ => Literal("No game files here.")),
         (BootCopyFailed, _ => Literal("Couldn't copy the files: the phone needs about ") + "{mb} MB free."),
+        (BootCopyFailedDesktop, _ => Literal("Couldn't copy the files: this computer needs about ") + "{mb} MB free."),
+        (BootFolder, _ => "Folder: {path}"),
+        (BootZipDamaged, _ => Literal("This zip file is damaged. Download or make it again, then choose it.")),
+        (BootZipTooLarge, _ => Literal("This zip is too big to be the game files. Choose the zip that holds KRONDOR.001, FRP.SX and STARTUP.GAM.")),
+        (BootFoundBodyOther, _ => Literal("Betrayal at Krondor is installed on this computer.")),
         (BootPermission, _ => Literal("The app isn't allowed to read that place. Choose it again and allow access, or use the other way to pick your files.")),
         (BootChooseAgain, _ => Literal("Choose again")),
         (BootAllSet, _ => Literal("All set")),
