@@ -2616,6 +2616,10 @@ namespace BakAgain.World {
             var marks = arenaRoot.AddComponent<Encounters.ArenaBoardMarks>();
             marks.Bind(() => _hotspots?.EnhancedBoardShapes(_combatLayout.MarkHalfCell),
                 () => _hotspots?.EnhancedFoePlates(), _combatLayout, 0f);
+            // The latch is read every frame: a turn that goes Classic restores every unit's alpha.
+            arenaRoot.AddComponent<Encounters.ArenaSeeThroughDriver>().Bind(EnhancedCombatOn,
+                () => _combatController?.FocusCell, () => _worldCamera,
+                cell => _hotspots?.CellCentreWorld(cell.Col, cell.Row), _combatLayout);
             return marks;
         }
 

@@ -37,6 +37,7 @@ namespace BakAgain.Tests.PlayMode.World {
             _root = new GameObject("arena");
             Assert.IsNull(NewWorld(combat: false).AttachBoardMarks(_root));
             Assert.IsNull(_root.GetComponent<ArenaBoardMarks>());
+            Assert.IsNull(_root.GetComponent<ArenaSeeThroughDriver>(), "Classic fades nothing");
         }
 
         [UnityTest]

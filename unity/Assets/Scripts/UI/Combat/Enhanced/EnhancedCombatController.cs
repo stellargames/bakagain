@@ -97,6 +97,9 @@ namespace BakAgain.UI.Combat.Enhanced {
             }
         }
 
+        /// <summary>The cell the pointer is on (hover, or where a tap landed), or null; the see-through follows it.</summary>
+        public (int Col, int Row)? FocusCell => _cell;
+
         /// <summary>The previewed action, or null (Confirm is empty).</summary>
         public CombatForecast Current() {
             Combatant acting = Acting();
