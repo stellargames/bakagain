@@ -26,7 +26,8 @@ public class EnhancedCombatLayoutTests {
         // Shared
         Assert.Equal(0.25f, layout.OrbitDegreesPerPixel);
         Assert.Equal(25f, layout.PitchMinDegrees);
-        Assert.Equal(70f, layout.PitchMaxDegrees);
+        Assert.Equal(55f, layout.PitchMaxDegrees);
+        Assert.Equal(40f, layout.StartPitchDegrees);
         Assert.Equal(0.6f, layout.ZoomMin);
         Assert.Equal(1.6f, layout.ZoomMax);
         Assert.Equal(0.25f, layout.SeeThroughAlpha);
