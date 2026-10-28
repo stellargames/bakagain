@@ -147,13 +147,15 @@ public class ArenaOrbitTests {
     }
 
     [Fact]
-    public void ARefitMovesTheWholeBoardDistance_TheZoomFactorStays() {
+    public void ARefitMovesTheLimits_TheCameraDistanceStays() {
         var o = new ArenaOrbit(Layout, (1000, 2000), 0, 45, 1000, 0.5);
         o.Refit(1400);   // a quarter turn: the 13-cell side now lies across
-        Assert.Equal(700, o.Distance, 3);
+        Assert.Equal(500, o.Distance, 3);    // a close view does not drift while orbiting
         o.Zoom(1000);
-        Assert.Equal(1400, o.Distance, 3);   // the farthest is the new whole-board fit, not the old one
+        Assert.Equal(1400, o.Distance, 3);   // the farthest is the new whole-board fit
+        o.Refit(1000);
+        Assert.Equal(1000, o.Distance, 3);   // a view past the new fit is pulled in to it
         o.Refit(0);
-        Assert.Equal(1400, o.Distance, 3);   // a failed fit keeps the last
+        Assert.Equal(1000, o.Distance, 3);   // a failed fit keeps the last
     }
 }

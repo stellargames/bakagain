@@ -51,11 +51,15 @@ public sealed class ArenaOrbit {
 
     /// <summary>
     /// The whole-board distance for the pose as it is now: zoom 1, and the farthest the camera may go. It moves
-    /// with the yaw, the pitch and the window, so the driver refits it after each of them; the zoom factor stays.
+    /// with the yaw, the pitch and the window, so the driver refits it after each of them. The camera's own
+    /// distance stays (a close view must not drift in and out while orbiting); only the limits move, so a view
+    /// past the new whole-board distance is pulled in to it.
     /// </summary>
     public void Refit(double wholeBoardDistance) {
         if (wholeBoardDistance > 0) {
+            double distance = Distance;
             _startDistance = wholeBoardDistance;
+            _zoom = Math.Clamp(distance / wholeBoardDistance, _layout.ZoomMin, _layout.ZoomMax);
         }
     }
 

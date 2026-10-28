@@ -1872,7 +1872,7 @@ namespace BakAgain.World {
         /// (at 45 degrees the 8x13 board is about 15 cells both ways) -- so the farthest zoom always frames the
         /// whole board again; then the camera is placed. Each orbit input refits.
         /// </summary>
-        private void RefitArena() {
+        private void RefitArena(bool apply = true) {
             GameData.Resources.Combat.ArenaOrbit o = _arenaOrbit?.Orbit;
             if (o == null) {
                 return;
@@ -1883,7 +1883,9 @@ namespace BakAgain.World {
                     _combatLayout.BoardFitMarginX, _combatLayout.BoardFitMarginY);
                 o.Refit(fit);
             }
-            _arenaOrbit.Apply();
+            if (apply) {
+                _arenaOrbit.Apply();
+            }
         }
 
         /// <summary>A quarter turn of the arena camera, -1 left or +1 right. No-op outside an Enhanced fight.</summary>
@@ -1894,8 +1896,11 @@ namespace BakAgain.World {
 
         /// <summary>The arena camera back where the fight started it. No-op outside an Enhanced fight.</summary>
         public void ResetArenaView() {
+            // Back to the start pose, refitted for it, then the start zoom of that fit (Refit keeps the distance).
             _arenaOrbit?.Orbit.Reset();
-            RefitArena();
+            RefitArena(apply: false);
+            _arenaOrbit?.Orbit.Reset();
+            _arenaOrbit?.Apply();
         }
 
         // A combat stone's face for the Enhanced HUD: COMBAT.DAT's own icon for that action, or the bare
@@ -1912,8 +1917,10 @@ namespace BakAgain.World {
 
         /// <summary>Multiply the arena camera's distance (below 1 comes closer). No-op outside an Enhanced fight.</summary>
         public void ZoomArena(float factor) {
+            // Refit first: the zoom's limits are those of the pose as it is now.
+            RefitArena(apply: false);
             _arenaOrbit?.Orbit.Zoom(factor);
-            RefitArena();
+            _arenaOrbit?.Apply();
         }
 
         /// <summary>

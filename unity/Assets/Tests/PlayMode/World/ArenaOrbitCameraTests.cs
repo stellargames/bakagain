@@ -271,6 +271,20 @@ namespace BakAgain.Tests.PlayMode.World {
             }
         }
 
+        [Test]
+        public void ZoomedIn_ADragKeepsTheCameraDistance() {
+            // Re-review R2: only the limits follow the refitted whole-board distance; a close view stays close.
+            BakAgain.World.WorldRuntime world = NewWorld(combat: true, out Camera cam);
+            world.PointCameraAtArena();
+            var layout = new EnhancedCombatLayout();
+            world.ZoomArena(0.4f);
+            double close = world.ArenaOrbitForTest.Distance;
+            world.OrbitArena(-45f / layout.OrbitDegreesPerPixel, 0f);
+            Assert.AreEqual(close, world.ArenaOrbitForTest.Distance, close * 1e-6, "no drift in or out");
+            world.ZoomArena(1000f);
+            AssertTheWholeBoardJustFits(cam, layout, false, "zoomed back out at 45 degrees");
+        }
+
         private static void AssertTheWholeBoardJustFits(Camera cam, EnhancedCombatLayout layout, bool phone, string pose) {
             float bottom = phone ? layout.PhoneBoardBottom : layout.BandHeight, top = phone ? layout.PhoneBoardTop : 1f;
             float slack = 1f;
