@@ -28,6 +28,20 @@ public class UiTemplatesTests {
         UiStringCatalog.Embedded.TranslatedBy(new LanguagePack("de", new Dictionary<string, string> { [key] = text }));
 
     [Fact]
+    public void TheHudWeaponLineLabelsThrustAndSwing_AsTheOriginalsInspectDoes() {
+        // Owyn's staff read "Dmg -7/3", which looks like a range. It is two base damages: INVINSP.C:248-254
+        // prints "%d+Strength" under Thrust (nThrust_damage) and under Swing (nSwing_damage).
+        Assert.Equal("Thrust -7+Str \u00b7 Swing 3+Str",
+            UiTemplates.Format(UiTemplates.HudWeaponLine, ("thrust", (object)(-7)), ("swing", (object)3)));
+    }
+
+    [Fact]
+    public void TheHudChoosesATargetForAnArmedPick() {
+        Assert.Equal("Flamecast: choose a target",
+            UiTemplates.Format(UiTemplates.HudChooseTarget, ("action", (object)"Flamecast")));
+    }
+
+    [Fact]
     public void TheItemStatusJoinerIsATemplate() {
         // INVINSP.C:377-383 strcat's ", " between "Using" and the item's state (TASK-775).
         Assert.Equal("Using, Repairable",

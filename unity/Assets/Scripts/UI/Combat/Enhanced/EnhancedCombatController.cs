@@ -5,6 +5,7 @@ namespace BakAgain.UI.Combat.Enhanced {
     using BakAgain.World.Hotspots;
     using GameData.Resources.Combat;
     using GameData.Resources.Layout;
+    using GameData.Resources.Text;
     using Command = GameData.Resources.Combat.CombatCommands.Command;
 
     /// <summary>
@@ -16,7 +17,8 @@ namespace BakAgain.UI.Combat.Enhanced {
     /// Desktop: hover forecasts, a left click acts the default (Thrust / Move), Shift+click Swings, a
     /// right click on a foe forecasts Inspect and a second one on the same foe inspects; a stone
     /// click acts, a stone key forecasts first. Phone: a tap forecasts, only Confirm acts, only
-    /// Cancel backs out. Every turn handoff clears the forecast.
+    /// Cancel backs out. A party member's turn opens on the foe that hero last targeted, else the
+    /// party's last target, if it still lives: its forecast shown, nothing committed (owner, 2026-10-28).
     /// </remarks>
     public sealed class EnhancedCombatController : IDisposable {
         public enum TurnState { TheirTurn, Ready, Forecast, Acting }
@@ -40,6 +42,10 @@ namespace BakAgain.UI.Combat.Enhanced {
         private Combatant _turnOf;
         private bool _acting;
 
+        // The foe each hero last attacked or inspected, and the party's latest, by enemy index.
+        private readonly System.Collections.Generic.Dictionary<Combatant, int> _lastTargetOf = new();
+        private int _partyLastTarget = -1;
+
         public EnhancedCombatController(HotspotService hs, CombatRuntime cr, ICombatHud hud,
             EnhancedCombatLayout layout, GameSession session = null, bool phone = false) {
             _hs = hs;
@@ -50,6 +56,7 @@ namespace BakAgain.UI.Combat.Enhanced {
             if (_hs != null) {
                 _hs.CombatTurnStarted += OnHandoff;
                 _hs.CombatTurnEnded += OnHandoff;
+                _hs.CombatPickArmed += OnPickArmed;
             }
             if (_hud != null) {
                 _hud.ConfirmPressed += Confirm;
@@ -67,6 +74,7 @@ namespace BakAgain.UI.Combat.Enhanced {
             if (_hs != null) {
                 _hs.CombatTurnStarted -= OnHandoff;
                 _hs.CombatTurnEnded -= OnHandoff;
+                _hs.CombatPickArmed -= OnPickArmed;
             }
             if (_hud != null) {
                 _hud.ConfirmPressed -= Confirm;
@@ -117,7 +125,12 @@ namespace BakAgain.UI.Combat.Enhanced {
                 alt = ForecastOf(Acting(), f.Action == ForecastAction.Thrust ? ForecastAction.Swing : ForecastAction.Thrust);
             }
             int? card = f != null && f.TargetSlot >= 0 ? f.TargetSlot : !_phone && !_party ? _foe : null;
-            return CombatHudModelBuilder.Build(_cr, _session, _hs?.EnhancedBoardMarks(), logLines, f, alt, card);
+            CombatHudModel m = CombatHudModelBuilder.Build(_cr, _session, _hs?.EnhancedBoardMarks(), logLines, f, alt, card);
+            // An armed pick waiting for its target says so, by name (owner, 2026-10-28: after the cast
+            // screen it was not clear a target had to be chosen again).
+            return Picking && _hs?.PendingPickName is string pick && m != null
+                ? m with { Sentence = UiTemplates.Format(UiTemplates.HudChooseTarget, ("action", pick)) }
+                : m;
         }
 
         /// <summary>The pointer is on this cell / combatant (hover; or where a tap or long press landed).</summary>
@@ -204,6 +217,7 @@ namespace BakAgain.UI.Combat.Enhanced {
                 return;
             }
             Clear();
+            _pickTarget = -1;
             if (!_phone) {
                 SetHoverIntent();
             }
@@ -223,7 +237,7 @@ namespace BakAgain.UI.Combat.Enhanced {
                     == CombatMenuSlots.ShootActionId;
                 Command cmd = shoot ? Command.Shoot : Command.Cast;
                 if (Enabled(stones, cmd)) {
-                    Clear();
+                    Clear();   // the foe picked stays in _pickTarget: the spell's or the shot's target once armed
                     _hs.IssueCombatCommand(cmd, shoot ? CombatCommands.ShootId : CombatCommands.CastId);
                     Changed?.Invoke();
                 }
@@ -329,15 +343,50 @@ namespace BakAgain.UI.Combat.Enhanced {
         }
 
         // A party member's turn starts: the pointer is probably still on something, so the new hero
-        // gets its hover forecast at once rather than after the mouse moves (desktop).
-        private void OnHandoff(Combatant _) {
+        // gets its hover forecast at once rather than after the mouse moves (desktop). With nothing
+        // under it (and always on the phone, which has no hover), the turn opens on the remembered target.
+        private void OnHandoff(Combatant next) {
             OnHandoff();
             if (!_phone) {
                 SetHoverIntent();
             }
+            if (_action == null && Acting() is Combatant hero && hero == next
+                && RememberedTarget(_lastTargetOf.TryGetValue(hero, out int own) ? own : -1, _partyLastTarget, Alive) is int slot) {
+                Combatant foe = _cr.Encounter.Enemies[slot];
+                if (_phone) {
+                    _cell = (foe.X, foe.Y);   // the board's target ring and the see-through follow the pick
+                    _foe = slot;
+                    _party = false;
+                }
+                Pin(ForecastAction.Thrust, slot, fromKey: false);
+            }
+        }
+
+        // A spell or quarrel was chosen: aim it at the foe picked before its screen opened, through the
+        // Classic pick's own click -- which refuses a foe the spell cannot take, leaving the pick armed and
+        // the prompt up. With no foe picked the prompt asks for one.
+        private void OnPickArmed() {
+            int target = _pickTarget;
+            _pickTarget = -1;
+            if (target >= 0 && Alive(target) && Picking) {
+                _hs.ResolveCombatTargetClick(target, false, isPrimary: true);
+            }
+            Changed?.Invoke();
+        }
+
+        private int _pickTarget = -1;
+
+        /// <summary>The hero's own last target, else the party's last if it lives, else null.</summary>
+        internal static int? RememberedTarget(int heroLast, int partyLast, Func<int, bool> alive) =>
+            heroLast >= 0 && alive(heroLast) ? heroLast : partyLast >= 0 && alive(partyLast) ? partyLast : null;
+
+        private bool Alive(int slot) {
+            var enemies = _cr?.Encounter?.Enemies;
+            return enemies != null && slot >= 0 && slot < enemies.Count && enemies[slot] != null && !enemies[slot].IsDead;
         }
 
         private void OnHandoff() {
+            _pickTarget = -1;
             Clear();
             _acting = false;
             Changed?.Invoke();
@@ -353,6 +402,7 @@ namespace BakAgain.UI.Combat.Enhanced {
         }
 
         private void Pin(ForecastAction a, int slot, bool fromKey) {
+            _pickTarget = slot;
             _action = a;
             _slot = slot;
             _at = _cell ?? default;
@@ -401,6 +451,10 @@ namespace BakAgain.UI.Combat.Enhanced {
             ForecastAction a = _action.Value;
             int slot = _slot;
             (int col, int row) = _at;
+            if (slot >= 0 && a is ForecastAction.Thrust or ForecastAction.Swing or ForecastAction.Inspect) {
+                _lastTargetOf[acting] = slot;
+                _partyLastTarget = slot;
+            }
             Clear();
             _acting = true;
             Changed?.Invoke();

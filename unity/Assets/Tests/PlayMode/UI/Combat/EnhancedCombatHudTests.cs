@@ -35,7 +35,7 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             };
 
         public static HeroCardModel Owyn => new("Owyn", 0, new[] { "Poisoned" }, 17, 40, 4, 40, 2, 4, 6, 12,
-            new KitItemModel("Quarterstaff", 92, "Dmg 5/7 · Acc +4"), new KitItemModel("Leather", 80, "Armour 2"));
+            new KitItemModel("Quarterstaff", 92, "Thrust 5+Str · Swing 7+Str"), new KitItemModel("Leather", 80, "Armour 2"));
 
         public static IReadOnlyList<PartyCoinModel> Party => new[] {
             new PartyCoinModel(1, "Owyn", 0, RingVariant.Active, 17, 40, 4, 40),

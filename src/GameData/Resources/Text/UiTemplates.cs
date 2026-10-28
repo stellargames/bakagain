@@ -264,6 +264,7 @@ public static class UiTemplates {
     public const string HudCurrentBase = "port:template:enhanced_hud_current_base";
     public const string HudWeaponLine = "port:template:enhanced_hud_weapon_line";
     public const string HudArmourLine = "port:template:enhanced_hud_armour_line";
+    public const string HudChooseTarget = "port:template:enhanced_hud_choose_target";
     public const string HudThrust = "port:template:enhanced_hud_thrust";
     public const string HudSwing = "port:template:enhanced_hud_swing";
     public const string HudMove = "port:template:enhanced_hud_move";
@@ -481,7 +482,11 @@ public static class UiTemplates {
         (HudTurnHint, _ => "tap a foe or a square"),
         (HudCurrentOfMax, _ => "{current}/{max}"),
         (HudCurrentBase, _ => "{current} ({base})"),
-        (HudWeaponLine, _ => "Dmg {thrust}/{swing} · Acc {accuracy}"),
+        // The two base damages, labelled as the original's inspect labels them (INVINSP.C:248-251,
+        // "%d+Strength" under Thrust and under Swing): "Dmg -7/3" read as a range. Short enough for the
+        // desktop card's line; the hit chance is the forecast's.
+        (HudWeaponLine, _ => "Thrust {thrust}+Str · Swing {swing}+Str"),
+        (HudChooseTarget, _ => "{action}: choose a target"),
         (HudArmourLine, _ => "Armour {n}"),
         (HudThrust, _ => "Thrust"),
         (HudSwing, _ => "Swing"),

@@ -99,12 +99,10 @@ namespace BakAgain.UI.Combat.Enhanced {
                 combat.PeekStat(hero, ActorAttribute.Strength), combat.PeekStat(hero, ActorAttribute.Strength, unscaled: true),
                 weapon == null ? null : new KitItemModel(weapon.Name ?? "", weaponCondition,
                     UiTemplates.Format(UiTemplates.HudWeaponLine, ("thrust", weapon.ThrustBaseDamage),
-                        ("swing", weapon.SwingBaseDamage), ("accuracy", Signed(weapon.ThrustAccuracy)))),
+                        ("swing", weapon.SwingBaseDamage))),
                 armour == null ? null : new KitItemModel(armour.Name ?? "", armourCondition,
                     UiTemplates.Format(UiTemplates.HudArmourLine, ("n", armour.SwingAccuracy_ArmorMod_BowAccuracy))));
         }
-
-        private static string Signed(int n) => n > 0 ? "+" + n : n.ToString();
 
         /// <summary>Their turn: the acting foe, by letter and kind; no numbers (hidden information).</summary>
         private static HeroCardModel FoeCard(GameSession session, CombatEncounter fight, Combatant foe) {

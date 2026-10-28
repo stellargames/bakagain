@@ -239,7 +239,7 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
         }
 
         [Test]
-        public void AHandoffClearsAnOpenForecast() {
+        public void TheTurnsEndClearsAnOpenForecast() {
             var (s, hero, c) = Fight();
             PointAtFoe(s, c, 0);
             Assert.IsNotNull(c.Model(2).Forecast);
@@ -249,6 +249,68 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
 
             Assert.IsNull(c.Model(2).Forecast, "the forecast is cleared, Confirm empty");
             Assert.AreNotEqual(State.Forecast, c.State);
+        }
+
+        // Owner, 2026-10-28: targets are remembered between turns. The forecast is the NEW actor's, and
+        // nothing is committed: the phone still needs Confirm, the desktop a click.
+        [UnityTest]
+        public IEnumerator ATurnOpensOnTheHerosLastTarget_NothingIsCommitted([Values(false, true)] bool phone) {
+            var (s, hero, c) = Fight(phone: phone, enemies: 2);
+            PointAtFoe(s, c, 0);
+            if (phone) {
+                c.Primary(false);
+                c.Confirm();
+            } else {
+                c.Primary(shift: false);
+            }
+            Assert.IsTrue(Spent(hero), "the thrust at A spent the turn");
+            c.Point(null, null, null, false);   // the mouse has left the board
+
+            yield return NextPartyTurn(s);
+            int pool = Pool(Foe(s, 0));
+            Assert.AreEqual(State.Forecast, c.State, "the turn opens on a forecast");
+            Assert.AreEqual(ForecastAction.Thrust, c.Current().Action);
+            Assert.AreEqual(0, c.Current().TargetSlot, "on A, the hero's last target");
+            Assert.IsFalse(Spent(hero), "nothing committed");
+            Assert.AreEqual(pool, Pool(Foe(s, 0)));
+            if (phone) {
+                Assert.AreEqual(((int, int)?)(Foe(s, 0).X, Foe(s, 0).Y), s.CursorCell, "the board marks the pick");
+                c.Confirm();
+                Assert.IsTrue(Spent(hero), "Confirm acts it");
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ADeadLastTargetIsNotPreselected() {
+            var (s, hero, c) = Fight(phone: true, enemies: 2);
+            PointAtFoe(s, c, 0);
+            c.Primary(false);
+            c.Confirm();
+            Foe(s, 0).Flags |= CombatantFlags.Dead;
+
+            yield return NextPartyTurn(s);
+            Assert.IsNull(c.Current(), "no living target to remember: the turn opens empty");
+            Assert.AreEqual(State.Ready, c.State);
+        }
+
+        [Test]
+        public void TheRememberedTargetIsTheHerosOwn_ElseThePartysLast_OnlyIfAlive() {
+            System.Func<int, bool> all = _ => true, notOne = i => i != 1;
+            Assert.AreEqual(1, EnhancedCombatController.RememberedTarget(1, 2, all));
+            Assert.AreEqual(2, EnhancedCombatController.RememberedTarget(-1, 2, all), "a hero who never targeted takes the party's");
+            Assert.AreEqual(2, EnhancedCombatController.RememberedTarget(1, 2, notOne), "the hero's own is dead");
+            Assert.IsNull(EnhancedCombatController.RememberedTarget(1, 1, notOne));
+            Assert.IsNull(EnhancedCombatController.RememberedTarget(-1, -1, all));
+        }
+
+        private IEnumerator NextPartyTurn(HotspotService s) {
+            _busy = false;
+            float until = Time.realtimeSinceStartup + 10f;
+            while (Time.realtimeSinceStartup < until && !(s.Combat.Encounter.Current?.CanAct(strict: true) == true
+                && s.Combat.Encounter.Current.IsPartyMember)) {
+                yield return null;
+            }
+            Assert.IsTrue(s.Combat.Encounter.Current.IsPartyMember, "the next party turn came");
         }
 
         [UnityTest]
@@ -323,6 +385,38 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             Assert.AreEqual(ForecastAction.Thrust, c.Current()?.Action,
                 "with the pick gone the pointer still on A forecasts again, without moving");
         }
+
+        // Owner's phone test, 2026-10-28, item 11: a foe picked before the cast screen is the spell's target;
+        // the cast still goes through the Classic pick's own click.
+        [Test]
+        public void AFoePickedBeforeTheCastScreen_IsTheSpellsTarget_NoSecondPick() {
+            var (s, hero, c) = Fight(phone: true);
+            PointAtFoe(s, c, 0);
+            c.Primary(false);
+            Assert.AreEqual(0, c.Current()?.TargetSlot, "A is picked");
+
+            s.ArmSpellForTest(LivingActorSpell(), 0, 5);   // what the cast screen's commit does
+
+            Assert.IsFalse(s.CombatPickPending, "the pick was answered with A, as a tap on A would");
+            Assert.IsTrue(Spent(hero), "the spell was cast");
+        }
+
+        [Test]
+        public void WithNoFoePicked_TheArmedSpellAsksForItsTarget_ByName() {
+            var (s, hero, c) = Fight(phone: true);
+            s.ArmSpellForTest(LivingActorSpell(), 0, 5);
+
+            Assert.IsTrue(s.CombatPickPending, "the pick waits");
+            Assert.IsFalse(Spent(hero));
+            Assert.AreEqual("Skyfire: choose a target", c.Model(2).Sentence);
+        }
+
+        private static GameData.Resources.Spells.Spell LivingActorSpell() => new("S") {
+            Name = "Skyfire",
+            TargetingType = System.Linq.Enumerable.First(System.Linq.Enumerable.Range(0, 9),
+                t => GameData.Resources.Spells.SpellTargetingRules.AimOf(t)
+                    == GameData.Resources.Spells.SpellTargetingRules.Aim.LivingActor),
+        };
 
         [Test]
         public void ShiftHasNoEffectOnThePackStone_ItOpensThePack() {

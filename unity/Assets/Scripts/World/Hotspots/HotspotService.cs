@@ -3270,6 +3270,7 @@ using GameData.Resources.Scene;
             _pendingCombatMode = GameData.Resources.Combat.CombatCommandOutcome.PendingMode.TargetSelection;
             _logger?.LogDebug($"Shoot menu: quarrel kind {quarrelKind} (id {actionId}) selected; "
                 + "click a target on the field to fire.");
+            CombatPickArmed?.Invoke();
         }
 
         /// <summary>
@@ -4853,7 +4854,22 @@ using GameData.Resources.Scene;
             _pendingSpellPower = power;
             _pendingCombatMode =
                 GameData.Resources.Combat.CombatCommandOutcome.PendingMode.TargetSelection;
+            CombatPickArmed?.Invoke();
         }
+
+        /// <summary>
+        /// A spell or a quarrel was chosen and the field now waits for its target -- the Enhanced
+        /// controller hands it the foe the player had already picked (owner's phone test, 2026-10-28).
+        /// </summary>
+        public event Action CombatPickArmed;
+
+        /// <summary>What an armed pick is for, for the "choose a target" prompt: the spell's name, the
+        /// Shoot stone's while a quarrel is aimed, or null with nothing armed.</summary>
+        public string PendingPickName =>
+            _pendingCombatMode != GameData.Resources.Combat.CombatCommandOutcome.PendingMode.TargetSelection ? null
+            : _pendingCombatItem != null ? null
+            : _pendingSpell?.Name ?? (Combat?.Encounter?.Current is Combatant c && Combat.CapabilitiesFor(c).CanShoot
+                ? GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.HudStoneShoot) : null);
 
         /// <summary>The spell record chosen for a pending combat cast, or null.</summary>
         /// <remarks>Taken from the screen at commit time rather than looked up — see
