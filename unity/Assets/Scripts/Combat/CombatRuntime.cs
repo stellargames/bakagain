@@ -7,6 +7,7 @@ namespace BakAgain.Combat {
     using GameData.Resources.Character;
     using GameData.Resources.Combat;
     using GameData.Resources.Spells;
+    using GameData.Resources.Text;
     using Microsoft.Extensions.Logging;
 
     /// <summary>
@@ -82,17 +83,19 @@ namespace BakAgain.Combat {
         /// <para><b>Nothing draws this yet</b> — the tint needs the zone's RMP block applied to the
         /// sprite's palette. The state is faithful and ticked; the picture is TASK-103's next slice.</para>
         /// </remarks>
-        private static void MarkHit(Combatant struck, bool landed, int dealt,
+        private void MarkHit(Combatant struck, bool landed, int dealt,
             int remapIndex = HitReaction.BlowRemap) {
             if (struck == null || !landed) {
                 return;   // apply_damage returned before the float (COMBAT.C:330-350)
             }
             if (dealt <= 0) {
                 struck.DamageFloat = 0;   // "miss", and no CAF_KNOCKBACK (COMBAT.C:386-389)
+                StampFloat(struck);
                 return;
             }
             // The floating number (COMBAT.C:382-385): the damage when it is under 1000, else nothing.
             struck.DamageFloat = dealt < 1000 ? dealt : (int?)null;
+            StampFloat(struck);
             (CombatantFlags flags, int timer, int remap) =
                 HitReaction.Begin(struck.Flags, remapIndex);
             struck.Flags = flags;
@@ -305,6 +308,7 @@ namespace BakAgain.Combat {
             // The party with its back to the camera, the enemies facing it (COMBAT.C:131-150).
             encounter.DeployFacings();
             encounter.BeginRound();
+            Log.Round = 1;
             Encounter = encounter;
             _logger?.LogInformation("Combat entered: {Party} party vs {Enemies} enemies.",
                 encounter.Party.Count, encounter.Enemies.Count);
@@ -898,16 +902,82 @@ namespace BakAgain.Combat {
         /// <summary>The result lines the player has seen this fight.</summary>
         public FightLog Log { get; } = new FightLog();
 
+        private Combatant _actionActor;
+        private FloatCause _actionCause;
+
+        private (Combatant, FloatCause) BeginAction(Combatant actor, FloatCause cause) {
+            var before = (_actionActor, _actionCause);
+            (_actionActor, _actionCause) = (actor, cause);
+            return before;
+        }
+
+        private void EndAction((Combatant Actor, FloatCause Cause) before) =>
+            (_actionActor, _actionCause) = before;
+
+        /// <summary>Remember who caused the number just set on <paramref name="struck"/>.</summary>
+        private void StampFloat(Combatant struck) {
+            struck.DamageFloatBy = _actionActor;
+            struck.DamageFloatCause = _actionCause;
+        }
+
+        /// <summary>Add a line to the fight log — Enhanced combat only; Classic keeps no log.</summary>
+        public void LogLine(string line) {
+            if (GameOptions.IsOn(EnhancedFeature.Combat)) {
+                Log.Add(line);
+            }
+        }
+
         /// <summary>
-        /// A damage number was floated over <paramref name="target"/>: log its text and, for an enemy,
-        /// add what was dealt to what the player has seen. Only what the float showed counts.
+        /// A damage number was floated over <paramref name="target"/>: add what was dealt to what the
+        /// player has seen (enemies only) and write the log line the float stands for, e.g.
+        /// "Gorath thrusts at A: miss". Only what the float showed counts.
         /// </summary>
         public void NoteFloatedDamage(Combatant target, int dealt) {
             int enemySlot = Encounter?.Enemies.IndexOf(target) ?? -1;
             if (enemySlot >= 0) {
                 Knowledge.AddSeen(enemySlot, dealt);
             }
-            Log.Add(dealt == 0 ? "miss" : System.Math.Abs(dealt).ToString());
+            Combatant by = target.DamageFloatBy;
+            FloatCause cause = target.DamageFloatCause;
+            target.DamageFloatBy = null;
+            target.DamageFloatCause = FloatCause.None;
+            if (!GameOptions.IsOn(EnhancedFeature.Combat)) {
+                return;
+            }
+            string who = NameInLog(target, nameFoe: false);
+            if (dealt < 0) {
+                LogLine(UiTemplates.Format(UiTemplates.EnhancedLogGain, ("target", who), ("count", -dealt)));
+                return;
+            }
+            string result = dealt == 0
+                ? UiTemplates.Format(UiTemplates.EnhancedLogMiss)
+                : UiTemplates.Format(UiTemplates.EnhancedLogHit, ("count", dealt));
+            string template = cause switch {
+                FloatCause.Thrust => UiTemplates.EnhancedLogThrust,
+                FloatCause.Swing => UiTemplates.EnhancedLogSwing,
+                FloatCause.Shoot => UiTemplates.EnhancedLogShoot,
+                FloatCause.Cast => UiTemplates.EnhancedLogCast,
+                _ => UiTemplates.EnhancedLogNoActor,
+            };
+            LogLine(UiTemplates.Format(template, ("actor", by == null ? "" : NameInLog(by, nameFoe: true)),
+                ("target", who), ("result", result)));
+        }
+
+        internal string LogNameForTest(Combatant c, bool nameFoe = false) => NameInLog(c, nameFoe);
+
+        /// <summary>A hero by name; a foe by its letter, or "Creature A" when it is the one acting.</summary>
+        private string NameInLog(Combatant c, bool nameFoe) {
+            int foe = Encounter?.Enemies.IndexOf(c) ?? -1;
+            if (foe >= 0) {
+                char letter = BoardMarks.LetterFor(foe);
+                return nameFoe
+                    ? UiTemplates.Format(UiTemplates.EnhancedLogFoe,
+                        ("creature", _session?.CreatureNameOf(c.ClassId) ?? ""), ("letter", letter))
+                    : letter.ToString();
+            }
+            System.Collections.Generic.IReadOnlyList<string> names =
+                _session?.PartyActorNames ?? System.Array.Empty<string>();
+            return c.ClassId >= 0 && c.ClassId < names.Count ? names[c.ClassId] : string.Empty;
         }
 
         /// <summary>The four numbers the melee preview panel prints.</summary>
@@ -1913,6 +1983,17 @@ namespace BakAgain.Combat {
         /// </remarks>
         public MeleeExchange.Result ResolveMelee(Combatant attacker, Combatant defender,
             CombatActionDispatch.MeleeAttack attack, System.Func<int, int> rnd = null, int fixedDamage = 0) {
+            var before = BeginAction(attacker, attack == CombatActionDispatch.MeleeAttack.Swing
+                ? FloatCause.Swing : FloatCause.Thrust);
+            try {
+                return ResolveMeleeCore(attacker, defender, attack, rnd, fixedDamage);
+            } finally {
+                EndAction(before);
+            }
+        }
+
+        private MeleeExchange.Result ResolveMeleeCore(Combatant attacker, Combatant defender,
+            CombatActionDispatch.MeleeAttack attack, System.Func<int, int> rnd, int fixedDamage) {
             if (attacker == null || defender == null) {
                 return MeleeExchange.Result.Miss;
             }
@@ -2021,6 +2102,7 @@ namespace BakAgain.Combat {
                 // A missed blow floats "miss" over the defender (COMBAT.C:543, :664 — value 1 with
                 // a negative countdown); DamageFloat 0 is how the port says "miss".
                 defender.DamageFloat = 0;
+                StampFloat(defender);
             }
 
             PlaySwingCue(attacker, defender, result.Hit);
@@ -2102,6 +2184,16 @@ namespace BakAgain.Combat {
         /// </remarks>
         public bool ResolveShot(Combatant attacker, Combatant defender, int quarrelKind,
             System.Func<int, int> rnd = null) {
+            var before = BeginAction(attacker, FloatCause.Shoot);
+            try {
+                return ResolveShotCore(attacker, defender, quarrelKind, rnd);
+            } finally {
+                EndAction(before);
+            }
+        }
+
+        private bool ResolveShotCore(Combatant attacker, Combatant defender, int quarrelKind,
+            System.Func<int, int> rnd) {
             if (attacker == null || defender == null || defender.IsDead) {
                 return false;
             }
@@ -2298,6 +2390,17 @@ namespace BakAgain.Combat {
             GameData.Resources.Spells.Spell spell, int spellId, int power,
             System.Func<int, int> rnd = null, (int Column, int Row)? groundCell = null,
             bool billOnPlacement = false) {
+            var before = BeginAction(caster, FloatCause.Cast);
+            try {
+                return ResolveCastCore(caster, target, spell, spellId, power, rnd, groundCell, billOnPlacement);
+            } finally {
+                EndAction(before);
+            }
+        }
+
+        private bool ResolveCastCore(Combatant caster, Combatant target,
+            GameData.Resources.Spells.Spell spell, int spellId, int power,
+            System.Func<int, int> rnd, (int Column, int Row)? groundCell, bool billOnPlacement) {
             // *** A NEGATIVE POWER IS A REAL CALL, NOT A BAD ONE. *** The original's prologue
             // records the sign in a flag and negates the cost, and that flag then gates three
             // separate things — SpellHitResolution.CanMiss (a negated cast never rolls),
@@ -3664,6 +3767,7 @@ namespace BakAgain.Combat {
             int gainFloat = SpellCastRoutines.HealFloatingNumber(healthBefore, target.Health,
                 staminaBefore, target.Stamina);
             target.DamageFloat = gainFloat != 0 ? gainFloat : (int?)null;
+            StampFloat(target);
             if (target.IsPartyMember) {
                 WriteBack(target);
             }
@@ -4567,6 +4671,16 @@ namespace BakAgain.Combat {
         /// </remarks>
         private bool FireMonsterShot(Combatant monster, MonsterTurnResolver.Decision decision,
             System.Func<int, int> rnd) {
+            var before = BeginAction(monster, FloatCause.Shoot);
+            try {
+                return FireMonsterShotCore(monster, decision, rnd);
+            } finally {
+                EndAction(before);
+            }
+        }
+
+        private bool FireMonsterShotCore(Combatant monster, MonsterTurnResolver.Decision decision,
+            System.Func<int, int> rnd) {
             System.Func<int, int> roll = rnd ?? (n => UnityEngine.Random.Range(0, n));
             Combatant target = decision.Target;
             switch (CombatAi.SpeciesRoutineOf(monster.ClassId)) {
@@ -5267,6 +5381,7 @@ namespace BakAgain.Combat {
                     TickTerrainEffects();
                     TickSlayerRevivals();
                     Encounter.BeginRound(Grid);
+                    Log.Round++;
                 }
 
                 // *** The OUTGOING actor's poison ticks as the picker runs. *** That is the

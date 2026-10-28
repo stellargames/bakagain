@@ -3024,11 +3024,11 @@ using GameData.Resources.Scene;
             }
 
             CombatRuntime.RetreatOutcome outcome = Combat.ResolveRetreat(acting, _random);
-            // Enhanced: the refusal is also written to the fight log, from the very play shown.
-            if (!outcome.Escaped && BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.Combat)) {
-                PlayLoggedDialogAsync(outcome.DialogRecord).Forget();
-            } else {
+            // The line is also written to the Enhanced fight log, from the very play that is shown.
+            if (outcome.Escaped) {
                 PlayDialog((uint)outcome.DialogRecord, modal: true);
+            } else {
+                _dialogs?.ShowById(outcome.DialogRecord, LogDialogLine).Forget();
             }
 
             if (!outcome.Escaped) {
@@ -3054,19 +3054,6 @@ using GameData.Resources.Scene;
             SwapArenaThroughFade(false, () => _combatMenuAccessor?.Invoke()?.Close());
         }
 
-        /// <summary>Resolve a record once, put its text in the fight log, and show that same play.</summary>
-        private async Cysharp.Threading.Tasks.UniTaskVoid PlayLoggedDialogAsync(int record) {
-            if (_dialogs == null) {
-                return;
-            }
-            GameData.Resources.Dialog.DialogPlay play = await _dialogs.ResolveById(record);
-            if (string.IsNullOrEmpty(play?.Entry?.Text)) {
-                return;
-            }
-            LogDialogLine(play);
-            await _dialogs.ShowEntry(play);
-        }
-
         /// <summary>Add a play's text, as the player reads it, to the fight log.</summary>
         private void LogDialogLine(GameData.Resources.Dialog.DialogPlay play) {
             string text = play?.Entry?.Text;
@@ -3075,7 +3062,7 @@ using GameData.Resources.Scene;
             }
             text = GameData.Resources.Dialog.TextVariableResolver.Substitute(text, play.Slots,
                 play.Context?.NameOf(play.Context.CurrentActorId));
-            Combat.Log.Add(System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ").Trim());
+            Combat.LogLine(System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ").Trim());
         }
 
         /// <summary>

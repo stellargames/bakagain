@@ -1119,6 +1119,11 @@ namespace BakAgain.UI {
 
         public UniTask<int> ShowById(int id, CancellationToken cancellationToken = default) => Playing(() => ShowByIdCore(id, cancellationToken), "ShowById " + id);
 
+        /// <inheritdoc/>
+        public UniTask<int> ShowById(int id, System.Action<DialogPlay> onResolved,
+            CancellationToken cancellationToken = default) =>
+            Playing(() => ShowByIdCore(id, cancellationToken, onResolved), "ShowById " + id);
+
         public UniTask<int> ShowByIdLeavingLastPage(int id, CancellationToken cancellationToken = default) =>
             Playing(() => LeavingPagesDrawn(() => ShowByIdCore(id, cancellationToken)), "ShowByIdLeavingLastPage " + id);
 
@@ -1130,12 +1135,14 @@ namespace BakAgain.UI {
         /// </summary>
         private int _leavePagesDrawn;
 
-        private async UniTask<int> ShowByIdCore(int id, CancellationToken cancellationToken = default) {
+        private async UniTask<int> ShowByIdCore(int id, CancellationToken cancellationToken = default,
+            System.Action<DialogPlay> onResolved = null) {
             DialogPlay play = await LoadPlayById(id);
             DialogEntry entry = play?.Entry;
             if (entry == null) {
                 return NoDialogResult;
             }
+            onResolved?.Invoke(play);
             // A walk that ends with nothing to show displays nothing — skip rather than render an
             // empty panel. The original's guard is `speaker_id != 0 || body_len != 0`
             // (DIALOG.C:965), so a record with neither draws nothing there either. Of 8203 entries

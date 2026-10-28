@@ -71,7 +71,18 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.IsNotNull(plate, "the living foe has a plate");
             Assert.AreEqual("A", plate.transform.Find("Letter").GetComponent<TextMesh>().text);
             Assert.AreEqual("⚔⚔", plate.transform.Find("Swords").GetComponent<TextMesh>().text, "thrust and swing both open");
-            Assert.AreEqual("", plate.transform.Find("Seen").GetComponent<TextMesh>().text, "Task 5 fills the seen count");
+            Assert.AreEqual("", plate.transform.Find("Seen").GetComponent<TextMesh>().text, "nothing seen yet, nothing shown");
+
+            service.Combat.Knowledge.AddSeen(0, 0);    // a miss
+            service.Combat.Knowledge.AddSeen(0, -3);   // a heal
+            yield return null;
+            Assert.AreEqual("", marks.PlateOf(0).transform.Find("Seen").GetComponent<TextMesh>().text, "a miss or a heal shows nothing");
+
+            service.Combat.Knowledge.AddSeen(0, 6);
+            yield return null;
+            Assert.AreEqual(GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedCombatSeen, ("count", 6)),
+                marks.PlateOf(0).transform.Find("Seen").GetComponent<TextMesh>().text);
+            StringAssert.Contains("6", marks.PlateOf(0).transform.Find("Seen").GetComponent<TextMesh>().text);
         }
 
         [UnityTest]

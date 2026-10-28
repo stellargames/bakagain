@@ -136,6 +136,15 @@ namespace BakAgain.UI {
         UniTask<int> ShowById(int id, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// <see cref="ShowById(int, CancellationToken)"/>, handing <paramref name="onResolved"/> the play the
+        /// walk landed on before it is shown — for a caller that wants the very text the player reads
+        /// (the Enhanced fight log) without resolving the record a second time. Shown exactly as
+        /// <see cref="ShowById(int, CancellationToken)"/> shows it.
+        /// </summary>
+        UniTask<int> ShowById(int id, System.Action<DialogPlay> onResolved,
+            CancellationToken cancellationToken = default) => ShowById(id, cancellationToken);
+
+        /// <summary>
         /// <see cref="ShowById"/>, leaving the last page DRAWN when the play ends: only its input is
         /// released, and <see cref="ClearDialog"/> or the next show takes it down. What a dialog
         /// inside a location does in the original: <c>dialog_play_record(key, 0)</c> with

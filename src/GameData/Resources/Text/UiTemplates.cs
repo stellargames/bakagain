@@ -228,6 +228,17 @@ public static class UiTemplates {
     /// <summary>A foe's plate on the enhanced combat board: how many of its kind the party has seen (TASK-972).</summary>
     public const string EnhancedCombatSeen = "port:template:enhanced_combat_seen";
 
+    /// <summary>The Enhanced fight log's lines: an action's verb with actor and target, and its result (TASK-972).</summary>
+    public const string EnhancedLogThrust = "port:template:enhanced_log_thrust";
+    public const string EnhancedLogSwing = "port:template:enhanced_log_swing";
+    public const string EnhancedLogShoot = "port:template:enhanced_log_shoot";
+    public const string EnhancedLogCast = "port:template:enhanced_log_cast";
+    public const string EnhancedLogNoActor = "port:template:enhanced_log_no_actor";
+    public const string EnhancedLogHit = "port:template:enhanced_log_hit";
+    public const string EnhancedLogMiss = "port:template:enhanced_log_miss";
+    public const string EnhancedLogGain = "port:template:enhanced_log_gain";
+    public const string EnhancedLogFoe = "port:template:enhanced_log_foe";
+
     /// <summary>The Enhanced cast screen's Cast and Back tablets, shown while a power is chosen, and the
     /// caster's two pools under their portrait.</summary>
     public const string EnhancedCastCast = "port:template:enhanced_cast_cast";
@@ -358,6 +369,15 @@ public static class UiTemplates {
         (EnhancedCastHintPowerTouch, _ => "Slide along the lit gems for the power, then Cast. Back, or a tap off the ring, returns to the spells."),
         (EnhancedCastPowerOf, _ => "of {max}"),
         (EnhancedCombatSeen, _ => "\u2212{count} seen"),
+        (EnhancedLogThrust, _ => "{actor} thrusts at {target}: {result}"),
+        (EnhancedLogSwing, _ => "{actor} swings at {target}: {result}"),
+        (EnhancedLogShoot, _ => "{actor} shoots {target}: {result}"),
+        (EnhancedLogCast, _ => "{actor} casts at {target}: {result}"),
+        (EnhancedLogNoActor, _ => "{target}: {result}"),
+        (EnhancedLogHit, _ => "hit {count}"),
+        (EnhancedLogMiss, _ => "miss"),
+        (EnhancedLogGain, _ => "{target} gains {count}"),
+        (EnhancedLogFoe, _ => "{creature} {letter}"),
         (EnhancedCastCast, _ => "Cast"),
         (EnhancedCastBack, _ => "Back"),
         (EnhancedCastHealth, _ => "Health {current}/{max}"),
