@@ -193,6 +193,36 @@ namespace BakAgain.UI.InGame {
         private MouseLookDriver _look;
         private CombatCameraInput _combatCamera;
         private readonly GameData.Resources.Layout.EnhancedCombatLayout _combatLayout = new();
+        private BakAgain.UI.Combat.Enhanced.EnhancedCombatHudHost _combatHud;
+        private System.Func<int, BakAgain.UI.Combat.Enhanced.CombatHudModel> _combatHudModel;
+        private System.Func<object> _combatTurn;
+        private System.Func<VisualElement> _classicCombatMenu;
+        private System.Func<int, string> _combatStoneImage;
+        private System.Action<int> _turnArenaQuarter;
+        private System.Action _resetArenaView;
+
+        /// <summary>
+        /// Enhanced combat's HUD (TASK-972): the model of the fight as it stands (given how many log
+        /// lines to carry), what identifies the current turn, the Classic menu's document root it
+        /// replaces, a stone's image address by COMBAT.DAT action id (-1 = the bare stone) and the
+        /// camera's quarter turn and reset. Set with the other combat seams.
+        /// </summary>
+        internal void SetEnhancedCombatSeams(System.Func<int, BakAgain.UI.Combat.Enhanced.CombatHudModel> model,
+            System.Func<object> turn, System.Func<VisualElement> classicMenu, System.Func<int, string> stoneImage,
+            System.Action<int> turnQuarter = null, System.Action resetView = null) {
+            _combatHudModel = model;
+            _combatTurn = turn;
+            _classicCombatMenu = classicMenu;
+            _combatStoneImage = stoneImage;
+            _turnArenaQuarter = turnQuarter;
+            _resetArenaView = resetView;
+        }
+
+        /// <summary>Test seam: the Enhanced combat HUD's host, once the content is attached.</summary>
+        internal BakAgain.UI.Combat.Enhanced.EnhancedCombatHudHost CombatHudHost => _combatHud;
+
+        /// <summary>Tests choose the HUD: true = phone, false = desktop, null = by platform.</summary>
+        internal static bool? PhoneHudOverride { get; set; }
         private bool _lookCursorHidden;
         private TravelLayerHost _travelHost;
 
@@ -798,6 +828,12 @@ namespace BakAgain.UI.InGame {
             var town = new PartyTownName(_gameSession, _resources, this);
             _hud = new EnhancedHudLayout(root, _gameSession, _clock, _enhancedLayout.StatusFontFraction,
                 EnhancedHudLayout.Travel, () => town.Current);
+            _combatHud = new BakAgain.UI.Combat.Enhanced.EnhancedCombatHudHost(root, _combatLayout,
+                () => PhoneHudOverride ?? Application.isMobilePlatform, id => _combatStoneImage?.Invoke(id));
+            _combatHud.Built += hud => {
+                hud.TurnQuarterPressed += d => _turnArenaQuarter?.Invoke(d);
+                hud.ResetViewPressed += () => _resetArenaView?.Invoke();
+            };
         }
 
         /// <summary>
@@ -875,6 +911,7 @@ namespace BakAgain.UI.InGame {
             _partyHeads?.Dispose(); _partyHeads = null;
             _effectCaption?.Dispose(); _effectCaption = null;
             _combatPanel?.Dispose(); _combatPanel = null;
+            _combatHud = null;
             _touchControls?.Dispose(); _touchControls = null;
             _touchTargeting = null;
             _compass = null;
@@ -1173,7 +1210,8 @@ namespace BakAgain.UI.InGame {
             }
             bool wasApplied = _hud.Applied;
             bool shown = _travelHost != null && _travelHost.IsInputActive;
-            _hud.Sync(_fullScreen != null && _fullScreen.Active, shown);
+            SyncCombatHud();
+            _hud.Sync(_fullScreen != null && _fullScreen.Active, shown && !EnhancedCombatActive);
             _effectCaption?.SetVisible(!_hud.Applied || _hud.Shown);
             if (wasApplied && !_hud.Applied) {
                 // The revert un-hides the compass arrows; a fight that has just started hid them a
@@ -1182,6 +1220,24 @@ namespace BakAgain.UI.InGame {
                 RefreshCombatChrome();
             }
         }
+
+        // Enhanced combat (TASK-972): the chosen HUD in place of the Classic combat menu, latched per turn.
+        private void SyncCombatHud() {
+            if (_combatHud == null) {
+                return;
+            }
+            bool phone = PhoneHudOverride ?? Application.isMobilePlatform;
+            int lines = phone ? PhonePeekLogLines : DesktopLedgerLogLines;
+            // Not the travel layer's state: in a fight the combat menu's layer is on top of it. A screen
+            // pushed over the fight deactivates this one, so only a dialog page has to be checked.
+            _combatHud.Sync(GameOptions.IsOn(EnhancedFeature.Combat), AFightIsRunning(), _combatTurn?.Invoke(),
+                () => _combatHudModel?.Invoke(lines), _classicCombatMenu?.Invoke(),
+                !DialogManager.PageOverTheWorld);
+        }
+
+        // The idle ledger's log (desktop) and the phone's idle peek, in lines.
+        private const int DesktopLedgerLogLines = 6;
+        private const int PhonePeekLogLines = 3;
 
         /// <summary>
         /// Lays a transparent, click-taking band over the travel HUD below the world viewport, shown
@@ -1219,15 +1275,18 @@ namespace BakAgain.UI.InGame {
 
         internal void RefreshCombatChrome() {
             bool inCombat = _inCombat?.Invoke() ?? false;
-            if (inCombat == _combatChromeShown) {
+            // Enhanced combat (TASK-972): the band replaces the original's frame, and the arena is
+            // full-window, so the frame and its click guard stay down.
+            bool chrome = inCombat && !EnhancedCombatActive;
+            if (chrome == _combatChromeShown) {
                 return;
             }
-            _combatChromeShown = inCombat;
+            _combatChromeShown = chrome;
             if (_combatFrame != null) {
-                _combatFrame.style.display = inCombat ? DisplayStyle.Flex : DisplayStyle.None;
+                _combatFrame.style.display = chrome ? DisplayStyle.Flex : DisplayStyle.None;
             }
             if (_combatGuard != null) {
-                _combatGuard.style.display = inCombat ? DisplayStyle.Flex : DisplayStyle.None;
+                _combatGuard.style.display = chrome ? DisplayStyle.Flex : DisplayStyle.None;
                 // In front of every travel widget, whatever was added to the stage after it.
                 _combatGuard.BringToFront();
             }
@@ -1251,6 +1310,12 @@ namespace BakAgain.UI.InGame {
             if (_pointer != null && _pointer.IsPresent && AFightIsRunning()) {
                 Vector3? floor = _interaction?.HoverGroundPoint();
                 _setCursorCell?.Invoke(floor.HasValue ? _cellAtPoint?.Invoke(floor.Value) : null, false);
+            }
+            if (EnhancedCombatActive) {
+                // The Enhanced HUD's ledger and medallion replace the parchment and its portrait.
+                _combatPanel.Show(null);
+                _combatPanel.ShowPortrait(-1);
+                return;
             }
             var content = _combatPanelContent(
                 hovered?.RosterSlot ?? -1, hovered.HasValue && hovered.Value.PartyMember);
@@ -1419,13 +1484,18 @@ namespace BakAgain.UI.InGame {
             _navigator.Push(_overheadMap).Forget();
         }
 
+        // Enhanced combat implies the full-screen view in a fight, whatever the travel switch says.
         private bool WantFullScreen() =>
-            GameOptions.IsOn(EnhancedFeature.FullScreenTravel) && !(AFightIsRunning() && !EnhancedCombatActive);
+            EnhancedCombatActive || (GameOptions.IsOn(EnhancedFeature.FullScreenTravel) && !AFightIsRunning());
 
         internal bool WantsFullScreen => WantFullScreen();
 
         /// <summary>A fight is running and the Enhanced combat interface is on (TASK-972).</summary>
-        internal bool EnhancedCombatActive => GameOptions.IsOn(EnhancedFeature.Combat) && AFightIsRunning();
+        /// <remarks>Latched per turn once the fight's turn seam is set: turning the switch off mid-fight
+        /// reverts at the next turn (<see cref="BakAgain.UI.Combat.Enhanced.EnhancedCombatHudHost.Decide"/>).</remarks>
+        internal bool EnhancedCombatActive => _combatHud != null && _combatTurn != null
+            ? _combatHud.Decide(GameOptions.IsOn(EnhancedFeature.Combat), AFightIsRunning(), _combatTurn())
+            : GameOptions.IsOn(EnhancedFeature.Combat) && AFightIsRunning();
 
         private bool AFightIsRunning() =>
             _inCombat != null

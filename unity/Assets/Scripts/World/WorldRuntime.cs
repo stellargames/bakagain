@@ -1427,8 +1427,18 @@ namespace BakAgain.World {
                 screen.SetCombatGroundSeam(_hotspots.ResolveCombatGroundClick);
                 screen.SetCombatFaceSeam(FaceActingCombatantAt);
                 screen.SetInCombatPredicate(() => _hotspots?.Combat?.InCombat ?? false);
+                if (_hotspots.Combat != null) {
+                    _hotspots.Combat.ForecastLayout = _combatLayout;
+                }
                 screen.SetCombatPanelSeam(_hotspots.CombatPanelContent);
                 screen.SetActingHeadSeam(_hotspots.ActingPortraitHeadId);
+                screen.SetEnhancedCombatSeams(
+                    lines => BakAgain.UI.Combat.Enhanced.CombatHudModelBuilder.Build(_hotspots.Combat, _gameSession,
+                        _hotspots.EnhancedBoardMarks(), lines),
+                    () => _hotspots.Combat?.Encounter == null ? null
+                        : (object)(_hotspots.Combat.Encounter.Current, _hotspots.Combat.Log.Round),
+                    () => ResolveCombatMenu()?.GetComponent<UnityEngine.UIElements.UIDocument>()?.rootVisualElement,
+                    CombatStoneImage, TurnArenaQuarter, ResetArenaView);
                 // One encounter fights against a painted backdrop instead of the world. Handed over
                 // with the rest of the seams because this is the redraw the arena runs every turn,
                 // and SetCombatBackdrop is idempotent for exactly that reason.
@@ -1805,6 +1815,30 @@ namespace BakAgain.World {
         public void OrbitArena(float dxPixels, float dyPixels) {
             _arenaOrbit?.Orbit.Drag(dxPixels, dyPixels);
             _arenaOrbit?.Apply();
+        }
+
+        /// <summary>A quarter turn of the arena camera, -1 left or +1 right. No-op outside an Enhanced fight.</summary>
+        public void TurnArenaQuarter(int direction) {
+            _arenaOrbit?.Orbit.TurnQuarter(direction);
+            _arenaOrbit?.Apply();
+        }
+
+        /// <summary>The arena camera back where the fight started it. No-op outside an Enhanced fight.</summary>
+        public void ResetArenaView() {
+            _arenaOrbit?.Orbit.Reset();
+            _arenaOrbit?.Apply();
+        }
+
+        // A combat stone's face for the Enhanced HUD: COMBAT.DAT's own icon for that action, or the bare
+        // stone for -1 (UserInterfaceLoader.DisabledButtonIcon). Null until the combat menu is built.
+        private string CombatStoneImage(int actionId) {
+            var loader = ResolveCombatMenu()?.GetComponent<BakAgain.ResourceManagement.Loaders.UserInterfaceLoader>();
+            if (actionId < 0) {
+                return GameData.Resources.Menu.UiElement.IconKeyForCombined(
+                    BakAgain.ResourceManagement.Loaders.UserInterfaceLoader.DisabledButtonIcon);
+            }
+            return loader != null && loader.TryGetIconBase(actionId, out int icon)
+                ? GameData.Resources.Menu.UiElement.IconKeyForCombined(icon) : null;
         }
 
         /// <summary>Multiply the arena camera's distance (below 1 comes closer). No-op outside an Enhanced fight.</summary>

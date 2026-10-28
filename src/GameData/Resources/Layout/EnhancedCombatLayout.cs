@@ -27,6 +27,15 @@ public sealed class EnhancedCombatLayout
     /// <summary>Most party coins the desktop band lays out.</summary>
     public int MaxPartyCoins { get; set; } = 7;
 
+    /// <summary>The window height the desktop frames were drawn at; <see cref="PartyCoinPx"/> is in its pixels.</summary>
+    public float DesktopReferenceHeightPx { get; set; } = 900f;
+
+    /// <summary>The medallion (the actor's portrait) as a fraction of the band's height.</summary>
+    public float MedallionBandFraction { get; set; } = 0.62f;
+
+    /// <summary>One stone's disc as a fraction of the band's height.</summary>
+    public float StoneBandFraction { get; set; } = 0.40f;
+
     // Phone
 
     /// <summary>Width of one action tile, in points (the 44 pt touch-target floor is met with room).</summary>
@@ -46,6 +55,37 @@ public sealed class EnhancedCombatLayout
 
     /// <summary>Smallest text size the phone HUD uses, in points.</summary>
     public float MinTextPt { get; set; } = 11f;
+
+    /// <summary>Phone body text, in points.</summary>
+    public float PhoneBodyTextPt { get; set; } = 13f;
+
+    /// <summary>Phone headline text (names, the Confirm action), in points.</summary>
+    public float PhoneHeadTextPt { get; set; } = 15f;
+
+    /// <summary>Gap between the phone's docks and from the safe edge, in points.</summary>
+    public float PhoneGapPt { get; set; } = 8f;
+
+    /// <summary>The phone's top row height (hero chip, coins, sentence), in points.</summary>
+    public float PhoneTopRowPt { get; set; } = 44f;
+
+    /// <summary>The phone's hero chip width, in points.</summary>
+    public float PhoneHeroChipWidthPt { get; set; } = 210f;
+
+    /// <summary>The Confirm button, in points; Cancel is a <see cref="FoeChipPt"/> square above it.</summary>
+    public float PhoneConfirmWidthPt { get; set; } = 150f;
+
+    public float PhoneConfirmHeightPt { get; set; } = 56f;
+
+    /// <summary>The peek (forecast, log, describe) between Confirm and the grid: width and height, in points.</summary>
+    public float PhonePeekWidthPt { get; set; } = 406f;
+
+    public float PhonePeekHeightPt { get; set; } = 106f;
+
+    /// <summary>The hero card sheet's width, in points (it opens from the left under the top row).</summary>
+    public float PhoneSheetWidthPt { get; set; } = 500f;
+
+    /// <summary>Points per inch the phone's point is defined at (Android's dp: 160).</summary>
+    public float PointsPerInch { get; set; } = 160f;
 
     // Shared
 

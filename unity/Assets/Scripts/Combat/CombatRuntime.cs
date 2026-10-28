@@ -5497,7 +5497,27 @@ namespace BakAgain.Combat {
             }
         }
 
-        private int CombatStat(Combatant who, ActorAttribute attribute, bool peek = false) {
+        /// <summary>
+        /// A combatant's stat as the fight reads it, WITHOUT writing anything (Enhanced combat HUD):
+        /// <paramref name="unscaled"/> gives the value before Health drags it down, the "(base)" of
+        /// "current (base)".
+        /// </summary>
+        public int PeekStat(Combatant who, ActorAttribute attribute, bool unscaled = false) =>
+            CombatStat(who, attribute, peek: true,
+                unscaled ? StatReadMode.Unscaled : StatReadMode.Effective);
+
+        /// <summary>
+        /// The equipped, intact item of <paramref name="category"/> (<see cref="MeleeWeaponCategory"/>,
+        /// <see cref="StaffCategory"/>, <see cref="ArmorCategory"/>) and its condition in percent
+        /// (<see cref="EquippedGear.UntrackedCondition"/> when not tracked); null info for none.
+        /// </summary>
+        public (GameData.Resources.Object.ObjectInfo Info, int Condition) EquippedItem(Combatant who, int category) {
+            Equipped e = EquippedOfCategory(who, category);
+            return (e.Info, e.Condition);
+        }
+
+        private int CombatStat(Combatant who, ActorAttribute attribute, bool peek = false,
+            StatReadMode mode = StatReadMode.Effective) {
             ActorStat[] stats = StatsFor(who);
             int index = (int)attribute;
             if (who == null || stats == null || index < 0 || index >= stats.Length
@@ -5511,12 +5531,12 @@ namespace BakAgain.Combat {
                 Max = recorded?.Max ?? 0,
             };
             // Peek is Get without the write to the cached-effective byte: a forecast must not touch the save.
-            System.Func<int, int> party = who.IsPartyMember
-                ? _session?.PartyEffectsFor(who.ClassId, attribute, inCombat: true)
-                : null;
+            System.Func<int, int> party = !who.IsPartyMember ? null
+                : peek ? _session?.PeekPartyEffectsFor(who.ClassId, attribute, inCombat: true)
+                : _session?.PartyEffectsFor(who.ClassId, attribute, inCombat: true);
             return peek
-                ? StatEngine.Peek(stats[index], attribute, liveHealth, StatReadMode.Effective, party)
-                : StatEngine.Get(stats[index], attribute, liveHealth, StatReadMode.Effective, party);
+                ? StatEngine.Peek(stats[index], attribute, liveHealth, mode, party)
+                : StatEngine.Get(stats[index], attribute, liveHealth, mode, party);
         }
 
         /// <summary>
