@@ -322,7 +322,14 @@ namespace BakAgain.UI.Combat.Enhanced {
             }
         }
 
-        private void OnHandoff(Combatant _) => OnHandoff();
+        // A party member's turn starts: the pointer is probably still on something, so the new hero
+        // gets its hover forecast at once rather than after the mouse moves (desktop).
+        private void OnHandoff(Combatant _) {
+            OnHandoff();
+            if (!_phone) {
+                SetHoverIntent();
+            }
+        }
 
         private void OnHandoff() {
             Clear();
@@ -403,7 +410,9 @@ namespace BakAgain.UI.Combat.Enhanced {
                     break;
                 case ForecastAction.Inspect:
                     _hs.IssueCombatCommand(Command.Inspect, CombatCommands.InspectId);
-                    _hs.ResolveCombatTargetClick(slot, false, isPrimary: true);
+                    if (_hs.CombatPickPending) {   // armed: else this click would be a Thrust
+                        _hs.ResolveCombatTargetClick(slot, false, isPrimary: true);
+                    }
                     break;
                 default:
                     Command c = CommandOf(a);

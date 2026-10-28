@@ -251,6 +251,24 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
         }
 
         [UnityTest]
+        public IEnumerator TheNextHeroGetsTheHoverForecastWithoutTheMouseMoving() {
+            var (s, hero, c) = Fight();
+            PointAtFoe(s, c, 0);
+            s.IssueCombatCommand(CombatCommands.Command.Defend, CombatCommands.DefendId);
+            Assert.IsNull(c.Current(), "the handoff clears the forecast");
+
+            _busy = false;
+            float until = Time.realtimeSinceStartup + 10f;
+            while (Time.realtimeSinceStartup < until && !(s.Combat.Encounter.Current?.CanAct(strict: true) == true
+                && s.Combat.Encounter.Current.IsPartyMember)) {
+                yield return null;
+            }
+            Assert.IsTrue(s.Combat.Encounter.Current.IsPartyMember, "the next party turn came");
+            Assert.AreEqual(ForecastAction.Thrust, c.Current()?.Action, "the pointer still on A forecasts for the new hero");
+            Assert.AreEqual(0, c.Current().TargetSlot);
+        }
+
+        [UnityTest]
         public IEnumerator AnInspectFillsTheCardAndItStaysForTheFight() {
             var (s, hero, c) = Fight();
             PointAtFoe(s, c, 0);

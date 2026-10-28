@@ -204,8 +204,7 @@ namespace BakAgain.UI.InGame {
             BakAgain.UI.Combat.Enhanced.EnhancedCombatController> _combatControllerFor;
         private BakAgain.UI.Combat.Enhanced.EnhancedCombatController _combatController;
         private ((int Column, int Row)? Cell, (int RosterSlot, bool PartyMember)? Who) _boardHover;
-        private TouchHoldDetector _enhancedHold;
-        private bool _swallowEnhancedTap;
+        private EnhancedTouchHold _enhancedHold;
 
         /// <summary>
         /// Enhanced combat's HUD (TASK-972): the model of the fight as it stands (given how many log
@@ -1039,7 +1038,7 @@ namespace BakAgain.UI.InGame {
             }
             _compass?.Refresh();
             ReopenTheMapAfterAFight();
-            _touchControls?.Refresh(AFightIsRunning());
+            _touchControls?.Refresh(AFightIsRunning(), AFightIsRunning() && EnhancedCombatActive);
             HandleTouchLongPress();
             ClearTouchTargetingAfterAFight();
             HandleTouchCursor();
@@ -1279,14 +1278,26 @@ namespace BakAgain.UI.InGame {
                 }
                 return;
             }
-            _enhancedHold ??= new TouchHoldDetector(_combatLayout.LongPressSeconds, _enhancedLayout.DragThresholdPx);
-            bool down = _pointer.Primary.IsDown && _pointer.CanPoint && !(_combatCamera?.Dragging ?? false);
-            if (_enhancedHold.Tick(down, _pointer.ScreenPosition, Time.realtimeSinceStartup)
-                && StartsOnWorld(_pointer.ScreenPosition)) {
-                PointController(BoardAt(_pointer.ScreenPosition));
-                _combatController.LongPress();
-                _swallowEnhancedTap = true;   // its release must not also tap
+            // The finger as UI Toolkit's own events report it, as the travel long press reads it: the
+            // polled pointer never saw a held finger on the owner's phone (2026-09-30).
+            if (_touchControls == null) {
+                return;
             }
+            _enhancedHold ??= new EnhancedTouchHold(_combatLayout.LongPressSeconds, _enhancedLayout.DragThresholdPx);
+            Vector2 at = PanelToScreen(_touchControls.TouchPosition);
+            if (_enhancedHold.Tick(_touchControls.PressSerial, _touchControls.TouchDown && !(_combatCamera?.Dragging ?? false),
+                    at, Time.realtimeSinceStartup) && StartsOnWorld(at)) {
+                PointController(BoardAt(at));
+                _combatController.LongPress();
+            }
+        }
+
+        // Panel coordinates (top-left origin, panel units) to Input System screen coordinates.
+        private Vector2 PanelToScreen(Vector2 panel) {
+            VisualElement tree = _document?.rootVisualElement?.panel?.visualTree;
+            float sx = tree != null && tree.layout.width > 0f ? Screen.width / tree.layout.width : 1f;
+            float sy = tree != null && tree.layout.height > 0f ? Screen.height / tree.layout.height : 1f;
+            return new Vector2(panel.x * sx, Screen.height - panel.y * sy);
         }
 
         private ((int Column, int Row)? Cell, (int RosterSlot, bool PartyMember)? Who) BoardAt(Vector2 screen) {
@@ -1306,9 +1317,8 @@ namespace BakAgain.UI.InGame {
             if (_combatController == null || !EnhancedCombatActive || (_combatPickPending?.Invoke() ?? false)) {
                 return false;
             }
-            if (_swallowEnhancedTap) {
-                _swallowEnhancedTap = false;
-                return true;
+            if (_enhancedHold != null && _enhancedHold.TakeTap(_touchControls?.PressSerial ?? -1)) {
+                return true;   // the release of a long press is not also a tap
             }
             PointController(BoardAt(screen));
             if (isPrimary) {
@@ -1669,8 +1679,9 @@ namespace BakAgain.UI.InGame {
         private bool _touchFightWasRunning;
 
         // A fight played by touch: the battlefield tap places the combat cursor.
+        // Not in an Enhanced combat turn: its HUD and controller own the fight (TASK-972).
         private bool TouchFight() =>
-            TouchInputState.Instance != null && AFightIsRunning()
+            TouchInputState.Instance != null && AFightIsRunning() && !EnhancedCombatActive
             && _pointer != null && _pointer.CanPoint && !_pointer.IsPresent;
 
         // ---- The combat cursor (owner's choice, 2026-10-01) -----------------------------------
@@ -1764,8 +1775,7 @@ namespace BakAgain.UI.InGame {
         /// </summary>
         /// <returns>True when touch handled the press (so nothing stays armed).</returns>
         internal bool InspectAtTouchCursor() {
-            // Enhanced combat inspects the foe its own forecast named (TASK-972).
-            if (!TouchFight() || _combatCursor == null || EnhancedCombatActive) {
+            if (!TouchFight() || _combatCursor == null) {
                 return false;
             }
             (int c, int r) = _combatCursor.Cell;

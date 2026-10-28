@@ -317,5 +317,43 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
                 Click(root.Q("touch-swing"));
                 CollectionAssert.AreEqual(new[] { true, false }, asked);
             });
+
+        /// <summary>
+        /// An Enhanced combat turn (TASK-972): Confirm is the only commit, so the side bar's Thrust,
+        /// Swing and Move are gone and silent, and the pad's combat cursor with them; the grid stays.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AnEnhancedFightTakesTheCommitButtonsAndThePadAway() =>
+            Harness(2666, Touch(), (view, root, state) => {
+                var melee = new List<bool>();
+                var moved = 0;
+                view.MeleeRequested += melee.Add;
+                view.MoveRequested += () => moved++;
+                state.CursorContext = CursorContext.Target;
+                view.Refresh(inFight: true, enhancedFight: true);
+                Assert.AreEqual(DisplayStyle.None, root.Q("touch-thrust").style.display.value);
+                Assert.AreEqual(DisplayStyle.None, root.Q("touch-swing").style.display.value);
+                Assert.AreEqual(DisplayStyle.None, root.Q("touchpad_72").style.display.value, "no combat cursor pad");
+                Assert.AreEqual(DisplayStyle.Flex, root.Q("touch-grid").style.display.value, "the grid toggle stays");
+                Click(root.Q("touch-thrust"));
+                Click(root.Q("touch-swing"));
+                state.CursorContext = CursorContext.Ground;
+                state.MoveAccepted = true;
+                view.Refresh(inFight: true, enhancedFight: true);
+                Assert.AreEqual(DisplayStyle.None, root.Q("touch-move").style.display.value);
+                Click(root.Q("touch-move"));
+                Assert.IsEmpty(melee, "no Thrust or Swing commits beside Confirm");
+                Assert.AreEqual(0, moved, "nor a Move");
+
+                // Control: a Classic turn keeps them.
+                view.Refresh(inFight: true, enhancedFight: false);
+                Assert.AreEqual(DisplayStyle.Flex, root.Q("touch-move").style.display.value);
+                Click(root.Q("touch-move"));
+                state.CursorContext = CursorContext.Target;
+                view.Refresh(inFight: true);
+                Click(root.Q("touch-thrust"));
+                Assert.AreEqual(1, moved);
+                CollectionAssert.AreEqual(new[] { true }, melee);
+            });
     }
 }

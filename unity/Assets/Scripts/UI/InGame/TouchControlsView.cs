@@ -41,6 +41,7 @@ namespace BakAgain.UI.InGame {
         private bool _lastMoveAccepted;
         private VisualElement _panelRoot;
         private bool _inFight;
+        private bool _enhancedFight;
         private bool _wasTouch;
         private bool _hidden;
 
@@ -71,9 +72,10 @@ namespace BakAgain.UI.InGame {
                 RegisterHold(_pads[id], id, reqArrow: false);
             }
             _grid = Button("touch-grid", "#", _state.RequestGridToggle);
-            _thrust = Button("touch-thrust", GameData.Resources.Text.UiStrings.Get("base:uistring:combat.weapon_table_thrust"), () => MeleeRequested?.Invoke(true));
-            _swing = Button("touch-swing", GameData.Resources.Text.UiStrings.Get("base:uistring:combat.weapon_table_swing"), () => MeleeRequested?.Invoke(false));
-            _move = Button("touch-move", GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.TouchMove), () => MoveRequested?.Invoke());
+            // Enhanced combat commits only through its Confirm (TASK-972): these stay silent there.
+            _thrust = Button("touch-thrust", GameData.Resources.Text.UiStrings.Get("base:uistring:combat.weapon_table_thrust"), () => { if (!_enhancedFight) MeleeRequested?.Invoke(true); });
+            _swing = Button("touch-swing", GameData.Resources.Text.UiStrings.Get("base:uistring:combat.weapon_table_swing"), () => { if (!_enhancedFight) MeleeRequested?.Invoke(false); });
+            _move = Button("touch-move", GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.TouchMove), () => { if (!_enhancedFight) MoveRequested?.Invoke(); });
             _right.Add(_grid);
             _right.Add(_thrust);
             _right.Add(_swing);
@@ -88,11 +90,13 @@ namespace BakAgain.UI.InGame {
 
         /// <summary>Per frame: follows the fight state and the active pointer.</summary>
         /// <remarks>Out of sight while a dialog page is up: its book fills the side bars.</remarks>
-        public void Refresh(bool inFight) {
+        /// <param name="enhancedFight">An Enhanced combat turn (TASK-972): its HUD owns the fight, so the
+        /// pad's combat cursor and the Thrust / Swing / Move buttons are gone; the grid button stays.</param>
+        public void Refresh(bool inFight, bool enhancedFight = false) {
             bool hidden = DialogManager.PageOverTheWorld;
             bool touch = IsTouch;
             float? bandTop = PadBandTopOverride?.Invoke();
-            if (bandTop == _lastBandTop && inFight == _inFight && touch == _wasTouch && hidden == _hidden
+            if (bandTop == _lastBandTop && inFight == _inFight && enhancedFight == _enhancedFight && touch == _wasTouch && hidden == _hidden
                 && _state.CursorContext == _lastContext && _state.AwaitingTarget == _lastAwaiting
                 && _state.CastAccepted == _lastCastAccepted && _state.MoveAccepted == _lastMoveAccepted) {
                 return;
@@ -103,6 +107,7 @@ namespace BakAgain.UI.InGame {
             _lastCastAccepted = _state.CastAccepted;
             _lastMoveAccepted = _state.MoveAccepted;
             _inFight = inFight;
+            _enhancedFight = enhancedFight;
             _wasTouch = touch;
             _hidden = hidden;
             Layout();
@@ -291,7 +296,7 @@ namespace BakAgain.UI.InGame {
                         _ => new Vector2(cell, 0),
                     };
                 }
-                Place(kv.Value, centre.x + off.x - cell / 2f, centre.y + off.y - cell / 2f, cell, cell, true);
+                Place(kv.Value, centre.x + off.x - cell / 2f, centre.y + off.y - cell / 2f, cell, cell, !_enhancedFight);
             }
 
             float bw = rightW * _layout.ButtonWidth;
@@ -300,9 +305,10 @@ namespace BakAgain.UI.InGame {
             // The buttons for the cell under the cursor — Thrust/Swing on a combatant, Move on
             // ground — renamed while a spell or item waits for a target, since the same clicks then
             // cast it.
-            bool onTarget = _inFight && _state.CursorContext == CursorContext.Target;
-            bool onGround = _inFight && _state.CursorContext == CursorContext.Ground;
-            bool casting = _inFight && _state.AwaitingTarget;
+            bool aids = _inFight && !_enhancedFight;
+            bool onTarget = aids && _state.CursorContext == CursorContext.Target;
+            bool onGround = aids && _state.CursorContext == CursorContext.Ground;
+            bool casting = aids && _state.AwaitingTarget;
             // While a spell waits, a button appears only where the cast would land: a click
             // anywhere else commits nothing (TASK-823).
             bool castHere = casting && _state.CastAccepted;
