@@ -501,9 +501,9 @@ namespace BakAgain.UI.Combat.Enhanced {
             _sheetBody.Clear();
             Prune();
             HeroCardModel h = m?.Hero;
-            if (h == null || h.IsFoe) return;
-            string address = h.HeadId >= 0 ? ActorStatsPanel.PortraitImage + "#" + h.HeadId : null;
+            string address = h != null && !h.IsFoe && h.HeadId >= 0 ? ActorStatsPanel.PortraitImage + "#" + h.HeadId : null;
             if (_sheetHead.address != address) _sheetHead.address = address;   // only when the hero changes
+            if (h == null || h.IsFoe) return;   // a foe's turn: no hero, no face
             VisualElement stats = Box(null, "ec-phone-sheet__stats");
             _sheetBody.Add(stats);
             Pair(stats, UiStrings.Get("base:uistring:combat.assess_health_label").TrimEnd(':', ' '),
@@ -522,7 +522,7 @@ namespace BakAgain.UI.Combat.Enhanced {
                 // The name and condition, then its numbers on their own line: one short line each.
                 Txt(_sheetBody, null, pt, "ec-phone-strong").text = CombatHudText.Join(k.Name,
                     k.ConditionPercent >= 0 ? UiTemplates.Percent(k.ConditionPercent) : "");
-                if (!string.IsNullOrEmpty(k.Stats)) Txt(_sheetBody, null, _layout.PhoneBodyTextPt, "ec-phone-sheet__line").text = k.Stats;
+                if (!string.IsNullOrEmpty(k.Stats)) Txt(_sheetBody, null, pt, "ec-phone-sheet__line").text = k.Stats;
             }
             ApplySizes();
         }

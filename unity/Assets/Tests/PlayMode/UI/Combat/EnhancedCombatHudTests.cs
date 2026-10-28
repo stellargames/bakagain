@@ -456,13 +456,20 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             _hud.Show(HudModels.Idle());
             _hud.ShowSheet(true);
             yield return Settle();
-            VisualElement head = _hud.Root.Q("ec-phone-sheet-head");
+            // By its class, which the old sheet's portrait had too: the old code fails on the refresh, not the lookup.
+            VisualElement head = _hud.Root.Q(className: "ec-phone-sheet__head");
             Assert.IsNotNull(head, "the sheet has a portrait");
+            string address = ((BakAgain.UI.ArchiveImage)head).address;
             for (int i = 0; i < 5; i++) {
                 _hud.Show(HudModels.Idle());
             }
             yield return Settle();
-            Assert.AreSame(head, _hud.Root.Q("ec-phone-sheet-head"), "the same portrait, not a new one per refresh");
+            Assert.AreSame(head, _hud.Root.Q(className: "ec-phone-sheet__head"), "the same portrait, not a new one per refresh");
+            Assert.AreEqual(address, ((BakAgain.UI.ArchiveImage)head).address, "its picture not reassigned");
+
+            // Review M1: into a foe's turn the open sheet shows no hero, and no stale face either.
+            _hud.Show(HudModels.TheirTurn());
+            Assert.IsNull(((BakAgain.UI.ArchiveImage)head).address, "no hero, no face");
         }
 
         // Item 8: Thrust / Swing were hard to switch -- a press held across a refresh lost its button.
@@ -495,8 +502,9 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             float scale = _hud.Scale;
             Assert.LessOrEqual(sheet.worldBound.width / scale, _layout.PhoneSheetWidthPt + 0.5f, "capped");
             Assert.Less(sheet.worldBound.width / scale, 400f, "not the old 500 pt");
-            foreach (Label l in sheet.Query<Label>(className: "ec-phone-strong").ToList().Where(HudModels.Visible)) {
-                Assert.GreaterOrEqual(l.resolvedStyle.fontSize / scale, _layout.PhoneBodyTextPt + 1f, $"'{l.text}'");
+            // Every line of the sheet, the weapon's numbers line too (review M5), at the sheet's own size.
+            foreach (Label l in sheet.Query<Label>().ToList().Where(l => HudModels.Visible(l) && !string.IsNullOrEmpty(l.text))) {
+                Assert.GreaterOrEqual(l.resolvedStyle.fontSize / scale, _layout.PhoneSheetTextPt - 0.05f, $"'{l.text}'");
             }
         }
 
