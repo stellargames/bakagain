@@ -119,14 +119,20 @@ public sealed class EnhancedCombatLayout
     /// <summary>Zoom factor per mouse-wheel notch (the camera distance is multiplied or divided by it).</summary>
     public float WheelZoomStep { get; set; } = 1.1f;
 
-    /// <summary>The lowest zoom factor.</summary>
-    public float ZoomMin { get; set; } = 0.6f;
+    /// <summary>The closest zoom, as a factor of the whole-board distance: a few cells fill the free area.</summary>
+    public float ZoomMin { get; set; } = 0.2f;
 
-    /// <summary>The highest zoom factor.</summary>
-    public float ZoomMax { get; set; } = 1.6f;
+    /// <summary>The farthest zoom: 1 is the distance at which the whole board just fits the free area (owner,
+    /// 2026-10-28: never farther).</summary>
+    public float ZoomMax { get; set; } = 1f;
 
-    /// <summary>Opacity of a figure seen through the board's occluders (see-through).</summary>
-    public float SeeThroughAlpha { get; set; } = 0.25f;
+    /// <summary>The zoom a phone fight opens at (and Reset returns to): closer than the whole board, whose
+    /// cells are too small to tap there. The desktop opens at the whole board.</summary>
+    public float PhoneStartZoom { get; set; } = 0.6f;
+
+    /// <summary>Opacity of a figure seen through the board's occluders (see-through): the occluder stays
+    /// clearly visible while the unit behind reads through it (owner's phone test, 2026-10-28).</summary>
+    public float SeeThroughAlpha { get; set; } = 0.55f;
 
     /// <summary>Hit chance (percent) at or above which a melee hit is shown as "likely".</summary>
     public int HitPipLikelyAtLeast { get; set; } = 67;

@@ -28,9 +28,10 @@ public class EnhancedCombatLayoutTests {
         Assert.Equal(25f, layout.PitchMinDegrees);
         Assert.Equal(55f, layout.PitchMaxDegrees);
         Assert.Equal(40f, layout.StartPitchDegrees);
-        Assert.Equal(0.6f, layout.ZoomMin);
-        Assert.Equal(1.6f, layout.ZoomMax);
-        Assert.Equal(0.25f, layout.SeeThroughAlpha);
+        Assert.Equal(0.2f, layout.ZoomMin);
+        Assert.Equal(1f, layout.ZoomMax);
+        Assert.Equal(0.6f, layout.PhoneStartZoom);
+        Assert.Equal(0.55f, layout.SeeThroughAlpha);
         Assert.Equal(67, layout.HitPipLikelyAtLeast);
         Assert.Equal(34, layout.HitPipEvenAtLeast);
         Assert.Equal(0.5f, layout.LongPressSeconds);

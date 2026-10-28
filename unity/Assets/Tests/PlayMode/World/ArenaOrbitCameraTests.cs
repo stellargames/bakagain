@@ -226,13 +226,19 @@ namespace BakAgain.Tests.PlayMode.World {
 
         [TestCase(false)]
         [TestCase(true)]
-        public void TheOpeningPoseFramesTheWholeBoardInTheSpaceTheHudLeaves(bool phone) {
+        public void TheFarthestZoomFramesTheWholeBoardInTheSpaceTheHudLeaves(bool phone) {
             bool? keep = InGameScreen.PhoneHudOverride;
             InGameScreen.PhoneHudOverride = phone;
             try {
                 BakAgain.World.WorldRuntime world = NewWorld(combat: true, out Camera cam);
                 world.PointCameraAtArena();
                 var layout = new EnhancedCombatLayout();
+                double opened = world.ArenaOrbitForTest.Distance;
+                // Zoomed all the way out, the whole board just fits: no zoom goes farther (owner, 2026-10-28).
+                world.ZoomArena(1000f);
+                double whole = world.ArenaOrbitForTest.Distance;
+                Assert.AreEqual(phone ? layout.PhoneStartZoom : 1f, opened / whole, 1e-6,
+                    "the desktop opens at the whole board, the phone closer");
                 float bottom = phone ? layout.PhoneBoardBottom : layout.BandHeight, top = phone ? layout.PhoneBoardTop : 1f;
                 float slack = 1f;
                 foreach (var c in ArenaOrbit.BoardCorners(Cell, underground: false)) {

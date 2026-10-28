@@ -12,23 +12,41 @@ using GameData.Resources.Layout;
 public sealed class ArenaOrbit {
     private readonly EnhancedCombatLayout _layout;
     private readonly (double X, double Y) _centre;
-    private readonly double _startYaw, _startPitch, _startDistance;
-    private double _zoom = 1;
+    private (double X, double Y) _focus;
+    private readonly double _startYaw, _startPitch, _startDistance, _startZoom;
+    private double _zoom;
 
+    /// <param name="distance">The whole-board fit: zoom 1, and the farthest the camera may go.</param>
+    /// <param name="startZoom">Where the fight opens and Reset returns to, as a factor of <paramref name="distance"/>.</param>
     public ArenaOrbit(EnhancedCombatLayout layout, (double X, double Y) boardCentre,
-        double startYawDegrees, double startPitchDegrees, double distance) {
+        double startYawDegrees, double startPitchDegrees, double distance, double startZoom = 1) {
         _layout = layout;
-        _centre = boardCentre;
+        _centre = _focus = boardCentre;
         _startYaw = YawDegrees = startYawDegrees;
         // Clamped here, not only on Drag: an out-of-range start would otherwise jump on the first drag.
         _startPitch = PitchDegrees = Math.Clamp(startPitchDegrees, layout.PitchMinDegrees, layout.PitchMaxDegrees);
         _startDistance = distance;
+        _zoom = _startZoom = Math.Clamp(startZoom, layout.ZoomMin, layout.ZoomMax);
     }
 
     public double YawDegrees { get; private set; }
     public double PitchDegrees { get; private set; }
     public double Distance => _startDistance * _zoom;
-    public (double X, double Y) Centre => _centre;
+    /// <summary>
+    /// What the camera turns around: the board's centre at the farthest zoom (the whole board in view),
+    /// leaning toward <see cref="Focus"/> as it comes closer, onto it at the closest -- so a close view
+    /// shows the acting hero rather than the board's empty middle.
+    /// </summary>
+    public (double X, double Y) Centre {
+        get {
+            double t = _layout.ZoomMax > _layout.ZoomMin
+                ? Math.Clamp((_layout.ZoomMax - _zoom) / (_layout.ZoomMax - _layout.ZoomMin), 0, 1) : 0;
+            return t == 0 ? _centre : (_centre.X + ((_focus.X - _centre.X) * t), _centre.Y + ((_focus.Y - _centre.Y) * t));
+        }
+    }
+
+    /// <summary>The point a close view centres on (the acting hero's cell), in the board's frame.</summary>
+    public void Focus((double X, double Y) point) => _focus = point;
 
     /// <summary>The middle of the PLAYABLE cells: an underground fight's blocked rows are not the board.</summary>
     public static (double X, double Y) BoardCentre(int cellSize, bool underground) {
@@ -71,7 +89,7 @@ public sealed class ArenaOrbit {
     public void Reset() {
         YawDegrees = _startYaw;
         PitchDegrees = _startPitch;
-        _zoom = 1;
+        _zoom = _startZoom;
     }
 
     public void TurnQuarter(int direction) => YawDegrees += 90 * Math.Sign(direction);
@@ -79,7 +97,8 @@ public sealed class ArenaOrbit {
     public (double X, double Y, double Height) EyePosition() {
         double yaw = YawDegrees * Math.PI / 180, pitch = PitchDegrees * Math.PI / 180;
         double horizontal = Distance * Math.Cos(pitch);
-        return (_centre.X - (horizontal * Math.Sin(yaw)), _centre.Y - (horizontal * Math.Cos(yaw)),
+        (double cx, double cy) = Centre;
+        return (cx - (horizontal * Math.Sin(yaw)), cy - (horizontal * Math.Cos(yaw)),
             Distance * Math.Sin(pitch));
     }
 }

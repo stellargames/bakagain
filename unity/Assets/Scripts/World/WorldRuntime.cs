@@ -1727,6 +1727,9 @@ namespace BakAgain.World {
         /// </remarks>
         private void RestoreWalkingCamera() {
             _arenaOrbit = null;
+            if (_hotspots != null) {
+                _hotspots.CombatTurnStarted -= FocusArenaOn;
+            }
             DropCombatController();
             if (_partyMovement != null) {
                 _partyMovement.CameraSuspended = false;
@@ -1794,23 +1797,53 @@ namespace BakAgain.World {
                 // Framed from behind the party at the layout's start pitch, as close as the whole board
                 // still fits the screen the HUD leaves free: above the desktop band, between the phone's docks.
                 var centre = GameData.Resources.Combat.ArenaOrbit.BoardCentre(start.CombatGridCellSize, underground);
-                GameData.Resources.Combat.ArenaOrbit Make(double distance) => new(_combatLayout, centre,
-                    0, _combatLayout.StartPitchDegrees, distance);
+                GameData.Resources.Combat.ArenaOrbit Make(double distance, double zoom = 1) => new(_combatLayout, centre,
+                    0, _combatLayout.StartPitchDegrees, distance, zoom);
                 bool phone = BakAgain.UI.InGame.InGameScreen.PhoneHudOverride ?? Application.isMobilePlatform;
                 _arenaOrbit = new BakAgain.World.Encounters.ArenaOrbitCamera();
                 _arenaOrbit.FrameInto(phone ? _combatLayout.PhoneBoardBottom : _combatLayout.BandHeight,
                     phone ? _combatLayout.PhoneBoardTop : 1f);
                 _arenaOrbit.Bind(_worldCamera, null, _gameSession.PositionX, _gameSession.PositionY, _gameSession.Rotation);
-                double distance = _arenaOrbit.FitDistance(Make,
+                double distance = _arenaOrbit.FitDistance(d => Make(d),
                     GameData.Resources.Combat.ArenaOrbit.BoardCorners(start.CombatGridCellSize, underground),
                     _combatLayout.BoardFitMarginX, _combatLayout.BoardFitMarginY);
-                _arenaOrbit.Bind(_worldCamera, Make(distance), _gameSession.PositionX, _gameSession.PositionY, _gameSession.Rotation);
+                // The fit is zoom 1 and the farthest out; a phone opens closer, where its cells can be tapped.
+                _arenaOrbit.Bind(_worldCamera, Make(distance, phone ? _combatLayout.PhoneStartZoom : 1),
+                    _gameSession.PositionX, _gameSession.PositionY, _gameSession.Rotation);
+                // Closer than the whole board, the view leans toward whoever of the party acts.
+                _arenaCellSize = start.CombatGridCellSize;
+                Combatant first = _hotspots?.Combat?.Encounter?.Current;
+                if (first == null || !first.IsPartyMember) {
+                    first = null;
+                    var party = _hotspots?.Combat?.Encounter?.Party;
+                    if (party != null) {
+                        foreach (Combatant c in party) {
+                            if (c != null && !c.IsDead) { first = c; break; }
+                        }
+                    }
+                }
+                FocusArenaOn(first);
+                if (_hotspots != null) {
+                    _hotspots.CombatTurnStarted -= FocusArenaOn;
+                    _hotspots.CombatTurnStarted += FocusArenaOn;
+                }
                 _arenaOrbit.Apply();
             }
         }
 
         private readonly GameData.Resources.Layout.EnhancedCombatLayout _combatLayout = new();
         private StartData _startForTest;
+        private int _arenaCellSize;
+
+        // A party turn: a close orbit leans toward the hero now acting (ArenaOrbit.Centre).
+        private void FocusArenaOn(Combatant hero) {
+            if (_arenaOrbit?.Orbit == null || hero == null || _arenaCellSize <= 0) {
+                return;
+            }
+            (int across, int away) = GameData.Resources.Combat.CombatArenaPlacement.CellOffset(hero.X, hero.Y, _arenaCellSize);
+            _arenaOrbit.Orbit.Focus((across, away));
+            _arenaOrbit.Apply();
+        }
 
         internal void SetArenaCameraForTest(Camera camera, StartData start, bool underground) {
             _worldCamera = camera;

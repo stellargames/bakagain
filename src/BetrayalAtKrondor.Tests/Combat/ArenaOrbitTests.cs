@@ -119,4 +119,30 @@ public class ArenaOrbitTests {
         o.Reset();
         Assert.Equal(Layout.PitchMinDegrees, o.PitchDegrees, 6);
     }
+
+    [Fact]
+    public void ThePhoneOrbitOpensAtItsStartZoom_ResetReturnsThere_AndNeverZoomsOutPastTheWholeBoard() {
+        var o = new ArenaOrbit(Layout, (1000, 2000), 0, 45, 1000, Layout.PhoneStartZoom);
+        Assert.Equal(1000 * Layout.PhoneStartZoom, o.Distance, 2);
+        o.Zoom(1000);
+        Assert.Equal(1000, o.Distance, 2);   // the start distance is the whole-board fit
+        o.Zoom(0.0001);
+        Assert.Equal(1000 * Layout.ZoomMin, o.Distance, 2);
+        o.Reset();
+        Assert.Equal(1000 * Layout.PhoneStartZoom, o.Distance, 2);
+    }
+
+    [Fact]
+    public void TheCentreLeansTowardTheFocusAsTheCameraZoomsIn_TheWholeBoardStaysCentredAtTheFarthest() {
+        var o = new ArenaOrbit(Layout, (1000, 2000), 0, 45, 1000);
+        o.Focus((1300, 1400));
+        Assert.Equal((1000d, 2000d), o.Centre);   // zoom 1: the whole board, centred
+        o.Zoom(0.0001);
+        Assert.Equal(1300, o.Centre.X, 3);        // the closest: on the focus
+        Assert.Equal(1400, o.Centre.Y, 3);
+        o.Reset();
+        o.Zoom((1 + Layout.ZoomMin) / 2);
+        Assert.Equal(1150, o.Centre.X, 3);        // half way in, half way over
+        Assert.Equal(1700, o.Centre.Y, 3);
+    }
 }
