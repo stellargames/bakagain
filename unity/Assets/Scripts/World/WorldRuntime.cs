@@ -1616,6 +1616,7 @@ namespace BakAgain.World {
                     _hotspots.ActingCellSegments);
 
             AttachBoardMarks(_arenaRoot);
+            AttachSeeThrough(_arenaRoot);
 
             // *** THE COLLAPSE PLAYS ONCE, ON THE BODY THAT HAS JUST APPEARED. *** A corpse is
             // rebuilt on every redraw, so the "already shown" flag lives on the combatant; without
@@ -2616,11 +2617,22 @@ namespace BakAgain.World {
             var marks = arenaRoot.AddComponent<Encounters.ArenaBoardMarks>();
             marks.Bind(() => _hotspots?.EnhancedBoardShapes(_combatLayout.MarkHalfCell),
                 () => _hotspots?.EnhancedFoePlates(), _combatLayout, 0f);
-            // The latch is read every frame: a turn that goes Classic restores every unit's alpha.
-            arenaRoot.AddComponent<Encounters.ArenaSeeThroughDriver>().Bind(EnhancedCombatOn,
-                () => _combatController?.FocusCell, () => _worldCamera,
-                cell => _hotspots?.CellCentreWorld(cell.Col, cell.Row), _combatLayout);
             return marks;
+        }
+
+        /// <summary>
+        /// The see-through driver, always on the arena root; it reads the turn latch every frame, so an
+        /// Enhanced turn without a redraw still fades and a Classic one restores full alpha.
+        /// </summary>
+        internal Encounters.ArenaSeeThroughDriver AttachSeeThrough(GameObject arenaRoot) {
+            if (arenaRoot == null) {
+                return null;
+            }
+            var driver = arenaRoot.AddComponent<Encounters.ArenaSeeThroughDriver>();
+            driver.Bind(EnhancedCombatOn, () => _combatController?.FocusCell, () => _worldCamera,
+                cell => _hotspots?.CellCentreWorld(cell.Col, cell.Row),
+                point => _hotspots?.CellAtPoint(point), _combatLayout);
+            return driver;
         }
 
         /// <summary>

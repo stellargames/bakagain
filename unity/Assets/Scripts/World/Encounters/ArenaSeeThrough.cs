@@ -21,9 +21,6 @@ namespace BakAgain.World.Encounters {
         private static readonly int SeeThroughId = Shader.PropertyToID("_SeeThrough");
         private static readonly MaterialPropertyBlock Block = new();
 
-        // A unit standing on the focus cell itself is the subject, not an obstruction.
-        private const float SameCellMargin = 0.1f;
-
         /// <summary>The unit's current see-through opacity (1 when none was set).</summary>
         public static float AlphaOf(Renderer r) {
             r.GetPropertyBlock(Block);
@@ -32,8 +29,10 @@ namespace BakAgain.World.Encounters {
 
         /// <param name="focus">The pointed / forecast cell, or null for none (everything restored).</param>
         /// <param name="cellCentre">A cell's centre in Unity world space.</param>
+        /// <param name="cellAt">The arena cell under a world point; a unit standing on the focus cell is the subject, never an obstruction.</param>
         public static void Apply(Camera cam, (int Col, int Row)? focus, IReadOnlyList<ArenaCombatant> units,
-            EnhancedCombatLayout layout, Func<(int Col, int Row), Vector3?> cellCentre) {
+            EnhancedCombatLayout layout, Func<(int Col, int Row), Vector3?> cellCentre,
+            Func<Vector3, (int Col, int Row)?> cellAt) {
             Vector3? centre = focus.HasValue && cam != null ? cellCentre(focus.Value) : null;
             Vector3 focusScreen = centre.HasValue ? cam.WorldToScreenPoint(centre.Value) : default;
             float focusDistance = centre.HasValue ? Vector3.Distance(cam.transform.position, centre.Value) : 0f;
@@ -46,7 +45,8 @@ namespace BakAgain.World.Encounters {
                     continue;
                 }
                 bool fade = centre.HasValue && focusScreen.z > 0f
-                    && Vector3.Distance(cam.transform.position, u.transform.position) < focusDistance - SameCellMargin
+                    && cellAt(u.transform.position) != focus
+                    && Vector3.Distance(cam.transform.position, u.transform.position) < focusDistance
                     && ScreenRect(cam, r.bounds).Contains(focusScreen);
                 Set(r, fade ? layout.SeeThroughAlpha : 1f);
             }
@@ -81,11 +81,14 @@ namespace BakAgain.World.Encounters {
         private Func<(int Col, int Row)?> _focus;
         private Func<Camera> _camera;
         private Func<(int Col, int Row), Vector3?> _centre;
+        private Func<Vector3, (int Col, int Row)?> _cellAt;
+        private readonly List<ArenaCombatant> _units = new();
         private EnhancedCombatLayout _layout;
 
         public void Bind(Func<bool> on, Func<(int Col, int Row)?> focus, Func<Camera> camera,
-            Func<(int Col, int Row), Vector3?> centre, EnhancedCombatLayout layout) {
-            _on = on; _focus = focus; _camera = camera; _centre = centre; _layout = layout;
+            Func<(int Col, int Row), Vector3?> centre, Func<Vector3, (int Col, int Row)?> cellAt,
+            EnhancedCombatLayout layout) {
+            _on = on; _focus = focus; _camera = camera; _centre = centre; _cellAt = cellAt; _layout = layout;
         }
 
         private void LateUpdate() {
@@ -93,8 +96,8 @@ namespace BakAgain.World.Encounters {
                 return;
             }
             // Latch gone Classic: apply with no focus, which restores everything.
-            ArenaSeeThrough.Apply(_camera(), _on() ? _focus() : null,
-                GetComponentsInChildren<ArenaCombatant>(), _layout, _centre);
+            GetComponentsInChildren(_units);
+            ArenaSeeThrough.Apply(_camera(), _on() ? _focus() : null, _units, _layout, _centre, _cellAt);
         }
     }
 }
