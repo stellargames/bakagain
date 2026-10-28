@@ -295,6 +295,35 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
         }
 
         [Test]
+        public void AnArmedClassicPick_StandsTheControllerDown_EscDropsThePick() {
+            // A spell from the cast screen waits for its target: a click is the Classic aim, so the
+            // board must not forecast a Thrust, and Esc must reach the Classic Escape (final review I-1).
+            var (s, hero, c) = Fight();
+            int livingActorAim = System.Linq.Enumerable.First(System.Linq.Enumerable.Range(0, 9),
+                t => GameData.Resources.Spells.SpellTargetingRules.AimOf(t)
+                    == GameData.Resources.Spells.SpellTargetingRules.Aim.LivingActor);
+            s.ArmSpellForTest(new GameData.Resources.Spells.Spell("S") { TargetingType = livingActorAim }, 0, 5);
+            Assert.IsTrue(s.CombatPickPending, "the fixture: a pick is armed");
+
+            PointAtFoe(s, c, 0);
+            Assert.IsNull(c.Current(), "no hover forecast while the pick waits");
+            Assert.IsNull(c.Model(2).Forecast, "the ledger shows none");
+            Assert.AreNotEqual(State.Ready, c.State);
+            Assert.IsFalse(c.Key(CombatCommands.DefendId), "the stone keys stand down too");
+
+            _menuGo = new GameObject("ClassicMenu");
+            var menu = _menuGo.AddComponent<CombatMenu>();
+            menu.CommandIssued += (command, id) => s.IssueCombatCommand(command, id);
+            menu.KeyIntercept = c.Key;
+            menu.PrimaryAction(CombatCommands.EscapeId);
+
+            Assert.IsFalse(s.CombatPickPending, "Esc reached the Classic cancel and dropped the pick");
+            Assert.IsFalse(Spent(hero), "a dropped spell spends nothing (COMBAT.C:2140-2146)");
+            Assert.AreEqual(ForecastAction.Thrust, c.Current()?.Action,
+                "with the pick gone the pointer still on A forecasts again, without moving");
+        }
+
+        [Test]
         public void ClassicCombatClicksUnchanged() {
             GameOptions.SetFeature(EnhancedFeature.Combat, false);
             var (s, hero, c) = Fight(roll: 99);

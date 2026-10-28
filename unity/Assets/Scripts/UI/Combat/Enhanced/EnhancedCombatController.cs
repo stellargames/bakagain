@@ -91,7 +91,7 @@ namespace BakAgain.UI.Combat.Enhanced {
             get {
                 Combatant acting = Acting();
                 return acting == null ? TurnState.TheirTurn
-                    : _acting ? TurnState.Acting
+                    : _acting || Picking ? TurnState.Acting
                     : Current() != null ? TurnState.Forecast
                     : TurnState.Ready;
             }
@@ -103,7 +103,7 @@ namespace BakAgain.UI.Combat.Enhanced {
         /// <summary>The previewed action, or null (Confirm is empty).</summary>
         public CombatForecast Current() {
             Combatant acting = Acting();
-            if (acting == null || _action == null || _acting) {
+            if (acting == null || _action == null || _acting || Picking) {
                 return null;
             }
             return ForecastOf(acting, _action.Value);
@@ -252,6 +252,9 @@ namespace BakAgain.UI.Combat.Enhanced {
 
         /// <summary>The keys Enhanced combat takes from the Classic menu; true when taken.</summary>
         public bool Key(int scancode) {
+            if (Picking) {
+                return false;   // the armed Classic pick owns every key, Esc included (it drops the pick)
+            }
             switch (scancode) {
                 case CombatCommands.CastId: Stone(Command.Cast, true); return true;
                 case CombatCommands.BackOrRetreatId: Stone(Command.BackOrRetreat, true); return true;
@@ -456,7 +459,12 @@ namespace BakAgain.UI.Combat.Enhanced {
             return c;
         }
 
-        private Combatant Ready() => _acting ? null : Acting();
+        private Combatant Ready() => _acting || Picking ? null : Acting();
+
+        // A Classic pick is armed (a spell's, an item's or a quarrel's target): a click is that pick's,
+        // so the controller stands down -- no forecast shown, no keys -- until it is taken or dropped. The
+        // hover intent is kept, so the forecast is back the moment Esc drops the pick.
+        private bool Picking => _hs?.CombatPickPending ?? false;
 
         // The living foe under the pointer, by enemy index.
         private int? Foe() {
