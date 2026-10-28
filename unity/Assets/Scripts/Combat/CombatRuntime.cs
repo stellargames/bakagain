@@ -1117,6 +1117,42 @@ namespace BakAgain.Combat {
         }
 
         /// <summary>
+        /// The cells a Thrust at <paramref name="target"/> would walk, start included, or null when the
+        /// click is refused (out of reach, or no neighbour has a route). Changes nothing: it is
+        /// <see cref="ResolveMeleeClick"/>'s own reach test and <see cref="CombatWalk.MeleeApproach"/>
+        /// run as a dry run (TASK-972 board marks).
+        /// </summary>
+        public IReadOnlyList<(int X, int Y)> ForecastThrust(Combatant mover, Combatant target) {
+            if (mover == null || target == null || target.IsDead || Grid == null) {
+                return null;
+            }
+            if (!CombatActionDispatch.WithinReach(
+                    CombatGrid.ChebyshevDistance(mover.X, mover.Y, target.X, target.Y), mover.Speed)) {
+                return null;
+            }
+            // Beside the target: the thrust strikes in place, no walk (ResolveMeleeClick).
+            if (CombatGrid.OrthogonallyAdjacent(mover.X, mover.Y, target.X, target.Y)) {
+                return new List<(int X, int Y)> { (mover.X, mover.Y) };
+            }
+            var trace = new List<(int X, int Y)>();
+            CombatWalk.WalkResult? walk = CombatWalk.MeleeApproach(Grid, mover, target.X, target.Y,
+                mover.Speed, puzzle: Puzzle, occupiedByLiveCombatant: TileHoldsLiveCombatant,
+                probe: true, trace: trace);
+            return walk == null ? null : trace;
+        }
+
+        /// <summary>The cells a move to (x, y) would walk, start included -- a dry run, or null when it cannot arrive.</summary>
+        public IReadOnlyList<(int X, int Y)> ForecastMove(Combatant mover, int x, int y) {
+            if (mover == null || Grid == null || !CellMovable(mover, x, y)) {
+                return null;
+            }
+            var trace = new List<(int X, int Y)>();
+            CombatWalk.Walk(Grid, mover, x, y, mover.Speed, probe: true, puzzle: Puzzle,
+                occupiedByLiveCombatant: TileHoldsLiveCombatant, trace: trace);
+            return trace;
+        }
+
+        /// <summary>
         /// Walk the attacker to a tile beside the target. False when there is no route.
         /// </summary>
         /// <remarks>

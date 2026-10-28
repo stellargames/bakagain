@@ -240,7 +240,8 @@ public static class CombatWalk {
         bool probe = false, TrapPuzzle? puzzle = null,
         Func<int, int, int>? tileTrapDamage = null,
         Action<Combatant, Hazard>? onHazard = null,
-        Func<int, int, bool>? occupiedByLiveCombatant = null) {
+        Func<int, int, bool>? occupiedByLiveCombatant = null,
+        List<(int X, int Y)>? trace = null) {
         if (grid == null) {
             throw new ArgumentNullException(nameof(grid));
         }
@@ -248,6 +249,7 @@ public static class CombatWalk {
             throw new ArgumentNullException(nameof(actor));
         }
 
+        trace?.Add((actor.X, actor.Y));
         var hazards = new List<Hazard>();
         int startX = actor.X;
         int startY = actor.Y;
@@ -285,6 +287,7 @@ public static class CombatWalk {
 
             actor.X = step.X;
             actor.Y = step.Y;
+            trace?.Add((step.X, step.Y));
             if (!probe && (step.X, step.Y) != actor.WalkedCells[^1]) {
                 actor.WalkedCells.Add((step.X, step.Y));
             }
@@ -349,7 +352,8 @@ public static class CombatWalk {
     public static WalkResult? MeleeApproach(CombatGrid grid, Combatant attacker, int targetX,
         int targetY, int speed, TrapPuzzle? puzzle = null,
         Action<Combatant, Hazard>? onHazard = null,
-        Func<int, int, bool>? occupiedByLiveCombatant = null) {
+        Func<int, int, bool>? occupiedByLiveCombatant = null, bool probe = false,
+        List<(int X, int Y)>? trace = null) {
         if (grid == null) {
             throw new ArgumentNullException(nameof(grid));
         }
@@ -380,8 +384,8 @@ public static class CombatWalk {
             if (grid.IsBlocked(x, y) || !Walk(grid, attacker, x, y, speed, probe: true).PathClear) {
                 continue;
             }
-            return Walk(grid, attacker, x, y, speed + 1, puzzle: puzzle, onHazard: onHazard,
-                occupiedByLiveCombatant: occupiedByLiveCombatant);
+            return Walk(grid, attacker, x, y, speed + 1, probe: probe, puzzle: puzzle,
+                onHazard: onHazard, occupiedByLiveCombatant: occupiedByLiveCombatant, trace: trace);
         }
         return null;
     }

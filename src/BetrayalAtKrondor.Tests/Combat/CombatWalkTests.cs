@@ -417,6 +417,16 @@ public class MeleeApproachTests {
     }
 
     [Fact]
+    public void AProbedApproachTracesTheSamePath_AndMovesNobody() {
+        (CombatGrid grid, Combatant locklear) = Board(2, 1, 4, (4, 2), (6, 2), (5, 2), (6, 7));
+        var trace = new List<(int X, int Y)>();
+        Assert.NotNull(CombatWalk.MeleeApproach(grid, locklear, 5, 2, locklear.Speed, probe: true, trace: trace));
+        Assert.Equal(new List<(int, int)> { (2, 1), (3, 1), (4, 1), (5, 1) }, trace);
+        Assert.Equal((2, 1), (locklear.X, locklear.Y));
+        Assert.Empty(locklear.WalkedCells);
+    }
+
+    [Fact]
     public void EveryNeighbourHeld_NoApproach() {
         (CombatGrid grid, Combatant a) = Board(2, 2, 5, (5, 1), (4, 2), (6, 2), (5, 3), (5, 2));
         Assert.Null(CombatWalk.MeleeApproach(grid, a, 5, 2, a.Speed));

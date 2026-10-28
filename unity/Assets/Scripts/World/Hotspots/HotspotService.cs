@@ -1764,6 +1764,194 @@ using GameData.Resources.Scene;
             return segments;
         }
 
+        /// <summary>
+        /// What the enhanced board marks for whoever is acting (TASK-972): reach, the foes a Thrust or
+        /// Swing would reach, and the foe letters. Every answer is the click's own rule -- see
+        /// <see cref="GameData.Resources.Combat.BoardMarks"/>. Empty off a party member's turn.
+        /// </summary>
+        public GameData.Resources.Combat.BoardMarks EnhancedBoardMarks() {
+            var acting = Combat?.Encounter?.Current;
+            if (acting == null || acting.IsDead || !acting.IsPartyMember || Combat.Grid == null) {
+                return GameData.Resources.Combat.BoardMarks.Empty;
+            }
+            var reach = new HashSet<(int Col, int Row)>();
+            for (int y = 0; y < GameData.Resources.Combat.CombatGrid.Height; y++) {
+                for (int x = 0; x < GameData.Resources.Combat.CombatGrid.Width; x++) {
+                    // The near corners are walled off (CMBTGRID.C:724-725), and the underground arena's
+                    // far rows -- CellMovable's walk refuses both, the explicit test is for the corners.
+                    bool corner = y == 0 && (x == 0 || x == GameData.Resources.Combat.CombatGrid.Width - 1);
+                    if (!corner && (x != acting.X || y != acting.Y)
+                        && Combat.CombatantAtCell(x, y) == null && Combat.CellMovable(acting, x, y)) {
+                        reach.Add((x, y));
+                    }
+                }
+            }
+            var thrust = new HashSet<int>();
+            var swing = new HashSet<int>();
+            var letters = new Dictionary<int, char>();
+            var enemies = Combat.Encounter.Enemies;
+            for (int i = 0; i < enemies.Count; i++) {
+                letters[i] = GameData.Resources.Combat.BoardMarks.LetterFor(i);
+                var foe = enemies[i];
+                if (foe == null || foe.IsDead) {
+                    continue;
+                }
+                if (Combat.ForecastThrust(acting, foe) != null) {
+                    thrust.Add(i);
+                }
+                int distance = GameData.Resources.Combat.CombatGrid.ChebyshevDistance(
+                    acting.X, acting.Y, foe.X, foe.Y);
+                if (GameData.Resources.Combat.CombatActionDispatch.WithinReach(distance, acting.Speed)
+                    && GameData.Resources.Combat.MeleeStatsPanel.ShowsSwingColumn(
+                        GameData.Resources.Combat.CombatGrid.OrthogonallyAdjacent(
+                            acting.X, acting.Y, foe.X, foe.Y),
+                        acting.Health + acting.Stamina)) {
+                    swing.Add(i);
+                }
+            }
+            return new GameData.Resources.Combat.BoardMarks(reach, thrust, swing, letters);
+        }
+
+        /// <summary>
+        /// The walk a click on this foe (index in the enemy list) or, with -1, this cell would take;
+        /// empty when the click is refused.
+        /// </summary>
+        public IReadOnlyList<(int Col, int Row)> ForecastPath(int enemyIndexOrMinus1, int col, int row) {
+            var acting = Combat?.Encounter?.Current;
+            if (acting == null || acting.IsDead || !acting.IsPartyMember) {
+                return System.Array.Empty<(int, int)>();
+            }
+            var enemies = Combat.Encounter.Enemies;
+            var path = enemyIndexOrMinus1 >= 0 && enemyIndexOrMinus1 < enemies.Count
+                ? Combat.ForecastThrust(acting, enemies[enemyIndexOrMinus1])
+                : Combat.ForecastMove(acting, col, row);
+            var result = new List<(int Col, int Row)>();
+            if (path != null) {
+                foreach ((int x, int y) in path) {
+                    result.Add((x, y));
+                }
+            }
+            return result;
+        }
+
+        /// <summary>One thing the enhanced board draws: filled cell corners, or a path's cell centres.</summary>
+        public readonly struct BoardShape {
+            public BoardShape(Encounters.ArenaOverlayKind kind, (long X, long Y)[] points) {
+                Kind = kind;
+                Points = points;
+            }
+
+            public Encounters.ArenaOverlayKind Kind { get; }
+            public (long X, long Y)[] Points { get; }
+        }
+
+        /// <summary>A foe's plate: its roster index and letter, where it stands, and how it can be hit.</summary>
+        public readonly struct FoePlate {
+            public FoePlate(int index, char letter, bool thrust, bool swing, bool hovered) {
+                Index = index; Letter = letter; Thrust = thrust; Swing = swing; Hovered = hovered;
+            }
+
+            public int Index { get; }
+            public char Letter { get; }
+            public bool Thrust { get; }
+            public bool Swing { get; }
+            public bool Hovered { get; }
+        }
+
+        /// <summary>The living foes' plates for the enhanced board, in roster order.</summary>
+        public List<FoePlate> EnhancedFoePlates() {
+            var plates = new List<FoePlate>();
+            GameData.Resources.Combat.BoardMarks marks = EnhancedBoardMarks();
+            var enemies = Combat?.Encounter?.Enemies;
+            if (enemies == null) {
+                return plates;
+            }
+            for (int i = 0; i < enemies.Count; i++) {
+                if (enemies[i] != null && !enemies[i].IsDead && marks.FoeLetters.TryGetValue(i, out char letter)) {
+                    plates.Add(new FoePlate(i, letter, System.Linq.Enumerable.Contains(marks.ThrustTargets, i),
+                        System.Linq.Enumerable.Contains(marks.SwingTargets, i),
+                        CursorCell is (int c, int r) && enemies[i].X == c && enemies[i].Y == r));
+                }
+            }
+            return plates;
+        }
+
+        /// <summary>
+        /// The enhanced board's marks as world-space shapes: the reach fill, the acting cell, the cursor's
+        /// foe, thrust and swing marks, and the forecast path under the cursor. Redrawn from the model
+        /// every time it is asked, because the arena is rebuilt on every combat redraw.
+        /// </summary>
+        public List<BoardShape> EnhancedBoardShapes(float halfCell) {
+            var shapes = new List<BoardShape>();
+            var acting = Combat?.Encounter?.Current;
+            if (acting == null || acting.IsDead || !acting.IsPartyMember || _session == null
+                || _start == null || _start.CombatGridCellSize <= 0) {
+                return shapes;
+            }
+            int cellSize = _start.CombatGridCellSize;
+            int half = (int)(cellSize * halfCell);
+
+            (long X, long Y) Point(int column, int row, int sx, int sy) {
+                (int across, int away) =
+                    GameData.Resources.Combat.CombatArenaPlacement.CellOffset(column, row, cellSize);
+                var (dx, dy) = Collision.ProximityMath.Rotate(
+                    across + (sx * half), away + (sy * half), _session.Rotation);
+                return (_session.PositionX + dx, _session.PositionY + dy);
+            }
+
+            void Fill(int column, int row, Encounters.ArenaOverlayKind kind, int inset = 0) {
+                int s = half - inset;
+                (int across, int away) =
+                    GameData.Resources.Combat.CombatArenaPlacement.CellOffset(column, row, cellSize);
+                (long, long) P(int sx, int sy) {
+                    var (dx, dy) = Collision.ProximityMath.Rotate(
+                        across + (sx * s), away + (sy * s), _session.Rotation);
+                    return (_session.PositionX + dx, _session.PositionY + dy);
+                }
+                shapes.Add(new BoardShape(kind, new[] { P(-1, -1), P(1, -1), P(1, 1), P(-1, 1) }));
+            }
+
+            GameData.Resources.Combat.BoardMarks marks = EnhancedBoardMarks();
+            foreach ((int col, int row) in marks.Reach) {
+                Fill(col, row, Encounters.ArenaOverlayKind.ReachFill);
+            }
+            Fill(acting.X, acting.Y, Encounters.ArenaOverlayKind.Actor);
+            var enemies = Combat.Encounter.Enemies;
+            for (int i = 0; i < enemies.Count; i++) {
+                var foe = enemies[i];
+                if (foe == null || foe.IsDead) {
+                    continue;
+                }
+                bool thrust = System.Linq.Enumerable.Contains(marks.ThrustTargets, i);
+                bool swing = System.Linq.Enumerable.Contains(marks.SwingTargets, i);
+                // The swing mark sits inside the thrust's, so a foe that takes both shows both.
+                if (thrust) {
+                    Fill(foe.X, foe.Y, Encounters.ArenaOverlayKind.ThrustMark);
+                }
+                if (swing) {
+                    Fill(foe.X, foe.Y, Encounters.ArenaOverlayKind.SwingMark, inset: half / 3);
+                }
+                if (CursorCell is (int hc, int hr) && hc == foe.X && hr == foe.Y) {
+                    Fill(foe.X, foe.Y, Encounters.ArenaOverlayKind.Target, inset: half / 6);
+                }
+            }
+            if (CursorCell is (int cc, int cr)) {
+                Combatant under = Combat.CombatantAtCell(cc, cr);
+                int index = under == null ? -1 : enemies.IndexOf(under);
+                if (under == null || index >= 0) {
+                    var path = ForecastPath(index, cc, cr);
+                    if (path.Count > 1) {
+                        var points = new (long X, long Y)[path.Count];
+                        for (int k = 0; k < points.Length; k++) {
+                            points[k] = Point(path[k].Col, path[k].Row, 0, 0);
+                        }
+                        shapes.Add(new BoardShape(Encounters.ArenaOverlayKind.Path, points));
+                    }
+                }
+            }
+            return shapes;
+        }
+
         public List<(long X0, long Y0, long X1, long Y1, Encounters.ArenaOverlayKind Kind)>
             ArenaOverlaySegments() {
             var segments = new List<(long, long, long, long, Encounters.ArenaOverlayKind)>();

@@ -1602,6 +1602,8 @@ namespace BakAgain.World {
                     // the arena is drawn before the turn is decided.
                     _hotspots.ActingCellSegments);
 
+            AttachBoardMarks(_arenaRoot);
+
             // *** THE COLLAPSE PLAYS ONCE, ON THE BODY THAT HAS JUST APPEARED. *** A corpse is
             // rebuilt on every redraw, so the "already shown" flag lives on the combatant; without
             // it the body would fall over again on each turn.
@@ -2568,6 +2570,17 @@ namespace BakAgain.World {
         /// the fight keeps the full-window travel lens (TASK-972). The room probe stays on the original's
         /// lens either way: it decides which cells the fight may use, which is a rule.</summary>
         internal static bool ArenaUsesOriginalLens => !EnhancedCombatOn();
+
+        /// <summary>Enhanced combat only (TASK-972): the board's marks and the foe plates ride on the arena root.</summary>
+        internal Encounters.ArenaBoardMarks AttachBoardMarks(GameObject arenaRoot) {
+            if (!EnhancedCombatOn() || arenaRoot == null) {
+                return null;
+            }
+            var marks = arenaRoot.AddComponent<Encounters.ArenaBoardMarks>();
+            marks.Bind(() => _hotspots?.EnhancedBoardShapes(_combatLayout.MarkHalfCell),
+                () => _hotspots?.EnhancedFoePlates(), _combatLayout, 0f);
+            return marks;
+        }
 
         private static bool EnhancedCombatOn() => BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.Combat);
 

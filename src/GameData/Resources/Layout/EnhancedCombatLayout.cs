@@ -78,4 +78,22 @@ public sealed class EnhancedCombatLayout
 
     /// <summary>How long a press must be held to count as a long press, in seconds.</summary>
     public float LongPressSeconds { get; set; } = 0.5f;
+
+    // Board marks
+
+    /// <summary>A mark's half-width as a fraction of the cell, the original's combat marker (128 of 300).</summary>
+    public float MarkHalfCell { get; set; } = 128f / 300f;
+
+    /// <summary>A foe's letter plate: width and height, in cells.</summary>
+    public float PlateWidthCells { get; set; } = 0.55f;
+
+    public float PlateHeightCells { get; set; } = 0.4f;
+
+    /// <summary>How far above a foe's drawn top the plate floats, in cells.</summary>
+    public float PlateLiftCells { get; set; } = 0.15f;
+
+    /// <summary>The path's dots: spacing along the walk and size, in cells.</summary>
+    public float PathDotSpacingCells { get; set; } = 0.25f;
+
+    public float PathDotSizeCells { get; set; } = 0.07f;
 }

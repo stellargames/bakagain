@@ -225,6 +225,9 @@ public static class UiTemplates {
     public const string EnhancedCastHintPowerTouch = "port:template:enhanced_cast_hint_power_touch";
     public const string EnhancedCastPowerOf = "port:template:enhanced_cast_power_of";
 
+    /// <summary>A foe's plate on the enhanced combat board: how many of its kind the party has seen (TASK-972).</summary>
+    public const string EnhancedCombatSeen = "port:template:enhanced_combat_seen";
+
     /// <summary>The Enhanced cast screen's Cast and Back tablets, shown while a power is chosen, and the
     /// caster's two pools under their portrait.</summary>
     public const string EnhancedCastCast = "port:template:enhanced_cast_cast";
@@ -354,6 +357,7 @@ public static class UiTemplates {
         (EnhancedCastHintPower, _ => "Point at a lit gem for the power, then click it or Cast. Back returns to the spells."),
         (EnhancedCastHintPowerTouch, _ => "Slide along the lit gems for the power, then Cast. Back, or a tap off the ring, returns to the spells."),
         (EnhancedCastPowerOf, _ => "of {max}"),
+        (EnhancedCombatSeen, _ => "\u2212{count} seen"),
         (EnhancedCastCast, _ => "Cast"),
         (EnhancedCastBack, _ => "Back"),
         (EnhancedCastHealth, _ => "Health {current}/{max}"),
