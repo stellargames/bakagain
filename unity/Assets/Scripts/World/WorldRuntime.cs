@@ -1739,12 +1739,12 @@ namespace BakAgain.World {
         /// the fight is up, and the walking pose is restored wholesale by
         /// <see cref="ClearArena"/>.</para>
         /// </remarks>
-        private void PointCameraAtArena() {
+        internal void PointCameraAtArena() {
             if (_worldCamera == null || _gameSession == null) {
                 return;
             }
             bool underground = _zoneIsUnderground;
-            StartData start = _hotspots?.Start;
+            StartData start = _startForTest ?? _hotspots?.Start;
             if (!CombatArenaCamera.IsUsable(start, underground)) {
                 _logger?.LogDebug("No arena camera pose in START.DAT; leaving the view where it is.");
                 return;
@@ -1784,6 +1784,15 @@ namespace BakAgain.World {
         }
 
         private readonly GameData.Resources.Layout.EnhancedCombatLayout _combatLayout = new();
+        private StartData _startForTest;
+
+        internal void SetArenaCameraForTest(Camera camera, StartData start, bool underground) {
+            _worldCamera = camera;
+            _startForTest = start;
+            _zoneIsUnderground = underground;
+        }
+
+        internal bool HasArenaOrbit => _arenaOrbit != null;
         private BakAgain.World.Encounters.ArenaOrbitCamera _arenaOrbit;
 
         /// <summary>Enhanced combat turns the camera around the board; Classic keeps the original's fixed one.</summary>

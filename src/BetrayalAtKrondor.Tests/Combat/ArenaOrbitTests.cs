@@ -92,4 +92,14 @@ public class ArenaOrbitTests {
         o.Zoom(2);
         Assert.Equal(1000 * Layout.ZoomMin * 2, o.Distance, 2);
     }
+
+    [Fact]
+    public void AStartPitchOutsideTheLimitsIsClampedUpFront() {
+        var o = Make(pitch: 5);
+        Assert.Equal(Layout.PitchMinDegrees, o.PitchDegrees, 6);
+        o.Drag(10, 0);
+        Assert.Equal(Layout.PitchMinDegrees, o.PitchDegrees, 6);
+        o.Reset();
+        Assert.Equal(Layout.PitchMinDegrees, o.PitchDegrees, 6);
+    }
 }

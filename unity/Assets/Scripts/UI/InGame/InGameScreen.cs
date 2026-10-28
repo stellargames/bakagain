@@ -1665,11 +1665,18 @@ namespace BakAgain.UI.InGame {
         /// Enhanced free look (spec 2026-10-08 §4): a right-drag (a finger on touch) on the world turns
         /// the party's real heading and pitches the view. Off, or in a fight, it does nothing.
         /// </summary>
+        /// <summary>Enhanced combat: the look gesture orbits the arena camera around the board instead.</summary>
+        internal void TickCombatCamera(BakAgain.World.WorldRuntime world, System.Func<Vector2, bool> startsOnWorld) {
+            _combatCamera ??= new CombatCameraInput(_pointer, _enhancedLayout, _combatLayout);
+            _combatCamera.Tick(EnhancedCombatActive && world != null, startsOnWorld,
+                world != null ? world.OrbitArena : null, world != null ? world.ZoomArena : (System.Action<float>)null);
+        }
+
+        internal void SetPointerForTest(IPointer pointer) => _pointer = pointer;
+
         private void TickMouseLook(bool travelling) {
-            // Enhanced combat: the same gesture orbits the arena camera around the board instead.
-            var world = _resolver?.Resolve(typeof(BakAgain.World.WorldRuntime)) as BakAgain.World.WorldRuntime;
-            _combatCamera?.Tick(EnhancedCombatActive && world != null, StartsOnWorld, world != null ? world.OrbitArena : null,
-                world != null ? world.ZoomArena : (System.Action<float>)null);
+            TickCombatCamera(_resolver?.Resolve(typeof(BakAgain.World.WorldRuntime)) as BakAgain.World.WorldRuntime,
+                StartsOnWorld);
             bool lookOn = travelling && _movement != null && _gameSession != null
                 && GameOptions.IsOn(EnhancedFeature.MouseLook);
             Vector2 look = _look?.Tick(lookOn, StartsOnWorld) ?? Vector2.zero;

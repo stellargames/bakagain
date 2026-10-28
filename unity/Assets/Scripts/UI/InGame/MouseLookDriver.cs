@@ -22,9 +22,14 @@ namespace BakAgain.UI.InGame {
         private readonly System.Collections.Generic.HashSet<int> _seen = new System.Collections.Generic.HashSet<int>();
         private readonly System.Collections.Generic.HashSet<int> _seenNow = new System.Collections.Generic.HashSet<int>();
 
-        public MouseLookDriver(IPointer pointer, EnhancedTravelLayout layout) {
+        private readonly bool _primary;
+
+        /// <param name="primary">Mouse: look with the LEFT button instead of the right (Enhanced combat's
+        /// orbit takes both). Touch is unaffected.</param>
+        public MouseLookDriver(IPointer pointer, EnhancedTravelLayout layout, bool primary = false) {
             _pointer = pointer;
             _layout = layout;
+            _primary = primary;
         }
 
         public bool Dragging { get; private set; }
@@ -60,7 +65,7 @@ namespace BakAgain.UI.InGame {
             if (!_pointer.IsPresent) {
                 return TickFinger(startsOnWorld);
             }
-            IPointerButton button = _pointer.Secondary;
+            IPointerButton button = _primary ? _pointer.Primary : _pointer.Secondary;
             if (button.PressedThisFrame) {
                 _armed = startsOnWorld(_pointer.ScreenPosition);
                 _travelled = 0f;

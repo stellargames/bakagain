@@ -11,6 +11,7 @@ namespace BakAgain.UI.InGame {
     /// </summary>
     internal sealed class CombatCameraInput {
         private readonly MouseLookDriver _drag;
+        private readonly MouseLookDriver _dragLeft;   // mouse only: the left button orbits too
         private readonly IPointer _pointer;
         private readonly float _wheelStep;
         private float _pinch;
@@ -19,20 +20,26 @@ namespace BakAgain.UI.InGame {
             _pointer = pointer;
             _wheelStep = combat.WheelZoomStep;
             // One degree per pixel and no pitch damping: the orbit applies its own layout rate.
-            _drag = new MouseLookDriver(pointer, new EnhancedTravelLayout {
-                DragThresholdPx = travel.DragThresholdPx, DegreesPerPixel = 1f, PitchFraction = 1f });
+            var raw = new EnhancedTravelLayout {
+                DragThresholdPx = travel.DragThresholdPx, DegreesPerPixel = 1f, PitchFraction = 1f };
+            _drag = new MouseLookDriver(pointer, raw);
+            _dragLeft = new MouseLookDriver(pointer, raw, primary: true);
         }
 
-        public bool Dragging => _drag.Dragging;
+        public bool Dragging => _drag.Dragging || _dragLeft.Dragging;
 
         /// <summary>True for the click a drag's release would otherwise produce.</summary>
-        public bool ConsumeClick() => _drag.ConsumeClick();
+        public bool ConsumeClick() => _drag.ConsumeClick() | _dragLeft.ConsumeClick();
 
         /// <param name="orbit">Drag in pixels (x right, y up).</param>
         /// <param name="zoom">Distance factor: below 1 closer.</param>
         public void Tick(bool enabled, Func<Vector2, bool> startsOnWorld, Action<float, float> orbit, Action<float> zoom) {
             bool pinching = enabled && _pointer != null && _pointer.Fingers.Count >= 2;
             Vector2 d = _drag.Tick(enabled && !pinching, startsOnWorld);
+            // Touch has no left button: its finger is already followed by the driver above.
+            if (_pointer != null && _pointer.IsPresent) {
+                d += _dragLeft.Tick(enabled, startsOnWorld);
+            }
             if (d != Vector2.zero) {
                 orbit(d.x, d.y);
             }

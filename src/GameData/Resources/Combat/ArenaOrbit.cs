@@ -20,7 +20,8 @@ public sealed class ArenaOrbit {
         _layout = layout;
         _centre = boardCentre;
         _startYaw = YawDegrees = startYawDegrees;
-        _startPitch = PitchDegrees = startPitchDegrees;
+        // Clamped here, not only on Drag: an out-of-range start would otherwise jump on the first drag.
+        _startPitch = PitchDegrees = Math.Clamp(startPitchDegrees, layout.PitchMinDegrees, layout.PitchMaxDegrees);
         _startDistance = distance;
     }
 
