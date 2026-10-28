@@ -191,6 +191,8 @@ namespace BakAgain.UI.InGame {
         private IGameplayInput _gameplay;
         private ClassicMovementDriver _movementDriver;
         private MouseLookDriver _look;
+        private CombatCameraInput _combatCamera;
+        private readonly GameData.Resources.Layout.EnhancedCombatLayout _combatLayout = new();
         private bool _lookCursorHidden;
         private TravelLayerHost _travelHost;
 
@@ -395,6 +397,7 @@ namespace BakAgain.UI.InGame {
             _movementDriver = new ClassicMovementDriver(_document, movement, _gameplay, _pointer,
                 continuous: () => GameOptions.IsOn(EnhancedFeature.ContinuousMovement));
             _look = new MouseLookDriver(_pointer, _enhancedLayout);
+            _combatCamera = new CombatCameraInput(_pointer, _enhancedLayout, _combatLayout);
             // The world arrives after the REQ is built, so the button's first honest state is here.
             RefreshFollowRoadButton();
         }
@@ -1663,6 +1666,10 @@ namespace BakAgain.UI.InGame {
         /// the party's real heading and pitches the view. Off, or in a fight, it does nothing.
         /// </summary>
         private void TickMouseLook(bool travelling) {
+            // Enhanced combat: the same gesture orbits the arena camera around the board instead.
+            var world = _resolver?.Resolve(typeof(BakAgain.World.WorldRuntime)) as BakAgain.World.WorldRuntime;
+            _combatCamera?.Tick(EnhancedCombatActive && world != null, StartsOnWorld, world != null ? world.OrbitArena : null,
+                world != null ? world.ZoomArena : (System.Action<float>)null);
             bool lookOn = travelling && _movement != null && _gameSession != null
                 && GameOptions.IsOn(EnhancedFeature.MouseLook);
             Vector2 look = _look?.Tick(lookOn, StartsOnWorld) ?? Vector2.zero;
@@ -1744,7 +1751,8 @@ namespace BakAgain.UI.InGame {
 
         // Left-click / key dispatch.
         public void PrimaryAction(int menuEntryActionId) {
-            if (menuEntryActionId == ActionWorldViewport && _look != null && _look.ConsumeClick()) {
+            if (menuEntryActionId == ActionWorldViewport && ((_look != null && _look.ConsumeClick())
+                    || (_combatCamera != null && _combatCamera.ConsumeClick()))) {
                 return;   // the release of a touch look-drag
             }
             if (menuEntryActionId == ActionWorldViewport && !TakesViewportClick()) {
@@ -1863,7 +1871,8 @@ namespace BakAgain.UI.InGame {
         // its DDX help string (ids 223–232). The party portraits and world viewport have no
         // help text in the original, so they fall through.
         public async Awaitable SecondaryAction(int menuEntryActionId) {
-            if (menuEntryActionId == ActionWorldViewport && _look != null && _look.ConsumeClick()) {
+            if (menuEntryActionId == ActionWorldViewport && ((_look != null && _look.ConsumeClick())
+                    || (_combatCamera != null && _combatCamera.ConsumeClick()))) {
                 return;   // the release of a right-drag look
             }
             if (RefusedDuringAFight(menuEntryActionId)) {

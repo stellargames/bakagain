@@ -1,0 +1,95 @@
+namespace BetrayalAtKrondor.Tests.Combat;
+
+using GameData.Resources.Combat;
+using GameData.Resources.Layout;
+using Xunit;
+
+/// <summary>The Enhanced combat camera's orbit around the board's centre (TASK-972 phase 1).</summary>
+public class ArenaOrbitTests {
+    private static readonly EnhancedCombatLayout Layout = new();
+    private const int Cell = 300;
+
+    private static ArenaOrbit Make(double yaw = 0, double pitch = 45, double distance = 4000) =>
+        new(Layout, (1000, 2000), yaw, pitch, distance);
+
+    private static double Horizontal(ArenaOrbit o) {
+        var e = o.EyePosition();
+        return System.Math.Sqrt(((e.X - 1000) * (e.X - 1000)) + ((e.Y - 2000) * (e.Y - 2000)));
+    }
+
+    [Fact]
+    public void ADragTurnsAroundTheBoardCentre_TheDistanceStays() {
+        var o = Make();
+        var before = o.EyePosition();
+        o.Drag(100, 0);
+        var after = o.EyePosition();
+
+        Assert.NotEqual(before.X, after.X);
+        Assert.Equal(100 * Layout.OrbitDegreesPerPixel, o.YawDegrees, 6);
+        double Dist(ArenaOrbit x) {
+            var e = x.EyePosition();
+            return System.Math.Sqrt(((e.X - 1000) * (e.X - 1000)) + ((e.Y - 2000) * (e.Y - 2000)) + (e.Height * e.Height));
+        }
+        Assert.Equal(4000, Dist(o), 3);
+        Assert.Equal(4000 * System.Math.Cos(45 * System.Math.PI / 180), Horizontal(o), 3);
+    }
+
+    [Fact]
+    public void PitchIsClampedToTheLayoutLimits() {
+        var o = Make();
+        o.Drag(0, 100000);
+        Assert.Equal(Layout.PitchMaxDegrees, o.PitchDegrees, 6);
+        o.Drag(0, -100000);
+        Assert.Equal(Layout.PitchMinDegrees, o.PitchDegrees, 6);
+    }
+
+    [Fact]
+    public void UndergroundPivotsOnThePlayableRows() {
+        var (_, awayLow) = CombatArenaPlacement.CellOffset(0, 0, Cell);
+        var (_, awayLast) = CombatArenaPlacement.CellOffset(0, CombatGrid.UndergroundPlayableRows - 1, Cell);
+        var (_, awayTop) = CombatArenaPlacement.CellOffset(0, CombatGrid.Height - 1, Cell);
+
+        var under = ArenaOrbit.BoardCentre(Cell, underground: true);
+        var above = ArenaOrbit.BoardCentre(Cell, underground: false);
+
+        Assert.Equal((awayLow + awayLast) / 2.0, under.Y, 6);
+        Assert.Equal((awayLow + awayTop) / 2.0, above.Y, 6);
+        var (a0, _) = CombatArenaPlacement.CellOffset(0, 0, Cell);
+        var (a7, _) = CombatArenaPlacement.CellOffset(CombatGrid.Width - 1, 0, Cell);
+        Assert.Equal((a0 + a7) / 2.0, under.X, 6);
+    }
+
+    [Fact]
+    public void ResetReturnsToTheStartPose() {
+        var o = Make(10, 40, 3000);
+        o.Drag(300, 50);
+        o.Zoom(0.7);
+        o.TurnQuarter(1);
+        o.Reset();
+
+        Assert.Equal(10, o.YawDegrees, 6);
+        Assert.Equal(40, o.PitchDegrees, 6);
+        Assert.Equal(3000, o.Distance, 6);
+    }
+
+    [Fact]
+    public void TurnQuarterAddsNinetyDegrees() {
+        var o = Make(10);
+        o.TurnQuarter(1);
+        Assert.Equal(100, o.YawDegrees, 6);
+        o.TurnQuarter(-1);
+        o.TurnQuarter(-1);
+        Assert.Equal(-80, o.YawDegrees, 6);
+    }
+
+    [Fact]
+    public void ZoomIsClamped() {
+        var o = Make(distance: 1000);
+        o.Zoom(1000);
+        Assert.Equal(1000 * Layout.ZoomMax, o.Distance, 2);
+        o.Zoom(0.0001);
+        Assert.Equal(1000 * Layout.ZoomMin, o.Distance, 2);
+        o.Zoom(2);
+        Assert.Equal(1000 * Layout.ZoomMin * 2, o.Distance, 2);
+    }
+}

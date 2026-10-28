@@ -58,6 +58,9 @@ public sealed class EnhancedCombatLayout
     /// <summary>The highest pitch the camera may take, in degrees (tuned in the camera task).</summary>
     public float PitchMaxDegrees { get; set; } = 70f;
 
+    /// <summary>Zoom factor per mouse-wheel notch (the camera distance is multiplied or divided by it).</summary>
+    public float WheelZoomStep { get; set; } = 1.1f;
+
     /// <summary>The lowest zoom factor.</summary>
     public float ZoomMin { get; set; } = 0.6f;
 

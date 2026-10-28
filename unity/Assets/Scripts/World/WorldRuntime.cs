@@ -1710,6 +1710,7 @@ namespace BakAgain.World {
         /// Un-suspend FIRST or the restore is swallowed too.
         /// </remarks>
         private void RestoreWalkingCamera() {
+            _arenaOrbit = null;
             if (_partyMovement != null) {
                 _partyMovement.CameraSuspended = false;
                 _partyMovement.SyncToCamera();
@@ -1767,6 +1768,37 @@ namespace BakAgain.World {
             // Reusing the walking camera means we inherit the zone's, which halved the underground
             // arena on screen (TASK-604). RestoreWalkingCamera puts the zone's back.
             _worldCamera.fieldOfView = TravelFov(null, arena: ArenaUsesOriginalLens);
+
+            // Enhanced combat: the eye above is where the orbit STARTS; from here the camera turns
+            // around the board's centre. Kept on the runtime, not the arena: the arena's objects
+            // are destroyed and rebuilt on every redraw, the pose must survive that.
+            _arenaOrbit = null;
+            if (ArenaUsesOrbit && start.CombatGridCellSize > 0) {
+                var orbit = GameData.Resources.Combat.ArenaOrbit.From(_combatLayout,
+                    GameData.Resources.Combat.ArenaOrbit.BoardCentre(start.CombatGridCellSize, underground),
+                    0, 0, CombatArenaCamera.HeightFor(start, underground));
+                _arenaOrbit = new BakAgain.World.Encounters.ArenaOrbitCamera();
+                _arenaOrbit.Bind(_worldCamera, orbit, _gameSession.PositionX, _gameSession.PositionY, _gameSession.Rotation);
+                _arenaOrbit.Apply();
+            }
+        }
+
+        private readonly GameData.Resources.Layout.EnhancedCombatLayout _combatLayout = new();
+        private BakAgain.World.Encounters.ArenaOrbitCamera _arenaOrbit;
+
+        /// <summary>Enhanced combat turns the camera around the board; Classic keeps the original's fixed one.</summary>
+        internal static bool ArenaUsesOrbit => EnhancedCombatOn();
+
+        /// <summary>Drag the arena camera around the board (pixels). No-op outside an Enhanced fight.</summary>
+        public void OrbitArena(float dxPixels, float dyPixels) {
+            _arenaOrbit?.Orbit.Drag(dxPixels, dyPixels);
+            _arenaOrbit?.Apply();
+        }
+
+        /// <summary>Multiply the arena camera's distance (below 1 comes closer). No-op outside an Enhanced fight.</summary>
+        public void ZoomArena(float factor) {
+            _arenaOrbit?.Orbit.Zoom(factor);
+            _arenaOrbit?.Apply();
         }
 
         /// <summary>
