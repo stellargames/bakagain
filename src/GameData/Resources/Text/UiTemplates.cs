@@ -235,6 +235,9 @@ public static class UiTemplates {
     public const string EnhancedAvailNotACaster = "port:template:enhanced_avail_not_a_caster";
     public const string EnhancedAvailHeroDown = "port:template:enhanced_avail_hero_down";
     public const string EnhancedAvailRetreatForbidden = "port:template:enhanced_avail_retreat_forbidden";
+    public const string EnhancedAvailTerrain = "port:template:enhanced_avail_terrain";
+    public const string EnhancedAvailNoSkill = "port:template:enhanced_avail_no_skill";
+    public const string EnhancedAvailCannotNow = "port:template:enhanced_avail_cannot_now";
     public const string EnhancedAvailAutoRefused = "port:template:enhanced_avail_auto_refused";
     public const string EnhancedAvailNoHealCondition = "port:template:enhanced_avail_no_heal_condition";
 
@@ -385,6 +388,9 @@ public static class UiTemplates {
         (EnhancedAvailNotACaster, _ => "not a spellcaster"),
         (EnhancedAvailHeroDown, _ => "{name} is down"),
         (EnhancedAvailRetreatForbidden, _ => "no retreat from this fight"),
+        (EnhancedAvailTerrain, _ => "bad ground for {name}"),
+        (EnhancedAvailNoSkill, _ => "{name} has no crossbow skill"),
+        (EnhancedAvailCannotNow, _ => "{name} cannot now"),
         (EnhancedAvailAutoRefused, _ => "auto is refused here"),
         (EnhancedAvailNoHealCondition, _ => "no heal: {condition}"),
         (EnhancedLogThrust, _ => "{actor} thrusts at {target}: {result}"),

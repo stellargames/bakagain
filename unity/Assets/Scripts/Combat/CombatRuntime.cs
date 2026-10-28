@@ -630,11 +630,21 @@ namespace BakAgain.Combat {
         ///
         /// <para><b>Both halves are real.</b> Shooting was stubbed to false while the quiver count
         /// and the equipped weapon were out of reach from a <see cref="Combatant"/>; they are
-        /// reachable now and <see cref="CanShootNow"/> computes it.</para>
+        /// reachable now and <see cref="WhyNotShootNow"/> computes it.</para>
         /// </remarks>
         public (bool CanShoot, bool CanCast) CapabilitiesFor(Combatant actor) {
+            (CombatCapability.ShootRefusal shoot, CombatCapability.CastRefusal cast) = RefusalsFor(actor);
+            return (shoot == CombatCapability.ShootRefusal.None, cast == CombatCapability.CastRefusal.None);
+        }
+
+        /// <summary>
+        /// Why the actor cannot shoot / cast right now (None = can). The ONE evaluation behind
+        /// <see cref="CapabilitiesFor"/> and <see cref="AvailabilityFor"/>.
+        /// </summary>
+        private (CombatCapability.ShootRefusal Shoot, CombatCapability.CastRefusal Cast) RefusalsFor(
+            Combatant actor) {
             if (actor == null || Encounter == null) {
-                return (false, false);
+                return (CombatCapability.ShootRefusal.NoCrossbow, CombatCapability.CastRefusal.NotACaster);
             }
 
             // Opponents, not everyone: an ally beside you does not block your cast.
@@ -649,7 +659,7 @@ namespace BakAgain.Combat {
             int terrain = Grid != null ? (int)Grid.TerrainAt(actor.X, actor.Y) : 0;
             ActorStat[] stats = StatsFor(actor);
 
-            bool canCast = CombatCapability.CanCast(
+            CombatCapability.CastRefusal cast = CombatCapability.WhyNotCast(
                 terrain,
                 nearest,
                 CombatStat(actor, ActorAttribute.AccuracyCasting),
@@ -657,13 +667,13 @@ namespace BakAgain.Combat {
                 CombatCapability.ShippedHealthThresholds,
                 chapterEightWithoutRequiredItem: false);
 
-            return (CanShootNow(actor, terrain, nearest, stats), canCast);
+            return (WhyNotShootNow(actor, terrain, nearest), cast);
         }
 
         /// <summary>
-        /// Which stones the acting hero may press this turn, and why not. Built from the rules the
-        /// commands themselves apply (<see cref="CapabilitiesFor"/>, <see cref="ResolveRetreat"/>,
-        /// <see cref="CombatCommands.AutoResolveAllowed"/>, <see cref="RestAction.RecoveryAllowed"/>)
+        /// Which stones the acting hero may press this turn, and why not. Built from the same
+        /// refusals the commands apply (<see cref="RefusalsFor"/>, <see cref="ResolveRetreat"/>,
+        /// <see cref="CombatCommands.AutoResolveAllowed"/>, <see cref="RestAction.FirstBlockingCondition"/>)
         /// so this is the one place that explains them. Cast and Shoot share one slot in the original
         /// (<see cref="CombatMenuSlots.CapabilitySlot"/>); both are keyed so the HUD can show either.
         /// </summary>
@@ -679,35 +689,28 @@ namespace BakAgain.Combat {
             string name = NameInLog(acting, nameFoe: false);
             ActionAvailability Refuse(string key, params (string, object)[] args) =>
                 new(false, false, key, UiTemplates.Format(key, args));
+            ActionAvailability Named(string key) => Refuse(key, ("name", name));
 
-            // Capabilities. The permanent reason (no gear, no skill) outranks "step away".
-            (bool canShoot, bool canCast) = CapabilitiesFor(acting);
-            bool adjacent = !Encounter.Party.Contains(acting)
-                ? CombatCapability.NearestOpponent(acting.X, acting.Y, Encounter.Party) < 2
-                : CombatCapability.NearestOpponent(acting.X, acting.Y, Encounter.Enemies) < 2;
-            ActionAvailability adjacentRefusal = Refuse(UiTemplates.EnhancedAvailFoeAdjacent, ("name", name));
-
-            ActorStat[] stats = StatsFor(acting);
-            bool casterByNature = CombatStat(acting, ActorAttribute.AccuracyCasting) != 0
-                && StatValue(stats, ActorAttribute.Health) > 0;
-            result[CombatCommands.Command.Cast] = canCast ? ActionAvailability.On
-                : !casterByNature ? Refuse(UiTemplates.EnhancedAvailNotACaster)
-                : adjacent ? adjacentRefusal
-                : Refuse(UiTemplates.EnhancedAvailNotACaster);
-
-            RuntimeContainer pack = acting.IsPartyMember ? _session?.GetActorInventory(acting.ClassId) : null;
-            string shootKey = canShoot ? ""
-                : !EquippedGear.HasIntact(EquipmentSlots(pack), CombatCapability.RangedWeaponCategory)
-                    ? UiTemplates.EnhancedAvailNoCrossbow
-                : QuarrelInventory.Count(pack) == 0 ? UiTemplates.EnhancedAvailNoQuarrels
-                : "";
-            result[CombatCommands.Command.Shoot] = canShoot ? ActionAvailability.On
-                : shootKey.Length > 0 ? Refuse(shootKey)
-                : adjacent ? adjacentRefusal
-                : Refuse(UiTemplates.EnhancedAvailNoCrossbow);
+            (CombatCapability.ShootRefusal shoot, CombatCapability.CastRefusal cast) = RefusalsFor(acting);
+            result[CombatCommands.Command.Cast] = cast switch {
+                CombatCapability.CastRefusal.None => ActionAvailability.On,
+                CombatCapability.CastRefusal.FoeAdjacent => Named(UiTemplates.EnhancedAvailFoeAdjacent),
+                CombatCapability.CastRefusal.NotACaster => Refuse(UiTemplates.EnhancedAvailNotACaster),
+                CombatCapability.CastRefusal.NoHealth => Named(UiTemplates.EnhancedAvailHeroDown),
+                CombatCapability.CastRefusal.Terrain => Named(UiTemplates.EnhancedAvailTerrain),
+                _ => Named(UiTemplates.EnhancedAvailCannotNow),
+            };
+            result[CombatCommands.Command.Shoot] = shoot switch {
+                CombatCapability.ShootRefusal.None => ActionAvailability.On,
+                CombatCapability.ShootRefusal.FoeAdjacent => Named(UiTemplates.EnhancedAvailFoeAdjacent),
+                CombatCapability.ShootRefusal.NoQuarrels => Refuse(UiTemplates.EnhancedAvailNoQuarrels),
+                CombatCapability.ShootRefusal.NoCrossbow => Refuse(UiTemplates.EnhancedAvailNoCrossbow),
+                CombatCapability.ShootRefusal.NoSkill => Named(UiTemplates.EnhancedAvailNoSkill),
+                _ => Named(UiTemplates.EnhancedAvailTerrain),
+            };
 
             // Retreat: the dialog's rule — someone down, or the encounter forbids it.
-            Combatant down = Encounter.Party.Find(c => c.IsDead && c.IsPartyMember);
+            Combatant down = FirstPartyMemberDown();
             result[CombatCommands.Command.BackOrRetreat] = down != null
                 ? Refuse(UiTemplates.EnhancedAvailHeroDown, ("name", NameInLog(down, nameFoe: false)))
                 : !Encounter.EscapeAllowed ? Refuse(UiTemplates.EnhancedAvailRetreatForbidden)
@@ -718,24 +721,18 @@ namespace BakAgain.Combat {
                 : Refuse(UiTemplates.EnhancedAvailAutoRefused);
 
             // Rest always spends the turn; it only warns when the recovery would not apply.
-            System.Collections.Generic.IReadOnlyList<int> ranks = ConditionRanksOf(acting);
-            if (RestAction.RecoveryAllowed(ranks)) {
-                result[CombatCommands.Command.Rest] = ActionAvailability.On;
-            } else {
-                var condition = ActorCondition.Sick;
-                for (var i = 0; i < ranks.Count; i++) {
-                    if (i != (int)ActorCondition.Healing && ranks[i] != 0) {
-                        condition = (ActorCondition)i;
-                        break;
-                    }
-                }
-                result[CombatCommands.Command.Rest] = new ActionAvailability(true, true,
-                    UiTemplates.EnhancedAvailNoHealCondition,
+            ActorCondition? blocking = RestAction.FirstBlockingCondition(ConditionRanksOf(acting));
+            result[CombatCommands.Command.Rest] = blocking == null
+                ? ActionAvailability.On
+                : new ActionAvailability(true, true, UiTemplates.EnhancedAvailNoHealCondition,
                     UiTemplates.Format(UiTemplates.EnhancedAvailNoHealCondition,
-                        ("condition", GameData.Resources.Character.ActorLabels.ConditionName(condition))));
-            }
+                        ("condition", GameData.Resources.Character.ActorLabels.ConditionName(blocking.Value))));
             return result;
         }
+
+        /// <summary>The first real party member who is down, or null — what stops a retreat.</summary>
+        private Combatant FirstPartyMemberDown() =>
+            Encounter.Party.Find(c => c.IsDead && c.IsPartyMember);
 
         /// <summary>
         /// Whether the actor can take a ranged shot — ammunition, an intact crossbow, room, and the
@@ -748,12 +745,12 @@ namespace BakAgain.Combat {
         /// <see cref="CombatCapability.InnatelyMissileCreature"/> today, but the coincidence is the
         /// kind that starts working by accident later. Zero is passed instead.
         /// </remarks>
-        private bool CanShootNow(Combatant actor, int terrain, int nearest, ActorStat[] stats) {
+        private CombatCapability.ShootRefusal WhyNotShootNow(Combatant actor, int terrain, int nearest) {
             RuntimeContainer pack = actor.IsPartyMember
                 ? _session?.GetActorInventory(actor.ClassId)
                 : null;
 
-            return CombatCapability.CanShoot(
+            return CombatCapability.WhyNotShoot(
                 terrain,
                 nearest,
                 QuarrelInventory.Count(pack),
@@ -1939,15 +1936,8 @@ namespace BakAgain.Combat {
                 return new RetreatOutcome(false, CombatCommands.RetreatRefusedDialog);
             }
 
-            var anyPartyMemberDead = false;
-            var anySlotDown = false;
-            foreach (Combatant c in Encounter.Party) {
-                if (!c.IsDead) {
-                    continue;
-                }
-                anySlotDown = true;
-                anyPartyMemberDead |= c.IsPartyMember;
-            }
+            bool anyPartyMemberDead = FirstPartyMemberDown() != null;
+            bool anySlotDown = Encounter.Party.Exists(c => c.IsDead);
 
             int r = roll != null ? roll(100) : UnityEngine.Random.Range(0, 100);
             if (CombatCommands.EscapeRollPasses(anyPartyMemberDead, r, Encounter.EscapeAllowed)) {

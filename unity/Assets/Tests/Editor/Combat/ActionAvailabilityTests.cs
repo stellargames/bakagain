@@ -60,6 +60,14 @@ namespace BakAgain.Tests.Editor.Combat {
         }
 
         [Test]
+        public void ADownedCasterIsToldSoNotCalledANonCaster() {
+            (CombatRuntime runtime, CombatEncounter fight) = CombatRuntimeTests.FightWithEnemiesAt(
+                CombatRuntimeTests.StatBlock(health: 0), ((byte)7, (byte)0));
+            Assert.AreEqual(UiTemplates.EnhancedAvailHeroDown,
+                runtime.AvailabilityFor(fight.Party[0])[Command.Cast].ReasonKey);
+        }
+
+        [Test]
         public void RetreatSaysWhoIsDown() {
             (CombatRuntime runtime, CombatEncounter fight) =
                 CombatRuntimeTests.ArcherAgainst(((byte)7, (byte)0));
