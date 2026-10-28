@@ -28,7 +28,11 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
 
         internal static (HotspotService Service, Combatant Acting) PartyTurn(
             byte partyHealth = 99, bool underground = false, int enemies = 1, int roll = 99,
-            System.Func<bool> arenaBusy = null, BakAgain.UI.IDialogManager dialogs = null) {
+            System.Func<bool> arenaBusy = null, BakAgain.UI.IDialogManager dialogs = null,
+            System.Func<BakAgain.UI.Inventory.InventoryMenu> inventory = null,
+            System.Func<BakAgain.UI.Character.CharacterSheetScreen> sheet = null,
+            System.Func<BakAgain.UI.Combat.ShootMenu> shoot = null,
+            System.Action<GameSession> outfit = null, GameData.Resources.Object.ObjectInfoSet objects = null) {
             var session = new GameSession();
             session.SetActorStatsForTest(0, StatBlock(partyHealth));
             session.SetActiveParty(1, new byte[] { 0 });
@@ -38,8 +42,10 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
                 slots.Add((short)(400 + i));
             }
             session.SetEncounterRosterForTest((int)EncounterNumber, slots.ToArray());
+            outfit?.Invoke(session);
             var service = new HotspotService(null, null, session, dialogs, random: _ => roll,
-                setCombatMusic: _ => { }, resyncCamera: () => { }, arenaBusy: arenaBusy);
+                setCombatMusic: _ => { }, resyncCamera: () => { }, arenaBusy: arenaBusy,
+                inventoryMenuAccessor: inventory, characterSheetAccessor: sheet, shootMenuAccessor: shoot);
             service.SetZoneForTest(1,
                 byChunk: new Dictionary<(int x, int y), List<TileEventTrigger>> {
                     [(0, 0)] = new List<TileEventTrigger> { new TileEventTrigger {
@@ -48,7 +54,7 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
                 comb: new DefFamilyFile<DefCombEntry>("DEF_COMB.DAT", new List<DefRecord<DefCombEntry>> {
                     new DefRecord<DefCombEntry> { Status = 1, Payload = new DefCombEntry {
                         EncounterNumber = (uint)EncounterNumber } },
-                }), underground: underground,
+                }), underground: underground, objects: objects,
                 start: new GameData.Resources.Config.StartData("START.DAT") { CombatGridCellSize = 300 });
             Assert.IsTrue(service.StartCombat(new TileEventTrigger {
                 Type = TileEventType.Comb, EntryNumber = 0, StartX = 0, StartY = 0, EndX = 7, EndY = 7 }));

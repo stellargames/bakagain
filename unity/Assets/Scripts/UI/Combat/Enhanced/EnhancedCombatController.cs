@@ -420,6 +420,9 @@ namespace BakAgain.UI.Combat.Enhanced {
                         _hs.ResolveCombatTargetClick(slot, false, isPrimary: true);
                     }
                     break;
+                case ForecastAction.Pack:
+                    _hs.ShowCombatPack();   // not command 22: its Shift arm would open the turn-spending sheet
+                    break;
                 default:
                     Command c = CommandOf(a);
                     _hs.IssueCombatCommand(c, IdOf(c));

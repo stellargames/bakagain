@@ -505,6 +505,18 @@ using GameData.Resources.Scene;
         }
 
         /// <summary>
+        /// Enhanced combat's Pack stone (TASK-972): the acting hero's pack, always. Shift has no effect on
+        /// a stone; the sheet's one path is H or the medallion (<see cref="ShowCombatSheet"/>). Closing it
+        /// spends the turn as command 22's pack arm does.
+        /// </summary>
+        public void ShowCombatPack() {
+            Combatant acting = Combat?.Encounter?.Current;
+            if (acting != null && acting.IsPartyMember) {
+                OpenCombatInventory(acting);
+            }
+        }
+
+        /// <summary>
         /// A Classic pick is armed: a spell, shot, item, summon or decoy waits for its cell or target,
         /// so a click on the field must take the Classic path (Enhanced combat leaves those to it).
         /// </summary>

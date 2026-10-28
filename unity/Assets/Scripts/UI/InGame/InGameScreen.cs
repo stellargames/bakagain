@@ -928,6 +928,10 @@ namespace BakAgain.UI.InGame {
             _partyHeads?.Dispose(); _partyHeads = null;
             _effectCaption?.Dispose(); _effectCaption = null;
             _combatPanel?.Dispose(); _combatPanel = null;
+            if (_combatController != null && _combatHud != null) {
+                _combatController.Changed -= _combatHud.Invalidate;
+            }
+            _combatController = null;   // the world drops and rebuilds it with the HUD (Minor 5)
             _combatHud = null;
             _touchControls?.Dispose(); _touchControls = null;
             _touchTargeting = null;
@@ -1254,6 +1258,9 @@ namespace BakAgain.UI.InGame {
             // fight's service (the same instance until the zone's service changes).
             var controller = _combatHud.Hud != null ? _combatControllerFor?.Invoke(_combatHud.Hud, phone) : null;
             if (controller != _combatController && controller != null) {
+                if (_combatController != null) {
+                    _combatController.Changed -= _combatHud.Invalidate;
+                }
                 controller.Changed += _combatHud.Invalidate;
             }
             _combatController = controller ?? _combatController;

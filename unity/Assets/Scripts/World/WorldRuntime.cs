@@ -1727,6 +1727,7 @@ namespace BakAgain.World {
         /// </remarks>
         private void RestoreWalkingCamera() {
             _arenaOrbit = null;
+            DropCombatController();
             if (_partyMovement != null) {
                 _partyMovement.CameraSuspended = false;
                 _partyMovement.SyncToCamera();
@@ -2573,6 +2574,7 @@ namespace BakAgain.World {
                 _partyMovement.Relocated -= ApplyTileResidency;
             }
             _partyMovement = null;
+            DropCombatController();
             _hotspots = null;
 
             ReleaseUndergroundBackdrop();
@@ -2682,6 +2684,20 @@ namespace BakAgain.World {
             }
             return _combatController;
         }
+
+        // The fight (or the zone's service) is over: the controller lets go of the service's events and the
+        // HUD, and the next Enhanced turn builds a fresh one (final review Minor 5).
+        private void DropCombatController() {
+            _combatController?.Dispose();
+            _combatController = null;
+        }
+
+        internal void SetHotspotsForTest(Hotspots.HotspotService hotspots) => _hotspots = hotspots;
+
+        internal BakAgain.UI.Combat.Enhanced.EnhancedCombatController CombatControllerForTest(
+            BakAgain.UI.Combat.Enhanced.ICombatHud hud, bool phone) => CombatControllerFor(hud, phone);
+
+        internal void LeaveFightForTest() => RestoreWalkingCamera();
 
         private bool WindowLens => BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.FullScreenTravel)
             && _worldCamera != null && _worldCamera.targetTexture != null && _worldCamera.aspect > 0f;

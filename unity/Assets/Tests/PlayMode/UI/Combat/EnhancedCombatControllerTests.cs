@@ -324,6 +324,49 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
         }
 
         [Test]
+        public void ShiftHasNoEffectOnThePackStone_ItOpensThePack() {
+            // Final review Minor 4: command 22's Shift arm opened the turn-spending sheet from the stone.
+            int packs = 0, sheets = 0;
+            var (s, hero) = EnhancedBoardMarksTests.PartyTurn(roll: 0, arenaBusy: () => _busy,
+                dialogs: new BakAgain.Tests.PlayMode.UI.Inventory.NoOpDialogs(),
+                inventory: () => { packs++; return null; }, sheet: () => { sheets++; return null; });
+            var c = new EnhancedCombatController(s, s.Combat, null, new EnhancedCombatLayout());
+            BakAgain.UI.InputCore.IGameplayInput keys = BakAgain.UI.InputCore.InputDriver.Gameplay;
+            BakAgain.UI.InputCore.InputDriver.Gameplay = new BakAgain.UI.InputCore.FakeGameplayInput { LeftShift = true };
+            try {
+                Assert.IsTrue(BakAgain.UI.InputCore.InputDriver.ShiftHeld, "the fixture: Shift is down");
+                c.Stone(CombatCommands.Command.CharacterScreen, fromKey: false);
+                Assert.AreEqual(1, packs, "the stone click opens the pack");
+                c.Key(0x19);
+                c.Key(0x19);
+                Assert.AreEqual(2, packs, "P, P opens the pack too");
+                Assert.AreEqual(0, sheets, "Shift never turns a stone into the sheet");
+            } finally {
+                BakAgain.UI.InputCore.InputDriver.Gameplay = keys;
+            }
+        }
+
+        [Test]
+        public void TheFightsEndDropsTheController_ADroppedOneNoLongerTouchesTheService() {
+            // Final review Minor 5: a stale phone controller kept clearing the service's cursor on every
+            // handoff of a later fight, and kept the old service alive.
+            var (s, _, _) = Fight();
+            var world = new BakAgain.World.WorldRuntime(null,
+                new GameSession { PositionX = 50000, PositionY = 60000 }, null, null, null, null, null);
+            world.SetHotspotsForTest(s);
+            var hud = new DesktopCombatHud(HudModels.Root(out _go), new EnhancedCombatLayout());
+            EnhancedCombatController c = world.CombatControllerForTest(hud, phone: true);
+            Assert.AreSame(c, world.CombatControllerForTest(hud, phone: true), "kept for the fight");
+
+            world.LeaveFightForTest();
+            s.CursorCell = (2, 2);
+            s.IssueCombatCommand(CombatCommands.Command.Defend, CombatCommands.DefendId);   // a handoff
+
+            Assert.AreEqual(((int, int)?)(2, 2), s.CursorCell, "the dropped controller let go of the service's events");
+            Assert.AreNotSame(c, world.CombatControllerForTest(hud, phone: true), "the next fight builds a fresh one");
+        }
+
+        [Test]
         public void ClassicCombatClicksUnchanged() {
             GameOptions.SetFeature(EnhancedFeature.Combat, false);
             var (s, hero, c) = Fight(roll: 99);
