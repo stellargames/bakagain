@@ -86,6 +86,35 @@ namespace BakAgain.Tests.PlayMode.World {
         }
 
         [UnityTest]
+        public IEnumerator APlateFacesTheCameraItIsGiven_NotCameraMain() {
+            var (service, _) = EnhancedBoardMarksTests.PartyTurn();
+            _root = new GameObject("arena");
+            var marker = new GameObject("foe");
+            marker.transform.SetParent(_root.transform, false);
+            marker.AddComponent<ArenaCombatant>().RosterSlot = 0;
+            var quad = new Mesh();
+            quad.SetVertices(new[] { new Vector3(-1, 0, 0), new Vector3(-1, 2, 0), new Vector3(1, 2, 0), new Vector3(1, 0, 0) });
+            quad.SetTriangles(new[] { 0, 1, 2, 0, 2, 3 }, 0);
+            marker.AddComponent<MeshFilter>().sharedMesh = quad;
+            var camGo = new GameObject("WorldCamera");   // untagged, as the game's own: Camera.main never finds it
+            try {
+                Camera cam = camGo.AddComponent<Camera>();
+                cam.transform.rotation = Quaternion.Euler(40f, 180f, 0f);
+                var marks = _root.AddComponent<ArenaBoardMarks>();
+                marks.Bind(() => service.EnhancedBoardShapes(128f / 300f), service.EnhancedFoePlates,
+                    new GameData.Resources.Layout.EnhancedCombatLayout(), 3f, () => cam);
+                yield return null;
+                yield return null;
+                GameObject plate = marks.PlateOf(0);
+                Assert.IsNotNull(plate);
+                Assert.AreEqual(1f, Vector3.Dot(plate.transform.forward, cam.transform.forward), 1e-3f,
+                    "the plate turns with the world camera, so its letter reads the right way round");
+            } finally {
+                Object.Destroy(camGo);
+            }
+        }
+
+        [UnityTest]
         public IEnumerator APathWithTheSameLengthAndStartButAnotherEndRedraws_AndRefreshesDoNotLeak() {
             var paths = new System.Collections.Generic.List<(long X, long Y)[]> {
                 new[] { (0L, 0L), (300L, 0L), (600L, 0L) },

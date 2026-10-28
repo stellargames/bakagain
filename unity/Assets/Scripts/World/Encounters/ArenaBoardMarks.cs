@@ -45,7 +45,9 @@ namespace BakAgain.World.Encounters {
         }
 
         public void Bind(Func<List<HotspotService.BoardShape>> shapes,
-            Func<List<HotspotService.FoePlate>> plates, EnhancedCombatLayout layout, float unitsPerCell) {
+            Func<List<HotspotService.FoePlate>> plates, EnhancedCombatLayout layout, float unitsPerCell,
+            Func<Camera> camera = null) {
+            _camera = camera;
             _shapes = shapes;
             _plates = plates;
             _layout = layout;
@@ -86,8 +88,12 @@ namespace BakAgain.World.Encounters {
             }
         }
 
+        // The world camera: the game owns a dedicated one and Camera.main is null in a fight, which left
+        // every plate unrotated and read mirrored from the opening pose (seen live, task 11).
+        private Func<Camera> _camera;
+
         private void LateUpdate() {
-            Camera cam = Camera.main;
+            Camera cam = _camera?.Invoke() ?? Camera.main;
             if (cam == null) {
                 return;
             }
