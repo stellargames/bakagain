@@ -1812,6 +1812,77 @@ using GameData.Resources.Scene;
             if (acting == null || acting.IsDead || !acting.IsPartyMember || Combat.Grid == null) {
                 return GameData.Resources.Combat.BoardMarks.Empty;
             }
+            // ~200 dry-run walks: computed once per change of what they read, shared by the shapes,
+            // the plates and the HUD poll (final review I-2).
+            int inputs = EnhancedBoardInputs();
+            if (_boardMarks != null && inputs == _boardMarksInputs) {
+                return _boardMarks;
+            }
+            BoardMarksComputed++;
+            _boardMarksInputs = inputs;
+            _boardMarks = ComputeEnhancedBoardMarks(acting);
+            return _boardMarks;
+        }
+
+        private GameData.Resources.Combat.BoardMarks _boardMarks;
+        private int _boardMarksInputs;
+
+        /// <summary>How many times the board marks were actually computed (not served from the cache); for tests.</summary>
+        internal int BoardMarksComputed { get; private set; }
+
+        /// <summary>
+        /// A hash of everything the enhanced board's marks, shapes and plates read: who acts, every
+        /// combatant's cell, speed, pools and death, the grid's occupancy and terrain, the cursor cell, the
+        /// round, the arena's anchor and the damage seen per foe. Equal hashes mean nothing to redraw.
+        /// </summary>
+        /// <remarks>ponytail: a 32-bit hash, so a collision would keep one stale frame until the next change;
+        /// compare the inputs field by field if that is ever seen.</remarks>
+        public int EnhancedBoardInputs() {
+            var h = new System.HashCode();
+            var encounter = Combat?.Encounter;
+            h.Add(System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(encounter?.Current));
+            h.Add(System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(Combat?.Grid));
+            h.Add(CursorCell);
+            h.Add(Combat?.Log?.Round ?? -1);
+            if (_session != null) {
+                h.Add(_session.PositionX);
+                h.Add(_session.PositionY);
+                h.Add(_session.Rotation);
+            }
+            if (encounter != null) {
+                foreach (Combatant c in encounter.Party) {
+                    AddCombatant(ref h, c);
+                }
+                for (int i = 0; i < encounter.Enemies.Count; i++) {
+                    AddCombatant(ref h, encounter.Enemies[i]);
+                    h.Add(Combat.Knowledge.Seen(i));
+                }
+            }
+            if (Combat?.Grid is { } grid) {
+                for (int y = 0; y < GameData.Resources.Combat.CombatGrid.Height; y++) {
+                    for (int x = 0; x < GameData.Resources.Combat.CombatGrid.Width; x++) {
+                        h.Add(grid.IsOccupied(x, y));
+                        h.Add(grid.TerrainAt(x, y));
+                    }
+                }
+            }
+            return h.ToHashCode();
+
+            static void AddCombatant(ref System.HashCode h, Combatant c) {
+                if (c == null) {
+                    h.Add(-1);
+                    return;
+                }
+                h.Add(c.X);
+                h.Add(c.Y);
+                h.Add(c.Speed);
+                h.Add(c.Health);
+                h.Add(c.Stamina);
+                h.Add(c.IsDead);
+            }
+        }
+
+        private GameData.Resources.Combat.BoardMarks ComputeEnhancedBoardMarks(Combatant acting) {
             var reach = new HashSet<(int Col, int Row)>();
             for (int y = 0; y < GameData.Resources.Combat.CombatGrid.Height; y++) {
                 for (int x = 0; x < GameData.Resources.Combat.CombatGrid.Width; x++) {

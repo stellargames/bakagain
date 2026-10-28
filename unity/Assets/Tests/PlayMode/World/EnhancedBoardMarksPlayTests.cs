@@ -61,9 +61,15 @@ namespace BakAgain.Tests.PlayMode.World {
             marker.AddComponent<MeshFilter>().sharedMesh = quad;
 
             var marks = _root.AddComponent<ArenaBoardMarks>();
-            marks.Bind(() => service.EnhancedBoardShapes(128f / 300f), service.EnhancedFoePlates,
+            marks.Bind(() => service.EnhancedBoardShapes(128f / 300f), service.EnhancedFoePlates, service.EnhancedBoardInputs,
                 new GameData.Resources.Layout.EnhancedCombatLayout(), 3f);
             yield return null;
+
+            int rebuilds = marks.Rebuilds;
+            for (int frame = 0; frame < 5; frame++) {
+                yield return null;
+            }
+            Assert.AreEqual(rebuilds, marks.Rebuilds, "unchanged inputs: no rebuild frame after frame (I-2)");
 
             var kinds = marks.DrawnKinds().ToList();
             CollectionAssert.IsSubsetOf(new[] { "ReachFill", "Actor", "ThrustMark", "SwingMark", "Target", "Path" }.Take(5), kinds);
@@ -101,7 +107,7 @@ namespace BakAgain.Tests.PlayMode.World {
                 Camera cam = camGo.AddComponent<Camera>();
                 cam.transform.rotation = Quaternion.Euler(40f, 180f, 0f);
                 var marks = _root.AddComponent<ArenaBoardMarks>();
-                marks.Bind(() => service.EnhancedBoardShapes(128f / 300f), service.EnhancedFoePlates,
+                marks.Bind(() => service.EnhancedBoardShapes(128f / 300f), service.EnhancedFoePlates, service.EnhancedBoardInputs,
                     new GameData.Resources.Layout.EnhancedCombatLayout(), 3f, () => cam);
                 yield return null;
                 yield return null;
@@ -124,7 +130,7 @@ namespace BakAgain.Tests.PlayMode.World {
             for (int round = 0; round < 3; round++) {
                 marks.Bind(() => new System.Collections.Generic.List<BakAgain.World.Hotspots.HotspotService.BoardShape> {
                     new BakAgain.World.Hotspots.HotspotService.BoardShape(ArenaOverlayKind.Path, paths[0]) },
-                    () => null, new GameData.Resources.Layout.EnhancedCombatLayout(), 3f);
+                    () => null, () => paths[0].GetHashCode(), new GameData.Resources.Layout.EnhancedCombatLayout(), 3f);
                 yield return null;
             }
             yield return null;
@@ -141,7 +147,7 @@ namespace BakAgain.Tests.PlayMode.World {
                 first = now;
             }
             for (int round = 0; round < 3; round++) {
-                marks.Bind(() => null, () => null, new GameData.Resources.Layout.EnhancedCombatLayout(), 3f);
+                marks.Bind(() => null, () => null, () => 0, new GameData.Resources.Layout.EnhancedCombatLayout(), 3f);
                 yield return null;
             }
             yield return null;

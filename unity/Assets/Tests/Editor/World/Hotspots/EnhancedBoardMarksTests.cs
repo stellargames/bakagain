@@ -76,6 +76,32 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
         }
 
         [Test]
+        public void TheMarksAreComputedOncePerChangeOfWhatTheyRead() {
+            // Final review I-2: the shapes, the plates and the HUD poll all ask every frame; ~200 dry-run
+            // walks must run once per change, not once per ask.
+            var (s, acting) = PartyTurn();
+            Place(s, acting, (3, 3), 2, (0, 6, 6));
+            for (int frame = 0; frame < 10; frame++) {
+                s.EnhancedBoardMarks();
+                s.EnhancedBoardShapes(0.4f);
+                s.EnhancedFoePlates();
+            }
+            Assert.AreEqual(1, s.BoardMarksComputed, "ten frames, nothing changed: one computation");
+
+            Place(s, acting, (3, 4), 2, (0, 6, 6));
+            Assert.IsTrue(s.EnhancedBoardMarks().Reach.Contains((3, 6)), "the move is seen");
+            Assert.AreEqual(2, s.BoardMarksComputed);
+
+            s.CursorCell = (1, 1);
+            s.EnhancedBoardMarks();
+            s.Combat.Grid.SetOccupied(2, 2, true);
+            Assert.IsFalse(s.EnhancedBoardMarks().Reach.Contains((2, 2)), "an occupied cell drops out of reach");
+            s.Combat.Encounter.Enemies[0].Health = 0;
+            s.EnhancedBoardMarks();
+            Assert.AreEqual(5, s.BoardMarksComputed, "the cursor, the grid and a foe's pool each recompute");
+        }
+
+        [Test]
         public void ReachIsEveryCellTheActorCanWalkTo() {
             var (s, acting) = PartyTurn();
             Place(s, acting, (3, 3), 2, (0, 6, 6));

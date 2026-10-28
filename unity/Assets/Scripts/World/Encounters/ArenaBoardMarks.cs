@@ -13,8 +13,8 @@ namespace BakAgain.World.Encounters {
     /// </summary>
     /// <remarks>
     /// <b>Nothing is kept on the arena's GameObjects.</b> The arena is rebuilt on every combat redraw, so
-    /// this component rides on the root, asks the model what to draw every frame and rebuilds its meshes
-    /// only when the answer changed. Plates face the camera, which the player can orbit to any angle.
+    /// this component rides on the root, checks a hash of the model's inputs every frame, and asks for the
+    /// shapes and plates (and rebuilds its meshes) only when that hash changed. Plates face the camera, which the player can orbit to any angle.
     /// </remarks>
     public sealed class ArenaBoardMarks : MonoBehaviour {
         private const float GroundLift = 0.06f;
@@ -28,11 +28,17 @@ namespace BakAgain.World.Encounters {
         private Func<List<HotspotService.FoePlate>> _plates;
         private EnhancedCombatLayout _layout;
         private float _unitsPerCell = WorldUnitsPerCellDefault;
+        private Func<int> _inputs;
         private Material _material;
-        private string _shapeKey = "";
         private readonly List<GameObject> _meshes = new();
         private readonly Dictionary<int, GameObject> _plateObjects = new();
-        private string _plateKey = "";
+        private readonly List<ArenaCombatant> _markers = new();
+        private bool _drawn;
+        private int _drawnInputs;
+        private int _drawnMarkers;
+
+        /// <summary>How many times the marks were rebuilt; for tests.</summary>
+        internal int Rebuilds { get; private set; }
 
         /// <summary>The plate of the foe at this roster index, or null.</summary>
         public GameObject PlateOf(int index) => _plateObjects.TryGetValue(index, out GameObject p) ? p : null;
@@ -44,10 +50,14 @@ namespace BakAgain.World.Encounters {
             }
         }
 
+        /// <param name="inputs">A hash of everything the shapes and plates read; they are asked for, and
+        /// rebuilt, only when it changes (<see cref="HotspotService.EnhancedBoardInputs"/>).</param>
         public void Bind(Func<List<HotspotService.BoardShape>> shapes,
-            Func<List<HotspotService.FoePlate>> plates, EnhancedCombatLayout layout, float unitsPerCell,
-            Func<Camera> camera = null) {
+            Func<List<HotspotService.FoePlate>> plates, Func<int> inputs, EnhancedCombatLayout layout,
+            float unitsPerCell, Func<Camera> camera = null) {
             _camera = camera;
+            _inputs = inputs;
+            _drawn = false;
             _shapes = shapes;
             _plates = plates;
             _layout = layout;
@@ -64,6 +74,16 @@ namespace BakAgain.World.Encounters {
             if (_shapes == null || _layout == null) {
                 return;
             }
+            // Markers appear a redraw after the model, so the plates also wait on them.
+            GetComponentsInChildren(_markers);
+            int inputs = _inputs?.Invoke() ?? 0;
+            if (_drawn && inputs == _drawnInputs && _markers.Count == _drawnMarkers) {
+                return;
+            }
+            _drawn = true;
+            _drawnInputs = inputs;
+            _drawnMarkers = _markers.Count;
+            Rebuilds++;
             RefreshShapes();
             RefreshPlates();
         }
@@ -115,18 +135,6 @@ namespace BakAgain.World.Encounters {
 
         private void RefreshShapes() {
             List<HotspotService.BoardShape> shapes = _shapes() ?? new List<HotspotService.BoardShape>();
-            var key = new System.Text.StringBuilder();
-            foreach (HotspotService.BoardShape s in shapes) {
-                key.Append((int)s.Kind).Append(':');
-                foreach ((long x, long y) in s.Points) {
-                    key.Append(x).Append(',').Append(y).Append(' ');
-                }
-                key.Append(';');
-            }
-            if (key.ToString() == _shapeKey) {
-                return;
-            }
-            _shapeKey = key.ToString();
             DestroyWithMesh(_meshes);
             _meshes.Clear();
 
@@ -204,22 +212,10 @@ namespace BakAgain.World.Encounters {
         /// </summary>
         private void RefreshPlates() {
             List<HotspotService.FoePlate> plates = _plates?.Invoke() ?? new List<HotspotService.FoePlate>();
-            var key = new System.Text.StringBuilder();
-            foreach (HotspotService.FoePlate p in plates) {
-                key.Append(p.Index).Append(p.Letter).Append(p.Thrust ? 't' : '-').Append(p.Swing ? 's' : '-')
-                    .Append(p.Hovered ? 'h' : '-').Append(p.Seen).Append(';');
-            }
-            // Markers appear a redraw after the model, so the plates also wait on them.
-            ArenaCombatant[] markers = GetComponentsInChildren<ArenaCombatant>();
-            key.Append(markers.Length);
-            if (key.ToString() == _plateKey) {
-                return;
-            }
-            _plateKey = key.ToString();
             DestroyWithMesh(_plateObjects.Values);
             _plateObjects.Clear();
             foreach (HotspotService.FoePlate p in plates) {
-                foreach (ArenaCombatant m in markers) {
+                foreach (ArenaCombatant m in _markers) {
                     if (!m.PartyMember && m.RosterSlot == p.Index) {
                         _plateObjects[p.Index] = BuildPlate(p, BillboardSprite.DrawnTopCentre(m.transform));
                         break;

@@ -2626,7 +2626,8 @@ namespace BakAgain.World {
             }
             var marks = arenaRoot.AddComponent<Encounters.ArenaBoardMarks>();
             marks.Bind(() => _hotspots?.EnhancedBoardShapes(_combatLayout.MarkHalfCell),
-                () => _hotspots?.EnhancedFoePlates(), _combatLayout, 0f, () => _worldCamera);
+                () => _hotspots?.EnhancedFoePlates(), () => _hotspots?.EnhancedBoardInputs() ?? 0,
+                _combatLayout, 0f, () => _worldCamera);
             return marks;
         }
 
