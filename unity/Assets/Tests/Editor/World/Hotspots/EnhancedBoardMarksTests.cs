@@ -33,10 +33,12 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
             System.Func<BakAgain.UI.Character.CharacterSheetScreen> sheet = null,
             System.Func<BakAgain.UI.Combat.ShootMenu> shoot = null,
             System.Action<GameSession> outfit = null, GameData.Resources.Object.ObjectInfoSet objects = null,
-            System.Func<BakAgain.UI.Combat.CombatMenu> combatMenu = null) {
+            System.Func<BakAgain.UI.Combat.CombatMenu> combatMenu = null, int partySize = 1) {
             var session = new GameSession();
-            session.SetActorStatsForTest(0, StatBlock(partyHealth));
-            session.SetActiveParty(1, new byte[] { 0 });
+            for (int m = 0; m < partySize; m++) {
+                session.SetActorStatsForTest(m, StatBlock(partyHealth));
+            }
+            session.SetActiveParty((byte)partySize, partySize == 1 ? new byte[] { 0 } : new byte[] { 0, 1 });
             var slots = new List<short>();
             for (short i = 0; i < enemies; i++) {
                 session.SetRosterActorForTest((short)(400 + i), StatBlock(40), 12, gridX: 5, gridY: (byte)(5 + i));

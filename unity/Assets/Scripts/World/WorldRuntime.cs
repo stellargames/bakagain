@@ -2713,7 +2713,7 @@ namespace BakAgain.World {
             if (_combatController == null || _combatController.Hud != hud || _combatController.Service != _hotspots) {
                 _combatController?.Dispose();
                 _combatController = new BakAgain.UI.Combat.Enhanced.EnhancedCombatController(
-                    _hotspots, _hotspots.Combat, hud, _combatLayout, _gameSession, phone);
+                    _hotspots, _hotspots.Combat, hud, _combatLayout, _gameSession, phone, EnhancedCombatOn);
                 BakAgain.UI.Combat.CombatMenu menu = ResolveCombatMenu();
                 if (menu != null) {
                     menu.KeyIntercept = key => EnhancedCombatOn() && (_combatController?.Key(key) ?? false);

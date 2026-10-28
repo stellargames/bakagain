@@ -45,15 +45,16 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
         }
 
         // The hero at (4,5); foe A beside him at (5,5), foe B (when asked for) far away at (7,1).
-        private (HotspotService S, Combatant Hero, EnhancedCombatController C) Fight(bool phone = false, int enemies = 1, int roll = 0) {
+        private (HotspotService S, Combatant Hero, EnhancedCombatController C) Fight(bool phone = false, int enemies = 1, int roll = 0,
+            System.Func<bool> enhancedTurn = null, int partySize = 1) {
             var (s, hero) = EnhancedBoardMarksTests.PartyTurn(enemies: enemies, roll: roll, arenaBusy: () => _busy,
-                dialogs: new BakAgain.Tests.PlayMode.UI.Inventory.NoOpDialogs());
+                dialogs: new BakAgain.Tests.PlayMode.UI.Inventory.NoOpDialogs(), partySize: partySize);
             if (enemies > 1) {
                 EnhancedBoardMarksTests.Place(s, hero, (4, 5), 5, (0, 5, 5), (1, 7, 1));
             } else {
                 EnhancedBoardMarksTests.Place(s, hero, (4, 5), 5, (0, 5, 5));
             }
-            return (s, hero, new EnhancedCombatController(s, s.Combat, null, new EnhancedCombatLayout(), null, phone));
+            return (s, hero, new EnhancedCombatController(s, s.Combat, null, new EnhancedCombatLayout(), null, phone, enhancedTurn));
         }
 
         private static int Pool(Combatant c) => c.Health + c.Stamina;
@@ -386,37 +387,134 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
                 "with the pick gone the pointer still on A forecasts again, without moving");
         }
 
-        // Owner's phone test, 2026-10-28, item 11: a foe picked before the cast screen is the spell's target;
-        // the cast still goes through the Classic pick's own click.
-        [Test]
-        public void AFoePickedBeforeTheCastScreen_IsTheSpellsTarget_NoSecondPick() {
-            var (s, hero, c) = Fight(phone: true);
+        // Owner's phone test, 2026-10-28, item 11: the foe the HUD shows chosen when Cast is pressed is the
+        // spell's target; the cast still goes through the Classic pick's own click, and only after the cast
+        // screen's Committed handler has returned (it is raised before the screen pops -- review I4).
+        [UnityTest]
+        public IEnumerator AFoeChosenWhenCastIsPressed_IsTheSpellsTarget_AfterTheScreenHasClosed() {
+            var (s, hero, c) = CasterFight(phone: true);
             PointAtFoe(s, c, 0);
             c.Primary(false);
-            Assert.AreEqual(0, c.Current()?.TargetSlot, "A is picked");
+            Assert.AreEqual(0, c.Current()?.TargetSlot, "A is chosen");
 
-            s.ArmSpellForTest(LivingActorSpell(), 0, 5);   // what the cast screen's commit does
+            c.Stone(CombatCommands.Command.Cast, fromKey: false);
+            s.CommitCombatSpellForTest(LivingActorSpell(), 0, 5);   // the cast screen's Committed, the real handler
+            Assert.IsTrue(s.CombatPickPending, "not answered inside the screen's Committed handler");
+            Assert.IsFalse(Spent(hero));
 
+            yield return null;
+            yield return null;
             Assert.IsFalse(s.CombatPickPending, "the pick was answered with A, as a tap on A would");
             Assert.IsTrue(Spent(hero), "the spell was cast");
         }
 
-        [Test]
-        public void WithNoFoePicked_TheArmedSpellAsksForItsTarget_ByName() {
-            var (s, hero, c) = Fight(phone: true);
-            s.ArmSpellForTest(LivingActorSpell(), 0, 5);
+        [UnityTest]
+        public IEnumerator ACastScreenBackedOutOf_LeavesNoHiddenTarget() {
+            // Review I1: tap A, Cast, back out of the screen: nothing is shown chosen, so the next cast asks.
+            var (s, hero, c) = CasterFight(phone: true);
+            PointAtFoe(s, c, 0);
+            c.Primary(false);
+            c.Stone(CombatCommands.Command.Cast, fromKey: false);   // ... and the screen is cancelled: no commit
+            Assert.IsNull(c.Current(), "nothing is shown chosen any more");
 
-            Assert.IsTrue(s.CombatPickPending, "the pick waits");
+            c.Stone(CombatCommands.Command.Cast, fromKey: false);
+            s.CommitCombatSpellForTest(LivingActorSpell(), 0, 5);
+            yield return null;
+            yield return null;
+            Assert.IsTrue(s.CombatPickPending, "no hidden A: the pick waits");
             Assert.IsFalse(Spent(hero));
             Assert.AreEqual("Skyfire: choose a target", c.Model(2).Sentence);
         }
 
-        private static GameData.Resources.Spells.Spell LivingActorSpell() => new("S") {
-            Name = "Skyfire",
-            TargetingType = System.Linq.Enumerable.First(System.Linq.Enumerable.Range(0, 9),
-                t => GameData.Resources.Spells.SpellTargetingRules.AimOf(t)
-                    == GameData.Resources.Spells.SpellTargetingRules.Aim.LivingActor),
-        };
+        [UnityTest]
+        public IEnumerator ADesktopHoverIsNotAPick_TheCastAsks() {
+            var (s, hero, c) = CasterFight(phone: false);
+            PointAtFoe(s, c, 0);   // a hover forecasts A
+            Assert.AreEqual(0, c.Current()?.TargetSlot);
+            c.Stone(CombatCommands.Command.Cast, fromKey: false);
+            s.CommitCombatSpellForTest(LivingActorSpell(), 0, 5);
+            yield return null;
+            yield return null;
+            Assert.IsTrue(s.CombatPickPending, "the hover chose nothing: the pick waits for the click");
+            Assert.IsFalse(Spent(hero));
+        }
+
+        [UnityTest]
+        public IEnumerator InAClassicTurn_TheControllerNeitherAnswersAPick_NorPreselects() {
+            // Review I2: the controller lives for the fight; a turn played Classic must be untouched.
+            bool enhanced = true;
+            var (s, hero, c) = CasterFight(phone: true, enhancedTurn: () => enhanced);
+            PointAtFoe(s, c, 0);
+            c.Primary(false);
+            c.Stone(CombatCommands.Command.Cast, fromKey: false);
+            enhanced = false;   // the option switched off: this turn is Classic from here
+            s.CommitCombatSpellForTest(LivingActorSpell(), 0, 5);
+            yield return null;
+            yield return null;
+            Assert.IsTrue(s.CombatPickPending, "the Classic pick waits for its own click");
+            Assert.IsFalse(Spent(hero));
+
+            s.IssueCombatCommand(CombatCommands.Command.Escape, CombatCommands.EscapeId);
+            s.IssueCombatCommand(CombatCommands.Command.Defend, CombatCommands.DefendId);
+            yield return NextPartyTurn(s);
+            Assert.IsNull(c.Current(), "a Classic turn opens on no remembered target");
+            Assert.IsNull(s.CursorCell, "and marks nothing on the board");
+        }
+
+        [UnityTest]
+        public IEnumerator ASpellTheChosenFoeCannotTake_StaysArmed_AndAsksByName() {
+            var (s, hero, c) = CasterFight(phone: true);
+            PointAtFoe(s, c, 0);
+            c.Primary(false);
+            c.Stone(CombatCommands.Command.Cast, fromKey: false);
+            s.CommitCombatSpellForTest(SpellAimedAt(GameData.Resources.Spells.SpellTargetingRules.Aim.ClearGround, "Mad God's Rage"), 0, 5);
+            yield return null;
+            yield return null;
+            Assert.IsTrue(s.CombatPickPending, "a ground spell refuses a foe's cell: the pick stays armed");
+            Assert.IsFalse(Spent(hero));
+            Assert.AreEqual("Mad God's Rage: choose a target", c.Model(2).Sentence);
+        }
+
+        // A caster with no foe beside it: A two cells away, so the Cast stone is lit (COMBAT.C capability, nearest >= 2).
+        private (HotspotService S, Combatant Hero, EnhancedCombatController C) CasterFight(bool phone,
+            System.Func<bool> enhancedTurn = null) {
+            var (s, hero, c) = Fight(phone: phone, enhancedTurn: enhancedTurn);
+            EnhancedBoardMarksTests.Place(s, hero, (4, 5), 5, (0, 6, 5));
+            Assert.IsTrue(s.Combat.CapabilitiesFor(hero).CanCast, "the fixture: Cast is lit");
+            return (s, hero, c);
+        }
+
+        private static GameData.Resources.Spells.Spell SpellAimedAt(GameData.Resources.Spells.SpellTargetingRules.Aim aim, string name) =>
+            new("S") {
+                Name = name,
+                TargetingType = System.Linq.Enumerable.First(System.Linq.Enumerable.Range(0, 9),
+                    t => GameData.Resources.Spells.SpellTargetingRules.AimOf(t) == aim),
+            };
+
+        [UnityTest]
+        public IEnumerator AHeroWhoNeverTargeted_OpensOnThePartysLastTarget() {
+            // Review M3: the party fallback through the real handoff, with two heroes.
+            var (s, owyn, c) = Fight(phone: true, enemies: 2, partySize: 2);
+            PointAtFoe(s, c, 0);
+            c.Primary(false);
+            c.Confirm();
+            Assert.IsTrue(Spent(owyn), "the first hero thrust at A");
+            for (int turn = 0; turn < 8; turn++) {
+                yield return NextPartyTurn(s);
+                Combatant now = s.Combat.Encounter.Current;
+                if (now != owyn) {
+                    Assert.AreEqual(ForecastAction.Thrust, c.Current()?.Action, "the other hero opens on a forecast");
+                    Assert.AreEqual(0, c.Current().TargetSlot, "on A, the party's last target");
+                    Assert.IsTrue(now.CanAct(strict: true), "nothing committed");
+                    yield break;
+                }
+                s.IssueCombatCommand(CombatCommands.Command.Defend, CombatCommands.DefendId);
+            }
+            Assert.Fail("the second hero never got a turn");
+        }
+
+        private static GameData.Resources.Spells.Spell LivingActorSpell() =>
+            SpellAimedAt(GameData.Resources.Spells.SpellTargetingRules.Aim.LivingActor, "Skyfire");
 
         [Test]
         public void ShiftHasNoEffectOnThePackStone_ItOpensThePack() {

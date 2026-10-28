@@ -565,6 +565,19 @@ using GameData.Resources.Scene;
         internal void ArmSpellForTest(GameData.Resources.Spells.Spell record, int spellId, int power) =>
             ArmCombatSpell(record, spellId, power);
 
+        /// <summary>The cast screen's Committed as the screen raises it, before it pops, with this record as
+        /// its CommittedSpell: the real handler, without standing a cast screen up.</summary>
+        internal void CommitCombatSpellForTest(GameData.Resources.Spells.Spell record, int spellId, int power) {
+            _committedSpellForTest = record;
+            try {
+                OnCombatSpellCommitted(spellId, power, 0);
+            } finally {
+                _committedSpellForTest = null;
+            }
+        }
+
+        private GameData.Resources.Spells.Spell _committedSpellForTest;
+
         /// <summary>One monster's paced turn, as the advance runs it.</summary>
         internal Cysharp.Threading.Tasks.UniTask RunEnemyTurnPacedForTest(Combatant monster) =>
             RunEnemyTurnPacedAsync(monster, EnemyAi());
@@ -3270,7 +3283,6 @@ using GameData.Resources.Scene;
             _pendingCombatMode = GameData.Resources.Combat.CombatCommandOutcome.PendingMode.TargetSelection;
             _logger?.LogDebug($"Shoot menu: quarrel kind {quarrelKind} (id {actionId}) selected; "
                 + "click a target on the field to fire.");
-            CombatPickArmed?.Invoke();
         }
 
         /// <summary>
@@ -4826,7 +4838,7 @@ using GameData.Resources.Scene;
             // mode set with no spell to cast. ResolveCombatTargetClick then refuses every click and
             // returns WITHOUT disarming, so the fight wedges — the player is stuck in a targeting
             // mode that can never resolve and whose only exit (the shoot menu's Back) is not up.
-            GameData.Resources.Spells.Spell record = _castScreenAccessor?.Invoke()?.CommittedSpell;
+            GameData.Resources.Spells.Spell record = _committedSpellForTest ?? _castScreenAccessor?.Invoke()?.CommittedSpell;
             if (record == null) {
                 _logger?.LogDebug($"Combat cast: spell {spellNumber} committed with no catalogue "
                     + "record; not arming target selection.");
@@ -4858,9 +4870,11 @@ using GameData.Resources.Scene;
         }
 
         /// <summary>
-        /// A spell or a quarrel was chosen and the field now waits for its target -- the Enhanced
-        /// controller hands it the foe the player had already picked (owner's phone test, 2026-10-28).
+        /// A spell was chosen and the field now waits for its target -- the Enhanced controller hands it the
+        /// foe the player had already picked (owner's phone test, 2026-10-28).
         /// </summary>
+        /// <remarks>Not raised for a quarrel: in the original choosing one only records it, the target click
+        /// shoots, and the kind can be changed until then (COMBAT.C ~2018-2046, OnQuarrelChosen).</remarks>
         public event Action CombatPickArmed;
 
         /// <summary>What an armed pick is for, for the "choose a target" prompt: the spell's name, the
