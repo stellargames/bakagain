@@ -661,6 +661,83 @@ namespace BakAgain.Combat {
         }
 
         /// <summary>
+        /// Which stones the acting hero may press this turn, and why not. Built from the rules the
+        /// commands themselves apply (<see cref="CapabilitiesFor"/>, <see cref="ResolveRetreat"/>,
+        /// <see cref="CombatCommands.AutoResolveAllowed"/>, <see cref="RestAction.RecoveryAllowed"/>)
+        /// so this is the one place that explains them. Cast and Shoot share one slot in the original
+        /// (<see cref="CombatMenuSlots.CapabilitySlot"/>); both are keyed so the HUD can show either.
+        /// </summary>
+        public System.Collections.Generic.IReadOnlyDictionary<CombatCommands.Command, ActionAvailability>
+            AvailabilityFor(Combatant acting) {
+            var result = new System.Collections.Generic.Dictionary<CombatCommands.Command, ActionAvailability> {
+                [CombatCommands.Command.Defend] = ActionAvailability.On,
+                [CombatCommands.Command.CharacterScreen] = ActionAvailability.On,
+            };
+            if (acting == null || Encounter == null) {
+                return result;
+            }
+            string name = NameInLog(acting, nameFoe: false);
+            ActionAvailability Refuse(string key, params (string, object)[] args) =>
+                new(false, false, key, UiTemplates.Format(key, args));
+
+            // Capabilities. The permanent reason (no gear, no skill) outranks "step away".
+            (bool canShoot, bool canCast) = CapabilitiesFor(acting);
+            bool adjacent = !Encounter.Party.Contains(acting)
+                ? CombatCapability.NearestOpponent(acting.X, acting.Y, Encounter.Party) < 2
+                : CombatCapability.NearestOpponent(acting.X, acting.Y, Encounter.Enemies) < 2;
+            ActionAvailability adjacentRefusal = Refuse(UiTemplates.EnhancedAvailFoeAdjacent, ("name", name));
+
+            ActorStat[] stats = StatsFor(acting);
+            bool casterByNature = CombatStat(acting, ActorAttribute.AccuracyCasting) != 0
+                && StatValue(stats, ActorAttribute.Health) > 0;
+            result[CombatCommands.Command.Cast] = canCast ? ActionAvailability.On
+                : !casterByNature ? Refuse(UiTemplates.EnhancedAvailNotACaster)
+                : adjacent ? adjacentRefusal
+                : Refuse(UiTemplates.EnhancedAvailNotACaster);
+
+            RuntimeContainer pack = acting.IsPartyMember ? _session?.GetActorInventory(acting.ClassId) : null;
+            string shootKey = canShoot ? ""
+                : !EquippedGear.HasIntact(EquipmentSlots(pack), CombatCapability.RangedWeaponCategory)
+                    ? UiTemplates.EnhancedAvailNoCrossbow
+                : QuarrelInventory.Count(pack) == 0 ? UiTemplates.EnhancedAvailNoQuarrels
+                : "";
+            result[CombatCommands.Command.Shoot] = canShoot ? ActionAvailability.On
+                : shootKey.Length > 0 ? Refuse(shootKey)
+                : adjacent ? adjacentRefusal
+                : Refuse(UiTemplates.EnhancedAvailNoCrossbow);
+
+            // Retreat: the dialog's rule — someone down, or the encounter forbids it.
+            Combatant down = Encounter.Party.Find(c => c.IsDead && c.IsPartyMember);
+            result[CombatCommands.Command.BackOrRetreat] = down != null
+                ? Refuse(UiTemplates.EnhancedAvailHeroDown, ("name", NameInLog(down, nameFoe: false)))
+                : !Encounter.EscapeAllowed ? Refuse(UiTemplates.EnhancedAvailRetreatForbidden)
+                : ActionAvailability.On;
+
+            result[CombatCommands.Command.AutoResolve] = CombatCommands.AutoResolveAllowed(Encounter.HasObjective)
+                ? ActionAvailability.On
+                : Refuse(UiTemplates.EnhancedAvailAutoRefused);
+
+            // Rest always spends the turn; it only warns when the recovery would not apply.
+            System.Collections.Generic.IReadOnlyList<int> ranks = ConditionRanksOf(acting);
+            if (RestAction.RecoveryAllowed(ranks)) {
+                result[CombatCommands.Command.Rest] = ActionAvailability.On;
+            } else {
+                var condition = ActorCondition.Sick;
+                for (var i = 0; i < ranks.Count; i++) {
+                    if (i != (int)ActorCondition.Healing && ranks[i] != 0) {
+                        condition = (ActorCondition)i;
+                        break;
+                    }
+                }
+                result[CombatCommands.Command.Rest] = new ActionAvailability(true, true,
+                    UiTemplates.EnhancedAvailNoHealCondition,
+                    UiTemplates.Format(UiTemplates.EnhancedAvailNoHealCondition,
+                        ("condition", GameData.Resources.Character.ActorLabels.ConditionName(condition))));
+            }
+            return result;
+        }
+
+        /// <summary>
         /// Whether the actor can take a ranged shot — ammunition, an intact crossbow, room, and the
         /// skill to use it.
         /// </summary>

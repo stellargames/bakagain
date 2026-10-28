@@ -228,6 +228,16 @@ public static class UiTemplates {
     /// <summary>A foe's plate on the enhanced combat board: how many of its kind the party has seen (TASK-972).</summary>
     public const string EnhancedCombatSeen = "port:template:enhanced_combat_seen";
 
+    /// <summary>Why a combat stone is greyed (or warned) this turn (TASK-972): {name} is the hero, {condition} the affliction.</summary>
+    public const string EnhancedAvailFoeAdjacent = "port:template:enhanced_avail_foe_adjacent";
+    public const string EnhancedAvailNoQuarrels = "port:template:enhanced_avail_no_quarrels";
+    public const string EnhancedAvailNoCrossbow = "port:template:enhanced_avail_no_crossbow";
+    public const string EnhancedAvailNotACaster = "port:template:enhanced_avail_not_a_caster";
+    public const string EnhancedAvailHeroDown = "port:template:enhanced_avail_hero_down";
+    public const string EnhancedAvailRetreatForbidden = "port:template:enhanced_avail_retreat_forbidden";
+    public const string EnhancedAvailAutoRefused = "port:template:enhanced_avail_auto_refused";
+    public const string EnhancedAvailNoHealCondition = "port:template:enhanced_avail_no_heal_condition";
+
     /// <summary>The Enhanced fight log's lines: an action's verb with actor and target, and its result (TASK-972).</summary>
     public const string EnhancedLogThrust = "port:template:enhanced_log_thrust";
     public const string EnhancedLogSwing = "port:template:enhanced_log_swing";
@@ -369,6 +379,14 @@ public static class UiTemplates {
         (EnhancedCastHintPowerTouch, _ => "Slide along the lit gems for the power, then Cast. Back, or a tap off the ring, returns to the spells."),
         (EnhancedCastPowerOf, _ => "of {max}"),
         (EnhancedCombatSeen, _ => "\u2212{count} seen"),
+        (EnhancedAvailFoeAdjacent, _ => "foe beside {name}"),
+        (EnhancedAvailNoQuarrels, _ => "no quarrels"),
+        (EnhancedAvailNoCrossbow, _ => "no crossbow"),
+        (EnhancedAvailNotACaster, _ => "not a spellcaster"),
+        (EnhancedAvailHeroDown, _ => "{name} is down"),
+        (EnhancedAvailRetreatForbidden, _ => "no retreat from this fight"),
+        (EnhancedAvailAutoRefused, _ => "auto is refused here"),
+        (EnhancedAvailNoHealCondition, _ => "no heal: {condition}"),
         (EnhancedLogThrust, _ => "{actor} thrusts at {target}: {result}"),
         (EnhancedLogSwing, _ => "{actor} swings at {target}: {result}"),
         (EnhancedLogShoot, _ => "{actor} shoots {target}: {result}"),
