@@ -14,8 +14,18 @@ namespace BakAgain.World.Encounters {
         private Camera _camera;
         private ArenaOrbit _orbit;
         private int _partyX, _partyY, _rotation;
+        private float _bottom, _top = 1f;
 
         public ArenaOrbit Orbit => _orbit;
+
+        /// <summary>
+        /// The screen band the board is framed into, as viewport fractions from the bottom (the HUD covers the
+        /// rest): the board's centre is drawn at the band's middle instead of the screen's.
+        /// </summary>
+        public void FrameInto(float bottom, float top) {
+            _bottom = bottom;
+            _top = top;
+        }
 
         public void Bind(Camera camera, ArenaOrbit orbit, int partyX = 0, int partyY = 0, int rotation = 0) {
             _camera = camera;
@@ -34,6 +44,40 @@ namespace BakAgain.World.Encounters {
             Vector3 target = ToWorld(_orbit.Centre.X, _orbit.Centre.Y, 0);
             _camera.transform.position = eyePos;
             _camera.transform.rotation = Quaternion.LookRotation(target - eyePos, Vector3.up);
+            // Look below the centre by the angle that puts it at the band's middle (NDC bottom + top - 1).
+            float lift = _bottom + _top - 1f;
+            if (lift != 0f) {
+                float degrees = Mathf.Atan(lift * Mathf.Tan(_camera.fieldOfView * 0.5f * Mathf.Deg2Rad)) * Mathf.Rad2Deg;
+                _camera.transform.rotation *= Quaternion.Euler(degrees, 0f, 0f);
+            }
+        }
+
+        /// <summary>
+        /// The smallest distance at which every one of <paramref name="corners"/> (board frame, ground level)
+        /// lands inside the framed band less the margins, the pitch and yaw being <paramref name="make"/>'s.
+        /// Bisection: farther always shrinks the board toward the band's middle.
+        /// </summary>
+        public double FitDistance(System.Func<double, ArenaOrbit> make, (double X, double Y)[] corners,
+            float marginX, float marginY) {
+            ArenaOrbit keep = _orbit;
+            double near = 100, far = 200000;
+            for (int i = 0; i < 40; i++) {
+                double mid = (near + far) / 2;
+                _orbit = make(mid);
+                Apply();
+                bool fits = true;
+                foreach (var c in corners) {
+                    Vector3 v = _camera.WorldToViewportPoint(ToWorld(c.X, c.Y, 0));
+                    fits &= v.z > 0 && v.x >= marginX && v.x <= 1 - marginX && v.y >= _bottom + marginY && v.y <= _top - marginY;
+                }
+                if (fits) {
+                    far = mid;
+                } else {
+                    near = mid;
+                }
+            }
+            _orbit = keep;
+            return far;
         }
 
         private Vector3 ToWorld(double across, double away, double height) {

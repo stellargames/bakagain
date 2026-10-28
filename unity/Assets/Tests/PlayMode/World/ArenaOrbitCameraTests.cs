@@ -174,8 +174,10 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.Greater(Vector3.Distance(start, moved), 0.1f, "a drag past the threshold moves the camera");
             Assert.AreEqual(horizontal, Horizontal(moved, centre), 0.05f, $"around the centre: the radius stays (start {start} moved {moved} centre {centre})");
             Assert.AreEqual(height, moved.y, 0.05f, "pitch unchanged by a sideways drag");
-            Assert.AreEqual(1f, Vector3.Dot(cam.transform.forward,
-                (new Vector3(centre.x, 0, centre.z) - moved).normalized), 1e-3f, "still looking at the centre");
+            Vector3 seen = cam.WorldToViewportPoint(new Vector3(centre.x, 0, centre.z));
+            var layout = new EnhancedCombatLayout();
+            Assert.AreEqual(0.5f, seen.x, 1e-3f, "still looking at the centre");
+            Assert.AreEqual((layout.BandHeight + 1f) / 2f, seen.y, 1e-3f, "drawn at the middle of the space above the band");
 
             float before = Vector3.Distance(moved, new Vector3(centre.x, 0, centre.z));
             _pointer.Scroll = new Vector2(0, 120);
@@ -220,6 +222,34 @@ namespace BakAgain.Tests.PlayMode.World {
             tap.Tick(true, _ => true, (x, y) => _orbits++, f => { });
             Assert.AreEqual(1, _orbits);
             Assert.IsTrue(tap.ConsumeClick(), "the release of a left drag is not a click");
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TheOpeningPoseFramesTheWholeBoardInTheSpaceTheHudLeaves(bool phone) {
+            bool? keep = InGameScreen.PhoneHudOverride;
+            InGameScreen.PhoneHudOverride = phone;
+            try {
+                BakAgain.World.WorldRuntime world = NewWorld(combat: true, out Camera cam);
+                world.PointCameraAtArena();
+                var layout = new EnhancedCombatLayout();
+                float bottom = phone ? layout.PhoneBoardBottom : layout.BandHeight, top = phone ? layout.PhoneBoardTop : 1f;
+                float slack = 1f;
+                foreach (var c in ArenaOrbit.BoardCorners(Cell, underground: false)) {
+                    Vector3 v = cam.WorldToViewportPoint(BakAgain.World.Converters.BakCoordinateConverter.ConvertPosition(
+                        PartyX + (int)System.Math.Round(c.X), PartyY + (int)System.Math.Round(c.Y), 0));
+                    Assert.Greater(v.z, 0f);
+                    Assert.That(v.x, Is.InRange(layout.BoardFitMarginX - 1e-3f, 1f - layout.BoardFitMarginX + 1e-3f), $"corner {c} across");
+                    Assert.That(v.y, Is.InRange(bottom, top), $"corner {c} clear of the HUD");
+                    slack = Mathf.Min(slack, Mathf.Min(Mathf.Min(v.x - layout.BoardFitMarginX, 1f - layout.BoardFitMarginX - v.x),
+                        Mathf.Min(v.y - bottom - layout.BoardFitMarginY, top - layout.BoardFitMarginY - v.y)));
+                }
+                Assert.AreEqual(0f, slack, 0.005f, "as close as the board fits: one corner sits on its margin");
+                var orbit = world.ArenaOrbitForTest;
+                Assert.AreEqual(layout.StartPitchDegrees, orbit.PitchDegrees, 1e-6, "opens at the layout's pitch");
+            } finally {
+                InGameScreen.PhoneHudOverride = keep;
+            }
         }
 
         [Test]

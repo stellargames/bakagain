@@ -95,8 +95,26 @@ public sealed class EnhancedCombatLayout
     /// <summary>The lowest pitch the camera may take, in degrees.</summary>
     public float PitchMinDegrees { get; set; } = 25f;
 
-    /// <summary>The highest pitch the camera may take, in degrees (tuned in the camera task).</summary>
-    public float PitchMaxDegrees { get; set; } = 70f;
+    /// <summary>The highest pitch the camera may take, in degrees. Above about 55 the standing figures
+    /// (billboards) are seen from too far above and flatten into cards (tuned live, TASK-972 task 11).</summary>
+    public float PitchMaxDegrees { get; set; } = 55f;
+
+    /// <summary>The pitch a fight opens at, in degrees: the whole board in view, the figures still upright.</summary>
+    public float StartPitchDegrees { get; set; } = 40f;
+
+    /// <summary>The phone's free area for the board, bottom and top as fractions of the screen height
+    /// from the bottom: between the bottom docks (action grid, peek, Confirm) and the top row.</summary>
+    public float PhoneBoardBottom { get; set; } = 0.30f;
+
+    public float PhoneBoardTop { get; set; } = 0.86f;
+
+    /// <summary>Space kept between the framed board and its free area's top and bottom edges, as a fraction of
+    /// the screen height.</summary>
+    public float BoardFitMarginY { get; set; } = 0.02f;
+
+    /// <summary>Space kept between the framed board and the screen's sides, as a fraction of the screen width
+    /// (the phone's side buttons and foe chips sit there).</summary>
+    public float BoardFitMarginX { get; set; } = 0.1f;
 
     /// <summary>Zoom factor per mouse-wheel notch (the camera distance is multiplied or divided by it).</summary>
     public float WheelZoomStep { get; set; } = 1.1f;

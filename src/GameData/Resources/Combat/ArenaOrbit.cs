@@ -38,6 +38,15 @@ public sealed class ArenaOrbit {
         return ((a0 + a1) / 2.0, (y0 + y1) / 2.0);
     }
 
+    /// <summary>The outer corners of the PLAYABLE cells, in the same frame as <see cref="BoardCentre"/>.</summary>
+    public static (double X, double Y)[] BoardCorners(int cellSize, bool underground) {
+        int lastRow = (underground ? CombatGrid.UndergroundPlayableRows : CombatGrid.Height) - 1;
+        double half = cellSize / 2.0;
+        (int a0, int y0) = CombatArenaPlacement.CellOffset(0, 0, cellSize);
+        (int a1, int y1) = CombatArenaPlacement.CellOffset(CombatGrid.Width - 1, lastRow, cellSize);
+        return new[] { (a0 - half, y0 - half), (a1 + half, y0 - half), (a0 - half, y1 + half), (a1 + half, y1 + half) };
+    }
+
     /// <summary>The pose that sees the board from an eye at (<paramref name="eyeX"/>, <paramref name="eyeY"/>,
     /// <paramref name="eyeHeight"/>), the board's centre taken at ground level.</summary>
     public static ArenaOrbit From(EnhancedCombatLayout layout, (double X, double Y) boardCentre,

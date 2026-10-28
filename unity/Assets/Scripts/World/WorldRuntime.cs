@@ -1790,11 +1790,20 @@ namespace BakAgain.World {
             // are destroyed and rebuilt on every redraw, the pose must survive that.
             _arenaOrbit = null;
             if (ArenaUsesOrbit && start.CombatGridCellSize > 0) {
-                var orbit = GameData.Resources.Combat.ArenaOrbit.From(_combatLayout,
-                    GameData.Resources.Combat.ArenaOrbit.BoardCentre(start.CombatGridCellSize, underground),
-                    0, 0, CombatArenaCamera.HeightFor(start, underground));
+                // Framed from behind the party at the layout's start pitch, as close as the whole board
+                // still fits the screen the HUD leaves free: above the desktop band, between the phone's docks.
+                var centre = GameData.Resources.Combat.ArenaOrbit.BoardCentre(start.CombatGridCellSize, underground);
+                GameData.Resources.Combat.ArenaOrbit Make(double distance) => new(_combatLayout, centre,
+                    0, _combatLayout.StartPitchDegrees, distance);
+                bool phone = BakAgain.UI.InGame.InGameScreen.PhoneHudOverride ?? Application.isMobilePlatform;
                 _arenaOrbit = new BakAgain.World.Encounters.ArenaOrbitCamera();
-                _arenaOrbit.Bind(_worldCamera, orbit, _gameSession.PositionX, _gameSession.PositionY, _gameSession.Rotation);
+                _arenaOrbit.FrameInto(phone ? _combatLayout.PhoneBoardBottom : _combatLayout.BandHeight,
+                    phone ? _combatLayout.PhoneBoardTop : 1f);
+                _arenaOrbit.Bind(_worldCamera, null, _gameSession.PositionX, _gameSession.PositionY, _gameSession.Rotation);
+                double distance = _arenaOrbit.FitDistance(Make,
+                    GameData.Resources.Combat.ArenaOrbit.BoardCorners(start.CombatGridCellSize, underground),
+                    _combatLayout.BoardFitMarginX, _combatLayout.BoardFitMarginY);
+                _arenaOrbit.Bind(_worldCamera, Make(distance), _gameSession.PositionX, _gameSession.PositionY, _gameSession.Rotation);
                 _arenaOrbit.Apply();
             }
         }
@@ -1809,6 +1818,7 @@ namespace BakAgain.World {
         }
 
         internal bool HasArenaOrbit => _arenaOrbit != null;
+        internal GameData.Resources.Combat.ArenaOrbit ArenaOrbitForTest => _arenaOrbit?.Orbit;
         private BakAgain.World.Encounters.ArenaOrbitCamera _arenaOrbit;
 
         /// <summary>Enhanced combat turns the camera around the board; Classic keeps the original's fixed one.</summary>

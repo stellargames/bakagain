@@ -60,6 +60,23 @@ public class ArenaOrbitTests {
     }
 
     [Fact]
+    public void BoardCornersAreTheOuterEdgesOfThePlayableCells() {
+        var (a0, y0) = CombatArenaPlacement.CellOffset(0, 0, Cell);
+        var (a7, yTop) = CombatArenaPlacement.CellOffset(CombatGrid.Width - 1, CombatGrid.Height - 1, Cell);
+        var (_, yUnder) = CombatArenaPlacement.CellOffset(0, CombatGrid.UndergroundPlayableRows - 1, Cell);
+
+        var above = ArenaOrbit.BoardCorners(Cell, underground: false);
+        Assert.Equal((a0 - 150.0, y0 - 150.0), above[0]);
+        Assert.Equal((a7 + 150.0, yTop + 150.0), above[3]);
+        Assert.Equal(yUnder + 150.0, ArenaOrbit.BoardCorners(Cell, underground: true)[3].Y);
+    }
+
+    [Fact]
+    public void StartPitchIsInsideTheLimits() {
+        Assert.InRange(Layout.StartPitchDegrees, Layout.PitchMinDegrees, Layout.PitchMaxDegrees);
+    }
+
+    [Fact]
     public void ResetReturnsToTheStartPose() {
         var o = Make(10, 40, 3000);
         o.Drag(300, 50);
