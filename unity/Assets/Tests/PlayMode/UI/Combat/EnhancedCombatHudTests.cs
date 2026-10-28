@@ -190,6 +190,69 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
                 "without a forecast the ledger is the log");
         }
 
+        // Real fight-log lines are long: the assessment alone is a paragraph.
+        private static readonly string[] LongLog = {
+            "moredhel warrior A thrusts at Gorath: hit 18",
+            "Owyn studied his opponent. While it was possible he could be grossly misjudging some of the moredhel warrior's abilities, he was absolutely convinced about certain facts.",
+            "Locklear thrusts at moredhel warrior A: hit 13",
+        };
+
+        private static void AssertNoOverlapInside(VisualElement box, Rect slot, string what) {
+            List<Label> lines = box.Query<Label>(className: "ec-desk-log").ToList();
+            Assert.IsNotEmpty(lines, what);
+            for (int i = 1; i < lines.Count; i++) {
+                Assert.GreaterOrEqual(lines[i].worldBound.yMin, lines[i - 1].worldBound.yMax - 0.5f,
+                    $"{what}: line {i} does not overlap line {i - 1}");
+            }
+            Label last = lines[lines.Count - 1];
+            Assert.LessOrEqual(last.worldBound.yMax, slot.yMax + 0.5f, $"{what}: the newest line stays inside the ledger");
+        }
+
+        [UnityTest]
+        public IEnumerator DesktopLedgerLogLinesNeverOverlap_TheNewestStaysInsideTheSlot() {
+            Rect slot = default;
+            CombatHudModel forecast = HudModels.Forecast() with { LogLines = LongLog };
+            _hud.Show(forecast);
+            yield return null;
+            yield return null;
+            slot = _hud.Root.Q("ec-desk-slot-2").worldBound;
+            AssertNoOverlapInside(_hud.Root.Q("ec-desk-ledger-footer"), slot, "under a forecast");
+            foreach (Label l in _hud.Root.Q("ec-desk-ledger-footer").Query<Label>().ToList()) {
+                Assert.AreEqual(WhiteSpace.NoWrap, l.resolvedStyle.whiteSpace, "one row per footer line");
+            }
+
+            var many = new List<string>();
+            for (int i = 0; i < 4; i++) many.AddRange(LongLog);
+            _hud.Show(HudModels.Idle() with { LogLines = many });
+            yield return null;
+            yield return null;
+            VisualElement body = _hud.Root.Q("ec-desk-ledger-body");
+            AssertNoOverlapInside(body, slot, "idle");
+            Label newest = body.Query<Label>(className: "ec-desk-log").ToList().Last();
+            Assert.LessOrEqual(newest.worldBound.yMax, body.worldBound.yMax + 0.5f, "the newest idle line is the one kept in view");
+        }
+
+        [UnityTest]
+        public IEnumerator DesktopInspectForecastNamesItsVerb() {
+            var inspect = new CombatForecast(ForecastAction.Inspect, 0, new (int, int)[0], 0, null, 0, 0, null,
+                0, 0, 0, true, true, false, "");
+            _hud.Show(HudModels.Idle() with { Forecast = inspect, CardFoe = 0 });
+            yield return null;
+            string title = _hud.Root.Q<Label>("ec-desk-ledger-title").text;
+            StringAssert.StartsWith(UiTemplates.Format(UiTemplates.HudInspect), title, "the verb first");
+            StringAssert.Contains("Brigand A", title, "then whom");
+
+            // A long name is what gets cut, never the red chip.
+            var foes = HudModels.Foes.Select(f => f with { Name = "moredhel warrior of the northern wastes" }).ToList();
+            _hud.Show(HudModels.Idle() with { Forecast = inspect, CardFoe = 0, Foes = foes });
+            yield return null;
+            yield return null;
+            Label chip = _hud.Root.Q<Label>("ec-desk-ends-turn");
+            Vector2 need = chip.MeasureTextSize(chip.text, 0, VisualElement.MeasureMode.Undefined, 0, VisualElement.MeasureMode.Undefined);
+            Assert.GreaterOrEqual(chip.contentRect.width + 1f, need.x, "the ends-turn chip keeps its whole text");
+            Assert.LessOrEqual(chip.worldBound.xMax, _hud.Root.Q("ec-desk-slot-2").worldBound.xMax + 0.5f);
+        }
+
         [UnityTest]
         public IEnumerator DesktopFoeSlotIsTheListWhenNothingIsHovered_TheCardWhenItIs() {
             _hud.Show(HudModels.Idle());

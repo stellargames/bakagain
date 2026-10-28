@@ -298,6 +298,8 @@ public static class UiTemplates {
     public const string HudReset = "port:template:enhanced_hud_reset";
     public const string HudHealthCostShort = "port:template:enhanced_hud_health_cost_short";
     public const string HudJoin = "port:template:enhanced_hud_join";
+    /// <summary>The desktop ledger's header over a forecast: the action and its target ("Inspect Brigand A").</summary>
+    public const string HudForecastTitle = "port:template:enhanced_hud_forecast_title";
     public const string HudShortHealth = "port:template:enhanced_hud_short_health";
     public const string HudShortStamina = "port:template:enhanced_hud_short_stamina";
     public const string HudShortSpeed = "port:template:enhanced_hud_short_speed";
@@ -515,6 +517,7 @@ public static class UiTemplates {
         (HudReset, _ => "Reset"),
         (HudHealthCostShort, _ => "−{n} H"),
         (HudJoin, _ => "{a} · {b}"),
+        (HudForecastTitle, _ => "{action} {target}"),
         (HudShortHealth, _ => "HP"),
         (HudShortStamina, _ => "ST"),
         (HudShortSpeed, _ => "SPD"),

@@ -372,6 +372,7 @@ namespace BakAgain.UI.Combat.Enhanced {
             _endsTurn.text = f != null && f.EndsTurn && f.Allowed ? UiTemplates.Format(UiTemplates.HudEndsTurn, ("name", actor)) : "";
             _endsTurn.style.display = _endsTurn.text.Length > 0 ? DisplayStyle.Flex : DisplayStyle.None;
             _ledgerFooter.style.display = f == null ? DisplayStyle.None : DisplayStyle.Flex;
+            _ledgerBody.EnableInClassList("ec-desk-ledger-body--log", f == null);
             if (f == null) {
                 _ledgerTitle.text = UiTemplates.Format(UiTemplates.HudFightLog);
                 foreach (string line in log) Text(_ledgerBody, null, "ec-desk-log");
@@ -379,8 +380,10 @@ namespace BakAgain.UI.Combat.Enhanced {
                 return;
             }
             FoeRowModel target = f.TargetSlot >= 0 ? Find(m.Foes, f.TargetSlot) : null;
+            // The verb first, so a long name is what the ellipsis cuts (Inspect had no verb at all).
             _ledgerTitle.text = target != null
-                ? UiTemplates.Format(UiTemplates.EnhancedLogFoe, ("creature", target.Name), ("letter", target.Letter))
+                ? UiTemplates.Format(UiTemplates.HudForecastTitle, ("action", CombatHudText.Action(f.Action)),
+                    ("target", UiTemplates.Format(UiTemplates.EnhancedLogFoe, ("creature", target.Name), ("letter", target.Letter))))
                 : CombatHudText.Action(f.Action);
             bool melee = f.Action == ForecastAction.Thrust || f.Action == ForecastAction.Swing;
             if (melee) {

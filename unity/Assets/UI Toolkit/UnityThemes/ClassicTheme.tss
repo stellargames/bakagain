@@ -486,10 +486,14 @@
 .ec-desk-pool__cost { position: absolute; top: 0; bottom: 0; background-color: rgba(255, 255, 255, 0.55); border-left-width: 2px; border-right-width: 2px; border-color: rgb(30, 18, 8); }
 .ec-desk .ec-desk-party__name { width: 34%; }
 .ec-desk .ec-desk-party__value { width: 26%; -unity-text-align: middle-right; color: rgb(140, 30, 24); }
-.ec-desk .ec-desk-ends-turn { padding: 0 10px; background-color: rgb(168, 30, 24); color: rgb(255, 236, 220); font-size: 22px; }
+.ec-desk .ec-desk-ends-turn { padding: 0 10px; background-color: rgb(168, 30, 24); color: rgb(255, 236, 220); font-size: 22px; flex-shrink: 0; }
 .ec-desk-ledger-body { flex-grow: 1; padding-top: 6px; overflow: hidden; }
-.ec-desk-ledger-footer { border-top-width: 2px; border-color: rgb(150, 120, 86); padding-top: 4px; }
-.ec-desk .ec-desk-log { font-size: 22px; white-space: normal; color: rgb(60, 42, 26); }
+.ec-desk-ledger-footer { border-top-width: 2px; border-color: rgb(150, 120, 86); padding-top: 4px; flex-shrink: 0; overflow: hidden; }
+.ec-desk .ec-desk-log { font-size: 22px; white-space: normal; color: rgb(60, 42, 26); flex-shrink: 0; }
+/* Idle: the newest lines at the bottom, the oldest clipped at the top. */
+.ec-desk-ledger-body--log { justify-content: flex-end; }
+/* Under a forecast: the last lines, one row each, cut rather than wrapped over each other. */
+.ec-desk .ec-desk-ledger-footer .ec-desk-log { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ec-desk .ec-desk-reason { white-space: normal; color: rgb(160, 30, 24); }
 .ec-desk .ec-desk-reason--warn { color: rgb(170, 100, 10); }
 .ec-desk-table__row { flex-direction: row; height: 34px; align-items: center; }
