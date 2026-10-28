@@ -81,8 +81,18 @@ public sealed class EnhancedCombatLayout
 
     public float PhonePeekHeightPt { get; set; } = 106f;
 
-    /// <summary>The hero card sheet's width, in points (it opens from the left under the top row).</summary>
-    public float PhoneSheetWidthPt { get; set; } = 500f;
+    /// <summary>The hero card sheet's widest, in points (it opens from the left under the top row, as wide as
+    /// its content up to this: at a fixed 500 its few numbers were spread too far apart to read).</summary>
+    public float PhoneSheetWidthPt { get; set; } = 330f;
+
+    /// <summary>The sheet's portrait, square, in points.</summary>
+    public float PhoneSheetHeadPt { get; set; } = 72f;
+
+    /// <summary>The sheet's text, in points: larger than the docks', it is read at rest.</summary>
+    public float PhoneSheetTextPt { get; set; } = 15f;
+
+    /// <summary>The sheet's stat labels' width, in points, so the values line up beside them.</summary>
+    public float PhoneSheetLabelPt { get; set; } = 64f;
 
     /// <summary>Points per inch the phone's point is defined at (Android's dp: 160).</summary>
     public float PointsPerInch { get; set; } = 160f;

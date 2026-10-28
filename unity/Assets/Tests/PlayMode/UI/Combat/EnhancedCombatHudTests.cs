@@ -449,6 +449,57 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             Assert.AreEqual(first, _hud.RegisteredCount, "rebuilding the peek and sheet must not leak registrations");
         }
 
+        // Owner's phone test, 2026-10-28, item 6: the sheet's portrait flickered -- it was a new image on
+        // every 4 Hz refresh, loading its picture again each time.
+        [UnityTest]
+        public IEnumerator PhoneTheSheetsPortraitIsKeptAcrossRefreshes() {
+            _hud.Show(HudModels.Idle());
+            _hud.ShowSheet(true);
+            yield return Settle();
+            VisualElement head = _hud.Root.Q("ec-phone-sheet-head");
+            Assert.IsNotNull(head, "the sheet has a portrait");
+            for (int i = 0; i < 5; i++) {
+                _hud.Show(HudModels.Idle());
+            }
+            yield return Settle();
+            Assert.AreSame(head, _hud.Root.Q("ec-phone-sheet-head"), "the same portrait, not a new one per refresh");
+        }
+
+        // Item 8: Thrust / Swing were hard to switch -- a press held across a refresh lost its button.
+        [UnityTest]
+        public IEnumerator PhoneTheSwitchButtonsSurviveARefresh_SoAHeldPressStillSwitches() {
+            _hud.Show(HudModels.Forecast());
+            yield return Settle();
+            Button swing = _hud.Root.Q<Button>("ec-phone-switch-Swing");
+            Assert.IsNotNull(swing);
+            ForecastAction? pressed = null;
+            _hud.SwitchPressed += a => pressed = a;
+            _hud.Show(HudModels.Forecast());   // the 4 Hz refresh, mid-press
+            _hud.Show(HudModels.Forecast());
+            Assert.AreSame(swing, _hud.Root.Q<Button>("ec-phone-switch-Swing"), "the button pressed is still there");
+            using (var click = NavigationSubmitEvent.GetPooled()) {
+                click.target = swing;
+                swing.SendEvent(click);
+            }
+            Assert.AreEqual(ForecastAction.Swing, pressed, "and its release switches");
+            Assert.GreaterOrEqual(swing.worldBound.height / _hud.Scale, 44f - 0.5f, "a 44 pt target");
+        }
+
+        // Item 7: the sheet was a fixed 500 pt with its four numbers spread across it.
+        [UnityTest]
+        public IEnumerator PhoneTheSheetIsAsWideAsItsContent_UpToItsCap_ItsTextLargerThanTheDocks() {
+            _hud.Show(HudModels.Idle());
+            _hud.ShowSheet(true);
+            yield return Settle();
+            VisualElement sheet = _hud.Root.Q("ec-phone-sheet");
+            float scale = _hud.Scale;
+            Assert.LessOrEqual(sheet.worldBound.width / scale, _layout.PhoneSheetWidthPt + 0.5f, "capped");
+            Assert.Less(sheet.worldBound.width / scale, 400f, "not the old 500 pt");
+            foreach (Label l in sheet.Query<Label>(className: "ec-phone-strong").ToList().Where(HudModels.Visible)) {
+                Assert.GreaterOrEqual(l.resolvedStyle.fontSize / scale, _layout.PhoneBodyTextPt + 1f, $"'{l.text}'");
+            }
+        }
+
         [UnityTest]
         public IEnumerator PhoneDocksTakeTheirTaps_TheFreeBoardPassesThrough() {
             _hud.Show(HudModels.Forecast());

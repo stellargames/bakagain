@@ -31,6 +31,12 @@ namespace BakAgain.UI.Combat.Enhanced {
         private readonly List<(VisualElement E, float Pt)> _fonts = new();
 
         private readonly VisualElement _top, _heroChip, _heroCoins, _sheet, _foeChips, _peek, _grid, _cam;
+
+        // Kept across the 4 Hz Show: the switch buttons (a press longer than one refresh lost its button,
+        // and with it the click) and the sheet's portrait (re-made each Show, it reloaded and flickered).
+        private readonly VisualElement _switchBox, _peekInfo, _sheetBody;
+        private readonly Button _switchThrust, _switchSwing;
+        private readonly ArchiveImage _sheetHead;
         private readonly Label _heroName, _heroLine, _allies, _sentence, _sentenceEnds;
         private readonly ArchiveImage _heroHead;
         private readonly Button _confirm, _cancel;
@@ -138,6 +144,15 @@ namespace BakAgain.UI.Combat.Enhanced {
             _safe.Add(_peek);
             Place(_peek, bottom: 0, left: layout.PhoneConfirmWidthPt + gap);
             Size(_peek, layout.PhonePeekWidthPt, layout.PhonePeekHeightPt);
+            VisualElement peekBody = Box(null, "ec-phone-row");
+            _peek.Add(peekBody);
+            _switchBox = Box("ec-phone-switch", "ec-phone-col");
+            peekBody.Add(_switchBox);
+            _switchThrust = SwitchButton(_switchBox, ForecastAction.Thrust);
+            _switchSwing = SwitchButton(_switchBox, ForecastAction.Swing);
+            _peekInfo = Box("ec-phone-peek-info", "ec-phone-col");
+            _peekInfo.style.flexGrow = 1;
+            peekBody.Add(_peekInfo);
 
             _grid = Box("ec-phone-grid", "ec-phone-grid");
             _grid.pickingMode = PickingMode.Position;
@@ -159,7 +174,15 @@ namespace BakAgain.UI.Combat.Enhanced {
             _sheet.style.display = DisplayStyle.None;
             _safe.Add(_sheet);
             Place(_sheet, top: row + gap / 2, left: 0);
-            Size(_sheet, layout.PhoneSheetWidthPt, -1);
+            // Content-sized, up to a cap (owner: the 500 pt sheet spread its few numbers too far apart).
+            VisualElement sheetRow = Box(null, "ec-phone-row");
+            _sheet.Add(sheetRow);
+            _sheetHead = new ArchiveImage { name = "ec-phone-sheet-head", sizeToImage = false, pickingMode = PickingMode.Ignore };
+            _sheetHead.AddToClassList("ec-phone-sheet__head");
+            Size(_sheetHead, layout.PhoneSheetHeadPt, layout.PhoneSheetHeadPt);
+            sheetRow.Add(_sheetHead);
+            _sheetBody = Box("ec-phone-sheet-body", "ec-phone-col");
+            sheetRow.Add(_sheetBody);
 
             _root.RegisterCallback<GeometryChangedEvent>(_ => Resize());
         }
@@ -319,27 +342,22 @@ namespace BakAgain.UI.Combat.Enhanced {
         // ---- the peek ----
 
         private void ShowPeek(CombatHudModel m) {
-            _peek.Clear();
+            _peekInfo.Clear();
             Prune();
             CombatForecast f = m.Forecast;
+            bool melee = f != null && (f.Action == ForecastAction.Thrust || f.Action == ForecastAction.Swing);
+            _switchBox.style.display = melee ? DisplayStyle.Flex : DisplayStyle.None;
             if (f == null) {
                 foreach (string logLine in m.LogLines ?? CombatHudText.Empty) {
-                    Txt(_peek, null, _layout.PhoneBodyTextPt, "ec-phone-log").text = logLine;
+                    Txt(_peekInfo, null, _layout.PhoneBodyTextPt, "ec-phone-log").text = logLine;
                 }
                 return;
             }
-            VisualElement body = Box(null, "ec-phone-row");
-            _peek.Add(body);
-            bool melee = f.Action == ForecastAction.Thrust || f.Action == ForecastAction.Swing;
             if (melee) {
-                VisualElement sw = Box("ec-phone-switch", "ec-phone-col");
-                body.Add(sw);
-                SwitchButton(sw, ForecastAction.Thrust, f, m.Alternative);
-                SwitchButton(sw, ForecastAction.Swing, f, m.Alternative);
+                ShowSwitch(_switchThrust, ForecastAction.Thrust, f, m.Alternative);
+                ShowSwitch(_switchSwing, ForecastAction.Swing, f, m.Alternative);
             }
-            VisualElement info = Box("ec-phone-peek-info", "ec-phone-col");
-            info.style.flexGrow = 1;
-            body.Add(info);
+            VisualElement info = _peekInfo;
             FoeRowModel target = Foe(m, f.TargetSlot);
             VisualElement head = Box(null, "ec-phone-row");
             info.Add(head);
@@ -387,18 +405,24 @@ namespace BakAgain.UI.Combat.Enhanced {
             return pips;
         }
 
-        private void SwitchButton(VisualElement parent, ForecastAction action, CombatForecast f, CombatForecast alt) {
-            CombatForecast mine = f.Action == action ? f : alt?.Action == action ? alt : null;
+        // A Button clicks on its release however long it was held, as long as it is still there: built once.
+        private Button SwitchButton(VisualElement parent, ForecastAction action) {
             var b = new Button(() => SwitchPressed?.Invoke(action)) { name = "ec-phone-switch-" + action };
             b.AddToClassList("ec-phone-switch");
-            b.EnableInClassList("ec-phone-switch--on", f.Action == action);
-            b.SetEnabled(mine != null && mine.Allowed);
             Txt(b, null, _layout.PhoneBodyTextPt, "ec-phone-strong").text = CombatHudText.Action(action);
-            Txt(b, null, _layout.MinTextPt, null).text = mine == null || !mine.Allowed ? ""
-                : CombatHudText.Join(CombatHudText.Damage(mine), CombatHudText.Cost(mine, true) is { Length: > 0 } c ? c
-                    : UiTemplates.Format(UiTemplates.HudFree));
+            Txt(b, null, _layout.MinTextPt, null);
             Size(b, _layout.PhoneConfirmWidthPt * 0.66f, _layout.FoeChipPt);
             parent.Add(b);
+            return b;
+        }
+
+        private static void ShowSwitch(Button b, ForecastAction action, CombatForecast f, CombatForecast alt) {
+            CombatForecast mine = f.Action == action ? f : alt?.Action == action ? alt : null;
+            b.EnableInClassList("ec-phone-switch--on", f.Action == action);
+            b.SetEnabled(mine != null && mine.Allowed);
+            ((Label)b.ElementAt(1)).text = mine == null || !mine.Allowed ? ""
+                : CombatHudText.Join(CombatHudText.Damage(mine), CombatHudText.Cost(mine, true) is { Length: > 0 } c ? c
+                    : UiTemplates.Format(UiTemplates.HudFree));
         }
 
         // ---- the grid ----
@@ -474,41 +498,43 @@ namespace BakAgain.UI.Combat.Enhanced {
         // ---- the hero sheet ----
 
         private void BuildSheet(CombatHudModel m) {
-            _sheet.Clear();
+            _sheetBody.Clear();
             Prune();
             HeroCardModel h = m?.Hero;
             if (h == null || h.IsFoe) return;
-            VisualElement row = Box(null, "ec-phone-row");
-            _sheet.Add(row);
-            var head = new ArchiveImage { sizeToImage = false, pickingMode = PickingMode.Ignore };
-            head.AddToClassList("ec-phone-sheet__head");
-            head.address = h.HeadId >= 0 ? ActorStatsPanel.PortraitImage + "#" + h.HeadId : null;
-            Size(head, 2 * _layout.PhoneTopRowPt, 2 * _layout.PhoneTopRowPt);
-            row.Add(head);
+            string address = h.HeadId >= 0 ? ActorStatsPanel.PortraitImage + "#" + h.HeadId : null;
+            if (_sheetHead.address != address) _sheetHead.address = address;   // only when the hero changes
             VisualElement stats = Box(null, "ec-phone-sheet__stats");
-            row.Add(stats);
+            _sheetBody.Add(stats);
             Pair(stats, UiStrings.Get("base:uistring:combat.assess_health_label").TrimEnd(':', ' '),
                 UiTemplates.Format(UiTemplates.HudCurrentOfMax, ("current", h.Health), ("max", h.HealthMax)));
-            Pair(stats, UiStrings.Get("base:uistring:combat.assess_speed_label").TrimEnd(':', ' '),
-                UiTemplates.Format(UiTemplates.HudCurrentBase, ("current", h.Speed), ("base", h.SpeedBase)));
             Pair(stats, UiStrings.Get("base:uistring:combat.assess_stamina_label").TrimEnd(':', ' '),
                 UiTemplates.Format(UiTemplates.HudCurrentOfMax, ("current", h.Stamina), ("max", h.StaminaMax)));
+            Pair(stats, UiStrings.Get("base:uistring:combat.assess_speed_label").TrimEnd(':', ' '),
+                UiTemplates.Format(UiTemplates.HudCurrentBase, ("current", h.Speed), ("base", h.SpeedBase)));
             Pair(stats, UiStrings.Get("base:uistring:combat.assess_strength_label").TrimEnd(':', ' '),
                 UiTemplates.Format(UiTemplates.HudCurrentBase, ("current", h.Strength), ("base", h.StrengthBase)));
-            Txt(_sheet, "ec-phone-sheet-conditions", _layout.PhoneBodyTextPt, null).text = h.Conditions.Count == 0
+            float pt = _layout.PhoneSheetTextPt;
+            Txt(_sheetBody, "ec-phone-sheet-conditions", pt, "ec-phone-sheet__line").text = h.Conditions.Count == 0
                 ? UiTemplates.Format(UiTemplates.HudNoConditions) : string.Join(", ", h.Conditions);
             foreach (KitItemModel k in new[] { h.Weapon, h.Armour }) {
                 if (k == null) continue;
-                Txt(_sheet, null, _layout.PhoneBodyTextPt, null).text = CombatHudText.Join(k.Name,
-                    k.ConditionPercent >= 0 ? UiTemplates.Percent(k.ConditionPercent) : "", k.Stats);
+                // The name and condition, then its numbers on their own line: one short line each.
+                Txt(_sheetBody, null, pt, "ec-phone-strong").text = CombatHudText.Join(k.Name,
+                    k.ConditionPercent >= 0 ? UiTemplates.Percent(k.ConditionPercent) : "");
+                if (!string.IsNullOrEmpty(k.Stats)) Txt(_sheetBody, null, _layout.PhoneBodyTextPt, "ec-phone-sheet__line").text = k.Stats;
             }
+            ApplySizes();
         }
 
+        // Label and value side by side, the label a fixed width so the values line up in one column.
         private void Pair(VisualElement parent, string label, string value) {
             VisualElement p = Box(null, "ec-phone-pair");
             parent.Add(p);
-            Txt(p, null, _layout.PhoneBodyTextPt, null).text = label;
-            Txt(p, null, _layout.PhoneBodyTextPt, "ec-phone-strong").text = value;
+            Label l = Txt(p, null, _layout.PhoneSheetTextPt, "ec-phone-dim");
+            l.text = label;
+            Size(l, _layout.PhoneSheetLabelPt, -1);
+            Txt(p, null, _layout.PhoneSheetTextPt, "ec-phone-strong").text = value;
         }
 
         // ---- sizes in points ----
@@ -535,6 +561,7 @@ namespace BakAgain.UI.Combat.Enhanced {
                 if (h >= 0) e.style.height = h * _scale;
             }
             foreach ((VisualElement e, float pt) in _fonts) e.style.fontSize = pt * _scale;
+            _sheet.style.maxWidth = _layout.PhoneSheetWidthPt * _scale;
             foreach ((VisualElement e, Placement p) in _placed) {
                 if (p.Top.HasValue) e.style.top = p.Top.Value * _scale;
                 if (p.Left.HasValue) e.style.left = p.Left.Value * _scale;

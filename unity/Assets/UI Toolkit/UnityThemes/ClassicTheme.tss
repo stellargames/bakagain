@@ -593,5 +593,7 @@
 .ec-phone-badge--warn { position: absolute; right: 2px; top: 2px; border-radius: 3px; background-color: rgb(240, 170, 40); color: rgb(30, 20, 0); -unity-text-align: middle-center; -unity-font-style: bold; }
 .ec-phone-sheet { padding: 10px 14px; border-radius: 12px; background-color: rgba(18, 18, 16, 0.94); border-width: 1px; border-color: rgb(200, 160, 70); }
 .ec-phone-sheet__head { margin-right: 12px; border-radius: 6px; border-width: 2px; border-color: rgb(200, 160, 70); }
-.ec-phone-sheet__stats { flex-direction: row; flex-wrap: wrap; flex-grow: 1; }
-.ec-phone-pair { width: 50%; flex-direction: row; justify-content: space-between; padding-right: 12px; }
+.ec-phone-sheet__stats { flex-direction: column; margin-bottom: 4px; }
+.ec-phone-pair { flex-direction: row; align-items: center; }
+.ec-phone-pair .ec-phone-dim { margin-left: 0; }
+.ec-phone-sheet__line { white-space: normal; }
