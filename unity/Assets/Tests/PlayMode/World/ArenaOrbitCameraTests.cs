@@ -137,7 +137,7 @@ namespace BakAgain.Tests.PlayMode.World {
             BakAgain.World.WorldRuntime world = NewWorld(combat: false, out Camera cam);
             world.PointCameraAtArena();
 
-            Assert.IsFalse(BakAgain.World.WorldRuntime.ArenaUsesOrbit);
+            Assert.IsFalse(world.ArenaUsesOrbit);
             Assert.IsFalse(world.HasArenaOrbit, "Classic combat creates no orbit");
             Vector3 fixedEye = BakAgain.World.Converters.BakCoordinateConverter.ConvertPosition(PartyX, PartyY, 800);
             Assert.AreEqual(0f, Vector3.Distance(fixedEye, cam.transform.position), 1e-3f, "the original's fixed pose");

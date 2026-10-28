@@ -200,6 +200,12 @@ namespace BakAgain.UI.InGame {
         private System.Func<int, string> _combatStoneImage;
         private System.Action<int> _turnArenaQuarter;
         private System.Action _resetArenaView;
+        private System.Func<BakAgain.UI.Combat.Enhanced.ICombatHud, bool,
+            BakAgain.UI.Combat.Enhanced.EnhancedCombatController> _combatControllerFor;
+        private BakAgain.UI.Combat.Enhanced.EnhancedCombatController _combatController;
+        private ((int Column, int Row)? Cell, (int RosterSlot, bool PartyMember)? Who) _boardHover;
+        private TouchHoldDetector _enhancedHold;
+        private bool _swallowEnhancedTap;
 
         /// <summary>
         /// Enhanced combat's HUD (TASK-972): the model of the fight as it stands (given how many log
@@ -209,7 +215,10 @@ namespace BakAgain.UI.InGame {
         /// </summary>
         internal void SetEnhancedCombatSeams(System.Func<int, BakAgain.UI.Combat.Enhanced.CombatHudModel> model,
             System.Func<object> turn, System.Func<VisualElement> classicMenu, System.Func<int, string> stoneImage,
-            System.Action<int> turnQuarter = null, System.Action resetView = null) {
+            System.Action<int> turnQuarter = null, System.Action resetView = null,
+            System.Func<BakAgain.UI.Combat.Enhanced.ICombatHud, bool,
+                BakAgain.UI.Combat.Enhanced.EnhancedCombatController> controller = null) {
+            _combatControllerFor = controller;
             _combatHudModel = model;
             _combatTurn = turn;
             _classicCombatMenu = classicMenu;
@@ -219,7 +228,16 @@ namespace BakAgain.UI.InGame {
         }
 
         /// <summary>Test seam: the Enhanced combat HUD's host, once the content is attached.</summary>
-        internal BakAgain.UI.Combat.Enhanced.EnhancedCombatHudHost CombatHudHost => _combatHud;
+        internal BakAgain.UI.Combat.Enhanced.EnhancedCombatHudHost CombatHudHost {
+            get => _combatHud;
+            set => _combatHud = value;   // tests: a host without the HUD's content
+        }
+
+        /// <summary>Test seam: the Enhanced combat controller the clicks go to.</summary>
+        internal BakAgain.UI.Combat.Enhanced.EnhancedCombatController CombatController {
+            get => _combatController;
+            set => _combatController = value;
+        }
 
         /// <summary>Tests choose the HUD: true = phone, false = desktop, null = by platform.</summary>
         internal static bool? PhoneHudOverride { get; set; }
@@ -1231,9 +1249,79 @@ namespace BakAgain.UI.InGame {
             // Not the travel layer's state: in a fight the combat menu's layer is on top of it. A screen
             // pushed over the fight deactivates this one, so only a dialog page has to be checked.
             _combatHud.Sync(GameOptions.IsOn(EnhancedFeature.Combat), AFightIsRunning(), _combatTurn?.Invoke(),
-                () => _combatHudModel?.Invoke(lines), _classicCombatMenu?.Invoke(),
+                () => _combatController?.Model(lines) ?? _combatHudModel?.Invoke(lines), _classicCombatMenu?.Invoke(),
                 !DialogManager.PageOverTheWorld);
+            // The controller owns the forecast in the model; the world hands back the one for this
+            // fight's service (the same instance until the zone's service changes).
+            var controller = _combatHud.Hud != null ? _combatControllerFor?.Invoke(_combatHud.Hud, phone) : null;
+            if (controller != _combatController && controller != null) {
+                controller.Changed += _combatHud.Invalidate;
+            }
+            _combatController = controller ?? _combatController;
+            TickEnhancedCombatPointer();
         }
+
+        /// <summary>
+        /// Enhanced combat's board pointer (TASK-972): the mouse's hover feeds the controller's
+        /// forecast when it moves to another cell or combatant; a still finger is the long press.
+        /// </summary>
+        private void TickEnhancedCombatPointer() {
+            if (_combatController == null || _pointer == null || !EnhancedCombatActive) {
+                _enhancedHold?.Reset();
+                return;
+            }
+            if (_pointer.IsPresent) {
+                var hover = _pointer.CanPoint && StartsOnWorld(_pointer.ScreenPosition) && !(_combatCamera?.Dragging ?? false)
+                    ? BoardAt(_pointer.ScreenPosition) : default;
+                if (hover != _boardHover) {
+                    _boardHover = hover;
+                    PointController(hover);
+                }
+                return;
+            }
+            _enhancedHold ??= new TouchHoldDetector(_combatLayout.LongPressSeconds, _enhancedLayout.DragThresholdPx);
+            bool down = _pointer.Primary.IsDown && _pointer.CanPoint && !(_combatCamera?.Dragging ?? false);
+            if (_enhancedHold.Tick(down, _pointer.ScreenPosition, Time.realtimeSinceStartup)
+                && StartsOnWorld(_pointer.ScreenPosition)) {
+                PointController(BoardAt(_pointer.ScreenPosition));
+                _combatController.LongPress();
+                _swallowEnhancedTap = true;   // its release must not also tap
+            }
+        }
+
+        private ((int Column, int Row)? Cell, (int RosterSlot, bool PartyMember)? Who) BoardAt(Vector2 screen) {
+            Vector3? floor = _interaction?.GroundPointAtScreenPoint(screen);
+            return (floor.HasValue ? _cellAtPoint?.Invoke(floor.Value) : null, _interaction?.CombatantAtScreenPoint(screen));
+        }
+
+        private void PointController(((int Column, int Row)? Cell, (int RosterSlot, bool PartyMember)? Who) at) =>
+            _combatController.Point(at.Cell?.Column, at.Cell?.Row, at.Who?.RosterSlot, at.Who?.PartyMember ?? false);
+
+        /// <summary>
+        /// A click or tap on the world in an Enhanced fight goes to the controller; true when it did.
+        /// A Classic turn, or a Classic pick still armed (a spell's or a shot's target), keeps the
+        /// Classic path.
+        /// </summary>
+        internal bool EnhancedCombatClick(bool isPrimary, Vector2 screen) {
+            if (_combatController == null || !EnhancedCombatActive || (_combatPickPending?.Invoke() ?? false)) {
+                return false;
+            }
+            if (_swallowEnhancedTap) {
+                _swallowEnhancedTap = false;
+                return true;
+            }
+            PointController(BoardAt(screen));
+            if (isPrimary) {
+                _combatController.Primary(BakAgain.UI.InputCore.InputDriver.ShiftHeld);
+            } else {
+                _combatController.Secondary();
+            }
+            return true;
+        }
+
+        private System.Func<bool> _combatPickPending;
+
+        internal void SetCombatPickPendingSeam(System.Func<bool> pending) => _combatPickPending = pending;
 
         // The idle ledger's log (desktop) and the phone's idle peek, in lines.
         private const int DesktopLedgerLogLines = 6;
@@ -1676,7 +1764,8 @@ namespace BakAgain.UI.InGame {
         /// </summary>
         /// <returns>True when touch handled the press (so nothing stays armed).</returns>
         internal bool InspectAtTouchCursor() {
-            if (!TouchFight() || _combatCursor == null) {
+            // Enhanced combat inspects the foe its own forecast named (TASK-972).
+            if (!TouchFight() || _combatCursor == null || EnhancedCombatActive) {
                 return false;
             }
             (int c, int r) = _combatCursor.Cell;
@@ -1928,6 +2017,9 @@ namespace BakAgain.UI.InGame {
                     break;
                 }
                 case ActionWorldViewport:
+                    if (_pointer != null && EnhancedCombatClick(true, _pointer.ScreenPosition)) {
+                        break;
+                    }
                     if (TouchFight()) {
                         // A tap puts the cursor on that cell; the side bar's buttons act on it.
                         if (_combatCursor != null && _interaction?.GroundPointAtScreenPoint(_pointer.ScreenPosition) is Vector3 tapped
@@ -1956,7 +2048,9 @@ namespace BakAgain.UI.InGame {
                 return;
             }
             if (menuEntryActionId == ActionWorldViewport) {
-                _interaction?.HandleClick(isPrimary: false).Forget();
+                if (_pointer == null || !EnhancedCombatClick(false, _pointer.ScreenPosition)) {
+                    _interaction?.HandleClick(isPrimary: false).Forget();
+                }
                 return;
             }
             // Right-click / Shift on a portrait opens that member's CHARACTER SHEET where a plain

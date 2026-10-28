@@ -12,7 +12,7 @@ namespace BakAgain.UI.Combat.Enhanced {
     /// Builds a <see cref="CombatHudModel"/> from the live fight: who acts, the party, the foes with
     /// what the player knows, the log and the stones' availability. Every value is read from the
     /// rules' own owners (<see cref="CombatRuntime"/>, <see cref="GameSession"/>) without writing;
-    /// nothing is decided here. The forecast is the caller's (Task 9's controller).
+    /// nothing is decided here. The forecast is the caller's (<see cref="EnhancedCombatController"/>).
     /// </summary>
     public static class CombatHudModelBuilder {
         /// <summary>The model for the fight as it stands, or null outside one.</summary>

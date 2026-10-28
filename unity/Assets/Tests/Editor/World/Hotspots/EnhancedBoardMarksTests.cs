@@ -27,7 +27,8 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
         }
 
         internal static (HotspotService Service, Combatant Acting) PartyTurn(
-            byte partyHealth = 99, bool underground = false, int enemies = 1) {
+            byte partyHealth = 99, bool underground = false, int enemies = 1, int roll = 99,
+            System.Func<bool> arenaBusy = null, BakAgain.UI.IDialogManager dialogs = null) {
             var session = new GameSession();
             session.SetActorStatsForTest(0, StatBlock(partyHealth));
             session.SetActiveParty(1, new byte[] { 0 });
@@ -37,8 +38,8 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
                 slots.Add((short)(400 + i));
             }
             session.SetEncounterRosterForTest((int)EncounterNumber, slots.ToArray());
-            var service = new HotspotService(null, null, session, null, random: _ => 99,
-                setCombatMusic: _ => { }, resyncCamera: () => { });
+            var service = new HotspotService(null, null, session, dialogs, random: _ => roll,
+                setCombatMusic: _ => { }, resyncCamera: () => { }, arenaBusy: arenaBusy);
             service.SetZoneForTest(1,
                 byChunk: new Dictionary<(int x, int y), List<TileEventTrigger>> {
                     [(0, 0)] = new List<TileEventTrigger> { new TileEventTrigger {
@@ -59,7 +60,7 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
         }
 
         /// <summary>Put everyone where the test says; the grid's occupancy follows.</summary>
-        private static void Place(HotspotService s, Combatant acting, (int X, int Y) at, int speed,
+        internal static void Place(HotspotService s, Combatant acting, (int X, int Y) at, int speed,
             params (int Index, int X, int Y)[] foes) {
             CombatGrid grid = s.Combat.Grid;
             foreach (Combatant c in s.Combat.Encounter.AllCombatants()) {

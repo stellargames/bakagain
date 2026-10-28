@@ -480,6 +480,44 @@ using GameData.Resources.Scene;
             GameData.Resources.Combat.CombatCommands.Command command, int actionId) =>
             OnCombatCommand(command, actionId);
 
+        /// <summary>Presses one combat command, as the Classic menu would (Enhanced combat's stones, TASK-972).</summary>
+        public void IssueCombatCommand(GameData.Resources.Combat.CombatCommands.Command command, int actionId) =>
+            OnCombatCommand(command, actionId);
+
+        /// <summary>A stone's describe record, as the Classic menu's right click plays it. Spends nothing.</summary>
+        public void DescribeCombatCommand(int actionId) {
+            int record = GameData.Resources.Combat.CombatActionDispatch.HelpRecordFor(actionId);
+            if (record >= 0) {
+                OnCombatHelpRequested(record);
+            }
+        }
+
+        /// <summary>
+        /// Enhanced combat's character sheet (H, or a right click on the medallion): the acting hero's
+        /// sheet, to read only, so closing it spends nothing (owner, TASK-972 spec). The Classic Shift
+        /// arm of command 22 still spends the turn.
+        /// </summary>
+        public void ShowCombatSheet() {
+            Combatant acting = Combat?.Encounter?.Current;
+            if (acting != null && acting.IsPartyMember) {
+                OpenCombatCharacterSheet(acting, spendsTheTurn: false);
+            }
+        }
+
+        /// <summary>
+        /// A Classic pick is armed: a spell, shot, item, summon or decoy waits for its cell or target,
+        /// so a click on the field must take the Classic path (Enhanced combat leaves those to it).
+        /// </summary>
+        public bool CombatPickPending =>
+            _pendingCombatMode != GameData.Resources.Combat.CombatCommandOutcome.PendingMode.None
+            || _pendingSummonsLeft > 0 || _pendingDecoyOf != null;
+
+        /// <summary>A party member's turn has begun (every handoff goes through the settle).</summary>
+        public event Action<Combatant> CombatTurnStarted;
+
+        /// <summary>The party's turn is over; the enemies (if any) act next.</summary>
+        public event Action CombatTurnEnded;
+
         /// <summary>Runs the retreat arm as the HUD's id-33 press would.</summary>
         /// <remarks>
         /// A seam for the same reason <see cref="EndCombatForTest"/> is one: the production caller is
@@ -3787,7 +3825,7 @@ using GameData.Resources.Scene;
         /// carries the button as <c>isPrimary</c> on the pointer event, so the equivalent is a
         /// secondary click; only Shift is honoured here.
         /// </remarks>
-        private void OpenCombatCharacterSheet(Combatant acting) {
+        private void OpenCombatCharacterSheet(Combatant acting, bool spendsTheTurn = true) {
             BakAgain.UI.Character.CharacterSheetScreen sheet = _characterSheetAccessor?.Invoke();
             if (sheet == null) {
                 _logger?.LogDebug("Combat HUD: the sheet was asked for, but there is no character sheet screen.");
@@ -3796,18 +3834,20 @@ using GameData.Resources.Scene;
             byte[] roster = _session?.ActivePartyIndices;
             for (var i = 0; roster != null && i < roster.Length; i++) {
                 if (roster[i] == acting.ClassId) {
-                    RunCombatSheetAsync(sheet, i).Forget();
+                    RunCombatSheetAsync(sheet, i, spendsTheTurn).Forget();
                     return;
                 }
             }
         }
 
         private async Cysharp.Threading.Tasks.UniTaskVoid RunCombatSheetAsync(
-            BakAgain.UI.Character.CharacterSheetScreen sheet, int partySlot) {
+            BakAgain.UI.Character.CharacterSheetScreen sheet, int partySlot, bool spendsTheTurn) {
             Combatant acting = Combat?.Encounter?.Current;
             await sheet.RunAsync(partySlot);
             RaiseCombatHudAgain();
-            SpendTurnAfterSuspendScreen(acting);
+            if (spendsTheTurn) {
+                SpendTurnAfterSuspendScreen(acting);
+            }
         }
 
         /// <summary>
@@ -6318,12 +6358,16 @@ using GameData.Resources.Scene;
                 return;
             }
             _settlingTurn = true;
+            CombatTurnEnded?.Invoke();
             try {
                 // The party's own walk is drawn first, as the original's walk returns before the
                 // enemies act (COMBAT.C:1588): a monster's redraw mid-slide rebuilt the arena and
                 // both sprites jumped to their ends.
                 await Cysharp.Threading.Tasks.UniTask.WaitWhile(() => _arenaBusy?.Invoke() ?? false);
                 Combatant next = await AdvanceToPartyTurnPacedAsync();
+                if (next != null) {
+                    CombatTurnStarted?.Invoke(next);
+                }
 
                 BakAgain.UI.Combat.CombatMenu menu = _combatMenuAccessor?.Invoke();
                 if (menu == null) {

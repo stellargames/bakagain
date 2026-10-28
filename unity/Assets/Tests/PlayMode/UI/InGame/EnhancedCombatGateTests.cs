@@ -41,7 +41,7 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
 
             Assert.That(_hud.EnhancedCombatActive, Is.True);
             Assert.That(_hud.WantsFullScreen, Is.True);
-            Assert.That(BakAgain.World.WorldRuntime.ArenaUsesOriginalLens, Is.False,
+            Assert.That(World().ArenaUsesOriginalLens, Is.False,
                 "the arena camera takes the travel lens");
         }
 
@@ -51,7 +51,41 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
 
             Assert.That(_hud.EnhancedCombatActive, Is.False);
             Assert.That(_hud.WantsFullScreen, Is.False);
-            Assert.That(BakAgain.World.WorldRuntime.ArenaUsesOriginalLens, Is.True);
+            Assert.That(World().ArenaUsesOriginalLens, Is.True);
+        }
+
+        private BakAgain.World.WorldRuntime World() {
+            var world = new BakAgain.World.WorldRuntime(null, new GameSession(), null, null, null, null, null);
+            world.SetCombatScreenForTest(_hud);
+            return world;
+        }
+
+        [Test]
+        public void TheOrbitTheLensAndTheBoardMarksFollowTheHudsPerTurnLatch() {
+            // One predicate for "Enhanced combat active" (TASK-972 task 9): switched off mid-turn,
+            // camera, lens and marks stay Enhanced with the HUD until the next turn.
+            object turn = "Owyn, round 1";
+            _hud.CombatHudHost = new BakAgain.UI.Combat.Enhanced.EnhancedCombatHudHost(
+                new UnityEngine.UIElements.VisualElement(), new GameData.Resources.Layout.EnhancedCombatLayout());
+            _hud.SetEnhancedCombatSeams(_ => null, () => turn, () => null, _ => null);
+            BakAgain.World.WorldRuntime world = World();
+            GameOptions.SetFeature(EnhancedFeature.Combat, true);
+            Assert.That(world.ArenaUsesOrbit, Is.True);
+
+            GameOptions.SetFeature(EnhancedFeature.Combat, false);
+            Assert.That(world.ArenaUsesOrbit, Is.True, "this turn stays Enhanced");
+            Assert.That(world.ArenaUsesOriginalLens, Is.False);
+            var arena = new GameObject("arena");
+            var next = new GameObject("arena, next turn");
+            try {
+                Assert.That(world.AttachBoardMarks(arena), Is.Not.Null, "and so do the marks");
+                turn = "Brigand A, round 1";
+                Assert.That(world.ArenaUsesOrbit, Is.False, "the next turn is Classic");
+                Assert.That(world.AttachBoardMarks(next), Is.Null);
+            } finally {
+                Object.DestroyImmediate(arena);
+                Object.DestroyImmediate(next);
+            }
         }
 
         [Test]

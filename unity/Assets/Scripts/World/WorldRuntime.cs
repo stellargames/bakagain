@@ -1438,7 +1438,9 @@ namespace BakAgain.World {
                     () => _hotspots.Combat?.Encounter == null ? null
                         : (object)(_hotspots.Combat.Encounter.Current, _hotspots.Combat.Log.Round),
                     () => ResolveCombatMenu()?.GetComponent<UnityEngine.UIElements.UIDocument>()?.rootVisualElement,
-                    CombatStoneImage, TurnArenaQuarter, ResetArenaView);
+                    CombatStoneImage, TurnArenaQuarter, ResetArenaView, CombatControllerFor);
+                screen.SetCombatPickPendingSeam(() => _hotspots?.CombatPickPending ?? false);
+                _combatScreen = screen;
                 // One encounter fights against a painted backdrop instead of the world. Handed over
                 // with the rest of the seams because this is the redraw the arena runs every turn,
                 // and SetCombatBackdrop is idempotent for exactly that reason.
@@ -1809,7 +1811,7 @@ namespace BakAgain.World {
         private BakAgain.World.Encounters.ArenaOrbitCamera _arenaOrbit;
 
         /// <summary>Enhanced combat turns the camera around the board; Classic keeps the original's fixed one.</summary>
-        internal static bool ArenaUsesOrbit => EnhancedCombatOn();
+        internal bool ArenaUsesOrbit => EnhancedCombatOn();
 
         /// <summary>Drag the arena camera around the board (pixels). No-op outside an Enhanced fight.</summary>
         public void OrbitArena(float dxPixels, float dyPixels) {
@@ -2604,7 +2606,7 @@ namespace BakAgain.World {
         /// <summary>The arena camera takes START.DAT's framed lens, except under Enhanced combat, where
         /// the fight keeps the full-window travel lens (TASK-972). The room probe stays on the original's
         /// lens either way: it decides which cells the fight may use, which is a rule.</summary>
-        internal static bool ArenaUsesOriginalLens => !EnhancedCombatOn();
+        internal bool ArenaUsesOriginalLens => !EnhancedCombatOn();
 
         /// <summary>Enhanced combat only (TASK-972): the board's marks and the foe plates ride on the arena root.</summary>
         internal Encounters.ArenaBoardMarks AttachBoardMarks(GameObject arenaRoot) {
@@ -2617,7 +2619,42 @@ namespace BakAgain.World {
             return marks;
         }
 
-        private static bool EnhancedCombatOn() => BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.Combat);
+        /// <summary>
+        /// Whether this turn is played Enhanced: the HUD's per-turn latch
+        /// (<see cref="BakAgain.UI.InGame.InGameScreen.EnhancedCombatActive"/>), so the orbit camera, the
+        /// board marks and the HUD always agree. Without a travel screen yet, the option itself.
+        /// </summary>
+        private bool EnhancedCombatOn() => _combatScreen != null ? _combatScreen.EnhancedCombatActive
+            : BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.Combat);
+
+        // The travel screen whose latch decides; set where the fight's seams are handed over. Before
+        // that (the first fight's opening camera) the option is what the latch would take anyway.
+        private BakAgain.UI.InGame.InGameScreen _combatScreen;
+
+        internal void SetCombatScreenForTest(BakAgain.UI.InGame.InGameScreen screen) => _combatScreen = screen;
+
+        private BakAgain.UI.Combat.Enhanced.EnhancedCombatController _combatController;
+
+        /// <summary>
+        /// Enhanced combat's controller for this HUD and this fight's service, made once and kept; it
+        /// also takes the Classic menu's keys while the turn is Enhanced (a stone key forecasts first).
+        /// </summary>
+        private BakAgain.UI.Combat.Enhanced.EnhancedCombatController CombatControllerFor(
+            BakAgain.UI.Combat.Enhanced.ICombatHud hud, bool phone) {
+            if (_hotspots == null || hud == null) {
+                return null;
+            }
+            if (_combatController == null || _combatController.Hud != hud || _combatController.Service != _hotspots) {
+                _combatController?.Dispose();
+                _combatController = new BakAgain.UI.Combat.Enhanced.EnhancedCombatController(
+                    _hotspots, _hotspots.Combat, hud, _combatLayout, _gameSession, phone);
+                BakAgain.UI.Combat.CombatMenu menu = ResolveCombatMenu();
+                if (menu != null) {
+                    menu.KeyIntercept = key => EnhancedCombatOn() && (_combatController?.Key(key) ?? false);
+                }
+            }
+            return _combatController;
+        }
 
         private bool WindowLens => BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.FullScreenTravel)
             && _worldCamera != null && _worldCamera.targetTexture != null && _worldCamera.aspect > 0f;

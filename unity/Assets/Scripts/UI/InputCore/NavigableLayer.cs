@@ -67,7 +67,9 @@ namespace BakAgain.UI.InputCore {
         public bool HandleIntent(UiIntent intent) {
             switch (intent.Kind) {
                 case UiIntentKind.MoveFocus: return MoveFocus(intent.Direction);
-                case UiIntentKind.Activate: return ActivateFocused();
+                // Enter with nothing focused reaches the screen loop as its scancode, as menupage_run
+                // hands it every key (MENUPAGE.C:320-399): Enhanced combat's Confirm (TASK-972).
+                case UiIntentKind.Activate: return ActivateFocused() || (_onUnmatchedScancode?.Invoke(EnterScancode) ?? false);
                 case UiIntentKind.Cancel:
                     if (_onCancel == null) return false;
                     _onCancel();
@@ -312,6 +314,7 @@ namespace BakAgain.UI.InputCore {
         // menupage_run hands its screen loop every scancode, matched or not (MENUPAGE.C:320-399), so
         // a loop can act on a key no entry carries — combat's Ctrl+Q (TASK-801).
         private readonly Func<int, bool> _onUnmatchedScancode;
+        private const int EnterScancode = 0x1c;
 
         private bool Accelerate(char c) {
             // *** A REQ MENU MATCHES THE KEY'S SCANCODE AGAINST ACTION IDS, NOT LABEL LETTERS. ***

@@ -42,8 +42,8 @@ namespace BakAgain.UI.Combat.Enhanced {
     }
 
     /// <summary>
-    /// Everything one HUD frame shows. Built by the controller (<see cref="CombatHudModelBuilder"/>
-    /// until Task 9's controller owns it), never by the views.
+    /// Everything one HUD frame shows. Built by <see cref="EnhancedCombatController.Model"/> (through
+    /// <see cref="CombatHudModelBuilder"/>), never by the views.
     /// </summary>
     /// <param name="ActorSlot">The acting combatant's party slot (1-based), or 0 on their turn.</param>
     /// <param name="Hero">The acting hero's card; on their turn the acting foe's (<see cref="HeroCardModel.IsFoe"/>).</param>

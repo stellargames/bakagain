@@ -87,10 +87,13 @@ namespace BakAgain.UI.Combat.Enhanced {
             if (_poll > 0f && Hud.Shown && wasActive && Equals(before, _turn)) {
                 return;
             }
-            // ponytail: 4 Hz poll; the controller (Task 9) shows on every change instead.
+            // 4 Hz for what changes on its own (the log, the pools); the controller invalidates on input.
             _poll = 0.25f;
             Hud.Show(model?.Invoke());
         }
+
+        /// <summary>Show the model again at the next <see cref="Sync"/> rather than at the next poll.</summary>
+        public void Invalidate() => _poll = 0f;
 
         private void HideMenu(VisualElement menu) {
             if (menu != _hiddenMenu) {

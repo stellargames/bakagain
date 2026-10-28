@@ -192,6 +192,9 @@ namespace BakAgain.UI.Combat {
         /// <inheritdoc />
         /// <summary>The party's menu loop takes keys with no button too — Ctrl+Q (COMBAT.C:2128).</summary>
         public bool OnUnmatchedScancode(int scancode) {
+            if (KeyIntercept?.Invoke(scancode) == true) {
+                return true;
+            }
             if (CombatCommands.For(scancode) == CombatCommands.Command.None) {
                 return false;
             }
@@ -199,7 +202,17 @@ namespace BakAgain.UI.Combat {
             return true;
         }
 
+        /// <summary>
+        /// Enhanced combat takes the menu's keys first (TASK-972): a stone key forecasts before it
+        /// acts. True when it took the key. The menu's document is hidden then, so every press that
+        /// reaches it is a key.
+        /// </summary>
+        public Func<int, bool> KeyIntercept { get; set; }
+
         public void PrimaryAction(int actionId) {
+            if (KeyIntercept?.Invoke(actionId) == true) {
+                return;
+            }
             if (IsBlank) {
                 return;   // the tile pick ignores the menu's result (CSPELL.C:680-708)
             }
