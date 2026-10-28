@@ -427,6 +427,23 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
         }
 
         [UnityTest]
+        public IEnumerator ABackedOutCast_LeavesNothingForALaterArmedSpell_TheInfinityPool() {
+            // Re-review R1: tap A, Cast, back out; the Pack's Infinity Pool then opens the cast screen through
+            // its own path (no Cast stone) and its spell arms the pick: nothing is shown chosen, so it must ask.
+            var (s, hero, c) = CasterFight(phone: true);
+            PointAtFoe(s, c, 0);
+            c.Primary(false);
+            c.Stone(CombatCommands.Command.Cast, fromKey: false);   // ... and the screen is backed out of
+            c.Stone(CombatCommands.Command.CharacterScreen, fromKey: false);   // the Pack (phone: forecasts) ...
+            c.Confirm();                                                         // ... and opens
+            s.CommitCombatSpellForTest(LivingActorSpell(), 0, 5);   // the Pool's amplified cast arms the pick
+            yield return null;
+            yield return null;
+            Assert.IsTrue(s.CombatPickPending, "no hidden A: the pick waits for its target");
+            Assert.IsFalse(Spent(hero));
+        }
+
+        [UnityTest]
         public IEnumerator ADesktopHoverIsNotAPick_TheCastAsks() {
             var (s, hero, c) = CasterFight(phone: false);
             PointAtFoe(s, c, 0);   // a hover forecasts A

@@ -248,9 +248,10 @@ namespace BakAgain.UI.Combat.Enhanced {
                     // The spell's target is the foe the HUD shows chosen as Cast is pressed -- a tap, a chip, a
                     // long press, the remembered target -- never a desktop hover, and nothing once that is gone.
                     // A shot is not answered: its quarrel is only recorded and may change until the target click.
-                    _pickTarget = !shoot && _slot >= 0 && !_hovered
+                    int picked = !shoot && _slot >= 0 && !_hovered
                         && _action is ForecastAction.Thrust or ForecastAction.Swing or ForecastAction.Inspect ? _slot : -1;
                     Clear();
+                    _pickTarget = picked;   // after Clear(), which drops any older one (a backed-out cast's)
                     _hs.IssueCombatCommand(cmd, shoot ? CombatCommands.ShootId : CombatCommands.CastId);
                     Changed?.Invoke();
                 }
@@ -420,6 +421,7 @@ namespace BakAgain.UI.Combat.Enhanced {
         }
 
         private void Clear() {
+            _pickTarget = -1;   // a cleared selection is no target: nothing hidden may reach a later pick (Infinity Pool)
             _action = null;
             _slot = -1;
             _fromKey = false;
