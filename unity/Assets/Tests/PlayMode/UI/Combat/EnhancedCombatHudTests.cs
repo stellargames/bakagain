@@ -62,13 +62,13 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             0, 0, 0, true, true, false, "");
 
         public static CombatHudModel Idle(IReadOnlyDictionary<CombatCommands.Command, ActionAvailability> stones = null) =>
-            new(1, Owyn, Party, null, Log, Foes, null, stones ?? Stones(), false, "Owyn's turn");
+            new(1, Owyn, Party, null, Log, Foes, null, stones ?? Stones(), false, "Owyn's turn", null, 2);
 
         public static CombatHudModel Forecast() =>
-            new(1, Owyn, Party, Thrust, Log, Foes, 0, Stones(), false, "Owyn's turn", Swing);
+            new(1, Owyn, Party, Thrust, Log, Foes, 0, Stones(), false, "Owyn's turn", Swing, 2);
 
         public static CombatHudModel SwingForecast() =>
-            new(1, Owyn, Party, Swing, Log, Foes, 0, Stones(), false, "Owyn's turn", Thrust);
+            new(1, Owyn, Party, Swing, Log, Foes, 0, Stones(), false, "Owyn's turn", Thrust, 2);
 
         public static CombatHudModel TheirTurn() =>
             new(0, new HeroCardModel("Brigand A", -1, new string[0], 0, 0, 0, 0, 0, 0, 0, 0, null, null, true, 'A'),
@@ -87,6 +87,14 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             VisualElement root = document.rootVisualElement;
             DesktopCombatHud.Fill(root);
             return root;
+        }
+
+        /// <summary>Whether a pick at this panel point lands on the HUD (true) or passes to what is under it.</summary>
+        public static bool PickHitsHud(VisualElement hudRoot, Vector2 point) {
+            for (VisualElement v = hudRoot.panel.Pick(point); v != null; v = v.parent) {
+                if (v == hudRoot) return true;
+            }
+            return false;
         }
 
         public static bool Visible(VisualElement e) {
@@ -233,6 +241,31 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             _hud.Root.Query<Label>().ToList().Any(l => HudModels.Visible(l) && l.text.Contains(text));
 
         [UnityTest]
+        public IEnumerator DesktopBoardClicksPassThrough_TheBandTakesItsOwn() {
+            _hud.Show(HudModels.Idle());
+            yield return null;
+            yield return null;
+            Rect root = _hud.Root.worldBound;
+            Rect band = _hud.Root.Q("ec-desk-band").worldBound;
+            Assert.IsFalse(HudModels.PickHitsHud(_hud.Root, new Vector2(root.center.x, band.yMin / 2)),
+                "the board above the band is clicked through the HUD");
+            Assert.IsTrue(HudModels.PickHitsHud(_hud.Root, band.center), "the band takes its own clicks");
+            Assert.IsTrue(HudModels.PickHitsHud(_hud.Root, new Vector2(band.xMin + 2, band.yMin + 2)),
+                "even between the slots");
+        }
+
+        [UnityTest]
+        public IEnumerator DesktopShowsTheRound_AndDrawsTheActedAndDownBadges() {
+            _hud.Show(HudModels.Idle());
+            yield return null;
+            Assert.AreEqual("round 2", _hud.Root.Q<Label>("ec-desk-banner-round").text);
+            Assert.AreEqual("round 2", _hud.Root.Q<Label>("ec-desk-ledger-round").text);
+            List<VisualElement> badges = _hud.Root.Q("ec-desk-coins").Query("coin-badge").ToList();
+            CollectionAssert.AreEqual(new object[] { RingVariant.Active, RingVariant.Acted, RingVariant.Down },
+                badges.Select(b => b.userData).ToArray(), "each coin's badge draws its variant's glyph");
+        }
+
+        [UnityTest]
         public IEnumerator DesktopBodyTextIsAtLeastTheMinimum() {
             _hud.Show(HudModels.Forecast());
             yield return null;
@@ -322,6 +355,45 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             Rect grid = _hud.Root.Q("ec-phone-grid").worldBound;
             Assert.LessOrEqual(confirm.xMax, peek.xMin + 0.5f);
             Assert.LessOrEqual(peek.xMax, grid.xMin + 0.5f);
+        }
+
+        [UnityTest]
+        public IEnumerator PhoneRebuildsDoNotGrowTheSizeRegistry() {
+            _hud.Show(HudModels.Forecast());
+            _hud.ShowSheet(true);
+            yield return Settle();
+            int first = _hud.RegisteredCount;
+            for (int i = 0; i < 20; i++) {
+                _hud.Show(i % 2 == 0 ? HudModels.Forecast() : HudModels.Idle());
+            }
+            _hud.Show(HudModels.Forecast());
+            yield return Settle();
+            Assert.AreEqual(first, _hud.RegisteredCount, "rebuilding the peek and sheet must not leak registrations");
+        }
+
+        [UnityTest]
+        public IEnumerator PhoneDocksTakeTheirTaps_TheFreeBoardPassesThrough() {
+            _hud.Show(HudModels.Forecast());
+            yield return Settle();
+            foreach (string dock in new[] { "ec-phone-peek", "ec-phone-grid", "ec-phone-top", "ec-phone-sentence" }) {
+                Rect r = _hud.Root.Q(dock).worldBound;
+                Assert.IsTrue(HudModels.PickHitsHud(_hud.Root, r.center), $"{dock} takes a tap at its centre");
+            }
+            Rect grid = _hud.Root.Q("ec-phone-grid").worldBound;
+            Rect tile = _hud.Root.Q("ec-tile-AutoResolve").worldBound;
+            Assert.IsTrue(HudModels.PickHitsHud(_hud.Root, new Vector2(tile.xMax + 1, grid.center.y)),
+                "a gap between grid tiles is not the board");
+            Rect top = _hud.Root.Q("ec-phone-top").worldBound;
+            Rect peek = _hud.Root.Q("ec-phone-peek").worldBound;
+            Assert.IsFalse(HudModels.PickHitsHud(_hud.Root, new Vector2(peek.center.x, (top.yMax + peek.yMin) / 2)),
+                "the free board between the docks is tapped through the HUD");
+        }
+
+        [UnityTest]
+        public IEnumerator PhoneShowsTheRound() {
+            _hud.Show(HudModels.Idle());
+            yield return Settle();
+            StringAssert.Contains("round 2", _hud.Root.Q<Label>("ec-phone-sentence-ends").text);
         }
 
         [UnityTest]

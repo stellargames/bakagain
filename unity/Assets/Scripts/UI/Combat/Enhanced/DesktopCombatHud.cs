@@ -25,7 +25,8 @@ namespace BakAgain.UI.Combat.Enhanced {
         private readonly VisualElement _root;
         private readonly VisualElement _band;
         private readonly VisualElement[] _slots = new VisualElement[5];
-        private readonly Label _banner;
+        private readonly VisualElement _banner;
+        private readonly Label _bannerText, _bannerRound, _ledgerRound;
         private readonly Label _tip;
 
         // Slot 0
@@ -91,7 +92,10 @@ namespace BakAgain.UI.Combat.Enhanced {
             _root.style.display = DisplayStyle.None;
             parent.Add(_root);
 
-            _banner = Text(_root, "ec-desk-banner", "ec-desk-banner");
+            _banner = Box("ec-desk-banner", "ec-desk-banner");
+            _root.Add(_banner);
+            _bannerText = Text(_banner, "ec-desk-banner-text", "ec-desk-banner__text");
+            _bannerRound = Text(_banner, "ec-desk-banner-round", "ec-desk-banner__round");
             VisualElement cam = Box("ec-desk-cam", "ec-desk-cam");
             _root.Add(cam);
             CamButton(cam, "ec-cam-left", "⟲", () => TurnQuarterPressed?.Invoke(-1));
@@ -179,6 +183,7 @@ namespace BakAgain.UI.Combat.Enhanced {
             inner[2].Add(ledgerHead);
             _ledgerTitle = Text(ledgerHead, "ec-desk-ledger-title", "ec-desk-title");
             _endsTurn = Text(ledgerHead, "ec-desk-ends-turn", "ec-desk-ends-turn");
+            _ledgerRound = Text(ledgerHead, "ec-desk-ledger-round", "ec-desk-small");
             _ledgerBody = Box("ec-desk-ledger-body", "ec-desk-ledger-body");
             inner[2].Add(_ledgerBody);
             _ledgerFooter = Box("ec-desk-ledger-footer", "ec-desk-ledger-footer");
@@ -232,7 +237,10 @@ namespace BakAgain.UI.Combat.Enhanced {
             if (m == null) {
                 return;
             }
-            _banner.text = m.Sentence ?? "";
+            _bannerText.text = m.Sentence ?? "";
+            _bannerRound.text = CombatHudText.Round(m.Round);
+            _ledgerRound.text = CombatHudText.Round(m.Round);
+            _ledgerRound.style.display = m.Forecast == null && m.Round > 0 ? DisplayStyle.Flex : DisplayStyle.None;
             _banner.EnableInClassList("ec-desk-banner--theirs", m.TheirTurn);
             ShowMedallion(m);
             ShowCoins(m);

@@ -99,6 +99,8 @@ namespace BakAgain.UI.InGame {
             ring.generateVisualContent += ctx => DrawRing(ctx, ring.contentRect, ((double, double))ring.userData);
             var badge = new VisualElement { name = "coin-badge", pickingMode = PickingMode.Ignore };
             badge.AddToClassList("enhanced-ring__badge");
+            badge.userData = RingVariant.Ready;
+            badge.generateVisualContent += ctx => DrawBadge(ctx, badge.contentRect, (RingVariant)badge.userData);
             head.Insert(0, ring);
             head.Add(badge);
             return ring;
@@ -114,6 +116,34 @@ namespace BakAgain.UI.InGame {
             foreach (RingVariant v in System.Enum.GetValues(typeof(RingVariant))) {
                 head.EnableInClassList("enhanced-ring--" + v.ToString().ToLowerInvariant(), v == variant);
             }
+            VisualElement badge = head.Q("coin-badge");
+            if (badge != null && !variant.Equals(badge.userData)) {
+                badge.userData = variant;
+                badge.MarkDirtyRepaint();
+            }
+        }
+
+        // The badge's glyph, drawn (no font has to carry it): a tick for acted, a cross for down.
+        // Shape as well as colour, so the two are never told apart by colour alone.
+        private static void DrawBadge(MeshGenerationContext ctx, Rect r, RingVariant variant) {
+            if (variant != RingVariant.Acted && variant != RingVariant.Down || r.width <= 0f) return;
+            Painter2D p = ctx.painter2D;
+            p.lineWidth = Mathf.Max(1.5f, r.width * 0.16f);
+            p.strokeColor = Color.white;
+            p.lineCap = LineCap.Round;
+            float m = r.width * 0.28f;
+            p.BeginPath();
+            if (variant == RingVariant.Acted) {
+                p.MoveTo(new Vector2(r.xMin + m, r.center.y));
+                p.LineTo(new Vector2(r.center.x - r.width * 0.05f, r.yMax - m));
+                p.LineTo(new Vector2(r.xMax - m, r.yMin + m));
+            } else {
+                p.MoveTo(new Vector2(r.xMin + m, r.yMin + m));
+                p.LineTo(new Vector2(r.xMax - m, r.yMax - m));
+                p.MoveTo(new Vector2(r.xMax - m, r.yMin + m));
+                p.LineTo(new Vector2(r.xMin + m, r.yMax - m));
+            }
+            p.Stroke();
         }
 
         private static void Arc(Painter2D p, Vector2 c, float radius, float from, float to, Color colour) {

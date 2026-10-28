@@ -641,8 +641,11 @@ namespace BakAgain.Combat {
         /// Why the actor cannot shoot / cast right now (None = can). The ONE evaluation behind
         /// <see cref="CapabilitiesFor"/> and <see cref="AvailabilityFor"/>.
         /// </summary>
+        /// <param name="peek">True for the Enhanced HUD's and forecast's reads: the stats are read without
+        /// writing the cached byte or freeing lapsed modifiers. False for the Classic turn-start refresh,
+        /// which is the original's own <c>stat_actor_get</c>.</param>
         private (CombatCapability.ShootRefusal Shoot, CombatCapability.CastRefusal Cast) RefusalsFor(
-            Combatant actor) {
+            Combatant actor, bool peek = false) {
             if (actor == null || Encounter == null) {
                 return (CombatCapability.ShootRefusal.NoCrossbow, CombatCapability.CastRefusal.NotACaster);
             }
@@ -662,12 +665,12 @@ namespace BakAgain.Combat {
             CombatCapability.CastRefusal cast = CombatCapability.WhyNotCast(
                 terrain,
                 nearest,
-                CombatStat(actor, ActorAttribute.AccuracyCasting),
+                CombatStat(actor, ActorAttribute.AccuracyCasting, peek),
                 StatValue(stats, ActorAttribute.Health),
                 CombatCapability.ShippedHealthThresholds,
                 chapterEightWithoutRequiredItem: false);
 
-            return (WhyNotShootNow(actor, terrain, nearest), cast);
+            return (WhyNotShootNow(actor, terrain, nearest, peek), cast);
         }
 
         /// <summary>
@@ -691,7 +694,8 @@ namespace BakAgain.Combat {
                 new(false, false, key, UiTemplates.Format(key, args));
             ActionAvailability Named(string key) => Refuse(key, ("name", name));
 
-            (CombatCapability.ShootRefusal shoot, CombatCapability.CastRefusal cast) = RefusalsFor(acting);
+            // Peek: the HUD polls this and a hover forecasts with it; neither may write the save.
+            (CombatCapability.ShootRefusal shoot, CombatCapability.CastRefusal cast) = RefusalsFor(acting, peek: true);
             result[CombatCommands.Command.Cast] = cast switch {
                 CombatCapability.CastRefusal.None => ActionAvailability.On,
                 CombatCapability.CastRefusal.FoeAdjacent => Named(UiTemplates.EnhancedAvailFoeAdjacent),
@@ -745,7 +749,7 @@ namespace BakAgain.Combat {
         /// <see cref="CombatCapability.InnatelyMissileCreature"/> today, but the coincidence is the
         /// kind that starts working by accident later. Zero is passed instead.
         /// </remarks>
-        private CombatCapability.ShootRefusal WhyNotShootNow(Combatant actor, int terrain, int nearest) {
+        private CombatCapability.ShootRefusal WhyNotShootNow(Combatant actor, int terrain, int nearest, bool peek = false) {
             RuntimeContainer pack = actor.IsPartyMember
                 ? _session?.GetActorInventory(actor.ClassId)
                 : null;
@@ -756,7 +760,7 @@ namespace BakAgain.Combat {
                 QuarrelInventory.Count(pack),
                 EquippedGear.HasIntact(EquipmentSlots(pack), CombatCapability.RangedWeaponCategory),
                 actor.IsPartyMember ? 0 : actor.ClassId,
-                CombatStat(actor, ActorAttribute.AccuracyCrossbow));
+                CombatStat(actor, ActorAttribute.AccuracyCrossbow, peek));
         }
 
         /// <summary>

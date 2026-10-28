@@ -52,6 +52,7 @@ namespace BakAgain.UI.Combat.Enhanced {
     /// <param name="Sentence">The one-line turn sentence ("Owyn's turn").</param>
     /// <param name="Alternative">The other melee column next to <paramref name="Forecast"/> (Swing beside
     /// Thrust); null when there is none.</param>
+    /// <param name="Round">The fight's round, 1-based; 0 when unknown (not shown).</param>
     public sealed record CombatHudModel(
         int ActorSlot,
         HeroCardModel Hero,
@@ -63,7 +64,8 @@ namespace BakAgain.UI.Combat.Enhanced {
         IReadOnlyDictionary<CombatCommands.Command, ActionAvailability> Stones,
         bool TheirTurn,
         string Sentence,
-        CombatForecast Alternative = null);
+        CombatForecast Alternative = null,
+        int Round = 0);
 
     /// <summary>A weapon or armour line: its name, condition in percent (-1 = not tracked) and stat line.</summary>
     public sealed record KitItemModel(string Name, int ConditionPercent, string Stats);
@@ -158,6 +160,9 @@ namespace BakAgain.UI.Combat.Enhanced {
             return result;
         }
 
+        /// <summary>"round N", or empty when the round is unknown.</summary>
+        public static string Round(int n) => n > 0 ? UiTemplates.Format(UiTemplates.HudRound, ("n", n)) : "";
+
         public static string Reason(CombatForecast f) =>
             string.IsNullOrEmpty(f?.ReasonKey) ? "" : UiTemplates.Format(f.ReasonKey);
 
@@ -187,6 +192,6 @@ namespace BakAgain.UI.Combat.Enhanced {
             _ => -1,
         };
 
-        public static IReadOnlyList<string> Empty = System.Array.Empty<string>();
+        public static readonly IReadOnlyList<string> Empty = System.Array.Empty<string>();
     }
 }

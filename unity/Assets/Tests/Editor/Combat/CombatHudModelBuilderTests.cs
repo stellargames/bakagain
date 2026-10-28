@@ -10,7 +10,7 @@ namespace BakAgain.Tests.Editor.Combat {
 
     /// <summary>The Enhanced HUD's model from a live fight (TASK-972 phase 1, Task 8).</summary>
     public class CombatHudModelBuilderTests {
-        private static (CombatRuntime Runtime, CombatEncounter Fight, ActorStat[] Hero) Duel() {
+        private static (CombatRuntime Runtime, CombatEncounter Fight, ActorStat[] Hero, GameSession Session) Duel() {
             ActorStat[] hero = CombatRuntimeTests.StatBlock(health: 20);
             hero[(int)ActorAttribute.Health] = new ActorStat { Base = 20, Max = 40 };   // half health: stats drag
             hero[(int)ActorAttribute.Stamina] = new ActorStat { Base = 10, Max = 40 };
@@ -25,16 +25,31 @@ namespace BakAgain.Tests.Editor.Combat {
             session.SetRosterActorForTest(401, enemy, gridX: 7, gridY: 6);
             var runtime = new CombatRuntime(session, null, CombatRuntimeTests.Entries(((byte)3, (byte)4)));
             CombatEncounter fight = runtime.EnterRoster(new short[] { 400, 401 });
-            return (runtime, fight, hero);
+            return (runtime, fight, hero, session);
         }
 
         [Test]
         public void TheModelIsTheFightAsItStands_ReadWithoutWriting() {
-            (CombatRuntime r, CombatEncounter f, ActorStat[] hero) = Duel();
+            (CombatRuntime r, CombatEncounter f, ActorStat[] hero, GameSession session) = Duel();
             Assert.AreSame(f.Party[0], r.AdvanceToPartyTurn(), "the hero's turn (the foes forfeit theirs)");
+            // A lapsed timed modifier on every stat: a Get-path read would free it (and mark the block dirty).
+            var slots = new ActorStatModifiers.Slot[ActorStatModifiers.SlotsPerCharacter];
+            slots[0] = new ActorStatModifiers.Slot((int)ActorStatModifiers.ModifierFlags.Expires | 1, 0xffff, 1, 0, 1);
+            session.CommitStatModifierSlots(0, slots);
+            session.GameTimeIn2Seconds = 100;
             byte[] cached = hero.Select(s => s?.Effective ?? 0).ToArray();
 
             CombatHudModel m = CombatHudModelBuilder.Build(r, null, BoardMarks.Empty, 2);
+            r.ForecastNoTarget(f.Party[0], ForecastAction.Rest);
+            r.ForecastMelee(f.Party[0], f.Enemies[0], CombatActionDispatch.MeleeAttack.Thrust);
+
+            // The HUD's poll and a hover's forecast write nothing: no cached byte, no freed modifier.
+            CollectionAssert.AreEqual(cached, hero.Select(s => s?.Effective ?? 0).ToArray(), "cached stat bytes");
+            Assert.IsFalse(session.StatModifierSlotsFor(0)[0].IsEmpty, "no lapsed modifier was freed");
+
+            // Control: the Classic turn-start read (CapabilitiesFor) IS the original's Get, and frees it.
+            r.CapabilitiesFor(f.Party[0]);
+            Assert.IsTrue(session.StatModifierSlotsFor(0)[0].IsEmpty, "the Classic read still frees it");
 
             Assert.IsFalse(m.TheirTurn);
             Assert.AreEqual(f.Party[0].PartySlot, m.ActorSlot);
@@ -47,11 +62,6 @@ namespace BakAgain.Tests.Editor.Combat {
             Assert.IsTrue(m.Stones.ContainsKey(CombatCommands.Command.Defend), "the stones' availability");
             Assert.AreEqual(1, m.Party.Count);
             Assert.AreEqual(BakAgain.UI.InGame.RingVariant.Active, m.Party[0].State);
-            // The card's own reads (Speed, Strength: current and base) never write the save's cached
-            // byte. AvailabilityFor's capability reads are the turn-start reads the original makes too.
-            Assert.AreEqual(cached[(int)ActorAttribute.Speed], hero[(int)ActorAttribute.Speed].Effective);
-            Assert.AreEqual(cached[(int)ActorAttribute.Strength], hero[(int)ActorAttribute.Strength].Effective);
-
             r.Knowledge.Record(0, ActorAttribute.Defense, 40);
             FoeStatRow defense = CombatHudModelBuilder.Build(r, null, BoardMarks.Empty, 2).Foes[0].Rows
                 .Single(row => row.ShortLabel == GameData.Resources.Text.UiTemplates.Format(

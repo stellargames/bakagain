@@ -74,7 +74,10 @@ namespace BakAgain.UI.Combat.Enhanced {
             float row = layout.PhoneTopRowPt;
 
             // Top row.
+            // The docks are opaque panels: a tap on them (or between their tiles) must never reach the
+            // board under them. Only the free board between the docks passes through.
             _top = Box("ec-phone-top", "ec-phone-top");
+            _top.pickingMode = PickingMode.Position;
             _safe.Add(_top);
             Size(_top, -1, row);
             _heroChip = Box("ec-phone-hero-chip", "ec-phone-chip");
@@ -110,6 +113,7 @@ namespace BakAgain.UI.Combat.Enhanced {
 
             // Foe chips, right, under the top row.
             _foeChips = Box("ec-phone-foes", "ec-phone-foes");
+            _foeChips.pickingMode = PickingMode.Position;
             _safe.Add(_foeChips);
             Place(_foeChips, top: row + gap, right: 0);
             Size(_foeChips, 2 * layout.FoeChipPt + gap, -1);
@@ -130,11 +134,13 @@ namespace BakAgain.UI.Combat.Enhanced {
             SetFont(_cancel, layout.PhoneHeadTextPt);
 
             _peek = Box("ec-phone-peek", "ec-phone-peek");
+            _peek.pickingMode = PickingMode.Position;
             _safe.Add(_peek);
             Place(_peek, bottom: 0, left: layout.PhoneConfirmWidthPt + gap);
             Size(_peek, layout.PhonePeekWidthPt, layout.PhonePeekHeightPt);
 
             _grid = Box("ec-phone-grid", "ec-phone-grid");
+            _grid.pickingMode = PickingMode.Position;
             _safe.Add(_grid);
             Place(_grid, bottom: 0, right: 0);
             Size(_grid, 3 * layout.TileWidthPt + 2 * gap, 2 * layout.TileHeightPt + gap);
@@ -234,7 +240,8 @@ namespace BakAgain.UI.Combat.Enhanced {
             _sentence.EnableInClassList("ec-phone-theirs", m.TheirTurn);
             _sentenceEnds.text = f != null && f.Allowed && f.EndsTurn
                 ? UiTemplates.Format(UiTemplates.HudEndsTurn, ("name", h?.Name ?? ""))
-                : f == null && !m.TheirTurn ? UiTemplates.Format(UiTemplates.HudTurnHint) : "";
+                : f == null ? CombatHudText.Join(CombatHudText.Round(m.Round),
+                    m.TheirTurn ? "" : UiTemplates.Format(UiTemplates.HudTurnHint)) : "";
             _sentenceEnds.EnableInClassList("ec-phone-dim", f == null);
             _sentenceEnds.EnableInClassList("ec-phone-ends", f != null);
         }
@@ -313,6 +320,7 @@ namespace BakAgain.UI.Combat.Enhanced {
 
         private void ShowPeek(CombatHudModel m) {
             _peek.Clear();
+            Prune();
             CombatForecast f = m.Forecast;
             if (f == null) {
                 foreach (string logLine in m.LogLines ?? CombatHudText.Empty) {
@@ -448,7 +456,7 @@ namespace BakAgain.UI.Combat.Enhanced {
 
         private void LongPress(VisualElement e, Action tap, Action hold) {
             IVisualElementScheduledItem timer = null;
-            bool held = false;
+            bool held = true;   // a release with no press on this tile (a drag ending here) is not a tap
             e.RegisterCallback<PointerDownEvent>(_ => {
                 held = false;
                 timer?.Pause();
@@ -467,6 +475,7 @@ namespace BakAgain.UI.Combat.Enhanced {
 
         private void BuildSheet(CombatHudModel m) {
             _sheet.Clear();
+            Prune();
             HeroCardModel h = m?.Hero;
             if (h == null || h.IsFoe) return;
             VisualElement row = Box(null, "ec-phone-row");
@@ -520,6 +529,7 @@ namespace BakAgain.UI.Combat.Enhanced {
         }
 
         private void ApplySizes() {
+            Prune();
             foreach ((VisualElement e, float w, float h) in _sized) {
                 if (w >= 0) e.style.width = w * _scale;
                 if (h >= 0) e.style.height = h * _scale;
@@ -531,8 +541,6 @@ namespace BakAgain.UI.Combat.Enhanced {
                 if (p.Right.HasValue) e.style.right = p.Right.Value * _scale;
                 if (p.Bottom.HasValue) e.style.bottom = p.Bottom.Value * _scale;
             }
-            _sized.RemoveAll(s => s.E.panel == null && s.E.parent == null);
-            _fonts.RemoveAll(s => s.E.panel == null && s.E.parent == null);
         }
 
         private readonly struct Placement {
@@ -551,6 +559,25 @@ namespace BakAgain.UI.Combat.Enhanced {
         }
 
         private void Size(VisualElement e, float wPt, float hPt) => _sized.Add((e, wPt, hPt));
+
+        /// <summary>
+        /// Drops the size and font registrations of elements no longer in this HUD's tree: the peek and
+        /// the sheet are rebuilt on every Show, and their old labels keep their own parents.
+        /// </summary>
+        private void Prune() {
+            _sized.RemoveAll(x => !Owned(x.E));
+            _fonts.RemoveAll(x => !Owned(x.E));
+        }
+
+        private bool Owned(VisualElement e) {
+            for (VisualElement v = e; v != null; v = v.parent) {
+                if (v == _root) return true;
+            }
+            return false;
+        }
+
+        /// <summary>Test seam: how many elements are registered for sizing in points.</summary>
+        internal int RegisteredCount => _sized.Count + _fonts.Count;
 
         private void SetFont(VisualElement e, float pt) => _fonts.Add((e, pt));
 

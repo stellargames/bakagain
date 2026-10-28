@@ -60,7 +60,7 @@ namespace BakAgain.UI.Combat.Enhanced {
             return new CombatHudModel(theirs || acting == null ? 0 : acting.PartySlot, hero, party, forecast,
                 combat.Log.Last(logLines), foes, cardFoe,
                 theirs ? new Dictionary<CombatCommands.Command, ActionAvailability>() : combat.AvailabilityFor(acting),
-                theirs, sentence, alternative);
+                theirs, sentence, alternative, combat.Log.Round);
         }
 
         private static (int HealthMax, int StaminaMax) Maxima(CombatRuntime combat, Combatant c) {

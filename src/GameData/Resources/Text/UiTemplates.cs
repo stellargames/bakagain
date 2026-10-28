@@ -250,6 +250,7 @@ public static class UiTemplates {
     public const string HudActing = "port:template:enhanced_hud_acting";
     public const string HudFightLog = "port:template:enhanced_hud_fight_log";
     public const string HudFoes = "port:template:enhanced_hud_foes";
+    public const string HudRound = "port:template:enhanced_hud_round";
     public const string HudFoeCount = "port:template:enhanced_hud_foe_count";
     public const string HudFar = "port:template:enhanced_hud_far";
     public const string HudDown = "port:template:enhanced_hud_down";
@@ -466,6 +467,7 @@ public static class UiTemplates {
         (HudActing, _ => "acting"),
         (HudFightLog, _ => "Fight log"),
         (HudFoes, _ => "Foes"),
+        (HudRound, _ => "round {n}"),
         (HudFoeCount, _ => "{count}"),
         (HudFar, _ => "far"),
         (HudDown, _ => "down"),
