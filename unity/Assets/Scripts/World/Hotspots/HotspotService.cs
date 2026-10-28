@@ -1039,6 +1039,16 @@ using GameData.Resources.Scene;
         public bool FightInProgress => _combat != null && _combat.InCombat;
 
         /// <summary>
+        /// The fight is under way: its first party turn has been handed out and the combat menu opened
+        /// (<see cref="SettleTurnAsync"/>). Until then -- the entry line over the travel view, the fade, the
+        /// opening enemy turns -- a fight exists but no combat HUD is up in the Classic game, so the
+        /// Enhanced one waits for the same moment (owner's phone test, 2026-10-28).
+        /// </summary>
+        public bool FightUnderWay => FightInProgress && _fightUnderWay;
+
+        private bool _fightUnderWay;
+
+        /// <summary>
         /// Spring the DEF_TRAP trigger covering one sub-tile of the party's current chunk — the
         /// spawn a trapped container performs when it is opened.
         /// </summary>
@@ -1180,6 +1190,7 @@ using GameData.Resources.Scene;
         /// guard's own comment.</para>
         /// </remarks>
         public bool StartCombat(TileEventTrigger trigger, int hotspotIndex = -1) {
+            _fightUnderWay = false;
             long? encounter = EncounterNumberOf(trigger);
             if (!encounter.HasValue || HotspotRules.EncounterIndexOutOfRange(encounter.Value)) {
                 return false;
@@ -6470,6 +6481,7 @@ using GameData.Resources.Scene;
                 menu.SetCapabilities(canShoot, canCast);
                 if (openMenu) {
                     menu.Open();
+                    _fightUnderWay = true;
                 }
             } finally {
                 _settlingTurn = false;

@@ -1427,6 +1427,7 @@ namespace BakAgain.World {
                 screen.SetCombatGroundSeam(_hotspots.ResolveCombatGroundClick);
                 screen.SetCombatFaceSeam(FaceActingCombatantAt);
                 screen.SetInCombatPredicate(() => _hotspots?.Combat?.InCombat ?? false);
+                screen.SetFightUnderWayPredicate(() => _hotspots?.FightUnderWay ?? false);
                 if (_hotspots.Combat != null) {
                     _hotspots.Combat.ForecastLayout = _combatLayout;
                 }
@@ -2165,6 +2166,9 @@ namespace BakAgain.World {
         /// <summary>Whether a fight is on the field — see
         /// <see cref="Hotspots.HotspotService.FightInProgress"/>.</summary>
         public bool FightInProgress => _hotspots != null && _hotspots.FightInProgress;
+
+        /// <summary>The fight's first turn has been handed out; see <see cref="Hotspots.HotspotService.FightUnderWay"/>.</summary>
+        public bool FightUnderWay => _hotspots != null && _hotspots.FightUnderWay;
 
         /// <summary>Spring a trapped container's ambush — see
         /// <see cref="Hotspots.HotspotService.FireTrapEncounterAt"/>. Sub-tile coordinates.</summary>

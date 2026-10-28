@@ -32,7 +32,8 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
             System.Func<BakAgain.UI.Inventory.InventoryMenu> inventory = null,
             System.Func<BakAgain.UI.Character.CharacterSheetScreen> sheet = null,
             System.Func<BakAgain.UI.Combat.ShootMenu> shoot = null,
-            System.Action<GameSession> outfit = null, GameData.Resources.Object.ObjectInfoSet objects = null) {
+            System.Action<GameSession> outfit = null, GameData.Resources.Object.ObjectInfoSet objects = null,
+            System.Func<BakAgain.UI.Combat.CombatMenu> combatMenu = null) {
             var session = new GameSession();
             session.SetActorStatsForTest(0, StatBlock(partyHealth));
             session.SetActiveParty(1, new byte[] { 0 });
@@ -45,7 +46,8 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
             outfit?.Invoke(session);
             var service = new HotspotService(null, null, session, dialogs, random: _ => roll,
                 setCombatMusic: _ => { }, resyncCamera: () => { }, arenaBusy: arenaBusy,
-                inventoryMenuAccessor: inventory, characterSheetAccessor: sheet, shootMenuAccessor: shoot);
+                inventoryMenuAccessor: inventory, characterSheetAccessor: sheet, shootMenuAccessor: shoot,
+                combatMenuAccessor: combatMenu);
             service.SetZoneForTest(1,
                 byChunk: new Dictionary<(int x, int y), List<TileEventTrigger>> {
                     [(0, 0)] = new List<TileEventTrigger> { new TileEventTrigger {

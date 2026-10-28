@@ -343,6 +343,18 @@ namespace BakAgain.UI.InGame {
         private System.Func<bool> _inCombat;
 
         internal void SetInCombatPredicate(System.Func<bool> inCombat) => _inCombat = inCombat;
+
+        // Whether the fight's first turn has been handed out (HotspotService.FightUnderWay); null = yes.
+        private System.Func<bool> _fightUnderWay;
+
+        internal void SetFightUnderWayPredicate(System.Func<bool> underWay) => _fightUnderWay = underWay;
+
+        // As AFightIsRunning: the world's own answer until the fight's seams are handed over (the first
+        // fight's entry line plays before its arena is drawn); with no world at all (tests), under way.
+        private bool FightUnderWay() =>
+            _fightUnderWay != null
+                ? _fightUnderWay()
+                : (_resolver?.Resolve(typeof(BakAgain.World.WorldRuntime)) as BakAgain.World.WorldRuntime)?.FightUnderWay ?? true;
         private Camera _pendingCamera;
         private float _fadeSeconds = 0.15f;
 
@@ -1243,6 +1255,8 @@ namespace BakAgain.UI.InGame {
         }
 
         // Enhanced combat (TASK-972): the chosen HUD in place of the Classic combat menu, latched per turn.
+        internal void SyncCombatHudForTest() => SyncCombatHud();
+
         private void SyncCombatHud() {
             if (_combatHud == null) {
                 return;
@@ -1253,7 +1267,9 @@ namespace BakAgain.UI.InGame {
             // pushed over the fight deactivates this one, so only a dialog page has to be checked.
             _combatHud.Sync(GameOptions.IsOn(EnhancedFeature.Combat), AFightIsRunning(), _combatTurn?.Invoke(),
                 () => _combatController?.Model(lines) ?? _combatHudModel?.Invoke(lines), _classicCombatMenu?.Invoke(),
-                !DialogManager.PageOverTheWorld);
+                // Not before the fight is under way: the entry line and the opening enemy turns show no
+                // combat HUD in the Classic game either.
+                !DialogManager.PageOverTheWorld && FightUnderWay());
             // The controller owns the forecast in the model; the world hands back the one for this
             // fight's service (the same instance until the zone's service changes).
             var controller = _combatHud.Hud != null ? _combatControllerFor?.Invoke(_combatHud.Hud, phone) : null;
