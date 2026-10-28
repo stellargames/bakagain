@@ -15,7 +15,7 @@ namespace BakAgain.Tests.Editor.Combat {
         // Hero: Melee 60, Strength 10, no weapon. Foe: Defense 40 -> rating 10 -> true chance 50%,
         // armour 10% -> a landed blow does 9.
         private static (CombatRuntime Runtime, CombatEncounter Fight) Duel(
-            (byte X, byte Y) foe) {
+            (byte X, byte Y) foe, byte foeDefense = 40) {
             ActorStat[] hero = CombatRuntimeTests.StatBlock(health: 30);
             hero[(int)ActorAttribute.AccuracyMelee] = new ActorStat { Base = 60, Max = 99 };
             hero[(int)ActorAttribute.Strength] = new ActorStat { Base = 10, Max = 99 };
@@ -26,7 +26,7 @@ namespace BakAgain.Tests.Editor.Combat {
             session.SetActiveParty(1, new byte[] { 0 });
             ActorStat[] enemy = CombatRuntimeTests.StatBlock(health: 20);
             enemy[(int)ActorAttribute.Health] = new ActorStat { Base = 20, Max = 20 };
-            enemy[(int)ActorAttribute.Defense] = new ActorStat { Base = 40, Max = 99 };
+            enemy[(int)ActorAttribute.Defense] = new ActorStat { Base = foeDefense, Max = 99 };
             session.SetRosterActorForTest(400, enemy, gridX: foe.X, gridY: foe.Y);
             var runtime = new CombatRuntime(session, null, CombatRuntimeTests.Entries(((byte)3, (byte)4)));
             return (runtime, runtime.EnterRoster(new short[] { 400 }));
@@ -57,9 +57,7 @@ namespace BakAgain.Tests.Editor.Combat {
             Assert.IsNull(before.HitPercentAbout);
             Assert.IsNull(before.DamageAbout);
             Assert.AreEqual(2, before.HitPips, "pips are shown before Inspect");
-            Assert.Less(before.DamageLow, before.DamageHigh, "a band before");
-            Assert.LessOrEqual(before.DamageLow, 9);
-            Assert.GreaterOrEqual(before.DamageHigh, 9);
+            Assert.AreEqual((6, 9), (before.DamageLow, before.DamageHigh), "a fixed bucket before");
 
             r.Knowledge.Record(0, ActorAttribute.Defense, 40);
             CombatForecast after = r.ForecastMelee(f.Party[0], f.Enemies[0], MeleeAttack.Thrust);
@@ -173,6 +171,59 @@ namespace BakAgain.Tests.Editor.Combat {
             }
             Assert.AreEqual(UiTemplates.EnhancedForecastPackNote,
                 r.ForecastNoTarget(hero, ForecastAction.Pack).ReasonKey);
+        }
+
+        [Test]
+        public void TheBandIsAFixedBucket_NotCentredOnTheTrueDamage() {
+            // Defense 40 and 20 both leave 9 after armour; Defense 0 leaves 10 (the next bucket).
+            var seen = new List<(int, int)>();
+            foreach (byte def in new byte[] { 40, 20 }) {
+                (CombatRuntime r, CombatEncounter f) = Duel((4, 4), def);
+                CombatForecast c = r.ForecastMelee(f.Party[0], f.Enemies[0], MeleeAttack.Thrust);
+                seen.Add((c.DamageLow, c.DamageHigh));
+            }
+            Assert.AreEqual(seen[0], seen[1], "same bucket, same band");
+            (CombatRuntime r0, CombatEncounter f0) = Duel((4, 4), 0);
+            CombatForecast ten = r0.ForecastMelee(f0.Party[0], f0.Enemies[0], MeleeAttack.Thrust);
+            Assert.AreEqual((10, 14), (ten.DamageLow, ten.DamageHigh));
+        }
+
+        [Test]
+        public void TheBucketBoundsComeFromTheLayout_AndTheLastIsOpenEnded() {
+            (CombatRuntime r, CombatEncounter f) = Duel((4, 4));
+            r.ForecastLayout = new EnhancedCombatLayout { DamageBandEdges = new[] { 1, 5, 9 } };
+            CombatForecast c = r.ForecastMelee(f.Party[0], f.Enemies[0], MeleeAttack.Thrust);
+            Assert.AreEqual((9, int.MaxValue), (c.DamageLow, c.DamageHigh));
+            r.ForecastLayout = new EnhancedCombatLayout { DamageBandEdges = new[] { 1, 5, 12 } };
+            c = r.ForecastMelee(f.Party[0], f.Enemies[0], MeleeAttack.Thrust);
+            Assert.AreEqual((5, 11), (c.DamageLow, c.DamageHigh));
+        }
+
+        [Test]
+        public void TheSwingColumnUsesTheSwingDamage() {
+            (CombatRuntime r, CombatEncounter f) = Duel((4, 4));
+            r.Knowledge.Record(0, ActorAttribute.Defense, 40);
+            CombatForecast swing = r.ForecastMelee(f.Party[0], f.Enemies[0], MeleeAttack.Swing);
+            int dealt = r.ResolveMelee(f.Party[0], f.Enemies[0], MeleeAttack.Swing, _ => 0).Damage;
+            Assert.AreEqual(dealt, swing.DamageAbout);
+        }
+
+        [Test]
+        public void AForecastWritesNoCachedStatByte() {
+            (CombatRuntime r, CombatEncounter f) = Duel((4, 4));
+            var blocks = new[] { r.StatsFor(f.Party[0]), r.StatsFor(f.Enemies[0]) };
+            foreach (ActorStat[] block in blocks) {
+                foreach (ActorStat stat in block) {
+                    stat.Effective = 77;
+                }
+            }
+            r.ForecastMelee(f.Party[0], f.Enemies[0], MeleeAttack.Thrust);
+            r.ForecastMelee(f.Party[0], f.Enemies[0], MeleeAttack.Swing);
+            foreach (ActorStat[] block in blocks) {
+                foreach (ActorStat stat in block) {
+                    Assert.AreEqual(77, stat.Effective);
+                }
+            }
         }
     }
 }

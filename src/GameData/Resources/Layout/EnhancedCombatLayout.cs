@@ -76,6 +76,12 @@ public sealed class EnhancedCombatLayout
     /// <summary>Hit chance (percent) at or above which a melee hit is shown as "even".</summary>
     public int HitPipEvenAtLeast { get; set; } = 34;
 
+    /// <summary>
+    /// Lower edges of the damage buckets shown before a foe's Defense is revealed. Bucket i is
+    /// [edge i, edge i+1 - 1]; the last is open-ended (its high bound is <see cref="int.MaxValue"/>, "21+").
+    /// </summary>
+    public int[] DamageBandEdges { get; set; } = { 1, 3, 6, 10, 15, 21 };
+
     /// <summary>How long a press must be held to count as a long press, in seconds.</summary>
     public float LongPressSeconds { get; set; } = 0.5f;
 

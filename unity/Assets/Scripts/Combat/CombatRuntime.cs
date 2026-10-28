@@ -1364,7 +1364,7 @@ namespace BakAgain.Combat {
             }
 
             (MeleeExchange.Attacker swing, MeleeExchange.Defender guard, _, _) =
-                MeleeSides(acting, target, attack, 0);
+                MeleeSides(acting, target, attack, 0, peek: true);
             int chance = CombatFormulas.MeleeHitChance(swing.AccuracyMelee, swing.HasWeapon,
                 swing.WeaponAccuracy, swing.ClassGroupModifier, swing.WeaponConditionPercent,
                 swing.WeaponFlags, guard.DefenseRating);
@@ -1378,10 +1378,16 @@ namespace BakAgain.Combat {
             int damage = MeleeExchange.Resolve(attacker, defender, swing, guard, _ => 0).Damage;
 
             bool revealed = Knowledge.TryGet(slot, ActorAttribute.Defense, out _);
-            // ponytail: the unrevealed band is +-25% of the true value; a real model of what the
-            // player may infer (armour class from the sprite) would replace it if the band proves leaky.
-            int low = revealed ? damage : damage * 3 / 4;
-            int high = revealed ? damage : System.Math.Max(1, (damage * 5 + 3) / 4);
+            // Before Inspect the damage is a FIXED coarse bucket, so the band cannot be centred on
+            // (or otherwise give back) the true number or the armour behind it. The last bucket is
+            // open-ended: DamageHigh = int.MaxValue ("21+").
+            int[] edges = ForecastLayout.DamageBandEdges;
+            int bucket = 0;
+            while (bucket + 1 < edges.Length && damage >= edges[bucket + 1]) {
+                bucket++;
+            }
+            int low = revealed ? damage : edges[bucket];
+            int high = revealed ? damage : bucket + 1 < edges.Length ? edges[bucket + 1] - 1 : int.MaxValue;
 
             int stamina = 0;
             int health = 0;
@@ -2191,7 +2197,7 @@ namespace BakAgain.Combat {
         /// so the forecast cannot drift from the fight.
         /// </summary>
         private (MeleeExchange.Attacker Swing, MeleeExchange.Defender Guard, Equipped Weapon, int SwingMask) MeleeSides(
-            Combatant attacker, Combatant defender, CombatActionDispatch.MeleeAttack attack, int fixedDamage) {
+            Combatant attacker, Combatant defender, CombatActionDispatch.MeleeAttack attack, int fixedDamage, bool peek = false) {
             Equipped weapon = EquippedOfCategory(attacker, MeleeWeaponCategory);
             Equipped armour = EquippedOfCategory(defender, ArmorCategory);
 
@@ -2200,8 +2206,8 @@ namespace BakAgain.Combat {
             // thrust with thrust -- and the reason that was got wrong here for months is that
             // canassa's two function names are swapped. See CombatActionDispatch.AccuracyOf.
             var swing = new MeleeExchange.Attacker(
-                CombatStat(attacker, ActorAttribute.AccuracyMelee),
-                CombatStat(attacker, ActorAttribute.Strength),
+                CombatStat(attacker, ActorAttribute.AccuracyMelee, peek),
+                CombatStat(attacker, ActorAttribute.Strength, peek),
                 hasWeapon: weapon.Info != null,
                 weaponAccuracy: CombatActionDispatch.AccuracyOf(attack,
                     weapon.Info?.SwingAccuracy_ArmorMod_BowAccuracy ?? 0,
@@ -2215,7 +2221,7 @@ namespace BakAgain.Combat {
 
             // CanAct(false) is the "not incapacitated" reading DefenseRating wants: a combatant who
             // cannot act does not defend, which is what makes a downed target easy to finish.
-            int defense = CombatStat(defender, ActorAttribute.Defense);
+            int defense = CombatStat(defender, ActorAttribute.Defense, peek);
             Equipped blade = EquippedOfCategory(attacker, (int)GameData.ObjectType.Sword);
             int swingMask = GameData.Resources.Combat.CombatDamageMask.ForSwing(
                 blade.Info != null ? (int)blade.Flags : 0);
@@ -5491,7 +5497,7 @@ namespace BakAgain.Combat {
             }
         }
 
-        private int CombatStat(Combatant who, ActorAttribute attribute) {
+        private int CombatStat(Combatant who, ActorAttribute attribute, bool peek = false) {
             ActorStat[] stats = StatsFor(who);
             int index = (int)attribute;
             if (who == null || stats == null || index < 0 || index >= stats.Length
@@ -5504,10 +5510,13 @@ namespace BakAgain.Combat {
                 Base = (byte)System.Math.Max(0, System.Math.Min(255, who.Health)),
                 Max = recorded?.Max ?? 0,
             };
-            return StatEngine.Get(stats[index], attribute, liveHealth, StatReadMode.Effective,
-                who.IsPartyMember
-                    ? _session?.PartyEffectsFor(who.ClassId, attribute, inCombat: true)
-                    : null);
+            // Peek is Get without the write to the cached-effective byte: a forecast must not touch the save.
+            System.Func<int, int> party = who.IsPartyMember
+                ? _session?.PartyEffectsFor(who.ClassId, attribute, inCombat: true)
+                : null;
+            return peek
+                ? StatEngine.Peek(stats[index], attribute, liveHealth, StatReadMode.Effective, party)
+                : StatEngine.Get(stats[index], attribute, liveHealth, StatReadMode.Effective, party);
         }
 
         /// <summary>
