@@ -1417,11 +1417,18 @@ namespace BakAgain.UI.InGame {
         }
 
         private bool WantFullScreen() =>
-            GameOptions.IsOn(EnhancedFeature.FullScreenTravel) && !AFightIsRunning();
+            GameOptions.IsOn(EnhancedFeature.FullScreenTravel) && !(AFightIsRunning() && !EnhancedCombatActive);
+
+        internal bool WantsFullScreen => WantFullScreen();
+
+        /// <summary>A fight is running and the Enhanced combat interface is on (TASK-972).</summary>
+        internal bool EnhancedCombatActive => GameOptions.IsOn(EnhancedFeature.Combat) && AFightIsRunning();
 
         private bool AFightIsRunning() =>
-            (_resolver?.Resolve(typeof(BakAgain.World.WorldRuntime))
-                as BakAgain.World.WorldRuntime)?.FightInProgress ?? false;
+            _inCombat != null
+                ? _inCombat()
+                : (_resolver?.Resolve(typeof(BakAgain.World.WorldRuntime))
+                    as BakAgain.World.WorldRuntime)?.FightInProgress ?? false;
 
         // Update runs every frame and the exit is asynchronous, so without this the menu
         // transition would be started once per frame until it completed.
@@ -1664,7 +1671,7 @@ namespace BakAgain.UI.InGame {
             }
             SetLookCursor(_look != null && _look.Dragging);
             // The battle camera is level in the original, and look switched off is the faithful view.
-            if (AFightIsRunning() || !GameOptions.IsOn(EnhancedFeature.MouseLook)) {
+            if ((AFightIsRunning() && !EnhancedCombatActive) || !GameOptions.IsOn(EnhancedFeature.MouseLook)) {
                 _movement?.LevelLook();
             }
         }

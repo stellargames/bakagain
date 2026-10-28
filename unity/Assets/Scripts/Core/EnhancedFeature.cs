@@ -27,5 +27,8 @@ namespace BakAgain.Core {
         /// <summary>Forward and back glide while held instead of stepping, in the original's Small
         /// steps with the same time per distance and the same per-step rules (TASK-966).</summary>
         ContinuousMovement,
+
+        /// <summary>A fight keeps the full-screen travel view and gets the Enhanced combat interface (TASK-972).</summary>
+        Combat,
     }
 }

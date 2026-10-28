@@ -1766,7 +1766,7 @@ namespace BakAgain.World {
             // grid it projects at ~32.4° horizontal, which is shift 9, while zones 10-12 ship 8.
             // Reusing the walking camera means we inherit the zone's, which halved the underground
             // arena on screen (TASK-604). RestoreWalkingCamera puts the zone's back.
-            _worldCamera.fieldOfView = TravelFov(null, arena: true);
+            _worldCamera.fieldOfView = TravelFov(null, arena: ArenaUsesOriginalLens);
         }
 
         /// <summary>
@@ -2515,13 +2515,20 @@ namespace BakAgain.World {
             // render texture the camera's aspect is the SCREEN's, so every other case uses the
             // viewport's own aspect, where Cover returns exactly VerticalFovDegrees: the faithful
             // lens is exact whenever Enhanced full-screen is off.
-            // The arena (and its room probe) is never full-screen: a fight takes the world back into
+            // The arena (and its room probe) is never full-screen unless Enhanced combat: a fight takes the world back into
             // the frame, and the probe decides which cells the fight may use — a rule.
             float aspect = WindowLens && !arena ? _worldCamera.aspect : _viewport.ViewportAspect;
             return (float)GameData.Resources.World.WorldProjection.CoverVerticalFovDegrees(
                 _viewport.CanonicalRect.Width, _viewport.CanonicalRect.Height,
                 focalLength ?? _viewport.FocalLength, aspect);
         }
+
+        /// <summary>The arena camera takes START.DAT's framed lens, except under Enhanced combat, where
+        /// the fight keeps the full-window travel lens (TASK-972). The room probe stays on the original's
+        /// lens either way: it decides which cells the fight may use, which is a rule.</summary>
+        internal static bool ArenaUsesOriginalLens => !EnhancedCombatOn();
+
+        private static bool EnhancedCombatOn() => BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.Combat);
 
         private bool WindowLens => BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.FullScreenTravel)
             && _worldCamera != null && _worldCamera.targetTexture != null && _worldCamera.aspect > 0f;

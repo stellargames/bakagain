@@ -165,6 +165,7 @@ public static class UiTemplates {
     public const string EnhancedFeatureLighting = "port:template:enhanced_feature_lighting";
     public const string EnhancedFeatureCasting = "port:template:enhanced_feature_casting";
     public const string EnhancedFeatureContinuousMovement = "port:template:enhanced_feature_continuous_movement";
+    public const string EnhancedFeatureCombat = "port:template:enhanced_feature_combat";
 
     /// <summary>The Enhanced settings' shadows row: "Shadows: <c>{state}</c>", Off (the On/Off "Off"),
     /// Blobs or Sun.</summary>
@@ -310,6 +311,7 @@ public static class UiTemplates {
         (EnhancedFeatureLighting, _ => "Lighting"),
         (EnhancedFeatureCasting, _ => "Casting"),
         (EnhancedFeatureContinuousMovement, _ => "Continuous walking"),
+        (EnhancedFeatureCombat, _ => "Enhanced combat"),
         (EnhancedShadowsKey, _ => "Shadows: {state}"),
         (EnhancedShadowsBlobs, _ => "Blobs"),
         (EnhancedShadowsSun, _ => "Sun"),

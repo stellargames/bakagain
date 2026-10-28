@@ -54,6 +54,7 @@ namespace BakAgain.UI {
             (Templates.EnhancedFeatureLighting, EnhancedFeature.Lighting),
             (Templates.EnhancedFeatureCasting, EnhancedFeature.Casting),
             (Templates.EnhancedFeatureContinuousMovement, EnhancedFeature.ContinuousMovement),
+            (Templates.EnhancedFeatureCombat, EnhancedFeature.Combat),
         };
 
         /// <summary>Whether a feature row can be toggled: every feature needs the master, and the health
