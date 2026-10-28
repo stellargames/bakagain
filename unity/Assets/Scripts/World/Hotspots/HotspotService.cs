@@ -1847,9 +1847,12 @@ using GameData.Resources.Scene;
 
         /// <summary>A foe's plate: its roster index and letter, where it stands, and how it can be hit.</summary>
         public readonly struct FoePlate {
-            public FoePlate(int index, char letter, bool thrust, bool swing, bool hovered) {
-                Index = index; Letter = letter; Thrust = thrust; Swing = swing; Hovered = hovered;
+            public FoePlate(int index, char letter, bool thrust, bool swing, bool hovered, int seen = 0) {
+                Index = index; Letter = letter; Thrust = thrust; Swing = swing; Hovered = hovered; Seen = seen;
             }
+
+            /// <summary>Damage the player has seen dealt to this foe; the plate shows it when above zero.</summary>
+            public int Seen { get; }
 
             public int Index { get; }
             public char Letter { get; }
@@ -1870,7 +1873,8 @@ using GameData.Resources.Scene;
                 if (enemies[i] != null && !enemies[i].IsDead && marks.FoeLetters.TryGetValue(i, out char letter)) {
                     plates.Add(new FoePlate(i, letter, System.Linq.Enumerable.Contains(marks.ThrustTargets, i),
                         System.Linq.Enumerable.Contains(marks.SwingTargets, i),
-                        CursorCell is (int c, int r) && enemies[i].X == c && enemies[i].Y == r));
+                        CursorCell is (int c, int r) && enemies[i].X == c && enemies[i].Y == r,
+                        Combat.Knowledge.Seen(i)));
                 }
             }
             return plates;
@@ -3020,7 +3024,12 @@ using GameData.Resources.Scene;
             }
 
             CombatRuntime.RetreatOutcome outcome = Combat.ResolveRetreat(acting, _random);
-            PlayDialog((uint)outcome.DialogRecord, modal: true);
+            // Enhanced: the refusal is also written to the fight log, from the very play shown.
+            if (!outcome.Escaped && BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.Combat)) {
+                PlayLoggedDialogAsync(outcome.DialogRecord).Forget();
+            } else {
+                PlayDialog((uint)outcome.DialogRecord, modal: true);
+            }
 
             if (!outcome.Escaped) {
                 // The turn is spent either way, so hand the HUD on rather than leaving the failed
@@ -3043,6 +3052,30 @@ using GameData.Resources.Scene;
             Combat.Leave();
             _setCombatMusic?.Invoke(false);
             SwapArenaThroughFade(false, () => _combatMenuAccessor?.Invoke()?.Close());
+        }
+
+        /// <summary>Resolve a record once, put its text in the fight log, and show that same play.</summary>
+        private async Cysharp.Threading.Tasks.UniTaskVoid PlayLoggedDialogAsync(int record) {
+            if (_dialogs == null) {
+                return;
+            }
+            GameData.Resources.Dialog.DialogPlay play = await _dialogs.ResolveById(record);
+            if (string.IsNullOrEmpty(play?.Entry?.Text)) {
+                return;
+            }
+            LogDialogLine(play);
+            await _dialogs.ShowEntry(play);
+        }
+
+        /// <summary>Add a play's text, as the player reads it, to the fight log.</summary>
+        private void LogDialogLine(GameData.Resources.Dialog.DialogPlay play) {
+            string text = play?.Entry?.Text;
+            if (string.IsNullOrEmpty(text)) {
+                return;
+            }
+            text = GameData.Resources.Dialog.TextVariableResolver.Substitute(text, play.Slots,
+                play.Context?.NameOf(play.Context.CurrentActorId));
+            Combat.Log.Add(System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ").Trim());
         }
 
         /// <summary>
@@ -3587,6 +3620,7 @@ using GameData.Resources.Scene;
                 RefreshCombatHud();
                 return;
             }
+            LogDialogLine(play);
 
             // *** THE ROWS ARE PAINTED INTO 0x84'S PAGE, NOT WRITTEN INTO ITS TEXT. *** Each
             // survivor of the roll is drawn at its own screen position, wrapping to a second

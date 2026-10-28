@@ -875,17 +875,39 @@ namespace BakAgain.Combat {
             System.Collections.Generic.IReadOnlyList<CombatAssessment.Row> rows =
                 CombatAssessment.RowsFor(canShoot, canCast);
 
+            int enemySlot = Encounter?.Enemies.IndexOf(target) ?? -1;
             foreach ((CombatAssessment.Row row, int value, int x, int y) in CombatAssessment.Reveal(
                          rows,
                          CombatStat(inspector, CombatAssessment.RollAttribute),
                          attribute => CombatStat(target, attribute),
                          rnd ?? (n => UnityEngine.Random.Range(0, n)))) {
+                if (enemySlot >= 0) {
+                    Knowledge.Record(enemySlot, row.Attribute, value);
+                }
                 lines.Add(new HudPanelLine(row.Label, x, y));
                 lines.Add(CombatAssessment.ValueLine(
                     row.Percent ? GameData.Resources.Text.UiTemplates.Percent(value) : value.ToString(),
                     x, y));
             }
             return lines;
+        }
+
+        /// <summary>What the player has learned about each enemy this fight (Enhanced combat HUD).</summary>
+        public EnemyKnowledge Knowledge { get; } = new EnemyKnowledge();
+
+        /// <summary>The result lines the player has seen this fight.</summary>
+        public FightLog Log { get; } = new FightLog();
+
+        /// <summary>
+        /// A damage number was floated over <paramref name="target"/>: log its text and, for an enemy,
+        /// add what was dealt to what the player has seen. Only what the float showed counts.
+        /// </summary>
+        public void NoteFloatedDamage(Combatant target, int dealt) {
+            int enemySlot = Encounter?.Enemies.IndexOf(target) ?? -1;
+            if (enemySlot >= 0) {
+                Knowledge.AddSeen(enemySlot, dealt);
+            }
+            Log.Add(dealt == 0 ? "miss" : System.Math.Abs(dealt).ToString());
         }
 
         /// <summary>The four numbers the melee preview panel prints.</summary>
@@ -5342,6 +5364,8 @@ namespace BakAgain.Combat {
             _enemyStats.Clear();
             _enemySlots.Clear();
             _enemyRosterIndex.Clear();
+            Knowledge.Clear();
+            Log.Clear();
             _encounterNumber = -1;
             _deathOutcomes.Clear();
         }

@@ -201,7 +201,7 @@ namespace BakAgain.World.Encounters {
             var key = new System.Text.StringBuilder();
             foreach (HotspotService.FoePlate p in plates) {
                 key.Append(p.Index).Append(p.Letter).Append(p.Thrust ? 't' : '-').Append(p.Swing ? 's' : '-')
-                    .Append(p.Hovered ? 'h' : '-').Append(';');
+                    .Append(p.Hovered ? 'h' : '-').Append(p.Seen).Append(';');
             }
             // Markers appear a redraw after the model, so the plates also wait on them.
             ArenaCombatant[] markers = GetComponentsInChildren<ArenaCombatant>();
@@ -242,8 +242,9 @@ namespace BakAgain.World.Encounters {
             Text(plate.transform, "Letter", p.Letter.ToString(), Gold, h * 0.9f, new Vector3(-w * 0.2f, 0f, -0.01f));
             string swords = p.Swing ? "\u2694\u2694" : p.Thrust ? "\u2694" : "";
             Text(plate.transform, "Swords", swords, Color.white, h * 0.4f, new Vector3(w * 0.2f, 0f, -0.01f));
-            // Task 5 (knowledge store) writes "-N seen" here.
-            Text(plate.transform, "Seen", "", Color.white, h * 0.3f, new Vector3(0f, -h * 0.65f, -0.01f));
+            Text(plate.transform, "Seen", p.Seen > 0
+                ? GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedCombatSeen, ("count", p.Seen))
+                : "", Color.white, h * 0.3f, new Vector3(0f, -h * 0.65f, -0.01f));
             return plate;
         }
 

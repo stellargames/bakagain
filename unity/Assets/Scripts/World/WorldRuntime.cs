@@ -699,6 +699,7 @@ namespace BakAgain.World {
                     continue;
                 }
                 c.DamageFloat = null;
+                _hotspots.Combat.NoteFloatedDamage(c, dealt);
                 // Pens: the countdown steps BEFORE the pen is read (CACTOR.C:986-995), so a number
                 // walks 0x81..0x88; "miss" carries value 1 and a NEGATIVE countdown, so the same
                 // `0x88 - frames` walks it 0x8F..0x88. A heal's gain is negative and drawn as its
