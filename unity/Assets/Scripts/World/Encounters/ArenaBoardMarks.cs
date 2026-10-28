@@ -50,6 +50,11 @@ namespace BakAgain.World.Encounters {
             _plates = plates;
             _layout = layout;
             _unitsPerCell = unitsPerCell > 0f ? unitsPerCell : WorldUnitsPerCellDefault;
+            if (_material != null) {
+                Destroy(_material);
+            }
+            // Sprites/Default is in GraphicsSettings' always-included shaders (fileID 10753), so a
+            // player build keeps it; the arena grid overlay finds the same shader.
             _material = new Material(Shader.Find("Sprites/Default"));
         }
 
@@ -59,6 +64,26 @@ namespace BakAgain.World.Encounters {
             }
             RefreshShapes();
             RefreshPlates();
+        }
+
+        private static void DestroyWithMesh(IEnumerable<GameObject> objects) {
+            foreach (GameObject g in objects) {
+                if (g == null) {
+                    continue;
+                }
+                foreach (MeshFilter f in g.GetComponentsInChildren<MeshFilter>()) {
+                    Destroy(f.sharedMesh);
+                }
+                Destroy(g);
+            }
+        }
+
+        private void OnDestroy() {
+            DestroyWithMesh(_meshes);
+            DestroyWithMesh(_plateObjects.Values);
+            if (_material != null) {
+                Destroy(_material);
+            }
         }
 
         private void LateUpdate() {
@@ -86,18 +111,17 @@ namespace BakAgain.World.Encounters {
             List<HotspotService.BoardShape> shapes = _shapes() ?? new List<HotspotService.BoardShape>();
             var key = new System.Text.StringBuilder();
             foreach (HotspotService.BoardShape s in shapes) {
-                key.Append((int)s.Kind).Append(':').Append(s.Points.Length).Append(':')
-                    .Append(s.Points[0].X).Append(',').Append(s.Points[0].Y).Append(';');
+                key.Append((int)s.Kind).Append(':');
+                foreach ((long x, long y) in s.Points) {
+                    key.Append(x).Append(',').Append(y).Append(' ');
+                }
+                key.Append(';');
             }
             if (key.ToString() == _shapeKey) {
                 return;
             }
             _shapeKey = key.ToString();
-            foreach (GameObject g in _meshes) {
-                if (g != null) {
-                    Destroy(g);
-                }
-            }
+            DestroyWithMesh(_meshes);
             _meshes.Clear();
 
             // One mesh per kind, drawn in the kind's own layer of height so the fills never z-fight.
@@ -186,11 +210,7 @@ namespace BakAgain.World.Encounters {
                 return;
             }
             _plateKey = key.ToString();
-            foreach (GameObject g in _plateObjects.Values) {
-                if (g != null) {
-                    Destroy(g);
-                }
-            }
+            DestroyWithMesh(_plateObjects.Values);
             _plateObjects.Clear();
             foreach (HotspotService.FoePlate p in plates) {
                 foreach (ArenaCombatant m in markers) {

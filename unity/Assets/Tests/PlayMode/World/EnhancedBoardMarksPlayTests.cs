@@ -73,5 +73,40 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.AreEqual("⚔⚔", plate.transform.Find("Swords").GetComponent<TextMesh>().text, "thrust and swing both open");
             Assert.AreEqual("", plate.transform.Find("Seen").GetComponent<TextMesh>().text, "Task 5 fills the seen count");
         }
+
+        [UnityTest]
+        public IEnumerator APathWithTheSameLengthAndStartButAnotherEndRedraws_AndRefreshesDoNotLeak() {
+            var paths = new System.Collections.Generic.List<(long X, long Y)[]> {
+                new[] { (0L, 0L), (300L, 0L), (600L, 0L) },
+            };
+            _root = new GameObject("arena");
+            var marks = _root.AddComponent<ArenaBoardMarks>();
+            for (int round = 0; round < 3; round++) {
+                marks.Bind(() => new System.Collections.Generic.List<BakAgain.World.Hotspots.HotspotService.BoardShape> {
+                    new BakAgain.World.Hotspots.HotspotService.BoardShape(ArenaOverlayKind.Path, paths[0]) },
+                    () => null, new GameData.Resources.Layout.EnhancedCombatLayout(), 3f);
+                yield return null;
+            }
+            yield return null;
+            int meshes = Resources.FindObjectsOfTypeAll<Mesh>().Length;
+            int materials = Resources.FindObjectsOfTypeAll<Material>().Length;
+            Mesh first = _root.GetComponentInChildren<MeshFilter>().sharedMesh;
+
+            for (int round = 0; round < 6; round++) {
+                paths[0] = new[] { (0L, 0L), (300L, 0L), (600L, round % 2 == 0 ? 300L : 0L) };
+                yield return null;
+                yield return null;
+                Mesh now = _root.GetComponentInChildren<MeshFilter>().sharedMesh;
+                Assert.AreNotSame(first, now, "a different end redraws");
+                first = now;
+            }
+            for (int round = 0; round < 3; round++) {
+                marks.Bind(() => null, () => null, new GameData.Resources.Layout.EnhancedCombatLayout(), 3f);
+                yield return null;
+            }
+            yield return null;
+            Assert.LessOrEqual(Resources.FindObjectsOfTypeAll<Mesh>().Length, meshes, "no meshes accumulate");
+            Assert.LessOrEqual(Resources.FindObjectsOfTypeAll<Material>().Length, materials, "no materials accumulate");
+        }
     }
 }
