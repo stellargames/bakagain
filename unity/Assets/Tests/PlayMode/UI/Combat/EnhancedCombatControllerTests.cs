@@ -11,6 +11,7 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
     using NUnit.Framework;
     using UnityEngine;
     using UnityEngine.TestTools;
+    using UnityEngine.UIElements;
     using State = BakAgain.UI.Combat.Enhanced.EnhancedCombatController.TurnState;
 
     /// <summary>
@@ -364,6 +365,67 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
 
             Assert.AreEqual(((int, int)?)(2, 2), s.CursorCell, "the dropped controller let go of the service's events");
             Assert.AreNotSame(c, world.CombatControllerForTest(hud, phone: true), "the next fight builds a fresh one");
+        }
+
+        [Test]
+        public void TheShootStoneWithACrossbowAndQuarrels_NoFoeAdjacent_OpensTheShootScreen() {
+            // Task 11 Important 3: the t946 save has no crossbow, so this is the real-path check.
+            int shootScreens = 0;
+            var (s, hero) = EnhancedBoardMarksTests.PartyTurn(roll: 0, arenaBusy: () => _busy,
+                dialogs: new BakAgain.Tests.PlayMode.UI.Inventory.NoOpDialogs(),
+                shoot: () => { shootScreens++; return null; },
+                outfit: session => BakAgain.Tests.Editor.Combat.CombatRuntimeTests.GiveArcherPack(session),
+                objects: BakAgain.Tests.Editor.Combat.CombatRuntimeTests.ShootingObjects());
+            EnhancedBoardMarksTests.Place(s, hero, (4, 5), 5, (0, 7, 1));
+            var c = new EnhancedCombatController(s, s.Combat, null, new EnhancedCombatLayout());
+            Assert.IsTrue(s.Combat.AvailabilityFor(hero)[CombatCommands.Command.Shoot].Enabled, "the stone is lit");
+
+            c.Stone(CombatCommands.Command.Shoot, fromKey: false);
+
+            Assert.AreEqual(1, shootScreens, "the Classic shoot screen was raised");
+            Assert.IsTrue(s.CombatPickPending, "and the shot's target pick is armed");
+            Assert.IsFalse(Spent(hero), "choosing a quarrel is not yet the shot");
+
+            // Control: a foe adjacent takes the shot away, and the stone opens nothing.
+            int refused = 0;
+            var (s2, hero2) = EnhancedBoardMarksTests.PartyTurn(roll: 0, arenaBusy: () => _busy,
+                dialogs: new BakAgain.Tests.PlayMode.UI.Inventory.NoOpDialogs(),
+                shoot: () => { refused++; return null; },
+                outfit: session => BakAgain.Tests.Editor.Combat.CombatRuntimeTests.GiveArcherPack(session),
+                objects: BakAgain.Tests.Editor.Combat.CombatRuntimeTests.ShootingObjects());
+            EnhancedBoardMarksTests.Place(s2, hero2, (4, 5), 5, (0, 5, 5));
+            new EnhancedCombatController(s2, s2.Combat, null, new EnhancedCombatLayout())
+                .Stone(CombatCommands.Command.Shoot, fromKey: false);
+            Assert.AreEqual(0, refused);
+        }
+
+        [UnityTest]
+        public IEnumerator RestWhilePoisonedIsWarnedInAmber_ActingSpendsTheTurnAndHealsNothing() {
+            // Task 11 Important 3: nobody is poisoned in the t946 save, so this is the real-path check.
+            var (s, hero) = EnhancedBoardMarksTests.PartyTurn(roll: 0, arenaBusy: () => _busy,
+                dialogs: new BakAgain.Tests.PlayMode.UI.Inventory.NoOpDialogs(),
+                outfit: session => {
+                    session.SetActorConditionsForTest(0, new GameData.Resources.Character.ActorConditions());
+                    session.ConditionsOf(0)[GameData.ActorCondition.Poisoned] = 2;
+                });
+            EnhancedBoardMarksTests.Place(s, hero, (4, 5), 5, (0, 7, 1));
+            var hud = new DesktopCombatHud(HudModels.Root(out _go), new EnhancedCombatLayout());
+            var c = new EnhancedCombatController(s, s.Combat, hud, new EnhancedCombatLayout());
+            int pool = Pool(hero);
+
+            c.Key(CombatCommands.RestId);
+            CombatForecast rest = c.Current();
+            Assert.AreEqual(ForecastAction.Rest, rest.Action);
+            Assert.IsTrue(rest.Allowed && rest.Warned, "allowed, but warned");
+            hud.Show(c.Model(6));
+            yield return null;
+            Label reason = hud.Root.Q<Label>("ec-desk-reason");
+            Assert.IsNotNull(reason, "the ledger says why");
+            Assert.IsTrue(reason.ClassListContains("ec-desk-reason--warn"), "in amber, not the refusal red");
+
+            c.Key(CombatCommands.RestId);
+            Assert.IsTrue(Spent(hero), "acting it spends the turn");
+            Assert.AreEqual(pool, Pool(hero), "and heals nothing while poisoned");
         }
 
         [Test]
