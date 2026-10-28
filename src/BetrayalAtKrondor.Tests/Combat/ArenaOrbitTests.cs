@@ -145,4 +145,15 @@ public class ArenaOrbitTests {
         Assert.Equal(1150, o.Centre.X, 3);        // half way in, half way over
         Assert.Equal(1700, o.Centre.Y, 3);
     }
+
+    [Fact]
+    public void ARefitMovesTheWholeBoardDistance_TheZoomFactorStays() {
+        var o = new ArenaOrbit(Layout, (1000, 2000), 0, 45, 1000, 0.5);
+        o.Refit(1400);   // a quarter turn: the 13-cell side now lies across
+        Assert.Equal(700, o.Distance, 3);
+        o.Zoom(1000);
+        Assert.Equal(1400, o.Distance, 3);   // the farthest is the new whole-board fit, not the old one
+        o.Refit(0);
+        Assert.Equal(1400, o.Distance, 3);   // a failed fit keeps the last
+    }
 }

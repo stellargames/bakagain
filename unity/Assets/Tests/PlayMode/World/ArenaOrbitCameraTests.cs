@@ -172,8 +172,10 @@ namespace BakAgain.Tests.PlayMode.World {
             DragWith(_pointer.Secondary, hud, world, 60f);
             Vector3 moved = cam.transform.position;
             Assert.Greater(Vector3.Distance(start, moved), 0.1f, "a drag past the threshold moves the camera");
-            Assert.AreEqual(horizontal, Horizontal(moved, centre), 0.05f, $"around the centre: the radius stays (start {start} moved {moved} centre {centre})");
-            Assert.AreEqual(height, moved.y, 0.05f, "pitch unchanged by a sideways drag");
+            // The radius itself follows the whole-board fit, which a new yaw moves (review I3): the pitch is what
+            // a sideways drag must keep.
+            Assert.AreEqual(height / horizontal, moved.y / Horizontal(moved, centre), 1e-3f,
+                $"around the centre, pitch unchanged by a sideways drag (start {start} moved {moved} centre {centre})");
             Vector3 seen = cam.WorldToViewportPoint(new Vector3(centre.x, 0, centre.z));
             var layout = new EnhancedCombatLayout();
             Assert.AreEqual(0.5f, seen.x, 1e-3f, "still looking at the centre");
@@ -239,23 +241,49 @@ namespace BakAgain.Tests.PlayMode.World {
                 double whole = world.ArenaOrbitForTest.Distance;
                 Assert.AreEqual(phone ? layout.PhoneStartZoom : 1f, opened / whole, 1e-6,
                     "the desktop opens at the whole board, the phone closer");
-                float bottom = phone ? layout.PhoneBoardBottom : layout.BandHeight, top = phone ? layout.PhoneBoardTop : 1f;
-                float slack = 1f;
-                foreach (var c in ArenaOrbit.BoardCorners(Cell, underground: false)) {
-                    Vector3 v = cam.WorldToViewportPoint(BakAgain.World.Converters.BakCoordinateConverter.ConvertPosition(
-                        PartyX + (int)System.Math.Round(c.X), PartyY + (int)System.Math.Round(c.Y), 0));
-                    Assert.Greater(v.z, 0f);
-                    Assert.That(v.x, Is.InRange(layout.BoardFitMarginX - 1e-3f, 1f - layout.BoardFitMarginX + 1e-3f), $"corner {c} across");
-                    Assert.That(v.y, Is.InRange(bottom, top), $"corner {c} clear of the HUD");
-                    slack = Mathf.Min(slack, Mathf.Min(Mathf.Min(v.x - layout.BoardFitMarginX, 1f - layout.BoardFitMarginX - v.x),
-                        Mathf.Min(v.y - bottom - layout.BoardFitMarginY, top - layout.BoardFitMarginY - v.y)));
-                }
-                Assert.AreEqual(0f, slack, 0.005f, "as close as the board fits: one corner sits on its margin");
+                AssertTheWholeBoardJustFits(cam, layout, phone, "at the opening pose");
                 var orbit = world.ArenaOrbitForTest;
                 Assert.AreEqual(layout.StartPitchDegrees, orbit.PitchDegrees, 1e-6, "opens at the layout's pitch");
             } finally {
                 InGameScreen.PhoneHudOverride = keep;
             }
+        }
+
+        // Review I3: the whole-board fit moves with the yaw and the pitch (at 45 degrees the board is about
+        // 15 cells both ways), so it is refitted after each input and the farthest zoom frames it again.
+        [TestCase(false)]
+        [TestCase(true)]
+        public void AfterATurnOrADragTheFarthestZoomFramesTheWholeBoardAgain(bool phone) {
+            bool? keep = InGameScreen.PhoneHudOverride;
+            InGameScreen.PhoneHudOverride = phone;
+            try {
+                BakAgain.World.WorldRuntime world = NewWorld(combat: true, out Camera cam);
+                world.PointCameraAtArena();
+                var layout = new EnhancedCombatLayout();
+                world.TurnArenaQuarter(1);
+                world.ZoomArena(1000f);
+                AssertTheWholeBoardJustFits(cam, layout, phone, "a quarter turn");
+                world.OrbitArena(-45f / layout.OrbitDegreesPerPixel, 40f);   // 45 degrees round, and steeper
+                world.ZoomArena(1000f);
+                AssertTheWholeBoardJustFits(cam, layout, phone, "at 45 degrees and a steeper pitch");
+            } finally {
+                InGameScreen.PhoneHudOverride = keep;
+            }
+        }
+
+        private static void AssertTheWholeBoardJustFits(Camera cam, EnhancedCombatLayout layout, bool phone, string pose) {
+            float bottom = phone ? layout.PhoneBoardBottom : layout.BandHeight, top = phone ? layout.PhoneBoardTop : 1f;
+            float slack = 1f;
+            foreach (var c in ArenaOrbit.BoardCorners(Cell, underground: false)) {
+                Vector3 v = cam.WorldToViewportPoint(BakAgain.World.Converters.BakCoordinateConverter.ConvertPosition(
+                    PartyX + (int)System.Math.Round(c.X), PartyY + (int)System.Math.Round(c.Y), 0));
+                Assert.Greater(v.z, 0f, pose);
+                Assert.That(v.x, Is.InRange(layout.BoardFitMarginX - 2e-3f, 1f - layout.BoardFitMarginX + 2e-3f), $"{pose}: corner {c} across");
+                Assert.That(v.y, Is.InRange(bottom, top), $"{pose}: corner {c} clear of the HUD");
+                slack = Mathf.Min(slack, Mathf.Min(Mathf.Min(v.x - layout.BoardFitMarginX, 1f - layout.BoardFitMarginX - v.x),
+                    Mathf.Min(v.y - bottom - layout.BoardFitMarginY, top - layout.BoardFitMarginY - v.y)));
+            }
+            Assert.AreEqual(0f, slack, 0.005f, $"{pose}: as close as the board fits, one corner on its margin");
         }
 
         [Test]

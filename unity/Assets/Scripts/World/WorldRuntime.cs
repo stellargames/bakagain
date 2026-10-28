@@ -1805,8 +1805,8 @@ namespace BakAgain.World {
                 _arenaOrbit.FrameInto(phone ? _combatLayout.PhoneBoardBottom : _combatLayout.BandHeight,
                     phone ? _combatLayout.PhoneBoardTop : 1f);
                 _arenaOrbit.Bind(_worldCamera, null, _gameSession.PositionX, _gameSession.PositionY, _gameSession.Rotation);
-                double distance = _arenaOrbit.FitDistance(d => Make(d),
-                    GameData.Resources.Combat.ArenaOrbit.BoardCorners(start.CombatGridCellSize, underground),
+                _arenaCorners = GameData.Resources.Combat.ArenaOrbit.BoardCorners(start.CombatGridCellSize, underground);
+                double distance = _arenaOrbit.FitDistance(d => Make(d), _arenaCorners,
                     _combatLayout.BoardFitMarginX, _combatLayout.BoardFitMarginY);
                 // The fit is zoom 1 and the farthest out; a phone opens closer, where its cells can be tapped.
                 _arenaOrbit.Bind(_worldCamera, Make(distance, phone ? _combatLayout.PhoneStartZoom : 1),
@@ -1862,19 +1862,40 @@ namespace BakAgain.World {
         /// <summary>Drag the arena camera around the board (pixels). No-op outside an Enhanced fight.</summary>
         public void OrbitArena(float dxPixels, float dyPixels) {
             _arenaOrbit?.Orbit.Drag(dxPixels, dyPixels);
-            _arenaOrbit?.Apply();
+            RefitArena();
+        }
+
+        private (double X, double Y)[] _arenaCorners;
+
+        /// <summary>
+        /// The whole-board distance for the pose as it is now -- yaw, pitch and the window's shape all move it
+        /// (at 45 degrees the 8x13 board is about 15 cells both ways) -- so the farthest zoom always frames the
+        /// whole board again; then the camera is placed. Each orbit input refits.
+        /// </summary>
+        private void RefitArena() {
+            GameData.Resources.Combat.ArenaOrbit o = _arenaOrbit?.Orbit;
+            if (o == null) {
+                return;
+            }
+            if (_arenaCorners != null) {
+                double fit = _arenaOrbit.FitDistance(d => new GameData.Resources.Combat.ArenaOrbit(_combatLayout,
+                    o.BoardMiddle, o.YawDegrees, o.PitchDegrees, d), _arenaCorners,
+                    _combatLayout.BoardFitMarginX, _combatLayout.BoardFitMarginY);
+                o.Refit(fit);
+            }
+            _arenaOrbit.Apply();
         }
 
         /// <summary>A quarter turn of the arena camera, -1 left or +1 right. No-op outside an Enhanced fight.</summary>
         public void TurnArenaQuarter(int direction) {
             _arenaOrbit?.Orbit.TurnQuarter(direction);
-            _arenaOrbit?.Apply();
+            RefitArena();
         }
 
         /// <summary>The arena camera back where the fight started it. No-op outside an Enhanced fight.</summary>
         public void ResetArenaView() {
             _arenaOrbit?.Orbit.Reset();
-            _arenaOrbit?.Apply();
+            RefitArena();
         }
 
         // A combat stone's face for the Enhanced HUD: COMBAT.DAT's own icon for that action, or the bare
@@ -1892,7 +1913,7 @@ namespace BakAgain.World {
         /// <summary>Multiply the arena camera's distance (below 1 comes closer). No-op outside an Enhanced fight.</summary>
         public void ZoomArena(float factor) {
             _arenaOrbit?.Orbit.Zoom(factor);
-            _arenaOrbit?.Apply();
+            RefitArena();
         }
 
         /// <summary>

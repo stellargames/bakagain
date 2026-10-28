@@ -13,7 +13,8 @@ public sealed class ArenaOrbit {
     private readonly EnhancedCombatLayout _layout;
     private readonly (double X, double Y) _centre;
     private (double X, double Y) _focus;
-    private readonly double _startYaw, _startPitch, _startDistance, _startZoom;
+    private readonly double _startYaw, _startPitch, _startZoom;
+    private double _startDistance;
     private double _zoom;
 
     /// <param name="distance">The whole-board fit: zoom 1, and the farthest the camera may go.</param>
@@ -42,6 +43,19 @@ public sealed class ArenaOrbit {
             double t = _layout.ZoomMax > _layout.ZoomMin
                 ? Math.Clamp((_layout.ZoomMax - _zoom) / (_layout.ZoomMax - _layout.ZoomMin), 0, 1) : 0;
             return t == 0 ? _centre : (_centre.X + ((_focus.X - _centre.X) * t), _centre.Y + ((_focus.Y - _centre.Y) * t));
+        }
+    }
+
+    /// <summary>The middle of the playable board: what the camera turns around at the farthest zoom.</summary>
+    public (double X, double Y) BoardMiddle => _centre;
+
+    /// <summary>
+    /// The whole-board distance for the pose as it is now: zoom 1, and the farthest the camera may go. It moves
+    /// with the yaw, the pitch and the window, so the driver refits it after each of them; the zoom factor stays.
+    /// </summary>
+    public void Refit(double wholeBoardDistance) {
+        if (wholeBoardDistance > 0) {
+            _startDistance = wholeBoardDistance;
         }
     }
 
