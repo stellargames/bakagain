@@ -490,8 +490,10 @@
 .ec-desk-ledger-body { flex-grow: 1; padding-top: 6px; overflow: hidden; }
 .ec-desk-ledger-footer { border-top-width: 2px; border-color: rgb(150, 120, 86); padding-top: 4px; flex-shrink: 0; overflow: hidden; }
 .ec-desk .ec-desk-log { font-size: 22px; white-space: normal; color: rgb(60, 42, 26); flex-shrink: 0; }
-/* Idle: the newest lines at the bottom, the oldest clipped at the top. */
+/* Idle: the newest lines at the bottom, the oldest clipped at the top. Absolute, so no line's height
+   is capped at the body's (a capped line drew over the next one). */
 .ec-desk-ledger-body--log { justify-content: flex-end; }
+.ec-desk-log-stack { position: absolute; left: 0; right: 0; bottom: 0; }
 /* Under a forecast: the last lines, one row each, cut rather than wrapped over each other. */
 .ec-desk .ec-desk-ledger-footer .ec-desk-log { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ec-desk .ec-desk-reason { white-space: normal; color: rgb(160, 30, 24); }

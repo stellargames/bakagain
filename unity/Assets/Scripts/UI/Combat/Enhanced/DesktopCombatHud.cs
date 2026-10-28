@@ -375,8 +375,12 @@ namespace BakAgain.UI.Combat.Enhanced {
             _ledgerBody.EnableInClassList("ec-desk-ledger-body--log", f == null);
             if (f == null) {
                 _ledgerTitle.text = UiTemplates.Format(UiTemplates.HudFightLog);
-                foreach (string line in log) Text(_ledgerBody, null, "ec-desk-log");
-                for (int i = 0; i < log.Count; i++) ((Label)_ledgerBody[i]).text = log[i];
+                // The lines sit in an absolute stack pinned to the body's bottom: as flex children of the
+                // fixed-height body a line taller than the body was measured "at most" the body's height,
+                // so its last rows drew under the next line (task 11, the retreat narration).
+                VisualElement stack = Box("ec-desk-log-stack", "ec-desk-log-stack");
+                _ledgerBody.Add(stack);
+                foreach (string line in log) Text(stack, null, "ec-desk-log").text = line;
                 return;
             }
             FoeRowModel target = f.TargetSlot >= 0 ? Find(m.Foes, f.TargetSlot) : null;

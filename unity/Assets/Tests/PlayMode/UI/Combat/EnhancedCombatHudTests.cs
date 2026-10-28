@@ -197,6 +197,12 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             "Locklear thrusts at moredhel warrior A: hit 13",
         };
 
+        // DIAL_Z00 record 303 as LogDialogLine writes it (whitespace collapsed), seen overlapping live (task 11).
+        private const string RetreatNarration = "They were trapped. With the sound of his heart pounding in his ears, Gorath "
+            + "forced himself to pause... forced himself to think clearly for a moment; an action that lasted mere seconds but "
+            + "felt like lifetimes. Taking stock of their situation he quickly realized escape would be futile. Retreat, for "
+            + "the moment at least, was out of the question.";
+
         private static void AssertNoOverlapInside(VisualElement box, Rect slot, string what) {
             List<Label> lines = box.Query<Label>(className: "ec-desk-log").ToList();
             Assert.IsNotEmpty(lines, what);
@@ -223,11 +229,20 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
 
             var many = new List<string>();
             for (int i = 0; i < 4; i++) many.AddRange(LongLog);
+            // A line taller than the whole ledger (task 11 saw it with the retreat narration): its height was
+            // capped at the body's, so its last rows drew under the next line.
+            many.Add(RetreatNarration + " " + RetreatNarration);
+            many.Add("moredhel warrior A swings at Gorath: hit 20");
             _hud.Show(HudModels.Idle() with { LogLines = many });
             yield return null;
             yield return null;
             VisualElement body = _hud.Root.Q("ec-desk-ledger-body");
             AssertNoOverlapInside(body, slot, "idle");
+            foreach (Label l in body.Query<Label>(className: "ec-desk-log").ToList()) {
+                float needs = l.MeasureTextSize(l.text, l.resolvedStyle.width, VisualElement.MeasureMode.Exactly,
+                    0f, VisualElement.MeasureMode.Undefined).y;
+                Assert.GreaterOrEqual(l.resolvedStyle.height, needs - 0.5f, "a line is as tall as its wrapped text: " + l.text.Substring(0, 20));
+            }
             Label newest = body.Query<Label>(className: "ec-desk-log").ToList().Last();
             Assert.LessOrEqual(newest.worldBound.yMax, body.worldBound.yMax + 0.5f, "the newest idle line is the one kept in view");
         }
