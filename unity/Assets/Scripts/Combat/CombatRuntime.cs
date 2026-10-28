@@ -1308,7 +1308,7 @@ namespace BakAgain.Combat {
         }
 
         /// <summary>The cells a move to (x, y) would walk, start included -- a dry run, or null when it cannot arrive.</summary>
-        public IReadOnlyList<(int X, int Y)> ForecastMove(Combatant mover, int x, int y) {
+        public IReadOnlyList<(int X, int Y)> ForecastWalk(Combatant mover, int x, int y) {
             if (mover == null || Grid == null || !CellMovable(mover, x, y)) {
                 return null;
             }
@@ -1316,6 +1316,131 @@ namespace BakAgain.Combat {
             CombatWalk.Walk(Grid, mover, x, y, mover.Speed, probe: true, puzzle: Puzzle,
                 occupiedByLiveCombatant: TileHoldsLiveCombatant, trace: trace);
             return trace;
+        }
+
+        /// <summary>The pip thresholds the forecast reads; the HUD sets the loaded layout.</summary>
+        public GameData.Resources.Layout.EnhancedCombatLayout ForecastLayout { get; set; } = new();
+
+        private static readonly IReadOnlyList<(int Col, int Row)> NoPath = System.Array.Empty<(int, int)>();
+
+        private static IReadOnlyList<(int Col, int Row)> ToPath(IReadOnlyList<(int X, int Y)> cells) {
+            var path = new List<(int Col, int Row)>();
+            if (cells != null) {
+                foreach ((int x, int y) in cells) {
+                    path.Add((x, y));
+                }
+            }
+            return path;
+        }
+
+        private static CombatForecast Refused(ForecastAction action, int slot, string reasonKey) =>
+            new(action, slot, NoPath, 0, null, 0, 0, null, 0, 0, 0, true, false, false, reasonKey);
+
+        /// <summary>
+        /// What a Thrust or Swing at <paramref name="target"/> would do, as a dry run. The hit chance is
+        /// the TRUE roll's (<see cref="MeleeSides"/> + <see cref="CombatFormulas.MeleeHitChance"/>), not
+        /// the stats panel's preview; the parry roll modifier is left out because the player cannot know it.
+        /// Without a revealed Defense only the pips and a damage band are given.
+        /// </summary>
+        public CombatForecast ForecastMelee(Combatant acting, Combatant target, CombatActionDispatch.MeleeAttack attack) {
+            ForecastAction action = attack == CombatActionDispatch.MeleeAttack.Swing
+                ? ForecastAction.Swing : ForecastAction.Thrust;
+            int slot = Encounter?.Enemies.IndexOf(target) ?? -1;
+            if (acting == null || target == null || target.IsDead) {
+                return Refused(action, slot, UiTemplates.EnhancedForecastOutOfReach);
+            }
+            IReadOnlyList<(int Col, int Row)> path;
+            if (action == ForecastAction.Swing) {
+                // A swing strikes in place: only a straight-side neighbour.
+                if (!CombatGrid.OrthogonallyAdjacent(acting.X, acting.Y, target.X, target.Y)) {
+                    return Refused(action, slot, UiTemplates.EnhancedForecastSwingNeedsFoeBeside);
+                }
+                path = new List<(int Col, int Row)> { (acting.X, acting.Y) };
+            } else {
+                path = ToPath(ForecastThrust(acting, target));
+                if (path.Count == 0) {
+                    return Refused(action, slot, UiTemplates.EnhancedForecastOutOfReach);
+                }
+            }
+
+            (MeleeExchange.Attacker swing, MeleeExchange.Defender guard, _, _) =
+                MeleeSides(acting, target, attack, 0);
+            int chance = CombatFormulas.MeleeHitChance(swing.AccuracyMelee, swing.HasWeapon,
+                swing.WeaponAccuracy, swing.ClassGroupModifier, swing.WeaponConditionPercent,
+                swing.WeaponFlags, guard.DefenseRating);
+            int pips = chance >= ForecastLayout.HitPipLikelyAtLeast ? 3
+                : chance >= ForecastLayout.HitPipEvenAtLeast ? 2 : 1;
+
+            // The damage a landed blow does, through the exchange itself: a roll of 0 always lands and
+            // takes the armour floor's low side; the stand-in defender has pools no blow can drain.
+            var attacker = new Combatant { Health = acting.Health, Stamina = acting.Stamina };
+            var defender = new Combatant { Health = 9999, Stamina = 9999 };
+            int damage = MeleeExchange.Resolve(attacker, defender, swing, guard, _ => 0).Damage;
+
+            bool revealed = Knowledge.TryGet(slot, ActorAttribute.Defense, out _);
+            // ponytail: the unrevealed band is +-25% of the true value; a real model of what the
+            // player may infer (armour class from the sprite) would replace it if the band proves leaky.
+            int low = revealed ? damage : damage * 3 / 4;
+            int high = revealed ? damage : System.Math.Max(1, (damage * 5 + 3) / 4);
+
+            int stamina = 0;
+            int health = 0;
+            if (action == ForecastAction.Swing && MeleeExchange.SwingIsBilled(acting.Health + acting.Stamina)) {
+                if (acting.Stamina > 0) { stamina = MeleeExchange.SwingCost; } else { health = MeleeExchange.SwingCost; }
+            }
+            return new CombatForecast(action, slot, path, pips, revealed ? chance : null, low, high,
+                revealed ? damage : null, stamina, health, 0, true, true, false, "");
+        }
+
+        /// <summary>Where a move to (col, row) would walk; not allowed when it cannot arrive.</summary>
+        public CombatForecast ForecastMove(Combatant acting, int col, int row) {
+            IReadOnlyList<(int Col, int Row)> path = ToPath(ForecastWalk(acting, col, row));
+            return path.Count == 0
+                ? Refused(ForecastAction.Move, -1, UiTemplates.EnhancedForecastOutOfReach)
+                : new CombatForecast(ForecastAction.Move, -1, path, 0, null, 0, 0, null, 0, 0, 0,
+                    true, true, false, "");
+        }
+
+        /// <summary>Inspect ends the turn (<see cref="InspectAction.SpendsTheTurn"/>) and needs no reach.</summary>
+        public CombatForecast ForecastInspect(Combatant acting, Combatant target) {
+            int slot = Encounter?.Enemies.IndexOf(target) ?? -1;
+            return slot < 0 || target.IsDead
+                ? Refused(ForecastAction.Inspect, slot, UiTemplates.EnhancedForecastOutOfReach)
+                : new CombatForecast(ForecastAction.Inspect, slot, NoPath, 0, null, 0, 0, null, 0, 0, 0,
+                    true, true, false, "");
+        }
+
+        /// <summary>
+        /// Defend / Rest / Retreat / Auto / Pack. Whether it is allowed, warned and why comes from
+        /// <see cref="AvailabilityFor"/> -- no rule is re-derived here; this only adds the numbers.
+        /// </summary>
+        public CombatForecast ForecastNoTarget(Combatant acting, ForecastAction action) {
+            CombatCommands.Command command = action switch {
+                ForecastAction.Defend => CombatCommands.Command.Defend,
+                ForecastAction.Rest => CombatCommands.Command.Rest,
+                ForecastAction.Retreat => CombatCommands.Command.BackOrRetreat,
+                ForecastAction.Auto => CombatCommands.Command.AutoResolve,
+                ForecastAction.Pack => CombatCommands.Command.CharacterScreen,
+                _ => throw new System.ArgumentException("not a no-target action", nameof(action)),
+            };
+            ActionAvailability a = AvailabilityFor(acting).TryGetValue(command, out ActionAvailability found)
+                ? found : ActionAvailability.On;
+            int gain = 0;
+            if (action == ForecastAction.Rest && a.Enabled && !a.Warned) {
+                ActorStat[] stats = StatsFor(acting);
+                ActorStat maxHealth = StatOrNull(stats, ActorAttribute.Health);
+                ActorStat maxStamina = StatOrNull(stats, ActorAttribute.Stamina);
+                if (maxHealth != null && maxStamina != null) {
+                    int pool = maxHealth.Max + maxStamina.Max;
+                    int cap = pool * RestAction.HealCapPercent / 100;
+                    gain = System.Math.Min(RestAction.HealAmount(maxHealth.Max, maxStamina.Max),
+                        System.Math.Max(0, cap - (acting.Health + acting.Stamina)));
+                }
+            }
+            string key = action == ForecastAction.Pack && a.Enabled ? UiTemplates.EnhancedForecastPackNote
+                : a.ReasonKey;
+            return new CombatForecast(action, -1, NoPath, 0, null, 0, 0, null, 0, 0, gain,
+                true, a.Enabled, a.Warned, key);
         }
 
         /// <summary>
@@ -2059,21 +2184,14 @@ namespace BakAgain.Combat {
             }
         }
 
-        private MeleeExchange.Result ResolveMeleeCore(Combatant attacker, Combatant defender,
-            CombatActionDispatch.MeleeAttack attack, System.Func<int, int> rnd, int fixedDamage) {
-            if (attacker == null || defender == null) {
-                return MeleeExchange.Result.Miss;
-            }
-
-            // COMBAT.C:471/606: a swing at a living defender records it as the attacker's target, on
-            // both sides — which is what the AI's Engaged and TargetingTheLeader roles read (TASK-528).
-            if (!defender.IsDead) {
-                attacker.Target = defender;
-            }
-
-            ActorStat[] attackerStats = StatsFor(attacker);
-            ActorStat[] defenderStats = StatsFor(defender);
-
+        /// <summary>
+        /// Both sides of a melee exchange exactly as the roll sees them. The ONE place the attacker's
+        /// weapon terms and the defender's Defense, armour, race and blessing terms are built:
+        /// <see cref="ResolveMeleeCore"/> rolls with them and <see cref="ForecastMelee"/> reads them,
+        /// so the forecast cannot drift from the fight.
+        /// </summary>
+        private (MeleeExchange.Attacker Swing, MeleeExchange.Defender Guard, Equipped Weapon, int SwingMask) MeleeSides(
+            Combatant attacker, Combatant defender, CombatActionDispatch.MeleeAttack attack, int fixedDamage) {
             Equipped weapon = EquippedOfCategory(attacker, MeleeWeaponCategory);
             Equipped armour = EquippedOfCategory(defender, ArmorCategory);
 
@@ -2120,6 +2238,26 @@ namespace BakAgain.Combat {
                 // The worn armour's own flags: armour enchanted against an element cancels that
                 // element's bonus outright (TASK-479, cbstat_damage_apply_protection).
                 armorFlags: armour.Info != null ? armour.Flags : default);
+            return (swing, guard, weapon, swingMask);
+        }
+
+        private MeleeExchange.Result ResolveMeleeCore(Combatant attacker, Combatant defender,
+            CombatActionDispatch.MeleeAttack attack, System.Func<int, int> rnd, int fixedDamage) {
+            if (attacker == null || defender == null) {
+                return MeleeExchange.Result.Miss;
+            }
+
+            // COMBAT.C:471/606: a swing at a living defender records it as the attacker's target, on
+            // both sides — which is what the AI's Engaged and TargetingTheLeader roles read (TASK-528).
+            if (!defender.IsDead) {
+                attacker.Target = defender;
+            }
+
+            ActorStat[] attackerStats = StatsFor(attacker);
+            ActorStat[] defenderStats = StatsFor(defender);
+
+            (MeleeExchange.Attacker swing, MeleeExchange.Defender guard, Equipped weapon, int swingMask) =
+                MeleeSides(attacker, defender, attack, fixedDamage);
 
             var advancement = new MeleeExchange.Advancement(
                 attacker.IsPartyMember ? StatOrNull(attackerStats, ActorAttribute.AccuracyMelee) : null,

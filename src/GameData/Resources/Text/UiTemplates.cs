@@ -240,6 +240,9 @@ public static class UiTemplates {
     public const string EnhancedAvailCannotNow = "port:template:enhanced_avail_cannot_now";
     public const string EnhancedAvailAutoRefused = "port:template:enhanced_avail_auto_refused";
     public const string EnhancedAvailNoHealCondition = "port:template:enhanced_avail_no_heal_condition";
+    public const string EnhancedForecastOutOfReach = "port:template:enhanced_forecast_out_of_reach";
+    public const string EnhancedForecastSwingNeedsFoeBeside = "port:template:enhanced_forecast_swing_needs_foe_beside";
+    public const string EnhancedForecastPackNote = "port:template:enhanced_forecast_pack_note";
 
     /// <summary>The Enhanced fight log's lines: an action's verb with actor and target, and its result (TASK-972).</summary>
     public const string EnhancedLogThrust = "port:template:enhanced_log_thrust";
@@ -393,6 +396,9 @@ public static class UiTemplates {
         (EnhancedAvailCannotNow, _ => "{name} cannot now"),
         (EnhancedAvailAutoRefused, _ => "auto is refused here"),
         (EnhancedAvailNoHealCondition, _ => "no heal: {condition}"),
+        (EnhancedForecastOutOfReach, _ => "out of reach"),
+        (EnhancedForecastSwingNeedsFoeBeside, _ => "a swing needs a foe beside you"),
+        (EnhancedForecastPackNote, _ => "ends the turn unless the item needs a target"),
         (EnhancedLogThrust, _ => "{actor} thrusts at {target}: {result}"),
         (EnhancedLogSwing, _ => "{actor} swings at {target}: {result}"),
         (EnhancedLogShoot, _ => "{actor} shoots {target}: {result}"),

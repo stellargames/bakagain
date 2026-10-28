@@ -1824,7 +1824,7 @@ using GameData.Resources.Scene;
             var enemies = Combat.Encounter.Enemies;
             var path = enemyIndexOrMinus1 >= 0 && enemyIndexOrMinus1 < enemies.Count
                 ? Combat.ForecastThrust(acting, enemies[enemyIndexOrMinus1])
-                : Combat.ForecastMove(acting, col, row);
+                : Combat.ForecastWalk(acting, col, row);
             var result = new List<(int Col, int Row)>();
             if (path != null) {
                 foreach ((int x, int y) in path) {
