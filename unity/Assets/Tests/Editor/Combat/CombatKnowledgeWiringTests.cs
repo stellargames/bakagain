@@ -60,6 +60,23 @@ namespace BakAgain.Tests.Editor.Combat {
             Assert.IsFalse(runtime.Knowledge.Inspected(0), "knowledge is per enemy");
         }
 
+        [Test]
+        public void AnInspectReadsTheFoesLivePools_NotItsRosterTemplate() {
+            // stat_actor_get(actor, 0|1, 0) reads the combatant's own Health/Stamina (CBENC.C:320-325),
+            // which damage lowers; the port's enemy stat table is the shared roster template.
+            (CombatRuntime runtime, CombatEncounter fight) = Fight();
+            Combatant foe = fight.Enemies[0];
+            foe.Health = 21;
+            foe.Stamina = 7;
+
+            runtime.AssessmentLines(fight.Party[0], foe, _ => 0);   // every row passes
+
+            Assert.IsTrue(runtime.Knowledge.TryGet(0, ActorAttribute.Health, out int health));
+            Assert.IsTrue(runtime.Knowledge.TryGet(0, ActorAttribute.Stamina, out int stamina));
+            Assert.AreEqual(21, health);
+            Assert.AreEqual(7, stamina);
+        }
+
         private static void Struck(Combatant target, Combatant by, FloatCause cause) {
             target.DamageFloatBy = by;
             target.DamageFloatCause = cause;

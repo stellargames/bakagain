@@ -961,7 +961,13 @@ namespace BakAgain.Combat {
             foreach ((CombatAssessment.Row row, int value, int x, int y) in CombatAssessment.Reveal(
                          rows,
                          CombatStat(inspector, CombatAssessment.RollAttribute),
-                         attribute => CombatStat(target, attribute),
+                         // The pools are the combatant's own, which damage lowers (stat_actor_get on the
+                         // combatant, CBENC.C:320-325); an enemy's stat table is its roster template.
+                         attribute => attribute switch {
+                             ActorAttribute.Health => target.Health,
+                             ActorAttribute.Stamina => target.Stamina,
+                             _ => CombatStat(target, attribute),
+                         },
                          rnd ?? (n => UnityEngine.Random.Range(0, n)))) {
                 if (enemySlot >= 0) {
                     Knowledge.Record(enemySlot, row.Attribute, value);
