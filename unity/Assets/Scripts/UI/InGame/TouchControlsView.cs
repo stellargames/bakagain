@@ -323,7 +323,9 @@ namespace BakAgain.UI.InGame {
             // toggle should be much more unobtrusive).
             float gs = rightW * _layout.GridButtonSize;
             float m = rightW * _layout.GridButtonMargin;
-            Place(_grid, rightW - gs - m, m, gs, gs, _inFight);
+            // Not in an Enhanced fight: there it sat under the phone HUD's sentence, and the HUD's camera
+            // column carries the toggle (owner, 2026-10-29).
+            Place(_grid, rightW - gs - m, m, gs, gs, _inFight && !_enhancedFight);
         }
 
         private static VisualElement Bar(string name) {

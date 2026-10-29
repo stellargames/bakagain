@@ -117,6 +117,9 @@ namespace BakAgain.UI.Combat.Enhanced {
             Place(_cam, top: row + gap, left: 0);
             CamButton(_cam, "ec-cam-right", "⟳", () => TurnQuarterPressed?.Invoke(1));
             CamButton(_cam, "ec-cam-reset", UiTemplates.Format(UiTemplates.HudReset), () => ResetViewPressed?.Invoke());
+            // The grid (the G key's toggle), here rather than in the touch side bar, which sat under the
+            // sentence box in a fight (owner, 2026-10-29).
+            CamButton(_cam, "ec-cam-grid", "#", () => BakAgain.UI.InputCore.TouchInputState.Instance?.RequestGridToggle());
 
             // Foe chips, right, under the top row.
             _foeChips = Box("ec-phone-foes", "ec-phone-foes");

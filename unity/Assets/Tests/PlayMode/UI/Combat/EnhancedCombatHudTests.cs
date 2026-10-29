@@ -517,6 +517,30 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
         }
 
         // Owner, 2026-10-29: the crossed-blade reach marks go, on the chips as on the board's plates.
+        // Owner, 2026-10-29: the side bar's "#" sat under the sentence box; the toggle lives in the camera column now.
+        [UnityTest]
+        public IEnumerator PhoneTheGridToggleIsInTheCameraColumn_ReachableWhereItIs_AndToggles() {
+            BakAgain.UI.InputCore.TouchInputState keep = BakAgain.UI.InputCore.TouchInputState.Instance;
+            BakAgain.UI.InputCore.TouchInputState.Instance = new BakAgain.UI.InputCore.TouchInputState();
+            try {
+                _hud.Show(HudModels.Idle());
+                yield return Settle();
+                VisualElement toggle = _hud.Root.Q("ec-cam-grid");
+                Assert.IsNotNull(toggle, "under Reset");
+                Assert.IsTrue(_hud.Root.Q("ec-phone-cam").Contains(toggle), "in the camera column");
+                VisualElement picked = _hud.Root.panel.Pick(toggle.worldBound.center);
+                Assert.IsTrue(picked == toggle || toggle.Contains(picked), "nothing lies over it: a tap reaches it");
+                Assert.GreaterOrEqual(toggle.worldBound.height / _hud.Scale, 44f - 0.5f, "a 44 pt target");
+                using (var click = NavigationSubmitEvent.GetPooled()) {
+                    click.target = toggle;
+                    toggle.SendEvent(click);
+                }
+                Assert.IsTrue(BakAgain.UI.InputCore.TouchInputState.Instance.TakeGridToggle(), "it toggles the grid, as the G key does");
+            } finally {
+                BakAgain.UI.InputCore.TouchInputState.Instance = keep;
+            }
+        }
+
         [UnityTest]
         public IEnumerator PhoneFoeChipsCarryNoSwordMarks() {
             _hud.Show(HudModels.Forecast());
