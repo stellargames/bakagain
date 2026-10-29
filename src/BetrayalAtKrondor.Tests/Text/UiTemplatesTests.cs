@@ -36,6 +36,21 @@ public class UiTemplatesTests {
     }
 
     [Fact]
+    public void WalksThenThrustsIsACountedPlural() {
+        Assert.Equal("Walks 1, then thrusts", UiTemplates.Format(UiTemplates.HudWalksThenThrusts, ("n", (object)1)));
+        Assert.Equal("Walks 3, then thrusts", UiTemplates.Format(UiTemplates.HudWalksThenThrusts, ("n", (object)3)));
+        UiStringCatalog saved = UiStrings.Catalog;
+        try {
+            UiStrings.Catalog = Translated(UiTemplates.HudWalksThenThrusts,
+                "{n, plural, one {Geht # Feld, dann sticht} other {Geht # Felder, dann sticht}}");
+            Assert.Equal("Geht 1 Feld, dann sticht", UiTemplates.Format(UiTemplates.HudWalksThenThrusts, ("n", (object)1)));
+            Assert.Equal("Geht 3 Felder, dann sticht", UiTemplates.Format(UiTemplates.HudWalksThenThrusts, ("n", (object)3)));
+        } finally {
+            UiStrings.Catalog = saved;
+        }
+    }
+
+    [Fact]
     public void TheHudChoosesATargetForAnArmedPick() {
         Assert.Equal("Flamecast: choose a target",
             UiTemplates.Format(UiTemplates.HudChooseTarget, ("action", (object)"Flamecast")));

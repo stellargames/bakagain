@@ -489,7 +489,8 @@ public static class UiTemplates {
         (HudWeaponLine, _ => "Thrust {thrust}+Str · Swing {swing}+Str"),
         (HudChooseTarget, _ => "{action}: choose a target"),
         // A Thrust that walks first says so (owner, 2026-10-29: "explain the move+attack combo").
-        (HudWalksThenThrusts, _ => "Walks {n}, then thrusts"),
+        // A count, so a plural for the translator, as the other counted strings (HudSquares, MoneyProse).
+        (HudWalksThenThrusts, _ => "{n, plural, one {Walks #, then thrusts} other {Walks #, then thrusts}}"),
         (HudArmourLine, _ => "Armour {n}"),
         (HudThrust, _ => "Thrust"),
         (HudSwing, _ => "Swing"),
