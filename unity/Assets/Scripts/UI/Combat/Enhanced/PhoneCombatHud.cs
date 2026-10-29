@@ -17,7 +17,8 @@ namespace BakAgain.UI.Combat.Enhanced {
     /// <remarks>
     /// Sizes are in points from <see cref="EnhancedCombatLayout"/>, turned into panel units from the
     /// window's height in points, so a 44 pt target is 44 pt on every phone. Tap = the event; the
-    /// controller (Task 9) decides what it means. Confirm is the only commit, Cancel the only way back.
+    /// controller decides what it means: Confirm commits, and so does a second tap on what is forecast;
+    /// Cancel is the only way back.
     /// </remarks>
     public sealed class PhoneCombatHud : ICombatHud {
         private readonly EnhancedCombatLayout _layout;

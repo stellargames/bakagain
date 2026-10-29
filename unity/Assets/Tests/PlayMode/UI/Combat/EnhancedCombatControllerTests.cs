@@ -23,6 +23,9 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
     public class EnhancedCombatControllerTests {
         private bool _enhanced, _combat;
         private bool _busy;
+
+        // The controller's clock for the re-tap guard: a test moves it on by hand.
+        private float _now;
         private GameObject _go, _menuGo;
 
         [SetUp]
@@ -54,7 +57,8 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             } else {
                 EnhancedBoardMarksTests.Place(s, hero, (4, 5), 5, (0, 5, 5));
             }
-            return (s, hero, new EnhancedCombatController(s, s.Combat, null, new EnhancedCombatLayout(), null, phone, enhancedTurn));
+            return (s, hero, new EnhancedCombatController(s, s.Combat, null, new EnhancedCombatLayout(), null, phone, enhancedTurn,
+                () => _now));
         }
 
         private static int Pool(Combatant c) => c.Health + c.Stamina;
@@ -186,8 +190,11 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             Assert.AreEqual(State.Ready, c.State);
         }
 
+        // Owner, 2026-10-29: on the phone a second tap on what is forecast acts, as Confirm would -- unless it
+        // comes too soon after the tap that made the forecast (an accidental double tap). Replaces
+        // PhoneTapForecasts_OnlyConfirmActs_ReTapDoesNothing.
         [Test]
-        public void PhoneTapForecasts_OnlyConfirmActs_ReTapDoesNothing() {
+        public void PhoneATooQuickReTapIsIgnored_ALaterOneOnTheSameFoeAttacks() {
             var (s, hero, c) = Fight(phone: true);
             int pool = Pool(Foe(s, 0));
             PointAtFoe(s, c, 0);
@@ -195,15 +202,62 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
 
             c.Primary(false);
             Assert.AreEqual(ForecastAction.Thrust, c.Current().Action, "a tap forecasts");
-            c.Switch();
-            Assert.AreEqual(ForecastAction.Swing, c.Current().Action, "the peek's switch");
+            _now += new EnhancedCombatLayout().RetapCommitMinSeconds * 0.5f;
             c.Primary(false);
-            Assert.AreEqual(ForecastAction.Swing, c.Current().Action, "a re-tap changes nothing");
-            Assert.IsFalse(Spent(hero), "and acts on nothing");
+            Assert.IsFalse(Spent(hero), "a double tap is not a commit");
             Assert.AreEqual(pool, Pool(Foe(s, 0)));
 
+            _now += 1f;
+            c.Primary(false);
+            Assert.IsTrue(Spent(hero), "a second tap on the same foe thrusts, as Confirm would");
+        }
+
+        [Test]
+        public void PhoneConfirmStillActs() {
+            var (s, hero, c) = Fight(phone: true);
+            PointAtFoe(s, c, 0);
+            c.Primary(false);
             c.Confirm();
             Assert.IsTrue(Spent(hero), "Confirm acts");
+        }
+
+        [Test]
+        public void PhoneTappingTheSelectedAttackButtonCommits_TheOtherOneOnlySwitches() {
+            var (s, hero, c) = Fight(phone: true, roll: 99);
+            int stamina = hero.Stamina;
+            PointAtFoe(s, c, 0);
+            c.Primary(false);
+            _now += 1f;
+            c.SwitchTo(ForecastAction.Swing);
+            Assert.AreEqual(ForecastAction.Swing, c.Current().Action, "the other button switches");
+            Assert.IsFalse(Spent(hero), "and acts on nothing");
+            _now += 0.1f;
+            c.SwitchTo(ForecastAction.Swing);
+            Assert.IsFalse(Spent(hero), "the selected button tapped again too soon: nothing");
+            _now += 1f;
+            c.SwitchTo(ForecastAction.Swing);
+            Assert.IsTrue(Spent(hero), "the selected button tapped again swings");
+            Assert.AreEqual(stamina - MeleeExchange.SwingCost, hero.Stamina, "a swing, billed");
+        }
+
+        [Test]
+        public void PhoneATapOnTheTrailsEndWalks_AnotherReachableCellReForecasts() {
+            var (s, hero, c) = Fight(phone: true);
+            (int, int) start = (hero.X, hero.Y);
+            c.Point(3, 3, null, false);
+            c.Primary(false);
+            Assert.AreEqual(ForecastAction.Move, c.Current().Action, "a tap on ground forecasts the walk");
+            _now += 1f;
+            c.Point(3, 4, null, false);
+            c.Primary(false);
+            Assert.AreEqual(ForecastAction.Move, c.Current().Action);
+            Assert.AreEqual(((int, int)?)(3, 4), c.FocusCell, "another reachable cell moves the forecast");
+            Assert.AreEqual(start, (hero.X, hero.Y), "nobody walked");
+            Assert.IsFalse(Spent(hero));
+
+            _now += 1f;
+            c.Primary(false);   // the trail's end, again
+            Assert.AreEqual((3, 4), (hero.X, hero.Y), "a tap on the trail's end walks there");
         }
 
         [Test]
@@ -276,8 +330,11 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             Assert.AreEqual(pool, Pool(Foe(s, 0)));
             if (phone) {
                 Assert.AreEqual(((int, int)?)(Foe(s, 0).X, Foe(s, 0).Y), s.CursorCell, "the board marks the pick");
-                c.Confirm();
-                Assert.IsTrue(Spent(hero), "Confirm acts it");
+                // Its forecast is on screen, so one tap on that foe acts (owner, 2026-10-29).
+                _now += 1f;
+                PointAtFoe(s, c, 0);
+                c.Primary(false);
+                Assert.IsTrue(Spent(hero), "one tap on the remembered foe acts it");
             }
         }
 

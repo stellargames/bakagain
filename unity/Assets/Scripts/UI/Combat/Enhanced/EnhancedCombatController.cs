@@ -16,8 +16,8 @@ namespace BakAgain.UI.Combat.Enhanced {
     /// <remarks>
     /// Desktop: hover forecasts, a left click acts the default (Thrust / Move), Shift+click Swings, a
     /// right click on a foe forecasts Inspect and a second one on the same foe inspects; a stone
-    /// click acts, a stone key forecasts first. Phone: a tap forecasts, only Confirm acts, only
-    /// Cancel backs out. A party member's turn opens on the foe that hero last targeted, else the
+    /// click acts, a stone key forecasts first. Phone: a tap forecasts; Confirm, or a second tap on the
+    /// same foe, trail end or selected attack button, acts; only Cancel backs out. A party member's turn opens on the foe that hero last targeted, else the
     /// party's last target, if it still lives: its forecast shown, nothing committed (owner, 2026-10-28).
     /// </remarks>
     public sealed class EnhancedCombatController : IDisposable {
@@ -54,7 +54,10 @@ namespace BakAgain.UI.Combat.Enhanced {
         /// controller lives for the fight, so in a Classic turn it must neither pre-select nor answer a pick.
         /// Null: always.</param>
         public EnhancedCombatController(HotspotService hs, CombatRuntime cr, ICombatHud hud,
-            EnhancedCombatLayout layout, GameSession session = null, bool phone = false, Func<bool> enhancedTurn = null) {
+            EnhancedCombatLayout layout, GameSession session = null, bool phone = false, Func<bool> enhancedTurn = null,
+            Func<float> clock = null) {
+            _layout = layout ?? new EnhancedCombatLayout();
+            _clock = clock ?? (() => UnityEngine.Time.realtimeSinceStartup);
             _enhancedTurn = enhancedTurn ?? (() => true);
             _hs = hs;
             _cr = cr;
@@ -165,14 +168,24 @@ namespace BakAgain.UI.Combat.Enhanced {
                 return;
             }
             if (_phone) {
-                // A re-tap on the target does nothing; empty ground out of reach does nothing.
+                // A tap forecasts; a second tap on the same thing -- the foe, or the shown trail's end cell --
+                // acts it as Confirm would (owner, 2026-10-29). Empty ground out of reach does nothing.
                 if (Foe() is int f) {
-                    if (_slot != f || _action is not (ForecastAction.Thrust or ForecastAction.Swing or ForecastAction.Inspect)) {
+                    if (_slot == f && _action is ForecastAction.Thrust or ForecastAction.Swing or ForecastAction.Inspect) {
+                        if (RetapCommits()) {
+                            Confirm();
+                        }
+                    } else {
                         Pin(ForecastAction.Thrust, f, fromKey: false);
                     }
-                } else if (_cell is (int c, int r) && !_foe.HasValue
-                    && _cr.ForecastMove(acting, c, r).Allowed && !(_action == ForecastAction.Move && _at == (c, r))) {
-                    Pin(ForecastAction.Move, -1, fromKey: false);
+                } else if (_cell is (int c, int r) && !_foe.HasValue && _cr.ForecastMove(acting, c, r).Allowed) {
+                    if (_action == ForecastAction.Move && _at == (c, r)) {
+                        if (RetapCommits()) {
+                            Confirm();
+                        }
+                    } else {
+                        Pin(ForecastAction.Move, -1, fromKey: false);
+                    }
                 }
                 return;
             }
@@ -350,11 +363,26 @@ namespace BakAgain.UI.Combat.Enhanced {
             }
         }
 
-        private void OnSwitch(ForecastAction a) {
+        /// <summary>Phone: the peek's Thrust / Swing button. The other one switches; the selected one tapped
+        /// again acts, as Confirm would (owner, 2026-10-29), unless it is a too-quick double tap.</summary>
+        public void SwitchTo(ForecastAction a) {
             if (_action != a) {
                 Switch();
+                _forecastTapAt = _clock();
+            } else if (_phone && _action is ForecastAction.Thrust or ForecastAction.Swing && RetapCommits()) {
+                Confirm();
             }
         }
+
+        private void OnSwitch(ForecastAction a) => SwitchTo(a);
+
+        // Phone: a second tap on what is forecast commits it (Confirm's path), but not one that follows the tap
+        // that made the forecast within RetapCommitMinSeconds -- that is a double tap, not a decision.
+        private bool RetapCommits() => _clock() - _forecastTapAt >= _layout.RetapCommitMinSeconds;
+
+        private readonly EnhancedCombatLayout _layout;
+        private readonly Func<float> _clock;
+        private float _forecastTapAt = float.NegativeInfinity;
 
         // A party member's turn starts: the pointer is probably still on something, so the new hero
         // gets its hover forecast at once rather than after the mouse moves (desktop). With nothing
@@ -432,6 +460,7 @@ namespace BakAgain.UI.Combat.Enhanced {
 
         private void Pin(ForecastAction a, int slot, bool fromKey) {
             _hovered = false;
+            _forecastTapAt = _clock();
             _action = a;
             _slot = slot;
             _at = _cell ?? default;
