@@ -91,6 +91,57 @@ namespace BakAgain.Tests.PlayMode.World {
             StringAssert.Contains("6", marks.PlateOf(0).transform.Find("Seen").GetComponent<TextMesh>().text);
         }
 
+        // Owner, 2026-10-29: the cell marks were filled squares that dominated the board and hid the
+        // combatants' feet; they are frames now, the middle of every cell left open.
+        [UnityTest]
+        public IEnumerator TheCellMarksAreFrames_TheMiddleOfEachCellStaysOpen() {
+            var (service, acting) = EnhancedBoardMarksTests.PartyTurn();
+            service.Combat.Grid.SetOccupied(acting.X, acting.Y, false);
+            acting.X = 4; acting.Y = 4; acting.Speed = 5;
+            service.Combat.Grid.SetOccupied(4, 4, true);
+            var foe = service.Combat.Encounter.Enemies[0];
+            service.Combat.Grid.SetOccupied(foe.X, foe.Y, false);
+            foe.X = 5; foe.Y = 4;
+            service.Combat.Grid.SetOccupied(5, 4, true);
+            service.CursorCell = (5, 4);
+            _root = new GameObject("arena");
+            var marks = _root.AddComponent<ArenaBoardMarks>();
+            marks.Bind(() => service.EnhancedBoardShapes(128f / 300f), service.EnhancedFoePlates, service.EnhancedBoardInputs,
+                new GameData.Resources.Layout.EnhancedCombatLayout(), 3f);
+            yield return null;
+
+            var cells = new System.Collections.Generic.List<(string Kind, (int, int) Cell)> {
+                ("Actor", (4, 4)), ("ThrustMark", (5, 4)), ("SwingMark", (5, 4)), ("Target", (5, 4)) };
+            foreach ((int, int) r in service.EnhancedBoardMarks().Reach.Take(6)) {
+                cells.Add(("ReachFill", r));
+            }
+            foreach ((string kind, (int col, int row)) in cells) {
+                Transform t = _root.transform.Find(kind);
+                Assert.IsNotNull(t, $"{kind} is drawn");
+                Mesh mesh = t.GetComponent<MeshFilter>().sharedMesh;
+                Assert.Greater(mesh.triangles.Length, 0, kind);
+                Vector3 centre = service.CellCentreWorld(col, row).Value;
+                Assert.IsFalse(Covers(mesh, t, centre), $"{kind} on ({col},{row}): the middle of the cell is open");
+            }
+        }
+
+        private static bool Covers(Mesh mesh, Transform t, Vector3 world) {
+            Vector3[] v = mesh.vertices;
+            int[] tri = mesh.triangles;
+            var p = new Vector2(world.x, world.z);
+            for (int i = 0; i < tri.Length; i += 3) {
+                Vector3 a = t.TransformPoint(v[tri[i]]), b = t.TransformPoint(v[tri[i + 1]]), c = t.TransformPoint(v[tri[i + 2]]);
+                float d1 = Side(p, a, b), d2 = Side(p, b, c), d3 = Side(p, c, a);
+                bool neg = d1 < 0 || d2 < 0 || d3 < 0, pos = d1 > 0 || d2 > 0 || d3 > 0;
+                if (!(neg && pos)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static float Side(Vector2 p, Vector3 a, Vector3 b) => (p.x - b.x) * (a.z - b.z) - (a.x - b.x) * (p.y - b.z);
+
         [UnityTest]
         public IEnumerator APlateFacesTheCameraItIsGiven_NotCameraMain() {
             var (service, _) = EnhancedBoardMarksTests.PartyTurn();

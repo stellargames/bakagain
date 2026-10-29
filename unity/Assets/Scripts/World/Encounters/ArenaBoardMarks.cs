@@ -17,7 +17,6 @@ namespace BakAgain.World.Encounters {
     /// shapes and plates (and rebuilds its meshes) only when that hash changed. Plates face the camera, which the player can orbit to any angle.
     /// </remarks>
     public sealed class ArenaBoardMarks : MonoBehaviour {
-        private const float GroundLift = 0.06f;
         private const float LiftStep = 0.015f;
         private const float WorldUnitsPerCellDefault = 3f;
 
@@ -124,27 +123,32 @@ namespace BakAgain.World.Encounters {
             }
         }
 
-        private static Color ColourOf(ArenaOverlayKind kind) => kind switch {
-            ArenaOverlayKind.ReachFill => new Color(0.45f, 1f, 0.55f, 0.22f),
-            ArenaOverlayKind.Actor => new Color(0.45f, 1f, 0.55f, 0.45f),
-            ArenaOverlayKind.ThrustMark => new Color(1f, 0.5f, 0.2f, 0.5f),
-            ArenaOverlayKind.SwingMark => new Color(1f, 0.85f, 0.2f, 0.65f),
-            ArenaOverlayKind.Target => new Color(1f, 1f, 1f, 0.3f),
-            _ => Color.white,
-        };
+        // The layout's RGBA for each kind; the path's dots are white.
+        private Color ColourOf(ArenaOverlayKind kind) {
+            float[] c = kind switch {
+                ArenaOverlayKind.ReachFill => _layout.MarkReachRgba,
+                ArenaOverlayKind.Actor => _layout.MarkActorRgba,
+                ArenaOverlayKind.ThrustMark => _layout.MarkThrustRgba,
+                ArenaOverlayKind.SwingMark => _layout.MarkSwingRgba,
+                ArenaOverlayKind.Target => _layout.MarkTargetRgba,
+                _ => null,
+            };
+            return c == null || c.Length < 4 ? Color.white : new Color(c[0], c[1], c[2], c[3]);
+        }
 
         private void RefreshShapes() {
             List<HotspotService.BoardShape> shapes = _shapes() ?? new List<HotspotService.BoardShape>();
             DestroyWithMesh(_meshes);
             _meshes.Clear();
 
-            // One mesh per kind, drawn in the kind's own layer of height so the fills never z-fight.
+            // One mesh per kind, drawn in the kind's own layer of height so the marks never z-fight.
+            float frame = _layout.MarkFrameCells * _unitsPerCell;
             foreach (ArenaOverlayKind kind in new[] { ArenaOverlayKind.ReachFill, ArenaOverlayKind.Actor,
                 ArenaOverlayKind.ThrustMark, ArenaOverlayKind.SwingMark, ArenaOverlayKind.Target,
                 ArenaOverlayKind.Path }) {
                 var verts = new List<Vector3>();
                 var tris = new List<int>();
-                float lift = GroundLift + ((int)kind - (int)ArenaOverlayKind.ReachFill) * LiftStep;
+                float lift = _layout.MarkLiftCells * _unitsPerCell + ((int)kind - (int)ArenaOverlayKind.ReachFill) * LiftStep;
                 foreach (HotspotService.BoardShape s in shapes) {
                     if (s.Kind != kind) {
                         continue;
@@ -152,11 +156,7 @@ namespace BakAgain.World.Encounters {
                     if (kind == ArenaOverlayKind.Path) {
                         AddDots(s.Points, lift, verts, tris);
                     } else {
-                        int at = verts.Count;
-                        foreach ((long x, long y) in s.Points) {
-                            verts.Add(BakCoordinateConverter.ConvertPosition((int)x, (int)y, 0) + (Vector3.up * lift));
-                        }
-                        tris.AddRange(new[] { at, at + 2, at + 1, at, at + 3, at + 2 });
+                        AddFrame(s.Points, lift, frame, verts, tris);
                     }
                 }
                 if (verts.Count == 0) {
@@ -173,6 +173,35 @@ namespace BakAgain.World.Encounters {
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;
                 go.AddComponent<MeshRenderer>().sharedMaterial = _material;
                 _meshes.Add(go);
+            }
+        }
+
+        /// <summary>
+        /// A square cell mark as a frame <paramref name="width"/> wide with an open middle: four quads between the
+        /// shape's corners and the same corners drawn in toward its centre.
+        /// </summary>
+        private static void AddFrame((long X, long Y)[] points, float lift, float width, List<Vector3> verts, List<int> tris) {
+            var outer = new Vector3[points.Length];
+            Vector3 centre = Vector3.zero;
+            for (int i = 0; i < points.Length; i++) {
+                outer[i] = BakCoordinateConverter.ConvertPosition((int)points[i].X, (int)points[i].Y, 0) + (Vector3.up * lift);
+                centre += outer[i];
+            }
+            centre /= points.Length;
+            // A square's half side is its corner distance over root 2; the frame never closes the middle.
+            float half = Vector3.Distance(outer[0], centre) / Mathf.Sqrt(2f);
+            float t = half > 0f ? Mathf.Clamp(width / half, 0f, 0.9f) : 0f;
+            int at = verts.Count;
+            foreach (Vector3 o in outer) {
+                verts.Add(o);
+            }
+            foreach (Vector3 o in outer) {
+                verts.Add(Vector3.Lerp(o, centre, t));
+            }
+            int n = outer.Length;
+            for (int i = 0; i < n; i++) {
+                int j = (i + 1) % n;
+                tris.AddRange(new[] { at + i, at + j, at + n + j, at + i, at + n + j, at + n + i });
             }
         }
 

@@ -172,6 +172,25 @@ public sealed class EnhancedCombatLayout
     /// <summary>A mark's half-width as a fraction of the cell, the original's combat marker (128 of 300).</summary>
     public float MarkHalfCell { get; set; } = 128f / 300f;
 
+    /// <summary>The cell marks are frames, not fills (owner, 2026-10-29: the filled squares dominated the board and
+    /// hid the combatants' feet): the frame's width, in cells. Read at the phone's opening zoom and fully out.</summary>
+    public float MarkFrameCells { get; set; } = 0.06f;
+
+    /// <summary>How far the marks sit above the ground, in cells: clear of the road's own paint-order lift.</summary>
+    public float MarkLiftCells { get; set; } = 0.05f;
+
+    /// <summary>The marks' colours, RGBA 0..1: a reachable cell, the acting hero's cell, a foe a Thrust reaches,
+    /// a foe a Swing reaches (a frame nested inside the Thrust's), the foe under the pointer.</summary>
+    public float[] MarkReachRgba { get; set; } = { 0.45f, 1f, 0.55f, 0.7f };
+
+    public float[] MarkActorRgba { get; set; } = { 0.45f, 1f, 0.55f, 1f };
+
+    public float[] MarkThrustRgba { get; set; } = { 1f, 0.5f, 0.2f, 0.95f };
+
+    public float[] MarkSwingRgba { get; set; } = { 1f, 0.85f, 0.2f, 0.95f };
+
+    public float[] MarkTargetRgba { get; set; } = { 1f, 1f, 1f, 0.9f };
+
     /// <summary>A foe's letter plate: width and height, in cells.</summary>
     public float PlateWidthCells { get; set; } = 0.55f;
 

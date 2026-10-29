@@ -36,6 +36,9 @@ public class EnhancedCombatLayoutTests {
         Assert.Equal(34, layout.HitPipEvenAtLeast);
         Assert.Equal(0.5f, layout.LongPressSeconds);
         Assert.Equal(0.3f, layout.RetapCommitMinSeconds);
+        Assert.Equal(0.06f, layout.MarkFrameCells);
+        Assert.Equal(0.05f, layout.MarkLiftCells);
+        Assert.Equal(4, layout.MarkReachRgba.Length);
     }
 
     [Fact]
