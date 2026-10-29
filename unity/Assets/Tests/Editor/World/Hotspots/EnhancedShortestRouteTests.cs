@@ -37,12 +37,15 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
 
         [Test]
         public void ATrapOnTheShortestRouteFires() {
+            // One trap on the shortest route, one on the cell only the original's way round crosses (review M1).
             var (s, hero, a) = OwnersCase(enhanced: true);
             s.Combat.Grid.SetTileEffect(2, 2, CombatTerrain.Trap, 7);
+            s.Combat.Grid.SetTileEffect(1, 4, CombatTerrain.Trap, 7);
             int pool = hero.Health + hero.Stamina;
             s.Combat.ResolveMeleeClick(hero, a, CombatActionDispatch.MeleeAttack.Thrust);
             Assert.AreEqual(CombatTerrain.Open, s.Combat.Grid.TerrainAt(2, 2), "the trap on the route went off");
             Assert.Less(hero.Health + hero.Stamina, pool, "and hurt the walker");
+            Assert.AreEqual(CombatTerrain.Trap, s.Combat.Grid.TerrainAt(1, 4), "the one off the route did not");
         }
 
         [Test]

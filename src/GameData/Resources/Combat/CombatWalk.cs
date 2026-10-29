@@ -337,9 +337,13 @@ public static class CombatWalk {
     /// A breadth-first search over the walker's own step rules, not new ones: eight directions, a cell is
     /// entered when <see cref="CombatGrid.IsBlocked"/> says it may be (walls, pushables and occupied cells
     /// block; crystal and trap ground does not, it fires), and a diagonal between two crystals is not taken
-    /// (<see cref="CombatMovement.Step"/>'s <c>ResolveBlockedDiagonal</c>). Neighbours are tried in a fixed
-    /// order (orthogonal first: +x, -x, +y, -y, then the diagonals), so of several shortest routes the same
-    /// one is always chosen.
+    /// (<see cref="CombatMovement.Step"/>'s <c>ResolveBlockedDiagonal</c>).
+    ///
+    /// <para><b>Of several shortest routes, the original's.</b> The search runs from the destination; the
+    /// route is then built forward, taking at each cell the step the original's walk would take
+    /// (<c>sign(dx), sign(dy)</c> after <c>ResolveBlockedDiagonal</c>, diagonal first) whenever that step is
+    /// one closer, and otherwise the first closer neighbour in a fixed order. So wherever the greedy walk is
+    /// already shortest the route is exactly its route, and it differs only where the walk detours.</para>
     /// </remarks>
     public static List<(int X, int Y)>? ShortestPath(CombatGrid grid, int fromX, int fromY, int toX, int toY,
         int maxSteps) {
@@ -352,35 +356,76 @@ public static class CombatWalk {
         if (!CombatGrid.InBounds(toX, toY) || grid.IsBlocked(toX, toY) || maxSteps <= 0) {
             return null;
         }
-        var previous = new Dictionary<(int, int), (int, int)> { [(fromX, fromY)] = (fromX, fromY) };
-        var depth = new Dictionary<(int, int), int> { [(fromX, fromY)] = 0 };
+        // Steps to the destination, searched backwards: v reaches u when the walker may step v -> u. The
+        // mover's own cell is occupied (by the mover) and is still where the route starts.
+        var toGo = new Dictionary<(int, int), int> { [(toX, toY)] = 0 };
         var queue = new Queue<(int X, int Y)>();
-        queue.Enqueue((fromX, fromY));
-        while (queue.Count > 0) {
+        queue.Enqueue((toX, toY));
+        while (queue.Count > 0 && !toGo.ContainsKey((fromX, fromY))) {
             (int x, int y) = queue.Dequeue();
-            int d = depth[(x, y)];
+            int d = toGo[(x, y)];
             if (d >= maxSteps) {
                 continue;
             }
             foreach ((int dx, int dy) in Directions) {
-                int nx = x + dx, ny = y + dy;
-                if (depth.ContainsKey((nx, ny)) || !CanStep(grid, x, y, dx, dy)) {
+                int vx = x - dx, vy = y - dy;
+                if (toGo.ContainsKey((vx, vy)) || !CombatGrid.InBounds(vx, vy)
+                    || (grid.IsBlocked(vx, vy) && (vx, vy) != (fromX, fromY)) || !CanStep(grid, vx, vy, dx, dy)) {
                     continue;
                 }
-                depth[(nx, ny)] = d + 1;
-                previous[(nx, ny)] = (x, y);
-                if (nx == toX && ny == toY) {
-                    var path = new List<(int X, int Y)>();
-                    for ((int, int) c = (nx, ny); c != (fromX, fromY); c = previous[c]) {
-                        path.Add(c);
-                    }
-                    path.Reverse();
-                    return path;
-                }
-                queue.Enqueue((nx, ny));
+                toGo[(vx, vy)] = d + 1;
+                queue.Enqueue((vx, vy));
             }
         }
-        return null;
+        if (!toGo.TryGetValue((fromX, fromY), out int steps) || steps > maxSteps) {
+            return null;
+        }
+        var path = new List<(int X, int Y)>();
+        (int cx, int cy) = (fromX, fromY);
+        while ((cx, cy) != (toX, toY)) {
+            int closer = toGo[(cx, cy)] - 1;
+            (int Dx, int Dy) step = (0, 0);
+            foreach ((int, int) dir in OriginalsSteps(grid, cx, cy, toX, toY)) {
+                if (Closer(dir)) {
+                    step = dir;
+                    break;
+                }
+            }
+            cx += step.Dx;
+            cy += step.Dy;
+            path.Add((cx, cy));
+
+            bool Closer((int Dx, int Dy) dir) =>
+                (dir.Dx != 0 || dir.Dy != 0) && toGo.TryGetValue((cx + dir.Dx, cy + dir.Dy), out int left)
+                && left == closer && CanStep(grid, cx, cy, dir.Dx, dir.Dy);
+        }
+        return path;
+    }
+
+    // The walker's own preference of steps (CombatMovement.Step): straight at the target, diagonal first, with a
+    // diagonal between two crystals dropped to one axis (ResolveBlockedDiagonal); then its slides -- for a
+    // diagonal the vertical then the horizontal, for an orthogonal step the two diagonals past the obstacle --
+    // then every other direction in a fixed order.
+    private static IEnumerable<(int Dx, int Dy)> OriginalsSteps(CombatGrid grid, int x, int y, int toX, int toY) {
+        int dx = Math.Sign(toX - x), dy = Math.Sign(toY - y);
+        if (dx != 0 && dy != 0 && grid.IsCrystal(x + dx, y) && grid.IsCrystal(x, y + dy)) {
+            if (grid.IsOccupied(x + dx, y)) {
+                dx = 0;
+            } else {
+                dy = 0;
+            }
+        }
+        yield return (dx, dy);
+        if (dx != 0 && dy != 0) {
+            yield return (0, dy);
+            yield return (dx, 0);
+        } else {
+            yield return (dx + dy, dy + dx);
+            yield return (dx - dy, dy - dx);
+        }
+        foreach ((int, int) dir in Directions) {
+            yield return dir;
+        }
     }
 
     private static readonly (int Dx, int Dy)[] Directions = {

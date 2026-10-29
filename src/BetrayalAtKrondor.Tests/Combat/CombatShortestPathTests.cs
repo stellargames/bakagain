@@ -32,6 +32,37 @@ public class CombatShortestPathTests {
         Assert.Equal(new List<(int, int)> { (2, 1), (2, 2), (2, 3), (1, 4), (0, 3) }, trace);
     }
 
+    // Mobile3 review I1: where the original's greedy walk is already shortest, the route IS the original's
+    // (diagonal first, as CombatMovement.Step steps); Enhanced differs only where greedy detours.
+    [Theory]
+    [InlineData(1, 1, 4, 2)]
+    [InlineData(4, 8, 1, 3)]
+    [InlineData(0, 0, 7, 12)]
+    [InlineData(6, 2, 2, 2)]
+    [InlineData(3, 9, 3, 1)]
+    public void InOpenGroundTheRouteIsTheOriginalsOwn(int fx, int fy, int tx, int ty) {
+        AssertSameAsTheOriginal(new CombatGrid(), fx, fy, tx, ty);
+    }
+
+    [Fact]
+    public void AroundAWallTheGreedyWalkHandles_TheRouteIsTheOriginalsOwn() {
+        var grid = new CombatGrid();
+        grid.SetTerrain(3, 3, CombatTerrain.Wall);
+        AssertSameAsTheOriginal(grid, 1, 1, 5, 5);   // the wall sits on the diagonal; Step slides round it
+        AssertSameAsTheOriginal(grid, 3, 1, 3, 6);   // straight down into it
+    }
+
+    private static void AssertSameAsTheOriginal(CombatGrid grid, int fx, int fy, int tx, int ty) {
+        var walker = new Combatant { X = fx, Y = fy };
+        var trace = new List<(int X, int Y)>();
+        CombatWalk.WalkResult greedy = CombatWalk.Walk(grid, walker, tx, ty, 20, probe: true, trace: trace);
+        Assert.True(greedy.Arrived);
+        trace.RemoveAt(0);   // the start
+        List<(int X, int Y)>? shortest = CombatWalk.ShortestPath(grid, fx, fy, tx, ty, 20);
+        Assert.Equal(trace.Count, shortest!.Count);   // the original is already shortest here
+        Assert.Equal(trace, shortest);
+    }
+
     [Fact]
     public void TiesGoToTheOriginalsTryOrder_TheSideNearestTheAttackerFirst() {
         var grid = new CombatGrid();
