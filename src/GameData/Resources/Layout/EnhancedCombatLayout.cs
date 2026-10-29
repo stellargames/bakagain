@@ -192,7 +192,7 @@ public sealed class EnhancedCombatLayout
     public float[] MarkTargetRgba { get; set; } = { 1f, 1f, 1f, 0.9f };
 
     /// <summary>A foe's letter plate: width and height, in cells.</summary>
-    public float PlateWidthCells { get; set; } = 0.55f;
+    public float PlateWidthCells { get; set; } = 0.35f;
 
     public float PlateHeightCells { get; set; } = 0.4f;
 
