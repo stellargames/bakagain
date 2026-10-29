@@ -140,6 +140,10 @@ public sealed class EnhancedCombatLayout
     /// cells are too small to tap there. The desktop opens at the whole board.</summary>
     public float PhoneStartZoom { get; set; } = 0.6f;
 
+    /// <summary>Seconds a close view takes to glide, eased in and out, to the next acting hero (owner, 2026-10-29:
+    /// "make the camera jump smooth").</summary>
+    public float FocusGlideSeconds { get; set; } = 0.6f;
+
     /// <summary>Opacity of a figure seen through the board's occluders (see-through): the occluder stays
     /// clearly visible while the unit behind reads through it (owner's phone test, 2026-10-28).</summary>
     public float SeeThroughAlpha { get; set; } = 0.55f;

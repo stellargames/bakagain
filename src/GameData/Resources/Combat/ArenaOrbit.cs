@@ -12,7 +12,8 @@ using GameData.Resources.Layout;
 public sealed class ArenaOrbit {
     private readonly EnhancedCombatLayout _layout;
     private readonly (double X, double Y) _centre;
-    private (double X, double Y) _focus;
+    private (double X, double Y) _focus, _glideFrom, _glideTo;
+    private double _glideSeconds, _glideElapsed;
     private readonly double _startYaw, _startPitch, _startZoom;
     private double _startDistance;
     private double _zoom;
@@ -64,7 +65,39 @@ public sealed class ArenaOrbit {
     }
 
     /// <summary>The point a close view centres on (the acting hero's cell), in the board's frame.</summary>
-    public void Focus((double X, double Y) point) => _focus = point;
+    public void Focus((double X, double Y) point) {
+        _focus = _glideTo = point;
+        _glideSeconds = 0;
+    }
+
+    /// <summary>Starts a glide of the focus from where it is now to <paramref name="point"/>; <see cref="Advance"/>
+    /// moves it, eased in and out (smoothstep). A glide of 0 seconds or less is <see cref="Focus"/>.</summary>
+    public void GlideFocus((double X, double Y) point, double seconds) {
+        if (seconds <= 0) {
+            Focus(point);
+            return;
+        }
+        _glideFrom = _focus;
+        _glideTo = point;
+        _glideSeconds = seconds;
+        _glideElapsed = 0;
+    }
+
+    /// <summary>Moves a running glide on by <paramref name="seconds"/>; false once it has arrived (or none runs).</summary>
+    public bool Advance(double seconds) {
+        if (_glideSeconds <= 0) {
+            return false;
+        }
+        _glideElapsed += seconds;
+        double t = Math.Clamp(_glideElapsed / _glideSeconds, 0, 1);
+        double e = t * t * (3 - (2 * t));
+        _focus = (_glideFrom.X + ((_glideTo.X - _glideFrom.X) * e), _glideFrom.Y + ((_glideTo.Y - _glideFrom.Y) * e));
+        if (t >= 1) {
+            _glideSeconds = 0;
+            return false;
+        }
+        return true;
+    }
 
     /// <summary>The middle of the PLAYABLE cells: an underground fight's blocked rows are not the board.</summary>
     public static (double X, double Y) BoardCentre(int cellSize, bool underground) {

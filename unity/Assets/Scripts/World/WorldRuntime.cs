@@ -1823,6 +1823,7 @@ namespace BakAgain.World {
                         }
                     }
                 }
+                _arenaFocused = false;
                 FocusArenaOn(first);
                 if (_hotspots != null) {
                     _hotspots.CombatTurnStarted -= FocusArenaOn;
@@ -1842,9 +1843,34 @@ namespace BakAgain.World {
                 return;
             }
             (int across, int away) = GameData.Resources.Combat.CombatArenaPlacement.CellOffset(hero.X, hero.Y, _arenaCellSize);
-            _arenaOrbit.Orbit.Focus((across, away));
-            _arenaOrbit.Apply();
+            GameData.Resources.Combat.ArenaOrbit orbit = _arenaOrbit.Orbit;
+            // The first hero of a fight is framed at once; later ones are glided to (owner, 2026-10-29).
+            if (!_arenaFocused) {
+                _arenaFocused = true;
+                orbit.Focus((across, away));
+                _arenaOrbit.Apply();
+                return;
+            }
+            orbit.GlideFocus((across, away), _combatLayout.FocusGlideSeconds);
+            GlideArenaFocusAsync(orbit).Forget();
         }
+
+        private bool _arenaFocused;
+
+        // One frame loop per glide; a newer glide restarts the same orbit's, a new fight's orbit ends this one.
+        private async UniTaskVoid GlideArenaFocusAsync(GameData.Resources.Combat.ArenaOrbit orbit) {
+            int glide = ++_arenaGlide;
+            while (glide == _arenaGlide && _arenaOrbit?.Orbit == orbit) {
+                bool more = orbit.Advance(Time.deltaTime);
+                _arenaOrbit.Apply();
+                if (!more) {
+                    return;
+                }
+                await UniTask.Yield();
+            }
+        }
+
+        private int _arenaGlide;
 
         internal void SetArenaCameraForTest(Camera camera, StartData start, bool underground) {
             _worldCamera = camera;

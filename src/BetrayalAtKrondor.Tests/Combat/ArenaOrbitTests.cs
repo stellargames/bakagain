@@ -147,6 +147,25 @@ public class ArenaOrbitTests {
     }
 
     [Fact]
+    public void AGlideEasesTheFocusInAndOut_ThenStops() {
+        var o = new ArenaOrbit(Layout, (1000, 2000), 0, 45, 1000);
+        o.Zoom(0.0001);                            // the closest: the centre is the focus
+        o.Focus((0, 0));
+        o.GlideFocus((1000, 0), 1);
+        Assert.True(o.Advance(0.1));
+        Assert.Equal(28, o.Centre.X, 3);           // slow start: smoothstep(0.1) = 0.028
+        Assert.True(o.Advance(0.4));
+        Assert.Equal(500, o.Centre.X, 3);          // half way at half time
+        Assert.True(o.Advance(0.4));
+        Assert.Equal(972, o.Centre.X, 3);          // slow end
+        Assert.False(o.Advance(0.5));
+        Assert.Equal(1000, o.Centre.X, 3);         // arrived, and no further
+        Assert.False(o.Advance(1));
+        o.GlideFocus((0, 0), 0);
+        Assert.Equal(0, o.Centre.X, 3);            // no time: a jump
+    }
+
+    [Fact]
     public void ARefitMovesTheLimits_TheCameraDistanceStays() {
         var o = new ArenaOrbit(Layout, (1000, 2000), 0, 45, 1000, 0.5);
         o.Refit(1400);   // a quarter turn: the 13-cell side now lies across
