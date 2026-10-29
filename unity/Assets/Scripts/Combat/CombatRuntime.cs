@@ -1264,9 +1264,20 @@ namespace BakAgain.Combat {
             System.Func<int, int> roll = rnd ?? (n => UnityEngine.Random.Range(0, n));
             int startX = acting.X;
             int startY = acting.Y;
-            AnnounceShove(acting, CombatWalk.Walk(Grid, acting, x, y, acting.Speed, puzzle: Puzzle,
-                occupiedByLiveCombatant: TileHoldsLiveCombatant,
-                onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, roll)));
+            if (Shortest(acting) && !ShovesAPushable(acting, x, y)) {
+                // Enhanced: along the shortest route, every tile on it firing as walking it would.
+                List<(int X, int Y)> route = ShortestMove(acting, x, y);
+                if (route == null) {
+                    return false;   // out of reach: refused, nothing spent
+                }
+                CombatWalk.WalkPath(Grid, acting, route, acting.Speed, puzzle: Puzzle,
+                    occupiedByLiveCombatant: TileHoldsLiveCombatant,
+                    onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, roll));
+            } else {
+                AnnounceShove(acting, CombatWalk.Walk(Grid, acting, x, y, acting.Speed, puzzle: Puzzle,
+                    occupiedByLiveCombatant: TileHoldsLiveCombatant,
+                    onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, roll)));
+            }
 
             // Walk moved the combatant itself; put it back and re-apply through MoveTo so the
             // grid's occupancy follows it, exactly as the monster paths do.
@@ -1298,6 +1309,38 @@ namespace BakAgain.Combat {
         /// <see cref="ResolveMeleeClick"/>'s own reach test and <see cref="CombatWalk.MeleeApproach"/>
         /// run as a dry run (TASK-972 board marks).
         /// </summary>
+        /// <summary>
+        /// Whether this turn's party moves and Thrust approaches take the shortest route (Enhanced combat,
+        /// owner 2026-10-29: "do shortest path"); null or false keeps the original's greedy walk. The
+        /// per-turn Enhanced latch, set by the world. Monsters always walk the original's way.
+        /// </summary>
+        public System.Func<bool> ShortestRoutes { get; set; }
+
+        private bool Shortest(Combatant actor) => actor != null && actor.IsPartyMember && (ShortestRoutes?.Invoke() ?? false);
+
+        // The pushable an adjacent mover shoves keeps the original's walk, which does the shove (TASK-1003).
+        private bool ShovesAPushable(Combatant actor, int x, int y) =>
+            Puzzle != null && Grid.TerrainAt(x, y) == CombatTerrain.Pushable
+            && CombatGrid.ChebyshevDistance(actor.X, actor.Y, x, y) == 1;
+
+        // The one route function of an Enhanced turn: what the reach marks, the trail, the Thrust targets and
+        // the walk itself all read, so what is shown is what happens.
+        private List<(int X, int Y)> ShortestMove(Combatant actor, int x, int y) =>
+            CombatWalk.ShortestPath(Grid, actor.X, actor.Y, x, y, actor.Speed);
+
+        // The approach gets the original's one extra step (g_acting_actor_speed++, CACTOR.C:1744).
+        private List<(int X, int Y)> ShortestThrust(Combatant actor, Combatant target) =>
+            CombatWalk.ShortestApproach(Grid, actor.X, actor.Y, target.X, target.Y, actor.Speed + 1);
+
+        private static List<(int X, int Y)> WithStart(Combatant actor, List<(int X, int Y)> path) {
+            if (path == null) {
+                return null;
+            }
+            var cells = new List<(int X, int Y)> { (actor.X, actor.Y) };
+            cells.AddRange(path);
+            return cells;
+        }
+
         public IReadOnlyList<(int X, int Y)> ForecastThrust(Combatant mover, Combatant target) {
             if (mover == null || target == null || target.IsDead || Grid == null) {
                 return null;
@@ -1310,6 +1353,9 @@ namespace BakAgain.Combat {
             if (CombatGrid.OrthogonallyAdjacent(mover.X, mover.Y, target.X, target.Y)) {
                 return new List<(int X, int Y)> { (mover.X, mover.Y) };
             }
+            if (Shortest(mover)) {
+                return WithStart(mover, ShortestThrust(mover, target));
+            }
             var trace = new List<(int X, int Y)>();
             CombatWalk.WalkResult? walk = CombatWalk.MeleeApproach(Grid, mover, target.X, target.Y,
                 mover.Speed, puzzle: Puzzle, occupiedByLiveCombatant: TileHoldsLiveCombatant,
@@ -1321,6 +1367,9 @@ namespace BakAgain.Combat {
         public IReadOnlyList<(int X, int Y)> ForecastWalk(Combatant mover, int x, int y) {
             if (mover == null || Grid == null || !CellMovable(mover, x, y)) {
                 return null;
+            }
+            if (Shortest(mover) && !ShovesAPushable(mover, x, y)) {
+                return WithStart(mover, ShortestMove(mover, x, y));
             }
             var trace = new List<(int X, int Y)>();
             CombatWalk.Walk(Grid, mover, x, y, mover.Speed, probe: true, puzzle: Puzzle,
@@ -1472,13 +1521,24 @@ namespace BakAgain.Combat {
             int startX = mover.X;
             int startY = mover.Y;
             System.Func<int, int> hazardRoll = n => UnityEngine.Random.Range(0, n);
-            CombatWalk.WalkResult? walk = CombatWalk.MeleeApproach(Grid, mover, target.X, target.Y,
-                mover.Speed, puzzle: Puzzle, occupiedByLiveCombatant: TileHoldsLiveCombatant,
-                onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, hazardRoll));
-            if (walk == null) {
-                return false;
+            if (Shortest(mover)) {
+                // Enhanced: the shortest route to the nearest free side, every tile on it firing.
+                List<(int X, int Y)> route = ShortestThrust(mover, target);
+                if (route == null) {
+                    return false;   // no side within reach: refused, the turn is not spent
+                }
+                CombatWalk.WalkPath(Grid, mover, route, mover.Speed + 1, puzzle: Puzzle,
+                    occupiedByLiveCombatant: TileHoldsLiveCombatant,
+                    onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, hazardRoll));
+            } else {
+                CombatWalk.WalkResult? walk = CombatWalk.MeleeApproach(Grid, mover, target.X, target.Y,
+                    mover.Speed, puzzle: Puzzle, occupiedByLiveCombatant: TileHoldsLiveCombatant,
+                    onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, hazardRoll));
+                if (walk == null) {
+                    return false;
+                }
+                AnnounceShove(mover, walk.Value);
             }
-            AnnounceShove(mover, walk.Value);
             int endX = mover.X;
             int endY = mover.Y;
             mover.X = startX;
@@ -3854,10 +3914,11 @@ namespace BakAgain.Combat {
         /// </remarks>
         public bool CellMovable(Combatant actor, int x, int y) =>
             actor != null && Grid != null && CombatGrid.InBounds(x, y)
-            && (Puzzle != null && Grid.TerrainAt(x, y) == CombatTerrain.Pushable
-                    && CombatGrid.ChebyshevDistance(actor.X, actor.Y, x, y) == 1
-                || CombatWalk.Walk(Grid, actor, x, y, actor.Speed, probe: true, puzzle: Puzzle,
-                    occupiedByLiveCombatant: TileHoldsLiveCombatant).Arrived);
+            && (ShovesAPushable(actor, x, y)
+                || (Shortest(actor)
+                    ? ShortestMove(actor, x, y) != null
+                    : CombatWalk.Walk(Grid, actor, x, y, actor.Speed, probe: true, puzzle: Puzzle,
+                        occupiedByLiveCombatant: TileHoldsLiveCombatant).Arrived));
 
         /// <summary>
         /// The body lying on a tile, or null — <c>g_active_combatants</c>, which a death with its

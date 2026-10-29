@@ -1430,6 +1430,7 @@ namespace BakAgain.World {
                 screen.SetFightUnderWayPredicate(() => _hotspots?.FightUnderWay ?? false);
                 if (_hotspots.Combat != null) {
                     _hotspots.Combat.ForecastLayout = _combatLayout;
+                    _hotspots.Combat.ShortestRoutes = EnhancedCombatOn;   // Enhanced turns walk the shortest route
                 }
                 screen.SetCombatPanelSeam(_hotspots.CombatPanelContent);
                 screen.SetActingHeadSeam(_hotspots.ActingPortraitHeadId);
