@@ -212,6 +212,25 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             Assert.IsTrue(Spent(hero), "a second tap on the same foe thrusts, as Confirm would");
         }
 
+        // Mobile review 2 I1 (ruling): a long press pins Inspect; a tap on that foe is "the same foe commits the
+        // attack" -- it forecasts the Thrust and inspects nothing. Confirm still inspects.
+        [Test]
+        public void PhoneATapOnAFoeWithItsInspectPinned_ForecastsTheThrust_InspectsNothing() {
+            var (s, hero, c) = Fight(phone: true);
+            PointAtFoe(s, c, 0);
+            c.LongPress();
+            Assert.AreEqual(ForecastAction.Inspect, c.Current().Action);
+            _now += 1f;
+            c.Primary(false);
+            Assert.AreEqual(ForecastAction.Thrust, c.Current()?.Action, "the tap forecasts the attack");
+            Assert.IsFalse(s.Combat.Knowledge.Inspected(0), "and inspects nothing");
+            Assert.IsFalse(Spent(hero));
+
+            c.LongPress();
+            c.Confirm();
+            Assert.IsTrue(s.Combat.Knowledge.Inspected(0), "Confirm still inspects a pinned Inspect");
+        }
+
         [Test]
         public void PhoneConfirmStillActs() {
             var (s, hero, c) = Fight(phone: true);

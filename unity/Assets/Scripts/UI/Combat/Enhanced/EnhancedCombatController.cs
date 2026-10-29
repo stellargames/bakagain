@@ -169,9 +169,11 @@ namespace BakAgain.UI.Combat.Enhanced {
             }
             if (_phone) {
                 // A tap forecasts; a second tap on the same thing -- the foe, or the shown trail's end cell --
-                // acts it as Confirm would (owner, 2026-10-29). Empty ground out of reach does nothing.
+                // acts it as Confirm would (owner, 2026-10-29). Empty ground out of reach does nothing. The
+                // same foe commits the ATTACK: with its Inspect pinned (a long press) a tap forecasts the
+                // Thrust instead, and only Confirm inspects.
                 if (Foe() is int f) {
-                    if (_slot == f && _action is ForecastAction.Thrust or ForecastAction.Swing or ForecastAction.Inspect) {
+                    if (_slot == f && _action is ForecastAction.Thrust or ForecastAction.Swing) {
                         if (RetapCommits()) {
                             Confirm();
                         }
