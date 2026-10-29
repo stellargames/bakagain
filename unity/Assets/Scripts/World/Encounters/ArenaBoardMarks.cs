@@ -131,6 +131,7 @@ namespace BakAgain.World.Encounters {
                 ArenaOverlayKind.ThrustMark => _layout.MarkThrustRgba,
                 ArenaOverlayKind.SwingMark => _layout.MarkSwingRgba,
                 ArenaOverlayKind.Target => _layout.MarkTargetRgba,
+                ArenaOverlayKind.WalkEnd => _layout.MarkWalkEndRgba,
                 _ => null,
             };
             return c == null || c.Length < 4 ? Color.white : new Color(c[0], c[1], c[2], c[3]);
@@ -145,7 +146,7 @@ namespace BakAgain.World.Encounters {
             float frame = _layout.MarkFrameCells * _unitsPerCell;
             foreach (ArenaOverlayKind kind in new[] { ArenaOverlayKind.ReachFill, ArenaOverlayKind.Actor,
                 ArenaOverlayKind.ThrustMark, ArenaOverlayKind.SwingMark, ArenaOverlayKind.Target,
-                ArenaOverlayKind.Path }) {
+                ArenaOverlayKind.WalkEnd, ArenaOverlayKind.Path }) {
                 var verts = new List<Vector3>();
                 var tris = new List<int>();
                 float lift = _layout.MarkLiftCells * _unitsPerCell + ((int)kind - (int)ArenaOverlayKind.ReachFill) * LiftStep;

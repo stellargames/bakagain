@@ -80,5 +80,14 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
             Assert.AreEqual((fx, fy), (hero.X, hero.Y), "the walk arrives where the trail ends");
             CollectionAssert.AreEqual(shown.ToArray(), hero.WalkedCells.ToArray(), "along the cells it showed");
         }
+
+        [Test]
+        public void TheWalksEndCellHasItsOwnMark() {
+            var (s, hero, a) = OwnersCase(enhanced: true);
+            s.CursorCell = (a.X, a.Y);
+            List<HotspotService.BoardShape> shapes = s.EnhancedBoardShapes(128f / 300f);
+            Assert.AreEqual(1, shapes.Count(sh => sh.Kind == BakAgain.World.Encounters.ArenaOverlayKind.WalkEnd),
+                "the side the Thrust walks to is marked");
+        }
     }
 }

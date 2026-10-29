@@ -117,6 +117,12 @@ namespace BakAgain.UI.Combat.Enhanced {
             _ => UiTemplates.HudStonePack,
         });
 
+        /// <summary>The forecast's verb: "Walks 3, then thrusts" for a Thrust that walks first, else its action.</summary>
+        public static string Verb(CombatForecast f) =>
+            f.Action == ForecastAction.Thrust && f.Path != null && f.Path.Count > 1
+                ? UiTemplates.Format(UiTemplates.HudWalksThenThrusts, ("n", f.Path.Count - 1))
+                : Action(f.Action);
+
         public static string Stone(CombatCommands.Command c, bool shoot = false) => UiTemplates.Format(c switch {
             CombatCommands.Command.Cast => shoot ? UiTemplates.HudStoneShoot : UiTemplates.HudStoneCast,
             CombatCommands.Command.Shoot => UiTemplates.HudStoneShoot,

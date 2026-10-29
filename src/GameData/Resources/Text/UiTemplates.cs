@@ -265,6 +265,7 @@ public static class UiTemplates {
     public const string HudWeaponLine = "port:template:enhanced_hud_weapon_line";
     public const string HudArmourLine = "port:template:enhanced_hud_armour_line";
     public const string HudChooseTarget = "port:template:enhanced_hud_choose_target";
+    public const string HudWalksThenThrusts = "port:template:enhanced_hud_walks_then_thrusts";
     public const string HudThrust = "port:template:enhanced_hud_thrust";
     public const string HudSwing = "port:template:enhanced_hud_swing";
     public const string HudMove = "port:template:enhanced_hud_move";
@@ -487,6 +488,8 @@ public static class UiTemplates {
         // desktop card's line; the hit chance is the forecast's.
         (HudWeaponLine, _ => "Thrust {thrust}+Str · Swing {swing}+Str"),
         (HudChooseTarget, _ => "{action}: choose a target"),
+        // A Thrust that walks first says so (owner, 2026-10-29: "explain the move+attack combo").
+        (HudWalksThenThrusts, _ => "Walks {n}, then thrusts"),
         (HudArmourLine, _ => "Armour {n}"),
         (HudThrust, _ => "Thrust"),
         (HudSwing, _ => "Swing"),

@@ -79,5 +79,8 @@ namespace BakAgain.World.Encounters {
 
         /// <summary>The cell of whoever is acting.</summary>
         Actor = 13,
+
+        /// <summary>Where the forecast walk ends: a Move's stop, or the side a Thrust walks to first.</summary>
+        WalkEnd = 14,
     }
 }

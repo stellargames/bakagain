@@ -386,7 +386,7 @@ namespace BakAgain.UI.Combat.Enhanced {
             FoeRowModel target = f.TargetSlot >= 0 ? Find(m.Foes, f.TargetSlot) : null;
             // The verb first, so a long name is what the ellipsis cuts (Inspect had no verb at all).
             _ledgerTitle.text = target != null
-                ? UiTemplates.Format(UiTemplates.HudForecastTitle, ("action", CombatHudText.Action(f.Action)),
+                ? UiTemplates.Format(UiTemplates.HudForecastTitle, ("action", CombatHudText.Verb(f)),
                     ("target", UiTemplates.Format(UiTemplates.EnhancedLogFoe, ("creature", target.Name), ("letter", target.Letter))))
                 : CombatHudText.Action(f.Action);
             bool melee = f.Action == ForecastAction.Thrust || f.Action == ForecastAction.Swing;

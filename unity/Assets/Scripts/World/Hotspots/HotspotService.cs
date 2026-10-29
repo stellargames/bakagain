@@ -2095,6 +2095,8 @@ using GameData.Resources.Scene;
                             points[k] = Point(path[k].Col, path[k].Row, 0, 0);
                         }
                         shapes.Add(new BoardShape(Encounters.ArenaOverlayKind.Path, points));
+                        // Where the walk ends has its own frame: for a Thrust, the side it strikes from.
+                        Fill(path[^1].Col, path[^1].Row, Encounters.ArenaOverlayKind.WalkEnd, inset: half / 4);
                     }
                 }
             }

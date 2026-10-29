@@ -191,6 +191,10 @@ public sealed class EnhancedCombatLayout
 
     public float[] MarkTargetRgba { get; set; } = { 1f, 1f, 1f, 0.9f };
 
+    /// <summary>Where the forecast walk ends -- the cell a Move stops on, or the side a Thrust walks to before it
+    /// strikes (owner, 2026-10-29: explain the move + attack combo).</summary>
+    public float[] MarkWalkEndRgba { get; set; } = { 0.55f, 0.85f, 1f, 1f };
+
     /// <summary>A foe's letter plate: width and height, in cells.</summary>
     public float PlateWidthCells { get; set; } = 0.35f;
 

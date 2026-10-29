@@ -283,7 +283,7 @@ namespace BakAgain.UI.Combat.Enhanced {
 
         private static string Title(CombatHudModel m, CombatForecast f) {
             FoeRowModel target = Foe(m, f.TargetSlot);
-            string action = CombatHudText.Action(f.Action);
+            string action = CombatHudText.Verb(f);
             return target == null ? action : UiTemplates.Format(UiTemplates.HudJoin, ("a", action),
                 ("b", UiTemplates.Format(UiTemplates.EnhancedLogFoe, ("creature", target.Name), ("letter", target.Letter))));
         }

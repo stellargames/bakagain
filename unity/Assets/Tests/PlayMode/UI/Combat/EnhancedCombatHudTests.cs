@@ -61,6 +61,13 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
         public static CombatForecast Thrust => new(ForecastAction.Thrust, 0, new[] { (3, 2) }, 2, null, 1, 2, null,
             0, 0, 0, true, true, false, "");
 
+        // A Thrust that walks three cells first (start included in the path).
+        public static CombatForecast WalkingThrust => new(ForecastAction.Thrust, 0, new[] { (0, 0), (1, 1), (2, 2), (3, 2) }, 2, null,
+            1, 2, null, 0, 0, 0, true, true, false, "");
+
+        public static CombatHudModel WalkingForecast() =>
+            new(1, Owyn, Party, WalkingThrust, Log, Foes, 0, Stones(), false, "Owyn's turn", Swing, 2);
+
         public static CombatHudModel Idle(IReadOnlyDictionary<CombatCommands.Command, ActionAvailability> stones = null) =>
             new(1, Owyn, Party, null, Log, Foes, null, stones ?? Stones(), false, "Owyn's turn", null, 2);
 
@@ -344,6 +351,14 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
         }
 
         [UnityTest]
+        public IEnumerator DesktopTheForecastSaysAThrustWalksFirst() {
+            _hud.Show(HudModels.WalkingForecast());
+            yield return null;
+            yield return null;
+            StringAssert.Contains("Walks 3, then thrusts", _hud.Root.Q<Label>("ec-desk-ledger-title").text);
+        }
+
+        [UnityTest]
         public IEnumerator DesktopFoeListCarriesNoSwordMarks() {
             _hud.Show(HudModels.Idle());
             yield return null;
@@ -539,6 +554,17 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             } finally {
                 BakAgain.UI.InputCore.TouchInputState.Instance = keep;
             }
+        }
+
+        // Owner, 2026-10-29: "explain the move+attack combo".
+        [UnityTest]
+        public IEnumerator PhoneASentenceSaysAThrustWalksFirst_NotWhenTheFoeIsBeside() {
+            _hud.Show(HudModels.WalkingForecast());
+            yield return Settle();
+            StringAssert.StartsWith("Walks 3, then thrusts", _hud.Root.Q<Label>("ec-phone-sentence-text").text);
+            _hud.Show(HudModels.Forecast());   // beside the foe: no walk
+            yield return Settle();
+            StringAssert.DoesNotContain("Walks", _hud.Root.Q<Label>("ec-phone-sentence-text").text);
         }
 
         [UnityTest]
