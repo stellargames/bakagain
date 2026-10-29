@@ -516,8 +516,6 @@
 .ec-letter { width: 34px; height: 34px; border-radius: 50%; background-color: rgb(30, 22, 14); border-width: 2px; border-color: rgb(196, 160, 92); }
 .ec-desk .ec-letter { color: rgb(236, 210, 140); font-size: 22px; -unity-text-align: middle-center; margin-right: 4px; }
 .ec-desk .ec-letter--chosen { background-color: rgb(232, 196, 92); color: rgb(30, 18, 8); }
-.ec-marks { flex-direction: row; align-items: center; }
-.ec-mark { width: 16px; height: 16px; margin: 0 2px; color: rgb(60, 42, 26); }
 .ec-desk-foecard-rows { flex-direction: column; flex-wrap: wrap; height: 132px; }
 #ec-desk-foe-discs { justify-content: flex-start; }
 .ec-desk .ec-desk-title { flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; }
@@ -562,7 +560,6 @@
 .ec-phone-button { margin: 0 0 6px 0; padding: 0; border-radius: 10px; background-color: rgba(18, 18, 16, 0.86); border-width: 1px; border-color: rgb(80, 76, 64); color: rgb(232, 228, 216); -unity-text-align: middle-center; }
 .ec-phone-foes { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; }
 .ec-phone-foe { margin: 0 0 6px 6px; border-radius: 10px; background-color: rgba(18, 18, 16, 0.86); border-width: 2px; border-color: rgb(200, 160, 70); align-items: center; justify-content: center; }
-.ec-phone-foe .ec-mark { color: rgb(232, 228, 216); margin: 0 1px; }
 .ec-phone-foe--chosen { background-color: rgba(120, 96, 30, 0.95); }
 .ec-phone-foe--acting { border-color: rgb(220, 70, 50); }
 .ec-phone-foe--down { opacity: 0.45; }

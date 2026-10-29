@@ -492,7 +492,6 @@ namespace BakAgain.UI.Combat.Enhanced {
                     row.userData = f.Slot;
                     row.Q<Label>(className: "ec-letter").text = f.Letter.ToString();
                     row.Q<Label>(className: "ec-desk-foe__name").text = f.Name;
-                    SetMarks(row.Q(className: "ec-marks"), f.Swing ? 2 : f.Thrust ? 1 : 0);
                     row.Q<Label>(className: "ec-desk-foe__note").text = f.Down ? UiTemplates.Format(UiTemplates.HudDown)
                         : f.Seen > 0 ? "−" + f.Seen
                         : f.Far ? UiTemplates.Format(UiTemplates.HudFar) : "";
@@ -535,36 +534,11 @@ namespace BakAgain.UI.Combat.Enhanced {
             row.pickingMode = PickingMode.Position;
             Text(row, null, "ec-letter");
             Text(row, null, "ec-desk-foe__name");
-            row.Add(Marks());
             Text(row, null, "ec-desk-foe__note");
             row.RegisterCallback<PointerEnterEvent>(_ => FoeRowHovered?.Invoke((int)row.userData));
             row.RegisterCallback<PointerLeaveEvent>(_ => FoeRowHovered?.Invoke(-1));
             row.RegisterCallback<ClickEvent>(_ => FoeRowChosen?.Invoke((int)row.userData));
             return row;
-        }
-
-        /// <summary>The board's ⚔ / ⚔⚔ reach marks, drawn as crossed blades.</summary>
-        internal static VisualElement Marks() {
-            VisualElement marks = Box(null, "ec-marks");
-            for (int i = 0; i < 2; i++) {
-                VisualElement blade = Box(null, "ec-mark");
-                blade.generateVisualContent += ctx => {
-                    Rect r = blade.contentRect;
-                    Painter2D p = ctx.painter2D;
-                    p.lineWidth = Mathf.Max(1f, r.width * 0.12f);
-                    p.strokeColor = blade.resolvedStyle.color;
-                    p.BeginPath(); p.MoveTo(new Vector2(r.xMin, r.yMin)); p.LineTo(new Vector2(r.xMax, r.yMax)); p.Stroke();
-                    p.BeginPath(); p.MoveTo(new Vector2(r.xMax, r.yMin)); p.LineTo(new Vector2(r.xMin, r.yMax)); p.Stroke();
-                };
-                marks.Add(blade);
-            }
-            return marks;
-        }
-
-        internal static void SetMarks(VisualElement marks, int n) {
-            for (int i = 0; i < marks.childCount; i++) {
-                marks[i].style.display = i < n ? DisplayStyle.Flex : DisplayStyle.None;
-            }
         }
 
         // ---- slot 4 ----

@@ -299,9 +299,6 @@ namespace BakAgain.UI.Combat.Enhanced {
                 chip.pickingMode = PickingMode.Position;
                 Size(chip, _layout.FoeChipPt, _layout.FoeChipPt);
                 Txt(chip, null, _layout.PhoneBodyTextPt, "ec-phone-foe__letter");
-                VisualElement marks = DesktopCombatHud.Marks();
-                foreach (VisualElement blade in marks.Children()) Size(blade, _layout.MinTextPt * 0.7f, _layout.MinTextPt * 0.7f);
-                chip.Add(marks);
                 Txt(chip, null, _layout.MinTextPt, "ec-phone-foe__note");
                 chip.RegisterCallback<ClickEvent>(_ => FoeRowChosen?.Invoke((int)chip.userData));
                 return chip;
@@ -312,7 +309,6 @@ namespace BakAgain.UI.Combat.Enhanced {
                 VisualElement chip = _foeChips[i];
                 chip.userData = f.Slot;
                 chip.Q<Label>(className: "ec-phone-foe__letter").text = f.Letter.ToString();
-                DesktopCombatHud.SetMarks(chip.Q(className: "ec-marks"), f.Swing ? 2 : f.Thrust ? 1 : 0);
                 chip.Q<Label>(className: "ec-phone-foe__note").text = f.Seen > 0 ? "−" + f.Seen : "";
                 chip.EnableInClassList("ec-phone-foe--chosen", f.Slot == target);
                 chip.EnableInClassList("ec-phone-foe--acting", f.Acting);

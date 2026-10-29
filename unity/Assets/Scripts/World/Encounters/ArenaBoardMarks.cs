@@ -206,9 +206,8 @@ namespace BakAgain.World.Encounters {
         }
 
         /// <summary>
-        /// A dark plate with the foe's gold letter above its drawn top, and its attack marks: one sword
-        /// for a thrust, two when a swing is also open. The "-N seen" line is the slot Task 5's
-        /// knowledge store fills; it is empty until then.
+        /// A dark plate with the foe's gold letter above its drawn top, and under it the "-N seen" line
+        /// the knowledge store fills. Thrust and swing reach are the board's cell marks, not the plate's.
         /// </summary>
         private void RefreshPlates() {
             List<HotspotService.FoePlate> plates = _plates?.Invoke() ?? new List<HotspotService.FoePlate>();
@@ -241,9 +240,8 @@ namespace BakAgain.World.Encounters {
             quad.AddComponent<MeshFilter>().sharedMesh = mesh;
             quad.AddComponent<MeshRenderer>().sharedMaterial = _material;
 
-            Text(plate.transform, "Letter", p.Letter.ToString(), Gold, h * 0.9f, new Vector3(-w * 0.2f, 0f, -0.01f));
-            string swords = p.Swing ? "\u2694\u2694" : p.Thrust ? "\u2694" : "";
-            Text(plate.transform, "Swords", swords, Color.white, h * 0.4f, new Vector3(w * 0.2f, 0f, -0.01f));
+            // The letter alone: the reach swords were more clutter than use (owner, 2026-10-29).
+            Text(plate.transform, "Letter", p.Letter.ToString(), Gold, h * 0.9f, new Vector3(0f, 0f, -0.01f));
             Text(plate.transform, "Seen", p.Seen > 0
                 ? GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedCombatSeen, ("count", p.Seen))
                 : "", Color.white, h * 0.3f, new Vector3(0f, -h * 0.65f, -0.01f));

@@ -76,7 +76,7 @@ namespace BakAgain.Tests.PlayMode.World {
             GameObject plate = marks.PlateOf(0);
             Assert.IsNotNull(plate, "the living foe has a plate");
             Assert.AreEqual("A", plate.transform.Find("Letter").GetComponent<TextMesh>().text);
-            Assert.AreEqual("⚔⚔", plate.transform.Find("Swords").GetComponent<TextMesh>().text, "thrust and swing both open");
+            Assert.IsNull(plate.transform.Find("Swords"), "no sword marks: more clutter than use (owner, 2026-10-29)");
             Assert.AreEqual("", plate.transform.Find("Seen").GetComponent<TextMesh>().text, "nothing seen yet, nothing shown");
 
             service.Combat.Knowledge.AddSeen(0, 0);    // a miss

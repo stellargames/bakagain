@@ -344,6 +344,14 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
         }
 
         [UnityTest]
+        public IEnumerator DesktopFoeListCarriesNoSwordMarks() {
+            _hud.Show(HudModels.Idle());
+            yield return null;
+            yield return null;
+            Assert.IsNull(_hud.Root.Q(className: "ec-marks"), "no blades in the foe list (owner, 2026-10-29)");
+        }
+
+        [UnityTest]
         public IEnumerator DesktopBodyTextIsAtLeastTheMinimum() {
             _hud.Show(HudModels.Forecast());
             yield return null;
@@ -506,6 +514,15 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             foreach (Label l in sheet.Query<Label>().ToList().Where(l => HudModels.Visible(l) && !string.IsNullOrEmpty(l.text))) {
                 Assert.GreaterOrEqual(l.resolvedStyle.fontSize / scale, _layout.PhoneSheetTextPt - 0.05f, $"'{l.text}'");
             }
+        }
+
+        // Owner, 2026-10-29: the crossed-blade reach marks go, on the chips as on the board's plates.
+        [UnityTest]
+        public IEnumerator PhoneFoeChipsCarryNoSwordMarks() {
+            _hud.Show(HudModels.Forecast());
+            yield return Settle();
+            Assert.IsNull(_hud.Root.Q(className: "ec-marks"), "no blades on the foe chips");
+            Assert.IsNull(_hud.Root.Q(className: "ec-mark"));
         }
 
         [UnityTest]
