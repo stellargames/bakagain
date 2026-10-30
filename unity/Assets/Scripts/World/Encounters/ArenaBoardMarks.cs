@@ -28,7 +28,7 @@ namespace BakAgain.World.Encounters {
         private EnhancedCombatLayout _layout;
         private float _unitsPerCell = WorldUnitsPerCellDefault;
         private Func<int> _inputs;
-        private Material _material;
+        private Material _material, _lighten;
         private readonly List<GameObject> _meshes = new();
         private readonly Dictionary<int, GameObject> _plateObjects = new();
         private readonly List<ArenaCombatant> _markers = new();
@@ -64,6 +64,11 @@ namespace BakAgain.World.Encounters {
             if (_material != null) {
                 Destroy(_material);
             }
+            if (_lighten != null) {
+                Destroy(_lighten);
+            }
+            // The reach squares lighten the ground under them (Resources/Shaders, so a build keeps it).
+            _lighten = new Material(Shader.Find("BakAgain/GroundLighten")) { renderQueue = 3000 };
             // Sprites/Default is in GraphicsSettings' always-included shaders (fileID 10753), so a
             // player build keeps it; the arena grid overlay finds the same shader.
             _material = new Material(Shader.Find("Sprites/Default"));
@@ -105,6 +110,9 @@ namespace BakAgain.World.Encounters {
             if (_material != null) {
                 Destroy(_material);
             }
+            if (_lighten != null) {
+                Destroy(_lighten);
+            }
         }
 
         // The world camera: the game owns a dedicated one and Camera.main is null in a fight, which left
@@ -123,10 +131,15 @@ namespace BakAgain.World.Encounters {
             }
         }
 
-        // The layout's RGBA for each kind; the path's dots are white.
+        // The layout's RGBA for each kind; the path's dots are white. A reach square's colour is half its
+        // lightening factor (GroundLighten doubles it), the factor taken to linear when the project is.
         private Color ColourOf(ArenaOverlayKind kind) {
+            if (kind == ArenaOverlayKind.ReachFill) {
+                float k = Mathf.Clamp(_layout.MarkReachLighten, 1f, 2f);
+                k = QualitySettings.activeColorSpace == ColorSpace.Linear ? Mathf.Min(Mathf.Pow(k, 2.2f), 2f) : k;
+                return new Color(k / 2f, k / 2f, k / 2f, 1f);
+            }
             float[] c = kind switch {
-                ArenaOverlayKind.ReachFill => _layout.MarkReachRgba,
                 ArenaOverlayKind.Actor => _layout.MarkActorRgba,
                 ArenaOverlayKind.ThrustMark => _layout.MarkThrustRgba,
                 ArenaOverlayKind.SwingMark => _layout.MarkSwingRgba,
@@ -172,7 +185,7 @@ namespace BakAgain.World.Encounters {
                 var go = new GameObject(kind.ToString());
                 go.transform.SetParent(transform, worldPositionStays: false);
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;
-                go.AddComponent<MeshRenderer>().sharedMaterial = _material;
+                go.AddComponent<MeshRenderer>().sharedMaterial = kind == ArenaOverlayKind.ReachFill ? _lighten : _material;
                 _meshes.Add(go);
             }
         }

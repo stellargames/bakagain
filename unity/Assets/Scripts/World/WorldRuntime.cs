@@ -1469,7 +1469,6 @@ namespace BakAgain.World {
                     () => ResolveCombatMenu()?.GetComponent<UnityEngine.UIElements.UIDocument>()?.rootVisualElement,
                     CombatStoneImage, TurnArenaQuarter, ResetArenaView, CombatControllerFor, () => ArenaIsTrap);
                 screen.SetCombatPickPendingSeam(() => _hotspots?.CombatPickPending ?? false);
-                screen.SetBoardEdgeFlashSeam(() => _trapFrame?.Flash(), () => _zoneIsUnderground);
                 _combatScreen = screen;
                 // One encounter fights against a painted backdrop instead of the world. Handed over
                 // with the rest of the seams because this is the redraw the arena runs every turn,
@@ -1827,10 +1826,12 @@ namespace BakAgain.World {
             if (ArenaUsesOrbit && start.CombatGridCellSize > 0) {
                 // Framed from behind the party at the layout's start pitch, as close as the whole board
                 // still fits the screen the HUD leaves free: above the desktop band, between the phone's docks.
-                var centre = GameData.Resources.Combat.ArenaOrbit.BoardCentre(start.CombatGridCellSize, underground);
                 _arenaIsTrap = _hotspots?.Combat?.Grid != null
                     && GameData.Resources.Combat.TrapPuzzleGoal.IsTrapPuzzle(_hotspots.Combat.Grid);
                 bool trap = _arenaIsTrap;
+                // A trap's board, for the camera, ends at the exit row: past it is the way out.
+                int lastRow = trap ? GameData.Resources.Combat.TrapPuzzleGoal.ExitRow(_hotspots.Combat.Grid) : -1;
+                var centre = GameData.Resources.Combat.ArenaOrbit.BoardCentre(start.CombatGridCellSize, underground, lastRow);
                 GameData.Resources.Combat.ArenaOrbit Make(double distance, double zoom = 1) => new(_combatLayout, centre,
                     0, _combatLayout.StartPitchDegrees, distance, zoom, trap);
                 bool phone = BakAgain.UI.InGame.InGameScreen.PhoneHudOverride ?? Application.isMobilePlatform;
@@ -1838,15 +1839,16 @@ namespace BakAgain.World {
                 _arenaOrbit.FrameInto(phone ? _combatLayout.PhoneBoardBottom : _combatLayout.BandHeight,
                     phone ? _combatLayout.PhoneBoardTop : 1f);
                 _arenaOrbit.Bind(_worldCamera, null, _gameSession.PositionX, _gameSession.PositionY, _gameSession.Rotation);
-                _arenaCorners = GameData.Resources.Combat.ArenaOrbit.BoardCorners(start.CombatGridCellSize, underground);
+                _arenaCorners = GameData.Resources.Combat.ArenaOrbit.BoardCorners(start.CombatGridCellSize, underground, lastRow);
                 if (trap) {
                     _arenaCorners = GrowCorners(_arenaCorners, _combatLayout.TrapRimCells * start.CombatGridCellSize);
                 }
-                double distance = _arenaOrbit.FitDistance(d => Make(d), _arenaCorners,
-                    trap ? 0 : _combatLayout.BoardFitMarginX, trap ? 0 : _combatLayout.BoardFitMarginY);
+                double distance = FitArena(d => Make(d), trap);
                 // The fit is zoom 1 and the farthest out; a phone opens closer, where its cells can be tapped.
-                _arenaOrbit.Bind(_worldCamera, Make(distance, phone ? _combatLayout.PhoneStartZoom : 1),
+                // A trap's fit is the board's width alone, close enough already (owner, round 6).
+                _arenaOrbit.Bind(_worldCamera, Make(distance, phone && !trap ? _combatLayout.PhoneStartZoom : 1),
                     _gameSession.PositionX, _gameSession.PositionY, _gameSession.Rotation);
+                SetPitchFloor();
                 // Closer than the whole board, the view leans toward whoever of the party acts.
                 _arenaCellSize = start.CombatGridCellSize;
                 Combatant first = _hotspots?.Combat?.Encounter?.Current;
@@ -1993,13 +1995,27 @@ namespace BakAgain.World {
                 return;
             }
             if (_arenaCorners != null) {
-                double fit = _arenaOrbit.FitDistance(d => new GameData.Resources.Combat.ArenaOrbit(_combatLayout,
-                    o.BoardMiddle, o.YawDegrees, o.PitchDegrees, d, 1, o.IsTrap), _arenaCorners,
-                    o.IsTrap ? 0 : _combatLayout.BoardFitMarginX, o.IsTrap ? 0 : _combatLayout.BoardFitMarginY);
+                double fit = FitArena(d => new GameData.Resources.Combat.ArenaOrbit(_combatLayout,
+                    o.BoardMiddle, o.YawDegrees, o.PitchDegrees, d, 1, o.IsTrap), o.IsTrap);
                 o.Refit(fit);
             }
+            SetPitchFloor();
             if (apply) {
                 _arenaOrbit.Apply();
+            }
+        }
+
+        // A trap fits the board's width only, just inside the screen; any other fight the whole board.
+        private double FitArena(System.Func<double, GameData.Resources.Combat.ArenaOrbit> make, bool trap) =>
+            trap ? _arenaOrbit.FitDistance(make, _arenaCorners, _combatLayout.TrapFitMarginX, 0, widthOnly: true)
+                : _arenaOrbit.FitDistance(make, _arenaCorners, _combatLayout.BoardFitMarginX, _combatLayout.BoardFitMarginY);
+
+        // The camera tilts up until the horizon is HorizonFromTop below the screen's top; the lens and the
+        // band decide which pitch that is, so it is set again whenever the arena refits (a window resize).
+        private void SetPitchFloor() {
+            double floor = _arenaOrbit.PitchForHorizon(_combatLayout.HorizonFromTop);
+            if (!double.IsNaN(floor) && _arenaOrbit.Orbit != null) {
+                _arenaOrbit.Orbit.PitchFloorDegrees = floor;
             }
         }
 
@@ -2817,25 +2833,17 @@ namespace BakAgain.World {
             return marks;
         }
 
-        /// <summary>
-        /// Enhanced combat only (TASK-972): the board's frame on the arena root. In a trap the rim, the dimmed
-        /// surroundings and the goal tint; in any Enhanced fight the off-board flash (<see cref="TrapFrame"/>).
-        /// </summary>
+        /// <summary>Enhanced trap boards only (TASK-972): the rim and the dimmed surroundings on the arena root.</summary>
         internal Encounters.ArenaTrapFrame AttachTrapFrame(GameObject arenaRoot) {
             _trapFrame = null;
             StartData start = _startForTest ?? _hotspots?.Start;
-            if (!EnhancedCombatOn() || arenaRoot == null || _hotspots == null || start == null
-                || start.CombatGridCellSize <= 0) {
+            CombatGrid grid = _hotspots?.Combat?.Grid;
+            if (!EnhancedCombatOn() || arenaRoot == null || start == null || start.CombatGridCellSize <= 0
+                || !ArenaIsTrap || grid == null) {
                 return null;
             }
-            bool underground = _zoneIsUnderground;
-            CombatGrid grid = _hotspots.Combat?.Grid;
-            bool trap = ArenaIsTrap && grid != null;
             _trapFrame = arenaRoot.AddComponent<Encounters.ArenaTrapFrame>();
-            _trapFrame.Bind(trap,
-                ArenaOrbit.BoardCorners(start.CombatGridCellSize, underground),
-                trap ? EnhancedBoardBounds.GoalCells(grid, underground)
-                    : new System.Collections.Generic.List<(int Column, int Row)>(),
+            _trapFrame.Bind(ArenaOrbit.BoardCorners(start.CombatGridCellSize, _zoneIsUnderground, TrapPuzzleGoal.ExitRow(grid)),
                 _hotspots.CellCentreWorld, _combatLayout,
                 start.CombatGridCellSize / BakCoordinateConverter.WorldScale, () => _worldCamera);
             return _trapFrame;
@@ -2843,7 +2851,7 @@ namespace BakAgain.World {
 
         private Encounters.ArenaTrapFrame _trapFrame;
 
-        /// <summary>The frame on the arena drawn now, or null: what an off-board tap flashes.</summary>
+        /// <summary>The trap frame on the arena drawn now, or null.</summary>
         internal Encounters.ArenaTrapFrame TrapFrame => _trapFrame;
 
         /// <summary>

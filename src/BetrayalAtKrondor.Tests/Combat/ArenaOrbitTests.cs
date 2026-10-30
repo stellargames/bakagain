@@ -121,6 +121,23 @@ public class ArenaOrbitTests {
     }
 
     [Fact]
+    public void APitchFloorLetsADragTiltPastTheLayoutMinimum() {
+        var o = Make(pitch: 40);
+        o.PitchFloorDegrees = 15;
+        o.Drag(0, -100000);
+        Assert.Equal(15, o.PitchDegrees, 6);
+    }
+
+    [Fact]
+    public void ABoardCutAtARowEndsAtThatRowsFarEdge() {
+        var full = ArenaOrbit.BoardCorners(300, underground: false);
+        var cut = ArenaOrbit.BoardCorners(300, underground: false, lastRow: 5);
+        Assert.Equal(full[0], cut[0]);
+        Assert.Equal(full[0].Y + (6 * 300), cut[2].Y, 6);
+        Assert.Equal((cut[0].Y + cut[2].Y) / 2, ArenaOrbit.BoardCentre(300, false, 5).Y, 6);
+    }
+
+    [Fact]
     public void ThePhoneOrbitOpensAtItsStartZoom_ResetReturnsThere_AndNeverZoomsOutPastTheWholeBoard() {
         var o = new ArenaOrbit(Layout, (1000, 2000), 0, 45, 1000, Layout.PhoneStartZoom);
         Assert.Equal(1000 * Layout.PhoneStartZoom, o.Distance, 2);

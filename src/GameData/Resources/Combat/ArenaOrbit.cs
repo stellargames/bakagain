@@ -30,7 +30,12 @@ public sealed class ArenaOrbit {
         _startPitch = PitchDegrees = Math.Clamp(startPitchDegrees, layout.PitchMinDegrees, layout.PitchMaxDegrees);
         _startDistance = distance;
         _zoom = _startZoom = Math.Clamp(startZoom, layout.ZoomMin, layout.ZoomMax);
+        PitchFloorDegrees = layout.PitchMinDegrees;
     }
+
+    /// <summary>The lowest pitch a drag may reach; the driver sets it from the lens
+    /// (<see cref="EnhancedCombatLayout.HorizonFromTop"/>). Starts at the layout's minimum.</summary>
+    public double PitchFloorDegrees { get; set; }
 
     /// <summary>A trap board: the yaw is held near the start and quarter turns do nothing.</summary>
     public bool IsTrap { get; }
@@ -104,21 +109,27 @@ public sealed class ArenaOrbit {
         return true;
     }
 
-    /// <summary>The middle of the PLAYABLE cells: an underground fight's blocked rows are not the board.</summary>
-    public static (double X, double Y) BoardCentre(int cellSize, bool underground) {
-        int lastRow = (underground ? CombatGrid.UndergroundPlayableRows : CombatGrid.Height) - 1;
+    /// <summary>The middle of the PLAYABLE cells: an underground fight's blocked rows are not the board.
+    /// <paramref name="lastRow"/>, when given, ends the board there (a trap's exit row).</summary>
+    public static (double X, double Y) BoardCentre(int cellSize, bool underground, int lastRow = -1) {
+        lastRow = LastRow(underground, lastRow);
         (int a0, int y0) = CombatArenaPlacement.CellOffset(0, 0, cellSize);
         (int a1, int y1) = CombatArenaPlacement.CellOffset(CombatGrid.Width - 1, lastRow, cellSize);
         return ((a0 + a1) / 2.0, (y0 + y1) / 2.0);
     }
 
     /// <summary>The outer corners of the PLAYABLE cells, in the same frame as <see cref="BoardCentre"/>.</summary>
-    public static (double X, double Y)[] BoardCorners(int cellSize, bool underground) {
-        int lastRow = (underground ? CombatGrid.UndergroundPlayableRows : CombatGrid.Height) - 1;
+    public static (double X, double Y)[] BoardCorners(int cellSize, bool underground, int lastRow = -1) {
+        lastRow = LastRow(underground, lastRow);
         double half = cellSize / 2.0;
         (int a0, int y0) = CombatArenaPlacement.CellOffset(0, 0, cellSize);
         (int a1, int y1) = CombatArenaPlacement.CellOffset(CombatGrid.Width - 1, lastRow, cellSize);
         return new[] { (a0 - half, y0 - half), (a1 + half, y0 - half), (a0 - half, y1 + half), (a1 + half, y1 + half) };
+    }
+
+    private static int LastRow(bool underground, int lastRow) {
+        int playable = (underground ? CombatGrid.UndergroundPlayableRows : CombatGrid.Height) - 1;
+        return lastRow < 0 ? playable : Math.Min(lastRow, playable);
     }
 
     /// <summary>The pose that sees the board from an eye at (<paramref name="eyeX"/>, <paramref name="eyeY"/>,
@@ -139,7 +150,7 @@ public sealed class ArenaOrbit {
             YawDegrees = Math.Clamp(YawDegrees, _startYaw - _layout.TrapYawLimitDegrees, _startYaw + _layout.TrapYawLimitDegrees);
         }
         PitchDegrees = Math.Clamp(PitchDegrees + (dyPixels * _layout.OrbitDegreesPerPixel),
-            _layout.PitchMinDegrees, _layout.PitchMaxDegrees);
+            Math.Min(PitchFloorDegrees, _layout.PitchMaxDegrees), _layout.PitchMaxDegrees);
     }
 
     /// <summary>Multiplies the distance by <paramref name="factor"/>, within the layout's zoom limits.</summary>

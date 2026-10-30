@@ -1329,22 +1329,9 @@ namespace BakAgain.UI.InGame {
         }
 
         private ((int Column, int Row)? Cell, (int RosterSlot, bool PartyMember)? Who) BoardAt(Vector2 screen) {
-            var probe = Probe(screen);
-            return (probe.Cell, probe.Who);
-        }
-
-        private ((int Column, int Row)? Cell, (int RosterSlot, bool PartyMember)? Who, bool Ground) Probe(Vector2 screen) {
-            if (_probeForTest != null) { return _probeForTest(screen); }
             Vector3? floor = _interaction?.GroundPointAtScreenPoint(screen);
-            return (floor.HasValue ? _cellAtPoint?.Invoke(floor.Value) : null, _interaction?.CombatantAtScreenPoint(screen),
-                floor.HasValue);
+            return (floor.HasValue ? _cellAtPoint?.Invoke(floor.Value) : null, _interaction?.CombatantAtScreenPoint(screen));
         }
-
-        private System.Func<Vector2, ((int Column, int Row)? Cell, (int RosterSlot, bool PartyMember)? Who, bool Ground)> _probeForTest;
-
-        internal void SetBoardProbeForTest(
-            System.Func<Vector2, ((int Column, int Row)? Cell, (int RosterSlot, bool PartyMember)? Who, bool Ground)> probe) =>
-            _probeForTest = probe;
 
         private void PointController(((int Column, int Row)? Cell, (int RosterSlot, bool PartyMember)? Who) at) =>
             _combatController.Point(at.Cell?.Column, at.Cell?.Row, at.Who?.RosterSlot, at.Who?.PartyMember ?? false);
@@ -1361,14 +1348,7 @@ namespace BakAgain.UI.InGame {
             if (_enhancedHold != null && _enhancedHold.TakeTap(_touchControls?.PressSerial ?? -1)) {
                 return true;   // the release of a long press is not also a tap
             }
-            var at = Probe(screen);
-            // A tap that lands on the ground off the board, on no combatant, flashes the board's edge (TASK-972).
-            if (at.Ground && at.Who == null && _flashBoardEdge != null
-                && GameData.Resources.Combat.EnhancedBoardBounds.IsOffBoard(at.Cell, _boardUnderground?.Invoke() ?? false)) {
-                _flashBoardEdge();
-                return true;
-            }
-            PointController((at.Cell, at.Who));
+            PointController(BoardAt(screen));
             if (isPrimary) {
                 _combatController.Primary(BakAgain.UI.InputCore.InputDriver.ShiftHeld);
             } else {
@@ -1378,13 +1358,6 @@ namespace BakAgain.UI.InGame {
         }
 
         private System.Func<bool> _combatPickPending;
-        private System.Action _flashBoardEdge;
-        private System.Func<bool> _boardUnderground;
-
-        internal void SetBoardEdgeFlashSeam(System.Action flash, System.Func<bool> underground) {
-            _flashBoardEdge = flash;
-            _boardUnderground = underground;
-        }
 
         internal void SetCombatPickPendingSeam(System.Func<bool> pending) => _combatPickPending = pending;
 

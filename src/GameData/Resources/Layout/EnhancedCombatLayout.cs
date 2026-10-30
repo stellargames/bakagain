@@ -102,8 +102,13 @@ public sealed class EnhancedCombatLayout
     /// <summary>Camera orbit per screen pixel of drag, in degrees.</summary>
     public float OrbitDegreesPerPixel { get; set; } = 0.25f;
 
-    /// <summary>The lowest pitch the camera may take, in degrees.</summary>
+    /// <summary>The lowest pitch the camera may take, in degrees. The driver lowers it further to
+    /// <see cref="HorizonFromTop"/>'s pitch, which depends on the lens.</summary>
     public float PitchMinDegrees { get; set; } = 25f;
+
+    /// <summary>How far the camera may tilt up: until the horizon is this fraction of the screen height from
+    /// the top (owner, round 6: about a quarter).</summary>
+    public float HorizonFromTop { get; set; } = 0.25f;
 
     /// <summary>The highest pitch the camera may take, in degrees. Above about 55 the standing figures
     /// (billboards) are seen from too far above and flatten into cards (tuned live, TASK-972 task 11).</summary>
@@ -197,9 +202,12 @@ public sealed class EnhancedCombatLayout
     /// <summary>How far the marks sit above the ground, in cells: clear of the road's own paint-order lift.</summary>
     public float MarkLiftCells { get; set; } = 0.05f;
 
-    /// <summary>The marks' colours, RGBA 0..1: a reachable cell, the acting hero's cell, a foe a Thrust reaches,
+    /// <summary>A reachable cell is drawn as the ground under it this much lighter (1.2 = 20%, as the eye sees
+    /// it), not in a colour of its own (owner, round 6: the green squares were too bright). 1..2.</summary>
+    public float MarkReachLighten { get; set; } = 1.2f;
+
+    /// <summary>The other marks' colours, RGBA 0..1: the acting hero's cell, a foe a Thrust reaches,
     /// a foe a Swing reaches (a frame nested inside the Thrust's), the foe under the pointer.</summary>
-    public float[] MarkReachRgba { get; set; } = { 0.45f, 1f, 0.55f, 0.7f };
 
     public float[] MarkActorRgba { get; set; } = { 0.45f, 1f, 0.55f, 1f };
 
@@ -225,14 +233,9 @@ public sealed class EnhancedCombatLayout
     /// <summary>Trap boards: the dim laid over everything past the rim, RGBA 0..1.</summary>
     public float[] TrapOutsideDimRgba { get; set; } = { 0f, 0f, 0f, 0.55f };
 
-    /// <summary>Trap boards: the tint over the goal cells, RGBA 0..1.</summary>
-    public float[] TrapGoalRgba { get; set; } = { 0.95f, 0.78f, 0.25f, 0.08f };
-
-    /// <summary>The edge flash when a tap lands off the board, RGBA 0..1.</summary>
-    public float[] EdgeFlashRgba { get; set; } = { 1f, 0.27f, 0.27f, 1f };
-
-    /// <summary>How long the off-board edge flash lasts, in seconds.</summary>
-    public float EdgeFlashSeconds { get; set; } = 0.4f;
+    /// <summary>Trap boards: the farthest zoom frames the board's width (rim included) with this margin each side,
+    /// as a fraction of the screen width; its depth may run off screen (owner, round 6).</summary>
+    public float TrapFitMarginX { get; set; } = 0.03f;
 
     /// <summary>A foe's letter plate: width and height, in cells.</summary>
     public float PlateWidthCells { get; set; } = 0.35f;

@@ -39,7 +39,7 @@ public class EnhancedCombatLayoutTests {
         Assert.Equal(0.06f, layout.MarkFrameCells);
         Assert.Equal(0.35f, layout.PlateWidthCells);   // the letter alone, since the swords went
         Assert.Equal(0.05f, layout.MarkLiftCells);
-        Assert.Equal(4, layout.MarkReachRgba.Length);
+        Assert.Equal(1.2f, layout.MarkReachLighten);
     }
 
     [Fact]

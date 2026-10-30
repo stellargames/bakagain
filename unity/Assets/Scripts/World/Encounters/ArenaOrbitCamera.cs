@@ -45,11 +45,28 @@ namespace BakAgain.World.Encounters {
             _camera.transform.position = eyePos;
             _camera.transform.rotation = Quaternion.LookRotation(target - eyePos, Vector3.up);
             // Look below the centre by the angle that puts it at the band's middle (NDC bottom + top - 1).
-            float lift = _bottom + _top - 1f;
-            if (lift != 0f) {
-                float degrees = Mathf.Atan(lift * Mathf.Tan(_camera.fieldOfView * 0.5f * Mathf.Deg2Rad)) * Mathf.Rad2Deg;
+            float degrees = LiftDegrees();
+            if (degrees != 0f) {
                 _camera.transform.rotation *= Quaternion.Euler(degrees, 0f, 0f);
             }
+        }
+
+        private float LiftDegrees() {
+            float lift = _bottom + _top - 1f;
+            return lift == 0f ? 0f : Mathf.Atan(lift * Mathf.Tan(_camera.fieldOfView * 0.5f * Mathf.Deg2Rad)) * Mathf.Rad2Deg;
+        }
+
+        /// <summary>
+        /// The orbit pitch at which the horizon is drawn <paramref name="fromTop"/> (fraction of the screen
+        /// height) below the top edge: the camera looks down by the pitch plus the band's lift, and a level
+        /// ray lands tan(look down) / tan(half the vertical lens) above the screen's middle.
+        /// </summary>
+        public double PitchForHorizon(float fromTop) {
+            if (_camera == null) {
+                return double.NaN;
+            }
+            float half = Mathf.Tan(_camera.fieldOfView * 0.5f * Mathf.Deg2Rad);
+            return (Mathf.Atan((1f - (2f * fromTop)) * half) * Mathf.Rad2Deg) - LiftDegrees();
         }
 
         /// <summary>
@@ -67,10 +84,11 @@ namespace BakAgain.World.Encounters {
         /// <summary>
         /// The smallest distance at which every one of <paramref name="corners"/> (board frame, ground level)
         /// lands inside the framed band less the margins, the pitch and yaw being <paramref name="make"/>'s.
-        /// Bisection: farther always shrinks the board toward the band's middle.
+        /// Bisection: farther always shrinks the board toward the band's middle. <paramref name="widthOnly"/> fits
+        /// the corners across the screen only (a trap: its depth may run off the top and bottom).
         /// </summary>
         public double FitDistance(System.Func<double, ArenaOrbit> make, (double X, double Y)[] corners,
-            float marginX, float marginY) {
+            float marginX, float marginY, bool widthOnly = false) {
             ArenaOrbit keep = _orbit;
             double near = 100, far = 200000;
             for (int i = 0; i < 40; i++) {
@@ -80,7 +98,8 @@ namespace BakAgain.World.Encounters {
                 bool fits = true;
                 foreach (var c in corners) {
                     Vector3 v = _camera.WorldToViewportPoint(ToWorld(c.X, c.Y, 0));
-                    fits &= v.z > 0 && v.x >= marginX && v.x <= 1 - marginX && v.y >= _bottom + marginY && v.y <= _top - marginY;
+                    fits &= v.z > 0 && v.x >= marginX && v.x <= 1 - marginX
+                        && (widthOnly || (v.y >= _bottom + marginY && v.y <= _top - marginY));
                 }
                 if (fits) {
                     far = mid;

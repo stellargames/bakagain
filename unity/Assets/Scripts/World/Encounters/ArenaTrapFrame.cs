@@ -6,15 +6,15 @@ namespace BakAgain.World.Encounters {
     using UnityEngine;
 
     /// <summary>
-    /// The Enhanced board's frame (TASK-972). In a trap: a low stone rim round the playable cells, everything
-    /// outside the board dimmed, and a faint gold tint on the goal cells. In every Enhanced fight: a brief red
-    /// flash of the board edge when a tap lands off the board (<see cref="Flash"/>).
+    /// The Enhanced trap board's frame (TASK-972): a low stone rim along the near edge and both sides of the
+    /// cells up to the exit row, and everything beside and before it dimmed. The far side stays open: past the
+    /// exit row is the way out (owner, round 6: no back wall, the sides stop at the exit).
     /// </summary>
     /// <remarks>
     /// <para>Built once in <see cref="Bind"/>: the arena root is rebuilt on every redraw, and the grid does not
     /// change in a fight. Rides on the root only when the turn is Enhanced, as <see cref="ArenaBoardMarks"/> does.</para>
-    /// <para><b>The dim is three tall walls and a flat apron.</b> The walls stand on the rim's outer edge -- left,
-    /// right (both running back past the camera) and far -- and are shown only from the board's side, so
+    /// <para><b>The dim is two tall walls and a flat apron.</b> The walls stand on the rim's outer edges, left and
+    /// right, running from behind the camera to past the scenery, and are shown only from the board's side, so
     /// everything seen past them, scenery and sky alike, is dimmed while the board in front is not. The apron
     /// dims the ground between the camera and the near rim. Sprites/Default culls nothing, so the walls'
     /// culling is done here: a wall whose outside the camera is on is hidden, and a strip beside the board with a
@@ -27,28 +27,23 @@ namespace BakAgain.World.Encounters {
         // ponytail: fixed side margin; the trap camera was measured at most 7.5 cells outside a side wall
         // (yaw 15, pitch 25, farthest zoom, phone 844x390). A pose past it leaves that side undimmed again.
         private const float SideReachCells = 12f;
-        private const int DimQueue = 2990, FrameQueue = 3000, FlashQueue = 3001;
+        private const int DimQueue = 2990, FrameQueue = 3000;
 
-        private EnhancedCombatLayout _layout;
         private Func<Camera> _camera;
-        private Material _material, _dimMaterial, _flashMaterial;
+        private Material _material, _dimMaterial;
         private readonly List<Mesh> _meshes = new();
         private readonly List<GameObject> _parts = new();
-        private GameObject _flash;
-        private Renderer _left, _right, _far;
-        // What stands in for a rim wall once the camera is outside it: a floor strip, a wall farther out, and
-        // the far wall's piece over that strip.
+        private Renderer _left, _right;
+        // What stands in for a side wall once the camera is outside it: a floor strip and a wall farther out.
         private Renderer[] _leftOuter, _rightOuter;
         private float _dimLift;
-        private float _flashUntil;
-        private Color _flashColour;
 
         // The board frame (across, away) to the world: the world centre of cell (0,0) and one cell along each axis.
         private Vector3 _origin, _across, _away;
         private double _cellSize, _originX, _originY;
-        private double _x0, _x1, _y1;   // the rim's outer edges
+        private double _x0, _x1;   // the rim's outer edges
 
-        /// <summary>The drawn parts' names, for tests: TrapRim, TrapOutsideDim, TrapGoal, and EdgeFlash while it shows.</summary>
+        /// <summary>The drawn parts' names, for tests: TrapRim and TrapOutsideDim.</summary>
         public IEnumerable<string> DrawnKinds() {
             foreach (GameObject part in _parts) {
                 if (part != null && part.activeSelf) {
@@ -57,13 +52,12 @@ namespace BakAgain.World.Encounters {
             }
         }
 
-        /// <param name="boardCorners"><see cref="ArenaOrbit.BoardCorners"/>: the playable cells' outer corners.</param>
+        /// <param name="boardCorners"><see cref="ArenaOrbit.BoardCorners"/> up to the exit row: the outer corners
+        /// of the cells the party crosses, the far edge being the exit row's.</param>
         /// <param name="cellCentreWorld">A cell's centre in the world (<c>HotspotService.CellCentreWorld</c>).</param>
         /// <param name="camera">The world camera, for the walls' culling; without one every wall shows.</param>
-        public void Bind(bool trap, (double X, double Y)[] boardCorners, IReadOnlyList<(int Column, int Row)> goalCells,
-            Func<int, int, Vector3?> cellCentreWorld, EnhancedCombatLayout layout, float unitsPerCell,
-            Func<Camera> camera = null) {
-            _layout = layout;
+        public void Bind((double X, double Y)[] boardCorners, Func<int, int, Vector3?> cellCentreWorld,
+            EnhancedCombatLayout layout, float unitsPerCell, Func<Camera> camera = null) {
             _camera = camera;
             if (boardCorners == null || boardCorners.Length < 4 || cellCentreWorld == null
                 || cellCentreWorld(0, 0) is not Vector3 o || cellCentreWorld(1, 0) is not Vector3 a
@@ -82,100 +76,46 @@ namespace BakAgain.World.Encounters {
             Shader shader = Shader.Find("Sprites/Default");
             _material = new Material(shader) { renderQueue = FrameQueue };
             _dimMaterial = new Material(shader) { renderQueue = DimQueue };
-            _flashMaterial = new Material(shader) { renderQueue = FlashQueue };
-            // A material colour is converted to the colour space by Unity; vertex colours are not (Vertex()).
-            _flashColour = Rgba(layout.EdgeFlashRgba);
 
             double rim = layout.TrapRimCells * _cellSize;
-            double ix0 = boardCorners[0].X, ix1 = boardCorners[1].X, iy0 = boardCorners[0].Y, iy1 = boardCorners[2].Y;
-            _x0 = ix0 - rim; _x1 = ix1 + rim; _y1 = iy1 + rim;
+            double ix0 = boardCorners[0].X, ix1 = boardCorners[1].X, iy0 = boardCorners[0].Y, y1 = boardCorners[2].Y;
+            _x0 = ix0 - rim; _x1 = ix1 + rim;
             double oy0 = iy0 - rim;
 
-            // The rim: a raised frame, its top and both sides. The flash is the same frame drawn over it in red.
+            // The rim: three raised strips, left, right and near, each its top and its sides.
             float height = layout.TrapRimCells * u;
-            Vector3[] inner = Rect(ix0, iy0, ix1, iy1), outer = Rect(_x0, oy0, _x1, _y1);
             var verts = new List<Vector3>();
             var tris = new List<int>();
-            Band(Up(inner, height), Up(outer, height), verts, tris);
-            Band(inner, Up(inner, height), verts, tris);
-            Band(outer, Up(outer, height), verts, tris);
-            Mesh rimMesh = MakeMesh(verts, tris, Color.white);
-            if (trap) {
-                Part("TrapRim", MakeMesh(verts, tris, Vertex(layout.TrapRimRgba)), _material);
+            foreach (Vector3[] strip in new[] { Rect(_x0, oy0, ix0, y1), Rect(ix1, oy0, _x1, y1), Rect(ix0, oy0, ix1, iy0) }) {
+                Vector3[] top = Up(strip, height);
+                int at = verts.Count;
+                verts.AddRange(top);
+                tris.AddRange(new[] { at, at + 1, at + 2, at, at + 2, at + 3 });
+                Band(strip, top, verts, tris);
             }
-            _flash = Part("EdgeFlash", rimMesh, _flashMaterial);
-            _flash.SetActive(false);
-            if (!trap) {
-                return;
-            }
+            Part("TrapRim", MakeMesh(verts, tris, Vertex(layout.TrapRimRgba)), _material);
 
-            // The dim: the apron on the ground before the board, then the three walls.
+            // The dim: the apron on the ground before the board, then the two side walls.
             float lift = (layout.MarkLiftCells * u) - LiftStep;
             _dimLift = lift;
             double reach = DimReachCells * _cellSize;
             float tall = DimReachCells * u;
             Color dim = Vertex(layout.TrapOutsideDimRgba);
             GameObject dimRoot = Part("TrapOutsideDim", Quad(Rect(_x0, oy0 - reach, _x1, oy0), lift, dim), _dimMaterial);
-            _left = Wall(dimRoot, "Left", ToWorld(_x0, oy0 - reach), ToWorld(_x0, _y1), tall, dim);
-            _right = Wall(dimRoot, "Right", ToWorld(_x1, oy0 - reach), ToWorld(_x1, _y1), tall, dim);
-            // Only across the board: the side walls already reach _y1, so every ray past the board meets one wall.
-            _far = Wall(dimRoot, "Far", ToWorld(_x0, _y1), ToWorld(_x1, _y1), tall, dim);
+            // The side walls run on past the exit row: ending there left a hard edge in the sky (seen live), and
+            // running on they leave the way out ahead a lit corridor.
+            double fy = y1 + reach;
+            _left = Wall(dimRoot, "Left", ToWorld(_x0, oy0 - reach), ToWorld(_x0, fy), tall, dim);
+            _right = Wall(dimRoot, "Right", ToWorld(_x1, oy0 - reach), ToWorld(_x1, fy), tall, dim);
             double side = SideReachCells * _cellSize, sx0 = _x0 - side, sx1 = _x1 + side;
             _leftOuter = new[] {
-                Floor(dimRoot, "LeftFloor", Rect(sx0, oy0 - reach, _x0, _y1), lift, dim),
-                Wall(dimRoot, "LeftOuter", ToWorld(sx0, oy0 - reach), ToWorld(sx0, _y1), tall, dim),
-                Wall(dimRoot, "FarLeft", ToWorld(sx0, _y1), ToWorld(_x0, _y1), tall, dim) };
+                Floor(dimRoot, "LeftFloor", Rect(sx0, oy0 - reach, _x0, fy), lift, dim),
+                Wall(dimRoot, "LeftOuter", ToWorld(sx0, oy0 - reach), ToWorld(sx0, fy), tall, dim) };
             _rightOuter = new[] {
-                Floor(dimRoot, "RightFloor", Rect(_x1, oy0 - reach, sx1, _y1), lift, dim),
-                Wall(dimRoot, "RightOuter", ToWorld(sx1, oy0 - reach), ToWorld(sx1, _y1), tall, dim),
-                Wall(dimRoot, "FarRight", ToWorld(_x1, _y1), ToWorld(sx1, _y1), tall, dim) };
+                Floor(dimRoot, "RightFloor", Rect(_x1, oy0 - reach, sx1, fy), lift, dim),
+                Wall(dimRoot, "RightOuter", ToWorld(sx1, oy0 - reach), ToWorld(sx1, fy), tall, dim) };
             Outside(_leftOuter, false);
             Outside(_rightOuter, false);
-
-            // The goal: one flat quad per standable goal cell, under the reach fill's layer.
-            var goalRoot = new GameObject("TrapGoal");
-            goalRoot.transform.SetParent(transform, false);
-            _parts.Add(goalRoot);
-            if (goalCells == null || goalCells.Count == 0) {
-                return;
-            }
-            Vector3 hx = _across / 2, hy = _away / 2;
-            Mesh cell = MakeMesh(new List<Vector3> { -hx - hy, -hx + hy, hx + hy, hx - hy },
-                new List<int> { 0, 1, 2, 0, 2, 3 }, Vertex(layout.TrapGoalRgba));
-            foreach ((int column, int row) in goalCells) {
-                if (cellCentreWorld(column, row) is not Vector3 centre) {
-                    continue;
-                }
-                var quad = new GameObject($"Goal {column},{row}");
-                quad.transform.SetParent(goalRoot.transform, false);
-                quad.transform.localPosition = centre + (Vector3.up * lift);
-                quad.AddComponent<MeshFilter>().sharedMesh = cell;
-                quad.AddComponent<MeshRenderer>().sharedMaterial = _material;
-            }
-        }
-
-        /// <summary>Starts, or restarts, the red flash of the board edge for <see cref="EnhancedCombatLayout.EdgeFlashSeconds"/>.</summary>
-        public void Flash() {
-            if (_flash == null) {
-                return;
-            }
-            _flashUntil = Time.unscaledTime + _layout.EdgeFlashSeconds;
-            _flashMaterial.color = _flashColour;
-            _flash.SetActive(true);
-        }
-
-        private void Update() {
-            if (_flash == null || !_flash.activeSelf) {
-                return;
-            }
-            float left = _flashUntil - Time.unscaledTime;
-            if (left <= 0f) {
-                _flash.SetActive(false);
-                return;
-            }
-            Color c = _flashColour;
-            c.a *= left / Mathf.Max(_layout.EdgeFlashSeconds, 1e-3f);
-            _flashMaterial.color = c;
         }
 
         // Back-face culling for the walls, by which side of each the camera stands.
@@ -186,12 +126,10 @@ namespace BakAgain.World.Encounters {
             }
             Vector3 d = cam.transform.position - _origin;
             double x = _originX + (_cellSize * Vector3.Dot(d, _across) / _across.sqrMagnitude);
-            double y = _originY + (_cellSize * Vector3.Dot(d, _away) / _away.sqrMagnitude);
-            // Outside a side wall, that wall would face away and hide; the strip beside the board, a wall
-            // farther out and the far wall's piece over the strip take its place, so nothing is dimmed twice.
+            // Outside a side wall, that wall would face away and hide; the strip beside the board and a wall
+            // farther out take its place, so nothing is dimmed twice.
             _left.enabled = x > _x0;
             _right.enabled = x < _x1;
-            _far.enabled = y < _y1;
             Outside(_leftOuter, !_left.enabled);
             Outside(_rightOuter, !_right.enabled);
         }
@@ -200,7 +138,7 @@ namespace BakAgain.World.Encounters {
             foreach (Mesh m in _meshes) {
                 Destroy(m);
             }
-            foreach (Material m in new[] { _material, _dimMaterial, _flashMaterial }) {
+            foreach (Material m in new[] { _material, _dimMaterial }) {
                 if (m != null) {
                     Destroy(m);
                 }
@@ -280,12 +218,10 @@ namespace BakAgain.World.Encounters {
             return go;
         }
 
-        private static Color Rgba(float[] c) => c == null || c.Length < 4 ? Color.white : new Color(c[0], c[1], c[2], c[3]);
-
         // The layout's RGBA is sRGB, as authored; a vertex colour reaches the shader unconverted, so in a
-        // linear project it is converted here or the stone rim reads near white and the tint far too strong.
+        // linear project it is converted here or the stone rim reads near white.
         private static Color Vertex(float[] c) {
-            Color colour = Rgba(c);
+            Color colour = c == null || c.Length < 4 ? Color.white : new Color(c[0], c[1], c[2], c[3]);
             return QualitySettings.activeColorSpace == ColorSpace.Linear ? colour.linear : colour;
         }
     }
