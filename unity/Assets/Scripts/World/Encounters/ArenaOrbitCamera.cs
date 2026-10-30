@@ -53,6 +53,18 @@ namespace BakAgain.World.Encounters {
         }
 
         /// <summary>
+        /// Whether the ground point (board frame) is drawn inside the framed band, kept
+        /// <paramref name="margin"/> (viewport fraction) away from every edge.
+        /// </summary>
+        public bool InFrame(double x, double y, float margin) {
+            if (_camera == null) {
+                return true;
+            }
+            Vector3 v = _camera.WorldToViewportPoint(ToWorld(x, y, 0));
+            return v.z > 0 && v.x >= margin && v.x <= 1 - margin && v.y >= _bottom + margin && v.y <= _top - margin;
+        }
+
+        /// <summary>
         /// The smallest distance at which every one of <paramref name="corners"/> (board frame, ground level)
         /// lands inside the framed band less the margins, the pitch and yaw being <paramref name="make"/>'s.
         /// Bisection: farther always shrinks the board toward the band's middle.

@@ -5297,6 +5297,10 @@ using GameData.Resources.Scene;
         /// </remarks>
         private async Cysharp.Threading.Tasks.UniTask RunEnemyTurnPacedAsync(
             Combatant monster, BakAgain.Combat.MonsterTurnResolver ai) {
+            // Presentation only, before anything is decided: the rules below never see it.
+            if (BeforeEnemyTurn != null) {
+                await BeforeEnemyTurn(monster);
+            }
             int fromX = monster?.X ?? 0;
             int fromY = monster?.Y ?? 0;
 
@@ -5315,7 +5319,17 @@ using GameData.Resources.Scene;
             // A monster's cast plays its effect inside the cast (cspell_invoke_effect, CSPELL.C:786),
             // so the next turn waits for whatever the arena is still playing (TASK-1011).
             await Cysharp.Threading.Tasks.UniTask.WaitWhile(() => _arenaBusy?.Invoke() ?? false);
+            float beat = EnemyTurnBeatSeconds?.Invoke() ?? 0f;
+            if (beat > 0f) {
+                await Cysharp.Threading.Tasks.UniTask.Delay(System.TimeSpan.FromSeconds(beat), DelayType.DeltaTime);
+            }
         }
+
+        /// <summary>Awaited before each monster's paced turn (Enhanced combat frames it); null: nothing.</summary>
+        public Func<Combatant, Cysharp.Threading.Tasks.UniTask> BeforeEnemyTurn { get; set; }
+
+        /// <summary>Seconds held after each monster's paced turn has finished playing; null or 0: none (Classic).</summary>
+        public Func<float> EnemyTurnBeatSeconds { get; set; }
 
         /// <summary>
         /// One AI turn, decided and then carried out — including the cast the runtime cannot

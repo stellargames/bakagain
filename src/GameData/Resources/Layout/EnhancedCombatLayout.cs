@@ -144,6 +144,20 @@ public sealed class EnhancedCombatLayout
     /// "make the camera jump smooth").</summary>
     public float FocusGlideSeconds { get; set; } = 0.6f;
 
+    /// <summary>How far inside the board's framed band (viewport fraction) a monster's cell must be to count as in
+    /// view; outside it the camera glides to the monster before it acts (owner, 2026-10-30: "the camera appears to
+    /// be jerking around the enemy turns"). A tenth keeps a monster at the very edge from acting half off screen.</summary>
+    public float EnemyInViewMargin { get; set; } = 0.1f;
+
+    /// <summary>
+    /// Seconds held after a monster's action has finished playing, before the next turn (owner, 2026-10-30:
+    /// "I can't follow what's going on"). The original moves on at once (COMBAT.C:1588's loop has no wait);
+    /// this is presentation only. 0.6 s: the struck combatant's number floats for 8 arena frames, 0.43 s
+    /// (dmgFloatFrames = 8, COMBAT.C:383, at 18.5 frames a second), so it has finished and the log line
+    /// has been on screen a moment before anything else moves.
+    /// </summary>
+    public float EnemyActionBeatSeconds { get; set; } = 0.6f;
+
     /// <summary>Opacity of a figure seen through the board's occluders (see-through): the occluder stays
     /// clearly visible while the unit behind reads through it (owner's phone test, 2026-10-28).</summary>
     public float SeeThroughAlpha { get; set; } = 0.55f;

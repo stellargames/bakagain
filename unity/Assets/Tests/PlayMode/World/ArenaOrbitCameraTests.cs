@@ -322,5 +322,61 @@ namespace BakAgain.Tests.PlayMode.World {
                 Object.DestroyImmediate(go);
             }
         }
+
+        // Owner's phone round 4 (2026-10-30): "the camera appears to be jerking around the enemy turns". A monster
+        // already in view leaves the camera still; one out of view is glided to before it acts (Enhanced only).
+        [UnityEngine.TestTools.UnityTest]
+        public System.Collections.IEnumerator AMonsterOutOfViewIsGlidedTo_OneInViewLeavesTheCameraStill() {
+            bool? keep = InGameScreen.PhoneHudOverride;
+            InGameScreen.PhoneHudOverride = true;
+            try {
+                BakAgain.World.WorldRuntime world = NewWorld(combat: true, out Camera cam);
+                world.PointCameraAtArena();
+                world.ZoomArena(0.01f);   // the closest view: most of the board is off screen
+                var orbit = world.ArenaOrbitForTest;
+                var near = new GameData.Resources.Combat.Combatant { X = 3, Y = 6 };   // the board's middle
+                var far = new GameData.Resources.Combat.Combatant { X = 0, Y = 12 };   // its far corner
+                (double X, double Y) before = orbit.Centre;
+                var still = world.FrameEnemyForTest(near);
+                Assert.AreEqual(Cysharp.Threading.Tasks.UniTaskStatus.Succeeded, still.Status, "in view: done at once");
+                Assert.AreEqual(before, orbit.Centre, "in view: the camera does not move");
+
+                var glide = world.FrameEnemyForTest(far);
+                Assert.AreEqual(Cysharp.Threading.Tasks.UniTaskStatus.Pending, glide.Status, "out of view: it waits for the glide");
+                float until = Time.realtimeSinceStartup + 3f;
+                while (glide.Status == Cysharp.Threading.Tasks.UniTaskStatus.Pending && Time.realtimeSinceStartup < until) {
+                    yield return null;
+                }
+                Assert.AreEqual(Cysharp.Threading.Tasks.UniTaskStatus.Succeeded, glide.Status);
+                (int ax, int ay) = GameData.Resources.Combat.CombatArenaPlacement.CellOffset(far.X, far.Y, Cell);
+                Assert.AreEqual(ax, orbit.Centre.X, 1, "the closest view centres on the monster");
+                Assert.AreEqual(ay, orbit.Centre.Y, 1);
+            } finally {
+                InGameScreen.PhoneHudOverride = keep;
+            }
+        }
+
+        [Test]
+        public void ClassicNeverMovesTheCameraForAMonster() {
+            BakAgain.World.WorldRuntime world = NewWorld(combat: false, out Camera cam);
+            world.PointCameraAtArena();
+            Vector3 eye = cam.transform.position;
+            var task = world.FrameEnemyForTest(new GameData.Resources.Combat.Combatant { X = 0, Y = 12 });
+            Assert.AreEqual(Cysharp.Threading.Tasks.UniTaskStatus.Succeeded, task.Status);
+            Assert.AreEqual(0f, Vector3.Distance(eye, cam.transform.position), 1e-3f);
+        }
+
+        // The original waits for a swing and a fall (combat_actor_anim_play wait 1, CACTOR.C:1895); the arena
+        // counts them as work, so the next turn cannot start and rebuild the sprite under them.
+        [UnityEngine.TestTools.UnityTest]
+        public System.Collections.IEnumerator ASwingHoldsTheArenaUntilItEnds() {
+            BakAgain.World.WorldRuntime world = NewWorld(combat: false, out _);
+            var swing = new Cysharp.Threading.Tasks.UniTaskCompletionSource();
+            world.HoldArenaWhile(swing.Task);
+            Assert.AreEqual(1, world.ArenaWorkForTest, "busy while it plays");
+            swing.TrySetResult();
+            yield return null;
+            Assert.AreEqual(0, world.ArenaWorkForTest, "idle once it has played");
+        }
     }
 }

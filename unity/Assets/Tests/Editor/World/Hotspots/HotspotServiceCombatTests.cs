@@ -537,6 +537,34 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
             Assert.IsTrue((turn.Status != Cysharp.Threading.Tasks.UniTaskStatus.Pending), "and ends once it has played");
         }
 
+        [UnityEngine.TestTools.UnityTest]
+        public System.Collections.IEnumerator AMonstersTurnWaitsForItsFraming_AndHoldsItsBeat() {
+            // TASK-972, owner's phone round 4: Enhanced frames the monster before it acts and holds a beat after.
+            (Rig rig, CombatEncounter fight, Combatant member) = PartyTurn();
+            Combatant monster = fight.Enemies[0];
+            monster.X = member.X + 1;
+            monster.Y = member.Y;
+            var framed = new Cysharp.Threading.Tasks.UniTaskCompletionSource();
+            rig.Service.BeforeEnemyTurn = _ => framed.Task;
+            int beats = 0;
+            rig.Service.EnemyTurnBeatSeconds = () => { beats++; return 1.5f; };
+
+            Cysharp.Threading.Tasks.UniTask turn = rig.Service.RunEnemyTurnPacedForTest(monster);
+            yield return null;
+            Assert.AreEqual(Cysharp.Threading.Tasks.UniTaskStatus.Pending, turn.Status);
+            Assert.AreEqual(0, beats, "the turn has not run before the framing ends");
+
+            framed.TrySetResult();
+            float start = UnityEngine.Time.realtimeSinceStartup;
+            while (turn.Status == Cysharp.Threading.Tasks.UniTaskStatus.Pending && UnityEngine.Time.realtimeSinceStartup < start + 5f) {
+                yield return null;
+            }
+            Assert.AreEqual(Cysharp.Threading.Tasks.UniTaskStatus.Succeeded, turn.Status);
+            Assert.AreEqual(1, beats, "the beat follows the turn, once");
+            // The still beat (0.35 s) plus the held 1.5 s; Delay is game time, so allow for a slow frame either way.
+            Assert.GreaterOrEqual(UnityEngine.Time.realtimeSinceStartup - start, 1.5f, "the beat is held after the action");
+        }
+
         // ---------------------------------------------------------------- TASK-947: the HUD while an item aims
 
         private static string FirstLine(Rig rig, int slot, bool member) {

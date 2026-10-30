@@ -1136,6 +1136,30 @@ namespace BakAgain.World {
         /// <summary>Redraws and flights in progress; the fight hands the turn on only at zero.</summary>
         private int _arenaWork;
 
+        /// <summary>
+        /// Counts a swing or a collapse as arena work until it ends, so the turn waits for it.
+        /// </summary>
+        /// <remarks>
+        /// The original WAITS for both: <c>combat_actor_play_anim_sprite3</c> (the swing, COMBAT.C:489)
+        /// and <c>_sprite1</c> (the fall, COMBAT.C:226) call <c>combat_actor_anim_play</c> with wait 1,
+        /// which renders until the run is done (CACTOR.C:1895). Fired and forgotten, the next turn's
+        /// rebuild destroyed the sprite mid-swing, so a monster's blow was barely seen (owner's phone
+        /// round 4). Counted before the first await, so no gap reads as idle.
+        /// </remarks>
+        internal void HoldArenaWhile(UniTask animation) => HoldArenaWhileAsync(animation).Forget();
+
+        /// <summary>Redraws, flights and animations still playing (tests).</summary>
+        internal int ArenaWorkForTest => _arenaWork;
+
+        private async UniTaskVoid HoldArenaWhileAsync(UniTask animation) {
+            _arenaWork++;
+            try {
+                await animation;
+            } finally {
+                _arenaWork--;
+            }
+        }
+
         private async UniTask SlideThenRedrawAsync() {
             // The whole redraw counts, so a flight it launches is already counted when it ends.
             _arenaWork++;
@@ -1529,9 +1553,9 @@ namespace BakAgain.World {
                 if (sprite == null || attackSet == null || marker.Face == null) {
                     continue;
                 }
-                marker.gameObject.AddComponent<Encounters.AttackSwing>().Play(
+                HoldArenaWhile(marker.gameObject.AddComponent<Encounters.AttackSwing>().Play(
                     _zoneSceneBuilder.RenderContext, marker.Face, attackSet,
-                    sprite.CurrentOctant, marker.Extent);
+                    sprite.CurrentOctant, marker.Extent));
             }
 
             // *** A SHOT ARMED BY THE MODEL FLIES HERE. *** Same carry-across as the swing above:
@@ -1631,9 +1655,9 @@ namespace BakAgain.World {
                     continue;
                 }
                 dead.DeathShown = true;
-                corpse.gameObject.AddComponent<Encounters.DeathCollapse>().Play(
+                HoldArenaWhile(corpse.gameObject.AddComponent<Encounters.DeathCollapse>().Play(
                     _zoneSceneBuilder.RenderContext, corpse.Face, corpse.SetName,
-                    corpse.CollapseLastFrame, corpse.Extent);
+                    corpse.CollapseLastFrame, corpse.Extent));
             }
 
             // *** THE RECOIL'S CLOCK IS THIS REDRAW, AND THE TICK COMES AFTER THE DRAW. ***
@@ -1858,8 +1882,30 @@ namespace BakAgain.World {
 
         private bool _arenaFocused;
 
+        /// <summary>
+        /// Enhanced combat: before a monster acts, glide the close view onto it if its cell is not in the
+        /// framed band, and wait for the glide; a monster already in view leaves the camera still.
+        /// </summary>
+        internal UniTask FrameEnemyForTest(Combatant monster) => FrameEnemyAsync(monster);
+
+        private async UniTask FrameEnemyAsync(Combatant monster) {
+            if (!EnhancedCombatOn() || _arenaOrbit?.Orbit == null || monster == null || _arenaCellSize <= 0) {
+                return;
+            }
+            (int across, int away) = GameData.Resources.Combat.CombatArenaPlacement.CellOffset(monster.X, monster.Y, _arenaCellSize);
+            if (_arenaOrbit.InFrame(across, away, _combatLayout.EnemyInViewMargin)) {
+                return;
+            }
+            GameData.Resources.Combat.ArenaOrbit orbit = _arenaOrbit.Orbit;
+            orbit.GlideFocus((across, away), _combatLayout.FocusGlideSeconds);
+            await GlideArenaFocusTaskAsync(orbit);
+        }
+
         // One frame loop per glide; a newer glide restarts the same orbit's, a new fight's orbit ends this one.
-        private async UniTaskVoid GlideArenaFocusAsync(GameData.Resources.Combat.ArenaOrbit orbit) {
+        private async UniTaskVoid GlideArenaFocusAsync(GameData.Resources.Combat.ArenaOrbit orbit) =>
+            await GlideArenaFocusTaskAsync(orbit);
+
+        private async UniTask GlideArenaFocusTaskAsync(GameData.Resources.Combat.ArenaOrbit orbit) {
             int glide = ++_arenaGlide;
             while (glide == _arenaGlide && _arenaOrbit?.Orbit == orbit) {
                 bool more = orbit.Advance(Time.deltaTime);
@@ -2509,6 +2555,10 @@ namespace BakAgain.World {
                 // Read through a lambda, not captured: the zone kind changes as the party travels,
                 // and HotspotService outlives any one zone.
                 zoneIsUnderground: () => _zoneIsUnderground);
+            // Enhanced combat's enemy turn (TASK-972, owner's phone round 4): the camera frames the
+            // monster first if it is out of view, and a beat follows its action. Classic gets neither.
+            _hotspots.BeforeEnemyTurn = FrameEnemyAsync;
+            _hotspots.EnemyTurnBeatSeconds = () => EnhancedCombatOn() ? _combatLayout.EnemyActionBeatSeconds : 0f;
 
             // *** A DIALOG CAN RE-ARM AN ENCOUNTER, AND IT CANNOT ASK FOR THE SERVICE DIRECTLY. ***
             // Sub-action 3 runs the same routine the eleven self-re-arming encounters do, but
