@@ -177,4 +177,29 @@ public class ArenaOrbitTests {
         o.Refit(0);
         Assert.Equal(1000, o.Distance, 3);   // a failed fit keeps the last
     }
+
+    [Fact]
+    public void ATrapOrbitTurnsAtMostFifteenDegreesEitherWay() {
+        var o = new ArenaOrbit(Layout, (1000, 2000), 10, 45, 4000, trap: true);
+        o.Drag(100000, 0);
+        Assert.Equal(25, o.YawDegrees, 6);
+        o.Drag(-100000, 0);
+        Assert.Equal(-5, o.YawDegrees, 6);
+    }
+
+    [Fact]
+    public void ATrapOrbitIgnoresQuarterTurns() {
+        var o = new ArenaOrbit(Layout, (0, 0), 0, 45, 4000, trap: true);
+        o.TurnQuarter(1);
+        Assert.Equal(0, o.YawDegrees, 6);
+    }
+
+    [Fact]
+    public void ACombatOrbitIsUnchanged() {
+        var o = new ArenaOrbit(Layout, (0, 0), 0, 45, 4000);
+        o.Drag(100000, 0);
+        Assert.True(o.YawDegrees > 15);
+        o.TurnQuarter(1);
+        Assert.False(o.IsTrap);
+    }
 }

@@ -98,8 +98,9 @@ namespace BakAgain.UI.Combat.Enhanced {
             _bannerRound = Text(_banner, "ec-desk-banner-round", "ec-desk-banner__round");
             VisualElement cam = Box("ec-desk-cam", "ec-desk-cam");
             _root.Add(cam);
-            CamButton(cam, "ec-cam-left", "⟲", () => TurnQuarterPressed?.Invoke(-1));
-            CamButton(cam, "ec-cam-right", "⟳", () => TurnQuarterPressed?.Invoke(1));
+            _turnButtons = new[] {
+                CamButton(cam, "ec-cam-left", "⟲", () => TurnQuarterPressed?.Invoke(-1)),
+                CamButton(cam, "ec-cam-right", "⟳", () => TurnQuarterPressed?.Invoke(1)) };
             CamButton(cam, "ec-cam-reset", UiTemplates.Format(UiTemplates.HudReset), () => ResetViewPressed?.Invoke());
 
             _band = Box("ec-desk-band", "ec-desk-band");
@@ -655,10 +656,19 @@ namespace BakAgain.UI.Combat.Enhanced {
 
         // ---- helpers ----
 
-        private void CamButton(VisualElement parent, string name, string text, Action press) {
+        private Button[] _turnButtons;
+
+        public void SetQuarterTurnsEnabled(bool enabled) {
+            foreach (Button b in _turnButtons) {
+                b.SetEnabled(enabled);
+            }
+        }
+
+        private Button CamButton(VisualElement parent, string name, string text, Action press) {
             var b = new Button(press) { name = name, text = text };
             b.AddToClassList("ec-desk-cam__button");
             parent.Add(b);
+            return b;
         }
 
         /// <summary>Over the whole of its parent, whatever the theme says.</summary>

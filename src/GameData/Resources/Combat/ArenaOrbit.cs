@@ -21,8 +21,9 @@ public sealed class ArenaOrbit {
     /// <param name="distance">The whole-board fit: zoom 1, and the farthest the camera may go.</param>
     /// <param name="startZoom">Where the fight opens and Reset returns to, as a factor of <paramref name="distance"/>.</param>
     public ArenaOrbit(EnhancedCombatLayout layout, (double X, double Y) boardCentre,
-        double startYawDegrees, double startPitchDegrees, double distance, double startZoom = 1) {
+        double startYawDegrees, double startPitchDegrees, double distance, double startZoom = 1, bool trap = false) {
         _layout = layout;
+        IsTrap = trap;
         _centre = _focus = boardCentre;
         _startYaw = YawDegrees = startYawDegrees;
         // Clamped here, not only on Drag: an out-of-range start would otherwise jump on the first drag.
@@ -30,6 +31,9 @@ public sealed class ArenaOrbit {
         _startDistance = distance;
         _zoom = _startZoom = Math.Clamp(startZoom, layout.ZoomMin, layout.ZoomMax);
     }
+
+    /// <summary>A trap board: the yaw is held near the start and quarter turns do nothing.</summary>
+    public bool IsTrap { get; }
 
     public double YawDegrees { get; private set; }
     public double PitchDegrees { get; private set; }
@@ -131,6 +135,9 @@ public sealed class ArenaOrbit {
 
     public void Drag(double dxPixels, double dyPixels) {
         YawDegrees += dxPixels * _layout.OrbitDegreesPerPixel;
+        if (IsTrap) {
+            YawDegrees = Math.Clamp(YawDegrees, _startYaw - _layout.TrapYawLimitDegrees, _startYaw + _layout.TrapYawLimitDegrees);
+        }
         PitchDegrees = Math.Clamp(PitchDegrees + (dyPixels * _layout.OrbitDegreesPerPixel),
             _layout.PitchMinDegrees, _layout.PitchMaxDegrees);
     }
@@ -144,7 +151,11 @@ public sealed class ArenaOrbit {
         _zoom = _startZoom;
     }
 
-    public void TurnQuarter(int direction) => YawDegrees += 90 * Math.Sign(direction);
+    public void TurnQuarter(int direction) {
+        if (!IsTrap) {
+            YawDegrees += 90 * Math.Sign(direction);
+        }
+    }
 
     public (double X, double Y, double Height) EyePosition() {
         double yaw = YawDegrees * Math.PI / 180, pitch = PitchDegrees * Math.PI / 180;

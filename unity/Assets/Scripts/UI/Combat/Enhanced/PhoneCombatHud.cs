@@ -115,7 +115,7 @@ namespace BakAgain.UI.Combat.Enhanced {
             _cam = Box("ec-phone-cam", "ec-phone-cam");
             _safe.Add(_cam);
             Place(_cam, top: row + gap, left: 0);
-            CamButton(_cam, "ec-cam-right", "⟳", () => TurnQuarterPressed?.Invoke(1));
+            _turnButton = CamButton(_cam, "ec-cam-right", "⟳", () => TurnQuarterPressed?.Invoke(1));
             CamButton(_cam, "ec-cam-reset", UiTemplates.Format(UiTemplates.HudReset), () => ResetViewPressed?.Invoke());
             // The grid (the G key's toggle), here rather than in the touch side bar, which sat under the
             // sentence box in a fight (owner, 2026-10-29).
@@ -615,12 +615,17 @@ namespace BakAgain.UI.Combat.Enhanced {
             return l;
         }
 
-        private void CamButton(VisualElement parent, string name, string text, Action press) {
+        private Button _turnButton;
+
+        public void SetQuarterTurnsEnabled(bool enabled) => _turnButton.SetEnabled(enabled);
+
+        private Button CamButton(VisualElement parent, string name, string text, Action press) {
             var b = new Button(press) { name = name, text = text };
             b.AddToClassList("ec-phone-button");
             Size(b, _layout.FoeChipPt, _layout.FoeChipPt);
             SetFont(b, _layout.MinTextPt);
             parent.Add(b);
+            return b;
         }
 
         private static VisualElement Box(string name, string cls) => DesktopCombatHud.Box(name, cls);

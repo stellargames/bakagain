@@ -200,6 +200,7 @@ namespace BakAgain.UI.InGame {
         private System.Func<int, string> _combatStoneImage;
         private System.Action<int> _turnArenaQuarter;
         private System.Action _resetArenaView;
+        private System.Func<bool> _arenaIsTrap;
         private System.Func<BakAgain.UI.Combat.Enhanced.ICombatHud, bool,
             BakAgain.UI.Combat.Enhanced.EnhancedCombatController> _combatControllerFor;
         private BakAgain.UI.Combat.Enhanced.EnhancedCombatController _combatController;
@@ -216,7 +217,9 @@ namespace BakAgain.UI.InGame {
             System.Func<object> turn, System.Func<VisualElement> classicMenu, System.Func<int, string> stoneImage,
             System.Action<int> turnQuarter = null, System.Action resetView = null,
             System.Func<BakAgain.UI.Combat.Enhanced.ICombatHud, bool,
-                BakAgain.UI.Combat.Enhanced.EnhancedCombatController> controller = null) {
+                BakAgain.UI.Combat.Enhanced.EnhancedCombatController> controller = null,
+            System.Func<bool> arenaIsTrap = null) {
+            _arenaIsTrap = arenaIsTrap;
             _combatControllerFor = controller;
             _combatHudModel = model;
             _combatTurn = turn;
@@ -1272,6 +1275,8 @@ namespace BakAgain.UI.InGame {
                 !DialogManager.PageOverTheWorld && FightUnderWay());
             // The controller owns the forecast in the model; the world hands back the one for this
             // fight's service (the same instance until the zone's service changes).
+            // A trap board's camera does not quarter-turn (the orbit ignores it); grey the buttons to say so.
+            _combatHud.Hud?.SetQuarterTurnsEnabled(!(_arenaIsTrap?.Invoke() ?? false));
             var controller = _combatHud.Hud != null ? _combatControllerFor?.Invoke(_combatHud.Hud, phone) : null;
             if (controller != _combatController && controller != null) {
                 if (_combatController != null) {

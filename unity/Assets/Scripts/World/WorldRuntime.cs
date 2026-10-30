@@ -1467,7 +1467,7 @@ namespace BakAgain.World {
                     () => _hotspots.Combat?.Encounter == null ? null
                         : (object)(_hotspots.Combat.Encounter.Current, _hotspots.Combat.Log.Round),
                     () => ResolveCombatMenu()?.GetComponent<UnityEngine.UIElements.UIDocument>()?.rootVisualElement,
-                    CombatStoneImage, TurnArenaQuarter, ResetArenaView, CombatControllerFor);
+                    CombatStoneImage, TurnArenaQuarter, ResetArenaView, CombatControllerFor, () => ArenaIsTrap);
                 screen.SetCombatPickPendingSeam(() => _hotspots?.CombatPickPending ?? false);
                 _combatScreen = screen;
                 // One encounter fights against a painted backdrop instead of the world. Handed over
@@ -1826,16 +1826,22 @@ namespace BakAgain.World {
                 // Framed from behind the party at the layout's start pitch, as close as the whole board
                 // still fits the screen the HUD leaves free: above the desktop band, between the phone's docks.
                 var centre = GameData.Resources.Combat.ArenaOrbit.BoardCentre(start.CombatGridCellSize, underground);
+                _arenaIsTrap = _hotspots?.Combat?.Grid != null
+                    && GameData.Resources.Combat.TrapPuzzleGoal.IsTrapPuzzle(_hotspots.Combat.Grid);
+                bool trap = _arenaIsTrap;
                 GameData.Resources.Combat.ArenaOrbit Make(double distance, double zoom = 1) => new(_combatLayout, centre,
-                    0, _combatLayout.StartPitchDegrees, distance, zoom);
+                    0, _combatLayout.StartPitchDegrees, distance, zoom, trap);
                 bool phone = BakAgain.UI.InGame.InGameScreen.PhoneHudOverride ?? Application.isMobilePlatform;
                 _arenaOrbit = new BakAgain.World.Encounters.ArenaOrbitCamera();
                 _arenaOrbit.FrameInto(phone ? _combatLayout.PhoneBoardBottom : _combatLayout.BandHeight,
                     phone ? _combatLayout.PhoneBoardTop : 1f);
                 _arenaOrbit.Bind(_worldCamera, null, _gameSession.PositionX, _gameSession.PositionY, _gameSession.Rotation);
                 _arenaCorners = GameData.Resources.Combat.ArenaOrbit.BoardCorners(start.CombatGridCellSize, underground);
+                if (trap) {
+                    _arenaCorners = GrowCorners(_arenaCorners, _combatLayout.TrapRimCells * start.CombatGridCellSize);
+                }
                 double distance = _arenaOrbit.FitDistance(d => Make(d), _arenaCorners,
-                    _combatLayout.BoardFitMarginX, _combatLayout.BoardFitMarginY);
+                    trap ? 0 : _combatLayout.BoardFitMarginX, trap ? 0 : _combatLayout.BoardFitMarginY);
                 // The fit is zoom 1 and the farthest out; a phone opens closer, where its cells can be tapped.
                 _arenaOrbit.Bind(_worldCamera, Make(distance, phone ? _combatLayout.PhoneStartZoom : 1),
                     _gameSession.PositionX, _gameSession.PositionY, _gameSession.Rotation);
@@ -1965,6 +1971,14 @@ namespace BakAgain.World {
         }
 
         private (double X, double Y)[] _arenaCorners;
+        private bool _arenaIsTrap;
+
+        /// <summary>Whether the fight on screen is a trap board (its camera is held near the party's view).</summary>
+        internal bool ArenaIsTrap => _arenaOrbit?.Orbit != null && _arenaIsTrap;
+
+        // The BoardCorners order: (low, low), (high, low), (low, high), (high, high) on (across, away).
+        private static (double X, double Y)[] GrowCorners((double X, double Y)[] c, double by) => new[] {
+            (c[0].X - by, c[0].Y - by), (c[1].X + by, c[1].Y - by), (c[2].X - by, c[2].Y + by), (c[3].X + by, c[3].Y + by) };
 
         /// <summary>
         /// The whole-board distance for the pose as it is now -- yaw, pitch and the window's shape all move it
@@ -1978,8 +1992,8 @@ namespace BakAgain.World {
             }
             if (_arenaCorners != null) {
                 double fit = _arenaOrbit.FitDistance(d => new GameData.Resources.Combat.ArenaOrbit(_combatLayout,
-                    o.BoardMiddle, o.YawDegrees, o.PitchDegrees, d), _arenaCorners,
-                    _combatLayout.BoardFitMarginX, _combatLayout.BoardFitMarginY);
+                    o.BoardMiddle, o.YawDegrees, o.PitchDegrees, d, 1, o.IsTrap), _arenaCorners,
+                    o.IsTrap ? 0 : _combatLayout.BoardFitMarginX, o.IsTrap ? 0 : _combatLayout.BoardFitMarginY);
                 o.Refit(fit);
             }
             if (apply) {

@@ -37,6 +37,9 @@ namespace BakAgain.UI.Combat.Enhanced {
 
         event Action ResetViewPressed;
 
+        /// <summary>Greys out (false) or restores the camera's quarter-turn buttons; a trap board does not turn.</summary>
+        void SetQuarterTurnsEnabled(bool enabled);
+
         /// <summary>Phone: the peek's Thrust / Swing switch, with the action asked for. Desktop: never (Shift+click swings).</summary>
         event Action<ForecastAction> SwitchPressed;
     }
