@@ -50,7 +50,7 @@ namespace BakAgain.Tests.PlayMode.World {
         private static CombatGrid TrapGrid(bool underground) {
             var grid = new CombatGrid(underground);
             grid.SetTerrain(0, 5, CombatTerrain.Exit);
-            grid.SetTerrain(3, 6, CombatTerrain.Wall);
+            grid.SetTerrain(3, 5, CombatTerrain.Wall);   // on the exit row: not a goal cell
             return grid;
         }
 
@@ -63,6 +63,12 @@ namespace BakAgain.Tests.PlayMode.World {
             CollectionAssert.DoesNotContain(frame.DrawnKinds().ToList(), "EdgeFlash", "no flash until a tap asks for one");
             Assert.AreEqual(EnhancedBoardBounds.GoalCells(grid, false).Count, _root.transform.Find("TrapGoal").childCount,
                 "one quad per standable goal cell");
+
+            // The far wall spans the board only: past the far corners the side walls already dim, and a second
+            // layer drew a hard seam across the scenery at the far rim's height (review, fix round 1).
+            float far = _root.transform.Find("TrapOutsideDim/Far").GetComponent<MeshRenderer>().bounds.size.x;
+            float rim = _root.transform.Find("TrapRim").GetComponent<MeshRenderer>().bounds.size.x;
+            Assert.AreEqual(rim, far, 1e-3f, "the far wall is as wide as the rim, no wider");
         }
 
         [UnityTest]

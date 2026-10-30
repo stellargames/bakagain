@@ -17,8 +17,8 @@ namespace BakAgain.World.Encounters {
     /// right (both running back past the camera) and far -- and are shown only from the board's side, so
     /// everything seen past them, scenery and sky alike, is dimmed while the board in front is not. The apron
     /// dims the ground between the camera and the near rim. Sprites/Default culls nothing, so the walls'
-    /// culling is done here: a wall whose outside the camera is on is hidden. Drawn in a queue before the
-    /// other transparents, so a combatant whose sprite rises over a wall is never dimmed.</para>
+    /// culling is done here: a wall whose outside the camera is on is hidden. A combatant in front of a
+    /// wall is not dimmed because its sprite writes depth (AlphaTest, ZWrite on), not because of the queue.</para>
     /// </remarks>
     public sealed class ArenaTrapFrame : MonoBehaviour {
         private const float LiftStep = 0.015f;          // ArenaBoardMarks' layer step
@@ -109,7 +109,8 @@ namespace BakAgain.World.Encounters {
             GameObject dimRoot = Part("TrapOutsideDim", Quad(Rect(_x0, oy0 - reach, _x1, oy0), lift, dim), _dimMaterial);
             _left = Wall(dimRoot, "Left", ToWorld(_x0, oy0 - reach), ToWorld(_x0, _y1), tall, dim);
             _right = Wall(dimRoot, "Right", ToWorld(_x1, oy0 - reach), ToWorld(_x1, _y1), tall, dim);
-            _far = Wall(dimRoot, "Far", ToWorld(_x0 - reach, _y1), ToWorld(_x1 + reach, _y1), tall, dim);
+            // Only across the board: the side walls already reach _y1, so every ray past the board meets one wall.
+            _far = Wall(dimRoot, "Far", ToWorld(_x0, _y1), ToWorld(_x1, _y1), tall, dim);
 
             // The goal: one flat quad per standable goal cell, under the reach fill's layer.
             var goalRoot = new GameObject("TrapGoal");
@@ -138,7 +139,7 @@ namespace BakAgain.World.Encounters {
             if (_flash == null) {
                 return;
             }
-            _flashUntil = Time.time + _layout.EdgeFlashSeconds;
+            _flashUntil = Time.unscaledTime + _layout.EdgeFlashSeconds;
             _flashMaterial.color = _flashColour;
             _flash.SetActive(true);
         }
@@ -147,7 +148,7 @@ namespace BakAgain.World.Encounters {
             if (_flash == null || !_flash.activeSelf) {
                 return;
             }
-            float left = _flashUntil - Time.time;
+            float left = _flashUntil - Time.unscaledTime;
             if (left <= 0f) {
                 _flash.SetActive(false);
                 return;

@@ -226,7 +226,7 @@ public sealed class EnhancedCombatLayout
     public float[] TrapOutsideDimRgba { get; set; } = { 0f, 0f, 0f, 0.55f };
 
     /// <summary>Trap boards: the tint over the goal cells, RGBA 0..1.</summary>
-    public float[] TrapGoalRgba { get; set; } = { 0.95f, 0.78f, 0.25f, 0.2f };
+    public float[] TrapGoalRgba { get; set; } = { 0.95f, 0.78f, 0.25f, 0.08f };
 
     /// <summary>The edge flash when a tap lands off the board, RGBA 0..1.</summary>
     public float[] EdgeFlashRgba { get; set; } = { 1f, 0.27f, 0.27f, 1f };

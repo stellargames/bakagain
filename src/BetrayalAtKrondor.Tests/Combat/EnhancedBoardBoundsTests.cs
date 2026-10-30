@@ -21,7 +21,9 @@ public class EnhancedBoardBoundsTests {
         Assert.Empty(EnhancedBoardBounds.GoalCells(new CombatGrid(underground: false), false));
 
     [Fact]
-    public void GoalCellsAreTheStandableCellsOnAndPastTheExitRow() {
+    public void GoalCellsAreTheStandableCellsOnTheExitRowOnly() {
+        // A move changes the row by at most 1, so a hero reaching a later row has crossed the exit row and
+        // the trap has ended there (TrapPuzzleGoal.PartyIsOut, row >= exitRow): only that row is the target.
         var grid = new CombatGrid(underground: false);
         grid.SetTerrain(0, 6, CombatTerrain.Exit);
         grid.SetTerrain(4, 6, CombatTerrain.Wall);
@@ -31,22 +33,24 @@ public class EnhancedBoardBoundsTests {
 
         var cells = EnhancedBoardBounds.GoalCells(grid, false);
 
-        Assert.All(new[] { (0, 6), (1, 6), (2, 6), (3, 6), (7, 6), (2, 7) }, c => Assert.Contains(c, cells));
+        Assert.Equal(new[] { (0, 6), (1, 6), (2, 6), (3, 6), (7, 6) }, cells);
         Assert.DoesNotContain((4, 6), cells);
         Assert.DoesNotContain((5, 6), cells);
         Assert.DoesNotContain((6, 6), cells);
-        Assert.DoesNotContain(cells, c => c.Row < 6);
+        Assert.DoesNotContain((2, 7), cells);
+        Assert.All(cells, c => Assert.Equal(6, c.Row));
     }
 
     [Fact]
-    public void UndergroundGoalCellsStopAtTheLastPlayableRow() {
+    public void UndergroundGoalCellsAreTheExitRowsCells() {
         var grid = new CombatGrid(underground: true);
         grid.SetTerrain(0, 5, CombatTerrain.Exit);
 
         var cells = EnhancedBoardBounds.GoalCells(grid, true);
 
-        Assert.Contains((1, 6), cells);
-        Assert.NotEmpty(cells);
-        Assert.DoesNotContain(cells, c => c.Row >= CombatGrid.UndergroundPlayableRows);
+        Assert.Equal(CombatGrid.Width, cells.Count);
+        Assert.All(cells, c => Assert.Equal(5, c.Row));
+        Assert.Contains((0, 5), cells);
+        Assert.DoesNotContain((1, 6), cells);
     }
 }
