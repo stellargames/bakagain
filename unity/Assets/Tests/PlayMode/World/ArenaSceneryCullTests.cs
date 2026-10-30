@@ -56,5 +56,16 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.IsFalse(WorldRuntime.StandsBetweenCameraAndArena(
                 WorldEntityType.MineCorridor, 45f, ArenaDepth));
         }
+
+        [Test]
+        public void AFlatSurfaceIsKeptEvenWhenItMeasuresAsInFront() {
+            // Owner's phone round 4: the trap puzzle fought on black. Two 640-unit ground tiles and a
+            // road measured in front of the near edge (their pivots do) and were culled; their surface
+            // runs under the whole board, so nothing of it stands between the camera and a fighter.
+            foreach (WorldEntityType flat in new[] { WorldEntityType.Ground, WorldEntityType.Road,
+                         WorldEntityType.Bridge, WorldEntityType.Water }) {
+                Assert.IsFalse(WorldRuntime.StandsBetweenCameraAndArena(flat, ArenaDepth - 1f, ArenaDepth), flat.ToString());
+            }
+        }
     }
 }

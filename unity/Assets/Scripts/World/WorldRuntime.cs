@@ -437,6 +437,18 @@ namespace BakAgain.World {
             if (type == GameData.Resources.World.WorldEntityType.MineCorridor) {
                 return false;
             }
+            // *** NOR IS A FLAT SURFACE. *** Ground, road, bridge and water lie UNDER the board: a
+            // 640-unit ground tile's pivot can measure in front of the arena while its surface runs
+            // beneath every cell, and culling it on that reading left the fight on black (owner's
+            // phone round 4, the trap puzzle: two ground tiles and a road culled from an Enhanced
+            // camera pulled back to frame the board). The original's backdrop is the world render,
+            // ground included (combat_captureArenaBackdrop @0x2210b).
+            if (type is GameData.Resources.World.WorldEntityType.Ground
+                or GameData.Resources.World.WorldEntityType.Road
+                or GameData.Resources.World.WorldEntityType.Bridge
+                or GameData.Resources.World.WorldEntityType.Water) {
+                return false;
+            }
 
             return depth > 0f && depth < arenaDepth;
         }
