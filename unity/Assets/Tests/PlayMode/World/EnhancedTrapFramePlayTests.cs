@@ -71,6 +71,38 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.AreEqual(rim, far, 1e-3f, "the far wall is as wide as the rim, no wider");
         }
 
+        // Final review: at its yaw limit the trap camera stands outside a side wall (measured 7.4 cells out on
+        // SAVE02), which hid that wall and left the ground and scenery on that side undimmed.
+        [UnityTest]
+        public IEnumerator ACameraOutsideASideWallDimsThatSideWithTheStripInstead() {
+            _root = new GameObject("arena");
+            var camGo = new GameObject("WorldCamera");
+            try {
+                Camera cam = camGo.AddComponent<Camera>();
+                var corners = ArenaOrbit.BoardCorners(Cell, false);
+                float leftWall = (float)(corners[0].X - (new EnhancedCombatLayout().TrapRimCells * Cell)) / BakCoordinateConverter.WorldScale;
+                cam.transform.position = new Vector3(leftWall - 15f, 30f, -20f);
+                var frame = _root.AddComponent<ArenaTrapFrame>();
+                frame.Bind(true, corners, EnhancedBoardBounds.GoalCells(TrapGrid(false), false), CentreOf,
+                    new EnhancedCombatLayout(), Cell / BakCoordinateConverter.WorldScale, () => cam);
+                yield return null;
+                bool On(string part) => _root.transform.Find("TrapOutsideDim/" + part).GetComponent<MeshRenderer>().enabled;
+                Assert.IsFalse(On("Left"), "the rim's left wall faces away from the camera");
+                Assert.IsTrue(On("LeftFloor") && On("LeftOuter") && On("FarLeft"), "the left side is dimmed by the strip instead");
+                Assert.IsTrue(On("Right") && On("Far"));
+                Assert.IsFalse(On("RightFloor") || On("RightOuter") || On("FarRight"), "the right side keeps its rim wall alone");
+                Bounds strip = _root.transform.Find("TrapOutsideDim/LeftFloor").GetComponent<MeshRenderer>().bounds;
+                Assert.AreEqual(leftWall, strip.max.x, 1e-3f, "the strip meets the rim, no overlap with the board");
+
+                cam.transform.position = new Vector3(0f, 30f, -20f);   // back behind the board's middle
+                yield return null;
+                Assert.IsTrue(On("Left"));
+                Assert.IsFalse(On("LeftFloor") || On("LeftOuter") || On("FarLeft"), "inside, the rim wall alone: nothing dimmed twice");
+            } finally {
+                Object.Destroy(camGo);
+            }
+        }
+
         [UnityTest]
         public IEnumerator ACombatEncounterDrawsNothingUntilFlashed() {
             ArenaTrapFrame frame = Frame(trap: false, underground: false, null);

@@ -17,12 +17,16 @@ namespace BakAgain.World.Encounters {
     /// right (both running back past the camera) and far -- and are shown only from the board's side, so
     /// everything seen past them, scenery and sky alike, is dimmed while the board in front is not. The apron
     /// dims the ground between the camera and the near rim. Sprites/Default culls nothing, so the walls'
-    /// culling is done here: a wall whose outside the camera is on is hidden. A combatant in front of a
+    /// culling is done here: a wall whose outside the camera is on is hidden, and a strip beside the board with a
+    /// wall farther out takes its place (the trap camera can stand outside a side wall at its yaw limit). A combatant in front of a
     /// wall is not dimmed because its sprite writes depth (AlphaTest, ZWrite on), not because of the queue.</para>
     /// </remarks>
     public sealed class ArenaTrapFrame : MonoBehaviour {
         private const float LiftStep = 0.015f;          // ArenaBoardMarks' layer step
         private const float DimReachCells = 400f;       // how far the walls and apron run: past the scenery
+        // ponytail: fixed side margin; the trap camera was measured at most 7.5 cells outside a side wall
+        // (yaw 15, pitch 25, farthest zoom, phone 844x390). A pose past it leaves that side undimmed again.
+        private const float SideReachCells = 12f;
         private const int DimQueue = 2990, FrameQueue = 3000, FlashQueue = 3001;
 
         private EnhancedCombatLayout _layout;
@@ -32,6 +36,10 @@ namespace BakAgain.World.Encounters {
         private readonly List<GameObject> _parts = new();
         private GameObject _flash;
         private Renderer _left, _right, _far;
+        // What stands in for a rim wall once the camera is outside it: a floor strip, a wall farther out, and
+        // the far wall's piece over that strip.
+        private Renderer[] _leftOuter, _rightOuter;
+        private float _dimLift;
         private float _flashUntil;
         private Color _flashColour;
 
@@ -103,6 +111,7 @@ namespace BakAgain.World.Encounters {
 
             // The dim: the apron on the ground before the board, then the three walls.
             float lift = (layout.MarkLiftCells * u) - LiftStep;
+            _dimLift = lift;
             double reach = DimReachCells * _cellSize;
             float tall = DimReachCells * u;
             Color dim = Vertex(layout.TrapOutsideDimRgba);
@@ -111,6 +120,17 @@ namespace BakAgain.World.Encounters {
             _right = Wall(dimRoot, "Right", ToWorld(_x1, oy0 - reach), ToWorld(_x1, _y1), tall, dim);
             // Only across the board: the side walls already reach _y1, so every ray past the board meets one wall.
             _far = Wall(dimRoot, "Far", ToWorld(_x0, _y1), ToWorld(_x1, _y1), tall, dim);
+            double side = SideReachCells * _cellSize, sx0 = _x0 - side, sx1 = _x1 + side;
+            _leftOuter = new[] {
+                Floor(dimRoot, "LeftFloor", Rect(sx0, oy0 - reach, _x0, _y1), lift, dim),
+                Wall(dimRoot, "LeftOuter", ToWorld(sx0, oy0 - reach), ToWorld(sx0, _y1), tall, dim),
+                Wall(dimRoot, "FarLeft", ToWorld(sx0, _y1), ToWorld(_x0, _y1), tall, dim) };
+            _rightOuter = new[] {
+                Floor(dimRoot, "RightFloor", Rect(_x1, oy0 - reach, sx1, _y1), lift, dim),
+                Wall(dimRoot, "RightOuter", ToWorld(sx1, oy0 - reach), ToWorld(sx1, _y1), tall, dim),
+                Wall(dimRoot, "FarRight", ToWorld(_x1, _y1), ToWorld(sx1, _y1), tall, dim) };
+            Outside(_leftOuter, false);
+            Outside(_rightOuter, false);
 
             // The goal: one flat quad per standable goal cell, under the reach fill's layer.
             var goalRoot = new GameObject("TrapGoal");
@@ -167,9 +187,13 @@ namespace BakAgain.World.Encounters {
             Vector3 d = cam.transform.position - _origin;
             double x = _originX + (_cellSize * Vector3.Dot(d, _across) / _across.sqrMagnitude);
             double y = _originY + (_cellSize * Vector3.Dot(d, _away) / _away.sqrMagnitude);
+            // Outside a side wall, that wall would face away and hide; the strip beside the board, a wall
+            // farther out and the far wall's piece over the strip take its place, so nothing is dimmed twice.
             _left.enabled = x > _x0;
             _right.enabled = x < _x1;
             _far.enabled = y < _y1;
+            Outside(_leftOuter, !_left.enabled);
+            Outside(_rightOuter, !_right.enabled);
         }
 
         private void OnDestroy() {
@@ -218,11 +242,29 @@ namespace BakAgain.World.Encounters {
             return mesh;
         }
 
+        private static void Outside(Renderer[] parts, bool on) {
+            foreach (Renderer r in parts) {
+                r.enabled = on;
+            }
+        }
+
+        private Renderer Floor(GameObject parent, string name, Vector3[] rect, float lift, Color colour) {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent.transform, false);
+            go.AddComponent<MeshFilter>().sharedMesh = Quad(rect, lift, colour);
+            var r = go.AddComponent<MeshRenderer>();
+            r.sharedMaterial = _dimMaterial;
+            return r;
+        }
+
         private Renderer Wall(GameObject parent, string name, Vector3 from, Vector3 to, float tall, Color colour) {
             var go = new GameObject(name);
             go.transform.SetParent(parent.transform, false);
             go.AddComponent<MeshFilter>().sharedMesh = MakeMesh(
-                new List<Vector3> { from, to, to + (Vector3.up * tall), from + (Vector3.up * tall) },
+                // The walls stand on the dim floor's height, not the ground: from the ground up they and the
+                // floor's edge both covered a thin band, a dark hairline along every join (seen live).
+                new List<Vector3> { from + (Vector3.up * _dimLift), to + (Vector3.up * _dimLift),
+                    to + (Vector3.up * tall), from + (Vector3.up * tall) },
                 new List<int> { 0, 1, 2, 0, 2, 3 }, colour);
             var r = go.AddComponent<MeshRenderer>();
             r.sharedMaterial = _dimMaterial;
