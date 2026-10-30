@@ -213,6 +213,27 @@ public sealed class EnhancedCombatLayout
     /// strikes (owner, 2026-10-29: explain the move + attack combo).</summary>
     public float[] MarkWalkEndRgba { get; set; } = { 0.55f, 0.85f, 1f, 1f };
 
+    /// <summary>Trap boards: how far a drag may turn the camera either side of its start, in degrees.</summary>
+    public float TrapYawLimitDegrees { get; set; } = 15f;
+
+    /// <summary>Trap boards: the width of the rim drawn round the board edge, in cells.</summary>
+    public float TrapRimCells { get; set; } = 0.15f;
+
+    /// <summary>Trap boards: the rim's colour, RGBA 0..1.</summary>
+    public float[] TrapRimRgba { get; set; } = { 0.54f, 0.49f, 0.42f, 1f };
+
+    /// <summary>Trap boards: the dim laid over everything past the rim, RGBA 0..1.</summary>
+    public float[] TrapOutsideDimRgba { get; set; } = { 0f, 0f, 0f, 0.55f };
+
+    /// <summary>Trap boards: the tint over the goal cells, RGBA 0..1.</summary>
+    public float[] TrapGoalRgba { get; set; } = { 0.95f, 0.78f, 0.25f, 0.2f };
+
+    /// <summary>The edge flash when a tap lands off the board, RGBA 0..1.</summary>
+    public float[] EdgeFlashRgba { get; set; } = { 1f, 0.27f, 0.27f, 1f };
+
+    /// <summary>How long the off-board edge flash lasts, in seconds.</summary>
+    public float EdgeFlashSeconds { get; set; } = 0.4f;
+
     /// <summary>A foe's letter plate: width and height, in cells.</summary>
     public float PlateWidthCells { get; set; } = 0.35f;
 
