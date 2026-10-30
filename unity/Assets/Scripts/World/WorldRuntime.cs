@@ -1905,7 +1905,8 @@ namespace BakAgain.World {
         /// Whether gliding the close view onto <paramref name="point"/> would move anything worth a glide: the
         /// point is outside the framed band, and the orbit's centre would shift by at least
         /// <see cref="GameData.Resources.Layout.EnhancedCombatLayout.FocusGlideMinCells"/>. At the whole-board zoom
-        /// the centre ignores the focus, so nothing ever glides there (TASK-972 round 4 review M1).
+        /// the centre ignores the focus, so nothing ever glides there (TASK-972 round 4 review M1) -- except in a
+        /// trap, whose view follows the focus up the board at every zoom (ArenaOrbit.CentreFocusedOn).
         /// </summary>
         private bool GlideWouldMoveView((double X, double Y) point) {
             GameData.Resources.Combat.ArenaOrbit orbit = _arenaOrbit.Orbit;

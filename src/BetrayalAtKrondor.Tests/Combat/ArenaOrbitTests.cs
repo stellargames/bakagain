@@ -129,6 +129,19 @@ public class ArenaOrbitTests {
     }
 
     [Fact]
+    public void ATrapViewFollowsTheFocusUpTheBoardAtTheFarthestZoom_NeverBackPastTheMiddle() {
+        var trap = new ArenaOrbit(Layout, (1000, 2000), 0, 40, 1000, 1, trap: true);
+        trap.Focus((900, 3500));
+        Assert.Equal((1000, 3500), trap.Centre);
+        trap.Focus((900, 1200));
+        Assert.Equal((1000, 2000), trap.Centre);
+
+        var fight = new ArenaOrbit(Layout, (1000, 2000), 0, 40, 1000, 1);
+        fight.Focus((900, 3500));
+        Assert.Equal((1000, 2000), fight.Centre);
+    }
+
+    [Fact]
     public void ABoardCutAtARowEndsAtThatRowsFarEdge() {
         var full = ArenaOrbit.BoardCorners(300, underground: false);
         var cut = ArenaOrbit.BoardCorners(300, underground: false, lastRow: 5);

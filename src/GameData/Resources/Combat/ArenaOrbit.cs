@@ -54,6 +54,11 @@ public sealed class ArenaOrbit {
     public (double X, double Y) CentreFocusedOn((double X, double Y) focus) {
         double t = _layout.ZoomMax > _layout.ZoomMin
             ? Math.Clamp((_layout.ZoomMax - _zoom) / (_layout.ZoomMax - _layout.ZoomMin), 0, 1) : 0;
+        if (IsTrap) {
+            // A trap's farthest zoom frames the width only, so along the board the view follows the focus at
+            // every zoom, never back past the middle (owner, round 6: the far rows were out of reach).
+            return (_centre.X + ((focus.X - _centre.X) * t), Math.Max(focus.Y, _centre.Y));
+        }
         return t == 0 ? _centre : (_centre.X + ((focus.X - _centre.X) * t), _centre.Y + ((focus.Y - _centre.Y) * t));
     }
 

@@ -202,9 +202,10 @@ public sealed class EnhancedCombatLayout
     /// <summary>How far the marks sit above the ground, in cells: clear of the road's own paint-order lift.</summary>
     public float MarkLiftCells { get; set; } = 0.05f;
 
-    /// <summary>A reachable cell is drawn as the ground under it this much lighter (1.2 = 20%, as the eye sees
-    /// it), not in a colour of its own (owner, round 6: the green squares were too bright). 1..2.</summary>
-    public float MarkReachLighten { get; set; } = 1.2f;
+    /// <summary>A reachable cell is drawn as the ground under it this much lighter (1.3 = 30%, as the eye sees
+    /// it), not in a colour of its own (owner, round 6: the green squares were too bright; then "a touch
+    /// lighter"). 1..2.</summary>
+    public float MarkReachLighten { get; set; } = 1.3f;
 
     /// <summary>The other marks' colours, RGBA 0..1: the acting hero's cell, a foe a Thrust reaches,
     /// a foe a Swing reaches (a frame nested inside the Thrust's), the foe under the pointer.</summary>
