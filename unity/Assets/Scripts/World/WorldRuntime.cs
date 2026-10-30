@@ -922,7 +922,7 @@ namespace BakAgain.World {
                 return;
             }
 
-            GameData.Resources.Combat.CombatGrid grid = _hotspots.Combat?.Puzzle?.Grid;
+            CombatGrid grid = _hotspots.Combat?.Puzzle?.Grid;
             BeginPropEmergence();
 
             var rising = new List<(Transform Prop, int GridX, int GridY)>();
@@ -1645,6 +1645,7 @@ namespace BakAgain.World {
                     _hotspots.ActingCellSegments);
 
             AttachBoardMarks(_arenaRoot);
+            AttachTrapFrame(_arenaRoot);
             AttachSeeThrough(_arenaRoot);
 
             // *** THE COLLAPSE PLAYS ONCE, ON THE BODY THAT HAS JUST APPEARED. *** A corpse is
@@ -2814,6 +2815,35 @@ namespace BakAgain.World {
                 _combatLayout, 0f, () => _worldCamera);
             return marks;
         }
+
+        /// <summary>
+        /// Enhanced combat only (TASK-972): the board's frame on the arena root. In a trap the rim, the dimmed
+        /// surroundings and the goal tint; in any Enhanced fight the off-board flash (<see cref="TrapFrame"/>).
+        /// </summary>
+        internal Encounters.ArenaTrapFrame AttachTrapFrame(GameObject arenaRoot) {
+            _trapFrame = null;
+            StartData start = _startForTest ?? _hotspots?.Start;
+            if (!EnhancedCombatOn() || arenaRoot == null || _hotspots == null || start == null
+                || start.CombatGridCellSize <= 0) {
+                return null;
+            }
+            bool underground = _zoneIsUnderground;
+            CombatGrid grid = _hotspots.Combat?.Grid;
+            bool trap = ArenaIsTrap && grid != null;
+            _trapFrame = arenaRoot.AddComponent<Encounters.ArenaTrapFrame>();
+            _trapFrame.Bind(trap,
+                ArenaOrbit.BoardCorners(start.CombatGridCellSize, underground),
+                trap ? EnhancedBoardBounds.GoalCells(grid, underground)
+                    : new System.Collections.Generic.List<(int Column, int Row)>(),
+                _hotspots.CellCentreWorld, _combatLayout,
+                start.CombatGridCellSize / BakCoordinateConverter.WorldScale, () => _worldCamera);
+            return _trapFrame;
+        }
+
+        private Encounters.ArenaTrapFrame _trapFrame;
+
+        /// <summary>The frame on the arena drawn now, or null: what an off-board tap flashes.</summary>
+        internal Encounters.ArenaTrapFrame TrapFrame => _trapFrame;
 
         /// <summary>
         /// The see-through driver, always on the arena root; it reads the turn latch every frame, so an
