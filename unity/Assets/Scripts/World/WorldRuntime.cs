@@ -1888,15 +1888,38 @@ namespace BakAgain.World {
                 _arenaOrbit.Apply();
                 return;
             }
+            // A hero already in view leaves the camera still (owner's phone round 4: the fewest moves).
+            if (!GlideWouldMoveView((across, away))) {
+                return;
+            }
             orbit.GlideFocus((across, away), _combatLayout.FocusGlideSeconds);
             GlideArenaFocusAsync(orbit).Forget();
         }
 
+        internal void FocusHeroForTest(Combatant hero) => FocusArenaOn(hero);
+
         private bool _arenaFocused;
 
         /// <summary>
+        /// Whether gliding the close view onto <paramref name="point"/> would move anything worth a glide: the
+        /// point is outside the framed band, and the orbit's centre would shift by at least
+        /// <see cref="GameData.Resources.Layout.EnhancedCombatLayout.FocusGlideMinCells"/>. At the whole-board zoom
+        /// the centre ignores the focus, so nothing ever glides there (TASK-972 round 4 review M1).
+        /// </summary>
+        private bool GlideWouldMoveView((double X, double Y) point) {
+            GameData.Resources.Combat.ArenaOrbit orbit = _arenaOrbit.Orbit;
+            if (_arenaOrbit.InFrame(point.X, point.Y, _combatLayout.FocusInViewMargin)) {
+                return false;
+            }
+            (double X, double Y) now = orbit.Centre, then = orbit.CentreFocusedOn(point);
+            double dx = then.X - now.X, dy = then.Y - now.Y;
+            return System.Math.Sqrt((dx * dx) + (dy * dy)) >= _combatLayout.FocusGlideMinCells * _arenaCellSize;
+        }
+
+        /// <summary>
         /// Enhanced combat: before a monster acts, glide the close view onto it if its cell is not in the
-        /// framed band, and wait for the glide; a monster already in view leaves the camera still.
+        /// framed band, and wait for the glide; a monster already in view, or a glide that would not move the
+        /// view, leaves the camera still and costs no wait.
         /// </summary>
         internal UniTask FrameEnemyForTest(Combatant monster) => FrameEnemyAsync(monster);
 
@@ -1905,7 +1928,7 @@ namespace BakAgain.World {
                 return;
             }
             (int across, int away) = GameData.Resources.Combat.CombatArenaPlacement.CellOffset(monster.X, monster.Y, _arenaCellSize);
-            if (_arenaOrbit.InFrame(across, away, _combatLayout.EnemyInViewMargin)) {
+            if (!GlideWouldMoveView((across, away))) {
                 return;
             }
             GameData.Resources.Combat.ArenaOrbit orbit = _arenaOrbit.Orbit;

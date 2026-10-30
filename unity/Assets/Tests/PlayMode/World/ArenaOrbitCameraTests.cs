@@ -356,6 +356,48 @@ namespace BakAgain.Tests.PlayMode.World {
             }
         }
 
+        // Review I2: the next hero already in view leaves the camera still; only one out of view is glided to.
+        [UnityEngine.TestTools.UnityTest]
+        public System.Collections.IEnumerator AHeroAlreadyInViewCausesNoCameraMove() {
+            bool? keep = InGameScreen.PhoneHudOverride;
+            InGameScreen.PhoneHudOverride = true;
+            try {
+                BakAgain.World.WorldRuntime world = NewWorld(combat: true, out Camera cam);
+                world.PointCameraAtArena();
+                world.ZoomArena(0.01f);
+                var orbit = world.ArenaOrbitForTest;
+                world.FocusHeroForTest(new GameData.Resources.Combat.Combatant { X = 3, Y = 6 });   // the fight's first: framed at once
+                (double X, double Y) framed = orbit.Centre;
+                world.FocusHeroForTest(new GameData.Resources.Combat.Combatant { X = 4, Y = 6 });   // the next cell, in view
+                for (int i = 0; i < 10; i++) {
+                    yield return null;
+                }
+                Assert.AreEqual(framed, orbit.Centre, "a hero in view: no glide");
+
+                world.FocusHeroForTest(new GameData.Resources.Combat.Combatant { X = 0, Y = 12 });  // the far corner
+                float until = Time.realtimeSinceStartup + 2f;
+                while (Time.realtimeSinceStartup < until) {
+                    yield return null;
+                }
+                Assert.AreNotEqual(framed, orbit.Centre, "a hero out of view: the control, it glides");
+            } finally {
+                InGameScreen.PhoneHudOverride = keep;
+            }
+        }
+
+        // Review M1: at the whole-board zoom the centre ignores the focus, so a glide would move nothing: no wait.
+        [Test]
+        public void AtTheWholeBoardZoomAMonsterCostsNoGlide() {
+            BakAgain.World.WorldRuntime world = NewWorld(combat: true, out Camera cam);
+            world.PointCameraAtArena();
+            world.ZoomArena(1000f);
+            var orbit = world.ArenaOrbitForTest;
+            (double X, double Y) before = orbit.Centre;
+            var task = world.FrameEnemyForTest(new GameData.Resources.Combat.Combatant { X = 0, Y = 12 });
+            Assert.AreEqual(Cysharp.Threading.Tasks.UniTaskStatus.Succeeded, task.Status, "no wait");
+            Assert.AreEqual(before, orbit.Centre);
+        }
+
         [Test]
         public void ClassicNeverMovesTheCameraForAMonster() {
             BakAgain.World.WorldRuntime world = NewWorld(combat: false, out Camera cam);

@@ -39,12 +39,13 @@ public sealed class ArenaOrbit {
     /// leaning toward <see cref="Focus"/> as it comes closer, onto it at the closest -- so a close view
     /// shows the acting hero rather than the board's empty middle.
     /// </summary>
-    public (double X, double Y) Centre {
-        get {
-            double t = _layout.ZoomMax > _layout.ZoomMin
-                ? Math.Clamp((_layout.ZoomMax - _zoom) / (_layout.ZoomMax - _layout.ZoomMin), 0, 1) : 0;
-            return t == 0 ? _centre : (_centre.X + ((_focus.X - _centre.X) * t), _centre.Y + ((_focus.Y - _centre.Y) * t));
-        }
+    public (double X, double Y) Centre => CentreFocusedOn(_focus);
+
+    /// <summary>What <see cref="Centre"/> would be at this zoom with the focus on <paramref name="focus"/>.</summary>
+    public (double X, double Y) CentreFocusedOn((double X, double Y) focus) {
+        double t = _layout.ZoomMax > _layout.ZoomMin
+            ? Math.Clamp((_layout.ZoomMax - _zoom) / (_layout.ZoomMax - _layout.ZoomMin), 0, 1) : 0;
+        return t == 0 ? _centre : (_centre.X + ((focus.X - _centre.X) * t), _centre.Y + ((focus.Y - _centre.Y) * t));
     }
 
     /// <summary>The middle of the playable board: what the camera turns around at the farthest zoom.</summary>

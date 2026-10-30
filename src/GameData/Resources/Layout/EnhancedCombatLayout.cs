@@ -144,10 +144,14 @@ public sealed class EnhancedCombatLayout
     /// "make the camera jump smooth").</summary>
     public float FocusGlideSeconds { get; set; } = 0.6f;
 
-    /// <summary>How far inside the board's framed band (viewport fraction) a monster's cell must be to count as in
-    /// view; outside it the camera glides to the monster before it acts (owner, 2026-10-30: "the camera appears to
-    /// be jerking around the enemy turns"). A tenth keeps a monster at the very edge from acting half off screen.</summary>
-    public float EnemyInViewMargin { get; set; } = 0.1f;
+    /// <summary>How far inside the board's framed band (viewport fraction) a hero's or monster's cell must be to count
+    /// as in view; only outside it does the camera glide to it (owner, 2026-10-30: "the camera appears to be jerking
+    /// around the enemy turns" -- the fewest moves). A tenth keeps one at the very edge from acting half off screen.</summary>
+    public float FocusInViewMargin { get; set; } = 0.1f;
+
+    /// <summary>The least a glide must shift the view's centre, in cells, to be made at all: a smaller shift is a
+    /// twitch, and at the whole-board zoom the centre does not follow the focus, so no glide happens there.</summary>
+    public float FocusGlideMinCells { get; set; } = 1f;
 
     /// <summary>
     /// Seconds held after a monster's action has finished playing, before the next turn (owner, 2026-10-30:
