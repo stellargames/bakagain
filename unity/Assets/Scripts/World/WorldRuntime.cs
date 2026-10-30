@@ -437,7 +437,8 @@ namespace BakAgain.World {
             if (type == GameData.Resources.World.WorldEntityType.MineCorridor) {
                 return false;
             }
-            // *** NOR IS A FLAT SURFACE. *** Ground, road, bridge and water lie UNDER the board: a
+            // *** NOR IS A FLAT SURFACE. *** Ground, road and water lie UNDER the board (every such
+            // model in the zone TBLs is flat, Z 0..0; a bridge is not, 480 tall with railings): a
             // 640-unit ground tile's pivot can measure in front of the arena while its surface runs
             // beneath every cell, and culling it on that reading left the fight on black (owner's
             // phone round 4, the trap puzzle: two ground tiles and a road culled from an Enhanced
@@ -445,7 +446,6 @@ namespace BakAgain.World {
             // ground included (combat_captureArenaBackdrop @0x2210b).
             if (type is GameData.Resources.World.WorldEntityType.Ground
                 or GameData.Resources.World.WorldEntityType.Road
-                or GameData.Resources.World.WorldEntityType.Bridge
                 or GameData.Resources.World.WorldEntityType.Water) {
                 return false;
             }
