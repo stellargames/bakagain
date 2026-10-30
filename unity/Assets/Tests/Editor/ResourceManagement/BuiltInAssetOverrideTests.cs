@@ -255,6 +255,8 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
             string[] users = Directory.EnumerateFiles(scripts, "*.cs", SearchOption.AllDirectories)
                 .Where(f => File.ReadAllText(f).Contains("Resources.Load"))
                 .Where(f => !f.Contains("SimpleFileBrowser"))
+                // A development player's play-test saves, staged by the Android build: not game content, no mod layer.
+                .Where(f => Path.GetFileName(f) != "TestSaves.cs")
                 .ToArray();
 
             CollectionAssert.IsEmpty(users, "a Resources.Load bypasses the mod layers: load through Addressables");
