@@ -170,7 +170,8 @@ namespace BakAgain.UI.Combat.Enhanced {
         public static string Round(int n) => n > 0 ? UiTemplates.Format(UiTemplates.HudRound, ("n", n)) : "";
 
         public static string Reason(CombatForecast f) =>
-            string.IsNullOrEmpty(f?.ReasonKey) ? "" : UiTemplates.Format(f.ReasonKey);
+            !string.IsNullOrEmpty(f?.Reason) ? f.Reason
+            : string.IsNullOrEmpty(f?.ReasonKey) ? "" : UiTemplates.Format(f.ReasonKey);
 
         public static ActionAvailability Availability(CombatHudModel m, CombatCommands.Command c) =>
             m?.Stones != null && m.Stones.TryGetValue(c, out ActionAvailability a) ? a : ActionAvailability.On;

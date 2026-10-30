@@ -150,6 +150,11 @@ namespace BakAgain.Tests.Editor.Combat {
             CombatForecast retreat = r.ForecastNoTarget(f.Party[0], ForecastAction.Retreat);
             Assert.IsFalse(retreat.Allowed);
             Assert.AreEqual(UiTemplates.EnhancedAvailHeroDown, retreat.ReasonKey);
+            // What the HUD prints names the fallen hero; the key alone left "{name}" on screen.
+            string shown = BakAgain.UI.Combat.Enhanced.CombatHudText.Reason(retreat);
+            StringAssert.EndsWith(" is down", shown);
+            StringAssert.DoesNotContain("{", shown);
+            StringAssert.DoesNotContain("name", shown);
         }
 
         [Test]

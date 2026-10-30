@@ -1504,8 +1504,10 @@ namespace BakAgain.Combat {
             }
             string key = action == ForecastAction.Pack && a.Enabled ? UiTemplates.EnhancedForecastPackNote
                 : a.ReasonKey;
+            // The availability's own text carries its arguments ("{name} is down"); the key alone
+            // would show the placeholder (owner's phone round 4).
             return new CombatForecast(action, -1, NoPath, 0, null, 0, 0, null, 0, 0, gain,
-                true, a.Enabled, a.Warned, key);
+                true, a.Enabled, a.Warned, key, key == a.ReasonKey ? a.Reason : "");
         }
 
         /// <summary>

@@ -14,8 +14,10 @@ public enum ForecastAction { Move, Thrust, Swing, Inspect, Defend, Rest, Retreat
 /// <param name="DamageAbout">The damage, only once the foe's Defense is revealed; before that the
 /// band <see cref="DamageLow"/>..<see cref="DamageHigh"/> is all that is said.</param>
 /// <param name="ReasonKey">A <c>UiTemplates</c> key: why not allowed, why warned, or a note; empty if none.</param>
+/// <param name="Reason">The reason already formatted with its arguments ("Gorath is down"); empty when
+/// the key takes none and the HUD formats it itself.</param>
 public sealed record CombatForecast(
     ForecastAction Action, int TargetSlot, IReadOnlyList<(int Col, int Row)> Path,
     int HitPips, int? HitPercentAbout, int DamageLow, int DamageHigh, int? DamageAbout,
     int StaminaCost, int HealthCost, int RestGain, bool EndsTurn,
-    bool Allowed, bool Warned, string ReasonKey);
+    bool Allowed, bool Warned, string ReasonKey, string Reason = "");
