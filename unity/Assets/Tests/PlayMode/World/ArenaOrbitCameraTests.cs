@@ -408,17 +408,41 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.AreEqual(0f, Vector3.Distance(eye, cam.transform.position), 1e-3f);
         }
 
-        // The original waits for a swing and a fall (combat_actor_anim_play wait 1, CACTOR.C:1895); the arena
-        // counts them as work, so the next turn cannot start and rebuild the sprite under them.
+        // The original waits for a swing and a fall (combat_actor_anim_play wait 1, CACTOR.C:1895). A real
+        // AttackSwing, over a stub image set, keeps the arena busy until its last frame (review M3).
         [UnityEngine.TestTools.UnityTest]
         public System.Collections.IEnumerator ASwingHoldsTheArenaUntilItEnds() {
             BakAgain.World.WorldRuntime world = NewWorld(combat: false, out _);
-            var swing = new Cysharp.Threading.Tasks.UniTaskCompletionSource();
-            world.HoldArenaWhile(swing.Task);
-            Assert.AreEqual(1, world.ArenaWorkForTest, "busy while it plays");
-            swing.TrySetResult();
-            yield return null;
-            Assert.AreEqual(0, world.ArenaWorkForTest, "idle once it has played");
+            var provider = new BakAgain.Tests.Editor.Core.Fixtures.FakeResourceProviderService();
+            var set = new GameData.Resources.Image.ImageSet("SWING.BMX");
+            for (int i = 0; i < 12; i++) {
+                set.Images.Add(new GameData.Resources.Image.BmImage("SWING.BMX#" + i) {
+                    Width = 1, Height = 1, BitMapData = new byte[] { 1 } });
+            }
+            provider.Register("SWING.BMX", set);
+            var palette = new Color[256];
+            for (int i = 0; i < palette.Length; i++) {
+                palette[i] = Color.white;
+            }
+            var ctx = BakAgain.World.WorldEntityRenderContext.Create(palette, new BakAgain.World.Rendering.WorldRenderProfile());
+            ctx.ResourceProvider = provider;
+            var sprite = new GameObject("swinger", typeof(MeshFilter), typeof(MeshRenderer));
+            try {
+                Assert.IsFalse(world.ArenaBusyForTest, "the control: an idle arena");
+                var swing = sprite.AddComponent<BakAgain.World.Encounters.AttackSwing>()
+                    .Play(ctx, new GameData.Resources.World.SpriteBMeshFace(), "SWING", 0, 100);
+                Assert.IsTrue(world.ArenaBusyForTest, "busy from the first frame of the swing");
+                float until = Time.realtimeSinceStartup + 5f;
+                while (swing.Status == Cysharp.Threading.Tasks.UniTaskStatus.Pending && Time.realtimeSinceStartup < until) {
+                    Assert.IsTrue(world.ArenaBusyForTest, "busy while it plays");
+                    yield return null;
+                }
+                Assert.AreEqual(Cysharp.Threading.Tasks.UniTaskStatus.Succeeded, swing.Status);
+                Assert.IsFalse(world.ArenaBusyForTest, "idle once it has played");
+            } finally {
+                Object.Destroy(sprite);
+                ctx.Dispose();
+            }
         }
     }
 }

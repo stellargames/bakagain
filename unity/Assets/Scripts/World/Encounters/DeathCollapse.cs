@@ -69,7 +69,20 @@ namespace BakAgain.World.Encounters {
             return RunAsync();
         }
 
+        /// <summary>Falls still playing; the arena counts them as busy (the original waits for
+        /// <c>combat_actor_play_anim_sprite1</c>, COMBAT.C:226 / CACTOR.C:1895).</summary>
+        public static int Playing { get; private set; }
+
         private async UniTask RunAsync() {
+            Playing++;
+            try {
+                await RunCoreAsync();
+            } finally {
+                Playing--;
+            }
+        }
+
+        private async UniTask RunCoreAsync() {
             var filter = GetComponent<MeshFilter>();
             var renderer = GetComponent<MeshRenderer>();
             if (filter == null || renderer == null) {

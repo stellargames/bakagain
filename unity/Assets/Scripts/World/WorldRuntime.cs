@@ -1149,28 +1149,19 @@ namespace BakAgain.World {
         private int _arenaWork;
 
         /// <summary>
-        /// Counts a swing or a collapse as arena work until it ends, so the turn waits for it.
+        /// Whether the arena is still playing something the turn must wait for: a slide, a redraw or
+        /// flight (<see cref="_arenaWork"/>), a spell visual, a swing or a fall.
         /// </summary>
         /// <remarks>
-        /// The original WAITS for both: <c>combat_actor_play_anim_sprite3</c> (the swing, COMBAT.C:489)
-        /// and <c>_sprite1</c> (the fall, COMBAT.C:226) call <c>combat_actor_anim_play</c> with wait 1,
-        /// which renders until the run is done (CACTOR.C:1895). Fired and forgotten, the next turn's
-        /// rebuild destroyed the sprite mid-swing, so a monster's blow was barely seen (owner's phone
-        /// round 4). Counted before the first await, so no gap reads as idle.
+        /// The swing and the fall count themselves (<see cref="Encounters.AttackSwing.Playing"/>,
+        /// <see cref="Encounters.DeathCollapse.Playing"/>): the original waits for both
+        /// (<c>combat_actor_anim_play</c> wait 1, CACTOR.C:1895; COMBAT.C:489 swing, :226 fall). Fired and
+        /// forgotten, the next turn's rebuild destroyed the sprite mid-swing (owner's phone round 4).
         /// </remarks>
-        internal void HoldArenaWhile(UniTask animation) => HoldArenaWhileAsync(animation).Forget();
+        private bool ArenaBusy() => _sliding || _arenaWork > 0 || (_spellVfx?.Playing ?? false)
+            || Encounters.AttackSwing.Playing > 0 || Encounters.DeathCollapse.Playing > 0;
 
-        /// <summary>Redraws, flights and animations still playing (tests).</summary>
-        internal int ArenaWorkForTest => _arenaWork;
-
-        private async UniTaskVoid HoldArenaWhileAsync(UniTask animation) {
-            _arenaWork++;
-            try {
-                await animation;
-            } finally {
-                _arenaWork--;
-            }
-        }
+        internal bool ArenaBusyForTest => ArenaBusy();
 
         private async UniTask SlideThenRedrawAsync() {
             // The whole redraw counts, so a flight it launches is already counted when it ends.
@@ -1565,9 +1556,9 @@ namespace BakAgain.World {
                 if (sprite == null || attackSet == null || marker.Face == null) {
                     continue;
                 }
-                HoldArenaWhile(marker.gameObject.AddComponent<Encounters.AttackSwing>().Play(
+                marker.gameObject.AddComponent<Encounters.AttackSwing>().Play(
                     _zoneSceneBuilder.RenderContext, marker.Face, attackSet,
-                    sprite.CurrentOctant, marker.Extent));
+                    sprite.CurrentOctant, marker.Extent).Forget();
             }
 
             // *** A SHOT ARMED BY THE MODEL FLIES HERE. *** Same carry-across as the swing above:
@@ -1667,9 +1658,9 @@ namespace BakAgain.World {
                     continue;
                 }
                 dead.DeathShown = true;
-                HoldArenaWhile(corpse.gameObject.AddComponent<Encounters.DeathCollapse>().Play(
+                corpse.gameObject.AddComponent<Encounters.DeathCollapse>().Play(
                     _zoneSceneBuilder.RenderContext, corpse.Face, corpse.SetName,
-                    corpse.CollapseLastFrame, corpse.Extent));
+                    corpse.CollapseLastFrame, corpse.Extent).Forget();
             }
 
             // *** THE RECOIL'S CLOCK IS THIS REDRAW, AND THE TICK COMES AFTER THE DRAW. ***
@@ -2572,7 +2563,7 @@ namespace BakAgain.World {
                 redrawArena: () => SlideThenRedrawAsync().Forget(),
                 // A spell's effect is part of its turn: the original plays it inside the cast
                 // (cspell_invoke_effect, CSPELL.C:786), so the turn passes only once it is over (TASK-1011).
-                arenaBusy: () => _sliding || _arenaWork > 0 || (_spellVfx?.Playing ?? false),
+                arenaBusy: ArenaBusy,
                 // The loot screen is the travel HUD's, so the service asks rather than reaching for
                 // it. Same shape as showArena: a callback into whoever owns the UI.
                 openCorpseLoot: OpenCorpseLoot,

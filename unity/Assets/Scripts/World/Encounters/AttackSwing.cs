@@ -67,7 +67,22 @@ namespace BakAgain.World.Encounters {
             return RunAsync(ctx, face, setName, RunStartFor(octant), extent);
         }
 
+        /// <summary>Swings still playing. The arena counts them as busy, so the turn waits for them as the
+        /// original's <c>combat_actor_anim_play(..., wait 1, ...)</c> does (CACTOR.C:1895); kept here rather than
+        /// at the call site so a caller cannot forget it (TASK-972 round 4).</summary>
+        public static int Playing { get; private set; }
+
         private async UniTask RunAsync(WorldEntityRenderContext ctx, SpriteBMeshFace face,
+            string setName, int start, int extent) {
+            Playing++;
+            try {
+                await RunCoreAsync(ctx, face, setName, start, extent);
+            } finally {
+                Playing--;
+            }
+        }
+
+        private async UniTask RunCoreAsync(WorldEntityRenderContext ctx, SpriteBMeshFace face,
             string setName, int start, int extent) {
             var filter = GetComponent<MeshFilter>();
             var renderer = GetComponent<MeshRenderer>();
