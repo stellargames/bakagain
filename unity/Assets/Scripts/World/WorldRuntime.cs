@@ -1469,6 +1469,7 @@ namespace BakAgain.World {
                     () => ResolveCombatMenu()?.GetComponent<UnityEngine.UIElements.UIDocument>()?.rootVisualElement,
                     CombatStoneImage, TurnArenaQuarter, ResetArenaView, CombatControllerFor, () => ArenaIsTrap);
                 screen.SetCombatPickPendingSeam(() => _hotspots?.CombatPickPending ?? false);
+                screen.SetBoardEdgeFlashSeam(() => _trapFrame?.Flash(), () => _zoneIsUnderground);
                 _combatScreen = screen;
                 // One encounter fights against a painted backdrop instead of the world. Handed over
                 // with the rest of the seams because this is the redraw the arena runs every turn,

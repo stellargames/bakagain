@@ -106,5 +106,74 @@ namespace BakAgain.Tests.PlayMode.World {
                 "the rim stands just past row 6's far edge, not round the blocked rows");
             Assert.Less(farthest, (float)ArenaOrbit.BoardCorners(Cell, underground: false)[3].Y / BakCoordinateConverter.WorldScale);
         }
+
+        // ---- the tap path: an off-board tap flashes and does nothing else ----
+
+        private GameObject _screenGo;
+
+        private (BakAgain.UI.InGame.InGameScreen Screen, BakAgain.World.Hotspots.HotspotService S,
+            GameData.Resources.Combat.Combatant Hero, BakAgain.UI.Combat.Enhanced.EnhancedCombatController C, int[] Flashes)
+            Tap(bool underground, System.Func<Vector2, ((int, int)?, (int, bool)?, bool)> probe) {
+            BakAgain.Core.GameOptions.SetFeature(BakAgain.Core.EnhancedFeature.Combat, true);
+            var (s, hero) = BakAgain.Tests.Editor.World.Hotspots.EnhancedBoardMarksTests.PartyTurn(
+                underground: underground, roll: 0, arenaBusy: () => true,
+                dialogs: new BakAgain.Tests.PlayMode.UI.Inventory.NoOpDialogs());
+            BakAgain.Tests.Editor.World.Hotspots.EnhancedBoardMarksTests.Place(s, hero, (4, 5), 5, (0, 5, 5));
+            var c = new BakAgain.UI.Combat.Enhanced.EnhancedCombatController(s, s.Combat, null, new EnhancedCombatLayout(),
+                null, false, null, () => 0f);
+            _screenGo = new GameObject("tapScreen");
+            _screenGo.SetActive(false);
+            var screen = _screenGo.AddComponent<BakAgain.UI.InGame.InGameScreen>();
+            screen.SetInCombatPredicate(() => true);
+            screen.CombatController = c;
+            var flashes = new int[1];
+            screen.SetBoardEdgeFlashSeam(() => flashes[0]++, () => underground);
+            screen.SetBoardProbeForTest(v => probe(v));
+            return (screen, s, hero, c, flashes);
+        }
+
+        [TearDown]
+        public void DropScreen() { if (_screenGo != null) { Object.DestroyImmediate(_screenGo); } }
+
+        [Test]
+        public void ATapOffTheBoardFlashesAndDoesNothingElse() {
+            var (screen, s, hero, c, flashes) = Tap(false, v => (null, null, true));
+            var at = (hero.X, hero.Y);
+            Assert.IsTrue(screen.EnhancedCombatClick(isPrimary: true, Vector2.zero));
+            Assert.AreEqual(1, flashes[0]);
+            Assert.AreEqual(at, (hero.X, hero.Y), "nobody moved");
+            Assert.IsTrue(hero.CanAct(strict: true), "the turn is not spent");
+        }
+
+        [Test]
+        public void ATapOnTheSkyKeepsToday() {
+            var (screen, _, _, _, flashes) = Tap(false, v => (null, null, false));
+            screen.EnhancedCombatClick(isPrimary: true, Vector2.zero);
+            Assert.AreEqual(0, flashes[0]);
+        }
+
+        [Test]
+        public void ATapOnAWallInsideTheBoardDoesNotFlash() {
+            var (screen, s, _, _, flashes) = Tap(false, v => ((2, 2), null, true));
+            s.Combat.Grid.SetTerrain(2, 2, CombatTerrain.Wall);
+            screen.EnhancedCombatClick(isPrimary: true, Vector2.zero);
+            Assert.AreEqual(0, flashes[0]);
+        }
+
+        [Test]
+        public void ATapOnAFoeAtTheEdgeActsAsBefore() {
+            var (screen, s, hero, _, flashes) = Tap(false, v => ((5, 5), (0, false), true));
+            int pool = s.Combat.Encounter.Enemies[0].Health + s.Combat.Encounter.Enemies[0].Stamina;
+            Assert.IsTrue(screen.EnhancedCombatClick(isPrimary: true, Vector2.zero));
+            Assert.AreEqual(0, flashes[0]);
+            Assert.Less(s.Combat.Encounter.Enemies[0].Health + s.Combat.Encounter.Enemies[0].Stamina, pool, "the thrust landed");
+        }
+
+        [Test]
+        public void AnUndergroundTapOnABlockedRowFlashes() {
+            var (screen, _, _, _, flashes) = Tap(true, v => ((3, CombatGrid.UndergroundPlayableRows), null, true));
+            screen.EnhancedCombatClick(isPrimary: true, Vector2.zero);
+            Assert.AreEqual(1, flashes[0]);
+        }
     }
 }
