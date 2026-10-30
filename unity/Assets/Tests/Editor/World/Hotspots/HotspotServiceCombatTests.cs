@@ -542,8 +542,10 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
             // TASK-972, owner's phone round 4: Enhanced frames the monster before it acts and holds a beat after.
             (Rig rig, CombatEncounter fight, Combatant member) = PartyTurn();
             Combatant monster = fight.Enemies[0];
-            monster.X = member.X + 1;
-            monster.Y = member.Y;
+            // At range, so its turn WALKS: a turn run before the framing ends would show as a move (review M4).
+            monster.X = member.X;
+            monster.Y = member.Y < 6 ? 12 : 0;
+            (int X, int Y) post = (monster.X, monster.Y);
             var framed = new Cysharp.Threading.Tasks.UniTaskCompletionSource();
             rig.Service.BeforeEnemyTurn = _ => framed.Task;
             int beats = 0;
@@ -552,7 +554,11 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
             Cysharp.Threading.Tasks.UniTask turn = rig.Service.RunEnemyTurnPacedForTest(monster);
             yield return null;
             Assert.AreEqual(Cysharp.Threading.Tasks.UniTaskStatus.Pending, turn.Status);
-            Assert.AreEqual(0, beats, "the turn has not run before the framing ends");
+            for (int i = 0; i < 5; i++) {
+                yield return null;
+            }
+            Assert.AreEqual(post, (monster.X, monster.Y), "the turn has not run before the framing ends");
+            Assert.AreEqual(0, beats);
 
             framed.TrySetResult();
             float start = UnityEngine.Time.realtimeSinceStartup;
@@ -560,6 +566,7 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
                 yield return null;
             }
             Assert.AreEqual(Cysharp.Threading.Tasks.UniTaskStatus.Succeeded, turn.Status);
+            Assert.AreNotEqual(post, (monster.X, monster.Y), "the control: once framed, the monster walks");
             Assert.AreEqual(1, beats, "the beat follows the turn, once");
             // The still beat (0.35 s) plus the held 1.5 s; Delay is game time, so allow for a slow frame either way.
             Assert.GreaterOrEqual(UnityEngine.Time.realtimeSinceStartup - start, 1.5f, "the beat is held after the action");
