@@ -17,7 +17,7 @@ namespace BakAgain.UI.Combat.Enhanced {
     /// Desktop: hover forecasts, a left click acts the default (Thrust / Move), Shift+click Swings, a
     /// right click on a foe forecasts Inspect and a second one on the same foe inspects; a stone
     /// click acts, a stone key forecasts first. Phone: a tap forecasts; Confirm, or a second tap on the
-    /// same foe, trail end or selected attack button, acts; only Cancel backs out. A party member's turn opens on the foe that hero last targeted, else the
+    /// same foe, trail end, selected attack button or forecast stone, acts; only Cancel backs out. A party member's turn opens on the foe that hero last targeted, else the
     /// party's last target, if it still lives: its forecast shown, nothing committed (owner, 2026-10-28).
     /// </remarks>
     public sealed class EnhancedCombatController : IDisposable {
@@ -277,6 +277,13 @@ namespace BakAgain.UI.Combat.Enhanced {
             }
             if (fromKey && _fromKey && _action == a) {
                 Act(acting);
+                return;
+            }
+            // Phone: the forecast stone tapped again acts, as Confirm would (owner, 2026-10-31).
+            if (_phone && !fromKey && _action == a) {
+                if (RetapCommits()) {
+                    Act(acting);
+                }
                 return;
             }
             Pin(a, -1, fromKey);

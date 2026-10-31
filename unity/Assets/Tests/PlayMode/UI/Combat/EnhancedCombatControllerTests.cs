@@ -178,6 +178,24 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             Assert.IsTrue(Spent(hero2), "a desktop stone click acts");
         }
 
+        // Owner, 2026-10-31: on the phone a second tap on the forecast stone acts it, as Confirm would.
+        [Test]
+        public void PhoneASecondTapOnTheSameStoneActsIt_ATooQuickOneDoesNot() {
+            var (s, hero, c) = Fight(phone: true);
+            c.Stone(CombatCommands.Command.Rest, fromKey: false);
+            Assert.AreEqual(ForecastAction.Rest, c.Current().Action, "a tap forecasts");
+            c.Stone(CombatCommands.Command.Defend, fromKey: false);
+            Assert.AreEqual(ForecastAction.Defend, c.Current().Action, "another stone switches the forecast");
+            _now += new EnhancedCombatLayout().RetapCommitMinSeconds * 0.5f;
+            c.Stone(CombatCommands.Command.Defend, fromKey: false);
+            Assert.IsFalse(Spent(hero), "a double tap is not a commit");
+
+            _now += 1f;
+            c.Stone(CombatCommands.Command.Defend, fromKey: false);
+            Assert.IsTrue(Spent(hero), "the second tap acts");
+            Assert.IsTrue((hero.Flags & CombatantFlags.Parry) != 0, "and it was Defend");
+        }
+
         [Test]
         public void LeftClickOnYourselfDoesNothing() {
             var (s, hero, c) = Fight();
