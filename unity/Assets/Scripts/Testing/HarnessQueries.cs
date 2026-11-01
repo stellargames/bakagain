@@ -49,6 +49,7 @@ namespace BakAgain.Testing {
                 case "combat": return Combat();
                 case "log": return Log();
                 case "travel": return Travel();
+                case "party": return Party();
                 case "visuals": return Visuals();
                 case "rect":
                     return a.Length == 2 ? Rect(a[1], 0)
@@ -138,6 +139,21 @@ namespace BakAgain.Testing {
             return Ok(new Dictionary<string, object> {
                 ["zone"] = (int)s.CurrentZone, ["x"] = s.PositionX, ["y"] = s.PositionY,
                 ["heading"] = (int)s.Rotation, ["time"] = s.GameTimeIn2Seconds });
+        }
+
+        private static string Party() {
+            GameSession s = Resolve<GameSession>();
+            if (s == null || s.ActivePartyIndices == null || s.ActivePartyIndices.Length == 0) return Refuse("no game session");
+            var members = new List<object>();
+            foreach (byte member in s.ActivePartyIndices) {
+                var items = new List<string>();
+                foreach (GameData.Resources.Inventory.RuntimeItem item in s.GetActorInventory(member)?.Items
+                             ?? new List<GameData.Resources.Inventory.RuntimeItem>()) {
+                    items.Add(s.ObjectInfo?.GetById(item.ObjectId)?.Name ?? item.ObjectId.ToString());
+                }
+                members.Add(new Dictionary<string, object> { ["character"] = (int)member, ["items"] = items });
+            }
+            return Ok(new Dictionary<string, object> { ["gold"] = s.PartyGold, ["members"] = members });
         }
 
         private static string Visuals() {

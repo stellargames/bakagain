@@ -109,6 +109,14 @@ namespace BakAgain.Tests.PlayMode.Testing {
         }
 
         [UnityTest]
+        public IEnumerator PartyWithoutAGame_IsRefused() {
+            var r = new string[1];
+            yield return Ask(new[] { "party" }, r);
+            StringAssert.StartsWith("{\"ok\":false", r[0]);
+            StringAssert.Contains("no game session", r[0]);
+        }
+
+        [UnityTest]
         public IEnumerator TwoRequestsOnOneConnection_GetTwoRepliesInOrder() {
             var r = new string[2];
             yield return Ask(new[] { "window", "nonsense" }, r);
