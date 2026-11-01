@@ -55,6 +55,10 @@ public sealed class SkyLayout {
     public double CloudFadeStartHour { get; set; } = 21;
     public double CloudFadeEndHour { get; set; } = 3;
 
+    /// <summary>The star field's turns per game day (TASK-1020). One turn a day is the true sky, but a held walk
+    /// runs the clock about 1000 times real time, so the stars swept past at some 4 degrees a second.</summary>
+    public double StarTurnsPerDay { get; set; } = 0.1;
+
     /// <summary>How far the mountain panels are blended toward the sky behind them, and the extra at their base.</summary>
     public double HazeStrength { get; set; } = 0.30;
     public double HazeBaseExtra { get; set; } = 0.20;
