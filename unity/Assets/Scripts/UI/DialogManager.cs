@@ -944,12 +944,31 @@ namespace BakAgain.UI {
         private void OnDisable() {
             int dropped = _stack?.RemoveWithIdPrefix(LayerIdPrefix) ?? 0;
             if (dropped > 0) {
+                _dialogLayer = null;
+            }
+            if (WarnAboutDroppedLayers(dropped, _quitting)) {
                 _logger?.LogWarning(
                     "DialogManager: the overlay was disabled with {Count} dialog input layer(s) still "
                     + "pushed; dropped them so input is not captured by a panel that is gone.", dropped);
-                _dialogLayer = null;
             }
         }
+
+        private static bool _quitting;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void WatchForQuit() {
+            _quitting = false;
+            Application.quitting -= OnQuitting;
+            Application.quitting += OnQuitting;
+        }
+
+        private static void OnQuitting() => _quitting = true;
+
+        /// <summary>
+        /// A dropped layer is worth a warning when a panel was torn down under a running show; closing the
+        /// game with a dialog up drops them too, and that is not a fault.
+        /// </summary>
+        internal static bool WarnAboutDroppedLayers(int dropped, bool quitting) => dropped > 0 && !quitting;
 
         private void OnDestroy() {
             _resources?.Release();
