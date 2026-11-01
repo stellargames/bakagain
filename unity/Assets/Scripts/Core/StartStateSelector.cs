@@ -28,6 +28,8 @@ namespace BakAgain.Core {
         private const string PrefKey = "BakAgain.DebugStart.LastState";
 
         private readonly ILogger<StartStateSelector> _logger;
+        private readonly IGameFlow _flow;
+        private readonly ISaveGameDirectoryService _saves;
         private readonly List<Entry> _entries;
         private UniTaskCompletionSource<Func<UniTask>> _pending;
         private static string _preselect;
@@ -37,13 +39,15 @@ namespace BakAgain.Core {
         /// <summary>Id of the last-chosen entry (defaults to the intro), used to mark the default row.</summary>
         public string DefaultStateName => PlayerPrefs.GetString(PrefKey, "IntroCutsceneState");
 
-        public StartStateSelector(ILogger<StartStateSelector> logger, IGameFlow flow
+        public StartStateSelector(ILogger<StartStateSelector> logger, IGameFlow flow, ISaveGameDirectoryService saves
 #if UNITY_EDITOR
             , BookTestState bookTest, TestCutsceneState testCutscene,
             ModelDebugState modelDebug, WorldTestState worldTest, PlayCutsceneState playCutscene
 #endif
             ) {
             _logger = logger;
+            _flow = flow;
+            _saves = saves;
             _entries = new List<Entry> {
                 new Entry("Intro Cutscene", "IntroCutsceneState", flow.Boot),
                 new Entry("Main Menu", "MainMenuState", flow.ShowMainMenu),
@@ -68,6 +72,17 @@ namespace BakAgain.Core {
             Func<UniTask> pre = TakePreselect();
             if (pre != null) {
                 return pre;
+            }
+            // The build test harness boots a development player straight into a save (BootLoad).
+            if (!Application.isEditor && Debug.isDebugBuild
+                && BootLoad.TryParse(Environment.GetCommandLineArgs(), out string bootDir, out int bootSlot)) {
+                string path = _saves.SlotFullPath(bootDir, bootSlot);
+                if (!System.IO.File.Exists(path)) {
+                    _logger.LogError("Boot load: no save at {path}", path);
+                } else {
+                    _logger.LogInformation("Boot load: {path}", path);
+                    return async () => await _flow.LoadSave(path);
+                }
             }
             // The picker is a development tool. A release player boots the way the original does,
             // through the intro; before this, a release build sat on a blank screen waiting for it.
