@@ -136,16 +136,44 @@ namespace BakAgain.UI.Combat.Enhanced {
             if (f != null && (f.Action == ForecastAction.Thrust || f.Action == ForecastAction.Swing)) {
                 alt = ForecastOf(Acting(), f.Action == ForecastAction.Thrust ? ForecastAction.Swing : ForecastAction.Thrust);
             }
+            // Desktop: with Shift down a hovered foe's forecast is the Swing a click would make (the column lights).
+            if (!_phone && _hovered && f?.Action == ForecastAction.Thrust && alt != null && BakAgain.UI.InputCore.InputDriver.ShiftHeld) {
+                (f, alt) = (alt, f);
+            }
             int? card = f != null && f.TargetSlot >= 0 ? f.TargetSlot : !_phone && !_party ? _foe : null;
             // A party member under the mouse shows their card where a foe's would (owner, 2026-11-01).
             int? cardHero = !_phone && _party ? _foe : null;
-            CombatHudModel m = CombatHudModelBuilder.Build(_cr, _session, _hs?.EnhancedBoardMarks(), logLines, f, alt, card, cardHero);
+            CombatHudModel m = CombatHudModelBuilder.Build(_cr, _session, _hs?.EnhancedBoardMarks(), logLines, f, alt, card, cardHero,
+                RevealedLogLines());
             // An armed pick waiting for its target says so, by name (owner, 2026-10-28: after the cast
             // screen it was not clear a target had to be chosen again).
             return Picking && _hs?.PendingPickName is string pick && m != null
                 ? m with { Sentence = UiTemplates.Format(UiTemplates.HudChooseTarget, ("action", pick)) }
                 : m;
         }
+
+        // How many fight-log lines the HUD shows: a new one waits until the arena has played what it reports
+        // (owner, 2026-11-01: the hit or miss read before the swing was seen).
+        private int RevealedLogLines() {
+            int total = _cr?.Log.Count ?? 0;
+            if (total <= _logShown) {
+                _logShown = total;   // a new fight cleared it
+                _logGrewAt = float.NegativeInfinity;
+                return total;
+            }
+            float now = _clock();
+            if (float.IsNegativeInfinity(_logGrewAt)) {
+                _logGrewAt = now;
+            }
+            if (!(_hs?.ArenaBusy ?? false) && now - _logGrewAt >= _layout.LogRevealMinSeconds) {
+                _logShown = total;
+                _logGrewAt = float.NegativeInfinity;
+            }
+            return _logShown;
+        }
+
+        private int _logShown;
+        private float _logGrewAt = float.NegativeInfinity;
 
         /// <summary>The pointer is on this cell / combatant (hover; or where a tap or long press landed).</summary>
         /// <param name="combatant">The enemy's index when <paramref name="party"/> is false; null on an empty cell.</param>

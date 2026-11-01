@@ -32,8 +32,9 @@ namespace BakAgain.UI.InGame {
         public bool ConsumeClick() => _drag.ConsumeClick() | _dragLeft.ConsumeClick();
 
         /// <param name="orbit">Drag in pixels (x right, y up).</param>
-        /// <param name="zoom">Distance factor: below 1 closer.</param>
-        public void Tick(bool enabled, Func<Vector2, bool> startsOnWorld, Action<float, float> orbit, Action<float> zoom) {
+        /// <param name="zoom">Distance factor (below 1 closer) and the screen point it zooms at: the mouse, or
+        /// the middle of a pinch.</param>
+        public void Tick(bool enabled, Func<Vector2, bool> startsOnWorld, Action<float, float> orbit, Action<float, Vector2> zoom) {
             bool pinching = enabled && _pointer != null && _pointer.Fingers.Count >= 2;
             Vector2 d = _drag.Tick(enabled && !pinching, startsOnWorld);
             // Touch has no left button: its finger is already followed by the driver above.
@@ -50,7 +51,7 @@ namespace BakAgain.UI.InGame {
             if (pinching) {
                 float span = Vector2.Distance(_pointer.Fingers[0].Position, _pointer.Fingers[1].Position);
                 if (_pinch > 0f && span > 0f) {
-                    zoom(_pinch / span);
+                    zoom(_pinch / span, (_pointer.Fingers[0].Position + _pointer.Fingers[1].Position) / 2f);
                 }
                 _pinch = span;
                 return;
@@ -58,7 +59,7 @@ namespace BakAgain.UI.InGame {
             _pinch = 0f;
             float wheel = _pointer.Scroll.y;
             if (wheel != 0f && _pointer.CanPoint && startsOnWorld(_pointer.ScreenPosition)) {
-                zoom(wheel > 0f ? 1f / _wheelStep : _wheelStep);
+                zoom(wheel > 0f ? 1f / _wheelStep : _wheelStep, _pointer.ScreenPosition);
             }
         }
     }

@@ -239,10 +239,11 @@ public sealed class EnhancedCombatLayout
     /// as a fraction of the screen width; its depth may run off screen (owner, round 6).</summary>
     public float TrapFitMarginX { get; set; } = 0.03f;
 
-    /// <summary>A foe's letter plate: width and height, in cells.</summary>
-    public float PlateWidthCells { get; set; } = 0.35f;
+    /// <summary>A foe's letter plate: width and height, in cells. Smaller than it was (0.35 x 0.4): the
+    /// letters were too big (owner, 2026-11-01).</summary>
+    public float PlateWidthCells { get; set; } = 0.22f;
 
-    public float PlateHeightCells { get; set; } = 0.4f;
+    public float PlateHeightCells { get; set; } = 0.25f;
 
     /// <summary>How far above a foe's drawn top the plate floats, in cells.</summary>
     public float PlateLiftCells { get; set; } = 0.15f;
@@ -255,6 +256,13 @@ public sealed class EnhancedCombatLayout
     /// the ground. Most of the way, so they stay readable at night but no longer glow (owner, 2026-11-01).
     /// </summary>
     public float MarkLightFollow { get; set; } = 0.75f;
+
+    /// <summary>
+    /// A new fight-log line shows once the arena has played what it reports (the walk, the swing, the fall)
+    /// and at least this long after it was written, so a hit or a miss is not read before it is seen
+    /// (owner, 2026-11-01). The wait covers the frames before the animation starts.
+    /// </summary>
+    public float LogRevealMinSeconds { get; set; } = 0.2f;
 
     public float PathDotSizeCells { get; set; } = 0.07f;
 }

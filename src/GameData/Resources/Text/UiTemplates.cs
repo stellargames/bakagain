@@ -274,6 +274,7 @@ public static class UiTemplates {
     public const string HudDamage = "port:template:enhanced_hud_damage";
     public const string HudCost = "port:template:enhanced_hud_cost";
     public const string HudWalk = "port:template:enhanced_hud_walk";
+    public const string HudSwingHint = "port:template:enhanced_hud_swing_hint";
     public const string HudFree = "port:template:enhanced_hud_free";
     public const string HudNone = "port:template:enhanced_hud_none";
     public const string HudStaminaCost = "port:template:enhanced_hud_stamina_cost";
@@ -502,6 +503,8 @@ public static class UiTemplates {
         (HudDamage, _ => "Damage"),
         (HudCost, _ => "Cost"),
         (HudWalk, _ => "Walk"),
+        // Under the desktop forecast: how to swing rather than thrust (owner, 2026-11-01: "no clear way").
+        (HudSwingHint, _ => "Click to thrust \u00b7 Shift+click to swing"),
         (HudFree, _ => "free"),
         (HudNone, _ => "none"),
         (HudStaminaCost, _ => "{n} Stamina"),

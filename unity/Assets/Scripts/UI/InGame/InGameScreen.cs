@@ -1906,7 +1906,7 @@ namespace BakAgain.UI.InGame {
         internal void TickCombatCamera(BakAgain.World.WorldRuntime world, System.Func<Vector2, bool> startsOnWorld) {
             _combatCamera ??= new CombatCameraInput(_pointer, _enhancedLayout, _combatLayout);
             _combatCamera.Tick(EnhancedCombatActive && world != null, startsOnWorld,
-                world != null ? world.OrbitArena : null, world != null ? world.ZoomArena : (System.Action<float>)null);
+                world != null ? world.OrbitArena : null, world != null ? world.ZoomArenaAt : (System.Action<float, Vector2>)null);
         }
 
         internal void SetPointerForTest(IPointer pointer) => _pointer = pointer;

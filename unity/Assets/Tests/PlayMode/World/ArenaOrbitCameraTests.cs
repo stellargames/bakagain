@@ -25,7 +25,7 @@ namespace BakAgain.Tests.PlayMode.World {
         }
 
         private void Tick(bool enabled = true, bool onWorld = true) =>
-            _input.Tick(enabled, _ => onWorld, (x, y) => { _dx += x; _dy += y; _orbits++; }, f => { _zoom = f; _zooms++; });
+            _input.Tick(enabled, _ => onWorld, (x, y) => { _dx += x; _dy += y; _orbits++; }, (f, _) => { _zoom = f; _zooms++; });
 
         private void RightDrag(float pixels) {
             _pointer.Secondary.SetDown(true, pressedThisFrame: true);
@@ -206,22 +206,22 @@ namespace BakAgain.Tests.PlayMode.World {
         public void ALeftDragOrbits_ItsReleaseIsNotAClick_ATapIs() {
             var tap = new CombatCameraInput(_pointer, new EnhancedTravelLayout(), new EnhancedCombatLayout());
             _pointer.Primary.SetDown(true, pressedThisFrame: true);
-            tap.Tick(true, _ => true, (x, y) => _orbits++, f => { });
+            tap.Tick(true, _ => true, (x, y) => _orbits++, (f, _) => { });
             _pointer.Delta = new Vector2(3, 0);
-            tap.Tick(true, _ => true, (x, y) => _orbits++, f => { });
+            tap.Tick(true, _ => true, (x, y) => _orbits++, (f, _) => { });
             _pointer.Delta = Vector2.zero;
             _pointer.Primary.SetDown(false, releasedThisFrame: true);
-            tap.Tick(true, _ => true, (x, y) => _orbits++, f => { });
+            tap.Tick(true, _ => true, (x, y) => _orbits++, (f, _) => { });
             Assert.AreEqual(0, _orbits);
             Assert.IsFalse(tap.ConsumeClick(), "a left click under the threshold is still a click");
 
             _pointer.Primary.SetDown(true, pressedThisFrame: true);
-            tap.Tick(true, _ => true, (x, y) => _orbits++, f => { });
+            tap.Tick(true, _ => true, (x, y) => _orbits++, (f, _) => { });
             _pointer.Delta = new Vector2(30, 0);
-            tap.Tick(true, _ => true, (x, y) => _orbits++, f => { });
+            tap.Tick(true, _ => true, (x, y) => _orbits++, (f, _) => { });
             _pointer.Delta = Vector2.zero;
             _pointer.Primary.SetDown(false, releasedThisFrame: true);
-            tap.Tick(true, _ => true, (x, y) => _orbits++, f => { });
+            tap.Tick(true, _ => true, (x, y) => _orbits++, (f, _) => { });
             Assert.AreEqual(1, _orbits);
             Assert.IsTrue(tap.ConsumeClick(), "the release of a left drag is not a click");
         }
@@ -269,6 +269,26 @@ namespace BakAgain.Tests.PlayMode.World {
             } finally {
                 InGameScreen.PhoneHudOverride = keep;
             }
+        }
+
+        // Owner, 2026-11-01: zooming in went to the acting hero's corner whatever the mouse was on. It now leans
+        // toward the ground under the mouse, kept on the board.
+        [Test]
+        public void ZoomingInGoesTowardTheGroundUnderTheMouse() {
+            BakAgain.World.WorldRuntime world = NewWorld(combat: true, out Camera cam);
+            world.PointCameraAtArena();
+            (double X, double Y)[] corners = ArenaOrbit.BoardCorners(Cell, underground: false);
+            (double X, double Y) far = corners[3];
+            Vector3 farWorld = BakAgain.World.Converters.BakCoordinateConverter.ConvertPosition(
+                PartyX + (int)System.Math.Round(far.X), PartyY + (int)System.Math.Round(far.Y), 0);
+            double Gap((double X, double Y) a) => System.Math.Sqrt(((a.X - far.X) * (a.X - far.X)) + ((a.Y - far.Y) * (a.Y - far.Y)));
+            double before = Gap(world.ArenaOrbitForTest.Centre);
+
+            world.ZoomArenaAt(0.5f, cam.WorldToScreenPoint(farWorld));
+            (double X, double Y) centre = world.ArenaOrbitForTest.Centre;
+            Assert.Less(Gap(centre), before * 0.8, "the view moved toward the corner under the mouse");
+            Assert.That(centre.X, Is.InRange(System.Math.Min(corners[0].X, corners[3].X), System.Math.Max(corners[0].X, corners[3].X)), "on the board");
+            Assert.That(centre.Y, Is.InRange(System.Math.Min(corners[0].Y, corners[3].Y), System.Math.Max(corners[0].Y, corners[3].Y)), "on the board");
         }
 
         [Test]

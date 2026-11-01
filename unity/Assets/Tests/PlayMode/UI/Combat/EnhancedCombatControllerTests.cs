@@ -196,6 +196,20 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             Assert.IsTrue((hero.Flags & CombatantFlags.Parry) != 0, "and it was Defend");
         }
 
+        // Owner, 2026-11-01: the hit or miss line read before the swing played. A new log line shows once the
+        // arena has played its act, and not in the frames before the animation starts.
+        [Test]
+        public void ANewLogLineWaitsForTheArena() {
+            var (s, hero, c) = Fight();
+            int before = c.Model(10).LogLines.Count;
+            s.Combat.Log.Add("Owyn thrusts at A: hit 7");
+            Assert.AreEqual(before, c.Model(10).LogLines.Count, "written this frame: not yet");
+            _now += 1f;
+            Assert.AreEqual(before, c.Model(10).LogLines.Count, "the arena still plays the swing");
+            _busy = false;
+            Assert.AreEqual("Owyn thrusts at A: hit 7", c.Model(10).LogLines[^1], "the swing played: the line shows");
+        }
+
         [Test]
         public void LeftClickOnYourselfDoesNothing() {
             var (s, hero, c) = Fight();

@@ -407,6 +407,11 @@ namespace BakAgain.UI.Combat.Enhanced {
                 Row(table, UiTemplates.Format(UiTemplates.HudDamage), Cell(thrust, CombatHudText.Damage), Cell(swing, CombatHudText.Damage));
                 Row(table, UiTemplates.Format(UiTemplates.HudCost), Cell(thrust, x => CombatHudText.Cost(x, false)), Cell(swing, x => CombatHudText.Cost(x, false)));
                 Row(table, UiTemplates.Format(UiTemplates.HudWalk), Cell(thrust, CombatHudText.Walk), Cell(swing, CombatHudText.Walk));
+                // How to swing, or why it cannot be done from here: an empty column alone said neither.
+                string swingReason = swing == null ? "" : CombatHudText.Reason(swing);
+                Text(_ledgerBody, "ec-desk-swing-hint", "ec-desk-small").text = swing != null && swing.Allowed
+                    ? UiTemplates.Format(UiTemplates.HudSwingHint)
+                    : swingReason;
             } else if (f.Action == ForecastAction.Move) {
                 VisualElement table = Box("ec-desk-forecast", "ec-desk-table");
                 _ledgerBody.Add(table);

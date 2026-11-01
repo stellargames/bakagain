@@ -85,6 +85,27 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
             }
         }
 
+        // Owner, 2026-11-01: on the enemies' turn their sprite followed the mouse. The original faces the cursor
+        // only from the player's input loop (COMBAT.C:2325, 2346, 2406), so a monster never turns to it.
+        [Test]
+        public void OnlyAPartyMemberTurnsToTheCursor_NeverAMonsterOnItsTurn() {
+            var (s, hero) = PartyTurn();
+            UnityEngine.Vector3 At(int col, int row) {
+                (int across, int away) = CombatArenaPlacement.CellOffset(col, row, 300);
+                return new UnityEngine.Vector3(across / 100f, 0f, away / 100f);
+            }
+            bool turned = s.TurnActingTowardCursor(At(0, 0)) == hero | s.TurnActingTowardCursor(At(7, 7)) == hero;
+            Assert.IsTrue(turned, "control: the acting hero faces the cursor");
+
+            hero.Flags &= ~CombatantFlags.Ready;
+            Combatant monster = s.Combat.Encounter.PickNext();
+            Assert.IsFalse(monster?.IsPartyMember ?? true, "the fixture: a monster's turn");
+            int facing = monster.FacingOctant;
+            Assert.IsNull(s.TurnActingTowardCursor(At(0, 0)));
+            Assert.IsNull(s.TurnActingTowardCursor(At(7, 7)));
+            Assert.AreEqual(facing, monster.FacingOctant, "the monster keeps its own facing");
+        }
+
         [Test]
         public void TheMarksAreComputedOncePerChangeOfWhatTheyRead() {
             // Final review I-2: the shapes, the plates and the HUD poll all ask every frame; ~200 dry-run

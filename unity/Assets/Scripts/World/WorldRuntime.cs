@@ -2059,6 +2059,24 @@ namespace BakAgain.World {
         }
 
         /// <summary>
+        /// Zoom at a screen point: zooming in, the view's focus moves to the ground under it, kept on the board,
+        /// so a close view goes where the mouse (or the pinch) is (owner, 2026-11-01: it always went to the
+        /// acting hero's corner). Zooming out keeps the focus.
+        /// </summary>
+        public void ZoomArenaAt(float factor, Vector2 screen) {
+            if (factor < 1f && _arenaOrbit?.Orbit != null && _arenaCorners != null
+                && _arenaOrbit.BoardPointAt(screen) is (double across, double away)) {
+                double minX = double.MaxValue, maxX = double.MinValue, minY = double.MaxValue, maxY = double.MinValue;
+                foreach ((double x, double y) in _arenaCorners) {
+                    minX = System.Math.Min(minX, x); maxX = System.Math.Max(maxX, x);
+                    minY = System.Math.Min(minY, y); maxY = System.Math.Max(maxY, y);
+                }
+                _arenaOrbit.Orbit.Focus((System.Math.Clamp(across, minX, maxX), System.Math.Clamp(away, minY, maxY)));
+            }
+            ZoomArena(factor);
+        }
+
+        /// <summary>
         /// Start or stop combat music.
         /// </summary>
         /// <remarks>

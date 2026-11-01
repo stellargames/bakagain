@@ -19,7 +19,7 @@ namespace BakAgain.UI.Combat.Enhanced {
         /// <param name="marks">The board's reach marks (<c>HotspotService.EnhancedBoardMarks</c>); null for none.</param>
         public static CombatHudModel Build(CombatRuntime combat, GameSession session, BoardMarks marks,
             int logLines, CombatForecast forecast = null, CombatForecast alternative = null, int? cardFoe = null,
-            int? cardHero = null) {
+            int? cardHero = null, int logUpTo = -1) {
             CombatEncounter fight = combat?.Encounter;
             if (fight == null) {
                 return null;
@@ -59,7 +59,7 @@ namespace BakAgain.UI.Combat.Enhanced {
             string sentence = hero == null ? ""
                 : UiTemplates.Format(UiTemplates.HudTurnOf, ("name", hero.Name));
             return new CombatHudModel(theirs || acting == null ? 0 : acting.PartySlot, hero, party, forecast,
-                combat.Log.Last(logLines), foes, cardFoe,
+                logUpTo < 0 ? combat.Log.Last(logLines) : combat.Log.Last(logLines, logUpTo), foes, cardFoe,
                 theirs ? new Dictionary<CombatCommands.Command, ActionAvailability>() : combat.AvailabilityFor(acting),
                 theirs, sentence, alternative, combat.Log.Round,
                 cardHero is int slot && fight.Party.Find(c => c.PartySlot == slot) is Combatant member

@@ -111,6 +111,23 @@ namespace BakAgain.World.Encounters {
             return far;
         }
 
+        /// <summary>The board-frame point on the ground under a screen point, or null when the ray misses it.</summary>
+        public (double Across, double Away)? BoardPointAt(Vector2 screen) {
+            if (_camera == null || _orbit == null) {
+                return null;
+            }
+            Ray ray = _camera.ScreenPointToRay(screen);
+            var ground = new Plane(Vector3.up, ToWorld(_orbit.Centre.X, _orbit.Centre.Y, 0));
+            if (!ground.Raycast(ray, out float hit)) {
+                return null;
+            }
+            Vector3 p = ray.GetPoint(hit);
+            int bakX = (int)System.Math.Round(p.x * BakCoordinateConverter.WorldScale) - _partyX;
+            int bakY = (int)System.Math.Round(p.z * BakCoordinateConverter.WorldScale) - _partyY;
+            (int across, int away) = ProximityMath.Rotate(bakX, bakY, -_rotation);
+            return (across, away);
+        }
+
         private Vector3 ToWorld(double across, double away, double height) {
             (int dx, int dy) = ProximityMath.Rotate((int)System.Math.Round(across), (int)System.Math.Round(away), _rotation);
             return BakCoordinateConverter.ConvertPosition(_partyX + dx, _partyY + dy, (int)System.Math.Round(height));

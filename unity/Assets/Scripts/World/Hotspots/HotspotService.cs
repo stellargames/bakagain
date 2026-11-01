@@ -4453,9 +4453,17 @@ using GameData.Resources.Scene;
         /// GameObjects on the side of the code that owns them: this sets the model's facing, and the
         /// arena re-aims the live sprite without a rebuild.</para>
         /// </remarks>
+        /// <summary>Whether the arena is still playing something (a walk, a swing, a fall, a spell).</summary>
+        public bool ArenaBusy => _arenaBusy?.Invoke() ?? false;
+
         public GameData.Resources.Combat.Combatant TurnActingTowardCursor(UnityEngine.Vector3 point) {
             GameData.Resources.Combat.Combatant acting = Combat?.Encounter?.Current;
             if (acting == null || acting.IsDead || _session == null || _start == null) {
+                return null;
+            }
+            // Only on the party's own turn: the original faces the cursor from the player's input loop
+            // (COMBAT.C:2325, 2346, 2406), which a monster's turn never runs. Monsters followed the mouse.
+            if (!Combat.Encounter.Party.Contains(acting)) {
                 return null;
             }
             int cellSize = _start.CombatGridCellSize;

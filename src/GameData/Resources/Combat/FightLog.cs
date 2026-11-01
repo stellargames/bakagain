@@ -16,7 +16,16 @@ public sealed class FightLog {
     }
 
     /// <summary>The newest <paramref name="n"/> lines, the newest last.</summary>
-    public IReadOnlyList<string> Last(int n) => _lines.Skip(System.Math.Max(0, _lines.Count - n)).ToList();
+    public IReadOnlyList<string> Last(int n) => Last(n, _lines.Count);
+
+    /// <summary>The newest <paramref name="n"/> of the first <paramref name="count"/> lines: the log as it stood
+    /// before the lines a screen has not shown yet.</summary>
+    public IReadOnlyList<string> Last(int n, int count) {
+        count = System.Math.Clamp(count, 0, _lines.Count);
+        return _lines.Take(count).Skip(System.Math.Max(0, count - n)).ToList();
+    }
+
+    public int Count => _lines.Count;
 
     public void Clear() {
         _lines.Clear();
