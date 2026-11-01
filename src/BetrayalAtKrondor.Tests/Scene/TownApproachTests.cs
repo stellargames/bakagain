@@ -100,9 +100,12 @@ public class TownApproachWalkTests {
         Assert.Equal(2 + 2 + 8, TownApproach.FramesFor(path, step: 1600, turnStride: 1024));
         Assert.Equal(4 * TownApproach.SecondsPerFrame, TownApproach.SecondsFor(path, 1600, 0), 6);
 
-        Assert.Equal((C(16) - (Cell / 2), C(20), (ushort)0x4000), TownApproach.PoseAt(path, 1600, 2048, frames: 1.5));
-        Assert.Equal((C(15), C(20), (ushort)0x5000), TownApproach.PoseAt(path, 1600, 2048, frames: 4));
-        Assert.Equal((C(14), C(19), (ushort)0x6000), TownApproach.PoseAt(path, 1600, 2048, frames: 99));
+        // In beats a turn frame weighs TurnFrameWeight (half), and the turn eases through its beats.
+        Assert.Equal(2 + 2 + 2, TownApproach.BeatsFor(path, step: 1600, turnStride: 2048), 6);
+        Assert.Equal((C(16) - (Cell / 2), C(20), (ushort)0x4000), TownApproach.PoseAt(path, 1600, 2048, beats: 1.5));
+        Assert.Equal((C(15), C(20), (ushort)0x5000), TownApproach.PoseAt(path, 1600, 2048, beats: 3));
+        Assert.Equal((C(15), C(20), (ushort)0x4800), TownApproach.PoseAt(path, 1600, 2048, beats: 2.5));
+        Assert.Equal((C(14), C(19), (ushort)0x6000), TownApproach.PoseAt(path, 1600, 2048, beats: 99));
     }
 
     // The LaMut approach as the original walked it on t926 SAVE01 (2026-10-23, Spice86): each cell
@@ -130,6 +133,22 @@ public class TownApproachWalkTests {
             c => (C(c.X), C(c.Y), c.Heading)));
 
         Assert.Equal(52, TownApproach.FramesFor(path, step: 1600, turnStride: 2048));
-        Assert.InRange(TownApproach.SecondsFor(path, step: 1600, turnStride: 2048), 3.3, 3.4);
+        Assert.InRange(TownApproach.FramesFor(path, step: 1600, turnStride: 2048) * TownApproach.SecondsPerFrame, 3.3, 3.4);
+        // The port's walk weighs the bends' 24 frames at half (TASK-1020): 40 beats, 2.58 s.
+        Assert.InRange(TownApproach.SecondsFor(path, step: 1600, turnStride: 2048), 2.5, 2.6);
+    }
+
+    [Theory]
+    [InlineData(400, 1024)]   // Small step, Small turn: 154 frames, 10 s at the original's frame rate
+    [InlineData(400, 2048)]
+    [InlineData(800, 1024)]
+    [InlineData(1600, 4096)]
+    [InlineData(1600, 0)]
+    public void TheWalkNeverTakesLongerThanThreeSeconds(int step, int turnStride) {
+        var path = System.Linq.Enumerable.ToList(System.Linq.Enumerable.Select(LaMutWalk,
+            c => (C(c.X), C(c.Y), c.Heading)));
+
+        Assert.True(TownApproach.SecondsFor(path, step, turnStride) <= TownApproach.MaxSeconds + 1e-9);
+        Assert.Equal(path[^1], TownApproach.PoseAt(path, step, turnStride, TownApproach.BeatsFor(path, step, turnStride)));
     }
 }
