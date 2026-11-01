@@ -868,11 +868,13 @@ using GameData.Resources.Scene;
                 }
 
                 HotspotRules.ApplyOnFire(this, trigger);
-                if (trigger.Repeatable == 0) {
-                    if (trigger.FireOnce != 0) {
-                        WriteGlobal(DoneFlagKey(hotspotIndex), 1);
-                    }
-                    MarkActedThisChunk(hotspotIndex);
+                // A crossing marks itself done only when it inhibits (bInhibitChapter), and never as tried
+                // this chunk: hotspotevt_action_enter_zone (HOTSPOT.C:863-887) has no scout_tried_set. The
+                // mark copied from the Dial arm landed, after the zone change, on slot 0 of the zone just
+                // entered -- the way back -- so the mine's stairs and entrance answered "must not be
+                // important" (owner, 2026-11-01).
+                if (trigger.FireOnce != 0) {
+                    WriteGlobal(DoneFlagKey(hotspotIndex), 1);
                 }
             } finally {
                 // A crossing to another zone has built a new movement; the step is charged there.
@@ -1180,7 +1182,10 @@ using GameData.Resources.Scene;
             Pending.Clear();
             new HotspotActivator(this).ActivateAt(triggers, subX, subY, Pending, TileEventType.Zone);
             if (Pending.Count == 0) {
-                return false;
+                // A zone hotspot under the point is answered even when it does not fire: the original's
+                // dispatch returns 1 for any kind-8 hotspot there (HOTSPOT.C:236-248), so the caller's
+                // "must not be important" plays only where there is none.
+                return HotspotActivator.MatchAt(triggers, subX, subY, TileEventType.Zone).Count > 0;
             }
 
             HotspotDispatchResult dispatched = new HotspotDispatcher(this).Dispatch(triggers, Pending);
@@ -5674,6 +5679,7 @@ using GameData.Resources.Scene;
             }
 
             var killed = new List<GameData.Resources.Data.DirtyRosterActorEdit>();
+            var deadRecords = new List<GameData.Resources.Data.DirtyCombatantEdit>();
             GameData.Resources.World.EncounterDefeat.Result result =
                 GameData.Resources.World.EncounterDefeat.ApplyToRecord(
                     states, _currentRefIndex, recordIndex, slots,
@@ -5688,11 +5694,17 @@ using GameData.Resources.Scene;
                         // combatant from, so zeroing it is the same statement both make.
                         stats[(int)ActorAttribute.Health].Base = 0;
                         killed.Add(new GameData.Resources.Data.DirtyRosterActorEdit(slot, stats));
+                        // And CAF_DEAD on its combat record, as rgnenc_mark_defended sets (RGNENC.C:479-520).
+                        if (_session?.CombatRecordOf(slot) is { } record) {
+                            deadRecords.Add(new GameData.Resources.Data.DirtyCombatantEdit(slot,
+                                GameData.Resources.Combat.CombatStatePersistence.MarkedDead(record)));
+                        }
                     });
 
             if (killed.Count > 0) {
                 _session.StageRosterActorEdits(killed);
             }
+            _session.StageCombatantEdits(deadRecords);
             // The placement cache holds last visit's answer; a stopped or killed actor must not be
             // drawn from it. Same reason the step-size reset drops it.
             _placedChunk = null;
