@@ -2195,30 +2195,22 @@ namespace BakAgain.World {
         }
 
         /// <summary>
-        /// Steps every roaming encounter actor in proportion to how far the party just moved.
+        /// Steps every roaming encounter actor once for every step the party takes.
         /// </summary>
         /// <remarks>
-        /// <b>The cadence is a party-movement one, and getting it from the disassembly took
-        /// correcting a note that had it wrong.</b> <c>updateRoamingEncounterActors</c> @0x7600b has
-        /// exactly one caller, <c>drawMap(animate)</c> @0x21711, and only
-        /// <c>approachWalkToScenePosition</c> @0x6dd52 passes 1 — <c>MainGameLoop</c>,
-        /// <c>HandleMoveEvent</c> and <c>UI_Encamp</c> all pass 0. So roaming advances once per
-        /// frame of an ANIMATED PARTY WALK: not per render frame, and never while the party stands
-        /// still.
+        /// <b>One roaming tick per party step, at any step size.</b> The world loop passes the result
+        /// of <c>worldmove_party_attempt_move</c> as <c>animate</c> (WORLDLP.C:264, 157), and
+        /// <c>world_render_scene_dispatch(animate)</c> steps every roamer once when it is set
+        /// (WORLDHIT.C:64-66; IDA: MainGameLoop pushes DI before drawMap at 0x6c3b1). A step is <c>g_nWorldStepSpeed</c> from MOVEMENT.DAT
+        /// (WORLDMOV.C:36-40, 96), the player's step size: 400, 800 or 1,600. A roamer always moves
+        /// 400 (<see cref="RoamingStepDistance"/>), so at Large it walks a quarter of the party's pace.
+        /// (An older note here said the main loop passed 0 and metered roaming by distance, which ran
+        /// monsters at the party's own pace: four times the original's at the default Large.)
         ///
-        /// <para><b>Both obvious wires are wrong.</b> Ticking from an Update would have monsters
-        /// roaming while the party stands still, covering ground the original never lets them cover.
-        /// Ticking once per keypress is the opposite error — monsters moving in lockstep with the
-        /// player, and an authored patrol drifting off its waypoints between two steps.</para>
-        ///
-        /// <para><b>So the tick is metered by DISTANCE, not by steps.</b> A roaming step is exactly
-        /// <c>CellSize / 4</c>, which is why the waypoints — which sit on the cell lattice — are
-        /// reached by exact equality after four of them. Metering the party's movement in the same
-        /// quarter-cells keeps a monster at walking pace regardless of the player's step-size
-        /// preference, which a fixed ticks-per-step could not: that preference changes the party's
-        /// step length live, so any constant would be right for one setting and wrong for the rest.
-        /// The remainder is carried, so a run of short steps still adds up to a step rather than
-        /// being repeatedly rounded away.</para>
+        /// <para>Never per render frame: the original never moves a roamer while the party stands.
+        /// The party's distance is counted in preference steps rather than Stepped events because
+        /// Enhanced walking glides in Small sub-steps (<see cref="PartyMovement.Glide"/>); the
+        /// remainder is carried, so a run of short steps still adds up to a step.</para>
         /// </remarks>
         /// <summary>
         /// Keep the nine tiles around the party active and the rest off — TASK-130 option (b).
@@ -2267,16 +2259,13 @@ namespace BakAgain.World {
             // delta on both axes, so measuring it as longer than a straight one would run diagonal
             // travel faster than the original does.
             long moved = System.Math.Max(System.Math.Abs(dx), System.Math.Abs(dy));
-            if (moved <= 0) {
-                return;     // a pivot is not a step; nothing roams
-            }
-
-            _roamingCarry += moved;
-            int ticks = (int)(_roamingCarry / RoamingStepDistance);
+            // A pivot is not a step; nothing roams.
+            int ticks;
+            (ticks, _roamingCarry) = GameData.Resources.World.RoamingMovement.TicksForPartyMove(
+                _roamingCarry, moved, _partyMovement?.WorldStepSpeed ?? RoamingStepDistance);
             if (ticks <= 0) {
                 return;
             }
-            _roamingCarry -= (long)ticks * RoamingStepDistance;
 
             Encounters.RoamingActor[] actors =
                 _encounterActorsRoot.GetComponentsInChildren<Encounters.RoamingActor>();
