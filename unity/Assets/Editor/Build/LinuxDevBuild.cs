@@ -12,8 +12,6 @@ namespace BakAgain.Editor.Build {
     /// <remarks>
     /// Writes <c>Builds/Linux/BaK-Again.x86_64</c> and a one-line result to <c>Builds/Linux/result.txt</c>
     /// (first word <c>Succeeded</c>, or <c>FAILED</c>), then switches back to the target that was active.
-    /// <para>Builds with Mono: the umachine's Editor has only the Mono Linux players installed, and the project's
-    /// IL2CPP setting (for the release builds) disables the Linux build button. The setting is restored after.</para>
     /// </remarks>
     public static class LinuxDevBuild {
         public const string OutputDirectory = "Builds/Linux";
@@ -26,10 +24,7 @@ namespace BakAgain.Editor.Build {
 
             BuildTarget before = EditorUserBuildSettings.activeBuildTarget;
             BuildTargetGroup beforeGroup = BuildPipeline.GetBuildTargetGroup(before);
-            var standalone = UnityEditor.Build.NamedBuildTarget.Standalone;
-            ScriptingImplementation backend = PlayerSettings.GetScriptingBackend(standalone);
             try {
-                PlayerSettings.SetScriptingBackend(standalone, ScriptingImplementation.Mono2x);
                 if (before != BuildTarget.StandaloneLinux64) {
                     EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.Standalone, BuildTarget.StandaloneLinux64);
                 }
@@ -54,8 +49,6 @@ namespace BakAgain.Editor.Build {
                 File.WriteAllText(resultPath, "FAILED " + e + "\n");
                 Debug.LogException(e);
             } finally {
-                PlayerSettings.SetScriptingBackend(standalone, backend);
-                AssetDatabase.SaveAssets(); // the build wrote Mono into ProjectSettings.asset; write the restore too
                 if (EditorUserBuildSettings.activeBuildTarget != before) {
                     EditorUserBuildSettings.SwitchActiveBuildTarget(beforeGroup, before);
                 }
