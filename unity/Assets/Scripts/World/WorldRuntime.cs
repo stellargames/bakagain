@@ -750,7 +750,11 @@ namespace BakAgain.World {
                     pens.Add(pen < palette.Length ? palette[pen] : Color.white);
                 }
                 Vector3 top = BillboardSprite.DrawnTopCentre(at);
-                screen.FloatText(top,dealt == 0 ? "miss" : System.Math.Abs(dealt).ToString(), pens);
+                string text = dealt == 0 ? "miss" : System.Math.Abs(dealt).ToString();
+                screen.FloatText(top, text, pens);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                BakAgain.Testing.HarnessQueries.NoteFloat(text, slot, party);
+#endif
             }
         }
 
@@ -2493,6 +2497,11 @@ namespace BakAgain.World {
         /// <summary>The built world camera, valid between <see cref="BuildAsync"/> and
         /// <see cref="TeardownAsync"/>. GameFlow routes it into the travel screen's viewport.</summary>
         public Camera WorldCamera => _worldCamera;
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        /// <summary>The fight's hotspot service, for the build test harness's read-only queries.</summary>
+        internal Hotspots.HotspotService HarnessHotspots => _hotspots;
+#endif
 
         /// <summary>The built party-movement controller (drives the camera + GameSession from nav
         /// input), valid between build and teardown.</summary>

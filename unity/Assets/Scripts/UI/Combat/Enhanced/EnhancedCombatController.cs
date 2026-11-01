@@ -178,6 +178,9 @@ namespace BakAgain.UI.Combat.Enhanced {
         }
 
         private int _logShown;
+
+        /// <summary>How many fight-log lines the HUD shows now (build test harness).</summary>
+        internal int LogShown => _logShown;
         private float _logGrewAt = float.NegativeInfinity;
 
         /// <summary>The pointer is on this cell / combatant (hover; or where a tap or long press landed).</summary>
