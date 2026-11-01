@@ -656,14 +656,13 @@ namespace BakAgain.UI.Inventory {
         // One empty square per cell the general grid offers, beneath the item cells (TASK-944). A
         // member's first columns are the paperdoll's, so the pack's squares are the rest: its 20
         // slots on the shipped 7x4 grid (cmbinv_has_space_for_item's 0x14, CMBINV.C:631).
+        // Geometry only: the squares size the two loot panels, but draw nothing (the owner's call,
+        // TASK-1019 — the faint tile that marked each slot is gone).
         private void DrawSquares(VisualElement host, LayoutGrid grid, int firstColumn, Vector2 origin) {
             for (int c = firstColumn; c < grid.Columns; c++) {
                 for (int r = 0; r < grid.Rows; r++) {
                     var square = new VisualElement { pickingMode = PickingMode.Ignore };
                     square.AddToClassList(SquareClass);
-                    var tile = new VisualElement { pickingMode = PickingMode.Ignore };
-                    tile.AddToClassList(SquareClass + "__tile");
-                    square.Add(tile);
                     LayoutApplier.ApplyGridPlacement(square, grid,
                         new LayoutGridPlacement { Column = c, Row = r, ColumnSpan = 1, RowSpan = 1 });
                     host.Add(square);

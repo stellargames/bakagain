@@ -141,6 +141,14 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             Assert.AreEqual(bound.size, renderer.SquaresRect.size);
         }
 
+        // TASK-1019: no grid boxes on the loot screen — the squares are geometry, with nothing in them.
+        [Test]
+        public void TheSquaresDrawNothing() {
+            List<VisualElement> squares = Squares(Render(Chest(), InventoryLayoutMode.Loot, squares: true));
+            Assert.IsTrue(squares.All(s => s.childCount == 0), "no tile inside a square");
+            Assert.IsTrue(squares.All(s => s.resolvedStyle.backgroundColor.a == 0f), "and no fill of its own");
+        }
+
         [Test]
         public void WithoutSquares_TheFaithfulGridDrawsNone() {
             RuntimeContainer chest = Chest();

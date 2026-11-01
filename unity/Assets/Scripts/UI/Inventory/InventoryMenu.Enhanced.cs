@@ -77,12 +77,44 @@ namespace BakAgain.UI.Inventory {
             evt.StopPropagation();
         }
 
-        /// <summary>The bar's hint: how to get back while an item is examined.</summary>
+        /// <summary>The examine view takes the whole field; the bar's hint (the hovered item's name) clears.</summary>
         private void SyncEnhancedChrome() {
             SyncLootHalvesForExamine();
-            if (EnhancedApplied) {
-                _enhanced.SetHint(_inspectOpen ? Templates.Format(Templates.EnhancedInvBack) : null);
+            if (EnhancedApplied && _inspectOpen) {
+                _enhanced.SetHint(null);
             }
+        }
+
+        /// <summary>
+        /// Enhanced, mouse only (TASK-1019; the original has no hover text): the bar's hint names the
+        /// item under the pointer, on either side of the loot screen. Nothing while a drag, the picker
+        /// or the examine view is up — the examine view names the item itself.
+        /// </summary>
+        private void OnStageHover(PointerMoveEvent evt) {
+            if (EnhancedApplied && evt.pointerType == UnityEngine.UIElements.PointerType.mouse) {
+                _enhanced.SetHint(HoverNameAt(_stage.WorldToLocal(evt.position)));
+            }
+        }
+
+        private void OnStageLeave(PointerLeaveEvent evt) {
+            if (EnhancedApplied) _enhanced.SetHint(null);
+        }
+
+        private string HoverNameAt(Vector2 stageLocal) {
+            if (_dragSlot >= 0 || _pickerOpen || _inspectOpen || _descriptionOpen) {
+                return null;
+            }
+            RuntimeContainer shown = _displayed;
+            int slot = SlotAt(stageLocal);
+            if (slot < 0 && SideBySide) {
+                slot = SlotAt(stageLocal, PeerSlotPrefix);
+                shown = ShowingLootSide ? ResolveMemberContainer(_lootMember) : _container;
+            }
+            if (shown == null || slot < 0 || slot >= shown.Items.Count) {
+                return null;
+            }
+            ObjectInfo obj = _gameSession.ObjectInfo?.GetById(shown.Items[slot].ObjectId);
+            return obj == null ? null : string.Join(" ", ItemInspectText.NameLines(obj));
         }
 
         // In a member's own pack the displayed member holds the item; a chest, a shelf or the key
@@ -170,7 +202,8 @@ namespace BakAgain.UI.Inventory {
             Root?.Query(ShadeName).ToList().ForEach(e => e.RemoveFromHierarchy());
         }
 
-        /// <summary>The hovered portrait names what the drop will do — the member's name, never the item's.</summary>
+        /// <summary>The hovered portrait names what the drop will do — the member's name, never the item's.
+        /// A take from loot says nothing (the owner's call, TASK-1019): the portrait lights, which is enough.</summary>
         private void ShowHoverLabel(int portraitSlot) {
             if (!EnhancedApplied || _dragSlot < 0 || portraitSlot == _hoverLabelSlot) {
                 return; // every drag move asks; only a new portrait changes the labels
@@ -182,10 +215,10 @@ namespace BakAgain.UI.Inventory {
                 _enhanced.Portrait(i)?.EnableInClassList(EnhancedInventoryLayout.HoverClass, hovered);
                 string key = CurrentVerb switch {
                     GiveVerb.Buy => Templates.EnhancedInvBuyFor,
-                    GiveVerb.Take => Templates.EnhancedInvTakes,
+                    GiveVerb.Take => null,
                     _ => Templates.EnhancedInvGiveTo,
                 };
-                _enhanced.SetPortraitLabel(i, hovered ? Templates.Format(key, ("name", _enhanced.NameOf(i))) : null);
+                _enhanced.SetPortraitLabel(i, hovered && key != null ? Templates.Format(key, ("name", _enhanced.NameOf(i))) : null);
             }
         }
 
@@ -275,6 +308,42 @@ namespace BakAgain.UI.Inventory {
             float scale = Mathf.Min(MaxStatsScale, room.width / extent.width, room.height / extent.height);
             lineRoot.style.scale = new Scale(new Vector2(scale, scale));
             lineRoot.style.translate = new Translate(-extent.x * scale, -extent.y * scale);
+        }
+
+        /// <summary>
+        /// Enhanced (TASK-1019; the original's double-click does nothing in a container view): a
+        /// double-click on a loot item takes it into the pack shown beside it, one on the shop shelf
+        /// buys it for the first member with room for it — or for the first member, whose refusal then
+        /// plays. Both are the portrait drop, so the picker, the price, haggling and every refusal are
+        /// the drop's own. False when neither applies.
+        /// </summary>
+        private bool DoubleClickTakes(int slot) {
+            if (!EnhancedApplied || _displayed == null || slot < 0 || slot >= _displayed.Items.Count) {
+                return false;
+            }
+            int receiver = ShowingShopShelf ? BuyerFor(_displayed.Items[slot])
+                : SideBySide && ShowingLootSide ? _lootMember : -1;
+            if (receiver < 0) {
+                return false;
+            }
+            VisualElement cell = _stage.Q($"item_slot_{slot}");
+            if (cell != null) {
+                _dropStagePos = _stage.WorldToLocal(cell.worldBound.center); // where the flight starts
+            }
+            TransferItemTo(slot, receiver);
+            return true;
+        }
+
+        private int BuyerFor(RuntimeItem item) {
+            RuntimeItem delivered = GameData.Resources.Shop.ShopPurchase.Delivered(item);
+            int count = _gameSession.ActivePartyIndices?.Length ?? 0;
+            for (int i = 0; i < count; i++) {
+                RuntimeContainer pack = ResolveMemberContainer(i);
+                if (pack != null && InventoryTransfer.HasRoomFor(pack, delivered, _gameSession.ObjectInfo)) {
+                    return i;
+                }
+            }
+            return 0;
         }
 
         /// <summary>A finger's double tap selects but never Uses with the Enhanced layout: a stray one

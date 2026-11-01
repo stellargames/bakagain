@@ -334,13 +334,13 @@ public static class UiTemplates {
     /// <summary>The caster's two lines on one, under the portrait: <c>{health}</c> and <c>{stamina}</c> are those templates.</summary>
     public const string EnhancedCastPool = "port:template:enhanced_cast_pool";
 
-    /// <summary>The Enhanced inventory's buttons and labels. Labels name people, never items: a name
-    /// is what examining an item reveals.</summary>
+    /// <summary>The Enhanced inventory's buttons and labels. The portrait labels name people; the bar's
+    /// hint names the item under the mouse (the owner's call, TASK-1019 — it used to be that only
+    /// examining an item named it).</summary>
     public const string EnhancedInvGiveTo = "port:template:enhanced_inv_give_to";
-    public const string EnhancedInvTakes = "port:template:enhanced_inv_takes";
     public const string EnhancedInvBuyFor = "port:template:enhanced_inv_buy_for";
     public const string EnhancedInvHasIt = "port:template:enhanced_inv_has_it";
-    public const string EnhancedInvBack = "port:template:enhanced_inv_back";
+    public const string EnhancedInvGetAll = "port:template:enhanced_inv_get_all";
 
     /// <summary>An Enhanced caption whose choice waits for the next start (the font is bound at
     /// start): "<c>{text}</c> (restart)", as <see cref="LanguageChoicePendingKey"/>.</summary>
@@ -558,10 +558,9 @@ public static class UiTemplates {
         (EnhancedCastStamina, _ => "Stamina {current}/{max}"),
         (EnhancedCastPool, _ => "{health} · {stamina}"),
         (EnhancedInvGiveTo, _ => "Give to {name}"),
-        (EnhancedInvTakes, _ => "{name} takes it"),
         (EnhancedInvBuyFor, _ => "Buy for {name}"),
         (EnhancedInvHasIt, _ => "Has it"),
-        (EnhancedInvBack, _ => "Back to the pack"),
+        (EnhancedInvGetAll, _ => "Get all"),
         (EnhancedPendingKey, _ => "{text} (restart)"),
         (EnhancedStatusKey, _ => "Day {day} · {hour}:00"),
         (EnhancedStatusAtKey, _ => "{place} · {status}"),

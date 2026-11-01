@@ -243,6 +243,41 @@ namespace BakAgain.UI.Inventory {
             return !ReferenceEquals(_displayed, before);
         }
 
+        /// <summary>
+        /// "Get all" (TASK-1019; the original has no such button): every item out of the loot to the
+        /// party by <see cref="InventoryTransfer.TakeAll"/> — a stack shared, anything else to the
+        /// member with most room, gold to the purse and keys to the ring. What nobody can carry stays,
+        /// with the no-room line a portrait drop of loot plays, once.
+        /// </summary>
+        private void TakeAll() {
+            if (!SideBySide || _pickerOpen || _inspectOpen || _descriptionOpen) {
+                return;
+            }
+            int gold = _gameSession.PartyGold;
+            int left = InventoryTransfer.TakeAll(_container, ActiveMemberContainers(), _gameSession.ObjectInfo,
+                ref gold, IsMemberCaster, _gameSession.SharedKeysInventory, MemberConditionsOf);
+            _gameSession.PartyGold = gold;
+            if (left > 0) {
+                ShowVar0Message(NoRoomDialogId, 0);
+            }
+            DeselectItem();
+            RenderCurrent();
+        }
+
+        /// <summary>The grid's widgets and, while it shows, the Get all tablet, so the keyboard reaches it.</summary>
+        private System.Collections.Generic.IReadOnlyList<BakAgain.UI.InputCore.NavWidget> WithGetAll(
+            System.Collections.Generic.List<BakAgain.UI.InputCore.NavWidget> grid) {
+            VisualElement tablet = _enhanced?.GetAll;
+            if (!SideBySide || tablet == null) {
+                return grid;
+            }
+            var all = new System.Collections.Generic.List<BakAgain.UI.InputCore.NavWidget>(grid) {
+                new(tablet, GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedInvGetAll),
+                    () => _enhanced?.CanonicalRectOf(tablet) ?? Rect.zero, TakeAll, null),
+            };
+            return all;
+        }
+
         /// <summary>A drop on the pack while the loot is live goes to that member: the portrait drop.</summary>
         private int LootPackPortraitUnder(Vector2 stageLocal) =>
             SideBySide && ShowingLootSide && _packHalf != null && _packHalf.layout.Contains(stageLocal) ? _lootMember : -1;

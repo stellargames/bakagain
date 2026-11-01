@@ -729,6 +729,7 @@ namespace BakAgain.UI.Inventory {
                 return;
             }
             _enhanced = new EnhancedInventoryLayout(Root, _gameSession);
+            _enhanced.GetAllPressed += TakeAll;
             LoadBlankStoneAsync(_enhanced).Forget();
             if (_ui == null) {
                 return;
@@ -939,6 +940,7 @@ namespace BakAgain.UI.Inventory {
             // The container window's frame is part of the REDRAW in a non-member view — a shop, chest
             // or corpse always shows it (INVENTOR.C:399-400) — so place it here, not only on a drag.
             UpdateDiscardBorder(dragging: false, overWindow: false);
+            _enhanced?.ShowGetAll(SideBySide);
             SyncEnhancedChrome();
         }
 
@@ -1001,7 +1003,7 @@ namespace BakAgain.UI.Inventory {
         // render because the grid's cells are rebuilt each time; the layer swaps its list in place
         // and re-resolves focus from the cursor (NavigableLayer.SetWidgets).
         private void RefreshNavWidgets() =>
-            _layerHost?.SetWidgets(ComposeNavWidgets(_ui?.CurrentNavWidgets, _gridNavWidgets));
+            _layerHost?.SetWidgets(ComposeNavWidgets(_ui?.CurrentNavWidgets, WithGetAll(_gridNavWidgets)));
 
         // Keyboard/gamepad activation of an item cell. The count comes from the drag recogniser so
         // Enter-twice reaches the same Use branch a mouse double-click does — in the original Enter
@@ -1570,6 +1572,8 @@ namespace BakAgain.UI.Inventory {
             _gesture.Released += OnReleased;
             _stage.AddManipulator(_gesture);
             _stage.RegisterCallback<WheelEvent>(OnShelfWheel);
+            _stage.RegisterCallback<PointerMoveEvent>(OnStageHover);
+            _stage.RegisterCallback<PointerLeaveEvent>(OnStageLeave);
             // The pulse is an animation, not input, so it rides UI Toolkit's scheduler — the same
             // mechanism ItemInspectPanel's icon flight uses — instead of needing an Update() pump.
             // Only reached on the first wire (the branch above returns otherwise); the null check
@@ -1601,6 +1605,8 @@ namespace BakAgain.UI.Inventory {
         private void TeardownStageInput() {
             if (_gesture != null) {
                 _gesture.target?.UnregisterCallback<WheelEvent>(OnShelfWheel);
+                _gesture.target?.UnregisterCallback<PointerMoveEvent>(OnStageHover);
+                _gesture.target?.UnregisterCallback<PointerLeaveEvent>(OnStageLeave);
                 _gesture.target?.RemoveManipulator(_gesture);
                 _gesture = null;
             }
@@ -2182,6 +2188,9 @@ namespace BakAgain.UI.Inventory {
                 _gameSession.SetDialogKeyObjectId(_displayed.Items[slot].ObjectId);
             }
             bool sameSlot = _selectedSlot == slot;
+            if (sameSlot && clickCount >= 2 && DoubleTapUses && DoubleClickTakes(slot)) {
+                return; // Enhanced: a double-click on loot or the shelf is the portrait drop
+            }
             if (sameSlot && clickCount >= 2 && DoubleTapUses
                 && _displayed?.ContainerType == SaveGameContainerType.Inventory) {
                 UseSelectedItem();
