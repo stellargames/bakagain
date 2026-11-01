@@ -318,7 +318,7 @@ namespace BakAgain.UI.Spells {
                 _session.PositionX, _session.PositionY, 0);
 
             foreach (WorldEntity entity in
-                Object.FindObjectsByType<WorldEntity>(FindObjectsSortMode.None)) {
+                Object.FindObjectsByType<WorldEntity>()) {
                 if (!IsMarked(entity, party)) {
                     continue;
                 }

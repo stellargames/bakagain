@@ -48,7 +48,7 @@ namespace BakAgain.World.Interaction {
             Audio.MenuSoundService.Instance?.Play(DoorMechanics.TouchSound);
 
             (int bakX, int bakY) = BakCoordinateConverter.ToBakXY(entity.transform.position);
-            SaveGameContainerData? placement =
+            SaveGameContainerData placement =
                 _session.GetContainerAt(_session.CurrentZone, bakX, bakY);
 
             int? variant = FixedObjectAccess.DoorVariant(placement);

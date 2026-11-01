@@ -1330,7 +1330,7 @@ namespace BakAgain.World {
         /// </remarks>
         private void ClearCombatBackdrop() {
             foreach (BakAgain.UI.InGame.InGameScreen screen in
-                     Object.FindObjectsByType<BakAgain.UI.InGame.InGameScreen>(FindObjectsSortMode.None)) {
+                     Object.FindObjectsByType<BakAgain.UI.InGame.InGameScreen>()) {
                 screen.SetCombatBackdrop(null);
             }
         }
@@ -1478,7 +1478,7 @@ namespace BakAgain.World {
             // over there found no InGameScreen and silently wired nothing. A fight starting is the
             // first moment both exist; it is idempotent, so repeating it per redraw costs nothing.
             foreach (BakAgain.UI.InGame.InGameScreen screen in
-                     Object.FindObjectsByType<BakAgain.UI.InGame.InGameScreen>(FindObjectsSortMode.None)) {
+                     Object.FindObjectsByType<BakAgain.UI.InGame.InGameScreen>()) {
                 screen.SetCorpseLootSeam(_hotspots.LootCorpse);
                 _hotspots.InspectArmed = screen.InspectAtTouchCursor;
                 screen.SetCombatTargetSeam(_hotspots.ResolveCombatTargetClick);
@@ -1519,7 +1519,7 @@ namespace BakAgain.World {
             // idempotence, same reason: this redraw is the first moment both objects exist.
             foreach (BakAgain.UI.Spells.CastScreen cast in
                      Object.FindObjectsByType<BakAgain.UI.Spells.CastScreen>(
-                         FindObjectsInactive.Include, FindObjectsSortMode.None)) {
+                         FindObjectsInactive.Include)) {
                 cast.SetCasterStatsSeam(_hotspots.Combat != null
                     ? _hotspots.Combat.ActorStatsFor
                     : (System.Func<GameData.Resources.Combat.Combatant,

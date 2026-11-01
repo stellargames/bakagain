@@ -74,13 +74,13 @@ namespace BakAgain.UI.InputCore {
             text.AppendLine("DRAWING (topmost last)");
             var rows = new List<(float Order, string Line)>();
 
-            foreach (UIDocument doc in Object.FindObjectsByType<UIDocument>(FindObjectsSortMode.None)) {
+            foreach (UIDocument doc in Object.FindObjectsByType<UIDocument>()) {
                 if (doc == null || !doc.isActiveAndEnabled) {
                     continue;
                 }
                 rows.Add((doc.sortingOrder, $"  UIDocument {doc.name,-30} sort {doc.sortingOrder}"));
             }
-            foreach (Canvas canvas in Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None)) {
+            foreach (Canvas canvas in Object.FindObjectsByType<Canvas>()) {
                 if (canvas == null || !canvas.isActiveAndEnabled) {
                     continue;
                 }

@@ -51,7 +51,7 @@ namespace BakAgain.Core.States.Debug {
             _logger.LogInformation("Entering WorldTestState - testing world loading and rendering");
 
             // Setup camera and controller
-            await SetupCameraAndController();
+            SetupCameraAndController();
 
             // Setup UI
             SetupUI();
@@ -60,7 +60,7 @@ namespace BakAgain.Core.States.Debug {
             await LoadTestZone(_currentZoneIndex);
         }
 
-        private async UniTask SetupCameraAndController() {
+        private void SetupCameraAndController() {
             // Disable all existing cameras so they don't render over ours
             foreach (var cam in Camera.allCameras) {
                 cam.enabled = false;

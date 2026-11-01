@@ -10,7 +10,7 @@ namespace BakAgain.Tests.PlayMode.World {
             OpensLoot = true, HasLock = true,
         };
 
-        private static SaveGameContainerData Container(SaveGameContainerType type, SaveGameContainerLockData? lockData) =>
+        private static SaveGameContainerData Container(SaveGameContainerType type, SaveGameContainerLockData lockData) =>
             new SaveGameContainerData(
                 new SaveGameContainerLocationData(1, 1, 9, 195, 670423, 1059778, 0),
                 type, 0, 4, 0, Array.Empty<SaveGameInventoryItemData>(),

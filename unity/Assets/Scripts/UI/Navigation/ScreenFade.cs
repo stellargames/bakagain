@@ -291,7 +291,7 @@ namespace BakAgain.UI.Navigation {
 
         private static PanelSettings FindPanelSettings() {
             UIDocument[] documents = Object.FindObjectsByType<UIDocument>(
-                FindObjectsInactive.Include, FindObjectsSortMode.None);
+                FindObjectsInactive.Include);
             foreach (UIDocument document in documents) {
                 if (document.panelSettings != null) {
                     return document.panelSettings;
