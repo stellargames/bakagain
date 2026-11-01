@@ -298,6 +298,7 @@ public static class UiTemplates {
     public const string HudStonePack = "port:template:enhanced_hud_stone_pack";
     public const string HudStoneRest = "port:template:enhanced_hud_stone_rest";
     public const string HudStoneAuto = "port:template:enhanced_hud_stone_auto";
+    public const string HudStoneStop = "port:template:enhanced_hud_stone_stop";
     public const string HudReset = "port:template:enhanced_hud_reset";
     public const string HudHealthCostShort = "port:template:enhanced_hud_health_cost_short";
     public const string HudJoin = "port:template:enhanced_hud_join";
@@ -528,6 +529,8 @@ public static class UiTemplates {
         (HudStonePack, _ => "Pack"),
         (HudStoneRest, _ => "Rest"),
         (HudStoneAuto, _ => "Auto"),
+        // The Auto stone while auto-resolve runs: pressing it again takes control back.
+        (HudStoneStop, _ => "Stop"),
         (HudReset, _ => "Reset"),
         (HudHealthCostShort, _ => "−{n} H"),
         (HudJoin, _ => "{a} · {b}"),

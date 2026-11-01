@@ -145,6 +145,9 @@ namespace BakAgain.UI.Combat.Enhanced {
             int? cardHero = !_phone && _party ? _foe : null;
             CombatHudModel m = CombatHudModelBuilder.Build(_cr, _session, _hs?.EnhancedBoardMarks(), logLines, f, alt, card, cardHero,
                 RevealedLogLines());
+            if (m != null && (_hs?.AutoResolving ?? false)) {
+                m = m with { AutoRunning = true };
+            }
             // An armed pick waiting for its target says so, by name (owner, 2026-10-28: after the cast
             // screen it was not clear a target had to be chosen again).
             return Picking && _hs?.PendingPickName is string pick && m != null
@@ -280,6 +283,12 @@ namespace BakAgain.UI.Combat.Enhanced {
         /// <summary>A stone. A desktop click acts; a key (or a phone tap) forecasts first, and on a
         /// key the same key again acts. Cast/Shoot open their existing, cancellable screens at once.</summary>
         public void Stone(Command c, bool fromKey) {
+            // Auto-resolve running: the Auto stone (or its key) stops it, whoever's turn it is.
+            if (c == Command.AutoResolve && (_hs?.AutoResolving ?? false)) {
+                _hs.StopAutoResolve();
+                Changed?.Invoke();
+                return;
+            }
             Combatant acting = Ready();
             if (acting == null) {
                 return;
@@ -345,6 +354,7 @@ namespace BakAgain.UI.Combat.Enhanced {
                 case EnterKey: Confirm(); return true;
                 case SheetKey: OnHeroCard(); return true;
                 // Esc backs out of a forecast; with none it is the Classic Escape (stops Auto, drops a pick).
+                case CombatCommands.EscapeId when _hs?.AutoResolving ?? false: _hs.StopAutoResolve(); return true;
                 case CombatCommands.EscapeId when _action != null: Cancel(); return true;
                 // One path per action: Shoot, Inspect and the pack have no key of their own here.
                 case CombatCommands.ShootId:

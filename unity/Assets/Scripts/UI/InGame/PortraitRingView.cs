@@ -123,26 +123,19 @@ namespace BakAgain.UI.InGame {
             }
         }
 
-        // The badge's glyph, drawn (no font has to carry it): a tick for acted, a cross for down.
-        // Shape as well as colour, so the two are never told apart by colour alone.
+        // The badge's glyph, drawn (no font has to carry it): a tick for acted. A downed member has no badge,
+        // the portrait dims instead (owner, 2026-11-01).
         private static void DrawBadge(MeshGenerationContext ctx, Rect r, RingVariant variant) {
-            if (variant != RingVariant.Acted && variant != RingVariant.Down || r.width <= 0f) return;
+            if (variant != RingVariant.Acted || r.width <= 0f) return;
             Painter2D p = ctx.painter2D;
             p.lineWidth = Mathf.Max(1.5f, r.width * 0.16f);
             p.strokeColor = Color.white;
             p.lineCap = LineCap.Round;
             float m = r.width * 0.28f;
             p.BeginPath();
-            if (variant == RingVariant.Acted) {
-                p.MoveTo(new Vector2(r.xMin + m, r.center.y));
-                p.LineTo(new Vector2(r.center.x - r.width * 0.05f, r.yMax - m));
-                p.LineTo(new Vector2(r.xMax - m, r.yMin + m));
-            } else {
-                p.MoveTo(new Vector2(r.xMin + m, r.yMin + m));
-                p.LineTo(new Vector2(r.xMax - m, r.yMax - m));
-                p.MoveTo(new Vector2(r.xMax - m, r.yMin + m));
-                p.LineTo(new Vector2(r.xMin + m, r.yMax - m));
-            }
+            p.MoveTo(new Vector2(r.xMin + m, r.center.y));
+            p.LineTo(new Vector2(r.center.x - r.width * 0.05f, r.yMax - m));
+            p.LineTo(new Vector2(r.xMax - m, r.yMin + m));
             p.Stroke();
         }
 

@@ -232,4 +232,20 @@ public class ArenaOrbitTests {
         o.TurnQuarter(1);
         Assert.False(o.IsTrap);
     }
+
+    // Owner, 2026-11-01: the arrow keys pan. Up moves the focus away from the eye, right across the screen,
+    // whichever way the camera has been turned.
+    [Fact]
+    public void APanMovesTheFocusAsTheCameraSeesTheBoard() {
+        var o = new ArenaOrbit(Layout, (1000, 2000), 0, 40, 1000, 1);
+        Assert.Equal((1000d, 2100d), o.PanTarget(0, 100));
+        Assert.Equal((1100d, 2000d), o.PanTarget(100, 0));
+        o.Drag(90 / Layout.OrbitDegreesPerPixel, 0);   // a quarter turn: forward is now +X
+        (double X, double Y) ahead = o.PanTarget(0, 100);
+        Assert.Equal(1100d, ahead.X, 6);
+        Assert.Equal(2000d, ahead.Y, 6);
+        (double X, double Y) right = o.PanTarget(100, 0);
+        Assert.Equal(1000d, right.X, 6);
+        Assert.Equal(1900d, right.Y, 6);
+    }
 }

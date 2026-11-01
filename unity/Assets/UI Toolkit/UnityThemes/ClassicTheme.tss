@@ -465,14 +465,15 @@
 .ec-desk-medallion--theirs { border-color: rgb(196, 44, 32); }
 .ec-desk-medallion__head { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
 .ec-desk .ec-desk-medallion__letter { font-size: 64px; color: rgb(236, 210, 140); -unity-text-align: middle-center; }
-.ec-desk-coins { flex-direction: row; flex-wrap: wrap; width: 45%; justify-content: center; }
+/* One column (owner, 2026-11-01: a triangle took width); a summon past the third wraps to a second column. */
+.ec-desk-coins { flex-direction: column; flex-wrap: wrap; height: 100%; justify-content: center; align-content: center; }
 .ec-desk-coin { margin: 4px; border-radius: 50%; background-color: rgb(70, 54, 40); justify-content: center; align-items: center; }
 .ec-desk-coin__head { position: absolute; left: 10%; top: 10%; right: 10%; bottom: 10%; border-radius: 50%; }
 .ec-desk .ec-desk-coin__letter { font-size: 28px; color: rgb(236, 220, 186); -unity-text-align: middle-center; }
 .enhanced-ring__badge { position: absolute; right: -6%; bottom: -6%; width: 40%; height: 40%; border-radius: 50%; display: none; }
 .enhanced-ring--acted .enhanced-ring__badge { display: flex; background-color: rgb(52, 52, 48); border-width: 2px; border-color: rgb(236, 220, 186); }
-.enhanced-ring--down .enhanced-ring__badge { display: flex; background-color: rgb(196, 36, 28); border-width: 2px; border-color: rgb(255, 255, 255); }
-.enhanced-ring--down { -unity-background-image-tint-color: rgb(110, 110, 110); opacity: 0.75; }
+/* Down: the portrait dims, no badge (owner, 2026-11-01: the red cross was ugly). */
+.enhanced-ring--down { -unity-background-image-tint-color: rgb(110, 110, 110); opacity: 0.4; }
 .enhanced-ring--active { border-width: 3px; border-color: rgb(232, 196, 92); }
 .enhanced-ring--summon { border-width: 3px; border-color: rgb(150, 110, 210); }
 .ec-desk-chip { margin-left: 8px; padding: 0 8px; background-color: rgb(52, 112, 52); }

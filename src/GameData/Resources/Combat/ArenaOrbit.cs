@@ -79,6 +79,19 @@ public sealed class ArenaOrbit {
         }
     }
 
+    /// <summary>Where a close view leans now (see <see cref="Focus"/>).</summary>
+    public (double X, double Y) FocusPoint => _focus;
+
+    /// <summary>
+    /// Moves the focus by (<paramref name="right"/>, <paramref name="forward"/>) as the camera sees them: right
+    /// across the screen and forward away from the eye, along the ground (board frame).
+    /// </summary>
+    public (double X, double Y) PanTarget(double right, double forward) {
+        double yaw = YawDegrees * Math.PI / 180;
+        (double fx, double fy) = (Math.Sin(yaw), Math.Cos(yaw));
+        return (_focus.X + (right * fy) + (forward * fx), _focus.Y - (right * fx) + (forward * fy));
+    }
+
     /// <summary>The point a close view centres on (the acting hero's cell), in the board's frame.</summary>
     public void Focus((double X, double Y) point) {
         _focus = _glideTo = point;

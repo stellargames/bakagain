@@ -208,8 +208,12 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
         public IEnumerator DesktopLedgerKeepsTheLastTwoLogLinesUnderAForecast() {
             _hud.Show(HudModels.Forecast());
             yield return null;
-            string[] footer = _hud.Root.Q("ec-desk-ledger-footer").Query<Label>().ToList().Select(l => l.text).ToArray();
+            string[] footer = _hud.Root.Q("ec-desk-ledger-footer").Query<Label>().ToList()
+                .Select(l => System.Text.RegularExpressions.Regex.Replace(l.text, "<[^>]+>", "")).ToArray();
             CollectionAssert.AreEqual(HudModels.Log.Skip(HudModels.Log.Length - _layout.LedgerLogLines).ToArray(), footer);
+            // Owner, 2026-11-01: each party member's name has its own colour in the log.
+            string last = _hud.Root.Q("ec-desk-ledger-footer").Query<Label>().ToList().Last().text;
+            StringAssert.Contains("<color=" + _layout.PartyLogColours[2] + ">Locklear</color>", last, "Locklear is third in the party");
             Assert.IsNotNull(_hud.Root.Q("ec-desk-forecast"), "the forecast table is the ledger's body");
             StringAssert.Contains("Owyn", _hud.Root.Q<Label>("ec-desk-ends-turn").text, "the red ends-turn chip");
 
@@ -370,7 +374,15 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             Assert.AreEqual("round 2", _hud.Root.Q<Label>("ec-desk-ledger-round").text);
             List<VisualElement> badges = _hud.Root.Q("ec-desk-coins").Query("coin-badge").ToList();
             CollectionAssert.AreEqual(new object[] { RingVariant.Active, RingVariant.Acted, RingVariant.Down },
-                badges.Select(b => b.userData).ToArray(), "each coin's badge draws its variant's glyph");
+                badges.Select(b => b.userData).ToArray(), "each coin knows its variant");
+            yield return null;
+            // Owner, 2026-11-01: a downed member's portrait dims, with no red cross; the coins stand in a column.
+            Assert.AreEqual(DisplayStyle.Flex, badges[1].resolvedStyle.display, "acted: the tick");
+            Assert.AreEqual(DisplayStyle.None, badges[2].resolvedStyle.display, "down: no badge");
+            Assert.Less(badges[2].parent.resolvedStyle.opacity, 0.5f, "down: dimmed");
+            List<VisualElement> coins = _hud.Root.Q("ec-desk-coins").Children().ToList();
+            Assert.AreEqual(coins[0].worldBound.center.x, coins[2].worldBound.center.x, 1f, "one column");
+            Assert.Less(coins[0].worldBound.yMax, coins[1].worldBound.yMin + 1f, "stacked");
         }
 
         [UnityTest]

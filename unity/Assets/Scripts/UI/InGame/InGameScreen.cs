@@ -1294,6 +1294,9 @@ namespace BakAgain.UI.InGame {
             BakAgain.UI.InputCore.MenuLayerHost host = _classicCombatNav?.Invoke();
             bool enhanced = EnhancedCombatActive && _combatHud.Hud is BakAgain.UI.Combat.Enhanced.DesktopCombatHud;
             if (!enhanced || host != _enhancedNavHost || host?.Layer != _enhancedNavLayer) {
+                if (_enhancedNavLayer is BakAgain.UI.InputCore.NavigableLayer taken) {
+                    taken.ArrowsTaken = false;
+                }
                 if (_enhancedNavHost != null) {
                     var loader = _enhancedNavHost.GetComponent<BakAgain.ResourceManagement.Loaders.UserInterfaceLoader>();
                     if (loader != null && loader.CurrentNavWidgets != null) {
@@ -1314,6 +1317,8 @@ namespace BakAgain.UI.InGame {
             if (host.SetWidgets(widgets)) {
                 _enhancedNavHost = host;
                 _enhancedNavLayer = host.Layer;
+                // The arrows pan the camera (owner, 2026-11-01); Tab walks the stones.
+                ((BakAgain.UI.InputCore.NavigableLayer)host.Layer).ArrowsTaken = true;
             }
         }
 
@@ -1907,6 +1912,15 @@ namespace BakAgain.UI.InGame {
             _combatCamera ??= new CombatCameraInput(_pointer, _enhancedLayout, _combatLayout);
             _combatCamera.Tick(EnhancedCombatActive && world != null, startsOnWorld,
                 world != null ? world.OrbitArena : null, world != null ? world.ZoomArenaAt : (System.Action<float, Vector2>)null);
+            // The arrow keys pan a close view across the board (owner, 2026-11-01). Read as keys, not as the
+            // move axis: that one carries WASD too, and A and D are Auto and Defend.
+            if (EnhancedCombatActive && world != null && UnityEngine.InputSystem.Keyboard.current is { } kb) {
+                float x = (kb.rightArrowKey.isPressed ? 1f : 0f) - (kb.leftArrowKey.isPressed ? 1f : 0f);
+                float y = (kb.upArrowKey.isPressed ? 1f : 0f) - (kb.downArrowKey.isPressed ? 1f : 0f);
+                if (x != 0f || y != 0f) {
+                    world.PanArena(x, y, Time.unscaledDeltaTime);
+                }
+            }
         }
 
         internal void SetPointerForTest(IPointer pointer) => _pointer = pointer;

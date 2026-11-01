@@ -387,7 +387,7 @@ namespace BakAgain.UI.Combat.Enhanced {
                 // so its last rows drew under the next line (task 11, the retreat narration).
                 VisualElement stack = Box("ec-desk-log-stack", "ec-desk-log-stack");
                 _ledgerBody.Add(stack);
-                foreach (string line in log) Text(stack, null, "ec-desk-log").text = line;
+                foreach (string line in log) Text(stack, null, "ec-desk-log").text = CombatHudText.LogLine(line, m, _layout);
                 return;
             }
             FoeRowModel target = f.TargetSlot >= 0 ? Find(m.Foes, f.TargetSlot) : null;
@@ -431,7 +431,7 @@ namespace BakAgain.UI.Combat.Enhanced {
                 r.EnableInClassList("ec-desk-reason--warn", f.Allowed && f.Warned);
             }
             int from = Math.Max(0, log.Count - _layout.LedgerLogLines);
-            for (int i = from; i < log.Count; i++) Text(_ledgerFooter, null, "ec-desk-log").text = log[i];
+            for (int i = from; i < log.Count; i++) Text(_ledgerFooter, null, "ec-desk-log").text = CombatHudText.LogLine(log[i], m, _layout);
         }
 
         private static FoeRowModel Find(IReadOnlyList<FoeRowModel> foes, int slot) {
@@ -639,14 +639,16 @@ namespace BakAgain.UI.Combat.Enhanced {
                 }
                 stone.userData = shown;
                 ActionAvailability a = CombatHudText.Availability(m, shown);
-                bool asleep = m.TheirTurn;
-                stone.EnableInClassList("ec-stone--off", !a.Enabled || asleep);
+                // While auto-resolve runs the Auto stone is its Stop, live on every turn.
+                bool stop = m.AutoRunning && command == CombatCommands.Command.AutoResolve;
+                bool asleep = m.TheirTurn && !stop;
+                stone.EnableInClassList("ec-stone--off", (!a.Enabled && !stop) || asleep);
                 stone.EnableInClassList("ec-stone--warned", a.Enabled && a.Warned && !asleep);
-                stone.Q<Label>("ec-stone-name").text = CombatHudText.Stone(command, shoot);
+                stone.Q<Label>("ec-stone-name").text = stop ? UiTemplates.Format(UiTemplates.HudStoneStop) : CombatHudText.Stone(command, shoot);
                 int id = CombatHudText.ActionId(command, shoot);
                 string address = _stoneImage?.Invoke(command == CombatCommands.Command.CharacterScreen ? -1 : id);
                 var disc = (ArchiveImage)stone.Q("ec-stone-disc");
-                if (disc.address != address) disc.address = address;
+                if (address != null && disc.address != address) disc.address = address;   // kept while the menu is away
             }
             if (_tipStone != null) Hover(_tipStone, true);
         }

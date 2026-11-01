@@ -2,6 +2,7 @@ namespace BakAgain.UI.Combat.Enhanced {
     using System;
     using System.Collections.Generic;
     using GameData.Resources.Combat;
+    using GameData.Resources.Layout;
 
     /// <summary>
     /// The Enhanced combat HUD (TASK-972): the desktop band or the phone docks. A view renders a
@@ -63,7 +64,8 @@ namespace BakAgain.UI.Combat.Enhanced {
         string Sentence,
         CombatForecast Alternative = null,
         int Round = 0,
-        HeroCardModel CardHero = null);
+        HeroCardModel CardHero = null,
+        bool AutoRunning = false);
 
     /// <summary>A weapon or armour line: its name, condition in percent (-1 = not tracked) and stat line.</summary>
     public sealed record KitItemModel(string Name, int ConditionPercent, string Stats);
@@ -99,10 +101,25 @@ namespace BakAgain.UI.Combat.Enhanced {
 namespace BakAgain.UI.Combat.Enhanced {
     using System.Collections.Generic;
     using GameData.Resources.Combat;
+    using GameData.Resources.Layout;
     using GameData.Resources.Text;
 
     /// <summary>How both HUDs word a forecast and a stone. Wording only; every number is the model's.</summary>
     internal static class CombatHudText {
+        /// <summary>A fight-log line with each party member's name in that member's colour (rich text).</summary>
+        public static string LogLine(string line, CombatHudModel m, EnhancedCombatLayout layout) {
+            if (string.IsNullOrEmpty(line) || m?.Party == null || layout?.PartyLogColours == null) return line;
+            for (int i = 0; i < m.Party.Count && i < layout.PartyLogColours.Length; i++) {
+                string name = m.Party[i].Name;
+                if (!string.IsNullOrEmpty(name)) {
+                    line = System.Text.RegularExpressions.Regex.Replace(line,
+                        @"\b" + System.Text.RegularExpressions.Regex.Escape(name) + @"\b",
+                        "<color=" + layout.PartyLogColours[i] + ">" + name + "</color>");
+                }
+            }
+            return line;
+        }
+
         public static string Action(ForecastAction a) => UiTemplates.Format(a switch {
             ForecastAction.Thrust => UiTemplates.HudThrust,
             ForecastAction.Swing => UiTemplates.HudSwing,

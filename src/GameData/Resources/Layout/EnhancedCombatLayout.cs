@@ -264,5 +264,14 @@ public sealed class EnhancedCombatLayout
     /// </summary>
     public float LogRevealMinSeconds { get; set; } = 0.2f;
 
+    /// <summary>How fast the arrow keys pan a close view, in board widths a second (owner, 2026-11-01).</summary>
+    public float PanBoardsPerSecond { get; set; } = 0.6f;
+
+    /// <summary>
+    /// Each party member's name colour in the fight log, by place in the party (owner, 2026-11-01: make them
+    /// stand out). Mid tones, readable on the desktop parchment and the phone's dark peek alike.
+    /// </summary>
+    public string[] PartyLogColours { get; set; } = { "#1F5FB0", "#B03024", "#1E7330", "#7D3A9A", "#B0600F", "#0E7470", "#856A00" };
+
     public float PathDotSizeCells { get; set; } = 0.07f;
 }

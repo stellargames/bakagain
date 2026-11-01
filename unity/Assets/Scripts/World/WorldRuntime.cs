@@ -2066,14 +2066,38 @@ namespace BakAgain.World {
         public void ZoomArenaAt(float factor, Vector2 screen) {
             if (factor < 1f && _arenaOrbit?.Orbit != null && _arenaCorners != null
                 && _arenaOrbit.BoardPointAt(screen) is (double across, double away)) {
-                double minX = double.MaxValue, maxX = double.MinValue, minY = double.MaxValue, maxY = double.MinValue;
-                foreach ((double x, double y) in _arenaCorners) {
-                    minX = System.Math.Min(minX, x); maxX = System.Math.Max(maxX, x);
-                    minY = System.Math.Min(minY, y); maxY = System.Math.Max(maxY, y);
-                }
-                _arenaOrbit.Orbit.Focus((System.Math.Clamp(across, minX, maxX), System.Math.Clamp(away, minY, maxY)));
+                _arenaOrbit.Orbit.Focus(OnBoard((across, away)));
             }
             ZoomArena(factor);
+        }
+
+        /// <summary>
+        /// Pan a close view: (<paramref name="right"/>, <paramref name="forward"/>) as the camera sees them, each
+        /// -1..1, for <paramref name="seconds"/>. The focus moves at <see cref="GameData.Resources.Layout.EnhancedCombatLayout.PanBoardsPerSecond"/>
+        /// of the board's width a second and stays on the board; the whole-board view does not move.
+        /// </summary>
+        public void PanArena(float right, float forward, float seconds) {
+            if (_arenaOrbit?.Orbit == null || _arenaCorners == null) {
+                return;
+            }
+            (double minX, double maxX, double _, double _) = BoardBox();
+            double step = (maxX - minX) * _combatLayout.PanBoardsPerSecond * seconds;
+            _arenaOrbit.Orbit.Focus(OnBoard(_arenaOrbit.Orbit.PanTarget(right * step, forward * step)));
+            _arenaOrbit.Apply();
+        }
+
+        private (double MinX, double MaxX, double MinY, double MaxY) BoardBox() {
+            double minX = double.MaxValue, maxX = double.MinValue, minY = double.MaxValue, maxY = double.MinValue;
+            foreach ((double x, double y) in _arenaCorners) {
+                minX = System.Math.Min(minX, x); maxX = System.Math.Max(maxX, x);
+                minY = System.Math.Min(minY, y); maxY = System.Math.Max(maxY, y);
+            }
+            return (minX, maxX, minY, maxY);
+        }
+
+        private (double X, double Y) OnBoard((double X, double Y) p) {
+            (double minX, double maxX, double minY, double maxY) = BoardBox();
+            return (System.Math.Clamp(p.X, minX, maxX), System.Math.Clamp(p.Y, minY, maxY));
         }
 
         /// <summary>

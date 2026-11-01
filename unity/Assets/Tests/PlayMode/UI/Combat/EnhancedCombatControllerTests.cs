@@ -210,6 +210,23 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             Assert.AreEqual("Owyn thrusts at A: hit 7", c.Model(10).LogLines[^1], "the swing played: the line shows");
         }
 
+        // Owner, 2026-11-01: starting Auto put the Classic auto menu (six stones) over the band. In Enhanced it
+        // never opens; the Auto stone reads Stop while auto runs, and pressing it takes control back.
+        [UnityTest]
+        public IEnumerator AutoKeepsTheBand_ItsStoneStopsIt() {
+            var (s, hero, c) = Fight(enemies: 2);
+            _busy = false;
+            c.Stone(CombatCommands.Command.AutoResolve, fromKey: false);
+            Assert.IsTrue(s.AutoResolving, "a desktop stone click starts auto-resolve");
+            Assert.IsTrue(c.Model(2).AutoRunning, "the band knows: its Auto stone is the Stop");
+            c.Stone(CombatCommands.Command.AutoResolve, fromKey: false);
+            for (int frame = 0; frame < 600 && s.AutoResolving; frame++) {
+                yield return null;
+            }
+            Assert.IsFalse(s.AutoResolving, "the Stop took control back");
+            Assert.IsFalse(c.Model(2)?.AutoRunning ?? false);
+        }
+
         [Test]
         public void LeftClickOnYourselfDoesNothing() {
             var (s, hero, c) = Fight();

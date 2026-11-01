@@ -4941,7 +4941,9 @@ using GameData.Resources.Scene;
             // 0x21, and polls it for 0x21 or a cancel to stop. The melee commands are not on screen
             // (TASK-757). Exit raises Cancelled, which bails.
             BakAgain.UI.Combat.ShootMenu shoot = _shootMenuAccessor?.Invoke();
-            if (shoot != null) {
+            // Enhanced: the band stays up, its Auto stone is the Stop; the Classic auto menu never opens
+            // (owner, 2026-11-01: it drew the original's six stones over the band).
+            if (shoot != null && !BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.Combat)) {
                 shoot.Cancelled -= OnShootCancelled;
                 shoot.Cancelled += OnShootCancelled;
                 _combatMenuAccessor?.Invoke()?.Close();
@@ -4960,6 +4962,16 @@ using GameData.Resources.Scene;
         internal void AutoResolveHudForTest(Combatant shown) {
             _autoResolving = true;
             _autoPanelActor = shown;
+        }
+
+        /// <summary>Whether auto-resolve is playing the fight.</summary>
+        public bool AutoResolving => _autoResolving;
+
+        /// <summary>Takes control back from auto-resolve at the next turn (the Enhanced Stop).</summary>
+        public void StopAutoResolve() {
+            if (_autoResolving) {
+                _autoResolveBail = true;
+            }
         }
 
         /// <summary>Set by any press that ends auto-resolve — Back, Cancel, or another command.</summary>

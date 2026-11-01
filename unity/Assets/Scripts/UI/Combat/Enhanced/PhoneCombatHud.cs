@@ -347,7 +347,7 @@ namespace BakAgain.UI.Combat.Enhanced {
             _switchBox.style.display = melee ? DisplayStyle.Flex : DisplayStyle.None;
             if (f == null) {
                 foreach (string logLine in m.LogLines ?? CombatHudText.Empty) {
-                    Txt(_peekInfo, null, _layout.PhoneBodyTextPt, "ec-phone-log").text = logLine;
+                    Txt(_peekInfo, null, _layout.PhoneBodyTextPt, "ec-phone-log").text = CombatHudText.LogLine(logLine, m, _layout);
                 }
                 return;
             }
@@ -460,13 +460,14 @@ namespace BakAgain.UI.Combat.Enhanced {
                 CombatCommands.Command shown = shoot ? CombatCommands.Command.Shoot : command;
                 tile.userData = shown;
                 ActionAvailability a = CombatHudText.Availability(m, shown);
-                bool off = !a.Enabled || m.TheirTurn;
+                bool stop = m.AutoRunning && command == CombatCommands.Command.AutoResolve;   // Auto's Stop
+                bool off = !stop && (!a.Enabled || m.TheirTurn);
                 bool warned = !off && a.Warned;
                 tile.EnableInClassList("ec-phone-tile--off", off);
                 tile.EnableInClassList("ec-phone-tile--warned", warned);
                 tile.Q("ec-tile-off").style.display = off && !m.TheirTurn ? DisplayStyle.Flex : DisplayStyle.None;
                 tile.Q("ec-tile-warn").style.display = warned ? DisplayStyle.Flex : DisplayStyle.None;
-                tile.Q<Label>("ec-tile-name").text = CombatHudText.Stone(command, shoot);
+                tile.Q<Label>("ec-tile-name").text = stop ? UiTemplates.Format(UiTemplates.HudStoneStop) : CombatHudText.Stone(command, shoot);
                 var icon = (ArchiveImage)tile.Q("ec-tile-icon");
                 string address = _stoneImage?.Invoke(command == CombatCommands.Command.CharacterScreen ? -1
                     : CombatHudText.ActionId(command, shoot));

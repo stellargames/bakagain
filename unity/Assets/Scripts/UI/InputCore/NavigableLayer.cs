@@ -204,12 +204,17 @@ namespace BakAgain.UI.InputCore {
             _navWarp = false;
         }
 
+        /// <summary>The arrow keys belong to someone else while set (the Enhanced combat camera pans with them);
+        /// Tab still walks the widgets.</summary>
+        public bool ArrowsTaken { get; set; }
+
         private bool MoveFocus(NavDirection dir) {
             ResolveStaleFocus();
             // A file-picker screen consumes Up/Down to move its list selection, so
             // cursor keys navigate the saves rather than the Restore/Cancel buttons
             // (which stay reachable via Tab / Left / Right).
             if (_trySelectionNav != null && _trySelectionNav(dir)) return true;
+            if (ArrowsTaken && dir is NavDirection.Up or NavDirection.Down or NavDirection.Left or NavDirection.Right) return true;
             if (_widgets.Count == 0) return false;
             int target = dir == NavDirection.Next || dir == NavDirection.Previous
                 ? Cyclic(dir == NavDirection.Next ? 1 : -1)
