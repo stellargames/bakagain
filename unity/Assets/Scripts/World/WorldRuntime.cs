@@ -724,9 +724,18 @@ namespace BakAgain.World {
             if (screen == null || palette == null) {
                 return;
             }
-            foreach (Encounters.ArenaCombatant marker in _arenaRoot.GetComponentsInChildren<Encounters.ArenaCombatant>()) {
-                GameData.Resources.Combat.Combatant c = _hotspots.CombatantFor(marker.RosterSlot, marker.PartyMember);
-                if (c?.DamageFloat is not { } dealt || _landing.Contains((marker.RosterSlot, marker.PartyMember))) {
+            // A killing blow floats over the body: the original draws every actor in the cell, dead or not
+            // (CACTOR.C:1305-1317, 1022-1074), and the log line comes with the float.
+            var struck = new List<(Transform At, int Slot, bool Party)>();
+            foreach (Encounters.ArenaCombatant m in _arenaRoot.GetComponentsInChildren<Encounters.ArenaCombatant>()) {
+                struck.Add((m.transform, m.RosterSlot, m.PartyMember));
+            }
+            foreach (Encounters.ArenaCorpse m in _arenaRoot.GetComponentsInChildren<Encounters.ArenaCorpse>()) {
+                struck.Add((m.transform, m.RosterSlot, m.PartyMember));
+            }
+            foreach ((Transform at, int slot, bool party) in struck) {
+                GameData.Resources.Combat.Combatant c = _hotspots.CombatantFor(slot, party);
+                if (c?.DamageFloat is not { } dealt || _landing.Contains((slot, party))) {
                     continue;
                 }
                 c.DamageFloat = null;
@@ -740,7 +749,7 @@ namespace BakAgain.World {
                     int pen = dealt > 0 ? 0x88 - left : dealt < 0 ? 0xEF - left : 0x88 + left;
                     pens.Add(pen < palette.Length ? palette[pen] : Color.white);
                 }
-                Vector3 top = BillboardSprite.DrawnTopCentre(marker.transform);
+                Vector3 top = BillboardSprite.DrawnTopCentre(at);
                 screen.FloatText(top,dealt == 0 ? "miss" : System.Math.Abs(dealt).ToString(), pens);
             }
         }
