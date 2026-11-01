@@ -75,5 +75,11 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
             Assert.AreEqual(CutsceneTiming.FrameDurationSeconds * CutsceneTiming.PaletteCycleStepTicks,
                 CutsceneTiming.PaletteCycleStepSeconds, 1e-6f);
         }
+
+        [Test]
+        public void ThePaletteCycleStepsEveryTWOTicks() {
+            // The owner halved the flame speed (TASK-1023); the original's rate is unmeasured.
+            Assert.AreEqual(2, CutsceneTiming.PaletteCycleStepTicks);
+        }
     }
 }

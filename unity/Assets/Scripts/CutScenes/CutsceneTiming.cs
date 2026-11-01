@@ -104,8 +104,14 @@ namespace BakAgain.CutScenes {
         /// once ran on a second, different clock — 1/18.2s against frames held at 1/60s — and two
         /// incommensurable rates meant a shimmer that should occupy a whole number of frames
         /// drifted against the frame it belonged to, by more the longer the hold.</para>
+        ///
+        /// <para><b>Two ticks, both modes (TASK-1023):</b> the owner asked for the flames at half
+        /// the old one-tick rate. The original's rate is still UNMEASURED: canassa has no direct
+        /// caller of <c>palette_cycle_tick</c> (PALDRV.C, IDA 0x19117), so the call is indirect. To
+        /// measure it, break on 0x19117 in Spice86 in a flame scene (SHOP3) and count hits per BIOS
+        /// tick. Every palette-cycle hold steps off this one constant.</para>
         /// </remarks>
-        public const int PaletteCycleStepTicks = 1;
+        public const int PaletteCycleStepTicks = 2;
 
         /// <inheritdoc cref="PaletteCycleStepTicks"/>
         public static readonly float PaletteCycleStepSeconds =
