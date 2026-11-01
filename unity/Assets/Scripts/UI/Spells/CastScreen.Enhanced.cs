@@ -44,7 +44,7 @@ namespace BakAgain.UI.Spells {
                 _enhanced = new EnhancedCastLayout(root, _session);
                 _enhanced.CastPressed += CastChosenPower;
                 _enhanced.BackPressed += BackToSpells;
-                _enhanced.SchoolPressed += SelectSchool;
+                _enhanced.SchoolPressed += SelectOpenedSchool;
             }
             var enabled = new HashSet<int>();
             foreach (BakAgain.UI.InputCore.NavWidget w in _ui.CurrentNavWidgets) enabled.Add(w.ActionId);
@@ -86,7 +86,7 @@ namespace BakAgain.UI.Spells {
                 VisualElement element = button;
                 int s = school;
                 widgets.Add(new BakAgain.UI.InputCore.NavWidget(element, string.Empty,
-                    () => _enhanced?.CanonicalRectOf(element) ?? Rect.zero, () => SelectSchool(s), null,
+                    () => _enhanced?.CanonicalRectOf(element) ?? Rect.zero, () => SelectOpenedSchool(s), null,
                     CastMenuSelection.FirstSchoolActionId + s));
             }
             if (_enhanced.TabletsShown) {
@@ -323,5 +323,15 @@ namespace BakAgain.UI.Spells {
         private readonly List<EnhancedCastLayout.Light> _lights = new();
         private const float SymbolRadius = 120f, SymbolLitRadius = 160f;
         private const float SymbolStrength = 0.55f, SymbolLitStrength = 1.1f, SymbolDimStrength = 0.25f;
+
+        /// <summary>
+        /// A school the REQ disables, opened by the Enhanced screen: it bypasses the REQ's Select, so it
+        /// plays that Select's cue itself. REQ_CAST's school buttons are SoundFlags 2, ClickSound 0, so the
+        /// cue is the default click (<see cref="GameData.Resources.Menu.UiElement.DefaultClickSoundId"/>), as on an enabled school.
+        /// </summary>
+        private void SelectOpenedSchool(int school) {
+            Audio.MenuSoundService.Cue(GameData.Resources.Menu.UiElement.DefaultClickSoundId);
+            SelectSchool(school);
+        }
     }
 }

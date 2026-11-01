@@ -211,6 +211,24 @@ namespace BakAgain.Tests.PlayMode.UI.Spells {
 
         [UnityTest]
         [RequiresShippedGameData]
+        public IEnumerator Enhanced_OpeningASchoolTheReqDisables_PlaysTheSchoolButtonsClick() => UniTask.ToCoroutine(async () => {
+            GameSession session = Caster(SpellIds.FettersOfRime, ScentOfSarig);
+            (CastScreen screen, _, _) = await OpenAsync(true, FieldSchool, session);
+            var cues = new List<int>();
+            void Heard(int id) => cues.Add(id);
+            BakAgain.Audio.MenuSoundService.CueRequested += Heard;
+            try {
+                typeof(CastScreen).GetMethod("SelectOpenedSchool", Any).Invoke(screen, new object[] { CombatSchool });
+            } finally {
+                BakAgain.Audio.MenuSoundService.CueRequested -= Heard;
+            }
+            // REQ_CAST's school buttons: SoundFlags 2, ClickSound 0 -> the default click on press.
+            CollectionAssert.AreEqual(new[] { GameData.Resources.Menu.UiElement.DefaultClickSoundId }, cues);
+            Assert.AreEqual(CombatSchool, screen.School, "and the school opens");
+        });
+
+        [UnityTest]
+        [RequiresShippedGameData]
         public IEnumerator Enhanced_ACastableSpellInALiveSchool_IsAsBefore() => UniTask.ToCoroutine(async () => {
             GameSession session = Caster(SpellIds.FettersOfRime, ScentOfSarig);
             (CastScreen screen, _, _) = await OpenAsync(true, FieldSchool, session);
