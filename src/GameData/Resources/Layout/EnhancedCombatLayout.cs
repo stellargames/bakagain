@@ -13,10 +13,11 @@ public sealed class EnhancedCombatLayout
     public float BandHeight { get; set; } = 0.27f;
 
     /// <summary>
-    /// The band's five slots, left to right, as relative widths at 1600 wide: medallion and party,
-    /// hero card, ledger, foe slot, stones.
+    /// The band's four slots, left to right, as relative widths at 1600 wide: medallion and party,
+    /// hero card, ledger, stones. The foe card stands above the stones, its width the stones' share
+    /// (owner, 2026-11-01: it gave its band width to the hero card and the ledger).
     /// </summary>
-    public float[] BandSlotWidths { get; set; } = new float[] { 278, 340, 304, 256, 360 };
+    public float[] BandSlotWidths { get; set; } = new float[] { 278, 468, 432, 360 };
 
     /// <summary>Log lines the ledger shows at once.</summary>
     public int LedgerLogLines { get; set; } = 2;
@@ -248,6 +249,12 @@ public sealed class EnhancedCombatLayout
 
     /// <summary>The path's dots: spacing along the walk and size, in cells.</summary>
     public float PathDotSpacingCells { get; set; } = 0.25f;
+
+    /// <summary>
+    /// How far the board's marks and grid follow the world's light level: 0 never dim, 1 dim exactly as
+    /// the ground. Most of the way, so they stay readable at night but no longer glow (owner, 2026-11-01).
+    /// </summary>
+    public float MarkLightFollow { get; set; } = 0.75f;
 
     public float PathDotSizeCells { get; set; } = 0.07f;
 }

@@ -53,7 +53,6 @@ namespace BakAgain.UI.Combat.Enhanced {
         public event Action<int> FoeRowHovered { add { } remove { } }   // a phone has no hover
         public event Action<int> FoeRowChosen;
         public event Action HeroCardRequested;
-        public event Action<int> TurnQuarterPressed;
         public event Action ResetViewPressed;
 
         public event Action<ForecastAction> SwitchPressed;
@@ -115,7 +114,6 @@ namespace BakAgain.UI.Combat.Enhanced {
             _cam = Box("ec-phone-cam", "ec-phone-cam");
             _safe.Add(_cam);
             Place(_cam, top: row + gap, left: 0);
-            _turnButton = CamButton(_cam, "ec-cam-right", "⟳", () => TurnQuarterPressed?.Invoke(1));
             CamButton(_cam, "ec-cam-reset", UiTemplates.Format(UiTemplates.HudReset), () => ResetViewPressed?.Invoke());
             // The grid (the G key's toggle), here rather than in the touch side bar, which sat under the
             // sentence box in a fight (owner, 2026-10-29).
@@ -437,9 +435,7 @@ namespace BakAgain.UI.Combat.Enhanced {
             Size(icon, _layout.TileHeightPt * 0.5f, _layout.TileHeightPt * 0.5f);
             tile.Add(icon);
             if (command == CombatCommands.Command.CharacterScreen) {
-                VisualElement satchel = Box(null, "ec-stone__satchel");
-                satchel.style.backgroundImage = EnhancedArt.Load("satchel");
-                icon.Add(satchel);
+                icon.Add(DesktopCombatHud.PackBag(null));
             }
             Txt(tile, "ec-tile-name", _layout.MinTextPt, "ec-phone-tile__name");
             // Two different badges, never colour alone: a grey round "!" = unavailable, an amber triangle = warned.
@@ -614,10 +610,6 @@ namespace BakAgain.UI.Combat.Enhanced {
             SetFont(l, pt);
             return l;
         }
-
-        private Button _turnButton;
-
-        public void SetQuarterTurnsEnabled(bool enabled) => _turnButton.SetEnabled(enabled);
 
         private Button CamButton(VisualElement parent, string name, string text, Action press) {
             var b = new Button(press) { name = name, text = text };

@@ -148,7 +148,7 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             yield return null;
         }
 
-        private Rect[] Slots() => Enumerable.Range(0, 5).Select(i => _hud.Root.Q("ec-desk-slot-" + i).worldBound).ToArray();
+        private Rect[] Slots() => Enumerable.Range(0, 4).Select(i => _hud.Root.Q("ec-desk-slot-" + i).worldBound).ToArray();
 
         [UnityTest]
         public IEnumerator DesktopBandSlotsKeepTheirRectsInEveryState() {
@@ -159,7 +159,7 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             VisualElement band = _hud.Root.Q("ec-desk-band");
             Assert.AreEqual(_layout.BandHeight, band.worldBound.height / _hud.Root.worldBound.height, 0.01f,
                 $"the band is BandHeight of the window (root {_hud.Root.worldBound}, parent {_hud.Root.parent?.worldBound}, band {band.worldBound}, panel {_hud.Root.panel?.visualTree.worldBound})");
-            for (int i = 1; i < 5; i++) {
+            for (int i = 1; i < 4; i++) {
                 Assert.Greater(idle[i].xMin, idle[i - 1].xMin, $"slot {i} is right of slot {i - 1}");
                 float expected = _layout.BandSlotWidths[i] / _layout.BandSlotWidths[0];
                 Assert.AreEqual(expected, idle[i].width / idle[0].width, 0.05f, $"slot {i}'s share of the band");
@@ -173,12 +173,35 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             yield return null;
             yield return null;
             Rect[] theirs = Slots();
-            for (int i = 0; i < 5; i++) {
+            for (int i = 0; i < 4; i++) {
                 Assert.AreEqual(idle[i], forecast[i], $"slot {i} under a forecast");
                 Assert.AreEqual(idle[i], theirs[i], $"slot {i} on their turn");
             }
             Assert.AreEqual(DisplayStyle.Flex, _hud.Root.Q("ec-desk-party").resolvedStyle.display,
                 "on their turn the hero slot is the party");
+        }
+
+        // Owner, 2026-11-01: the foe card stands above the stones, as wide as their slot, and a party member
+        // under the mouse shows their own card there.
+        [UnityTest]
+        public IEnumerator TheFoeCardStandsOverTheStones_AndAPartyMemberGetsACardThere() {
+            _hud.Show(HudModels.Idle());
+            yield return null;
+            yield return null;
+            Rect foes = _hud.Root.Q("ec-desk-foes").worldBound;
+            Rect stones = _hud.Root.Q("ec-desk-slot-3").worldBound;
+            Assert.AreEqual(stones.xMin, foes.xMin, 1f, "over the stones' slot");
+            Assert.AreEqual(stones.width, foes.width, 1f, "as wide");
+            Assert.AreEqual(_hud.Root.Q("ec-desk-band").worldBound.yMin, foes.yMax, 1f, "standing on the band");
+            Assert.AreEqual(DisplayStyle.Flex, _hud.Root.Q("ec-desk-foelist").resolvedStyle.display, "the foe list when idle");
+
+            _hud.Show(HudModels.Idle() with { CardHero = HudModels.Owyn });
+            yield return null;
+            Assert.AreEqual(DisplayStyle.None, _hud.Root.Q("ec-desk-foelist").resolvedStyle.display);
+            Assert.AreEqual("Owyn", _hud.Root.Q<Label>("ec-desk-foecard-name").text);
+            List<string> values = _hud.Root.Q("ec-desk-foecard-rows").Query<Label>(className: "ec-desk-foecard__value")
+                .ToList().Select(l => l.text).ToList();
+            CollectionAssert.IsSubsetOf(new[] { "17/40", "4/40", "92%", "80%" }, values, "health, stamina and the kit's condition");
         }
 
         [UnityTest]

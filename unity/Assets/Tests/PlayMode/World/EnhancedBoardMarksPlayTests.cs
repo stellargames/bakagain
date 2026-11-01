@@ -77,18 +77,10 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.IsNotNull(plate, "the living foe has a plate");
             Assert.AreEqual("A", plate.transform.Find("Letter").GetComponent<TextMesh>().text);
             Assert.IsNull(plate.transform.Find("Swords"), "no sword marks: more clutter than use (owner, 2026-10-29)");
-            Assert.AreEqual("", plate.transform.Find("Seen").GetComponent<TextMesh>().text, "nothing seen yet, nothing shown");
-
-            service.Combat.Knowledge.AddSeen(0, 0);    // a miss
-            service.Combat.Knowledge.AddSeen(0, -3);   // a heal
-            yield return null;
-            Assert.AreEqual("", marks.PlateOf(0).transform.Find("Seen").GetComponent<TextMesh>().text, "a miss or a heal shows nothing");
 
             service.Combat.Knowledge.AddSeen(0, 6);
             yield return null;
-            Assert.AreEqual(GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedCombatSeen, ("count", 6)),
-                marks.PlateOf(0).transform.Find("Seen").GetComponent<TextMesh>().text);
-            StringAssert.Contains("6", marks.PlateOf(0).transform.Find("Seen").GetComponent<TextMesh>().text);
+            Assert.IsNull(marks.PlateOf(0).transform.Find("Seen"), "no damage-seen line on the board (owner, 2026-11-01)");
         }
 
         // Owner, 2026-10-29: the cell marks were filled squares that dominated the board and hid the
@@ -169,6 +161,35 @@ namespace BakAgain.Tests.PlayMode.World {
             } finally {
                 Object.Destroy(camGo);
             }
+        }
+
+        // Owner, 2026-11-01: the walk is marked with discs, not squares. Every vertex but a disc's centre lies
+        // one radius from it, and the end disc is twice the size of the others.
+        [UnityTest]
+        public IEnumerator ThePathIsMarkedWithDiscs_TheLastOneBigger() {
+            var layout = new GameData.Resources.Layout.EnhancedCombatLayout();
+            var path = new[] { (0L, 0L), (300L, 0L) };
+            _root = new GameObject("arena");
+            var marks = _root.AddComponent<ArenaBoardMarks>();
+            marks.Bind(() => new System.Collections.Generic.List<BakAgain.World.Hotspots.HotspotService.BoardShape> {
+                new BakAgain.World.Hotspots.HotspotService.BoardShape(ArenaOverlayKind.Path, path) },
+                () => null, () => 1, layout, 3f);
+            yield return null;
+            yield return null;
+            Mesh mesh = _root.transform.Find("Path").GetComponent<MeshFilter>().sharedMesh;
+            Vector3[] v = mesh.vertices;
+            const int perDisc = 17;   // the centre and 16 round it
+            Assert.AreEqual(0, v.Length % perDisc, "whole discs only");
+            var radii = new System.Collections.Generic.List<float>();
+            for (int d = 0; d < v.Length; d += perDisc) {
+                float r = Vector3.Distance(v[d], v[d + 1]);
+                for (int k = 2; k < perDisc; k++) {
+                    Assert.AreEqual(r, Vector3.Distance(v[d], v[d + k]), r * 0.01f, "round: every rim vertex one radius out");
+                }
+                radii.Add(r);
+            }
+            Assert.Greater(radii.Count, 2, "dots along the step, and the end");
+            Assert.AreEqual(radii[0] * 2f, radii[^1], radii[0] * 0.01f, "the end disc is twice the others");
         }
 
         [UnityTest]

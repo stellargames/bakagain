@@ -18,7 +18,8 @@ namespace BakAgain.UI.Combat.Enhanced {
         /// <summary>The model for the fight as it stands, or null outside one.</summary>
         /// <param name="marks">The board's reach marks (<c>HotspotService.EnhancedBoardMarks</c>); null for none.</param>
         public static CombatHudModel Build(CombatRuntime combat, GameSession session, BoardMarks marks,
-            int logLines, CombatForecast forecast = null, CombatForecast alternative = null, int? cardFoe = null) {
+            int logLines, CombatForecast forecast = null, CombatForecast alternative = null, int? cardFoe = null,
+            int? cardHero = null) {
             CombatEncounter fight = combat?.Encounter;
             if (fight == null) {
                 return null;
@@ -60,7 +61,9 @@ namespace BakAgain.UI.Combat.Enhanced {
             return new CombatHudModel(theirs || acting == null ? 0 : acting.PartySlot, hero, party, forecast,
                 combat.Log.Last(logLines), foes, cardFoe,
                 theirs ? new Dictionary<CombatCommands.Command, ActionAvailability>() : combat.AvailabilityFor(acting),
-                theirs, sentence, alternative, combat.Log.Round);
+                theirs, sentence, alternative, combat.Log.Round,
+                cardHero is int slot && fight.Party.Find(c => c.PartySlot == slot) is Combatant member
+                    ? HeroCard(combat, session, member) : null);
         }
 
         private static (int HealthMax, int StaminaMax) Maxima(CombatRuntime combat, Combatant c) {
@@ -98,11 +101,18 @@ namespace BakAgain.UI.Combat.Enhanced {
                 combat.PeekStat(hero, ActorAttribute.Speed), combat.PeekStat(hero, ActorAttribute.Speed, unscaled: true),
                 combat.PeekStat(hero, ActorAttribute.Strength), combat.PeekStat(hero, ActorAttribute.Strength, unscaled: true),
                 weapon == null ? null : new KitItemModel(weapon.Name ?? "", weaponCondition,
-                    UiTemplates.Format(UiTemplates.HudWeaponLine, ("thrust", weapon.ThrustBaseDamage),
-                        ("swing", weapon.SwingBaseDamage))),
+                    WeaponLine(weapon.ThrustBaseDamage, weapon.SwingBaseDamage,
+                        combat.PeekStat(hero, ActorAttribute.Strength))),
                 armour == null ? null : new KitItemModel(armour.Name ?? "", armourCondition,
                     UiTemplates.Format(UiTemplates.HudArmourLine, ("n", armour.SwingAccuracy_ArmorMod_BowAccuracy))));
         }
+
+        /// <summary>"Thrust Str−7 = 5 · Swing Str+3 = 15": each base damage added to the current Strength.</summary>
+        internal static string WeaponLine(int thrust, int swing, int strength) =>
+            UiTemplates.Format(UiTemplates.HudWeaponLine, ("thrust", Signed(thrust)), ("thrustTotal", thrust + strength),
+                ("swing", Signed(swing)), ("swingTotal", swing + strength));
+
+        private static string Signed(int n) => n < 0 ? "\u2212" + (-n) : "+" + n;
 
         /// <summary>Their turn: the acting foe, by letter and kind; no numbers (hidden information).</summary>
         private static HeroCardModel FoeCard(GameSession session, CombatEncounter fight, Combatant foe) {

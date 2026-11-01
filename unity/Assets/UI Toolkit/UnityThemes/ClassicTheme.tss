@@ -451,7 +451,8 @@
 .ec-desk-slot__inner { flex-grow: 1; margin: 0 6px; overflow: hidden; }
 .ec-desk-parchment { background-color: rgb(226, 210, 176); border-width: 3px; border-color: rgb(120, 86, 52); padding: 6px 12px; }
 .ec-desk-slot__inner.ec-desk-slot-0 { flex-direction: row; align-items: center; justify-content: space-around; }
-#ec-desk-slot-inner-4 { justify-content: center; }
+#ec-desk-slot-inner-3 { justify-content: center; }
+.ec-desk-foes { padding: 12px 0 6px 0; }
 .ec-desk-row { flex-direction: row; align-items: center; justify-content: space-between; }
 .ec-desk-col { flex-direction: column; flex-grow: 1; flex-basis: 0; margin-right: 10px; }
 .ec-desk-card { flex-grow: 1; }
@@ -480,6 +481,7 @@
 .ec-desk .ec-desk-pair__label { flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; }
 .ec-desk .ec-desk-pair__value { flex-shrink: 0; margin-left: 8px; color: rgb(30, 18, 8); }
 .ec-desk .ec-desk-small { overflow: hidden; text-overflow: ellipsis; }
+#ec-desk-weapon-stats { white-space: normal; text-overflow: clip; }   /* "Thrust Str-7 = 5 · Swing ..." wraps rather than cut */
 .ec-desk-pool { height: 18px; margin: 4px 0; flex-direction: row; background-color: rgb(60, 40, 30); border-width: 2px; border-color: rgb(30, 18, 8); flex-grow: 1; }
 .ec-desk-pool__stamina { height: 100%; background-color: rgb(212, 160, 42); }
 .ec-desk-pool__health { height: 100%; background-color: rgb(184, 50, 42); }
@@ -520,13 +522,14 @@
 #ec-desk-foe-discs { justify-content: flex-start; }
 .ec-desk .ec-desk-title { flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; }
 .ec-desk-foecard__row { width: 50%; height: 33px; flex-direction: row; justify-content: space-between; padding-right: 12px; align-items: center; }
-.ec-desk .ec-desk-foecard__value { color: rgb(150, 130, 100); }
+.ec-desk .ec-desk-foecard__label { flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; }
+.ec-desk .ec-desk-foecard__value { flex-shrink: 0; margin-left: 6px; color: rgb(150, 130, 100); }
 .ec-desk .ec-desk-foecard__value--known { color: rgb(30, 90, 30); }
 .ec-desk-stones { flex-direction: row; flex-wrap: wrap; justify-content: space-around; }
 .ec-stone { width: 33%; align-items: center; justify-content: center; margin-bottom: 6px; }
 .ec-stone__disc { border-radius: 50%; background-size: contain; }
 .ec-stone__satchel { position: absolute; left: 18%; top: 18%; right: 18%; bottom: 18%; background-size: contain; }
-.ec-desk .ec-stone__key { position: absolute; left: 4px; top: 0; width: 28px; height: 28px; background-color: rgb(196, 160, 92); color: rgb(30, 18, 8); font-size: 20px; -unity-text-align: middle-center; }
+.ec-desk .ec-stone__key { display: none; position: absolute; left: 4px; top: 0; width: 28px; height: 28px; background-color: rgb(196, 160, 92); color: rgb(30, 18, 8); font-size: 20px; -unity-text-align: middle-center; }
 .ec-desk .ec-stone__name { position: absolute; bottom: 0; left: 0; right: 0; color: rgb(236, 220, 186); font-size: 22px; -unity-text-align: middle-center; text-shadow: 1px 1px 2px rgb(0, 0, 0); }
 .ec-stone__warn { position: absolute; right: 10%; top: 4%; width: 22px; height: 22px; border-radius: 4px; rotate: 45deg; background-color: rgb(232, 150, 30); border-width: 2px; border-color: rgb(60, 30, 0); display: none; }
 .ec-stone--warned .ec-stone__warn { display: flex; }
@@ -534,6 +537,7 @@
 .ec-stone--off .ec-stone__satchel { -unity-background-image-tint-color: rgb(96, 96, 96); }
 .ec-desk .ec-stone--off .ec-stone__name { color: rgb(130, 120, 106); }
 .ec-stone--hover .ec-stone__disc { border-width: 3px; border-color: rgb(255, 220, 140); }
+.ec-desk .ec-stone--hover .ec-stone__key { display: flex; }   /* the key shows on hover only (owner, 2026-11-01) */
 .ec-desk-tip { position: absolute; translate: -50% -110%; padding: 4px 12px; background-color: rgb(236, 222, 190); border-width: 2px; border-color: rgb(120, 86, 52); }
 .ec-desk .ec-desk-tip { font-size: 22px; color: rgb(110, 30, 20); }
 

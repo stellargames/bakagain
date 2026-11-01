@@ -10,7 +10,7 @@ public class EnhancedCombatLayoutTests {
 
         // Desktop
         Assert.Equal(0.27f, layout.BandHeight);
-        Assert.Equal(new float[] { 278, 340, 304, 256, 360 }, layout.BandSlotWidths);
+        Assert.Equal(new float[] { 278, 468, 432, 360 }, layout.BandSlotWidths);
         Assert.Equal(2, layout.LedgerLogLines);
         Assert.Equal(56f, layout.PartyCoinPx);
         Assert.Equal(7, layout.MaxPartyCoins);

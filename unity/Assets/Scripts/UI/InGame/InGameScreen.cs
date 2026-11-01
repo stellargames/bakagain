@@ -197,10 +197,11 @@ namespace BakAgain.UI.InGame {
         private System.Func<int, BakAgain.UI.Combat.Enhanced.CombatHudModel> _combatHudModel;
         private System.Func<object> _combatTurn;
         private System.Func<VisualElement> _classicCombatMenu;
+        private System.Func<BakAgain.UI.InputCore.MenuLayerHost> _classicCombatNav;
+        private BakAgain.UI.InputCore.MenuLayerHost _enhancedNavHost;
+        private BakAgain.UI.InputCore.IInputLayer _enhancedNavLayer;
         private System.Func<int, string> _combatStoneImage;
-        private System.Action<int> _turnArenaQuarter;
         private System.Action _resetArenaView;
-        private System.Func<bool> _arenaIsTrap;
         private System.Func<BakAgain.UI.Combat.Enhanced.ICombatHud, bool,
             BakAgain.UI.Combat.Enhanced.EnhancedCombatController> _combatControllerFor;
         private BakAgain.UI.Combat.Enhanced.EnhancedCombatController _combatController;
@@ -215,17 +216,16 @@ namespace BakAgain.UI.InGame {
         /// </summary>
         internal void SetEnhancedCombatSeams(System.Func<int, BakAgain.UI.Combat.Enhanced.CombatHudModel> model,
             System.Func<object> turn, System.Func<VisualElement> classicMenu, System.Func<int, string> stoneImage,
-            System.Action<int> turnQuarter = null, System.Action resetView = null,
+            System.Action resetView = null,
             System.Func<BakAgain.UI.Combat.Enhanced.ICombatHud, bool,
                 BakAgain.UI.Combat.Enhanced.EnhancedCombatController> controller = null,
-            System.Func<bool> arenaIsTrap = null) {
-            _arenaIsTrap = arenaIsTrap;
+            System.Func<BakAgain.UI.InputCore.MenuLayerHost> classicMenuNav = null) {
+            _classicCombatNav = classicMenuNav;
             _combatControllerFor = controller;
             _combatHudModel = model;
             _combatTurn = turn;
             _classicCombatMenu = classicMenu;
             _combatStoneImage = stoneImage;
-            _turnArenaQuarter = turnQuarter;
             _resetArenaView = resetView;
         }
 
@@ -863,7 +863,6 @@ namespace BakAgain.UI.InGame {
             _combatHud = new BakAgain.UI.Combat.Enhanced.EnhancedCombatHudHost(root, _combatLayout,
                 () => PhoneHudOverride ?? Application.isMobilePlatform, id => _combatStoneImage?.Invoke(id));
             _combatHud.Built += hud => {
-                hud.TurnQuarterPressed += d => _turnArenaQuarter?.Invoke(d);
                 hud.ResetViewPressed += () => _resetArenaView?.Invoke();
             };
         }
@@ -1275,8 +1274,6 @@ namespace BakAgain.UI.InGame {
                 !DialogManager.PageOverTheWorld && FightUnderWay());
             // The controller owns the forecast in the model; the world hands back the one for this
             // fight's service (the same instance until the zone's service changes).
-            // A trap board's camera does not quarter-turn (the orbit ignores it); grey the buttons to say so.
-            _combatHud.Hud?.SetQuarterTurnsEnabled(!(_arenaIsTrap?.Invoke() ?? false));
             var controller = _combatHud.Hud != null ? _combatControllerFor?.Invoke(_combatHud.Hud, phone) : null;
             if (controller != _combatController && controller != null) {
                 if (_combatController != null) {
@@ -1285,7 +1282,50 @@ namespace BakAgain.UI.InGame {
                 controller.Changed += _combatHud.Invalidate;
             }
             _combatController = controller ?? _combatController;
+            SyncEnhancedCombatNav();
             TickEnhancedCombatPointer();
+        }
+
+        // Tab and the arrows walk the combat menu's widgets, which are the Classic buttons wherever the
+        // Classic layout put them: with the Enhanced band up the cursor landed on a foe card or on empty
+        // band (owner, 2026-11-01). While the desktop band shows, the same layer walks its stones instead;
+        // the Classic list goes back when a Classic turn (or no fight) takes over.
+        private void SyncEnhancedCombatNav() {
+            BakAgain.UI.InputCore.MenuLayerHost host = _classicCombatNav?.Invoke();
+            bool enhanced = EnhancedCombatActive && _combatHud.Hud is BakAgain.UI.Combat.Enhanced.DesktopCombatHud;
+            if (!enhanced || host != _enhancedNavHost || host?.Layer != _enhancedNavLayer) {
+                if (_enhancedNavHost != null) {
+                    var loader = _enhancedNavHost.GetComponent<BakAgain.ResourceManagement.Loaders.UserInterfaceLoader>();
+                    if (loader != null && loader.CurrentNavWidgets != null) {
+                        _enhancedNavHost.SetWidgets(loader.CurrentNavWidgets);
+                    }
+                }
+                _enhancedNavHost = null;
+                _enhancedNavLayer = null;
+            }
+            if (!enhanced || host == null || _enhancedNavHost == host || !host.HasNavigableLayer) {
+                return;
+            }
+            var desk = (BakAgain.UI.Combat.Enhanced.DesktopCombatHud)_combatHud.Hud;
+            var widgets = new System.Collections.Generic.List<BakAgain.UI.InputCore.NavWidget>();
+            foreach ((VisualElement stone, System.Action press) in desk.NavStones()) {
+                widgets.Add(new BakAgain.UI.InputCore.NavWidget(stone, stone.name, () => CanonicalRectOf(stone), press, null));
+            }
+            if (host.SetWidgets(widgets)) {
+                _enhancedNavHost = host;
+                _enhancedNavLayer = host.Layer;
+            }
+        }
+
+        // A panel element's rect in the canonical space the software cursor is warped in (this screen's stage).
+        private Rect CanonicalRectOf(VisualElement element) {
+            VisualElement stage = BakAgain.UI.CanonicalStage.Find(_document?.rootVisualElement);
+            Rect wb = element.worldBound;
+            if (stage == null || float.IsNaN(wb.x) || wb.width <= 0f) {
+                return Rect.zero;
+            }
+            Vector2 min = stage.WorldToLocal(wb.min), max = stage.WorldToLocal(wb.max);
+            return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
         }
 
         /// <summary>

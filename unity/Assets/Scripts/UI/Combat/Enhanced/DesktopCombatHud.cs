@@ -24,7 +24,8 @@ namespace BakAgain.UI.Combat.Enhanced {
         private readonly Func<int, string> _stoneImage;
         private readonly VisualElement _root;
         private readonly VisualElement _band;
-        private readonly VisualElement[] _slots = new VisualElement[5];
+        private readonly VisualElement[] _slots = new VisualElement[4];
+        private readonly VisualElement _foeSlot;
         private readonly VisualElement _banner;
         private readonly Label _bannerText, _bannerRound, _ledgerRound;
         private readonly Label _tip;
@@ -55,7 +56,7 @@ namespace BakAgain.UI.Combat.Enhanced {
         private readonly VisualElement _ledgerBody;
         private readonly VisualElement _ledgerFooter;
 
-        // Slot 3
+        // The foe card, over the stones
         private readonly VisualElement _foeList;
         private readonly Label _foeHeader;
         private readonly Label _foeCount;
@@ -77,7 +78,6 @@ namespace BakAgain.UI.Combat.Enhanced {
         public event Action<int> FoeRowHovered;
         public event Action<int> FoeRowChosen;
         public event Action HeroCardRequested;
-        public event Action<int> TurnQuarterPressed;
         public event Action ResetViewPressed;
         public event Action<ForecastAction> SwitchPressed { add { } remove { } }
 
@@ -98,9 +98,6 @@ namespace BakAgain.UI.Combat.Enhanced {
             _bannerRound = Text(_banner, "ec-desk-banner-round", "ec-desk-banner__round");
             VisualElement cam = Box("ec-desk-cam", "ec-desk-cam");
             _root.Add(cam);
-            _turnButtons = new[] {
-                CamButton(cam, "ec-cam-left", "⟲", () => TurnQuarterPressed?.Invoke(-1)),
-                CamButton(cam, "ec-cam-right", "⟳", () => TurnQuarterPressed?.Invoke(1)) };
             CamButton(cam, "ec-cam-reset", UiTemplates.Format(UiTemplates.HudReset), () => ResetViewPressed?.Invoke());
 
             _band = Box("ec-desk-band", "ec-desk-band");
@@ -119,11 +116,20 @@ namespace BakAgain.UI.Combat.Enhanced {
                 _band.Add(_slots[i]);
                 inner[i] = Box("ec-desk-slot-inner-" + i, "ec-desk-slot__inner");
                 _slots[i].Add(inner[i]);
-                if (i >= 1 && i <= 3) {
-                    inner[i].AddToClassList("ec-desk-parchment");
-                    inner[i].style.backgroundImage = EnhancedArt.Load("parchment");
+                if (i >= 1 && i <= 2) {
+                    Parchment(inner[i]);
                 }
             }
+            // The foe card stands over the stones, as wide as their slot, the band's height tall.
+            VisualElement foeSlot = _foeSlot = Box("ec-desk-foes", "ec-desk-foes");
+            foeSlot.pickingMode = PickingMode.Position;   // the board stops at the card too
+            foeSlot.style.position = Position.Absolute;
+            foeSlot.style.bottom = Length.Percent(layout.BandHeight * 100f);
+            foeSlot.style.height = Length.Percent(layout.BandHeight * 100f);
+            _root.Add(foeSlot);   // left and width follow the stones' slot (Resize)
+            VisualElement foeInner = Box("ec-desk-foes-inner", "ec-desk-slot__inner");
+            Parchment(foeInner);
+            foeSlot.Add(foeInner);
             inner[0].AddToClassList("ec-desk-slot-0");
 
             // Slot 0: medallion and coins.
@@ -190,9 +196,9 @@ namespace BakAgain.UI.Combat.Enhanced {
             _ledgerFooter = Box("ec-desk-ledger-footer", "ec-desk-ledger-footer");
             inner[2].Add(_ledgerFooter);
 
-            // Slot 3: the foe list, or one foe's card.
+            // Over the stones: the foe list, or one foe's card.
             _foeList = Box("ec-desk-foelist", "ec-desk-card");
-            inner[3].Add(_foeList);
+            foeInner.Add(_foeList);
             VisualElement foeHead = Box(null, "ec-desk-row");
             _foeList.Add(foeHead);
             _foeHeader = Text(foeHead, null, "ec-desk-title");
@@ -201,7 +207,7 @@ namespace BakAgain.UI.Combat.Enhanced {
             _foeRows = Box("ec-desk-foe-rows", "ec-desk-col");
             _foeList.Add(_foeRows);
             _foeCard = Box("ec-desk-foecard", "ec-desk-card");
-            inner[3].Add(_foeCard);
+            foeInner.Add(_foeCard);
             _foeDiscs = Box("ec-desk-foe-discs", "ec-desk-row");
             _foeCard.Add(_foeDiscs);
             _foeCardName = Text(_foeCard, "ec-desk-foecard-name", "ec-desk-title");
@@ -209,9 +215,9 @@ namespace BakAgain.UI.Combat.Enhanced {
             _foeCardRows = Box("ec-desk-foecard-rows", "ec-desk-foecard-rows");
             _foeCard.Add(_foeCardRows);
 
-            // Slot 4: six stones, two rows of three.
+            // Slot 3: six stones, two rows of three.
             VisualElement grid = Box("ec-desk-stones", "ec-desk-stones");
-            inner[4].Add(grid);
+            inner[3].Add(grid);
             foreach ((CombatCommands.Command command, char key) in CombatHudText.Stones) {
                 grid.Add(_stones[command] = Stone(command, key));
             }
@@ -475,9 +481,13 @@ namespace BakAgain.UI.Combat.Enhanced {
             table.Add(row);
         }
 
-        // ---- slot 3 ----
+        // ---- the foe card ----
 
         private void ShowFoes(CombatHudModel m) {
+            if (m.CardHero is HeroCardModel member) {
+                ShowMemberCard(member);
+                return;
+            }
             IReadOnlyList<FoeRowModel> foes = m.Foes ?? Array.Empty<FoeRowModel>();
             FoeRowModel card = m.CardFoe is int slot ? Find(foes, slot) : null;
             _foeList.style.display = card == null ? DisplayStyle.Flex : DisplayStyle.None;
@@ -516,18 +526,52 @@ namespace BakAgain.UI.Combat.Enhanced {
             _foeCardName.text = UiTemplates.Format(UiTemplates.HudJoin, ("a", card.Letter), ("b", card.Name));
             _foeCardNote.text = card.Inspected ? UiTemplates.Format(UiTemplates.HudInspected)
                 : card.Seen > 0 ? UiTemplates.Format(UiTemplates.EnhancedCombatSeen, ("count", card.Seen)) : "";
-            Fit(_foeCardRows, card.Rows.Count, () => {
-                VisualElement row = Box(null, "ec-desk-foecard__row");
-                Text(row, null, "ec-desk-foecard__label");
-                Text(row, null, "ec-desk-foecard__value");
-                return row;
-            });
+            Fit(_foeCardRows, card.Rows.Count, FoeCardRow);
             for (int i = 0; i < card.Rows.Count; i++) {
                 _foeCardRows[i].Q<Label>(className: "ec-desk-foecard__label").text = card.Rows[i].Label;
                 Label value = _foeCardRows[i].Q<Label>(className: "ec-desk-foecard__value");
                 value.text = card.Rows[i].Value;
                 value.EnableInClassList("ec-desk-foecard__value--known", card.Rows[i].Known);
             }
+        }
+
+        // A party member under the mouse: their own numbers, all known, in the foe card's place.
+        private void ShowMemberCard(HeroCardModel h) {
+            _foeList.style.display = DisplayStyle.None;
+            _foeCard.style.display = DisplayStyle.Flex;
+            Fit(_foeDiscs, 0, () => null);
+            _foeCardName.text = h.Name;
+            _foeCardNote.text = string.Join(" \u00b7 ", h.Conditions);
+            string Label(string key) => UiStrings.Get(key).TrimEnd(':', ' ');
+            var rows = new List<(string Label, string Value)> {
+                (Label("base:uistring:combat.assess_health_label"),
+                    UiTemplates.Format(UiTemplates.HudCurrentOfMax, ("current", h.Health), ("max", h.HealthMax))),
+                (Label("base:uistring:combat.assess_stamina_label"),
+                    UiTemplates.Format(UiTemplates.HudCurrentOfMax, ("current", h.Stamina), ("max", h.StaminaMax))),
+                (Label("base:uistring:combat.assess_speed_label"),
+                    UiTemplates.Format(UiTemplates.HudCurrentBase, ("current", h.Speed), ("base", h.SpeedBase))),
+                (Label("base:uistring:combat.assess_strength_label"),
+                    UiTemplates.Format(UiTemplates.HudCurrentBase, ("current", h.Strength), ("base", h.StrengthBase))),
+            };
+            foreach (KitItemModel item in new[] { h.Weapon, h.Armour }) {
+                if (item != null) {
+                    rows.Add((item.Name, item.ConditionPercent < 0 ? "" : UiTemplates.Percent(item.ConditionPercent)));
+                }
+            }
+            Fit(_foeCardRows, rows.Count, FoeCardRow);
+            for (int i = 0; i < rows.Count; i++) {
+                _foeCardRows[i].Q<Label>(className: "ec-desk-foecard__label").text = rows[i].Label;
+                Label value = _foeCardRows[i].Q<Label>(className: "ec-desk-foecard__value");
+                value.text = rows[i].Value;
+                value.EnableInClassList("ec-desk-foecard__value--known", true);
+            }
+        }
+
+        private VisualElement FoeCardRow() {
+            VisualElement row = Box(null, "ec-desk-foecard__row");
+            Text(row, null, "ec-desk-foecard__label");
+            Text(row, null, "ec-desk-foecard__value");
+            return row;
         }
 
         private VisualElement FoeRow() {
@@ -542,7 +586,7 @@ namespace BakAgain.UI.Combat.Enhanced {
             return row;
         }
 
-        // ---- slot 4 ----
+        // ---- slot 3: the stones ----
 
         private VisualElement Stone(CombatCommands.Command command, char key) {
             VisualElement stone = Box("ec-stone-" + command, "ec-stone");
@@ -552,10 +596,8 @@ namespace BakAgain.UI.Combat.Enhanced {
             disc.AddToClassList("ec-stone__disc");
             stone.Add(disc);
             if (command == CombatCommands.Command.CharacterScreen) {
-                // Pack: the original's bare stone with the port's satchel over it (asset-origins.md).
-                VisualElement satchel = Box("ec-stone-satchel", "ec-stone__satchel");
-                satchel.style.backgroundImage = EnhancedArt.Load("satchel");
-                disc.Add(satchel);
+                // Pack: the original's bare stone with its inventory bag over it (owner, 2026-11-01).
+                disc.Add(PackBag("ec-stone-satchel"));
             }
             Text(stone, "ec-stone-key", "ec-stone__key").text = key.ToString();
             Text(stone, "ec-stone-name", "ec-stone__name");
@@ -565,6 +607,14 @@ namespace BakAgain.UI.Combat.Enhanced {
             stone.RegisterCallback<PointerEnterEvent>(_ => Hover(stone, true));
             stone.RegisterCallback<PointerLeaveEvent>(_ => Hover(stone, false));
             return stone;
+        }
+
+        /// <summary>The stones in reading order, each with its click: what keyboard navigation walks.</summary>
+        public IEnumerable<(VisualElement Stone, Action Press)> NavStones() {
+            foreach ((CombatCommands.Command command, char _) in CombatHudText.Stones) {
+                VisualElement stone = _stones[command];
+                yield return (stone, () => StoneActivated?.Invoke(StoneCommand(stone)));
+            }
         }
 
         // Cast and Shoot share one stone; the shown command is kept on the element.
@@ -632,6 +682,11 @@ namespace BakAgain.UI.Combat.Enhanced {
         private void Resize() {
             float band = _band.resolvedStyle.height;
             if (float.IsNaN(band) || band <= 0f) return;
+            Rect stones = _slots[_slots.Length - 1].worldBound;
+            if (!float.IsNaN(stones.x) && stones.width > 0f) {
+                _foeSlot.style.left = _root.WorldToLocal(stones.position).x;
+                _foeSlot.style.width = stones.width;
+            }
             float medallion = band * _layout.MedallionBandFraction;
             _medallion.style.width = medallion;
             _medallion.style.height = medallion;
@@ -656,14 +711,6 @@ namespace BakAgain.UI.Combat.Enhanced {
 
         // ---- helpers ----
 
-        private Button[] _turnButtons;
-
-        public void SetQuarterTurnsEnabled(bool enabled) {
-            foreach (Button b in _turnButtons) {
-                b.SetEnabled(enabled);
-            }
-        }
-
         private Button CamButton(VisualElement parent, string name, string text, Action press) {
             var b = new Button(press) { name = name, text = text };
             b.AddToClassList("ec-desk-cam__button");
@@ -672,6 +719,21 @@ namespace BakAgain.UI.Combat.Enhanced {
         }
 
         /// <summary>Over the whole of its parent, whatever the theme says.</summary>
+        /// <summary>The original's inventory bag (INVMISC.BMX #0), the picture on the Pack stone.</summary>
+        internal static ArchiveImage PackBag(string name) {
+            var bag = new ArchiveImage { name = name, sizeToImage = false, pickingMode = PickingMode.Ignore };
+            bag.AddToClassList("ec-stone__satchel");
+            bag.address = PackBagImage;
+            return bag;
+        }
+
+        internal const string PackBagImage = "INVMISC.BMX#0";
+
+        private static void Parchment(VisualElement e) {
+            e.AddToClassList("ec-desk-parchment");
+            e.style.backgroundImage = EnhancedArt.Load("parchment");
+        }
+
         internal static void Fill(VisualElement e) {
             e.style.position = Position.Absolute;
             e.style.left = 0; e.style.top = 0; e.style.right = 0; e.style.bottom = 0;

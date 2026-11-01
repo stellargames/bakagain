@@ -137,7 +137,9 @@ namespace BakAgain.UI.Combat.Enhanced {
                 alt = ForecastOf(Acting(), f.Action == ForecastAction.Thrust ? ForecastAction.Swing : ForecastAction.Thrust);
             }
             int? card = f != null && f.TargetSlot >= 0 ? f.TargetSlot : !_phone && !_party ? _foe : null;
-            CombatHudModel m = CombatHudModelBuilder.Build(_cr, _session, _hs?.EnhancedBoardMarks(), logLines, f, alt, card);
+            // A party member under the mouse shows their card where a foe's would (owner, 2026-11-01).
+            int? cardHero = !_phone && _party ? _foe : null;
+            CombatHudModel m = CombatHudModelBuilder.Build(_cr, _session, _hs?.EnhancedBoardMarks(), logLines, f, alt, card, cardHero);
             // An armed pick waiting for its target says so, by name (owner, 2026-10-28: after the cast
             // screen it was not clear a target had to be chosen again).
             return Picking && _hs?.PendingPickName is string pick && m != null

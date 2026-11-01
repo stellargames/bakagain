@@ -1220,8 +1220,16 @@ namespace BakAgain.World {
                     if ((end - start).sqrMagnitude > 1f) {
                         GameData.Resources.Combat.Combatant who =
                             _hotspots.CombatantFor(marker.RosterSlot, marker.PartyMember);
+                        var gait = marker.GetComponent<Encounters.DirectionalSprite>();
+                        // Enhanced: the walker turns to its new facing first and then walks (owner,
+                        // 2026-11-01); the redraw after the slide turned it only on arrival. Classic
+                        // keeps that order.
+                        if (gait != null && who != null && BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.Combat)) {
+                            (long X, long Y, short _) = gait.RecordedPose;
+                            gait.SetPose(X, Y, _hotspots.ArenaSpriteYawFor(who));
+                        }
                         targets.Add(marker.transform);
-                        gaits.Add(marker.GetComponent<Encounters.DirectionalSprite>());
+                        gaits.Add(gait);
                         movers.Add(who);
                         routes.Add(RouteOf(who, start, end));
                     }
@@ -1467,7 +1475,8 @@ namespace BakAgain.World {
                     () => _hotspots.Combat?.Encounter == null ? null
                         : (object)(_hotspots.Combat.Encounter.Current, _hotspots.Combat.Log.Round),
                     () => ResolveCombatMenu()?.GetComponent<UnityEngine.UIElements.UIDocument>()?.rootVisualElement,
-                    CombatStoneImage, TurnArenaQuarter, ResetArenaView, CombatControllerFor, () => ArenaIsTrap);
+                    CombatStoneImage, ResetArenaView, CombatControllerFor,
+                    () => ResolveCombatMenu()?.GetComponent<BakAgain.UI.InputCore.MenuLayerHost>());
                 screen.SetCombatPickPendingSeam(() => _hotspots?.CombatPickPending ?? false);
                 _combatScreen = screen;
                 // One encounter fights against a painted backdrop instead of the world. Handed over
@@ -2018,12 +2027,6 @@ namespace BakAgain.World {
             if (!double.IsNaN(floor) && _arenaOrbit.Orbit != null) {
                 _arenaOrbit.Orbit.PitchFloorDegrees = floor;
             }
-        }
-
-        /// <summary>A quarter turn of the arena camera, -1 left or +1 right. No-op outside an Enhanced fight.</summary>
-        public void TurnArenaQuarter(int direction) {
-            _arenaOrbit?.Orbit.TurnQuarter(direction);
-            RefitArena();
         }
 
         /// <summary>The arena camera back where the fight started it. No-op outside an Enhanced fight.</summary>

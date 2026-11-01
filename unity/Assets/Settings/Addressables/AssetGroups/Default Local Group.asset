@@ -45,6 +45,11 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 21d30df42be5d83aa9fecdaa1147cec0
+    m_Address: Enhanced/Stone/sword-cursor
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 26568d9bde02d90ceb9caa9bba178ee6
     m_Address: Enhanced/Stone/gem-lit
     m_ReadOnly: 0
@@ -57,11 +62,6 @@ MonoBehaviour:
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 3234b7a43f2b618c382ab5b8c5d7b5f4
     m_Address: Enhanced/Stone/strap-h
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 341aea1a07ab2ede0b939cbc969403c4
-    m_Address: Enhanced/Stone/satchel
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0

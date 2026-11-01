@@ -485,8 +485,10 @@ public static class UiTemplates {
         (HudCurrentBase, _ => "{current} ({base})"),
         // The two base damages, labelled as the original's inspect labels them (INVINSP.C:248-251,
         // "%d+Strength" under Thrust and under Swing): "Dmg -7/3" read as a range. Short enough for the
-        // desktop card's line; the hit chance is the forecast's.
-        (HudWeaponLine, _ => "Thrust {thrust}+Str · Swing {swing}+Str"),
+        // desktop card's line; the hit chance is the forecast's. Written Strength-first with the sum
+        // ("Str−7 = 5"), which the owner found clearer than "-7+Str" (2026-11-01); {thrust} and {swing}
+        // carry their sign.
+        (HudWeaponLine, _ => "Thrust Str{thrust} = {thrustTotal} · Swing Str{swing} = {swingTotal}"),
         (HudChooseTarget, _ => "{action}: choose a target"),
         // A Thrust that walks first says so (owner, 2026-10-29: "explain the move+attack combo").
         // A count, so a plural for the translator, as the other counted strings (HudSquares, MoneyProse).

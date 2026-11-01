@@ -195,11 +195,18 @@ namespace BakAgain.World.Encounters {
             if (segments.Count == 0) {
                 return;
             }
-            var material = new Material(Shader.Find("Sprites/Default"));
+            Material material = LineMaterial();
             foreach ((long x0, long y0, long x1, long y1, ArenaOverlayKind kind) in segments) {
                 _actingCellLines.Add(CreateLine(x0, y0, x1, y1, kind, material));
             }
         }
+
+        // Enhanced combat dims the lines with the world's light, as its board marks (owner, 2026-11-01);
+        // Classic keeps the original's unlit pens.
+        private static Material LineMaterial() =>
+            BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.Combat)
+                ? ArenaBoardMarks.LitMark(new GameData.Resources.Layout.EnhancedCombatLayout())
+                : new Material(Shader.Find("Sprites/Default"));
 
         /// <summary>Show or hide the overlay, building it the first time it is asked for.</summary>
         private void Apply(bool visible) {
@@ -230,7 +237,7 @@ namespace BakAgain.World.Encounters {
             if (_segments == null) {
                 return;
             }
-            var material = new Material(Shader.Find("Sprites/Default"));
+            Material material = LineMaterial();
             foreach ((long x0, long y0, long x1, long y1, ArenaOverlayKind kind) in _segments()) {
                 (kind == ArenaOverlayKind.ActingCell ? _actingCellLines : _lines)
                     .Add(CreateLine(x0, y0, x1, y1, kind, material));

@@ -69,9 +69,15 @@ namespace BakAgain.World.Encounters {
             }
             // The reach squares lighten the ground under them (Resources/Shaders, so a build keeps it).
             _lighten = new Material(Shader.Find("BakAgain/GroundLighten")) { renderQueue = 3000 };
-            // Sprites/Default is in GraphicsSettings' always-included shaders (fileID 10753), so a
-            // player build keeps it; the arena grid overlay finds the same shader.
-            _material = new Material(Shader.Find("Sprites/Default"));
+            _material = LitMark(_layout);
+        }
+
+        /// <summary>The marks' material: vertex colour, dimmed most of the way with the world's light
+        /// (Resources/Shaders/LitMark, so a build keeps it).</summary>
+        internal static Material LitMark(EnhancedCombatLayout layout) {
+            var m = new Material(Shader.Find("BakAgain/LitMark"));
+            m.SetFloat("_LightFollow", Mathf.Clamp01(layout?.MarkLightFollow ?? 1f));
+            return m;
         }
 
         private void Update() {
@@ -219,7 +225,8 @@ namespace BakAgain.World.Encounters {
             }
         }
 
-        /// <summary>Small squares along the walk, every <see cref="EnhancedCombatLayout.PathDotSpacingCells"/>.</summary>
+        /// <summary>Small discs along the walk, every <see cref="EnhancedCombatLayout.PathDotSpacingCells"/>, and a
+        /// bigger one where it ends (discs, not squares: owner, 2026-11-01).</summary>
         private void AddDots((long X, long Y)[] points, float lift, List<Vector3> verts, List<int> tris) {
             float spacing = _layout.PathDotSpacingCells * _unitsPerCell;
             float size = _layout.PathDotSizeCells * _unitsPerCell;
@@ -230,27 +237,30 @@ namespace BakAgain.World.Encounters {
                 Vector3 b = Ground(points[i + 1]);
                 int dots = Mathf.Max(1, Mathf.RoundToInt(Vector3.Distance(a, b) / spacing));
                 for (int d = 0; d < dots; d++) {
-                    Vector3 c = Vector3.Lerp(a, b, d / (float)dots);
-                    int at = verts.Count;
-                    verts.Add(c + new Vector3(-size, 0f, -size));
-                    verts.Add(c + new Vector3(-size, 0f, size));
-                    verts.Add(c + new Vector3(size, 0f, size));
-                    verts.Add(c + new Vector3(size, 0f, -size));
-                    tris.AddRange(new[] { at, at + 1, at + 2, at, at + 2, at + 3 });
+                    AddDisc(Vector3.Lerp(a, b, d / (float)dots), size, verts, tris);
                 }
             }
-            Vector3 end = Ground(points[points.Length - 1]);
-            int e = verts.Count;
-            verts.Add(end + new Vector3(-size * 2, 0f, -size * 2));
-            verts.Add(end + new Vector3(-size * 2, 0f, size * 2));
-            verts.Add(end + new Vector3(size * 2, 0f, size * 2));
-            verts.Add(end + new Vector3(size * 2, 0f, -size * 2));
-            tris.AddRange(new[] { e, e + 1, e + 2, e, e + 2, e + 3 });
+            AddDisc(Ground(points[points.Length - 1]), size * 2f, verts, tris);
+        }
+
+        private const int DiscSegments = 16;
+
+        // A flat disc on the ground: a fan round its centre, wound to face up as the squares were.
+        private static void AddDisc(Vector3 centre, float radius, List<Vector3> verts, List<int> tris) {
+            int at = verts.Count;
+            verts.Add(centre);
+            for (int k = 0; k < DiscSegments; k++) {
+                float angle = -2f * Mathf.PI * k / DiscSegments;
+                verts.Add(centre + new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius));
+            }
+            for (int k = 0; k < DiscSegments; k++) {
+                tris.AddRange(new[] { at, at + 1 + k, at + 1 + (k + 1) % DiscSegments });
+            }
         }
 
         /// <summary>
-        /// A dark plate with the foe's gold letter above its drawn top, and under it the "-N seen" line
-        /// the knowledge store fills. Thrust and swing reach are the board's cell marks, not the plate's.
+        /// A dark plate with the foe's gold letter above its drawn top. Thrust and swing reach are the board's
+        /// cell marks, not the plate's; the damage seen is the HUD's alone (owner, 2026-11-01).
         /// </summary>
         private void RefreshPlates() {
             List<HotspotService.FoePlate> plates = _plates?.Invoke() ?? new List<HotspotService.FoePlate>();
@@ -285,9 +295,6 @@ namespace BakAgain.World.Encounters {
 
             // The letter alone: the reach swords were more clutter than use (owner, 2026-10-29).
             Text(plate.transform, "Letter", p.Letter.ToString(), Gold, h * 0.9f, new Vector3(0f, 0f, -0.01f));
-            Text(plate.transform, "Seen", p.Seen > 0
-                ? GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedCombatSeen, ("count", p.Seen))
-                : "", Color.white, h * 0.3f, new Vector3(0f, -h * 0.65f, -0.01f));
             return plate;
         }
 

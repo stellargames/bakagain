@@ -260,7 +260,7 @@ namespace BakAgain.Tests.PlayMode.World {
                 BakAgain.World.WorldRuntime world = NewWorld(combat: true, out Camera cam);
                 world.PointCameraAtArena();
                 var layout = new EnhancedCombatLayout();
-                world.TurnArenaQuarter(1);
+                world.OrbitArena(90f / layout.OrbitDegreesPerPixel, 0f);   // a quarter turn by drag
                 world.ZoomArena(1000f);
                 AssertTheWholeBoardJustFits(cam, layout, phone, "a quarter turn");
                 world.OrbitArena(-45f / layout.OrbitDegreesPerPixel, 40f);   // 45 degrees round, and steeper

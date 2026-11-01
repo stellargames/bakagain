@@ -32,13 +32,7 @@ namespace BakAgain.UI.Combat.Enhanced {
         /// <summary>Phone: the hero chip. Desktop: a right click on the medallion (the character sheet).</summary>
         event Action HeroCardRequested;
 
-        /// <summary>The camera's quarter turn: -1 left, +1 right.</summary>
-        event Action<int> TurnQuarterPressed;
-
         event Action ResetViewPressed;
-
-        /// <summary>Greys out (false) or restores the camera's quarter-turn buttons; a trap board does not turn.</summary>
-        void SetQuarterTurnsEnabled(bool enabled);
 
         /// <summary>Phone: the peek's Thrust / Swing switch, with the action asked for. Desktop: never (Shift+click swings).</summary>
         event Action<ForecastAction> SwitchPressed;
@@ -68,7 +62,8 @@ namespace BakAgain.UI.Combat.Enhanced {
         bool TheirTurn,
         string Sentence,
         CombatForecast Alternative = null,
-        int Round = 0);
+        int Round = 0,
+        HeroCardModel CardHero = null);
 
     /// <summary>A weapon or armour line: its name, condition in percent (-1 = not tracked) and stat line.</summary>
     public sealed record KitItemModel(string Name, int ConditionPercent, string Stats);
