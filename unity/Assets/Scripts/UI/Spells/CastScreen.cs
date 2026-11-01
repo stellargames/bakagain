@@ -1097,18 +1097,33 @@ namespace BakAgain.UI.Spells {
 
             SpellCastContext context = await CastContextAsync();
             _drawnSymbols.Clear();
+            _dullSymbols.Clear();
+            bool schoolOnlyRead = EnhancedApplied && _enhanced.IsOpenedSchool(_school);
             foreach (SpellSymbolNode node in Symbols.Nodes) {
                 // *** AN UNCASTABLE SPELL HAS NO SYMBOL AT ALL. *** The original tests castability
                 // inside the draw and inside the hit test, so the player is never shown a spell
                 // they cannot cast, nor left with a dead widget to click at.
-                if (!IsCastable(node.SpellId, context)) {
+                //
+                // The Enhanced screen shows a KNOWN one dull instead (TASK-1023: a learned combat
+                // spell was invisible outside a fight). It stays out of _drawnSymbols, which every
+                // hit test, hover and light reads, so it is drawn and nothing more. A school the REQ
+                // disables here is opened only to be read: nothing in it is cast in this context
+                // (IsCastable has no field/combat rule; the REQ's school gate is that rule).
+                bool castable = !schoolOnlyRead && IsCastable(node.SpellId, context);
+                bool dull = !castable && EnhancedApplied
+                    && SpellBook.IsKnown(context?.KnownSpells, node.SpellId);
+                if (!castable && !dull) {
                     continue;
                 }
                 Sprite sprite = SymbolSprite(node.FontGlyph);
                 if (sprite == null) {
                     continue;
                 }
-                _drawnSymbols.Add((node.X, node.Y, node.SpellId));
+                if (dull) {
+                    _dullSymbols.Add(node.SpellId);
+                } else {
+                    _drawnSymbols.Add((node.X, node.Y, node.SpellId));
+                }
                 // *** THE TWO AXES ARE CENTRED DIFFERENTLY, AND THAT IS THE ORIGINAL. *** This was
                 // a -50%/-50% translate, which centres each glyph on its own box. Only the
                 // HORIZONTAL half is the glyph's: cspell_menu_animate_hilite subtracts half the
@@ -1135,6 +1150,7 @@ namespace BakAgain.UI.Spells {
                     },
                 };
                 element.AddToClassList(SymbolClass);
+                element.EnableInClassList(DullClass, dull);
                 stage.Add(element);
             }
             SyncHolograms();
@@ -1242,6 +1258,11 @@ namespace BakAgain.UI.Spells {
 
         /// <summary>The castable symbols as drawn, for hit-testing against.</summary>
         private readonly List<(int X, int Y, int SpellId)> _drawnSymbols = new();
+
+        /// <summary>Enhanced only: the known spells drawn dull because they cannot be cast now.</summary>
+        private readonly List<int> _dullSymbols = new();
+
+        private const string DullClass = "enhanced-cast__holo--dull";
 
         /// <summary>A symbol's sprite, made once and kept for as long as the font is.</summary>
         private Sprite SymbolSprite(int glyphIndex) {
@@ -1485,6 +1506,17 @@ namespace BakAgain.UI.Spells {
                     continue;
                 }
                 stage.Add(NameElement(spell.Name, SpellInfoPanel.NameListY(drawn)));
+                drawn++;
+            }
+            // Enhanced: the dull symbols' names follow, dimmed like the symbols (empty otherwise).
+            foreach (int spellId in _dullSymbols) {
+                if (_spells?.Spells == null
+                    || !_spells.Spells.TryGetValue(spellId, out GameData.Resources.Spells.Spell spell)) {
+                    continue;
+                }
+                VisualElement name = NameElement(spell.Name, SpellInfoPanel.NameListY(drawn));
+                name.AddToClassList(DullClass);
+                stage.Add(name);
                 drawn++;
             }
         }

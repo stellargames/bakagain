@@ -24,7 +24,6 @@ namespace BakAgain.UI.Spells {
     public sealed class EnhancedCastLayout {
         public const string CasterClass = "enhanced-cast__portrait--caster";
         public const string ShownClass = "enhanced-cast__school--shown";
-        public const string OffClass = "enhanced-cast__school--off";
 
         /// <summary>The ring art's gem channel radius, as a fraction of its width (the art's channel: r 425 of 1100).</summary>
         public const float ArtChannelRadius = 425f / 1100f;
@@ -69,8 +68,10 @@ namespace BakAgain.UI.Spells {
         /// </summary>
         /// <param name="reqStage">The REQ's own stage (CAST.SCX and the HUD strip), hidden while applied.</param>
         /// <param name="ring">RING.DAT's positions: the bench is fitted to their circle.</param>
-        /// <param name="enabledActions">The REQ entries that are live; a school whose button the layout
-        /// disables shows a blank stone, as the faithful one does.</param>
+        /// <param name="enabledActions">The REQ entries that are live. A school the REQ disables is
+        /// opened here anyway (TASK-1023): the field REQ gates the four combat schools and the combat
+        /// one the two field schools (CSPELL.C:2173-2178), which hid a learned spell outside the
+        /// context it is cast in. The loader still refuses the click, so this layout takes it.</param>
         public bool Apply(VisualElement reqStage, IReadOnlyList<RingPosition> ring, ISet<int> enabledActions, bool combat) {
             if (Applied && _layout.panel == null) {
                 Revert(); // the REQ rebuilt the root under us; apply to the new elements
@@ -143,7 +144,18 @@ namespace BakAgain.UI.Spells {
                 _moved.Move(button, schools, "enhanced-cast__school", clearSize: true);
                 _schools[i] = button;
                 Stone(button, i);
-                button.EnableInClassList(OffClass, !enabledActions.Contains(CastMenuSelection.FirstSchoolActionId + i));
+                if (!enabledActions.Contains(CastMenuSelection.FirstSchoolActionId + i)) {
+                    // Trickle-down, not a second Clickable: the REQ's own Clickable on the button
+                    // stops the press from reaching another one, and then drops the click at its gate.
+                    int school = i;
+                    EventCallback<PointerUpEvent> click = evt => {
+                        if (evt.button == 0 && button.ContainsPoint(evt.localPosition)) {
+                            SchoolPressed?.Invoke(school);
+                        }
+                    };
+                    button.RegisterCallback(click, TrickleDown.TrickleDown);
+                    _openedSchools.Add((button, click));
+                }
             }
 
             // In a fight the caster is the combatant whose turn it is: the column shows only them, and
@@ -207,9 +219,12 @@ namespace BakAgain.UI.Spells {
             foreach (VisualElement s in _schools) {
                 if (s == null) continue;
                 StoneButton.Undress(s);
-                s.RemoveFromClassList(OffClass);
                 s.RemoveFromClassList(ShownClass);
             }
+            foreach ((VisualElement button, EventCallback<PointerUpEvent> click) in _openedSchools) {
+                button.UnregisterCallback(click, TrickleDown.TrickleDown);
+            }
+            _openedSchools.Clear();
             _moved.RestoreAll();
             if (_reqStage != null) {
                 _reqStage.style.visibility = StyleKeyword.Null;
@@ -232,6 +247,28 @@ namespace BakAgain.UI.Spells {
             _readout = null;
             System.Array.Clear(_portraits, 0, 3);
             System.Array.Clear(_schools, 0, _schools.Length);
+        }
+
+        /// <summary>A school the REQ disables was pressed: Enhanced opens every school (TASK-1023).</summary>
+        public event System.Action<int> SchoolPressed;
+
+        /// <summary>The REQ-disabled school buttons this layout made clickable, and their schools.</summary>
+        public IEnumerable<(VisualElement Button, int School)> OpenedSchools {
+            get {
+                foreach ((VisualElement button, EventCallback<PointerUpEvent> _) in _openedSchools) {
+                    yield return (button, System.Array.IndexOf(_schools, button));
+                }
+            }
+        }
+
+        private readonly List<(VisualElement Button, EventCallback<PointerUpEvent> Click)> _openedSchools = new();
+
+        /// <summary>Whether this school is one the REQ disables and the layout opened.</summary>
+        public bool IsOpenedSchool(int school) {
+            foreach ((VisualElement _, int opened) in OpenedSchools) {
+                if (opened == school) return true;
+            }
+            return false;
         }
 
         /// <summary>Lights the school whose figure the ring shows.</summary>

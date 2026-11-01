@@ -404,7 +404,6 @@
 /* Exit wears the original face, drawn at its native size top-left (TASK-941): the box is that size. */
 .enhanced-cast .enhanced-cast__exit { position: relative; width: 165px; height: 168px; flex-shrink: 0; margin-left: 18px; }
 .enhanced-stone { position: absolute; left: 0; top: 0; right: 0; bottom: 0; border-radius: 50%; background-size: 100% 100%; }
-.enhanced-cast .enhanced-cast__school--off .enhanced-stone { opacity: 0.35; }
 .enhanced-cast .enhanced-cast__school--shown .enhanced-stone { border-width: 4px; border-color: rgb(224, 149, 92); }
 .enhanced-cast .enhanced-cast__right { flex-grow: 1; flex-direction: column; }
 .enhanced-cast .enhanced-cast__top { flex-grow: 1; flex-direction: row; }
@@ -419,6 +418,9 @@
 .enhanced-cast .enhanced-cast__gem { background-size: 100% 100%; }
 .enhanced-cast .enhanced-cast__holo--lit { scale: 1.15 1.15; }
 .enhanced-cast .enhanced-cast__holo--dim { -unity-background-image-tint-color: rgb(150, 150, 150); }
+/* A known spell that cannot be cast now (TASK-1023): drawn, dull and inert; its name dimmed in the list. */
+.enhanced-cast .cast-spell-symbol.enhanced-cast__holo--dull { -unity-background-image-tint-color: rgb(70, 70, 70); }
+.enhanced-cast .cast-info-line.enhanced-cast__holo--dull { opacity: 0.45; }
 .enhanced-strap { position: absolute; background-size: 100% 100%; -unity-background-image-tint-color: rgb(118, 90, 78); }
 .enhanced-cast .enhanced-cast__readout { position: absolute; left: 0; top: 0; right: 0; bottom: 0; align-items: center; justify-content: center; }
 .enhanced-cast .enhanced-cast__readout-power { font-size: 150px; color: rgb(255, 243, 207); -unity-text-align: middle-center; text-shadow: 0 0 18px rgba(255, 120, 70, 0.8); }

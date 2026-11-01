@@ -44,6 +44,7 @@ namespace BakAgain.UI.Spells {
                 _enhanced = new EnhancedCastLayout(root, _session);
                 _enhanced.CastPressed += CastChosenPower;
                 _enhanced.BackPressed += BackToSpells;
+                _enhanced.SchoolPressed += SelectSchool;
             }
             var enabled = new HashSet<int>();
             foreach (BakAgain.UI.InputCore.NavWidget w in _ui.CurrentNavWidgets) enabled.Add(w.ActionId);
@@ -80,6 +81,13 @@ namespace BakAgain.UI.Spells {
                 VisualElement element = w.Element;
                 widgets.Add(new BakAgain.UI.InputCore.NavWidget(element, w.Label, () => _enhanced?.CanonicalRectOf(element) ?? Rect.zero,
                     w.Primary, w.Secondary, w.ActionId));
+            }
+            foreach ((VisualElement button, int school) in _enhanced.OpenedSchools) {
+                VisualElement element = button;
+                int s = school;
+                widgets.Add(new BakAgain.UI.InputCore.NavWidget(element, string.Empty,
+                    () => _enhanced?.CanonicalRectOf(element) ?? Rect.zero, () => SelectSchool(s), null,
+                    CastMenuSelection.FirstSchoolActionId + s));
             }
             if (_enhanced.TabletsShown) {
                 VisualElement back = _enhanced.BackTablet, cast = _enhanced.CastTablet;
@@ -175,6 +183,9 @@ namespace BakAgain.UI.Spells {
                 new Vector2(_pointer.ScreenPosition.x, Screen.height - _pointer.ScreenPosition.y));
             for (VisualElement e = panel.Pick(at); e != null; e = e.parent) {
                 if (e == _enhanced.CastTablet || e == _enhanced.BackTablet) return true;
+                foreach ((VisualElement button, int _) in _enhanced.OpenedSchools) {
+                    if (e == button) return true;
+                }
                 if (_ui == null) continue;
                 foreach (BakAgain.UI.InputCore.NavWidget w in _ui.CurrentNavWidgets) {
                     if (w.Element == e) return true;
