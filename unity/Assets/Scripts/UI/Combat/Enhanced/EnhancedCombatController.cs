@@ -137,7 +137,7 @@ namespace BakAgain.UI.Combat.Enhanced {
                 alt = ForecastOf(Acting(), f.Action == ForecastAction.Thrust ? ForecastAction.Swing : ForecastAction.Thrust);
             }
             // Desktop: with Shift down a hovered foe's forecast is the Swing a click would make (the column lights).
-            if (!_phone && _hovered && f?.Action == ForecastAction.Thrust && alt != null && BakAgain.UI.InputCore.InputDriver.ShiftHeld) {
+            if (!_phone && _hovered && f?.Action == ForecastAction.Thrust && alt != null && alt.Allowed && BakAgain.UI.InputCore.InputDriver.ShiftHeld) {
                 (f, alt) = (alt, f);
             }
             int? card = f != null && f.TargetSlot >= 0 ? f.TargetSlot : !_phone && !_party ? _foe : null;

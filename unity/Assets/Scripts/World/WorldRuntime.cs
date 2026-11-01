@@ -698,6 +698,25 @@ namespace BakAgain.World {
         /// The numbers struck combatants float — the damage, "miss" for a blow that did nothing, or a
         /// heal's gain (COMBAT.C:382-390, CSPELL.C:1217, CACTOR.C:973). Played once, on the redraw after the blow, like the swing.
         /// </summary>
+        /// <summary>
+        /// The struck numbers float once the swings this redraw started have played: the original applies the
+        /// damage (and so floats its number) after the attacker's swing animation (COMBAT.C:487-488, then
+        /// 375-390); floated as the swing began, the "miss" was read before the blow was seen (owner,
+        /// 2026-11-01). The log line follows the float. Counted as arena work, so the turn waits for it.
+        /// </summary>
+        private async UniTaskVoid FloatAfterTheSwingsAsync() {
+            _arenaWork++;
+            try {
+                GameObject root = _arenaRoot;
+                await UniTask.WaitWhile(() => Encounters.AttackSwing.Playing > 0);
+                if (_arenaRoot != null && _arenaRoot == root) {
+                    FloatDamageNumbers();
+                }
+            } finally {
+                _arenaWork--;
+            }
+        }
+
         private void FloatDamageNumbers() {
             Color[] palette = _zoneSceneBuilder?.RenderContext?.Palette;
             BakAgain.UI.InGame.InGameScreen screen =
@@ -1622,7 +1641,7 @@ namespace BakAgain.World {
                 FlyEffectAsync(effect, marker.transform.localPosition, to.localPosition,
                     arcSteps, arcDelta, landingOn: landingOn).Forget();
             }
-            FloatDamageNumbers();
+            FloatAfterTheSwingsAsync().Forget();
 
             // *** THE LIVE COMBATANTS BREATHE. *** The idle is the walk cycle played in place —
             // slot 0 asks for the same three frames — and its delay is re-rolled to 8..15 ticks

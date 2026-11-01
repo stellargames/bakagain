@@ -1879,6 +1879,7 @@ using GameData.Resources.Scene;
             h.Add(System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(encounter?.Current));
             h.Add(System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(Combat?.Grid));
             h.Add(CursorCell);
+            h.Add(CombatPickPending);
             h.Add(Combat?.Log?.Round ?? -1);
             if (_session != null) {
                 h.Add(_session.PositionX);
@@ -2015,6 +2016,12 @@ using GameData.Resources.Scene;
                 return plates;
             }
             for (int i = 0; i < enemies.Count; i++) {
+                // A foe's letter shows only while it is under the cursor (or chosen), or acting: on every foe
+                // at once it distracted (owner, 2026-11-01).
+                bool pointed = CursorCell is (int pc, int pr) && enemies[i]?.X == pc && enemies[i]?.Y == pr;
+                if (!pointed && enemies[i] != Combat.Encounter.Current) {
+                    continue;
+                }
                 if (enemies[i] != null && !enemies[i].IsDead && marks.FoeLetters.TryGetValue(i, out char letter)) {
                     plates.Add(new FoePlate(i, letter, System.Linq.Enumerable.Contains(marks.ThrustTargets, i),
                         System.Linq.Enumerable.Contains(marks.SwingTargets, i),
@@ -2084,7 +2091,9 @@ using GameData.Resources.Scene;
                     Fill(foe.X, foe.Y, Encounters.ArenaOverlayKind.Target, inset: half / 6);
                 }
             }
-            if (CursorCell is (int cc, int cr)) {
+            // No walk while a spell, shot or item waits for its target: the click aims, nobody walks
+            // (owner, 2026-11-01).
+            if (CursorCell is (int cc, int cr) && !CombatPickPending) {
                 Combatant under = Combat.CombatantAtCell(cc, cr);
                 int index = under == null ? -1 : enemies.IndexOf(under);
                 if (under == null || index >= 0) {

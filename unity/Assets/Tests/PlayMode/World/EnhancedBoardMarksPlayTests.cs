@@ -81,6 +81,11 @@ namespace BakAgain.Tests.PlayMode.World {
             service.Combat.Knowledge.AddSeen(0, 6);
             yield return null;
             Assert.IsNull(marks.PlateOf(0).transform.Find("Seen"), "no damage-seen line on the board (owner, 2026-11-01)");
+
+            // Owner, 2026-11-01: the letters distracted. One shows only while the cursor is on its foe.
+            service.CursorCell = (0, 0);
+            yield return null;
+            Assert.IsNull(marks.PlateOf(0), "the cursor left the foe: no letter");
         }
 
         // Owner, 2026-10-29: the cell marks were filled squares that dominated the board and hid the
@@ -137,6 +142,8 @@ namespace BakAgain.Tests.PlayMode.World {
         [UnityTest]
         public IEnumerator APlateFacesTheCameraItIsGiven_NotCameraMain() {
             var (service, _) = EnhancedBoardMarksTests.PartyTurn();
+            var foe = service.Combat.Encounter.Enemies[0];
+            service.CursorCell = (foe.X, foe.Y);   // a letter shows only under the cursor
             _root = new GameObject("arena");
             var marker = new GameObject("foe");
             marker.transform.SetParent(_root.transform, false);

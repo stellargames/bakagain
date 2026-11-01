@@ -85,6 +85,20 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
             }
         }
 
+        // Owner, 2026-11-01: aiming a spell showed the walk path under the cursor. While a pick waits for its
+        // target the cursor aims, so no path is drawn; with nothing armed the same cell shows one.
+        [Test]
+        public void NoWalkPathWhileAPickWaitsForItsTarget() {
+            var (s, hero) = PartyTurn();
+            Place(s, hero, (4, 4), 5, (0, 7, 7));
+            s.CursorCell = (4, 6);
+            bool Path() => s.EnhancedBoardShapes(0.4f).Any(b => b.Kind == BakAgain.World.Encounters.ArenaOverlayKind.Path);
+            Assert.IsTrue(Path(), "control: an empty cell in reach shows the walk");
+            s.IssueCombatCommand(CombatCommands.Command.Inspect, CombatCommands.InspectId);
+            Assert.IsTrue(s.CombatPickPending, "the fixture: a pick is armed");
+            Assert.IsFalse(Path(), "aiming: no walk");
+        }
+
         // Owner, 2026-11-01: on the enemies' turn their sprite followed the mouse. The original faces the cursor
         // only from the player's input loop (COMBAT.C:2325, 2346, 2406), so a monster never turns to it.
         [Test]
