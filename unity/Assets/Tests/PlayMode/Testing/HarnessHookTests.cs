@@ -109,6 +109,27 @@ namespace BakAgain.Tests.PlayMode.Testing {
         }
 
         [UnityTest]
+        public IEnumerator ARequestWaitingWhenTheHookGoes_IsAnsweredStopping() {
+            int port = int.Parse(File.ReadAllText(_portFile).Trim());
+            string reply = null;
+            Task t = Task.Run(() => {
+                using var client = new TcpClient("127.0.0.1", port);
+                using NetworkStream s = client.GetStream();
+                new StreamWriter(s) { AutoFlush = true }.Write("window\n");
+                reply = new StreamReader(s).ReadLine();
+            });
+            float until = Time.realtimeSinceStartup + 5f;
+            while (_hook.Pending == 0 && Time.realtimeSinceStartup < until) System.Threading.Thread.Sleep(5);
+            Assert.AreEqual(1, _hook.Pending, "the request never queued");
+            Object.DestroyImmediate(_hook.gameObject);   // before any Update answers it
+            _hook = null;
+            until = Time.realtimeSinceStartup + 5f;
+            while (!t.IsCompleted && Time.realtimeSinceStartup < until) yield return null;
+            Assert.IsTrue(t.IsCompleted, "the client was left waiting");
+            StringAssert.Contains("stopping", reply);
+        }
+
+        [UnityTest]
         public IEnumerator PartyWithoutAGame_IsRefused() {
             var r = new string[1];
             yield return Ask(new[] { "party" }, r);

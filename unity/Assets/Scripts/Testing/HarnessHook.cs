@@ -24,6 +24,9 @@ namespace BakAgain.Testing {
 
         private readonly ConcurrentQueue<(string Line, TaskCompletionSource<string> Reply)> _requests = new();
         private TcpListener _listener;
+
+        /// <summary>Requests waiting for the main thread (tests).</summary>
+        internal int Pending => _requests.Count;
         private Thread _thread;
         private volatile bool _stopping;
 
@@ -58,6 +61,8 @@ namespace BakAgain.Testing {
                     return; // stopped
                 } catch (ObjectDisposedException) {
                     return;
+                } catch (InvalidOperationException) {
+                    return; // stopped between the check and the accept
                 }
                 new Thread(() => Serve(client)) { IsBackground = true, Name = "HarnessHook client" }.Start();
             }
@@ -97,6 +102,10 @@ namespace BakAgain.Testing {
         private void OnDestroy() {
             _stopping = true;
             _listener?.Stop();
+            // A request no Update will answer now: answer it, or its client waits out its timeout.
+            while (_requests.TryDequeue(out (string Line, TaskCompletionSource<string> Reply) r)) {
+                r.Reply.TrySetResult(HarnessQueries.Refuse("stopping"));
+            }
         }
     }
 }
