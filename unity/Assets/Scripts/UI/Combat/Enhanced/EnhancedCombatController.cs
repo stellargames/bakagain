@@ -140,7 +140,9 @@ namespace BakAgain.UI.Combat.Enhanced {
             if (!_phone && _hovered && f?.Action == ForecastAction.Thrust && alt != null && alt.Allowed && BakAgain.UI.InputCore.InputDriver.ShiftHeld) {
                 (f, alt) = (alt, f);
             }
-            int? card = f != null && f.TargetSlot >= 0 ? f.TargetSlot : !_phone && !_party ? _foe : null;
+            // A foe hovered in the Foes list keeps the list: its card would replace the row under the mouse,
+            // whose leave brought the list back, and the two swapped every frame (owner, 2026-11-01).
+            int? card = _fromFoeList ? null : f != null && f.TargetSlot >= 0 ? f.TargetSlot : !_phone && !_party ? _foe : null;
             // A party member under the mouse shows their card where a foe's would (owner, 2026-11-01).
             int? cardHero = !_phone && _party ? _foe : null;
             CombatHudModel m = CombatHudModelBuilder.Build(_cr, _session, _hs?.EnhancedBoardMarks(), logLines, f, alt, card, cardHero,
@@ -181,6 +183,7 @@ namespace BakAgain.UI.Combat.Enhanced {
         /// <summary>The pointer is on this cell / combatant (hover; or where a tap or long press landed).</summary>
         /// <param name="combatant">The enemy's index when <paramref name="party"/> is false; null on an empty cell.</param>
         public void Point(int? col, int? row, int? combatant, bool party) {
+            _fromFoeList = false;
             _cell = col.HasValue && row.HasValue ? (col.Value, row.Value) : null;
             _foe = combatant;
             _party = combatant.HasValue && party;
@@ -386,15 +389,20 @@ namespace BakAgain.UI.Combat.Enhanced {
             }
         }
 
-        private void OnFoeRowHovered(int slot) {
+        internal void OnFoeRowHovered(int slot) {
             if (slot < 0 || _cr?.Encounter == null || slot >= _cr.Encounter.Enemies.Count) {
                 Point(null, null, null, false);
+                _fromFoeList = false;
+                Changed?.Invoke();
                 return;
             }
             Combatant foe = _cr.Encounter.Enemies[slot];
             Point(foe.X, foe.Y, slot, false);
+            _fromFoeList = true;
             Changed?.Invoke();
         }
+
+        private bool _fromFoeList;
 
         // Phone: a chip selects that foe as a tap on it would. Desktop: the row is the card's other
         // path (hover), so a click on it only keeps the card.

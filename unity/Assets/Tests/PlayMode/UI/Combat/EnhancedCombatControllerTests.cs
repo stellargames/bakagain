@@ -227,6 +227,17 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             Assert.IsFalse(c.Model(2)?.AutoRunning ?? false);
         }
 
+        // Owner, 2026-11-01: hovering a foe in the Foes list made the list and the log flicker: its card replaced
+        // the row under the mouse. The list hover keeps the list; the board hover still shows the card.
+        [Test]
+        public void HoveringAFoeInTheListKeepsTheList_OnTheBoardShowsItsCard() {
+            var (s, hero, c) = Fight();
+            c.OnFoeRowHovered(0);
+            Assert.IsNull(c.Model(2).CardFoe, "the list stays");
+            PointAtFoe(s, c, 0);
+            Assert.AreEqual(0, c.Model(2).CardFoe, "on the board: the card");
+        }
+
         [Test]
         public void LeftClickOnYourselfDoesNothing() {
             var (s, hero, c) = Fight();
