@@ -50,7 +50,10 @@ namespace BakAgain.Testing {
                 case "log": return Log();
                 case "travel": return Travel();
                 case "visuals": return Visuals();
-                case "rect": return a.Length == 2 ? Rect(a[1]) : Refuse("usage: rect <name>");
+                case "rect":
+                    return a.Length == 2 ? Rect(a[1], 0)
+                        : a.Length == 3 && int.TryParse(a[2], out int index) && index >= 0 ? Rect(a[1], index)
+                        : Refuse("usage: rect <name>|.<class> [index]");
                 case "cell":
                     return a.Length == 3 && int.TryParse(a[1], out int cx) && int.TryParse(a[2], out int cy)
                         ? Cell(cx, cy) : Refuse("usage: cell <x> <y>");
@@ -172,12 +175,19 @@ namespace BakAgain.Testing {
             return 0f;
         }
 
-        private static string Rect(string name) {
+        /// <summary>The <paramref name="index"/>th visible element with USS name <paramref name="key"/>, or class
+        /// <c>.class</c>, across every UIDocument.</summary>
+        private static string Rect(string key, int index) {
+            bool byClass = key.StartsWith(".");
             foreach (UIDocument d in UnityEngine.Object.FindObjectsByType<UIDocument>()) {
                 VisualElement root = d.rootVisualElement;
                 if (root?.panel == null) continue;
-                foreach (VisualElement v in root.Query<VisualElement>(name).ToList()) {
+                List<VisualElement> found = byClass
+                    ? root.Query<VisualElement>(className: key.Substring(1)).ToList()
+                    : root.Query<VisualElement>(key).ToList();
+                foreach (VisualElement v in found) {
                     if (v.resolvedStyle.display == DisplayStyle.None || !v.visible || v.worldBound.width <= 0) continue;
+                    if (index-- > 0) continue;
                     float sx = Screen.width / root.panel.visualTree.layout.width;
                     float sy = Screen.height / root.panel.visualTree.layout.height;
                     UnityEngine.Rect b = v.worldBound;
@@ -186,7 +196,7 @@ namespace BakAgain.Testing {
                         ["w"] = Mathf.RoundToInt(b.width * sx), ["h"] = Mathf.RoundToInt(b.height * sy) });
                 }
             }
-            return Refuse("no element " + name);
+            return Refuse("no element " + key);
         }
 
         private static string Pixel(Vector3 world) {

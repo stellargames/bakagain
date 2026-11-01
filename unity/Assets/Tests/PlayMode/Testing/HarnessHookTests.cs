@@ -8,6 +8,8 @@ namespace BakAgain.Tests.PlayMode.Testing {
     using NUnit.Framework;
     using UnityEngine;
     using UnityEngine.TestTools;
+    using UnityEngine.UIElements;
+    using Object = UnityEngine.Object;
 
     /// <summary>The build test harness's read-only query hook (docs/specs/2026-11-01-build-test-harness-design.md).</summary>
     public class HarnessHookTests {
@@ -67,6 +69,35 @@ namespace BakAgain.Tests.PlayMode.Testing {
             yield return Ask(new[] { "rect no-such-element" }, r);
             StringAssert.StartsWith("{\"ok\":false", r[0]);
             StringAssert.Contains("no element no-such-element", r[0]);
+        }
+
+        [UnityTest]
+        public IEnumerator AClassWithAnIndex_FindsThatElement() {
+            var host = new GameObject("HarnessRectProbe", typeof(UIDocument));
+            try {
+                host.GetComponent<UIDocument>().panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
+                VisualElement root = host.GetComponent<UIDocument>().rootVisualElement;
+                for (int i = 0; i < 2; i++) {
+                    var e = new VisualElement();
+                    e.AddToClassList("harness-probe");
+                    e.style.position = Position.Absolute;
+                    e.style.left = 10 + 100 * i;
+                    e.style.top = 20;
+                    e.style.width = 50;
+                    e.style.height = 30;
+                    root.Add(e);
+                }
+                yield return null;
+                yield return null;
+                var r = new string[2];
+                yield return Ask(new[] { "rect .harness-probe 1", "rect .harness-probe 2" }, r);
+                StringAssert.StartsWith("{\"ok\":true", r[0]);
+                float scale = Screen.width / root.panel.visualTree.layout.width;
+                StringAssert.Contains($"\"x\":{Mathf.RoundToInt(110 * scale)},", r[0]);
+                StringAssert.StartsWith("{\"ok\":false", r[1]);
+            } finally {
+                Object.Destroy(host);
+            }
         }
 
         [UnityTest]
