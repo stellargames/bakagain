@@ -202,7 +202,10 @@ namespace BakAgain.Testing {
                     ? root.Query<VisualElement>(className: key.Substring(1)).ToList()
                     : root.Query<VisualElement>(key).ToList();
                 foreach (VisualElement v in found) {
-                    if (v.resolvedStyle.display == DisplayStyle.None || !v.visible || v.worldBound.width <= 0) continue;
+                    UnityEngine.Rect wb = v.worldBound;
+                    // Not laid out yet (NaN) or empty: not somewhere a click can go.
+                    if (v.resolvedStyle.display == DisplayStyle.None || !v.visible
+                        || !(wb.width > 0 && wb.height > 0) || float.IsNaN(wb.x) || float.IsNaN(wb.y)) continue;
                     if (index-- > 0) continue;
                     float sx = Screen.width / root.panel.visualTree.layout.width;
                     float sy = Screen.height / root.panel.visualTree.layout.height;
