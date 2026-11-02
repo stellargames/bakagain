@@ -184,6 +184,22 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
         // Owner, 2026-11-01: the foe card stands above the stones, as wide as their slot, and a party member
         // under the mouse shows their own card there.
         [UnityTest]
+        public IEnumerator TheMedallionCarriesTheActingHerosRing_AndTheHeroCardNoBar() {
+            _hud.Show(HudModels.Idle());
+            yield return null;
+            VisualElement ring = _hud.Root.Q("ec-desk-medallion").Q("coin-ring");
+            Assert.IsNotNull(ring, "a ring round the portrait");
+            Assert.AreEqual(DisplayStyle.Flex, ring.resolvedStyle.display);
+            // Owyn: Stamina 4 and Health 17 of a pool of 40 + 40.
+            Assert.AreEqual((4d / 80d, 17d / 80d), ring.userData);
+            Assert.IsNull(_hud.Root.Q("ec-desk-hero").Q(className: "ec-desk-pool"), "no Health + Stamina bar in the hero card");
+
+            _hud.Show(HudModels.Idle() with { TheirTurn = true, Hero = HudModels.Owyn with { IsFoe = true, Letter = 'A' } });
+            yield return null;
+            Assert.AreEqual(DisplayStyle.None, ring.resolvedStyle.display, "a foe's numbers are not shown");
+        }
+
+        [UnityTest]
         public IEnumerator TheFoeCardStandsOverTheStones_AndAPartyMemberGetsACardThere() {
             _hud.Show(HudModels.Idle());
             yield return null;

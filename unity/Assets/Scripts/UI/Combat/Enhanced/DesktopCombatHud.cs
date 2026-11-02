@@ -33,6 +33,7 @@ namespace BakAgain.UI.Combat.Enhanced {
         // Slot 0
         private readonly VisualElement _medallion;
         private readonly ArchiveImage _medallionHead;
+        private readonly VisualElement _medallionRing;
         private readonly Label _medallionLetter;
         private readonly Label _medallionName;
         private readonly Label _medallionCaption;
@@ -44,7 +45,6 @@ namespace BakAgain.UI.Combat.Enhanced {
         private readonly VisualElement _heroChips;
         private readonly Label _health, _stamina, _speed, _strength;
         private readonly Label _healthLabel, _staminaLabel, _speedLabel, _strengthLabel;
-        private readonly VisualElement _poolStamina, _poolHealth, _poolCost;
         private readonly Label _weapon, _weaponCondition, _weaponStats, _armour, _armourCondition, _armourStats;
         private readonly VisualElement _partyCard;
         private readonly Label _partyTitle;
@@ -147,6 +147,8 @@ namespace BakAgain.UI.Combat.Enhanced {
             _medallionHead = new ArchiveImage { name = "ec-desk-medallion-head", sizeToImage = false, pickingMode = PickingMode.Ignore };
             _medallionHead.AddToClassList("ec-desk-medallion__head");
             _medallion.Add(_medallionHead);
+            // The acting hero's Health + Stamina as the coins show it: a ring round the portrait.
+            _medallionRing = PortraitRingView.Coin(_medallion);
             _medallionLetter = Text(_medallion, "ec-desk-medallion-letter", "ec-desk-medallion__letter");
             _medallionName = Text(left, "ec-desk-medallion-name", "ec-desk-caption");
             _medallionCaption = Text(left, "ec-desk-medallion-caption", "ec-desk-caption--small");
@@ -169,16 +171,6 @@ namespace BakAgain.UI.Combat.Enhanced {
             columns.Add(kit);
             (_healthLabel, _health) = Pair(stats);
             (_staminaLabel, _stamina) = Pair(stats);
-            // One bar for both pools (a blow takes Stamina first, then Health), named so it is not read as Stamina.
-            VisualElement poolRow = Box(null, "ec-desk-pool-row");
-            stats.Add(poolRow);
-            Text(poolRow, "ec-desk-pool-label", "ec-desk-small").text = UiTemplates.Format(UiTemplates.HudPoolLabel);
-            VisualElement pool = Box("ec-desk-pool", "ec-desk-pool");
-            poolRow.Add(pool);
-            _poolStamina = Box(null, "ec-desk-pool__stamina");
-            _poolHealth = Box(null, "ec-desk-pool__health");
-            _poolCost = Box("ec-desk-pool-cost", "ec-desk-pool__cost");
-            pool.Add(_poolStamina); pool.Add(_poolHealth); pool.Add(_poolCost);
             (_speedLabel, _speed) = Pair(stats);
             (_strengthLabel, _strength) = Pair(stats);
             (_weapon, _weaponCondition) = Pair(kit);
@@ -278,6 +270,11 @@ namespace BakAgain.UI.Combat.Enhanced {
             string address = h != null && h.HeadId >= 0 ? ActorStatsPanel.PortraitImage + "#" + h.HeadId : null;
             if (_medallionHead.address != address) _medallionHead.address = address;
             _medallionLetter.text = foe ? h.Letter.ToString() : "";
+            // A foe's numbers are not the player's to see: no ring on their turn.
+            _medallionRing.style.display = foe || h == null ? DisplayStyle.None : DisplayStyle.Flex;
+            if (!foe && h != null) {
+                PortraitRingView.SetCoin(_medallion, Fractions(h.Stamina, h.StaminaMax, h.Health, h.HealthMax), RingVariant.Ready);
+            }
             _medallionName.text = h?.Name ?? "";
             _medallionCaption.text = UiTemplates.Format(UiTemplates.HudActing);
         }
@@ -353,16 +350,6 @@ namespace BakAgain.UI.Combat.Enhanced {
             _stamina.text = UiTemplates.Format(UiTemplates.HudCurrentOfMax, ("current", h.Stamina), ("max", h.StaminaMax));
             _speed.text = UiTemplates.Format(UiTemplates.HudCurrentBase, ("current", h.Speed), ("base", h.SpeedBase));
             _strength.text = UiTemplates.Format(UiTemplates.HudCurrentBase, ("current", h.Strength), ("base", h.StrengthBase));
-            SetPool(_poolStamina.parent, h.Stamina, h.StaminaMax, h.Health, h.HealthMax);
-            int max = h.StaminaMax + h.HealthMax;
-            int cost = m.Forecast == null ? 0 : m.Forecast.StaminaCost + m.Forecast.HealthCost;
-            _poolCost.style.display = cost > 0 && max > 0 ? DisplayStyle.Flex : DisplayStyle.None;
-            if (cost > 0 && max > 0) {
-                float end = 100f * (h.Stamina + h.Health) / max;
-                float width = 100f * cost / max;
-                _poolCost.style.left = Length.Percent(Math.Max(0f, end - width));
-                _poolCost.style.width = Length.Percent(width);
-            }
             Kit(h.Weapon, _weapon, _weaponCondition, _weaponStats);
             Kit(h.Armour, _armour, _armourCondition, _armourStats);
         }

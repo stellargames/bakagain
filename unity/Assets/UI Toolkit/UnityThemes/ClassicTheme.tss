@@ -468,7 +468,9 @@
 .ec-desk-medallion-col { align-items: center; }
 .ec-desk-medallion { border-radius: 50%; border-width: 5px; border-color: rgb(232, 196, 92); background-color: rgb(40, 26, 16); justify-content: center; align-items: center; overflow: hidden; }
 .ec-desk-medallion--theirs { border-color: rgb(196, 44, 32); }
-.ec-desk-medallion__head { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+/* The portrait inside its Health + Stamina ring, as on the coins; the ring stays inside the clipped disc. */
+.ec-desk-medallion__head { position: absolute; left: 11%; top: 11%; right: 11%; bottom: 11%; border-radius: 50%; }
+.ec-desk-medallion .enhanced-hud__ring { left: 1%; top: 1%; right: 1%; bottom: 1%; }
 .ec-desk .ec-desk-medallion__letter { font-size: 64px; color: rgb(236, 210, 140); -unity-text-align: middle-center; }
 /* One column (owner, 2026-11-01: a triangle took width); a summon past the third wraps to a second column. */
 .ec-desk-coins { flex-direction: column; flex-wrap: wrap; height: 100%; justify-content: center; align-content: center; }
@@ -488,12 +490,9 @@
 .ec-desk .ec-desk-pair__value { flex-shrink: 0; margin-left: 8px; color: rgb(30, 18, 8); }
 .ec-desk .ec-desk-small { overflow: hidden; text-overflow: ellipsis; }
 #ec-desk-weapon-stats { white-space: normal; text-overflow: clip; }   /* "Thrust Str-7 = 5 · Swing ..." wraps rather than cut */
-.ec-desk-pool-row { flex-direction: row; align-items: center; }
-.ec-desk .ec-desk-pool-row .ec-desk-small { margin-right: 8px; }
 .ec-desk-pool { height: 18px; margin: 4px 0; flex-direction: row; background-color: rgb(60, 40, 30); border-width: 2px; border-color: rgb(30, 18, 8); flex-grow: 1; }
 .ec-desk-pool__stamina { height: 100%; background-color: rgb(212, 160, 42); }
 .ec-desk-pool__health { height: 100%; background-color: rgb(184, 50, 42); }
-.ec-desk-pool__cost { position: absolute; top: 0; bottom: 0; background-color: rgba(255, 255, 255, 0.55); border-left-width: 2px; border-right-width: 2px; border-color: rgb(30, 18, 8); }
 .ec-desk .ec-desk-party__name { width: 34%; }
 .ec-desk .ec-desk-party__value { width: 26%; -unity-text-align: middle-right; color: rgb(140, 30, 24); }
 .ec-desk .ec-desk-ends-turn { padding: 0 10px; background-color: rgb(168, 30, 24); color: rgb(255, 236, 220); font-size: 22px; flex-shrink: 0; }

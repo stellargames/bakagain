@@ -277,8 +277,6 @@ public static class UiTemplates {
     public const string HudSwingHint = "port:template:enhanced_hud_swing_hint";
     /// <summary>Under an Inspect forecast: what Inspect shows, and that a second right click does it.</summary>
     public const string HudInspectHint = "port:template:enhanced_hud_inspect_hint";
-    /// <summary>The hero card's Health + Stamina bar: its label and the pool it shows.</summary>
-    public const string HudPoolLabel = "port:template:enhanced_hud_pool_label";
     public const string HudFree = "port:template:enhanced_hud_free";
     public const string HudNone = "port:template:enhanced_hud_none";
     public const string HudStaminaCost = "port:template:enhanced_hud_stamina_cost";
@@ -514,7 +512,6 @@ public static class UiTemplates {
         // Under the desktop forecast: how to swing rather than thrust (owner, 2026-11-01: "no clear way").
         (HudSwingHint, _ => "Click to thrust \u00b7 Shift+click to swing"),
         (HudInspectHint, _ => "Learn its Health, Stamina, skills and Defense. Right-click again to inspect."),
-        (HudPoolLabel, _ => "Total"),
         (HudFree, _ => "free"),
         (HudNone, _ => "none"),
         (HudStaminaCost, _ => "{n} Stamina"),
