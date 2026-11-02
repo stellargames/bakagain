@@ -38,7 +38,8 @@ namespace BakAgain.UI.Combat.Enhanced {
         private readonly VisualElement _switchBox, _peekInfo, _sheetBody;
         private readonly Button _switchThrust, _switchSwing;
         private readonly ArchiveImage _sheetHead;
-        private readonly Label _heroName, _heroLine, _allies, _sentence, _sentenceEnds;
+        private readonly Label _heroName, _heroLine, _heroLetter, _allies, _sentence, _sentenceEnds, _tip;
+        private IVisualElementScheduledItem _tipTimer;
         private readonly ArchiveImage _heroHead;
         private readonly Button _confirm, _cancel;
         private readonly Label _confirmTitle, _confirmDetail;
@@ -49,7 +50,8 @@ namespace BakAgain.UI.Combat.Enhanced {
         public event Action ConfirmPressed;
         public event Action CancelPressed;
         public event Action<CombatCommands.Command> StoneActivated;
-        public event Action<CombatCommands.Command> StoneDescribed;
+        // A held tile answers in the HUD's own tip, in touch words: the original's help says "left clicking".
+        public event Action<CombatCommands.Command> StoneDescribed { add { } remove { } }
         public event Action<int> FoeRowHovered { add { } remove { } }   // a phone has no hover
         public event Action<int> FoeRowChosen;
         public event Action HeroCardRequested;
@@ -96,6 +98,8 @@ namespace BakAgain.UI.Combat.Enhanced {
             PortraitRingView.Coin(_heroHead);
             Size(_heroHead, row - 6, row - 6);
             _heroChip.Add(_heroHead);
+            // A foe has no portrait: its letter, as the desktop medallion shows it.
+            _heroLetter = Txt(_heroHead, "ec-phone-hero-letter", layout.PhoneHeadTextPt, "ec-phone-head__letter");
             VisualElement heroText = Box(null, "ec-phone-col");
             _heroChip.Add(heroText);
             _heroName = Txt(heroText, "ec-phone-hero-name", layout.PhoneHeadTextPt, "ec-phone-strong");
@@ -134,8 +138,15 @@ namespace BakAgain.UI.Combat.Enhanced {
             Size(_confirm, layout.PhoneConfirmWidthPt, layout.PhoneConfirmHeightPt);
             _confirmTitle = Txt(_confirm, "ec-phone-confirm-title", layout.PhoneHeadTextPt, "ec-phone-strong");
             _confirmDetail = Txt(_confirm, "ec-phone-confirm-detail", layout.MinTextPt, null);
-            _cancel = new Button(() => { ShowSheet(false); CancelPressed?.Invoke(); }) { name = "ec-phone-cancel", text = "✕" };
+            _cancel = new Button(() => { ShowSheet(false); HideTip(); CancelPressed?.Invoke(); }) { name = "ec-phone-cancel" };
             _cancel.AddToClassList("ec-phone-button");
+            // The cross is drawn, not a glyph: the original's bitmap font has no "✕".
+            foreach (string arm in new[] { "ec-phone-cross--a", "ec-phone-cross--b" }) {
+                VisualElement bar = Box(null, "ec-phone-cross");
+                bar.AddToClassList(arm);
+                bar.pickingMode = PickingMode.Ignore;
+                _cancel.Add(bar);
+            }
             _safe.Add(_cancel);
             Place(_cancel, bottom: layout.PhoneConfirmHeightPt + layout.ConfirmCancelGapPt, left: 0);
             Size(_cancel, layout.FoeChipPt, layout.FoeChipPt);
@@ -145,7 +156,9 @@ namespace BakAgain.UI.Combat.Enhanced {
             _peek.pickingMode = PickingMode.Position;
             _safe.Add(_peek);
             Place(_peek, bottom: 0, left: layout.PhoneConfirmWidthPt + gap);
-            Size(_peek, layout.PhonePeekWidthPt, layout.PhonePeekHeightPt);
+            // As tall as what it says, up to its cap (ApplySizes), growing up from the bottom edge.
+            Size(_peek, layout.PhonePeekWidthPt, -1);
+            _peek.style.backgroundImage = EnhancedArt.Load("parchment");
             VisualElement peekBody = Box(null, "ec-phone-row");
             _peek.Add(peekBody);
             _switchBox = Box("ec-phone-switch", "ec-phone-col");
@@ -161,6 +174,7 @@ namespace BakAgain.UI.Combat.Enhanced {
             _safe.Add(_grid);
             Place(_grid, bottom: 0, right: 0);
             Size(_grid, 3 * layout.TileWidthPt + 2 * gap, 2 * layout.TileHeightPt + gap);
+            _grid.style.backgroundImage = EnhancedArt.Load("marble");   // the stones on CFRAME's dark stone, as on desktop
             // Two rows of three, the gap between them in points (UI Toolkit has no row gap).
             VisualElement row0 = Box(null, "ec-phone-grid__row"), row1 = Box(null, "ec-phone-grid__row");
             _grid.Add(row0);
@@ -170,10 +184,19 @@ namespace BakAgain.UI.Combat.Enhanced {
                 (i < 3 ? row0 : row1).Add(_tiles[c] = Tile(c));
             }
 
+            // A tile's answer to a tap (why it is greyed) or a hold (what it does), over the grid.
+            _tip = Txt(_safe, "ec-phone-tip", layout.PhoneBodyTextPt, "ec-phone-tip");
+            _tip.pickingMode = PickingMode.Ignore;
+            _tip.style.display = DisplayStyle.None;
+            _tip.style.backgroundImage = EnhancedArt.Load("parchment");
+            Place(_tip, bottom: 2 * layout.TileHeightPt + 2 * gap, right: 0);
+            Size(_tip, 3 * layout.TileWidthPt + 2 * gap, -1);
+
             // The hero card: a left sheet under the top row; Cancel closes it.
             _sheet = Box("ec-phone-sheet", "ec-phone-sheet");
             _sheet.pickingMode = PickingMode.Position;
             _sheet.style.display = DisplayStyle.None;
+            _sheet.style.backgroundImage = EnhancedArt.Load("parchment");
             _safe.Add(_sheet);
             Place(_sheet, top: row + gap / 2, left: 0);
             // Content-sized, up to a cap (owner: the 500 pt sheet spread its few numbers too far apart).
@@ -233,6 +256,9 @@ namespace BakAgain.UI.Combat.Enhanced {
                     ("stamina", h.Stamina), ("speed", h.Speed));
             string head = h != null && h.HeadId >= 0 ? ActorStatsPanel.PortraitImage + "#" + h.HeadId : null;
             if (_heroHead.address != head) _heroHead.address = head;
+            bool foe = h != null && h.IsFoe;
+            _heroLetter.text = foe ? h.Letter.ToString() : "";
+            _heroLetter.style.display = foe ? DisplayStyle.Flex : DisplayStyle.None;
             PortraitRingView.SetCoin(_heroHead, Fractions(h), m.TheirTurn ? RingVariant.Ready : RingVariant.Active);
             _heroChip.EnableInClassList("ec-phone-chip--theirs", m.TheirTurn);
 
@@ -363,9 +389,10 @@ namespace BakAgain.UI.Combat.Enhanced {
                 ? CombatHudText.Action(f.Action)
                 : UiTemplates.Format(UiTemplates.EnhancedLogFoe, ("creature", target.Name), ("letter", target.Letter));
             if (target != null) {
+                bool inspecting = f.Action == ForecastAction.Inspect;
                 Txt(head, null, _layout.MinTextPt, "ec-phone-dim").text = CombatHudText.Join(
                     target.Seen > 0 ? UiTemplates.Format(UiTemplates.EnhancedCombatSeen, ("count", target.Seen)) : "",
-                    target.Inspected ? "" : UiTemplates.Format(UiTemplates.HudHoldToInspect));
+                    target.Inspected || inspecting ? "" : UiTemplates.Format(UiTemplates.HudHoldToInspect));
             }
             VisualElement line = Box(null, "ec-phone-row");
             info.Add(line);
@@ -373,10 +400,13 @@ namespace BakAgain.UI.Combat.Enhanced {
                 Label r = Txt(line, "ec-phone-reason", _layout.PhoneBodyTextPt, f.Allowed ? "ec-phone-warn" : "ec-phone-reason");
                 r.text = CombatHudText.Reason(f);
             }
+            if (f.Allowed && f.Action == ForecastAction.Inspect) {
+                Txt(info, "ec-phone-inspect-hint", _layout.MinTextPt, "ec-phone-hint").text = UiTemplates.Format(UiTemplates.HudInspectHintTouch);
+            }
             if (f.Allowed && melee) {
-                Txt(line, null, _layout.PhoneBodyTextPt, null).text = UiTemplates.Format(UiTemplates.HudHit);
+                Txt(line, null, _layout.PhoneBodyTextPt, "ec-phone-hit").text = UiTemplates.Format(UiTemplates.HudHit);
                 string about = CombatHudText.HitAbout(f);
-                if (about != null) Txt(line, null, _layout.PhoneBodyTextPt, null).text = about;
+                if (about != null) Txt(line, null, _layout.PhoneBodyTextPt, "ec-phone-hit").text = about;
                 else line.Add(Pips(f.HitPips));
                 Txt(line, null, _layout.PhoneBodyTextPt, null).text = CombatHudText.Join("",
                     UiTemplates.Format(UiTemplates.HudDamage) + " " + CombatHudText.Damage(f));
@@ -446,8 +476,7 @@ namespace BakAgain.UI.Combat.Enhanced {
             float badge = _layout.MinTextPt * 1.6f;
             Size(off, badge, badge);
             Size(warn, badge, badge);
-            LongPress(tile, () => StoneActivated?.Invoke((CombatCommands.Command)tile.userData),
-                () => StoneDescribed?.Invoke((CombatCommands.Command)tile.userData));
+            LongPress(tile, () => PressTile(command, hold: false), () => PressTile(command, hold: true));
             return tile;
         }
 
@@ -471,6 +500,48 @@ namespace BakAgain.UI.Combat.Enhanced {
                     : CombatHudText.ActionId(command, shoot));
                 if (icon.address != address) icon.address = address;
             }
+        }
+
+        /// <summary>A tap or a long press on the grid's tile for <paramref name="command"/> (a test seam too).</summary>
+        /// <remarks>A greyed tile does nothing but say why; a hold says what the tile does (or why it cannot).</remarks>
+        internal void PressTile(CombatCommands.Command command, bool hold) {
+            VisualElement tile = _tiles[command];
+            var shown = (CombatCommands.Command)tile.userData;
+            bool off = tile.ClassListContains("ec-phone-tile--off");
+            string reason = off && _model != null && !_model.TheirTurn ? CombatHudText.Availability(_model, shown).Reason : "";
+            if (hold || off) {
+                ShowTip(!string.IsNullOrEmpty(reason) ? reason : hold ? Help(shown) : "");
+                return;
+            }
+            HideTip();
+            StoneActivated?.Invoke(shown);
+        }
+
+        private static string Help(CombatCommands.Command c) => c switch {
+            CombatCommands.Command.Cast => UiTemplates.Format(UiTemplates.HudStoneHelpCast),
+            CombatCommands.Command.Shoot => UiTemplates.Format(UiTemplates.HudStoneHelpShoot),
+            CombatCommands.Command.BackOrRetreat => UiTemplates.Format(UiTemplates.HudStoneHelpRetreat),
+            CombatCommands.Command.Defend => UiTemplates.Format(UiTemplates.HudStoneHelpDefend),
+            CombatCommands.Command.CharacterScreen => UiTemplates.Format(UiTemplates.HudStoneHelpPack),
+            CombatCommands.Command.Rest => UiTemplates.Format(UiTemplates.HudStoneHelpRest),
+            CombatCommands.Command.AutoResolve => UiTemplates.Format(UiTemplates.HudStoneHelpAuto),
+            _ => "",
+        };
+
+        private void ShowTip(string text) {
+            if (string.IsNullOrEmpty(text)) {
+                HideTip();
+                return;
+            }
+            _tip.text = text;
+            _tip.style.display = DisplayStyle.Flex;
+            _tipTimer?.Pause();
+            _tipTimer = _tip.schedule.Execute(HideTip).StartingIn((long)(_layout.PhoneTipSeconds * 1000));
+        }
+
+        private void HideTip() {
+            _tipTimer?.Pause();
+            _tip.style.display = DisplayStyle.None;
         }
 
         private void LongPress(VisualElement e, Action tap, Action hold) {
@@ -557,6 +628,7 @@ namespace BakAgain.UI.Combat.Enhanced {
             }
             foreach ((VisualElement e, float pt) in _fonts) e.style.fontSize = pt * _scale;
             _sheet.style.maxWidth = _layout.PhoneSheetWidthPt * _scale;
+            _peek.style.maxHeight = _layout.PhonePeekHeightPt * _scale;
             foreach ((VisualElement e, Placement p) in _placed) {
                 if (p.Top.HasValue) e.style.top = p.Top.Value * _scale;
                 if (p.Left.HasValue) e.style.left = p.Left.Value * _scale;

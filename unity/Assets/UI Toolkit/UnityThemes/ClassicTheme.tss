@@ -556,11 +556,13 @@
 
 /* Enhanced combat HUD, phone docks (TASK-972, frames phone-01..18). PhoneCombatHud sets every size and
    font in points from EnhancedCombatLayout; this is colour and arrangement only. */
+/* The phone wears the desktop's materials (owner's Android check, 2026-11-02): dark plates trimmed in
+   gold over the board, parchment with ink for what is read, the stones bare on CFRAME's marble. */
 .ec-phone { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
 .ec-phone-safe { position: absolute; }
-.ec-phone-text { color: rgb(232, 228, 216); white-space: nowrap; margin: 0; padding: 0; -unity-text-align: middle-left; }
-.ec-phone-strong { -unity-font-style: bold; color: rgb(250, 246, 236); }
-.ec-phone-dim { color: rgb(170, 166, 150); margin-left: 6px; }
+.ec-phone-text { color: rgb(236, 220, 186); white-space: nowrap; margin: 0; padding: 0; -unity-text-align: middle-left; text-shadow: 1px 1px 2px rgb(0, 0, 0); }
+.ec-phone-strong { -unity-font-style: bold; color: rgb(244, 222, 160); }
+.ec-phone-dim { color: rgb(196, 176, 136); margin-left: 6px; }
 .ec-phone-ends { color: rgb(240, 150, 110); margin-left: 8px; }
 .ec-phone-theirs { color: rgb(240, 110, 90); }
 .ec-phone-warn { color: rgb(240, 180, 60); }
@@ -568,45 +570,61 @@
 .ec-phone-row { flex-direction: row; align-items: center; }
 .ec-phone-col { flex-direction: column; justify-content: center; }
 .ec-phone-top { position: absolute; left: 0; right: 0; top: 0; flex-direction: row; align-items: stretch; }
-.ec-phone-chip { flex-direction: row; align-items: center; margin-right: 6px; padding: 0 8px 0 3px; border-radius: 12px; background-color: rgba(18, 18, 16, 0.86); border-width: 1px; border-color: rgb(80, 76, 64); -unity-text-align: middle-center; }
-.ec-phone-chip--theirs { border-color: rgb(200, 70, 50); }
-.ec-phone-head { margin-right: 8px; border-radius: 50%; }
-.ec-phone-coin { margin-right: 6px; border-radius: 50%; background-color: rgb(40, 38, 34); }
-.ec-phone-sentence { flex-grow: 1; flex-direction: row; align-items: center; justify-content: space-between; padding: 0 12px; border-radius: 12px; background-color: rgba(18, 18, 16, 0.86); border-width: 1px; border-color: rgb(80, 76, 64); }
+.ec-phone-chip { flex-direction: row; align-items: center; margin-right: 6px; padding: 0 8px 0 3px; border-radius: 2px; background-color: rgba(28, 18, 10, 0.9); border-width: 2px; border-color: rgb(196, 160, 92); -unity-text-align: middle-center; }
+.ec-phone-chip--theirs { border-color: rgb(196, 44, 32); }
+.ec-phone-head { margin-right: 8px; border-radius: 50%; background-color: rgb(40, 26, 16); justify-content: center; align-items: center; }
+.ec-phone-head__letter { -unity-font-style: bold; color: rgb(236, 210, 140); -unity-text-align: middle-center; }
+.ec-phone-coin { margin-right: 6px; border-radius: 50%; background-color: rgb(40, 26, 16); }
+.ec-phone-sentence { flex-grow: 1; flex-direction: row; align-items: center; justify-content: space-between; padding: 0 12px; border-radius: 2px; background-color: rgba(28, 18, 10, 0.9); border-width: 2px; border-color: rgb(196, 160, 92); }
 .ec-phone-cam { flex-direction: column; }
-.ec-phone-button { margin: 0 0 6px 0; padding: 0; border-radius: 10px; background-color: rgba(18, 18, 16, 0.86); border-width: 1px; border-color: rgb(80, 76, 64); color: rgb(232, 228, 216); -unity-text-align: middle-center; }
+.ec-phone-button { margin: 0 0 6px 0; padding: 0; border-radius: 2px; background-color: rgba(28, 18, 10, 0.9); border-width: 2px; border-color: rgb(196, 160, 92); color: rgb(236, 210, 140); -unity-text-align: middle-center; }
+.ec-phone-cross { position: absolute; left: 22%; right: 22%; top: 47%; height: 6%; background-color: rgb(236, 210, 140); }
+.ec-phone-cross--a { rotate: 45deg; }
+.ec-phone-cross--b { rotate: -45deg; }
 .ec-phone-foes { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; }
-.ec-phone-foe { margin: 0 0 6px 6px; border-radius: 10px; background-color: rgba(18, 18, 16, 0.86); border-width: 2px; border-color: rgb(200, 160, 70); align-items: center; justify-content: center; }
-.ec-phone-foe--chosen { background-color: rgba(120, 96, 30, 0.95); }
-.ec-phone-foe--acting { border-color: rgb(220, 70, 50); }
+.ec-phone-foe { margin: 0 0 6px 6px; border-radius: 2px; background-color: rgba(28, 18, 10, 0.9); border-width: 2px; border-color: rgb(196, 160, 92); align-items: center; justify-content: center; }
+.ec-phone-foe--chosen { background-color: rgb(196, 160, 92); }
+.ec-phone-foe--chosen .ec-phone-text { color: rgb(40, 24, 8); text-shadow: 0 0 0 rgba(0, 0, 0, 0); }
+.ec-phone-foe--acting { border-color: rgb(196, 44, 32); }
 .ec-phone-foe--down { opacity: 0.45; }
-.ec-phone-foe__letter { -unity-font-style: bold; color: rgb(250, 230, 160); -unity-text-align: middle-center; }
-.ec-phone-confirm { margin: 0; padding: 0; border-radius: 12px; background-color: rgb(48, 170, 80); border-width: 0; align-items: center; justify-content: center; }
-.ec-phone-confirm--empty { background-color: rgba(70, 70, 66, 0.86); }
-.ec-phone-confirm--warned { background-color: rgb(220, 150, 40); }
-.ec-phone-confirm .ec-phone-text { -unity-text-align: middle-center; }
-.ec-phone-peek { padding: 6px 10px; border-radius: 12px; background-color: rgba(18, 18, 16, 0.86); border-width: 1px; border-color: rgb(80, 76, 64); overflow: hidden; }
+.ec-phone-foe__letter { -unity-font-style: bold; color: rgb(244, 222, 160); -unity-text-align: middle-center; }
+.ec-phone-confirm { margin: 0; padding: 0; border-radius: 2px; background-color: rgb(212, 176, 96); border-width: 3px; border-color: rgb(120, 86, 52); align-items: center; justify-content: center; }
+.ec-phone-confirm .ec-phone-text { -unity-text-align: middle-center; color: rgb(40, 24, 8); text-shadow: 0 0 0 rgba(0, 0, 0, 0); }
+.ec-phone-confirm--empty { background-color: rgba(28, 18, 10, 0.9); border-width: 2px; border-color: rgb(196, 160, 92); }
+.ec-phone-confirm--empty .ec-phone-text { color: rgb(196, 176, 136); }
+.ec-phone-confirm--warned { background-color: rgb(230, 150, 40); }
+/* Parchment: what is read, in ink. Background colours are the texture's tone, for when it is missing. */
+.ec-phone-peek { padding: 6px 10px; border-radius: 2px; background-color: rgb(226, 210, 176); border-width: 3px; border-color: rgb(120, 86, 52); overflow: hidden; justify-content: flex-end; }
+.ec-phone-sheet { padding: 10px 14px; border-radius: 2px; background-color: rgb(226, 210, 176); border-width: 3px; border-color: rgb(120, 86, 52); }
+.ec-phone-tip { position: absolute; padding: 6px 10px; white-space: normal; background-color: rgb(226, 210, 176); border-width: 3px; border-color: rgb(120, 86, 52); }
+.ec-phone-peek .ec-phone-text, .ec-phone-sheet .ec-phone-text, .ec-phone-text.ec-phone-tip { color: rgb(44, 30, 16); text-shadow: 0 0 0 rgba(0, 0, 0, 0); }
+.ec-phone-peek .ec-phone-strong, .ec-phone-sheet .ec-phone-strong { color: rgb(30, 20, 10); }
+.ec-phone-peek .ec-phone-dim, .ec-phone-sheet .ec-phone-dim { color: rgb(70, 48, 28); }
+.ec-phone-peek .ec-phone-ends, .ec-phone-peek .ec-phone-reason { color: rgb(160, 30, 24); }
+.ec-phone-peek .ec-phone-warn { color: rgb(130, 74, 0); }
 .ec-phone-log { white-space: normal; }
-.ec-phone-switch { margin: 0 8px 4px 0; padding: 0 8px; border-radius: 8px; background-color: rgba(50, 50, 46, 0.9); border-width: 1px; border-color: rgb(90, 86, 74); align-items: flex-start; justify-content: center; }
-.ec-phone-switch--on { background-color: rgb(240, 200, 90); }
-.ec-phone-switch--on .ec-phone-text { color: rgb(30, 24, 10); }
+.ec-phone-hint { white-space: normal; margin-top: 2px; }
+.ec-phone-hit { margin-right: 16px; }
+.ec-phone-switch { margin: 0 8px 4px 0; padding: 0 8px; border-radius: 2px; background-color: rgba(120, 86, 52, 0.18); border-width: 2px; border-color: rgb(120, 86, 52); align-items: flex-start; justify-content: center; }
+.ec-phone-switch--on { background-color: rgb(212, 176, 96); }
 .ec-phone-glyphs { margin-top: 4px; }
-.ec-phone-glyph { flex-direction: column; align-items: center; margin-right: 6px; padding: 0 4px; border-radius: 4px; background-color: rgba(60, 58, 52, 0.9); }
+.ec-phone-glyph { flex-direction: column; align-items: center; margin-right: 6px; padding: 0 4px; border-radius: 2px; background-color: rgba(120, 86, 52, 0.2); }
 .ec-phone-glyph .ec-phone-dim { margin-left: 0; }
-.ec-phone .ec-pip { border-color: rgb(240, 200, 90); margin: 0 2px; }
-.ec-phone .ec-pip--on { background-color: rgb(240, 200, 90); }
-.ec-phone-grid { flex-direction: column; justify-content: space-between; }
+.ec-phone .ec-pips { margin-right: 28px; }
+.ec-phone .ec-pip { border-color: rgb(70, 46, 24); margin: 0 2px; }
+.ec-phone .ec-pip--on { background-color: rgb(70, 46, 24); }
+/* The stones: bare discs on marble, as the desktop band has them. */
+.ec-phone-grid { flex-direction: column; justify-content: space-between; padding: 4px; background-color: rgb(29, 23, 13); background-repeat: repeat; background-size: 720px 480px; border-width: 2px; border-color: rgb(196, 160, 92); }
 .ec-phone-grid__row { flex-direction: row; justify-content: space-between; }
-.ec-phone-tile { border-radius: 10px; background-color: rgba(18, 18, 16, 0.9); border-width: 1px; border-color: rgb(80, 76, 64); align-items: center; justify-content: center; }
+.ec-phone-tile { background-color: rgba(0, 0, 0, 0); border-width: 0; align-items: center; justify-content: center; }
 .ec-phone-tile__icon { border-radius: 50%; }
 .ec-phone-tile__name { -unity-text-align: middle-center; -unity-font-style: bold; }
-.ec-phone-tile--off { opacity: 0.55; border-color: rgb(110, 106, 96); }
-.ec-phone-tile--off .ec-phone-tile__icon { -unity-background-image-tint-color: rgb(100, 100, 100); }
-.ec-phone-tile--warned { border-width: 2px; border-color: rgb(240, 170, 40); }
-.ec-phone-badge--off { position: absolute; right: 2px; top: 2px; border-radius: 50%; background-color: rgb(150, 146, 136); color: rgb(20, 20, 18); -unity-text-align: middle-center; -unity-font-style: bold; }
-.ec-phone-badge--warn { position: absolute; right: 2px; top: 2px; border-radius: 3px; background-color: rgb(240, 170, 40); color: rgb(30, 20, 0); -unity-text-align: middle-center; -unity-font-style: bold; }
-.ec-phone-sheet { padding: 10px 14px; border-radius: 12px; background-color: rgba(18, 18, 16, 0.94); border-width: 1px; border-color: rgb(200, 160, 70); }
-.ec-phone-sheet__head { margin-right: 12px; border-radius: 6px; border-width: 2px; border-color: rgb(200, 160, 70); }
+.ec-phone-tile--off .ec-phone-tile__icon { -unity-background-image-tint-color: rgb(96, 96, 96); opacity: 0.6; }
+.ec-phone-tile--off .ec-phone-tile__name { color: rgb(130, 120, 106); }
+.ec-phone-tile--warned .ec-phone-tile__icon { border-width: 3px; border-color: rgb(240, 170, 40); }
+.ec-phone-badge--off { position: absolute; right: 2px; top: 2px; border-radius: 50%; background-color: rgb(150, 146, 136); color: rgb(20, 20, 18); -unity-text-align: middle-center; -unity-font-style: bold; text-shadow: 0 0 0 rgba(0, 0, 0, 0); }
+.ec-phone-badge--warn { position: absolute; right: 2px; top: 2px; border-radius: 3px; background-color: rgb(240, 170, 40); color: rgb(30, 20, 0); -unity-text-align: middle-center; -unity-font-style: bold; text-shadow: 0 0 0 rgba(0, 0, 0, 0); }
+.ec-phone-sheet__head { margin-right: 12px; border-radius: 2px; border-width: 3px; border-color: rgb(120, 86, 52); }
 .ec-phone-sheet__stats { flex-direction: column; margin-bottom: 4px; }
 .ec-phone-pair { flex-direction: row; align-items: center; }
 .ec-phone-pair .ec-phone-dim { margin-left: 0; }

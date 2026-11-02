@@ -65,6 +65,15 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
         public static CombatForecast WalkingThrust => new(ForecastAction.Thrust, 0, new[] { (0, 0), (1, 1), (2, 2), (3, 2) }, 2, null,
             1, 2, null, 0, 0, 0, true, true, false, "");
 
+        public static CombatForecast Inspect => new(ForecastAction.Inspect, 0, new[] { (3, 2) }, 0, null, 0, 0, null,
+            0, 0, 0, true, true, false, "");
+
+        public static CombatForecast Move => new(ForecastAction.Move, -1, new[] { (0, 0), (1, 1) }, 0, null, 0, 0, null,
+            0, 0, 0, true, true, false, "");
+
+        public static CombatHudModel With(CombatForecast f) =>
+            new(1, Owyn, Party, f, Log, Foes, f.TargetSlot >= 0 ? f.TargetSlot : null, Stones(), false, "Owyn's turn", null, 2);
+
         public static CombatHudModel WalkingForecast() =>
             new(1, Owyn, Party, WalkingThrust, Log, Foes, 0, Stones(), false, "Owyn's turn", Swing, 2);
 
@@ -683,6 +692,153 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
                 confirm.SendEvent(click);
             }
             Assert.AreEqual(1, pressed, "Confirm raises its event");
+        }
+    }
+
+
+    /// <summary>
+    /// The owner's Android check, 2026-11-02: the phone wears the game's materials, its Cancel draws without a
+    /// glyph, an unavailable tile says why, Inspect explains itself, a foe's turn shows its letter.
+    /// </summary>
+    public class EnhancedCombatPhoneLookTests {
+        private const uint Width = 844, Height = 390;
+        private GameViewResolutionScope _gameView;
+        private GameObject _host;
+        private PhoneCombatHud _hud;
+        private readonly EnhancedCombatLayout _layout = new();
+
+        [UnitySetUp]
+        public IEnumerator SetUp() {
+            _gameView = GameViewResolutionScope.Force(Width, Height);
+            yield return null;
+            _hud = new PhoneCombatHud(HudModels.Root(out _host), _layout, null,
+                () => new Rect(0, 0, Width, Height), () => new Vector2(Width, Height), () => 1f);
+        }
+
+        [UnityTearDown]
+        public IEnumerator TearDown() {
+            Object.DestroyImmediate(_host);
+            _gameView.Restore();
+            yield return null;
+        }
+
+        private static IEnumerator Settle() {
+            yield return null;
+            yield return null;
+            yield return null;
+        }
+
+        private static float Luminance(Color c) => 0.2126f * c.r + 0.7152f * c.g + 0.0722f * c.b;
+
+        private string Texts(string element) =>
+            string.Join("|", _hud.Root.Q(element).Query<Label>().ToList().Where(HudModels.Visible).Select(l => l.text));
+
+        [UnityTest]
+        public IEnumerator ThePeekAndTheSheetAreParchmentWithInk_TheTilesBareStonesOnMarble() {
+            _hud.Show(HudModels.Forecast());
+            _hud.ShowSheet(true);
+            yield return Settle();
+            foreach (string panel in new[] { "ec-phone-peek", "ec-phone-sheet" }) {
+                VisualElement e = _hud.Root.Q(panel);
+                Assert.Greater(Luminance(e.resolvedStyle.backgroundColor), 0.5f, $"{panel} is parchment-light");
+                foreach (Label l in e.Query<Label>().ToList().Where(l => HudModels.Visible(l) && !string.IsNullOrEmpty(l.text))) {
+                    Assert.Less(Luminance(l.resolvedStyle.color), 0.35f, $"{panel} '{l.text}' is ink");
+                }
+            }
+            Assert.Less(Luminance(_hud.Root.Q("ec-phone-grid").resolvedStyle.backgroundColor), 0.2f, "the stones sit on dark marble");
+            Assert.AreEqual(0f, _hud.Root.Q("ec-tile-Defend").resolvedStyle.backgroundColor.a, 0.01f, "a bare stone, no box");
+        }
+
+        [UnityTest]
+        public IEnumerator CancelDrawsItsCrossWithoutAGlyph() {
+            _hud.Show(HudModels.Forecast());
+            yield return Settle();
+            Button cancel = _hud.Root.Q<Button>("ec-phone-cancel");
+            Assert.IsEmpty(cancel.text, "no character the bitmap font may lack");
+            Assert.AreEqual(2, cancel.Query(className: "ec-phone-cross").ToList().Count(HudModels.Visible), "two drawn bars");
+        }
+
+        [UnityTest]
+        public IEnumerator AnUnavailableTileTappedSaysWhy_AHeldOneSaysWhatItDoes() {
+            _hud.Show(HudModels.Idle());
+            yield return Settle();
+            int activated = 0, described = 0;
+            _hud.StoneActivated += _ => activated++;
+            _hud.StoneDescribed += _ => described++;
+            _hud.PressTile(CombatCommands.Command.Cast, hold: false);
+            yield return Settle();
+            Label tip = _hud.Root.Q<Label>("ec-phone-tip");
+            Assert.IsTrue(HudModels.Visible(tip), "a tap on a greyed tile answers");
+            Assert.AreEqual("foe beside Owyn", tip.text);
+            Assert.AreEqual(0, activated, "and does nothing else");
+
+            _hud.PressTile(CombatCommands.Command.Defend, hold: true);
+            yield return Settle();
+            Assert.AreEqual(UiTemplates.Format(UiTemplates.HudStoneHelpDefend), tip.text, "a hold says what the stone does, in touch words");
+            Assert.AreEqual(0, described, "not the original's mouse help");
+            StringAssert.DoesNotContain("click", tip.text.ToLowerInvariant());
+
+            _hud.PressTile(CombatCommands.Command.Defend, hold: false);
+            Assert.AreEqual(1, activated, "an available tile's tap still acts");
+            yield return Settle();
+            Assert.IsFalse(HudModels.Visible(tip), "and takes the tip away");
+        }
+
+        [UnityTest]
+        public IEnumerator AnInspectForecastSaysWhatItLearns_NotHoldToInspect() {
+            _hud.Show(HudModels.With(HudModels.Inspect));
+            yield return Settle();
+            string peek = Texts("ec-phone-peek");
+            StringAssert.Contains(UiTemplates.Format(UiTemplates.HudInspectHintTouch), peek);
+            StringAssert.DoesNotContain(UiTemplates.Format(UiTemplates.HudHoldToInspect), peek, "already inspecting");
+        }
+
+        [UnityTest]
+        public IEnumerator OnAFoesTurnTheChipShowsItsLetter() {
+            _hud.Show(HudModels.TheirTurn());
+            yield return Settle();
+            Label letter = _hud.Root.Q<Label>("ec-phone-hero-letter");
+            Assert.IsTrue(HudModels.Visible(letter), "no empty circle");
+            Assert.AreEqual("A", letter.text);
+            _hud.Show(HudModels.Idle());
+            yield return Settle();
+            Assert.IsFalse(HudModels.Visible(letter), "a hero's turn shows the face");
+        }
+
+        // A guard for the fit-to-content peek: the log keeps its newest lines in view.
+        [UnityTest]
+        public IEnumerator TheIdlePeekShowsTheNewestLogLines_UpToItsCap() {
+            _hud.Show(HudModels.Idle());
+            yield return Settle();
+            VisualElement peek = _hud.Root.Q("ec-phone-peek");
+            List<Label> lines = peek.Query<Label>(className: "ec-phone-log").ToList();
+            Assert.AreEqual(HudModels.Log.Length, lines.Count);
+            Rect box = peek.worldBound;
+            Label newest = lines[lines.Count - 1];
+            Assert.LessOrEqual(newest.worldBound.yMax, box.yMax + 0.5f, "the newest line is inside the peek");
+            Assert.GreaterOrEqual(newest.worldBound.yMin, box.yMin - 0.5f);
+            int inside = lines.Count(l => l.worldBound.yMin >= box.yMin - 0.5f && l.worldBound.yMax <= box.yMax + 0.5f);
+            Assert.GreaterOrEqual(inside, 3, "as many lines as the cap holds, not one");
+            Assert.LessOrEqual(box.height / _hud.Scale, _layout.PhonePeekHeightPt + 0.5f, "never past its cap");
+        }
+
+        [UnityTest]
+        public IEnumerator ThePeekIsAsTallAsWhatItSays_AndHitPipsAndDamageStandApart() {
+            _hud.Show(HudModels.With(HudModels.Move));
+            yield return Settle();
+            float scale = _hud.Scale;
+            Assert.Less(_hud.Root.Q("ec-phone-peek").worldBound.height / scale, _layout.PhonePeekHeightPt * 0.7f,
+                "a two-line forecast does not cover the board with an empty panel");
+            Assert.AreEqual(0f, _hud.Root.Q("ec-phone-peek").worldBound.yMax - _hud.Root.Q("ec-phone-confirm").worldBound.yMax, 0.5f,
+                "still on the bottom edge");
+
+            _hud.Show(HudModels.Forecast());
+            yield return Settle();
+            Label hit = _hud.Root.Q("ec-phone-peek").Query<Label>().ToList().First(l => l.text == UiTemplates.Format(UiTemplates.HudHit));
+            VisualElement pips = _hud.Root.Q("ec-phone-peek").Q(className: "ec-pips");
+            Label damage = _hud.Root.Q("ec-phone-peek").Query<Label>().ToList().First(l => l.text.StartsWith(UiTemplates.Format(UiTemplates.HudDamage)));
+            Assert.GreaterOrEqual((pips.worldBound.xMin - hit.worldBound.xMax) / scale, 4f, "Hit, then a gap");
+            Assert.GreaterOrEqual((damage.worldBound.xMin - pips.worldBound.xMax) / scale, 8f, "a clear gap before Damage");
         }
     }
 

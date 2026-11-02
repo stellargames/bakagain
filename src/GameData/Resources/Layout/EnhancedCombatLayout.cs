@@ -194,6 +194,9 @@ public sealed class EnhancedCombatLayout
     /// <summary>How long a press must be held to count as a long press, in seconds.</summary>
     public float LongPressSeconds { get; set; } = 0.5f;
 
+    /// <summary>How long a phone tile's tip (why it is greyed, what it does) stays up.</summary>
+    public float PhoneTipSeconds { get; set; } = 4f;
+
     /// <summary>Phone: a second tap on what is forecast acts, as Confirm does -- unless it comes sooner than this
     /// after the tap that made the forecast, which is an accidental double tap and is ignored (owner, 2026-10-29).</summary>
     public float RetapCommitMinSeconds { get; set; } = 0.3f;

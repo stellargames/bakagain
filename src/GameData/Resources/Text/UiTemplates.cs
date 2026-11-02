@@ -277,6 +277,8 @@ public static class UiTemplates {
     public const string HudSwingHint = "port:template:enhanced_hud_swing_hint";
     /// <summary>Under an Inspect forecast: what Inspect shows, and that a second right click does it.</summary>
     public const string HudInspectHint = "port:template:enhanced_hud_inspect_hint";
+    /// <summary>The phone's Inspect forecast: what Inspect shows, and how to do it on a touch screen.</summary>
+    public const string HudInspectHintTouch = "port:template:enhanced_hud_inspect_hint_touch";
     public const string HudFree = "port:template:enhanced_hud_free";
     public const string HudNone = "port:template:enhanced_hud_none";
     public const string HudStaminaCost = "port:template:enhanced_hud_stamina_cost";
@@ -301,6 +303,15 @@ public static class UiTemplates {
     public const string HudStoneRest = "port:template:enhanced_hud_stone_rest";
     public const string HudStoneAuto = "port:template:enhanced_hud_stone_auto";
     public const string HudStoneStop = "port:template:enhanced_hud_stone_stop";
+    // A phone tile held: what it does, in touch words. The original's help records (DIAL_Z00, from
+    // HelpRecordBase 0xFE) say "Left clicking on this button..."; these say the same with "Tap".
+    public const string HudStoneHelpCast = "port:template:enhanced_hud_stone_help_cast";
+    public const string HudStoneHelpShoot = "port:template:enhanced_hud_stone_help_shoot";
+    public const string HudStoneHelpRetreat = "port:template:enhanced_hud_stone_help_retreat";
+    public const string HudStoneHelpDefend = "port:template:enhanced_hud_stone_help_defend";
+    public const string HudStoneHelpPack = "port:template:enhanced_hud_stone_help_pack";
+    public const string HudStoneHelpRest = "port:template:enhanced_hud_stone_help_rest";
+    public const string HudStoneHelpAuto = "port:template:enhanced_hud_stone_help_auto";
     public const string HudReset = "port:template:enhanced_hud_reset";
     public const string HudHealthCostShort = "port:template:enhanced_hud_health_cost_short";
     public const string HudJoin = "port:template:enhanced_hud_join";
@@ -512,6 +523,7 @@ public static class UiTemplates {
         // Under the desktop forecast: how to swing rather than thrust (owner, 2026-11-01: "no clear way").
         (HudSwingHint, _ => "Click to thrust \u00b7 Shift+click to swing"),
         (HudInspectHint, _ => "Learn its Health, Stamina, skills and Defense. Right-click again to inspect."),
+        (HudInspectHintTouch, _ => "Learn its Health, Stamina, skills and Defense. Tap Inspect to look."),
         (HudFree, _ => "free"),
         (HudNone, _ => "none"),
         (HudStaminaCost, _ => "{n} Stamina"),
@@ -537,6 +549,13 @@ public static class UiTemplates {
         (HudStoneAuto, _ => "Auto"),
         // The Auto stone while auto-resolve runs: pressing it again takes control back.
         (HudStoneStop, _ => "Stop"),
+        (HudStoneHelpCast, _ => "Tap to let the current character cast a magic spell."),
+        (HudStoneHelpShoot, _ => "Tap to let the current character fire a crossbow."),
+        (HudStoneHelpRetreat, _ => "Tap and the whole party attempts a strategic retreat."),
+        (HudStoneHelpDefend, _ => "Tap and the current character defends for one turn."),
+        (HudStoneHelpPack, _ => "Tap to open the current character's inventory."),
+        (HudStoneHelpRest, _ => "Tap and the current character rests for one round."),
+        (HudStoneHelpAuto, _ => "Tap and the party fights on its own; tap again to take control back."),
         (HudReset, _ => "Reset view"),
         (HudHealthCostShort, _ => "−{n} H"),
         (HudJoin, _ => "{a} · {b}"),
