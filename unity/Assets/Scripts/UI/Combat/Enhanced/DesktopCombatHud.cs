@@ -66,6 +66,10 @@ namespace BakAgain.UI.Combat.Enhanced {
         private readonly Label _foeCardName;
         private readonly Label _foeCardNote;
         private readonly VisualElement _foeCardRows;
+        private readonly VisualElement _memberKit;
+
+        // The stone frame round the arena (CFRAME.SCX's), drawn whenever the HUD is resized.
+        private StoneFrame _frame;
 
         // Slot 4
         private readonly Dictionary<CombatCommands.Command, VisualElement> _stones = new();
@@ -103,6 +107,7 @@ namespace BakAgain.UI.Combat.Enhanced {
             _band = Box("ec-desk-band", "ec-desk-band");
             _band.pickingMode = PickingMode.Position;   // the board stops where the band starts
             _band.style.height = Length.Percent(layout.BandHeight * 100f);
+            _band.style.backgroundImage = EnhancedArt.Load("marble");   // CFRAME.SCX's dark stone under the stones
             _root.Add(_band);
             // Each slot is its share of the band (border-box percentages, so padding never skews the
             // shares); the parchment sits inside it with the gap as its margin.
@@ -125,7 +130,7 @@ namespace BakAgain.UI.Combat.Enhanced {
             foeSlot.pickingMode = PickingMode.Position;   // the board stops at the card too
             foeSlot.style.position = Position.Absolute;
             foeSlot.style.bottom = Length.Percent(layout.BandHeight * 100f);
-            foeSlot.style.height = Length.Percent(layout.BandHeight * 100f);
+            foeSlot.style.maxHeight = Length.Percent(layout.BandHeight * 100f);   // as tall as what it lists
             _root.Add(foeSlot);   // left and width follow the stones' slot (Resize)
             VisualElement foeInner = Box("ec-desk-foes-inner", "ec-desk-slot__inner");
             Parchment(foeInner);
@@ -164,8 +169,12 @@ namespace BakAgain.UI.Combat.Enhanced {
             columns.Add(kit);
             (_healthLabel, _health) = Pair(stats);
             (_staminaLabel, _stamina) = Pair(stats);
+            // One bar for both pools (a blow takes Stamina first, then Health), named so it is not read as Stamina.
+            VisualElement poolRow = Box(null, "ec-desk-pool-row");
+            stats.Add(poolRow);
+            Text(poolRow, "ec-desk-pool-label", "ec-desk-small").text = UiTemplates.Format(UiTemplates.HudPoolLabel);
             VisualElement pool = Box("ec-desk-pool", "ec-desk-pool");
-            stats.Add(pool);
+            poolRow.Add(pool);
             _poolStamina = Box(null, "ec-desk-pool__stamina");
             _poolHealth = Box(null, "ec-desk-pool__health");
             _poolCost = Box("ec-desk-pool-cost", "ec-desk-pool__cost");
@@ -214,6 +223,8 @@ namespace BakAgain.UI.Combat.Enhanced {
             _foeCardNote = Text(_foeCard, "ec-desk-foecard-note", "ec-desk-small");
             _foeCardRows = Box("ec-desk-foecard-rows", "ec-desk-foecard-rows");
             _foeCard.Add(_foeCardRows);
+            _memberKit = Box("ec-desk-foecard-kit", "ec-desk-foecard-kit");
+            _foeCard.Add(_memberKit);
 
             // Slot 3: six stones, two rows of three.
             VisualElement grid = Box("ec-desk-stones", "ec-desk-stones");
@@ -359,7 +370,8 @@ namespace BakAgain.UI.Combat.Enhanced {
         private static void Kit(KitItemModel item, Label name, Label condition, Label stats) {
             name.text = item?.Name ?? "";
             condition.text = item == null || item.ConditionPercent < 0 ? "" : UiTemplates.Percent(item.ConditionPercent);
-            stats.text = item?.Stats ?? "";
+            // Thrust and Swing each on a line of their own: wrapped by width, the line broke inside "Swing Str+25 = 37".
+            stats.text = item?.Stats?.Replace(" \u00b7 ", "\n") ?? "";
         }
 
         private static void SetPool(VisualElement pool, int stamina, int staminaMax, int health, int healthMax) {
@@ -382,6 +394,7 @@ namespace BakAgain.UI.Combat.Enhanced {
             _ledgerBody.EnableInClassList("ec-desk-ledger-body--log", f == null);
             if (f == null) {
                 _ledgerTitle.text = UiTemplates.Format(UiTemplates.HudFightLog);
+                _ledgerTitle.RemoveFromClassList("ec-desk-title--forecast");
                 // The lines sit in an absolute stack pinned to the body's bottom: as flex children of the
                 // fixed-height body a line taller than the body was measured "at most" the body's height,
                 // so its last rows drew under the next line (task 11, the retreat narration).
@@ -391,6 +404,7 @@ namespace BakAgain.UI.Combat.Enhanced {
                 return;
             }
             FoeRowModel target = f.TargetSlot >= 0 ? Find(m.Foes, f.TargetSlot) : null;
+            _ledgerTitle.AddToClassList("ec-desk-title--forecast");
             // The verb first, so a long name is what the ellipsis cuts (Inspect had no verb at all).
             _ledgerTitle.text = target != null
                 ? UiTemplates.Format(UiTemplates.HudForecastTitle, ("action", CombatHudText.Verb(f)),
@@ -418,6 +432,9 @@ namespace BakAgain.UI.Combat.Enhanced {
                 Row(table, UiTemplates.Format(UiTemplates.HudWalk), Plain(CombatHudText.Walk(f)));
             } else {
                 string cost = CombatHudText.Cost(f, false);
+                if (f.Action == ForecastAction.Inspect && f.Allowed) {
+                    Text(_ledgerBody, "ec-desk-inspect-hint", "ec-desk-hint").text = UiTemplates.Format(UiTemplates.HudInspectHint);
+                }
                 if (f.Action != ForecastAction.Inspect && cost.Length > 0) {
                     VisualElement table = Box("ec-desk-forecast", "ec-desk-table");
                     _ledgerBody.Add(table);
@@ -512,6 +529,7 @@ namespace BakAgain.UI.Combat.Enhanced {
                         : f.Seen > 0 ? "−" + f.Seen
                         : f.Far ? UiTemplates.Format(UiTemplates.HudFar) : "";
                     row.EnableInClassList("ec-desk-foe--down", f.Down);
+                    row.EnableInClassList("ec-desk-foe--seen", !f.Down && f.Seen > 0);
                     row.EnableInClassList("ec-desk-foe--acting", f.Acting);
                 }
                 return;
@@ -528,6 +546,8 @@ namespace BakAgain.UI.Combat.Enhanced {
                 disc.text = foes[i].Letter.ToString();
                 disc.EnableInClassList("ec-letter--chosen", foes[i].Slot == card.Slot);
             }
+            _foeCardRows.RemoveFromClassList("ec-desk-foecard-rows--member");
+            Fit(_memberKit, 0, () => null);
             _foeCardName.text = UiTemplates.Format(UiTemplates.HudJoin, ("a", card.Letter), ("b", card.Name));
             _foeCardNote.text = card.Inspected ? UiTemplates.Format(UiTemplates.HudInspected)
                 : card.Seen > 0 ? UiTemplates.Format(UiTemplates.EnhancedCombatSeen, ("count", card.Seen)) : "";
@@ -558,10 +578,21 @@ namespace BakAgain.UI.Combat.Enhanced {
                 (Label("base:uistring:combat.assess_strength_label"),
                     UiTemplates.Format(UiTemplates.HudCurrentBase, ("current", h.Strength), ("base", h.StrengthBase))),
             };
-            foreach (KitItemModel item in new[] { h.Weapon, h.Armour }) {
-                if (item != null) {
-                    rows.Add((item.Name, item.ConditionPercent < 0 ? "" : UiTemplates.Percent(item.ConditionPercent)));
-                }
+            // The four stats two by two; weapon and armour on full-width lines below, so a name like
+            // "Guarda Revanche" is not cut to half the card.
+            _foeCardRows.AddToClassList("ec-desk-foecard-rows--member");
+            var kit = new List<KitItemModel>();
+            foreach (KitItemModel item in new[] { h.Weapon, h.Armour }) if (item != null) kit.Add(item);
+            Fit(_memberKit, kit.Count, () => {
+                VisualElement row = Box(null, "ec-desk-pair");
+                Text(row, null, "ec-desk-pair__label");
+                Text(row, null, "ec-desk-pair__value");
+                return row;
+            });
+            for (int i = 0; i < kit.Count; i++) {
+                _memberKit[i].Q<Label>(className: "ec-desk-pair__label").text = kit[i].Name;
+                _memberKit[i].Q<Label>(className: "ec-desk-pair__value").text =
+                    kit[i].ConditionPercent < 0 ? "" : UiTemplates.Percent(kit[i].ConditionPercent);
             }
             Fit(_foeCardRows, rows.Count, FoeCardRow);
             for (int i = 0; i < rows.Count; i++) {
@@ -632,9 +663,7 @@ namespace BakAgain.UI.Combat.Enhanced {
                 bool shoot = false;
                 if (command == CombatCommands.Command.Cast) {
                     // The shared slot's winner is the original's own rule (shooting is tested first).
-                    shoot = !m.TheirTurn && CombatMenuSlots.CapabilitySlot(
-                        CombatHudText.Availability(m, CombatCommands.Command.Shoot).Enabled,
-                        CombatHudText.Availability(m, CombatCommands.Command.Cast).Enabled) == CombatMenuSlots.ShootActionId;
+                    shoot = !m.TheirTurn && CombatHudText.SharedSlotShoots(m.Stones);
                     shown = shoot ? CombatCommands.Command.Shoot : CombatCommands.Command.Cast;
                 }
                 stone.userData = shown;
@@ -694,6 +723,7 @@ namespace BakAgain.UI.Combat.Enhanced {
                 _foeSlot.style.left = _root.WorldToLocal(stones.position).x;
                 _foeSlot.style.width = stones.width;
             }
+            DrawFrame(band);
             float medallion = band * _layout.MedallionBandFraction;
             _medallion.style.width = medallion;
             _medallion.style.height = medallion;
@@ -704,6 +734,22 @@ namespace BakAgain.UI.Combat.Enhanced {
                 disc.style.height = stone;
             }
             ResizeCoins();
+        }
+
+        /// <summary>CFRAME.SCX's stone frame round the arena, its bottom bar along the band's top edge.</summary>
+        private void DrawFrame(float band) {
+            float width = _root.resolvedStyle.width, height = _root.resolvedStyle.height;
+            if (float.IsNaN(width) || width <= 0f || float.IsNaN(height) || height <= band) return;
+            float bar = _layout.ArenaFrameBand;
+            var outer = new Rect(0f, 0f, width, height - band);
+            _frame ??= new StoneFrame(_root, under: _banner);   // under everything the HUD draws
+            _frame.Draw(outer, bar);
+            var spots = new List<(float X, float Y, bool Vertical)>();
+            StoneFrame.AddSides(spots, outer, bar);
+            _frame.Strap(spots, bar);
+            // The straps are added last; the foe card and the tooltip stay over them.
+            _foeSlot.BringToFront();
+            _tip.BringToFront();
         }
 
         private void ResizeCoins() {

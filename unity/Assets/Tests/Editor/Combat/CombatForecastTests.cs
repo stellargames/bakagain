@@ -230,5 +230,27 @@ namespace BakAgain.Tests.Editor.Combat {
                 }
             }
         }
+    
+        private static IReadOnlyDictionary<CombatCommands.Command, ActionAvailability> Slot(
+            ActionAvailability shoot, ActionAvailability cast) =>
+            new Dictionary<CombatCommands.Command, ActionAvailability> {
+                [CombatCommands.Command.Shoot] = shoot, [CombatCommands.Command.Cast] = cast,
+            };
+
+        private static ActionAvailability Refused(string key) => new(false, false, key);
+
+        [Test]
+        public void TheSharedStoneKeepsItsFaceWhileAFoeStandsBeside() {
+            ActionAvailability beside = Refused(UiTemplates.EnhancedAvailFoeAdjacent);
+            // A crossbowman who also casts, foe beside: both refused for the foe, the stone stays Shoot.
+            Assert.IsTrue(BakAgain.UI.Combat.Enhanced.CombatHudText.SharedSlotShoots(Slot(beside, beside)));
+            // A caster without a crossbow, foe beside: Cast (was Cast before too).
+            Assert.IsFalse(BakAgain.UI.Combat.Enhanced.CombatHudText.SharedSlotShoots(
+                Slot(Refused(UiTemplates.EnhancedAvailNoCrossbow), beside)));
+            // Free of foes: the original's rule, shooting first.
+            Assert.IsTrue(BakAgain.UI.Combat.Enhanced.CombatHudText.SharedSlotShoots(Slot(ActionAvailability.On, ActionAvailability.On)));
+            Assert.IsFalse(BakAgain.UI.Combat.Enhanced.CombatHudText.SharedSlotShoots(
+                Slot(Refused(UiTemplates.EnhancedAvailNoQuarrels), ActionAvailability.On)));
+        }
     }
 }

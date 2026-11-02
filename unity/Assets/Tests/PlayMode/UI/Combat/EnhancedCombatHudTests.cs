@@ -194,6 +194,14 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             Assert.AreEqual(stones.width, foes.width, 1f, "as wide");
             Assert.AreEqual(_hud.Root.Q("ec-desk-band").worldBound.yMin, foes.yMax, 1f, "standing on the band");
             Assert.AreEqual(DisplayStyle.Flex, _hud.Root.Q("ec-desk-foelist").resolvedStyle.display, "the foe list when idle");
+            // As tall as what it lists: every foe's row inside the card (a zero-basis list collapsed to its header).
+            List<VisualElement> rows = _hud.Root.Query(className: "ec-desk-foe").ToList();
+            Assert.IsNotEmpty(rows);
+            foreach (VisualElement row in rows) {
+                Assert.Greater(row.worldBound.height, 0f, "a foe row has height");
+                Assert.GreaterOrEqual(row.worldBound.yMin, foes.yMin - 1f, "inside the card");
+                Assert.LessOrEqual(row.worldBound.yMax, foes.yMax + 1f, "inside the card");
+            }
 
             _hud.Show(HudModels.Idle() with { CardHero = HudModels.Owyn });
             yield return null;
@@ -201,7 +209,11 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             Assert.AreEqual("Owyn", _hud.Root.Q<Label>("ec-desk-foecard-name").text);
             List<string> values = _hud.Root.Q("ec-desk-foecard-rows").Query<Label>(className: "ec-desk-foecard__value")
                 .ToList().Select(l => l.text).ToList();
-            CollectionAssert.IsSubsetOf(new[] { "17/40", "4/40", "92%", "80%" }, values, "health, stamina and the kit's condition");
+            CollectionAssert.IsSubsetOf(new[] { "17/40", "4/40" }, values, "health and stamina");
+            // Weapon and armour on their own full-width lines, so a long name is not cut to half the card.
+            List<string> kit = _hud.Root.Q("ec-desk-foecard-kit").Query<Label>(className: "ec-desk-pair__value")
+                .ToList().Select(l => l.text).ToList();
+            CollectionAssert.AreEqual(new[] { "92%", "80%" }, kit, "the kit's condition");
         }
 
         [UnityTest]

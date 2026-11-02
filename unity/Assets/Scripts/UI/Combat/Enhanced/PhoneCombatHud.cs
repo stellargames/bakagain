@@ -454,9 +454,7 @@ namespace BakAgain.UI.Combat.Enhanced {
         private void ShowTiles(CombatHudModel m) {
             foreach (CombatCommands.Command command in CombatHudText.PhoneGrid) {
                 VisualElement tile = _tiles[command];
-                bool shoot = command == CombatCommands.Command.Cast && !m.TheirTurn && CombatMenuSlots.CapabilitySlot(
-                    CombatHudText.Availability(m, CombatCommands.Command.Shoot).Enabled,
-                    CombatHudText.Availability(m, CombatCommands.Command.Cast).Enabled) == CombatMenuSlots.ShootActionId;
+                bool shoot = command == CombatCommands.Command.Cast && !m.TheirTurn && CombatHudText.SharedSlotShoots(m.Stones);
                 CombatCommands.Command shown = shoot ? CombatCommands.Command.Shoot : command;
                 tile.userData = shown;
                 ActionAvailability a = CombatHudText.Availability(m, shown);

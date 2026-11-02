@@ -126,6 +126,28 @@ namespace BakAgain.Tests.Editor.Combat {
         }
 
         [Test]
+        public void DefendRestAndAKillingBlowEachWriteALine() {
+            (CombatRuntime runtime, CombatEncounter fight) = Fight();
+            Combatant hero = fight.Party[0];
+            Combatant foeB = fight.Enemies[1];
+            string heroName = runtime.LogNameForTest(hero);
+            string foe = runtime.LogNameForTest(foeB, nameFoe: true);
+
+            runtime.ResolveDefend(hero);
+            runtime.ResolveRest(foeB);
+            Struck(foeB, hero, FloatCause.Thrust);
+            foeB.Flags |= CombatantFlags.Dead;   // the blow killed it before its number floated
+            runtime.NoteFloatedDamage(foeB, 9);
+
+            CollectionAssert.AreEqual(new[] {
+                heroName + " defends",
+                foe + " rests",
+                heroName + " thrusts at B: hit 9",
+                foe + " falls!",
+            }, runtime.Log.Last(10));
+        }
+
+        [Test]
         public void ClassicKeepsNoLog_ButTheSeenTotalIsStillKept() {
             GameOptions.SetFeature(EnhancedFeature.Combat, false);
             (CombatRuntime runtime, CombatEncounter fight) = Fight();

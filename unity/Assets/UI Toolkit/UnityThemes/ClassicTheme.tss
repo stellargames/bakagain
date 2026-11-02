@@ -441,16 +441,16 @@
    size here is a fraction of the window height (24 units = 21.6 px at 1080p). Body text 24, small 20. */
 .ec-desk { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
 .ec-desk Label { color: rgb(46, 30, 16); font-size: 24px; white-space: nowrap; -unity-text-align: middle-left; margin: 0; padding: 0; }
-.ec-desk-banner { position: absolute; left: 24px; top: 20px; padding: 4px 14px; flex-direction: row; align-items: flex-end; border-width: 2px; border-color: rgb(196, 160, 92); background-color: rgba(28, 18, 10, 0.88); }
+.ec-desk-banner { position: absolute; left: 46px; top: 42px; padding: 4px 14px; flex-direction: row; align-items: flex-end; border-width: 2px; border-color: rgb(196, 160, 92); background-color: rgba(28, 18, 10, 0.88); }
 .ec-desk .ec-desk-banner__text { color: rgb(236, 210, 140); font-size: 28px; }
 .ec-desk .ec-desk-banner__round { margin-left: 10px; color: rgb(196, 170, 120); font-size: 20px; }
 .ec-desk .ec-desk-banner--theirs { background-color: rgb(222, 204, 168); border-color: rgb(120, 70, 40); }
 .ec-desk .ec-desk-banner--theirs .ec-desk-banner__text { color: rgb(160, 30, 24); }
 .ec-desk .ec-desk-banner--theirs .ec-desk-banner__round { color: rgb(120, 70, 40); }
-.ec-desk-cam { position: absolute; right: 24px; top: 20px; flex-direction: row; }
+.ec-desk-cam { position: absolute; right: 46px; top: 42px; flex-direction: row; }
 .ec-desk-cam__button { min-width: 56px; height: 52px; margin-left: 10px; padding: 0 10px; font-size: 26px; color: rgb(236, 210, 140); background-color: rgba(28, 18, 10, 0.88); border-width: 2px; border-color: rgb(196, 160, 92); border-radius: 2px; }
 .ec-desk-cam__button:hover { border-color: rgb(255, 220, 140); }
-.ec-desk-band { position: absolute; left: 0; right: 0; bottom: 0; flex-direction: row; padding: 12px 10px; background-color: rgb(52, 34, 20); border-top-width: 4px; border-color: rgb(24, 14, 8); }
+.ec-desk-band { position: absolute; left: 0; right: 0; bottom: 0; flex-direction: row; padding: 12px 10px; background-color: rgb(29, 23, 13); background-repeat: repeat; background-size: 720px 480px; }
 .ec-desk-slot { height: 100%; }
 .ec-desk-slot__inner { flex-grow: 1; margin: 0 6px; overflow: hidden; }
 .ec-desk-parchment { background-color: rgb(226, 210, 176); border-width: 3px; border-color: rgb(120, 86, 52); padding: 6px 12px; }
@@ -461,7 +461,8 @@
 .ec-desk-col { flex-direction: column; flex-grow: 1; flex-basis: 0; margin-right: 10px; }
 .ec-desk-card { flex-grow: 1; }
 .ec-desk .ec-desk-title { font-size: 28px; color: rgb(30, 18, 8); }
-.ec-desk .ec-desk-small { font-size: 20px; color: rgb(96, 70, 44); }
+.ec-desk .ec-desk-small { font-size: 22px; color: rgb(66, 44, 24); }
+.ec-desk .ec-desk-hint { font-size: 22px; color: rgb(66, 44, 24); white-space: normal; margin-top: 6px; }
 .ec-desk .ec-desk-caption { font-size: 24px; color: rgb(236, 220, 186); -unity-text-align: middle-center; }
 .ec-desk .ec-desk-caption--small { font-size: 20px; color: rgb(190, 170, 136); -unity-text-align: middle-center; }
 .ec-desk-medallion-col { align-items: center; }
@@ -487,6 +488,8 @@
 .ec-desk .ec-desk-pair__value { flex-shrink: 0; margin-left: 8px; color: rgb(30, 18, 8); }
 .ec-desk .ec-desk-small { overflow: hidden; text-overflow: ellipsis; }
 #ec-desk-weapon-stats { white-space: normal; text-overflow: clip; }   /* "Thrust Str-7 = 5 · Swing ..." wraps rather than cut */
+.ec-desk-pool-row { flex-direction: row; align-items: center; }
+.ec-desk .ec-desk-pool-row .ec-desk-small { margin-right: 8px; }
 .ec-desk-pool { height: 18px; margin: 4px 0; flex-direction: row; background-color: rgb(60, 40, 30); border-width: 2px; border-color: rgb(30, 18, 8); flex-grow: 1; }
 .ec-desk-pool__stamina { height: 100%; background-color: rgb(212, 160, 42); }
 .ec-desk-pool__health { height: 100%; background-color: rgb(184, 50, 42); }
@@ -505,12 +508,12 @@
 .ec-desk .ec-desk-ledger-footer .ec-desk-log { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ec-desk .ec-desk-reason { white-space: normal; color: rgb(160, 30, 24); }
 .ec-desk .ec-desk-reason--warn { color: rgb(170, 100, 10); }
-.ec-desk-table__row { flex-direction: row; height: 34px; align-items: center; }
+.ec-desk-table__row { flex-direction: row; height: 30px; align-items: center; }
 .ec-desk .ec-desk-table__label { width: 26%; }
 .ec-desk-table__col { flex-grow: 1; flex-basis: 0; justify-content: center; }
 .ec-desk .ec-desk-table__cell { -unity-text-align: middle-center; }
 .ec-desk .ec-desk-table__head--chosen { border-width: 2px; border-color: rgb(150, 110, 40); background-color: rgb(240, 220, 150); }
-.ec-desk .ec-desk-off { color: rgb(150, 136, 116); }
+.ec-desk .ec-desk-off { color: rgb(128, 110, 88); }
 .ec-pips { flex-direction: row; justify-content: center; align-items: center; }
 .ec-pip { width: 18px; height: 18px; margin: 0 3px; border-radius: 50%; border-width: 2px; border-color: rgb(46, 30, 16); }
 .ec-pip--on { background-color: rgb(46, 30, 16); }
@@ -519,13 +522,19 @@
 .ec-desk-foe--down { opacity: 0.5; }
 .ec-desk-foe--acting { border-width: 2px; border-color: rgb(196, 44, 32); }
 .ec-desk .ec-desk-foe__name { flex-grow: 1; flex-shrink: 1; margin-left: 8px; overflow: hidden; text-overflow: ellipsis; }
-.ec-desk .ec-desk-foe__note { width: 64px; -unity-text-align: middle-right; color: rgb(140, 30, 24); font-size: 20px; }
+.ec-desk .ec-desk-foe__note { width: 64px; -unity-text-align: middle-right; color: rgb(66, 44, 24); font-size: 22px; }
+.ec-desk .ec-desk-foe--seen .ec-desk-foe__note { color: rgb(30, 90, 30); }
 .ec-letter { width: 34px; height: 34px; border-radius: 50%; background-color: rgb(30, 22, 14); border-width: 2px; border-color: rgb(196, 160, 92); }
 .ec-desk .ec-letter { color: rgb(236, 210, 140); font-size: 22px; -unity-text-align: middle-center; margin-right: 4px; }
 .ec-desk .ec-letter--chosen { background-color: rgb(232, 196, 92); color: rgb(30, 18, 8); }
 .ec-desk-foecard-rows { flex-direction: column; flex-wrap: wrap; height: 132px; }
+.ec-desk-foecard-rows--member { height: 66px; }
+/* The foe card is as tall as what it lists (DesktopCombatHud: max the band's height), so its rows take their own height. */
+#ec-desk-foe-rows { flex-basis: auto; flex-grow: 0; }
+.ec-desk-foecard-kit { flex-direction: column; padding-right: 12px; }
 #ec-desk-foe-discs { justify-content: flex-start; }
 .ec-desk .ec-desk-title { flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; }
+.ec-desk .ec-desk-title--forecast { font-size: 24px; white-space: normal; text-overflow: clip; margin-right: 8px; }
 .ec-desk-foecard__row { width: 50%; height: 33px; flex-direction: row; justify-content: space-between; padding-right: 12px; align-items: center; }
 .ec-desk .ec-desk-foecard__label { flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; }
 .ec-desk .ec-desk-foecard__value { flex-shrink: 0; margin-left: 6px; color: rgb(150, 130, 100); }

@@ -37,6 +37,12 @@ public sealed class EnhancedCombatLayout
     /// <summary>One stone's disc as a fraction of the band's height.</summary>
     public float StoneBandFraction { get; set; } = 0.40f;
 
+    /// <summary>
+    /// The width of the stone frame round the arena (CFRAME.SCX's, drawn by the Enhanced stone frame),
+    /// in panel units (the panel is 1200 high); its bottom bar lies along the band's top edge.
+    /// </summary>
+    public float ArenaFrameBand { get; set; } = 22f;
+
     // Phone
 
     /// <summary>Width of one action tile, in points (the 44 pt touch-target floor is met with room).</summary>
@@ -180,9 +186,10 @@ public sealed class EnhancedCombatLayout
 
     /// <summary>
     /// Lower edges of the damage buckets shown before a foe's Defense is revealed. Bucket i is
-    /// [edge i, edge i+1 - 1]; the last is open-ended (its high bound is <see cref="int.MaxValue"/>, "21+").
+    /// [edge i, edge i+1 - 1]; the last is open-ended (its high bound is <see cref="int.MaxValue"/>, "101+"). The upper buckets reach a
+    /// strong blow (build play-test 2026-11-02: Gorath's 90 read "21+", beside a card saying 115).
     /// </summary>
-    public int[] DamageBandEdges { get; set; } = { 1, 3, 6, 10, 15, 21 };
+    public int[] DamageBandEdges { get; set; } = { 1, 3, 6, 10, 15, 21, 31, 46, 71, 101 };
 
     /// <summary>How long a press must be held to count as a long press, in seconds.</summary>
     public float LongPressSeconds { get; set; } = 0.5f;

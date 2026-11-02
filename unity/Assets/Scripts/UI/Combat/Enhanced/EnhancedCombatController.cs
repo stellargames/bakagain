@@ -303,8 +303,7 @@ namespace BakAgain.UI.Combat.Enhanced {
             }
             var stones = _cr.AvailabilityFor(acting);
             if (c is Command.Cast or Command.Shoot) {
-                bool shoot = CombatMenuSlots.CapabilitySlot(Enabled(stones, Command.Shoot), Enabled(stones, Command.Cast))
-                    == CombatMenuSlots.ShootActionId;
+                bool shoot = CombatHudText.SharedSlotShoots(stones);
                 Command cmd = shoot ? Command.Shoot : Command.Cast;
                 if (Enabled(stones, cmd)) {
                     // The spell's target is the foe the HUD shows chosen as Cast is pressed -- a tap, a chip, a

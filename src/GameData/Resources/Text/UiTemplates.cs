@@ -275,6 +275,10 @@ public static class UiTemplates {
     public const string HudCost = "port:template:enhanced_hud_cost";
     public const string HudWalk = "port:template:enhanced_hud_walk";
     public const string HudSwingHint = "port:template:enhanced_hud_swing_hint";
+    /// <summary>Under an Inspect forecast: what Inspect shows, and that a second right click does it.</summary>
+    public const string HudInspectHint = "port:template:enhanced_hud_inspect_hint";
+    /// <summary>The hero card's Health + Stamina bar: its label and the pool it shows.</summary>
+    public const string HudPoolLabel = "port:template:enhanced_hud_pool_label";
     public const string HudFree = "port:template:enhanced_hud_free";
     public const string HudNone = "port:template:enhanced_hud_none";
     public const string HudStaminaCost = "port:template:enhanced_hud_stamina_cost";
@@ -323,6 +327,9 @@ public static class UiTemplates {
     public const string EnhancedLogMiss = "port:template:enhanced_log_miss";
     public const string EnhancedLogGain = "port:template:enhanced_log_gain";
     public const string EnhancedLogFoe = "port:template:enhanced_log_foe";
+    public const string EnhancedLogDefends = "port:template:enhanced_log_defends";
+    public const string EnhancedLogRests = "port:template:enhanced_log_rests";
+    public const string EnhancedLogFalls = "port:template:enhanced_log_falls";
 
     /// <summary>The Enhanced cast screen's Cast and Back tablets, shown while a power is chosen, and the
     /// caster's two pools under their portrait.</summary>
@@ -506,6 +513,8 @@ public static class UiTemplates {
         (HudWalk, _ => "Walk"),
         // Under the desktop forecast: how to swing rather than thrust (owner, 2026-11-01: "no clear way").
         (HudSwingHint, _ => "Click to thrust \u00b7 Shift+click to swing"),
+        (HudInspectHint, _ => "Learn its Health, Stamina, skills and Defense. Right-click again to inspect."),
+        (HudPoolLabel, _ => "Total"),
         (HudFree, _ => "free"),
         (HudNone, _ => "none"),
         (HudStaminaCost, _ => "{n} Stamina"),
@@ -531,7 +540,7 @@ public static class UiTemplates {
         (HudStoneAuto, _ => "Auto"),
         // The Auto stone while auto-resolve runs: pressing it again takes control back.
         (HudStoneStop, _ => "Stop"),
-        (HudReset, _ => "Reset"),
+        (HudReset, _ => "Reset view"),
         (HudHealthCostShort, _ => "−{n} H"),
         (HudJoin, _ => "{a} · {b}"),
         (HudForecastTitle, _ => "{action} {target}"),
@@ -552,6 +561,9 @@ public static class UiTemplates {
         (EnhancedLogMiss, _ => "miss"),
         (EnhancedLogGain, _ => "{target} gains {count}"),
         (EnhancedLogFoe, _ => "{creature} {letter}"),
+        (EnhancedLogDefends, _ => "{actor} defends"),
+        (EnhancedLogRests, _ => "{actor} rests"),
+        (EnhancedLogFalls, _ => "{target} falls!"),
         (EnhancedCastCast, _ => "Cast"),
         (EnhancedCastBack, _ => "Back"),
         (EnhancedCastHealth, _ => "Health {current}/{max}"),

@@ -1045,6 +1045,9 @@ namespace BakAgain.Combat {
             };
             LogLine(UiTemplates.Format(template, ("actor", by == null ? "" : NameInLog(by, nameFoe: true)),
                 ("target", who), ("result", result)));
+            if (dealt > 0 && target.IsDead) {
+                LogLine(UiTemplates.Format(UiTemplates.EnhancedLogFalls, ("target", NameInLog(target, nameFoe: true))));
+            }
         }
 
         internal string LogNameForTest(Combatant c, bool nameFoe = false) => NameInLog(c, nameFoe);
@@ -1688,6 +1691,7 @@ namespace BakAgain.Combat {
             if (actor == null) {
                 return 0;
             }
+            LogLine(UiTemplates.Format(UiTemplates.EnhancedLogRests, ("actor", NameInLog(actor, nameFoe: true))));
 
             ActorStat[] stats = StatsFor(actor);
             ActorStat health = StatOrNull(stats, ActorAttribute.Health);
@@ -1760,6 +1764,7 @@ namespace BakAgain.Combat {
                 return;
             }
             DefendAction.Apply(actor);
+            LogLine(UiTemplates.Format(UiTemplates.EnhancedLogDefends, ("actor", NameInLog(actor, nameFoe: true))));
         }
 
         /// <summary>

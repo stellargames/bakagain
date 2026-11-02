@@ -191,6 +191,22 @@ namespace BakAgain.UI.Combat.Enhanced {
         public static ActionAvailability Availability(CombatHudModel m, CombatCommands.Command c) =>
             m?.Stones != null && m.Stones.TryGetValue(c, out ActionAvailability a) ? a : ActionAvailability.On;
 
+        /// <summary>
+        /// Whether the shared Cast/Shoot stone shows Shoot: the original's rule, shooting first
+        /// (<see cref="CombatMenuSlots.CapabilitySlot"/>), on what the hero could do with no foe beside them.
+        /// A foe beside is the last gate both refusals test that a hero can be otherwise able for
+        /// (CombatCapability.WhyNotShoot / WhyNotCast), so it counts as able here: on live availability
+        /// alone a crossbowman's stone turned into a greyed Cast whenever a foe stepped up.
+        /// </summary>
+        public static bool SharedSlotShoots(IReadOnlyDictionary<CombatCommands.Command, ActionAvailability> stones) {
+            bool Could(CombatCommands.Command c) =>
+                stones == null || !stones.TryGetValue(c, out ActionAvailability a)
+                    ? c == CombatCommands.Command.Shoot   // no stones at all: Shoot, as an all-On model reads
+                    : a.Enabled || a.ReasonKey == UiTemplates.EnhancedAvailFoeAdjacent;
+            return CombatMenuSlots.CapabilitySlot(Could(CombatCommands.Command.Shoot), Could(CombatCommands.Command.Cast))
+                == CombatMenuSlots.ShootActionId;
+        }
+
         /// <summary>The six stones, desktop order: Cast, Retreat, Defend / Pack, Rest, Auto, with their keys.</summary>
         public static readonly (CombatCommands.Command Command, char Key)[] Stones = {
             (CombatCommands.Command.Cast, 'C'), (CombatCommands.Command.BackOrRetreat, 'F'),
