@@ -132,7 +132,7 @@ public static class CombatArenaPlacement {
     /// Underground fights use fewer rows than the grid has
     /// (<see cref="CombatGrid.UndergroundPlayableRows"/>) — the grid keeps its full height, so the
     /// bound is a property of the FIGHT, not of the array.
-    /// <para><b>Deliberately callerless.</b> CombatGrid blocks the rows from UndergroundPlayableRows up for an underground fight, so no cell test is needed.</para>
+    /// <para>Callers: <see cref="EnhancedBoardBounds"/>, for the off-board tap and the goal tint.</para>
     /// </remarks>
     public static bool IsPlayable(int column, int row, bool underground) =>
         CombatGrid.InBounds(column, row)

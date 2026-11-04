@@ -40,7 +40,7 @@ namespace BakAgain.Tests.Editor.Combat {
         /// member the encounter is already over (PartyAlive() == 0 is a wipe), so the loop returns
         /// before resolving anything — which is right, and quietly makes such a test vacuous.
         /// </summary>
-        private static ActorStat[] StatBlock(byte health, byte stamina = 20, byte speed = 5,
+        internal static ActorStat[] StatBlock(byte health, byte stamina = 20, byte speed = 5,
             byte casting = 20) {
             var stats = new ActorStat[16];
             for (var i = 0; i < stats.Length; i++) {
@@ -57,7 +57,7 @@ namespace BakAgain.Tests.Editor.Combat {
             new GameData.Resources.Data.SaveGameCombatData(
                 0, 0, x, y, 0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
-        private static GameData.Resources.Combat.PartyCombatEntries Entries(
+        internal static GameData.Resources.Combat.PartyCombatEntries Entries(
             params (byte X, byte Y)[] tiles) {
             var slots = new List<GameData.Resources.Data.SaveGameCombatData>();
             foreach ((byte X, byte Y) t in tiles) {
@@ -78,7 +78,7 @@ namespace BakAgain.Tests.Editor.Combat {
         }
 
         /// <summary>A fight with one party member at (3,4) and enemies at the given tiles.</summary>
-        private static (CombatRuntime Runtime, CombatEncounter Fight) FightWithEnemiesAt(
+        internal static (CombatRuntime Runtime, CombatEncounter Fight) FightWithEnemiesAt(
             ActorStat[] partyStats, params (byte X, byte Y)[] enemyTiles) {
             var session = new GameSession();
             session.SetActorStatsForTest(0, partyStats);
@@ -159,7 +159,7 @@ namespace BakAgain.Tests.Editor.Combat {
         private const byte CrossbowObjectId = 50;
 
         /// <summary>An ObjectInfoSet describing a crossbow that wears out, and a quarrel stack.</summary>
-        private static GameData.Resources.Object.ObjectInfoSet ShootingObjects() =>
+        internal static GameData.Resources.Object.ObjectInfoSet ShootingObjects() =>
             new GameData.Resources.Object.ObjectInfoSet("OBJINFO.DAT",
                 new System.Collections.Generic.List<GameData.Resources.Object.ObjectInfo> {
                     new GameData.Resources.Object.ObjectInfo("crossbow") {
@@ -174,7 +174,7 @@ namespace BakAgain.Tests.Editor.Combat {
                 });
 
         /// <summary>A party member holding <paramref name="bolts"/> quarrels and a crossbow.</summary>
-        private static void GiveArcherPack(GameSession session, byte bolts = 10,
+        internal static void GiveArcherPack(GameSession session, byte bolts = 10,
             byte crossbowCondition = 50, ushort crossbowFlags = 0x40) {
             // actorNumber 1 is party position 0 - position is always one below the actor number.
             var pack = new GameData.Resources.Data.SaveGameContainerData(
@@ -196,7 +196,7 @@ namespace BakAgain.Tests.Editor.Combat {
                 }), chapter: 1);
         }
 
-        private static (CombatRuntime Runtime, CombatEncounter Fight) ArcherAgainst(
+        internal static (CombatRuntime Runtime, CombatEncounter Fight) ArcherAgainst(
             (byte X, byte Y) enemyTile, byte bolts = 10, ushort crossbowFlags = 0x40) {
             var session = new GameSession();
             session.SetActorStatsForTest(0, StatBlock(health: 30));

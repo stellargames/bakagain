@@ -165,6 +165,7 @@ public static class UiTemplates {
     public const string EnhancedFeatureLighting = "port:template:enhanced_feature_lighting";
     public const string EnhancedFeatureCasting = "port:template:enhanced_feature_casting";
     public const string EnhancedFeatureContinuousMovement = "port:template:enhanced_feature_continuous_movement";
+    public const string EnhancedFeatureCombat = "port:template:enhanced_feature_combat";
 
     /// <summary>The Enhanced settings' shadows row: "Shadows: <c>{state}</c>", Off (the On/Off "Off"),
     /// Blobs or Sun.</summary>
@@ -224,6 +225,121 @@ public static class UiTemplates {
     public const string EnhancedCastHintPowerTouch = "port:template:enhanced_cast_hint_power_touch";
     public const string EnhancedCastPowerOf = "port:template:enhanced_cast_power_of";
 
+    /// <summary>A foe's plate on the enhanced combat board: how many of its kind the party has seen (TASK-972).</summary>
+    public const string EnhancedCombatSeen = "port:template:enhanced_combat_seen";
+
+    /// <summary>Why a combat stone is greyed (or warned) this turn (TASK-972): {name} is the hero, {condition} the affliction.</summary>
+    public const string EnhancedAvailFoeAdjacent = "port:template:enhanced_avail_foe_adjacent";
+    public const string EnhancedAvailNoQuarrels = "port:template:enhanced_avail_no_quarrels";
+    public const string EnhancedAvailNoCrossbow = "port:template:enhanced_avail_no_crossbow";
+    public const string EnhancedAvailNotACaster = "port:template:enhanced_avail_not_a_caster";
+    public const string EnhancedAvailHeroDown = "port:template:enhanced_avail_hero_down";
+    public const string EnhancedAvailRetreatForbidden = "port:template:enhanced_avail_retreat_forbidden";
+    public const string EnhancedAvailTerrain = "port:template:enhanced_avail_terrain";
+    public const string EnhancedAvailNoSkill = "port:template:enhanced_avail_no_skill";
+    public const string EnhancedAvailCannotNow = "port:template:enhanced_avail_cannot_now";
+    public const string EnhancedAvailAutoRefused = "port:template:enhanced_avail_auto_refused";
+    public const string EnhancedAvailNoHealCondition = "port:template:enhanced_avail_no_heal_condition";
+    public const string EnhancedForecastOutOfReach = "port:template:enhanced_forecast_out_of_reach";
+    public const string EnhancedForecastSwingNeedsFoeBeside = "port:template:enhanced_forecast_swing_needs_foe_beside";
+    public const string EnhancedForecastPackNote = "port:template:enhanced_forecast_pack_note";
+
+    /// <summary>The Enhanced combat HUD's labels (TASK-972 phase 1, desktop band and phone docks).</summary>
+    public const string HudPartyTitle = "port:template:enhanced_hud_party_title";
+    public const string HudWatching = "port:template:enhanced_hud_watching";
+    public const string HudActing = "port:template:enhanced_hud_acting";
+    public const string HudFightLog = "port:template:enhanced_hud_fight_log";
+    public const string HudFoes = "port:template:enhanced_hud_foes";
+    public const string HudRound = "port:template:enhanced_hud_round";
+    public const string HudFoeCount = "port:template:enhanced_hud_foe_count";
+    public const string HudFar = "port:template:enhanced_hud_far";
+    public const string HudDown = "port:template:enhanced_hud_down";
+    public const string HudInspected = "port:template:enhanced_hud_inspected";
+    public const string HudUnknown = "port:template:enhanced_hud_unknown";
+    public const string HudEndsTurn = "port:template:enhanced_hud_ends_turn";
+    public const string HudEndsTurnShort = "port:template:enhanced_hud_ends_turn_short";
+    public const string HudTurnOf = "port:template:enhanced_hud_turn_of";
+    public const string HudTurnHint = "port:template:enhanced_hud_turn_hint";
+    public const string HudCurrentOfMax = "port:template:enhanced_hud_current_of_max";
+    public const string HudCurrentBase = "port:template:enhanced_hud_current_base";
+    public const string HudWeaponLine = "port:template:enhanced_hud_weapon_line";
+    public const string HudArmourLine = "port:template:enhanced_hud_armour_line";
+    public const string HudChooseTarget = "port:template:enhanced_hud_choose_target";
+    public const string HudWalksThenThrusts = "port:template:enhanced_hud_walks_then_thrusts";
+    public const string HudThrust = "port:template:enhanced_hud_thrust";
+    public const string HudSwing = "port:template:enhanced_hud_swing";
+    public const string HudMove = "port:template:enhanced_hud_move";
+    public const string HudInspect = "port:template:enhanced_hud_inspect";
+    public const string HudHit = "port:template:enhanced_hud_hit";
+    public const string HudDamage = "port:template:enhanced_hud_damage";
+    public const string HudCost = "port:template:enhanced_hud_cost";
+    public const string HudWalk = "port:template:enhanced_hud_walk";
+    public const string HudSwingHint = "port:template:enhanced_hud_swing_hint";
+    /// <summary>Under an Inspect forecast: what Inspect shows, and that a second right click does it.</summary>
+    public const string HudInspectHint = "port:template:enhanced_hud_inspect_hint";
+    /// <summary>The phone's Inspect forecast: what Inspect shows, and how to do it on a touch screen.</summary>
+    public const string HudInspectHintTouch = "port:template:enhanced_hud_inspect_hint_touch";
+    public const string HudFree = "port:template:enhanced_hud_free";
+    public const string HudNone = "port:template:enhanced_hud_none";
+    public const string HudStaminaCost = "port:template:enhanced_hud_stamina_cost";
+    public const string HudStaminaCostShort = "port:template:enhanced_hud_stamina_cost_short";
+    public const string HudSquares = "port:template:enhanced_hud_squares";
+    public const string HudAboutPercent = "port:template:enhanced_hud_about_percent";
+    public const string HudDamageRange = "port:template:enhanced_hud_damage_range";
+    public const string HudDamageOpen = "port:template:enhanced_hud_damage_open";
+    public const string HudAboutDamage = "port:template:enhanced_hud_about_damage";
+    public const string HudRestGain = "port:template:enhanced_hud_rest_gain";
+    public const string HudConfirm = "port:template:enhanced_hud_confirm";
+    public const string HudConfirmEmpty = "port:template:enhanced_hud_confirm_empty";
+    public const string HudAllies = "port:template:enhanced_hud_allies";
+    public const string HudChip = "port:template:enhanced_hud_chip";
+    public const string HudHoldToInspect = "port:template:enhanced_hud_hold_to_inspect";
+    public const string HudNoConditions = "port:template:enhanced_hud_no_conditions";
+    public const string HudStoneCast = "port:template:enhanced_hud_stone_cast";
+    public const string HudStoneShoot = "port:template:enhanced_hud_stone_shoot";
+    public const string HudStoneRetreat = "port:template:enhanced_hud_stone_retreat";
+    public const string HudStoneDefend = "port:template:enhanced_hud_stone_defend";
+    public const string HudStonePack = "port:template:enhanced_hud_stone_pack";
+    public const string HudStoneRest = "port:template:enhanced_hud_stone_rest";
+    public const string HudStoneAuto = "port:template:enhanced_hud_stone_auto";
+    public const string HudStoneStop = "port:template:enhanced_hud_stone_stop";
+    // A phone tile held: what it does, in touch words. The original's help records (DIAL_Z00, from
+    // HelpRecordBase 0xFE) say "Left clicking on this button..."; these say the same with "Tap".
+    public const string HudStoneHelpCast = "port:template:enhanced_hud_stone_help_cast";
+    public const string HudStoneHelpShoot = "port:template:enhanced_hud_stone_help_shoot";
+    public const string HudStoneHelpRetreat = "port:template:enhanced_hud_stone_help_retreat";
+    public const string HudStoneHelpDefend = "port:template:enhanced_hud_stone_help_defend";
+    public const string HudStoneHelpPack = "port:template:enhanced_hud_stone_help_pack";
+    public const string HudStoneHelpRest = "port:template:enhanced_hud_stone_help_rest";
+    public const string HudStoneHelpAuto = "port:template:enhanced_hud_stone_help_auto";
+    public const string HudReset = "port:template:enhanced_hud_reset";
+    public const string HudHealthCostShort = "port:template:enhanced_hud_health_cost_short";
+    public const string HudJoin = "port:template:enhanced_hud_join";
+    /// <summary>The desktop ledger's header over a forecast: the action and its target ("Inspect Brigand A").</summary>
+    public const string HudForecastTitle = "port:template:enhanced_hud_forecast_title";
+    public const string HudShortHealth = "port:template:enhanced_hud_short_health";
+    public const string HudShortStamina = "port:template:enhanced_hud_short_stamina";
+    public const string HudShortSpeed = "port:template:enhanced_hud_short_speed";
+    public const string HudShortStrength = "port:template:enhanced_hud_short_strength";
+    public const string HudShortMissile = "port:template:enhanced_hud_short_missile";
+    public const string HudShortMelee = "port:template:enhanced_hud_short_melee";
+    public const string HudShortCast = "port:template:enhanced_hud_short_cast";
+    public const string HudShortDefense = "port:template:enhanced_hud_short_defense";
+
+    /// <summary>The Enhanced fight log's lines: an action's verb with actor and target, and its result (TASK-972).</summary>
+    public const string EnhancedLogThrust = "port:template:enhanced_log_thrust";
+    public const string EnhancedLogSwing = "port:template:enhanced_log_swing";
+    public const string EnhancedLogShoot = "port:template:enhanced_log_shoot";
+    public const string EnhancedLogCast = "port:template:enhanced_log_cast";
+    public const string EnhancedLogNoActor = "port:template:enhanced_log_no_actor";
+    public const string EnhancedLogHit = "port:template:enhanced_log_hit";
+    public const string EnhancedLogMiss = "port:template:enhanced_log_miss";
+    public const string EnhancedLogGain = "port:template:enhanced_log_gain";
+    public const string EnhancedLogFoe = "port:template:enhanced_log_foe";
+    public const string EnhancedLogDefends = "port:template:enhanced_log_defends";
+    public const string EnhancedLogRests = "port:template:enhanced_log_rests";
+    public const string EnhancedLogFalls = "port:template:enhanced_log_falls";
+
     /// <summary>The Enhanced cast screen's Cast and Back tablets, shown while a power is chosen, and the
     /// caster's two pools under their portrait.</summary>
     public const string EnhancedCastCast = "port:template:enhanced_cast_cast";
@@ -234,13 +350,13 @@ public static class UiTemplates {
     /// <summary>The caster's two lines on one, under the portrait: <c>{health}</c> and <c>{stamina}</c> are those templates.</summary>
     public const string EnhancedCastPool = "port:template:enhanced_cast_pool";
 
-    /// <summary>The Enhanced inventory's buttons and labels. Labels name people, never items: a name
-    /// is what examining an item reveals.</summary>
+    /// <summary>The Enhanced inventory's buttons and labels. The portrait labels name people; the bar's
+    /// hint names the item under the mouse (the owner's call, TASK-1019 — it used to be that only
+    /// examining an item named it).</summary>
     public const string EnhancedInvGiveTo = "port:template:enhanced_inv_give_to";
-    public const string EnhancedInvTakes = "port:template:enhanced_inv_takes";
     public const string EnhancedInvBuyFor = "port:template:enhanced_inv_buy_for";
     public const string EnhancedInvHasIt = "port:template:enhanced_inv_has_it";
-    public const string EnhancedInvBack = "port:template:enhanced_inv_back";
+    public const string EnhancedInvGetAll = "port:template:enhanced_inv_get_all";
 
     /// <summary>An Enhanced caption whose choice waits for the next start (the font is bound at
     /// start): "<c>{text}</c> (restart)", as <see cref="LanguageChoicePendingKey"/>.</summary>
@@ -310,6 +426,7 @@ public static class UiTemplates {
         (EnhancedFeatureLighting, _ => "Lighting"),
         (EnhancedFeatureCasting, _ => "Casting"),
         (EnhancedFeatureContinuousMovement, _ => "Continuous walking"),
+        (EnhancedFeatureCombat, _ => "Enhanced combat"),
         (EnhancedShadowsKey, _ => "Shadows: {state}"),
         (EnhancedShadowsBlobs, _ => "Blobs"),
         (EnhancedShadowsSun, _ => "Sun"),
@@ -352,16 +469,126 @@ public static class UiTemplates {
         (EnhancedCastHintPower, _ => "Point at a lit gem for the power, then click it or Cast. Back returns to the spells."),
         (EnhancedCastHintPowerTouch, _ => "Slide along the lit gems for the power, then Cast. Back, or a tap off the ring, returns to the spells."),
         (EnhancedCastPowerOf, _ => "of {max}"),
+        (EnhancedCombatSeen, _ => "\u2212{count} seen"),
+        (EnhancedAvailFoeAdjacent, _ => "foe beside {name}"),
+        (EnhancedAvailNoQuarrels, _ => "no quarrels"),
+        (EnhancedAvailNoCrossbow, _ => "no crossbow"),
+        (EnhancedAvailNotACaster, _ => "not a spellcaster"),
+        (EnhancedAvailHeroDown, _ => "{name} is down"),
+        (EnhancedAvailRetreatForbidden, _ => "no retreat from this fight"),
+        (EnhancedAvailTerrain, _ => "bad ground for {name}"),
+        (EnhancedAvailNoSkill, _ => "{name} has no crossbow skill"),
+        (EnhancedAvailCannotNow, _ => "{name} cannot now"),
+        (EnhancedAvailAutoRefused, _ => "auto is refused here"),
+        (EnhancedAvailNoHealCondition, _ => "no heal: {condition}"),
+        (EnhancedForecastOutOfReach, _ => "out of reach"),
+        (EnhancedForecastSwingNeedsFoeBeside, _ => "a swing needs a foe beside you"),
+        (EnhancedForecastPackNote, _ => "ends the turn unless the item needs a target"),
+        (HudPartyTitle, _ => "The party"),
+        (HudWatching, _ => "watching"),
+        (HudActing, _ => "acting"),
+        (HudFightLog, _ => "Fight log"),
+        (HudFoes, _ => "Foes"),
+        (HudRound, _ => "round {n}"),
+        (HudFoeCount, _ => "{count}"),
+        (HudFar, _ => "far"),
+        (HudDown, _ => "down"),
+        (HudInspected, _ => "inspected"),
+        (HudUnknown, _ => "?"),
+        (HudEndsTurn, _ => "ends {name}''s turn"),
+        (HudEndsTurnShort, _ => "ends turn"),
+        (HudTurnOf, _ => "{name}''s turn"),
+        (HudTurnHint, _ => "tap a foe or a square"),
+        (HudCurrentOfMax, _ => "{current}/{max}"),
+        (HudCurrentBase, _ => "{current} ({base})"),
+        // The two base damages, labelled as the original's inspect labels them (INVINSP.C:248-251,
+        // "%d+Strength" under Thrust and under Swing): "Dmg -7/3" read as a range. Short enough for the
+        // desktop card's line; the hit chance is the forecast's. Written Strength-first with the sum
+        // ("Str−7 = 5"), which the owner found clearer than "-7+Str" (2026-11-01); {thrust} and {swing}
+        // carry their sign.
+        (HudWeaponLine, _ => "Thrust Str{thrust} = {thrustTotal} · Swing Str{swing} = {swingTotal}"),
+        (HudChooseTarget, _ => "{action}: choose a target"),
+        // A Thrust that walks first says so (owner, 2026-10-29: "explain the move+attack combo").
+        // A count, so a plural for the translator, as the other counted strings (HudSquares, MoneyProse).
+        (HudWalksThenThrusts, _ => "{n, plural, one {Walks #, then thrusts} other {Walks #, then thrusts}}"),
+        (HudArmourLine, _ => "Armour {n}"),
+        (HudThrust, _ => "Thrust"),
+        (HudSwing, _ => "Swing"),
+        (HudMove, _ => "Move"),
+        (HudInspect, _ => "Inspect"),
+        (HudHit, _ => "Hit"),
+        (HudDamage, _ => "Damage"),
+        (HudCost, _ => "Cost"),
+        (HudWalk, _ => "Walk"),
+        // Under the desktop forecast: how to swing rather than thrust (owner, 2026-11-01: "no clear way").
+        (HudSwingHint, _ => "Click to thrust \u00b7 Shift+click to swing"),
+        (HudInspectHint, _ => "Learn its Health, Stamina, skills and Defense. Right-click again to inspect."),
+        (HudInspectHintTouch, _ => "Learn its Health, Stamina, skills and Defense. Tap Inspect to look."),
+        (HudFree, _ => "free"),
+        (HudNone, _ => "none"),
+        (HudStaminaCost, _ => "{n} Stamina"),
+        (HudStaminaCostShort, _ => "−{n} St"),
+        (HudSquares, _ => "{n, plural, one {# square} other {# squares}}"),
+        (HudAboutPercent, _ => "about {n}%"),
+        (HudDamageRange, _ => "{low}–{high}"),
+        (HudDamageOpen, _ => "{low}+"),
+        (HudAboutDamage, _ => "about {n}"),
+        (HudRestGain, _ => "+{n}"),
+        (HudConfirm, _ => "{action} ▶"),
+        (HudConfirmEmpty, _ => "nothing chosen"),
+        (HudAllies, _ => "{n, plural, one {+# ally} other {+# allies}}"),
+        (HudChip, _ => "HP {health}/{max} · ST {stamina} · SPD {speed}"),
+        (HudHoldToInspect, _ => "hold to inspect"),
+        (HudNoConditions, _ => "No conditions"),
+        (HudStoneCast, _ => "Cast"),
+        (HudStoneShoot, _ => "Shoot"),
+        (HudStoneRetreat, _ => "Retreat"),
+        (HudStoneDefend, _ => "Defend"),
+        (HudStonePack, _ => "Pack"),
+        (HudStoneRest, _ => "Rest"),
+        (HudStoneAuto, _ => "Auto"),
+        // The Auto stone while auto-resolve runs: pressing it again takes control back.
+        (HudStoneStop, _ => "Stop"),
+        (HudStoneHelpCast, _ => "Tap to let the current character cast a magic spell."),
+        (HudStoneHelpShoot, _ => "Tap to let the current character fire a crossbow."),
+        (HudStoneHelpRetreat, _ => "Tap and the whole party attempts a strategic retreat."),
+        (HudStoneHelpDefend, _ => "Tap and the current character defends for one turn."),
+        (HudStoneHelpPack, _ => "Tap to open the current character's inventory."),
+        (HudStoneHelpRest, _ => "Tap and the current character rests for one round."),
+        (HudStoneHelpAuto, _ => "Tap and the party fights on its own; tap again to take control back."),
+        (HudReset, _ => "Reset view"),
+        (HudHealthCostShort, _ => "−{n} H"),
+        (HudJoin, _ => "{a} · {b}"),
+        (HudForecastTitle, _ => "{action} {target}"),
+        (HudShortHealth, _ => "HP"),
+        (HudShortStamina, _ => "ST"),
+        (HudShortSpeed, _ => "SPD"),
+        (HudShortStrength, _ => "STR"),
+        (HudShortMissile, _ => "MIS"),
+        (HudShortMelee, _ => "MEL"),
+        (HudShortCast, _ => "CST"),
+        (HudShortDefense, _ => "DEF"),
+        (EnhancedLogThrust, _ => "{actor} thrusts at {target}: {result}"),
+        (EnhancedLogSwing, _ => "{actor} swings at {target}: {result}"),
+        (EnhancedLogShoot, _ => "{actor} shoots {target}: {result}"),
+        (EnhancedLogCast, _ => "{actor} casts at {target}: {result}"),
+        (EnhancedLogNoActor, _ => "{target}: {result}"),
+        (EnhancedLogHit, _ => "hit {count}"),
+        (EnhancedLogMiss, _ => "miss"),
+        (EnhancedLogGain, _ => "{target} gains {count}"),
+        (EnhancedLogFoe, _ => "{creature} {letter}"),
+        (EnhancedLogDefends, _ => "{actor} defends"),
+        (EnhancedLogRests, _ => "{actor} rests"),
+        (EnhancedLogFalls, _ => "{target} falls!"),
         (EnhancedCastCast, _ => "Cast"),
         (EnhancedCastBack, _ => "Back"),
         (EnhancedCastHealth, _ => "Health {current}/{max}"),
         (EnhancedCastStamina, _ => "Stamina {current}/{max}"),
         (EnhancedCastPool, _ => "{health} · {stamina}"),
         (EnhancedInvGiveTo, _ => "Give to {name}"),
-        (EnhancedInvTakes, _ => "{name} takes it"),
         (EnhancedInvBuyFor, _ => "Buy for {name}"),
         (EnhancedInvHasIt, _ => "Has it"),
-        (EnhancedInvBack, _ => "Back to the pack"),
+        (EnhancedInvGetAll, _ => "Get all"),
         (EnhancedPendingKey, _ => "{text} (restart)"),
         (EnhancedStatusKey, _ => "Day {day} · {hour}:00"),
         (EnhancedStatusAtKey, _ => "{place} · {status}"),

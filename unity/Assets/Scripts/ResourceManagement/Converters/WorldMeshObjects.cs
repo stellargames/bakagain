@@ -21,6 +21,9 @@ namespace BakAgain.ResourceManagement.Converters {
         /// <summary>World units a road or river is lifted toward the camera per paint layer (one BaK unit).</summary>
         private const float OverlayLift = 0.01f;
 
+        /// <summary>The lift of DrawPriority-0 objects: above the ground, below the road layer's.</summary>
+        private const float ObjectLift = OverlayLift / 2;
+
         /// <summary>
         /// Builds a per-pen layered terrain/polygon GameObject with one sub-mesh per pen, each
         /// assigned a render-queue-adjusted + depth-offset material variant. When
@@ -147,8 +150,11 @@ namespace BakAgain.ResourceManagement.Converters {
                 // model alike and still orders DrawPriority 0 over the terrain layers.
                 mat.SetFloat(OffsetFactorId, layer == ObjectLayer ? 0f : -layer);
                 // And the overlays a depth lift that holds when the slope term is zero (the
-                // overhead map looks straight down); objects keep their offsets only.
-                mat.SetFloat(LayerLiftId, layer == ObjectLayer ? 0f : layer * OverlayLift);
+                // overhead map looks straight down). Objects take half a road's: the constant term
+                // alone lost to the ground under fall1's pool, which the paint-rank nudge pushes
+                // back (measured TASK-1020: ground over the whole pool, the same with Lighting off),
+                // and below the road's lift a road in a flat landscape block's plane still wins.
+                mat.SetFloat(LayerLiftId, layer == ObjectLayer ? ObjectLift : layer * OverlayLift);
             }
             ctx.LayeredTerrainCache[key] = mat;
             return mat;

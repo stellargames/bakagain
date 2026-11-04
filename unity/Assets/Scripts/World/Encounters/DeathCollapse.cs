@@ -54,22 +54,35 @@ namespace BakAgain.World.Encounters {
         private int _extent;
 
         /// <summary>Start the collapse. Does nothing without a creature set to read frames from.</summary>
-        public void Play(WorldEntityRenderContext ctx,
+        public UniTask Play(WorldEntityRenderContext ctx,
             SpriteBMeshFace face,
             string setName, int lastFrame, int extent) {
             if (ctx == null || face == null || string.IsNullOrEmpty(setName)
                 || lastFrame < Frames - 1) {
-                return;
+                return UniTask.CompletedTask;
             }
             _ctx = ctx;
             _face = face;
             _setName = setName;
             _lastFrame = lastFrame;
             _extent = extent;
-            RunAsync().Forget();
+            return RunAsync();
         }
 
-        private async UniTaskVoid RunAsync() {
+        /// <summary>Falls still playing; the arena counts them as busy (the original waits for
+        /// <c>combat_actor_play_anim_sprite1</c>, COMBAT.C:226 / CACTOR.C:1895).</summary>
+        public static int Playing { get; private set; }
+
+        private async UniTask RunAsync() {
+            Playing++;
+            try {
+                await RunCoreAsync();
+            } finally {
+                Playing--;
+            }
+        }
+
+        private async UniTask RunCoreAsync() {
             var filter = GetComponent<MeshFilter>();
             var renderer = GetComponent<MeshRenderer>();
             if (filter == null || renderer == null) {

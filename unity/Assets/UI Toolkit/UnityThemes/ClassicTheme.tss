@@ -387,8 +387,10 @@
 .enhanced-inv .enhanced-inv__purse-text { font-size: 55px; white-space: nowrap; color: rgb(46, 29, 15); }
 .enhanced-inv .enhanced-inv__hint { flex-grow: 1; flex-shrink: 1; overflow: hidden; font-size: 44px; white-space: normal; color: rgb(205, 185, 143); }
 .enhanced-inv .enhanced-inv__button { position: relative; flex-shrink: 0; margin-left: 6px; }
-/* The Enhanced loot's capacity squares (TASK-944): one faint tile per slot, under the items. */
-.enhanced-inv .inv-square__tile { position: absolute; left: 6px; top: 6px; right: 6px; bottom: 6px; border-radius: 10px; border-width: 3px; border-color: rgba(181, 140, 90, 0.38); background-color: rgba(255, 236, 200, 0.05); }
+.enhanced-inv .enhanced-inv__tablet { width: 220px; height: 96px; flex-shrink: 0; margin-left: 18px; margin-right: 12px; justify-content: center; align-items: center; border-radius: 6px; border-width: 4px; border-color: rgb(181, 112, 74); background-color: rgb(201, 176, 131); background-size: cover; }
+.enhanced-inv .enhanced-inv__tablet:hover { border-color: rgb(255, 196, 140); }
+.enhanced-inv .enhanced-inv__tablet:focus { border-color: rgb(255, 214, 160); }
+.enhanced-inv .enhanced-inv__tablet-word { font-size: 46px; color: rgb(42, 29, 14); -unity-text-align: middle-center; }
 .enhanced-inv .enhanced-inv__examine { position: absolute; left: 5%; right: 4%; top: 7%; bottom: 7%; flex-direction: row; }
 .enhanced-inv .enhanced-inv__description { flex-grow: 3; flex-basis: 0; align-self: flex-start; font-size: 44px; white-space: normal; color: var(--ui-ink); }
 .enhanced-inv .enhanced-inv__stats { flex-grow: 2; flex-basis: 0; align-self: stretch; overflow: hidden; margin-left: 24px; padding-left: 24px; border-left-width: 2px; border-color: rgba(58, 36, 16, 0.4); }
@@ -402,7 +404,6 @@
 /* Exit wears the original face, drawn at its native size top-left (TASK-941): the box is that size. */
 .enhanced-cast .enhanced-cast__exit { position: relative; width: 165px; height: 168px; flex-shrink: 0; margin-left: 18px; }
 .enhanced-stone { position: absolute; left: 0; top: 0; right: 0; bottom: 0; border-radius: 50%; background-size: 100% 100%; }
-.enhanced-cast .enhanced-cast__school--off .enhanced-stone { opacity: 0.35; }
 .enhanced-cast .enhanced-cast__school--shown .enhanced-stone { border-width: 4px; border-color: rgb(224, 149, 92); }
 .enhanced-cast .enhanced-cast__right { flex-grow: 1; flex-direction: column; }
 .enhanced-cast .enhanced-cast__top { flex-grow: 1; flex-direction: row; }
@@ -417,6 +418,9 @@
 .enhanced-cast .enhanced-cast__gem { background-size: 100% 100%; }
 .enhanced-cast .enhanced-cast__holo--lit { scale: 1.15 1.15; }
 .enhanced-cast .enhanced-cast__holo--dim { -unity-background-image-tint-color: rgb(150, 150, 150); }
+/* A known spell that cannot be cast now (TASK-1023): drawn, dull and inert; its name dimmed in the list. */
+.enhanced-cast .cast-spell-symbol.enhanced-cast__holo--dull { -unity-background-image-tint-color: rgb(70, 70, 70); }
+.enhanced-cast .cast-info-line.enhanced-cast__holo--dull { opacity: 0.45; }
 .enhanced-strap { position: absolute; background-size: 100% 100%; -unity-background-image-tint-color: rgb(118, 90, 78); }
 .enhanced-cast .enhanced-cast__readout { position: absolute; left: 0; top: 0; right: 0; bottom: 0; align-items: center; justify-content: center; }
 .enhanced-cast .enhanced-cast__readout-power { font-size: 150px; color: rgb(255, 243, 207); -unity-text-align: middle-center; text-shadow: 0 0 18px rgba(255, 120, 70, 0.8); }
@@ -431,3 +435,197 @@
 .enhanced-cast .enhanced-cast__stats { position: absolute; top: 284px; font-size: 26px; white-space: nowrap; color: rgb(236, 217, 176); -unity-text-align: upper-center; }
 .enhanced-cast .enhanced-cast__strip { height: 72px; flex-shrink: 0; margin: -8px 0 12px 0; overflow: hidden; }
 .enhanced-cast .enhanced-cast__frame { position: relative; flex-grow: 1; flex-direction: column; padding: 40px; }
+
+/* Enhanced combat HUD, desktop band (TASK-972, frames desktop-01..18). DesktopCombatHud sets the band's
+   height and the slots' relative widths from EnhancedCombatLayout; the panel is 1200 units high, so a
+   size here is a fraction of the window height (24 units = 21.6 px at 1080p). Body text 24, small 20. */
+.ec-desk { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+.ec-desk Label { color: rgb(46, 30, 16); font-size: 24px; white-space: nowrap; -unity-text-align: middle-left; margin: 0; padding: 0; }
+.ec-desk-banner { position: absolute; left: 46px; top: 42px; padding: 4px 14px; flex-direction: row; align-items: flex-end; border-width: 2px; border-color: rgb(196, 160, 92); background-color: rgba(28, 18, 10, 0.88); }
+.ec-desk .ec-desk-banner__text { color: rgb(236, 210, 140); font-size: 28px; }
+.ec-desk .ec-desk-banner__round { margin-left: 10px; color: rgb(196, 170, 120); font-size: 20px; }
+.ec-desk .ec-desk-banner--theirs { background-color: rgb(222, 204, 168); border-color: rgb(120, 70, 40); }
+.ec-desk .ec-desk-banner--theirs .ec-desk-banner__text { color: rgb(160, 30, 24); }
+.ec-desk .ec-desk-banner--theirs .ec-desk-banner__round { color: rgb(120, 70, 40); }
+.ec-desk-cam { position: absolute; right: 46px; top: 42px; flex-direction: row; }
+.ec-desk-cam__button { min-width: 56px; height: 52px; margin-left: 10px; padding: 0 10px; font-size: 26px; color: rgb(236, 210, 140); background-color: rgba(28, 18, 10, 0.88); border-width: 2px; border-color: rgb(196, 160, 92); border-radius: 2px; }
+.ec-desk-cam__button:hover { border-color: rgb(255, 220, 140); }
+.ec-desk-band { position: absolute; left: 0; right: 0; bottom: 0; flex-direction: row; padding: 12px 10px; background-color: rgb(29, 23, 13); background-repeat: repeat; background-size: 720px 480px; }
+.ec-desk-slot { height: 100%; }
+.ec-desk-slot__inner { flex-grow: 1; margin: 0 6px; overflow: hidden; }
+.ec-desk-parchment { background-color: rgb(226, 210, 176); border-width: 3px; border-color: rgb(120, 86, 52); padding: 6px 12px; }
+.ec-desk-slot__inner.ec-desk-slot-0 { flex-direction: row; align-items: center; justify-content: space-around; }
+#ec-desk-slot-inner-3 { justify-content: center; }
+.ec-desk-foes { padding: 12px 0 6px 0; }
+.ec-desk-row { flex-direction: row; align-items: center; justify-content: space-between; }
+.ec-desk-col { flex-direction: column; flex-grow: 1; flex-basis: 0; margin-right: 10px; }
+.ec-desk-card { flex-grow: 1; }
+.ec-desk .ec-desk-title { font-size: 28px; color: rgb(30, 18, 8); }
+.ec-desk .ec-desk-small { font-size: 22px; color: rgb(66, 44, 24); }
+.ec-desk .ec-desk-hint { font-size: 22px; color: rgb(66, 44, 24); white-space: normal; margin-top: 6px; }
+.ec-desk .ec-desk-caption { font-size: 24px; color: rgb(236, 220, 186); -unity-text-align: middle-center; }
+.ec-desk .ec-desk-caption--small { font-size: 20px; color: rgb(190, 170, 136); -unity-text-align: middle-center; }
+.ec-desk-medallion-col { align-items: center; }
+.ec-desk-medallion { border-radius: 50%; border-width: 5px; border-color: rgb(232, 196, 92); background-color: rgb(40, 26, 16); justify-content: center; align-items: center; overflow: hidden; }
+.ec-desk-medallion--theirs { border-color: rgb(196, 44, 32); }
+/* The portrait inside its Health + Stamina ring, as on the coins; the ring stays inside the clipped disc. */
+.ec-desk-medallion__head { position: absolute; left: 11%; top: 11%; right: 11%; bottom: 11%; border-radius: 50%; }
+.ec-desk-medallion .enhanced-hud__ring { left: 1%; top: 1%; right: 1%; bottom: 1%; }
+.ec-desk .ec-desk-medallion__letter { font-size: 64px; color: rgb(236, 210, 140); -unity-text-align: middle-center; }
+/* One column (owner, 2026-11-01: a triangle took width); a summon past the third wraps to a second column. */
+.ec-desk-coins { flex-direction: column; flex-wrap: wrap; height: 100%; justify-content: center; align-content: center; }
+.ec-desk-coin { margin: 4px; border-radius: 50%; background-color: rgb(70, 54, 40); justify-content: center; align-items: center; }
+.ec-desk-coin__head { position: absolute; left: 10%; top: 10%; right: 10%; bottom: 10%; border-radius: 50%; }
+.ec-desk .ec-desk-coin__letter { font-size: 28px; color: rgb(236, 220, 186); -unity-text-align: middle-center; }
+.enhanced-ring__badge { position: absolute; right: -6%; bottom: -6%; width: 40%; height: 40%; border-radius: 50%; display: none; }
+.enhanced-ring--acted .enhanced-ring__badge { display: flex; background-color: rgb(52, 52, 48); border-width: 2px; border-color: rgb(236, 220, 186); }
+/* Down: the portrait dims, no badge (owner, 2026-11-01: the red cross was ugly). */
+.enhanced-ring--down { -unity-background-image-tint-color: rgb(110, 110, 110); opacity: 0.4; }
+.enhanced-ring--active { border-width: 3px; border-color: rgb(232, 196, 92); }
+.enhanced-ring--summon { border-width: 3px; border-color: rgb(150, 110, 210); }
+.ec-desk-chip { margin-left: 8px; padding: 0 8px; background-color: rgb(52, 112, 52); }
+.ec-desk .ec-desk-chip { font-size: 20px; color: rgb(236, 236, 210); }
+.ec-desk-pair { flex-direction: row; justify-content: space-between; height: 34px; align-items: center; }
+.ec-desk .ec-desk-pair__label { flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; }
+.ec-desk .ec-desk-pair__value { flex-shrink: 0; margin-left: 8px; color: rgb(30, 18, 8); }
+.ec-desk .ec-desk-small { overflow: hidden; text-overflow: ellipsis; }
+#ec-desk-weapon-stats { white-space: normal; text-overflow: clip; }   /* "Thrust Str-7 = 5 · Swing ..." wraps rather than cut */
+.ec-desk-pool { height: 18px; margin: 4px 0; flex-direction: row; background-color: rgb(60, 40, 30); border-width: 2px; border-color: rgb(30, 18, 8); flex-grow: 1; }
+.ec-desk-pool__stamina { height: 100%; background-color: rgb(212, 160, 42); }
+.ec-desk-pool__health { height: 100%; background-color: rgb(184, 50, 42); }
+.ec-desk .ec-desk-party__name { width: 34%; }
+.ec-desk .ec-desk-party__value { width: 26%; -unity-text-align: middle-right; color: rgb(140, 30, 24); }
+.ec-desk .ec-desk-ends-turn { padding: 0 10px; background-color: rgb(168, 30, 24); color: rgb(255, 236, 220); font-size: 22px; flex-shrink: 0; }
+.ec-desk-ledger-body { flex-grow: 1; padding-top: 6px; overflow: hidden; }
+.ec-desk-ledger-footer { border-top-width: 2px; border-color: rgb(150, 120, 86); padding-top: 4px; flex-shrink: 0; overflow: hidden; }
+.ec-desk .ec-desk-log { font-size: 22px; white-space: normal; color: rgb(60, 42, 26); flex-shrink: 0; }
+/* Idle: the newest lines at the bottom, the oldest clipped at the top. Absolute, so no line's height
+   is capped at the body's (a capped line drew over the next one). */
+.ec-desk-ledger-body--log { justify-content: flex-end; }
+.ec-desk-log-stack { position: absolute; left: 0; right: 0; bottom: 0; }
+/* Under a forecast: the last lines, one row each, cut rather than wrapped over each other. */
+.ec-desk .ec-desk-ledger-footer .ec-desk-log { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ec-desk .ec-desk-reason { white-space: normal; color: rgb(160, 30, 24); }
+.ec-desk .ec-desk-reason--warn { color: rgb(170, 100, 10); }
+.ec-desk-table__row { flex-direction: row; height: 30px; align-items: center; }
+.ec-desk .ec-desk-table__label { width: 26%; }
+.ec-desk-table__col { flex-grow: 1; flex-basis: 0; justify-content: center; }
+.ec-desk .ec-desk-table__cell { -unity-text-align: middle-center; }
+.ec-desk .ec-desk-table__head--chosen { border-width: 2px; border-color: rgb(150, 110, 40); background-color: rgb(240, 220, 150); }
+.ec-desk .ec-desk-off { color: rgb(128, 110, 88); }
+.ec-pips { flex-direction: row; justify-content: center; align-items: center; }
+.ec-pip { width: 18px; height: 18px; margin: 0 3px; border-radius: 50%; border-width: 2px; border-color: rgb(46, 30, 16); }
+.ec-pip--on { background-color: rgb(46, 30, 16); }
+.ec-desk-foe { flex-direction: row; align-items: center; height: 40px; padding: 0 4px; }
+.ec-desk-foe:hover { background-color: rgba(240, 220, 150, 0.8); }
+.ec-desk-foe--down { opacity: 0.5; }
+.ec-desk-foe--acting { border-width: 2px; border-color: rgb(196, 44, 32); }
+.ec-desk .ec-desk-foe__name { flex-grow: 1; flex-shrink: 1; margin-left: 8px; overflow: hidden; text-overflow: ellipsis; }
+.ec-desk .ec-desk-foe__note { width: 64px; -unity-text-align: middle-right; color: rgb(66, 44, 24); font-size: 22px; }
+.ec-desk .ec-desk-foe--seen .ec-desk-foe__note { color: rgb(30, 90, 30); }
+.ec-letter { width: 34px; height: 34px; border-radius: 50%; background-color: rgb(30, 22, 14); border-width: 2px; border-color: rgb(196, 160, 92); }
+.ec-desk .ec-letter { color: rgb(236, 210, 140); font-size: 22px; -unity-text-align: middle-center; margin-right: 4px; }
+.ec-desk .ec-letter--chosen { background-color: rgb(232, 196, 92); color: rgb(30, 18, 8); }
+.ec-desk-foecard-rows { flex-direction: column; flex-wrap: wrap; height: 132px; }
+.ec-desk-foecard-rows--member { height: 66px; }
+/* The foe card is as tall as what it lists (DesktopCombatHud: max the band's height), so its rows take their own height. */
+#ec-desk-foe-rows { flex-basis: auto; flex-grow: 0; }
+.ec-desk-foecard-kit { flex-direction: column; padding-right: 12px; }
+#ec-desk-foe-discs { justify-content: flex-start; }
+.ec-desk .ec-desk-title { flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; }
+.ec-desk .ec-desk-title--forecast { font-size: 24px; white-space: normal; text-overflow: clip; margin-right: 8px; }
+.ec-desk-foecard__row { width: 50%; height: 33px; flex-direction: row; justify-content: space-between; padding-right: 12px; align-items: center; }
+.ec-desk .ec-desk-foecard__label { flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; }
+.ec-desk .ec-desk-foecard__value { flex-shrink: 0; margin-left: 6px; color: rgb(150, 130, 100); }
+.ec-desk .ec-desk-foecard__value--known { color: rgb(30, 90, 30); }
+.ec-desk-stones { flex-direction: row; flex-wrap: wrap; justify-content: space-around; }
+.ec-stone { width: 33%; align-items: center; justify-content: center; margin-bottom: 6px; }
+.ec-stone__disc { border-radius: 50%; background-size: contain; }
+.ec-stone__satchel { position: absolute; left: 18%; top: 18%; right: 18%; bottom: 18%; background-size: contain; }
+.ec-desk .ec-stone__key { display: none; position: absolute; left: 4px; top: 0; width: 28px; height: 28px; background-color: rgb(196, 160, 92); color: rgb(30, 18, 8); font-size: 20px; -unity-text-align: middle-center; }
+.ec-desk .ec-stone__name { position: absolute; bottom: 0; left: 0; right: 0; color: rgb(236, 220, 186); font-size: 22px; -unity-text-align: middle-center; text-shadow: 1px 1px 2px rgb(0, 0, 0); }
+.ec-stone__warn { position: absolute; right: 10%; top: 4%; width: 22px; height: 22px; border-radius: 4px; rotate: 45deg; background-color: rgb(232, 150, 30); border-width: 2px; border-color: rgb(60, 30, 0); display: none; }
+.ec-stone--warned .ec-stone__warn { display: flex; }
+.ec-stone--off .ec-stone__disc { -unity-background-image-tint-color: rgb(96, 96, 96); opacity: 0.6; }
+.ec-stone--off .ec-stone__satchel { -unity-background-image-tint-color: rgb(96, 96, 96); }
+.ec-desk .ec-stone--off .ec-stone__name { color: rgb(130, 120, 106); }
+.ec-stone--hover .ec-stone__disc { border-width: 3px; border-color: rgb(255, 220, 140); }
+.ec-desk .ec-stone--hover .ec-stone__key { display: flex; }   /* the key shows on hover only (owner, 2026-11-01) */
+.ec-desk-tip { position: absolute; translate: -50% -110%; padding: 4px 12px; background-color: rgb(236, 222, 190); border-width: 2px; border-color: rgb(120, 86, 52); }
+.ec-desk .ec-desk-tip { font-size: 22px; color: rgb(110, 30, 20); }
+
+/* Enhanced combat HUD, phone docks (TASK-972, frames phone-01..18). PhoneCombatHud sets every size and
+   font in points from EnhancedCombatLayout; this is colour and arrangement only. */
+/* The phone wears the desktop's materials (owner's Android check, 2026-11-02): dark plates trimmed in
+   gold over the board, parchment with ink for what is read, the stones bare on CFRAME's marble. */
+.ec-phone { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+.ec-phone-safe { position: absolute; }
+.ec-phone-text { color: rgb(236, 220, 186); white-space: nowrap; margin: 0; padding: 0; -unity-text-align: middle-left; text-shadow: 1px 1px 2px rgb(0, 0, 0); }
+.ec-phone-strong { -unity-font-style: bold; color: rgb(244, 222, 160); }
+.ec-phone-dim { color: rgb(196, 176, 136); margin-left: 6px; }
+.ec-phone-ends { color: rgb(240, 150, 110); margin-left: 8px; }
+.ec-phone-theirs { color: rgb(240, 110, 90); }
+.ec-phone-warn { color: rgb(240, 180, 60); }
+.ec-phone-reason { color: rgb(240, 110, 90); }
+.ec-phone-row { flex-direction: row; align-items: center; }
+.ec-phone-col { flex-direction: column; justify-content: center; }
+.ec-phone-top { position: absolute; left: 0; right: 0; top: 0; flex-direction: row; align-items: stretch; }
+.ec-phone-chip { flex-direction: row; align-items: center; margin-right: 6px; padding: 0 8px 0 3px; border-radius: 2px; background-color: rgba(28, 18, 10, 0.9); border-width: 2px; border-color: rgb(196, 160, 92); -unity-text-align: middle-center; }
+.ec-phone-chip--theirs { border-color: rgb(196, 44, 32); }
+.ec-phone-head { margin-right: 8px; border-radius: 50%; background-color: rgb(40, 26, 16); justify-content: center; align-items: center; }
+.ec-phone-head__letter { -unity-font-style: bold; color: rgb(236, 210, 140); -unity-text-align: middle-center; }
+.ec-phone-coin { margin-right: 6px; border-radius: 50%; background-color: rgb(40, 26, 16); }
+.ec-phone-sentence { flex-grow: 1; flex-direction: row; align-items: center; justify-content: space-between; padding: 0 12px; border-radius: 2px; background-color: rgba(28, 18, 10, 0.9); border-width: 2px; border-color: rgb(196, 160, 92); }
+.ec-phone-cam { flex-direction: column; }
+.ec-phone-button { margin: 0 0 6px 0; padding: 0; border-radius: 2px; background-color: rgba(28, 18, 10, 0.9); border-width: 2px; border-color: rgb(196, 160, 92); color: rgb(236, 210, 140); -unity-text-align: middle-center; }
+.ec-phone-cross { position: absolute; left: 22%; right: 22%; top: 47%; height: 6%; background-color: rgb(236, 210, 140); }
+.ec-phone-cross--a { rotate: 45deg; }
+.ec-phone-cross--b { rotate: -45deg; }
+.ec-phone-foes { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; }
+.ec-phone-foe { margin: 0 0 6px 6px; border-radius: 2px; background-color: rgba(28, 18, 10, 0.9); border-width: 2px; border-color: rgb(196, 160, 92); align-items: center; justify-content: center; }
+.ec-phone-foe--chosen { background-color: rgb(196, 160, 92); }
+.ec-phone-foe--chosen .ec-phone-text { color: rgb(40, 24, 8); text-shadow: 0 0 0 rgba(0, 0, 0, 0); }
+.ec-phone-foe--acting { border-color: rgb(196, 44, 32); }
+.ec-phone-foe--down { opacity: 0.45; }
+.ec-phone-foe__letter { -unity-font-style: bold; color: rgb(244, 222, 160); -unity-text-align: middle-center; }
+.ec-phone-confirm { margin: 0; padding: 0; border-radius: 2px; background-color: rgb(212, 176, 96); border-width: 3px; border-color: rgb(120, 86, 52); align-items: center; justify-content: center; }
+.ec-phone-confirm .ec-phone-text { -unity-text-align: middle-center; color: rgb(40, 24, 8); text-shadow: 0 0 0 rgba(0, 0, 0, 0); }
+.ec-phone-confirm--empty { background-color: rgba(28, 18, 10, 0.9); border-width: 2px; border-color: rgb(196, 160, 92); }
+.ec-phone-confirm--empty .ec-phone-text { color: rgb(196, 176, 136); }
+.ec-phone-confirm--warned { background-color: rgb(230, 150, 40); }
+/* Parchment: what is read, in ink. Background colours are the texture's tone, for when it is missing. */
+.ec-phone-peek { padding: 6px 10px; border-radius: 2px; background-color: rgb(226, 210, 176); border-width: 3px; border-color: rgb(120, 86, 52); overflow: hidden; justify-content: flex-end; }
+.ec-phone-sheet { padding: 10px 14px; border-radius: 2px; background-color: rgb(226, 210, 176); border-width: 3px; border-color: rgb(120, 86, 52); }
+.ec-phone-tip { position: absolute; padding: 6px 10px; white-space: normal; background-color: rgb(226, 210, 176); border-width: 3px; border-color: rgb(120, 86, 52); }
+.ec-phone-peek .ec-phone-text, .ec-phone-sheet .ec-phone-text, .ec-phone-text.ec-phone-tip { color: rgb(44, 30, 16); text-shadow: 0 0 0 rgba(0, 0, 0, 0); }
+.ec-phone-peek .ec-phone-strong, .ec-phone-sheet .ec-phone-strong { color: rgb(30, 20, 10); }
+.ec-phone-peek .ec-phone-dim, .ec-phone-sheet .ec-phone-dim { color: rgb(70, 48, 28); }
+.ec-phone-peek .ec-phone-ends, .ec-phone-peek .ec-phone-reason { color: rgb(160, 30, 24); }
+.ec-phone-peek .ec-phone-warn { color: rgb(130, 74, 0); }
+.ec-phone-log { white-space: normal; }
+.ec-phone-hint { white-space: normal; margin-top: 2px; }
+.ec-phone-hit { margin-right: 16px; }
+.ec-phone-switch { margin: 0 8px 4px 0; padding: 0 8px; border-radius: 2px; background-color: rgba(120, 86, 52, 0.18); border-width: 2px; border-color: rgb(120, 86, 52); align-items: flex-start; justify-content: center; }
+.ec-phone-switch--on { background-color: rgb(212, 176, 96); }
+.ec-phone-glyphs { margin-top: 4px; }
+.ec-phone-glyph { flex-direction: column; align-items: center; margin-right: 6px; padding: 0 4px; border-radius: 2px; background-color: rgba(120, 86, 52, 0.2); }
+.ec-phone-glyph .ec-phone-dim { margin-left: 0; }
+.ec-phone .ec-pips { margin-right: 28px; }
+.ec-phone .ec-pip { border-color: rgb(70, 46, 24); margin: 0 2px; }
+.ec-phone .ec-pip--on { background-color: rgb(70, 46, 24); }
+/* The stones: bare discs on marble, as the desktop band has them. */
+.ec-phone-grid { flex-direction: column; justify-content: space-between; padding: 4px; background-color: rgb(29, 23, 13); background-repeat: repeat; background-size: 720px 480px; border-width: 2px; border-color: rgb(196, 160, 92); }
+.ec-phone-grid__row { flex-direction: row; justify-content: space-between; }
+.ec-phone-tile { background-color: rgba(0, 0, 0, 0); border-width: 0; align-items: center; justify-content: center; }
+.ec-phone-tile__icon { border-radius: 50%; }
+.ec-phone-tile__name { -unity-text-align: middle-center; -unity-font-style: bold; }
+.ec-phone-tile--off .ec-phone-tile__icon { -unity-background-image-tint-color: rgb(96, 96, 96); opacity: 0.6; }
+.ec-phone-tile--off .ec-phone-tile__name { color: rgb(130, 120, 106); }
+.ec-phone-tile--warned .ec-phone-tile__icon { border-width: 3px; border-color: rgb(240, 170, 40); }
+.ec-phone-badge--off { position: absolute; right: 2px; top: 2px; border-radius: 50%; background-color: rgb(150, 146, 136); color: rgb(20, 20, 18); -unity-text-align: middle-center; -unity-font-style: bold; text-shadow: 0 0 0 rgba(0, 0, 0, 0); }
+.ec-phone-badge--warn { position: absolute; right: 2px; top: 2px; border-radius: 3px; background-color: rgb(240, 170, 40); color: rgb(30, 20, 0); -unity-text-align: middle-center; -unity-font-style: bold; text-shadow: 0 0 0 rgba(0, 0, 0, 0); }
+.ec-phone-sheet__head { margin-right: 12px; border-radius: 2px; border-width: 3px; border-color: rgb(120, 86, 52); }
+.ec-phone-sheet__stats { flex-direction: column; margin-bottom: 4px; }
+.ec-phone-pair { flex-direction: row; align-items: center; }
+.ec-phone-pair .ec-phone-dim { margin-left: 0; }
+.ec-phone-sheet__line { white-space: normal; }

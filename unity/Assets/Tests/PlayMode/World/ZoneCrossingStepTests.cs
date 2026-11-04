@@ -151,5 +151,18 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.AreEqual(before + (TicksPerLargeStep / 4), rig.Clock.Ticks,
                 "it is charged once, after, at the rate of the zone the party is now in (WORLDLP.C:192-197)");
         }
+    
+        // Owner, 2026-11-01: out of the mines by the stairs and straight back in gave "must not be important".
+        // The crossing marked hotspot 0 as tried AFTER the zone change, i.e. the way back in the zone just
+        // entered; the original's enter_zone sets no tried flag (HOTSPOT.C:863-887).
+        [Test]
+        public void ACrossingMarksNothingTriedInTheZoneItEnters() {
+            Rig rig = Build();
+            rig.Movement.MoveForward();
+            rig.Dialogs.Answer.TrySetResult(true);
+            Assert.IsNotNull(rig.AtCrossing, "the fixture: it crossed");
+            Assert.AreEqual(0, rig.Hotspots.ReadGlobal(rig.Hotspots.ScoutTriedFlagKey(0)),
+                "the way back (slot 0 of the new zone) stays available");
+        }
     }
 }

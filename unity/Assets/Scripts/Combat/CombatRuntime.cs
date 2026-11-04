@@ -7,6 +7,7 @@ namespace BakAgain.Combat {
     using GameData.Resources.Character;
     using GameData.Resources.Combat;
     using GameData.Resources.Spells;
+    using GameData.Resources.Text;
     using Microsoft.Extensions.Logging;
 
     /// <summary>
@@ -82,17 +83,19 @@ namespace BakAgain.Combat {
         /// <para><b>Nothing draws this yet</b> — the tint needs the zone's RMP block applied to the
         /// sprite's palette. The state is faithful and ticked; the picture is TASK-103's next slice.</para>
         /// </remarks>
-        private static void MarkHit(Combatant struck, bool landed, int dealt,
+        private void MarkHit(Combatant struck, bool landed, int dealt,
             int remapIndex = HitReaction.BlowRemap) {
             if (struck == null || !landed) {
                 return;   // apply_damage returned before the float (COMBAT.C:330-350)
             }
             if (dealt <= 0) {
                 struck.DamageFloat = 0;   // "miss", and no CAF_KNOCKBACK (COMBAT.C:386-389)
+                StampFloat(struck);
                 return;
             }
             // The floating number (COMBAT.C:382-385): the damage when it is under 1000, else nothing.
             struck.DamageFloat = dealt < 1000 ? dealt : (int?)null;
+            StampFloat(struck);
             (CombatantFlags flags, int timer, int remap) =
                 HitReaction.Begin(struck.Flags, remapIndex);
             struck.Flags = flags;
@@ -305,6 +308,7 @@ namespace BakAgain.Combat {
             // The party with its back to the camera, the enemies facing it (COMBAT.C:131-150).
             encounter.DeployFacings();
             encounter.BeginRound();
+            Log.Round = 1;
             Encounter = encounter;
             _logger?.LogInformation("Combat entered: {Party} party vs {Enemies} enemies.",
                 encounter.Party.Count, encounter.Enemies.Count);
@@ -626,11 +630,24 @@ namespace BakAgain.Combat {
         ///
         /// <para><b>Both halves are real.</b> Shooting was stubbed to false while the quiver count
         /// and the equipped weapon were out of reach from a <see cref="Combatant"/>; they are
-        /// reachable now and <see cref="CanShootNow"/> computes it.</para>
+        /// reachable now and <see cref="WhyNotShootNow"/> computes it.</para>
         /// </remarks>
         public (bool CanShoot, bool CanCast) CapabilitiesFor(Combatant actor) {
+            (CombatCapability.ShootRefusal shoot, CombatCapability.CastRefusal cast) = RefusalsFor(actor);
+            return (shoot == CombatCapability.ShootRefusal.None, cast == CombatCapability.CastRefusal.None);
+        }
+
+        /// <summary>
+        /// Why the actor cannot shoot / cast right now (None = can). The ONE evaluation behind
+        /// <see cref="CapabilitiesFor"/> and <see cref="AvailabilityFor"/>.
+        /// </summary>
+        /// <param name="peek">True for the Enhanced HUD's and forecast's reads: the stats are read without
+        /// writing the cached byte or freeing lapsed modifiers. False for the Classic turn-start refresh,
+        /// which is the original's own <c>stat_actor_get</c>.</param>
+        private (CombatCapability.ShootRefusal Shoot, CombatCapability.CastRefusal Cast) RefusalsFor(
+            Combatant actor, bool peek = false) {
             if (actor == null || Encounter == null) {
-                return (false, false);
+                return (CombatCapability.ShootRefusal.NoCrossbow, CombatCapability.CastRefusal.NotACaster);
             }
 
             // Opponents, not everyone: an ally beside you does not block your cast.
@@ -645,16 +662,81 @@ namespace BakAgain.Combat {
             int terrain = Grid != null ? (int)Grid.TerrainAt(actor.X, actor.Y) : 0;
             ActorStat[] stats = StatsFor(actor);
 
-            bool canCast = CombatCapability.CanCast(
+            CombatCapability.CastRefusal cast = CombatCapability.WhyNotCast(
                 terrain,
                 nearest,
-                CombatStat(actor, ActorAttribute.AccuracyCasting),
+                CombatStat(actor, ActorAttribute.AccuracyCasting, peek),
                 StatValue(stats, ActorAttribute.Health),
                 CombatCapability.ShippedHealthThresholds,
                 chapterEightWithoutRequiredItem: false);
 
-            return (CanShootNow(actor, terrain, nearest, stats), canCast);
+            return (WhyNotShootNow(actor, terrain, nearest, peek), cast);
         }
+
+        /// <summary>
+        /// Which stones the acting hero may press this turn, and why not. Built from the same
+        /// refusals the commands apply (<see cref="RefusalsFor"/>, <see cref="ResolveRetreat"/>,
+        /// <see cref="CombatCommands.AutoResolveAllowed"/>, <see cref="RestAction.FirstBlockingCondition"/>)
+        /// so this is the one place that explains them. Cast and Shoot share one slot in the original
+        /// (<see cref="CombatMenuSlots.CapabilitySlot"/>); both are keyed so the HUD can show either.
+        /// </summary>
+        public System.Collections.Generic.IReadOnlyDictionary<CombatCommands.Command, ActionAvailability>
+            AvailabilityFor(Combatant acting) {
+            var result = new System.Collections.Generic.Dictionary<CombatCommands.Command, ActionAvailability> {
+                [CombatCommands.Command.Defend] = ActionAvailability.On,
+                [CombatCommands.Command.CharacterScreen] = ActionAvailability.On,
+            };
+            if (acting == null || Encounter == null) {
+                return result;
+            }
+            string name = NameInLog(acting, nameFoe: false);
+            ActionAvailability Refuse(string key, params (string, object)[] args) =>
+                new(false, false, key, UiTemplates.Format(key, args));
+            ActionAvailability Named(string key) => Refuse(key, ("name", name));
+
+            // Peek: the HUD polls this and a hover forecasts with it; neither may write the save.
+            (CombatCapability.ShootRefusal shoot, CombatCapability.CastRefusal cast) = RefusalsFor(acting, peek: true);
+            result[CombatCommands.Command.Cast] = cast switch {
+                CombatCapability.CastRefusal.None => ActionAvailability.On,
+                CombatCapability.CastRefusal.FoeAdjacent => Named(UiTemplates.EnhancedAvailFoeAdjacent),
+                CombatCapability.CastRefusal.NotACaster => Refuse(UiTemplates.EnhancedAvailNotACaster),
+                CombatCapability.CastRefusal.NoHealth => Named(UiTemplates.EnhancedAvailHeroDown),
+                CombatCapability.CastRefusal.Terrain => Named(UiTemplates.EnhancedAvailTerrain),
+                _ => Named(UiTemplates.EnhancedAvailCannotNow),
+            };
+            result[CombatCommands.Command.Shoot] = shoot switch {
+                CombatCapability.ShootRefusal.None => ActionAvailability.On,
+                CombatCapability.ShootRefusal.FoeAdjacent => Named(UiTemplates.EnhancedAvailFoeAdjacent),
+                CombatCapability.ShootRefusal.NoQuarrels => Refuse(UiTemplates.EnhancedAvailNoQuarrels),
+                CombatCapability.ShootRefusal.NoCrossbow => Refuse(UiTemplates.EnhancedAvailNoCrossbow),
+                CombatCapability.ShootRefusal.NoSkill => Named(UiTemplates.EnhancedAvailNoSkill),
+                _ => Named(UiTemplates.EnhancedAvailTerrain),
+            };
+
+            // Retreat: the dialog's rule — someone down, or the encounter forbids it.
+            Combatant down = FirstPartyMemberDown();
+            result[CombatCommands.Command.BackOrRetreat] = down != null
+                ? Refuse(UiTemplates.EnhancedAvailHeroDown, ("name", NameInLog(down, nameFoe: false)))
+                : !Encounter.EscapeAllowed ? Refuse(UiTemplates.EnhancedAvailRetreatForbidden)
+                : ActionAvailability.On;
+
+            result[CombatCommands.Command.AutoResolve] = CombatCommands.AutoResolveAllowed(Encounter.HasObjective)
+                ? ActionAvailability.On
+                : Refuse(UiTemplates.EnhancedAvailAutoRefused);
+
+            // Rest always spends the turn; it only warns when the recovery would not apply.
+            ActorCondition? blocking = RestAction.FirstBlockingCondition(ConditionRanksOf(acting));
+            result[CombatCommands.Command.Rest] = blocking == null
+                ? ActionAvailability.On
+                : new ActionAvailability(true, true, UiTemplates.EnhancedAvailNoHealCondition,
+                    UiTemplates.Format(UiTemplates.EnhancedAvailNoHealCondition,
+                        ("condition", GameData.Resources.Character.ActorLabels.ConditionName(blocking.Value))));
+            return result;
+        }
+
+        /// <summary>The first real party member who is down, or null — what stops a retreat.</summary>
+        private Combatant FirstPartyMemberDown() =>
+            Encounter.Party.Find(c => c.IsDead && c.IsPartyMember);
 
         /// <summary>
         /// Whether the actor can take a ranged shot — ammunition, an intact crossbow, room, and the
@@ -667,18 +749,18 @@ namespace BakAgain.Combat {
         /// <see cref="CombatCapability.InnatelyMissileCreature"/> today, but the coincidence is the
         /// kind that starts working by accident later. Zero is passed instead.
         /// </remarks>
-        private bool CanShootNow(Combatant actor, int terrain, int nearest, ActorStat[] stats) {
+        private CombatCapability.ShootRefusal WhyNotShootNow(Combatant actor, int terrain, int nearest, bool peek = false) {
             RuntimeContainer pack = actor.IsPartyMember
                 ? _session?.GetActorInventory(actor.ClassId)
                 : null;
 
-            return CombatCapability.CanShoot(
+            return CombatCapability.WhyNotShoot(
                 terrain,
                 nearest,
                 QuarrelInventory.Count(pack),
                 EquippedGear.HasIntact(EquipmentSlots(pack), CombatCapability.RangedWeaponCategory),
                 actor.IsPartyMember ? 0 : actor.ClassId,
-                CombatStat(actor, ActorAttribute.AccuracyCrossbow));
+                CombatStat(actor, ActorAttribute.AccuracyCrossbow, peek));
         }
 
         /// <summary>
@@ -875,17 +957,114 @@ namespace BakAgain.Combat {
             System.Collections.Generic.IReadOnlyList<CombatAssessment.Row> rows =
                 CombatAssessment.RowsFor(canShoot, canCast);
 
+            int enemySlot = Encounter?.Enemies.IndexOf(target) ?? -1;
             foreach ((CombatAssessment.Row row, int value, int x, int y) in CombatAssessment.Reveal(
                          rows,
                          CombatStat(inspector, CombatAssessment.RollAttribute),
-                         attribute => CombatStat(target, attribute),
+                         // The pools are the combatant's own, which damage lowers (stat_actor_get on the
+                         // combatant, CBENC.C:320-325); an enemy's stat table is its roster template.
+                         attribute => attribute switch {
+                             ActorAttribute.Health => target.Health,
+                             ActorAttribute.Stamina => target.Stamina,
+                             _ => CombatStat(target, attribute),
+                         },
                          rnd ?? (n => UnityEngine.Random.Range(0, n)))) {
+                if (enemySlot >= 0) {
+                    Knowledge.Record(enemySlot, row.Attribute, value);
+                }
                 lines.Add(new HudPanelLine(row.Label, x, y));
                 lines.Add(CombatAssessment.ValueLine(
                     row.Percent ? GameData.Resources.Text.UiTemplates.Percent(value) : value.ToString(),
                     x, y));
             }
             return lines;
+        }
+
+        /// <summary>What the player has learned about each enemy this fight (Enhanced combat HUD).</summary>
+        public EnemyKnowledge Knowledge { get; } = new EnemyKnowledge();
+
+        /// <summary>The result lines the player has seen this fight.</summary>
+        public FightLog Log { get; } = new FightLog();
+
+        private Combatant _actionActor;
+        private FloatCause _actionCause;
+
+        private (Combatant, FloatCause) BeginAction(Combatant actor, FloatCause cause) {
+            var before = (_actionActor, _actionCause);
+            (_actionActor, _actionCause) = (actor, cause);
+            return before;
+        }
+
+        private void EndAction((Combatant Actor, FloatCause Cause) before) =>
+            (_actionActor, _actionCause) = before;
+
+        /// <summary>Remember who caused the number just set on <paramref name="struck"/>.</summary>
+        private void StampFloat(Combatant struck) {
+            struck.DamageFloatBy = _actionActor;
+            struck.DamageFloatCause = _actionCause;
+        }
+
+        /// <summary>Add a line to the fight log — Enhanced combat only; Classic keeps no log.</summary>
+        public void LogLine(string line) {
+            if (GameOptions.IsOn(EnhancedFeature.Combat)) {
+                Log.Add(line);
+            }
+        }
+
+        /// <summary>
+        /// A damage number was floated over <paramref name="target"/>: add what was dealt to what the
+        /// player has seen (enemies only) and write the log line the float stands for, e.g.
+        /// "Gorath thrusts at A: miss". Only what the float showed counts.
+        /// </summary>
+        public void NoteFloatedDamage(Combatant target, int dealt) {
+            int enemySlot = Encounter?.Enemies.IndexOf(target) ?? -1;
+            if (enemySlot >= 0) {
+                Knowledge.AddSeen(enemySlot, dealt);
+            }
+            Combatant by = target.DamageFloatBy;
+            FloatCause cause = target.DamageFloatCause;
+            target.DamageFloatBy = null;
+            target.DamageFloatCause = FloatCause.None;
+            if (!GameOptions.IsOn(EnhancedFeature.Combat)) {
+                return;
+            }
+            string who = NameInLog(target, nameFoe: false);
+            if (dealt < 0) {
+                LogLine(UiTemplates.Format(UiTemplates.EnhancedLogGain, ("target", who), ("count", -dealt)));
+                return;
+            }
+            string result = dealt == 0
+                ? UiTemplates.Format(UiTemplates.EnhancedLogMiss)
+                : UiTemplates.Format(UiTemplates.EnhancedLogHit, ("count", dealt));
+            string template = cause switch {
+                FloatCause.Thrust => UiTemplates.EnhancedLogThrust,
+                FloatCause.Swing => UiTemplates.EnhancedLogSwing,
+                FloatCause.Shoot => UiTemplates.EnhancedLogShoot,
+                FloatCause.Cast => UiTemplates.EnhancedLogCast,
+                _ => UiTemplates.EnhancedLogNoActor,
+            };
+            LogLine(UiTemplates.Format(template, ("actor", by == null ? "" : NameInLog(by, nameFoe: true)),
+                ("target", who), ("result", result)));
+            if (dealt > 0 && target.IsDead) {
+                LogLine(UiTemplates.Format(UiTemplates.EnhancedLogFalls, ("target", NameInLog(target, nameFoe: true))));
+            }
+        }
+
+        internal string LogNameForTest(Combatant c, bool nameFoe = false) => NameInLog(c, nameFoe);
+
+        /// <summary>A hero by name; a foe by its letter, or "Creature A" when it is the one acting.</summary>
+        private string NameInLog(Combatant c, bool nameFoe) {
+            int foe = Encounter?.Enemies.IndexOf(c) ?? -1;
+            if (foe >= 0) {
+                char letter = BoardMarks.LetterFor(foe);
+                return nameFoe
+                    ? UiTemplates.Format(UiTemplates.EnhancedLogFoe,
+                        ("creature", _session?.CreatureNameOf(c.ClassId) ?? ""), ("letter", letter))
+                    : letter.ToString();
+            }
+            System.Collections.Generic.IReadOnlyList<string> names =
+                _session?.PartyActorNames ?? System.Array.Empty<string>();
+            return c.ClassId >= 0 && c.ClassId < names.Count ? names[c.ClassId] : string.Empty;
         }
 
         /// <summary>The four numbers the melee preview panel prints.</summary>
@@ -1088,9 +1267,20 @@ namespace BakAgain.Combat {
             System.Func<int, int> roll = rnd ?? (n => UnityEngine.Random.Range(0, n));
             int startX = acting.X;
             int startY = acting.Y;
-            AnnounceShove(acting, CombatWalk.Walk(Grid, acting, x, y, acting.Speed, puzzle: Puzzle,
-                occupiedByLiveCombatant: TileHoldsLiveCombatant,
-                onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, roll)));
+            if (Shortest(acting) && !ShovesAPushable(acting, x, y)) {
+                // Enhanced: along the shortest route, every tile on it firing as walking it would.
+                List<(int X, int Y)> route = ShortestMove(acting, x, y);
+                if (route == null) {
+                    return false;   // out of reach: refused, nothing spent
+                }
+                CombatWalk.WalkPath(Grid, acting, route, acting.Speed, puzzle: Puzzle,
+                    occupiedByLiveCombatant: TileHoldsLiveCombatant,
+                    onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, roll));
+            } else {
+                AnnounceShove(acting, CombatWalk.Walk(Grid, acting, x, y, acting.Speed, puzzle: Puzzle,
+                    occupiedByLiveCombatant: TileHoldsLiveCombatant,
+                    onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, roll)));
+            }
 
             // Walk moved the combatant itself; put it back and re-apply through MoveTo so the
             // grid's occupancy follows it, exactly as the monster paths do.
@@ -1117,6 +1307,213 @@ namespace BakAgain.Combat {
         }
 
         /// <summary>
+        /// The cells a Thrust at <paramref name="target"/> would walk, start included, or null when the
+        /// click is refused (out of reach, or no neighbour has a route). Changes nothing: it is
+        /// <see cref="ResolveMeleeClick"/>'s own reach test and <see cref="CombatWalk.MeleeApproach"/>
+        /// run as a dry run (TASK-972 board marks).
+        /// </summary>
+        /// <summary>
+        /// Whether this turn's party moves and Thrust approaches take the shortest route (Enhanced combat,
+        /// owner 2026-10-29: "do shortest path"); null or false keeps the original's greedy walk. The
+        /// per-turn Enhanced latch, set by the world. Monsters always walk the original's way.
+        /// </summary>
+        public System.Func<bool> ShortestRoutes { get; set; }
+
+        private bool Shortest(Combatant actor) => actor != null && actor.IsPartyMember && (ShortestRoutes?.Invoke() ?? false);
+
+        // The pushable an adjacent mover shoves keeps the original's walk, which does the shove (TASK-1003).
+        private bool ShovesAPushable(Combatant actor, int x, int y) =>
+            Puzzle != null && Grid.TerrainAt(x, y) == CombatTerrain.Pushable
+            && CombatGrid.ChebyshevDistance(actor.X, actor.Y, x, y) == 1;
+
+        // The one route function of an Enhanced turn: what the reach marks, the trail, the Thrust targets and
+        // the walk itself all read, so what is shown is what happens.
+        private List<(int X, int Y)> ShortestMove(Combatant actor, int x, int y) =>
+            CombatWalk.ShortestPath(Grid, actor.X, actor.Y, x, y, actor.Speed);
+
+        // The approach gets the original's one extra step (g_acting_actor_speed++, CACTOR.C:1744).
+        private List<(int X, int Y)> ShortestThrust(Combatant actor, Combatant target) =>
+            CombatWalk.ShortestApproach(Grid, actor.X, actor.Y, target.X, target.Y, actor.Speed + 1);
+
+        private static List<(int X, int Y)> WithStart(Combatant actor, List<(int X, int Y)> path) {
+            if (path == null) {
+                return null;
+            }
+            var cells = new List<(int X, int Y)> { (actor.X, actor.Y) };
+            cells.AddRange(path);
+            return cells;
+        }
+
+        public IReadOnlyList<(int X, int Y)> ForecastThrust(Combatant mover, Combatant target) {
+            if (mover == null || target == null || target.IsDead || Grid == null) {
+                return null;
+            }
+            if (!CombatActionDispatch.WithinReach(
+                    CombatGrid.ChebyshevDistance(mover.X, mover.Y, target.X, target.Y), mover.Speed)) {
+                return null;
+            }
+            // Beside the target: the thrust strikes in place, no walk (ResolveMeleeClick).
+            if (CombatGrid.OrthogonallyAdjacent(mover.X, mover.Y, target.X, target.Y)) {
+                return new List<(int X, int Y)> { (mover.X, mover.Y) };
+            }
+            if (Shortest(mover)) {
+                return WithStart(mover, ShortestThrust(mover, target));
+            }
+            var trace = new List<(int X, int Y)>();
+            CombatWalk.WalkResult? walk = CombatWalk.MeleeApproach(Grid, mover, target.X, target.Y,
+                mover.Speed, puzzle: Puzzle, occupiedByLiveCombatant: TileHoldsLiveCombatant,
+                probe: true, trace: trace);
+            return walk == null ? null : trace;
+        }
+
+        /// <summary>The cells a move to (x, y) would walk, start included -- a dry run, or null when it cannot arrive.</summary>
+        public IReadOnlyList<(int X, int Y)> ForecastWalk(Combatant mover, int x, int y) {
+            if (mover == null || Grid == null || !CellMovable(mover, x, y)) {
+                return null;
+            }
+            if (Shortest(mover) && !ShovesAPushable(mover, x, y)) {
+                return WithStart(mover, ShortestMove(mover, x, y));
+            }
+            var trace = new List<(int X, int Y)>();
+            CombatWalk.Walk(Grid, mover, x, y, mover.Speed, probe: true, puzzle: Puzzle,
+                occupiedByLiveCombatant: TileHoldsLiveCombatant, trace: trace);
+            return trace;
+        }
+
+        /// <summary>The pip thresholds the forecast reads; the HUD sets the loaded layout.</summary>
+        public GameData.Resources.Layout.EnhancedCombatLayout ForecastLayout { get; set; } = new();
+
+        private static readonly IReadOnlyList<(int Col, int Row)> NoPath = System.Array.Empty<(int, int)>();
+
+        private static IReadOnlyList<(int Col, int Row)> ToPath(IReadOnlyList<(int X, int Y)> cells) {
+            var path = new List<(int Col, int Row)>();
+            if (cells != null) {
+                foreach ((int x, int y) in cells) {
+                    path.Add((x, y));
+                }
+            }
+            return path;
+        }
+
+        private static CombatForecast Refused(ForecastAction action, int slot, string reasonKey) =>
+            new(action, slot, NoPath, 0, null, 0, 0, null, 0, 0, 0, true, false, false, reasonKey);
+
+        /// <summary>
+        /// What a Thrust or Swing at <paramref name="target"/> would do, as a dry run. The hit chance is
+        /// the TRUE roll's (<see cref="MeleeSides"/> + <see cref="CombatFormulas.MeleeHitChance"/>), not
+        /// the stats panel's preview; the parry roll modifier is left out because the player cannot know it.
+        /// Without a revealed Defense only the pips and a damage band are given.
+        /// </summary>
+        public CombatForecast ForecastMelee(Combatant acting, Combatant target, CombatActionDispatch.MeleeAttack attack) {
+            ForecastAction action = attack == CombatActionDispatch.MeleeAttack.Swing
+                ? ForecastAction.Swing : ForecastAction.Thrust;
+            int slot = Encounter?.Enemies.IndexOf(target) ?? -1;
+            if (acting == null || target == null || target.IsDead) {
+                return Refused(action, slot, UiTemplates.EnhancedForecastOutOfReach);
+            }
+            IReadOnlyList<(int Col, int Row)> path;
+            if (action == ForecastAction.Swing) {
+                // A swing strikes in place: only a straight-side neighbour.
+                if (!CombatGrid.OrthogonallyAdjacent(acting.X, acting.Y, target.X, target.Y)) {
+                    return Refused(action, slot, UiTemplates.EnhancedForecastSwingNeedsFoeBeside);
+                }
+                path = new List<(int Col, int Row)> { (acting.X, acting.Y) };
+            } else {
+                path = ToPath(ForecastThrust(acting, target));
+                if (path.Count == 0) {
+                    return Refused(action, slot, UiTemplates.EnhancedForecastOutOfReach);
+                }
+            }
+
+            (MeleeExchange.Attacker swing, MeleeExchange.Defender guard, _, _) =
+                MeleeSides(acting, target, attack, 0, peek: true);
+            int chance = CombatFormulas.MeleeHitChance(swing.AccuracyMelee, swing.HasWeapon,
+                swing.WeaponAccuracy, swing.ClassGroupModifier, swing.WeaponConditionPercent,
+                swing.WeaponFlags, guard.DefenseRating);
+            int pips = chance >= ForecastLayout.HitPipLikelyAtLeast ? 3
+                : chance >= ForecastLayout.HitPipEvenAtLeast ? 2 : 1;
+
+            // The damage a landed blow does, through the exchange itself: a roll of 0 always lands and
+            // takes the armour floor's low side; the stand-in defender has pools no blow can drain.
+            var attacker = new Combatant { Health = acting.Health, Stamina = acting.Stamina };
+            var defender = new Combatant { Health = 9999, Stamina = 9999 };
+            int damage = MeleeExchange.Resolve(attacker, defender, swing, guard, _ => 0).Damage;
+
+            bool revealed = Knowledge.TryGet(slot, ActorAttribute.Defense, out _);
+            // Before Inspect the damage is a FIXED coarse bucket, so the band cannot be centred on
+            // (or otherwise give back) the true number or the armour behind it. The last bucket is
+            // open-ended: DamageHigh = int.MaxValue ("21+").
+            int[] edges = ForecastLayout.DamageBandEdges;
+            int bucket = 0;
+            while (bucket + 1 < edges.Length && damage >= edges[bucket + 1]) {
+                bucket++;
+            }
+            int low = revealed ? damage : edges[bucket];
+            int high = revealed ? damage : bucket + 1 < edges.Length ? edges[bucket + 1] - 1 : int.MaxValue;
+
+            int stamina = 0;
+            int health = 0;
+            if (action == ForecastAction.Swing && MeleeExchange.SwingIsBilled(acting.Health + acting.Stamina)) {
+                if (acting.Stamina > 0) { stamina = MeleeExchange.SwingCost; } else { health = MeleeExchange.SwingCost; }
+            }
+            return new CombatForecast(action, slot, path, pips, revealed ? chance : null, low, high,
+                revealed ? damage : null, stamina, health, 0, true, true, false, "");
+        }
+
+        /// <summary>Where a move to (col, row) would walk; not allowed when it cannot arrive.</summary>
+        public CombatForecast ForecastMove(Combatant acting, int col, int row) {
+            IReadOnlyList<(int Col, int Row)> path = ToPath(ForecastWalk(acting, col, row));
+            return path.Count == 0
+                ? Refused(ForecastAction.Move, -1, UiTemplates.EnhancedForecastOutOfReach)
+                : new CombatForecast(ForecastAction.Move, -1, path, 0, null, 0, 0, null, 0, 0, 0,
+                    true, true, false, "");
+        }
+
+        /// <summary>Inspect ends the turn (<see cref="InspectAction.SpendsTheTurn"/>) and needs no reach.</summary>
+        public CombatForecast ForecastInspect(Combatant acting, Combatant target) {
+            int slot = Encounter?.Enemies.IndexOf(target) ?? -1;
+            return slot < 0 || target.IsDead
+                ? Refused(ForecastAction.Inspect, slot, UiTemplates.EnhancedForecastOutOfReach)
+                : new CombatForecast(ForecastAction.Inspect, slot, NoPath, 0, null, 0, 0, null, 0, 0, 0,
+                    true, true, false, "");
+        }
+
+        /// <summary>
+        /// Defend / Rest / Retreat / Auto / Pack. Whether it is allowed, warned and why comes from
+        /// <see cref="AvailabilityFor"/> -- no rule is re-derived here; this only adds the numbers.
+        /// </summary>
+        public CombatForecast ForecastNoTarget(Combatant acting, ForecastAction action) {
+            CombatCommands.Command command = action switch {
+                ForecastAction.Defend => CombatCommands.Command.Defend,
+                ForecastAction.Rest => CombatCommands.Command.Rest,
+                ForecastAction.Retreat => CombatCommands.Command.BackOrRetreat,
+                ForecastAction.Auto => CombatCommands.Command.AutoResolve,
+                ForecastAction.Pack => CombatCommands.Command.CharacterScreen,
+                _ => throw new System.ArgumentException("not a no-target action", nameof(action)),
+            };
+            ActionAvailability a = AvailabilityFor(acting).TryGetValue(command, out ActionAvailability found)
+                ? found : ActionAvailability.On;
+            int gain = 0;
+            if (action == ForecastAction.Rest && a.Enabled && !a.Warned) {
+                ActorStat[] stats = StatsFor(acting);
+                ActorStat maxHealth = StatOrNull(stats, ActorAttribute.Health);
+                ActorStat maxStamina = StatOrNull(stats, ActorAttribute.Stamina);
+                if (maxHealth != null && maxStamina != null) {
+                    int pool = maxHealth.Max + maxStamina.Max;
+                    int cap = pool * RestAction.HealCapPercent / 100;
+                    gain = System.Math.Min(RestAction.HealAmount(maxHealth.Max, maxStamina.Max),
+                        System.Math.Max(0, cap - (acting.Health + acting.Stamina)));
+                }
+            }
+            string key = action == ForecastAction.Pack && a.Enabled ? UiTemplates.EnhancedForecastPackNote
+                : a.ReasonKey;
+            // The availability's own text carries its arguments ("{name} is down"); the key alone
+            // would show the placeholder (owner's phone round 4).
+            return new CombatForecast(action, -1, NoPath, 0, null, 0, 0, null, 0, 0, gain,
+                true, a.Enabled, a.Warned, key, key == a.ReasonKey ? a.Reason : "");
+        }
+
+        /// <summary>
         /// Walk the attacker to a tile beside the target. False when there is no route.
         /// </summary>
         /// <remarks>
@@ -1129,13 +1526,24 @@ namespace BakAgain.Combat {
             int startX = mover.X;
             int startY = mover.Y;
             System.Func<int, int> hazardRoll = n => UnityEngine.Random.Range(0, n);
-            CombatWalk.WalkResult? walk = CombatWalk.MeleeApproach(Grid, mover, target.X, target.Y,
-                mover.Speed, puzzle: Puzzle, occupiedByLiveCombatant: TileHoldsLiveCombatant,
-                onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, hazardRoll));
-            if (walk == null) {
-                return false;
+            if (Shortest(mover)) {
+                // Enhanced: the shortest route to the nearest free side, every tile on it firing.
+                List<(int X, int Y)> route = ShortestThrust(mover, target);
+                if (route == null) {
+                    return false;   // no side within reach: refused, the turn is not spent
+                }
+                CombatWalk.WalkPath(Grid, mover, route, mover.Speed + 1, puzzle: Puzzle,
+                    occupiedByLiveCombatant: TileHoldsLiveCombatant,
+                    onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, hazardRoll));
+            } else {
+                CombatWalk.WalkResult? walk = CombatWalk.MeleeApproach(Grid, mover, target.X, target.Y,
+                    mover.Speed, puzzle: Puzzle, occupiedByLiveCombatant: TileHoldsLiveCombatant,
+                    onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, hazardRoll));
+                if (walk == null) {
+                    return false;
+                }
+                AnnounceShove(mover, walk.Value);
             }
-            AnnounceShove(mover, walk.Value);
             int endX = mover.X;
             int endY = mover.Y;
             mover.X = startX;
@@ -1283,6 +1691,7 @@ namespace BakAgain.Combat {
             if (actor == null) {
                 return 0;
             }
+            LogLine(UiTemplates.Format(UiTemplates.EnhancedLogRests, ("actor", NameInLog(actor, nameFoe: true))));
 
             ActorStat[] stats = StatsFor(actor);
             ActorStat health = StatOrNull(stats, ActorAttribute.Health);
@@ -1355,6 +1764,7 @@ namespace BakAgain.Combat {
                 return;
             }
             DefendAction.Apply(actor);
+            LogLine(UiTemplates.Format(UiTemplates.EnhancedLogDefends, ("actor", NameInLog(actor, nameFoe: true))));
         }
 
         /// <summary>
@@ -1734,15 +2144,8 @@ namespace BakAgain.Combat {
                 return new RetreatOutcome(false, CombatCommands.RetreatRefusedDialog);
             }
 
-            var anyPartyMemberDead = false;
-            var anySlotDown = false;
-            foreach (Combatant c in Encounter.Party) {
-                if (!c.IsDead) {
-                    continue;
-                }
-                anySlotDown = true;
-                anyPartyMemberDead |= c.IsPartyMember;
-            }
+            bool anyPartyMemberDead = FirstPartyMemberDown() != null;
+            bool anySlotDown = Encounter.Party.Exists(c => c.IsDead);
 
             int r = roll != null ? roll(100) : UnityEngine.Random.Range(0, 100);
             if (CombatCommands.EscapeRollPasses(anyPartyMemberDead, r, Encounter.EscapeAllowed)) {
@@ -1855,19 +2258,23 @@ namespace BakAgain.Combat {
         /// </remarks>
         public MeleeExchange.Result ResolveMelee(Combatant attacker, Combatant defender,
             CombatActionDispatch.MeleeAttack attack, System.Func<int, int> rnd = null, int fixedDamage = 0) {
-            if (attacker == null || defender == null) {
-                return MeleeExchange.Result.Miss;
+            var before = BeginAction(attacker, attack == CombatActionDispatch.MeleeAttack.Swing
+                ? FloatCause.Swing : FloatCause.Thrust);
+            try {
+                return ResolveMeleeCore(attacker, defender, attack, rnd, fixedDamage);
+            } finally {
+                EndAction(before);
             }
+        }
 
-            // COMBAT.C:471/606: a swing at a living defender records it as the attacker's target, on
-            // both sides — which is what the AI's Engaged and TargetingTheLeader roles read (TASK-528).
-            if (!defender.IsDead) {
-                attacker.Target = defender;
-            }
-
-            ActorStat[] attackerStats = StatsFor(attacker);
-            ActorStat[] defenderStats = StatsFor(defender);
-
+        /// <summary>
+        /// Both sides of a melee exchange exactly as the roll sees them. The ONE place the attacker's
+        /// weapon terms and the defender's Defense, armour, race and blessing terms are built:
+        /// <see cref="ResolveMeleeCore"/> rolls with them and <see cref="ForecastMelee"/> reads them,
+        /// so the forecast cannot drift from the fight.
+        /// </summary>
+        private (MeleeExchange.Attacker Swing, MeleeExchange.Defender Guard, Equipped Weapon, int SwingMask) MeleeSides(
+            Combatant attacker, Combatant defender, CombatActionDispatch.MeleeAttack attack, int fixedDamage, bool peek = false) {
             Equipped weapon = EquippedOfCategory(attacker, MeleeWeaponCategory);
             Equipped armour = EquippedOfCategory(defender, ArmorCategory);
 
@@ -1876,8 +2283,8 @@ namespace BakAgain.Combat {
             // thrust with thrust -- and the reason that was got wrong here for months is that
             // canassa's two function names are swapped. See CombatActionDispatch.AccuracyOf.
             var swing = new MeleeExchange.Attacker(
-                CombatStat(attacker, ActorAttribute.AccuracyMelee),
-                CombatStat(attacker, ActorAttribute.Strength),
+                CombatStat(attacker, ActorAttribute.AccuracyMelee, peek),
+                CombatStat(attacker, ActorAttribute.Strength, peek),
                 hasWeapon: weapon.Info != null,
                 weaponAccuracy: CombatActionDispatch.AccuracyOf(attack,
                     weapon.Info?.SwingAccuracy_ArmorMod_BowAccuracy ?? 0,
@@ -1891,7 +2298,7 @@ namespace BakAgain.Combat {
 
             // CanAct(false) is the "not incapacitated" reading DefenseRating wants: a combatant who
             // cannot act does not defend, which is what makes a downed target easy to finish.
-            int defense = CombatStat(defender, ActorAttribute.Defense);
+            int defense = CombatStat(defender, ActorAttribute.Defense, peek);
             Equipped blade = EquippedOfCategory(attacker, (int)GameData.ObjectType.Sword);
             int swingMask = GameData.Resources.Combat.CombatDamageMask.ForSwing(
                 blade.Info != null ? (int)blade.Flags : 0);
@@ -1914,6 +2321,26 @@ namespace BakAgain.Combat {
                 // The worn armour's own flags: armour enchanted against an element cancels that
                 // element's bonus outright (TASK-479, cbstat_damage_apply_protection).
                 armorFlags: armour.Info != null ? armour.Flags : default);
+            return (swing, guard, weapon, swingMask);
+        }
+
+        private MeleeExchange.Result ResolveMeleeCore(Combatant attacker, Combatant defender,
+            CombatActionDispatch.MeleeAttack attack, System.Func<int, int> rnd, int fixedDamage) {
+            if (attacker == null || defender == null) {
+                return MeleeExchange.Result.Miss;
+            }
+
+            // COMBAT.C:471/606: a swing at a living defender records it as the attacker's target, on
+            // both sides — which is what the AI's Engaged and TargetingTheLeader roles read (TASK-528).
+            if (!defender.IsDead) {
+                attacker.Target = defender;
+            }
+
+            ActorStat[] attackerStats = StatsFor(attacker);
+            ActorStat[] defenderStats = StatsFor(defender);
+
+            (MeleeExchange.Attacker swing, MeleeExchange.Defender guard, Equipped weapon, int swingMask) =
+                MeleeSides(attacker, defender, attack, fixedDamage);
 
             var advancement = new MeleeExchange.Advancement(
                 attacker.IsPartyMember ? StatOrNull(attackerStats, ActorAttribute.AccuracyMelee) : null,
@@ -1963,6 +2390,7 @@ namespace BakAgain.Combat {
                 // A missed blow floats "miss" over the defender (COMBAT.C:543, :664 — value 1 with
                 // a negative countdown); DamageFloat 0 is how the port says "miss".
                 defender.DamageFloat = 0;
+                StampFloat(defender);
             }
 
             PlaySwingCue(attacker, defender, result.Hit);
@@ -2044,6 +2472,16 @@ namespace BakAgain.Combat {
         /// </remarks>
         public bool ResolveShot(Combatant attacker, Combatant defender, int quarrelKind,
             System.Func<int, int> rnd = null) {
+            var before = BeginAction(attacker, FloatCause.Shoot);
+            try {
+                return ResolveShotCore(attacker, defender, quarrelKind, rnd);
+            } finally {
+                EndAction(before);
+            }
+        }
+
+        private bool ResolveShotCore(Combatant attacker, Combatant defender, int quarrelKind,
+            System.Func<int, int> rnd) {
             if (attacker == null || defender == null || defender.IsDead) {
                 return false;
             }
@@ -2240,6 +2678,17 @@ namespace BakAgain.Combat {
             GameData.Resources.Spells.Spell spell, int spellId, int power,
             System.Func<int, int> rnd = null, (int Column, int Row)? groundCell = null,
             bool billOnPlacement = false) {
+            var before = BeginAction(caster, FloatCause.Cast);
+            try {
+                return ResolveCastCore(caster, target, spell, spellId, power, rnd, groundCell, billOnPlacement);
+            } finally {
+                EndAction(before);
+            }
+        }
+
+        private bool ResolveCastCore(Combatant caster, Combatant target,
+            GameData.Resources.Spells.Spell spell, int spellId, int power,
+            System.Func<int, int> rnd, (int Column, int Row)? groundCell, bool billOnPlacement) {
             // *** A NEGATIVE POWER IS A REAL CALL, NOT A BAD ONE. *** The original's prologue
             // records the sign in a flag and negates the cost, and that flag then gates three
             // separate things — SpellHitResolution.CanMiss (a negated cast never rolls),
@@ -3472,10 +3921,11 @@ namespace BakAgain.Combat {
         /// </remarks>
         public bool CellMovable(Combatant actor, int x, int y) =>
             actor != null && Grid != null && CombatGrid.InBounds(x, y)
-            && (Puzzle != null && Grid.TerrainAt(x, y) == CombatTerrain.Pushable
-                    && CombatGrid.ChebyshevDistance(actor.X, actor.Y, x, y) == 1
-                || CombatWalk.Walk(Grid, actor, x, y, actor.Speed, probe: true, puzzle: Puzzle,
-                    occupiedByLiveCombatant: TileHoldsLiveCombatant).Arrived);
+            && (ShovesAPushable(actor, x, y)
+                || (Shortest(actor)
+                    ? ShortestMove(actor, x, y) != null
+                    : CombatWalk.Walk(Grid, actor, x, y, actor.Speed, probe: true, puzzle: Puzzle,
+                        occupiedByLiveCombatant: TileHoldsLiveCombatant).Arrived));
 
         /// <summary>
         /// The body lying on a tile, or null — <c>g_active_combatants</c>, which a death with its
@@ -3606,6 +4056,7 @@ namespace BakAgain.Combat {
             int gainFloat = SpellCastRoutines.HealFloatingNumber(healthBefore, target.Health,
                 staminaBefore, target.Stamina);
             target.DamageFloat = gainFloat != 0 ? gainFloat : (int?)null;
+            StampFloat(target);
             if (target.IsPartyMember) {
                 WriteBack(target);
             }
@@ -4509,6 +4960,16 @@ namespace BakAgain.Combat {
         /// </remarks>
         private bool FireMonsterShot(Combatant monster, MonsterTurnResolver.Decision decision,
             System.Func<int, int> rnd) {
+            var before = BeginAction(monster, FloatCause.Shoot);
+            try {
+                return FireMonsterShotCore(monster, decision, rnd);
+            } finally {
+                EndAction(before);
+            }
+        }
+
+        private bool FireMonsterShotCore(Combatant monster, MonsterTurnResolver.Decision decision,
+            System.Func<int, int> rnd) {
             System.Func<int, int> roll = rnd ?? (n => UnityEngine.Random.Range(0, n));
             Combatant target = decision.Target;
             switch (CombatAi.SpeciesRoutineOf(monster.ClassId)) {
@@ -5114,7 +5575,27 @@ namespace BakAgain.Combat {
             }
         }
 
-        private int CombatStat(Combatant who, ActorAttribute attribute) {
+        /// <summary>
+        /// A combatant's stat as the fight reads it, WITHOUT writing anything (Enhanced combat HUD):
+        /// <paramref name="unscaled"/> gives the value before Health drags it down, the "(base)" of
+        /// "current (base)".
+        /// </summary>
+        public int PeekStat(Combatant who, ActorAttribute attribute, bool unscaled = false) =>
+            CombatStat(who, attribute, peek: true,
+                unscaled ? StatReadMode.Unscaled : StatReadMode.Effective);
+
+        /// <summary>
+        /// The equipped, intact item of <paramref name="category"/> (<see cref="MeleeWeaponCategory"/>,
+        /// <see cref="StaffCategory"/>, <see cref="ArmorCategory"/>) and its condition in percent
+        /// (<see cref="EquippedGear.UntrackedCondition"/> when not tracked); null info for none.
+        /// </summary>
+        public (GameData.Resources.Object.ObjectInfo Info, int Condition) EquippedItem(Combatant who, int category) {
+            Equipped e = EquippedOfCategory(who, category);
+            return (e.Info, e.Condition);
+        }
+
+        private int CombatStat(Combatant who, ActorAttribute attribute, bool peek = false,
+            StatReadMode mode = StatReadMode.Effective) {
             ActorStat[] stats = StatsFor(who);
             int index = (int)attribute;
             if (who == null || stats == null || index < 0 || index >= stats.Length
@@ -5127,10 +5608,13 @@ namespace BakAgain.Combat {
                 Base = (byte)System.Math.Max(0, System.Math.Min(255, who.Health)),
                 Max = recorded?.Max ?? 0,
             };
-            return StatEngine.Get(stats[index], attribute, liveHealth, StatReadMode.Effective,
-                who.IsPartyMember
-                    ? _session?.PartyEffectsFor(who.ClassId, attribute, inCombat: true)
-                    : null);
+            // Peek is Get without the write to the cached-effective byte: a forecast must not touch the save.
+            System.Func<int, int> party = !who.IsPartyMember ? null
+                : peek ? _session?.PeekPartyEffectsFor(who.ClassId, attribute, inCombat: true)
+                : _session?.PartyEffectsFor(who.ClassId, attribute, inCombat: true);
+            return peek
+                ? StatEngine.Peek(stats[index], attribute, liveHealth, mode, party)
+                : StatEngine.Get(stats[index], attribute, liveHealth, mode, party);
         }
 
         /// <summary>
@@ -5209,6 +5693,7 @@ namespace BakAgain.Combat {
                     TickTerrainEffects();
                     TickSlayerRevivals();
                     Encounter.BeginRound(Grid);
+                    Log.Round++;
                 }
 
                 // *** The OUTGOING actor's poison ticks as the picker runs. *** That is the
@@ -5306,6 +5791,8 @@ namespace BakAgain.Combat {
             _enemyStats.Clear();
             _enemySlots.Clear();
             _enemyRosterIndex.Clear();
+            Knowledge.Clear();
+            Log.Clear();
             _encounterNumber = -1;
             _deathOutcomes.Clear();
         }

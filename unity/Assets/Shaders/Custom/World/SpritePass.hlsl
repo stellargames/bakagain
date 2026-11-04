@@ -37,6 +37,9 @@ CBUFFER_START(UnityPerMaterial)
     // One actor's tint (a spell hit's RED/WHITE/BLUE.RMP remap, WORLDRND.C:208), set per
     // renderer through a property block by SpellVfx. a = 0 leaves the sprite alone.
     float4 _FlashColor;
+    // Enhanced combat's see-through (ArenaSeeThrough): 1 = opaque; less dithers the sprite away so the
+    // cell behind it shows. Set per renderer through a property block.
+    float _SeeThrough;
     // An HD frame's (HdFrames): 1 when it has the four sun-lit versions. Per material, or the SRP
     // Batcher leaks it into every other sprite's draw.
     float _SunSet;
@@ -164,10 +167,11 @@ half4 frag(Varyings input) : SV_Target {
     }
 #endif
     // Ordered 4x4 dither: a screen-door fade that stays in the opaque queue.
-    if (input.nearFade < 1) {
+    float fade = input.nearFade * _SeeThrough;
+    if (fade < 1) {
         uint2 px = (uint2)input.positionCS.xy & 3;
         const float bayer[16] = { 0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5 };
-        clip(input.nearFade - (bayer[px.y * 4 + px.x] + 0.5) / 16.0);
+        clip(fade - (bayer[px.y * 4 + px.x] + 0.5) / 16.0);
     }
     color.rgb = lerp(color.rgb, _FlashColor.rgb, _FlashColor.a);
 #ifdef BAK_ENHANCED

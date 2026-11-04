@@ -191,6 +191,58 @@ namespace BakAgain.UI.InGame {
         private IGameplayInput _gameplay;
         private ClassicMovementDriver _movementDriver;
         private MouseLookDriver _look;
+        private CombatCameraInput _combatCamera;
+        private readonly GameData.Resources.Layout.EnhancedCombatLayout _combatLayout = new();
+        private BakAgain.UI.Combat.Enhanced.EnhancedCombatHudHost _combatHud;
+        private System.Func<int, BakAgain.UI.Combat.Enhanced.CombatHudModel> _combatHudModel;
+        private System.Func<object> _combatTurn;
+        private System.Func<VisualElement> _classicCombatMenu;
+        private System.Func<BakAgain.UI.InputCore.MenuLayerHost> _classicCombatNav;
+        private BakAgain.UI.InputCore.MenuLayerHost _enhancedNavHost;
+        private BakAgain.UI.InputCore.IInputLayer _enhancedNavLayer;
+        private System.Func<int, string> _combatStoneImage;
+        private System.Action _resetArenaView;
+        private System.Func<BakAgain.UI.Combat.Enhanced.ICombatHud, bool,
+            BakAgain.UI.Combat.Enhanced.EnhancedCombatController> _combatControllerFor;
+        private BakAgain.UI.Combat.Enhanced.EnhancedCombatController _combatController;
+        private ((int Column, int Row)? Cell, (int RosterSlot, bool PartyMember)? Who) _boardHover;
+        private EnhancedTouchHold _enhancedHold;
+
+        /// <summary>
+        /// Enhanced combat's HUD (TASK-972): the model of the fight as it stands (given how many log
+        /// lines to carry), what identifies the current turn, the Classic menu's document root it
+        /// replaces, a stone's image address by COMBAT.DAT action id (-1 = the bare stone) and the
+        /// camera's quarter turn and reset. Set with the other combat seams.
+        /// </summary>
+        internal void SetEnhancedCombatSeams(System.Func<int, BakAgain.UI.Combat.Enhanced.CombatHudModel> model,
+            System.Func<object> turn, System.Func<VisualElement> classicMenu, System.Func<int, string> stoneImage,
+            System.Action resetView = null,
+            System.Func<BakAgain.UI.Combat.Enhanced.ICombatHud, bool,
+                BakAgain.UI.Combat.Enhanced.EnhancedCombatController> controller = null,
+            System.Func<BakAgain.UI.InputCore.MenuLayerHost> classicMenuNav = null) {
+            _classicCombatNav = classicMenuNav;
+            _combatControllerFor = controller;
+            _combatHudModel = model;
+            _combatTurn = turn;
+            _classicCombatMenu = classicMenu;
+            _combatStoneImage = stoneImage;
+            _resetArenaView = resetView;
+        }
+
+        /// <summary>Test seam: the Enhanced combat HUD's host, once the content is attached.</summary>
+        internal BakAgain.UI.Combat.Enhanced.EnhancedCombatHudHost CombatHudHost {
+            get => _combatHud;
+            set => _combatHud = value;   // tests: a host without the HUD's content
+        }
+
+        /// <summary>Test seam: the Enhanced combat controller the clicks go to.</summary>
+        internal BakAgain.UI.Combat.Enhanced.EnhancedCombatController CombatController {
+            get => _combatController;
+            set => _combatController = value;
+        }
+
+        /// <summary>Tests choose the HUD: true = phone, false = desktop, null = by platform.</summary>
+        internal static bool? PhoneHudOverride { get; set; }
         private bool _lookCursorHidden;
         private TravelLayerHost _travelHost;
 
@@ -294,6 +346,18 @@ namespace BakAgain.UI.InGame {
         private System.Func<bool> _inCombat;
 
         internal void SetInCombatPredicate(System.Func<bool> inCombat) => _inCombat = inCombat;
+
+        // Whether the fight's first turn has been handed out (HotspotService.FightUnderWay); null = yes.
+        private System.Func<bool> _fightUnderWay;
+
+        internal void SetFightUnderWayPredicate(System.Func<bool> underWay) => _fightUnderWay = underWay;
+
+        // As AFightIsRunning: the world's own answer until the fight's seams are handed over (the first
+        // fight's entry line plays before its arena is drawn); with no world at all (tests), under way.
+        private bool FightUnderWay() =>
+            _fightUnderWay != null
+                ? _fightUnderWay()
+                : (_resolver?.Resolve(typeof(BakAgain.World.WorldRuntime)) as BakAgain.World.WorldRuntime)?.FightUnderWay ?? true;
         private Camera _pendingCamera;
         private float _fadeSeconds = 0.15f;
 
@@ -395,6 +459,7 @@ namespace BakAgain.UI.InGame {
             _movementDriver = new ClassicMovementDriver(_document, movement, _gameplay, _pointer,
                 continuous: () => GameOptions.IsOn(EnhancedFeature.ContinuousMovement));
             _look = new MouseLookDriver(_pointer, _enhancedLayout);
+            _combatCamera = new CombatCameraInput(_pointer, _enhancedLayout, _combatLayout);
             // The world arrives after the REQ is built, so the button's first honest state is here.
             RefreshFollowRoadButton();
         }
@@ -795,6 +860,11 @@ namespace BakAgain.UI.InGame {
             var town = new PartyTownName(_gameSession, _resources, this);
             _hud = new EnhancedHudLayout(root, _gameSession, _clock, _enhancedLayout.StatusFontFraction,
                 EnhancedHudLayout.Travel, () => town.Current);
+            _combatHud = new BakAgain.UI.Combat.Enhanced.EnhancedCombatHudHost(root, _combatLayout,
+                () => PhoneHudOverride ?? Application.isMobilePlatform, id => _combatStoneImage?.Invoke(id));
+            _combatHud.Built += hud => {
+                hud.ResetViewPressed += () => _resetArenaView?.Invoke();
+            };
         }
 
         /// <summary>
@@ -872,6 +942,11 @@ namespace BakAgain.UI.InGame {
             _partyHeads?.Dispose(); _partyHeads = null;
             _effectCaption?.Dispose(); _effectCaption = null;
             _combatPanel?.Dispose(); _combatPanel = null;
+            if (_combatController != null && _combatHud != null) {
+                _combatController.Changed -= _combatHud.Invalidate;
+            }
+            _combatController = null;   // the world drops and rebuilds it with the HUD (Minor 5)
+            _combatHud = null;
             _touchControls?.Dispose(); _touchControls = null;
             _touchTargeting = null;
             _compass = null;
@@ -981,7 +1056,7 @@ namespace BakAgain.UI.InGame {
             }
             _compass?.Refresh();
             ReopenTheMapAfterAFight();
-            _touchControls?.Refresh(AFightIsRunning());
+            _touchControls?.Refresh(AFightIsRunning(), AFightIsRunning() && EnhancedCombatActive);
             HandleTouchLongPress();
             ClearTouchTargetingAfterAFight();
             HandleTouchCursor();
@@ -1170,7 +1245,8 @@ namespace BakAgain.UI.InGame {
             }
             bool wasApplied = _hud.Applied;
             bool shown = _travelHost != null && _travelHost.IsInputActive;
-            _hud.Sync(_fullScreen != null && _fullScreen.Active, shown);
+            SyncCombatHud();
+            _hud.Sync(_fullScreen != null && _fullScreen.Active, shown && !EnhancedCombatActive);
             _effectCaption?.SetVisible(!_hud.Applied || _hud.Shown);
             if (wasApplied && !_hud.Applied) {
                 // The revert un-hides the compass arrows; a fight that has just started hid them a
@@ -1179,6 +1255,160 @@ namespace BakAgain.UI.InGame {
                 RefreshCombatChrome();
             }
         }
+
+        // Enhanced combat (TASK-972): the chosen HUD in place of the Classic combat menu, latched per turn.
+        internal void SyncCombatHudForTest() => SyncCombatHud();
+
+        private void SyncCombatHud() {
+            if (_combatHud == null) {
+                return;
+            }
+            bool phone = PhoneHudOverride ?? Application.isMobilePlatform;
+            int lines = phone ? PhonePeekLogLines : DesktopLedgerLogLines;
+            // Not the travel layer's state: in a fight the combat menu's layer is on top of it. A screen
+            // pushed over the fight deactivates this one, so only a dialog page has to be checked.
+            _combatHud.Sync(GameOptions.IsOn(EnhancedFeature.Combat), AFightIsRunning(), _combatTurn?.Invoke(),
+                () => _combatController?.Model(lines) ?? _combatHudModel?.Invoke(lines), _classicCombatMenu?.Invoke(),
+                // Not before the fight is under way: the entry line and the opening enemy turns show no
+                // combat HUD in the Classic game either.
+                !DialogManager.PageOverTheWorld && FightUnderWay());
+            // The controller owns the forecast in the model; the world hands back the one for this
+            // fight's service (the same instance until the zone's service changes).
+            var controller = _combatHud.Hud != null ? _combatControllerFor?.Invoke(_combatHud.Hud, phone) : null;
+            if (controller != _combatController && controller != null) {
+                if (_combatController != null) {
+                    _combatController.Changed -= _combatHud.Invalidate;
+                }
+                controller.Changed += _combatHud.Invalidate;
+            }
+            _combatController = controller ?? _combatController;
+            SyncEnhancedCombatNav();
+            TickEnhancedCombatPointer();
+        }
+
+        // Tab and the arrows walk the combat menu's widgets, which are the Classic buttons wherever the
+        // Classic layout put them: with the Enhanced band up the cursor landed on a foe card or on empty
+        // band (owner, 2026-11-01). While the desktop band shows, the same layer walks its stones instead;
+        // the Classic list goes back when a Classic turn (or no fight) takes over.
+        private void SyncEnhancedCombatNav() {
+            BakAgain.UI.InputCore.MenuLayerHost host = _classicCombatNav?.Invoke();
+            bool enhanced = EnhancedCombatActive && _combatHud.Hud is BakAgain.UI.Combat.Enhanced.DesktopCombatHud;
+            if (!enhanced || host != _enhancedNavHost || host?.Layer != _enhancedNavLayer) {
+                if (_enhancedNavLayer is BakAgain.UI.InputCore.NavigableLayer taken) {
+                    taken.ArrowsTaken = false;
+                }
+                if (_enhancedNavHost != null) {
+                    var loader = _enhancedNavHost.GetComponent<BakAgain.ResourceManagement.Loaders.UserInterfaceLoader>();
+                    if (loader != null && loader.CurrentNavWidgets != null) {
+                        _enhancedNavHost.SetWidgets(loader.CurrentNavWidgets);
+                    }
+                }
+                _enhancedNavHost = null;
+                _enhancedNavLayer = null;
+            }
+            if (!enhanced || host == null || _enhancedNavHost == host || !host.HasNavigableLayer) {
+                return;
+            }
+            var desk = (BakAgain.UI.Combat.Enhanced.DesktopCombatHud)_combatHud.Hud;
+            var widgets = new System.Collections.Generic.List<BakAgain.UI.InputCore.NavWidget>();
+            foreach ((VisualElement stone, System.Action press) in desk.NavStones()) {
+                widgets.Add(new BakAgain.UI.InputCore.NavWidget(stone, stone.name, () => CanonicalRectOf(stone), press, null));
+            }
+            if (host.SetWidgets(widgets)) {
+                _enhancedNavHost = host;
+                _enhancedNavLayer = host.Layer;
+                // The arrows pan the camera (owner, 2026-11-01); Tab walks the stones.
+                ((BakAgain.UI.InputCore.NavigableLayer)host.Layer).ArrowsTaken = true;
+            }
+        }
+
+        // A panel element's rect in the canonical space the software cursor is warped in (this screen's stage).
+        private Rect CanonicalRectOf(VisualElement element) {
+            VisualElement stage = BakAgain.UI.CanonicalStage.Find(_document?.rootVisualElement);
+            Rect wb = element.worldBound;
+            if (stage == null || float.IsNaN(wb.x) || wb.width <= 0f) {
+                return Rect.zero;
+            }
+            Vector2 min = stage.WorldToLocal(wb.min), max = stage.WorldToLocal(wb.max);
+            return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
+        }
+
+        /// <summary>
+        /// Enhanced combat's board pointer (TASK-972): the mouse's hover feeds the controller's
+        /// forecast when it moves to another cell or combatant; a still finger is the long press.
+        /// </summary>
+        private void TickEnhancedCombatPointer() {
+            if (_combatController == null || _pointer == null || !EnhancedCombatActive) {
+                _enhancedHold?.Reset();
+                return;
+            }
+            if (_pointer.IsPresent) {
+                var hover = _pointer.CanPoint && StartsOnWorld(_pointer.ScreenPosition) && !(_combatCamera?.Dragging ?? false)
+                    ? BoardAt(_pointer.ScreenPosition) : default;
+                if (hover != _boardHover) {
+                    _boardHover = hover;
+                    PointController(hover);
+                }
+                return;
+            }
+            // The finger as UI Toolkit's own events report it, as the travel long press reads it: the
+            // polled pointer never saw a held finger on the owner's phone (2026-09-30).
+            if (_touchControls == null) {
+                return;
+            }
+            _enhancedHold ??= new EnhancedTouchHold(_combatLayout.LongPressSeconds, _enhancedLayout.DragThresholdPx);
+            Vector2 at = PanelToScreen(_touchControls.TouchPosition);
+            if (_enhancedHold.Tick(_touchControls.PressSerial, _touchControls.TouchDown && !(_combatCamera?.Dragging ?? false),
+                    at, Time.realtimeSinceStartup) && StartsOnWorld(at)) {
+                PointController(BoardAt(at));
+                _combatController.LongPress();
+            }
+        }
+
+        // Panel coordinates (top-left origin, panel units) to Input System screen coordinates.
+        private Vector2 PanelToScreen(Vector2 panel) {
+            VisualElement tree = _document?.rootVisualElement?.panel?.visualTree;
+            float sx = tree != null && tree.layout.width > 0f ? Screen.width / tree.layout.width : 1f;
+            float sy = tree != null && tree.layout.height > 0f ? Screen.height / tree.layout.height : 1f;
+            return new Vector2(panel.x * sx, Screen.height - panel.y * sy);
+        }
+
+        private ((int Column, int Row)? Cell, (int RosterSlot, bool PartyMember)? Who) BoardAt(Vector2 screen) {
+            Vector3? floor = _interaction?.GroundPointAtScreenPoint(screen);
+            return (floor.HasValue ? _cellAtPoint?.Invoke(floor.Value) : null, _interaction?.CombatantAtScreenPoint(screen));
+        }
+
+        private void PointController(((int Column, int Row)? Cell, (int RosterSlot, bool PartyMember)? Who) at) =>
+            _combatController.Point(at.Cell?.Column, at.Cell?.Row, at.Who?.RosterSlot, at.Who?.PartyMember ?? false);
+
+        /// <summary>
+        /// A click or tap on the world in an Enhanced fight goes to the controller; true when it did.
+        /// A Classic turn, or a Classic pick still armed (a spell's or a shot's target), keeps the
+        /// Classic path.
+        /// </summary>
+        internal bool EnhancedCombatClick(bool isPrimary, Vector2 screen) {
+            if (_combatController == null || !EnhancedCombatActive || (_combatPickPending?.Invoke() ?? false)) {
+                return false;
+            }
+            if (_enhancedHold != null && _enhancedHold.TakeTap(_touchControls?.PressSerial ?? -1)) {
+                return true;   // the release of a long press is not also a tap
+            }
+            PointController(BoardAt(screen));
+            if (isPrimary) {
+                _combatController.Primary(BakAgain.UI.InputCore.InputDriver.ShiftHeld);
+            } else {
+                _combatController.Secondary();
+            }
+            return true;
+        }
+
+        private System.Func<bool> _combatPickPending;
+
+        internal void SetCombatPickPendingSeam(System.Func<bool> pending) => _combatPickPending = pending;
+
+        // The idle ledger's log (desktop) and the phone's idle peek, in lines.
+        private const int DesktopLedgerLogLines = 6;
+        private const int PhonePeekLogLines = 3;
 
         /// <summary>
         /// Lays a transparent, click-taking band over the travel HUD below the world viewport, shown
@@ -1216,15 +1446,18 @@ namespace BakAgain.UI.InGame {
 
         internal void RefreshCombatChrome() {
             bool inCombat = _inCombat?.Invoke() ?? false;
-            if (inCombat == _combatChromeShown) {
+            // Enhanced combat (TASK-972): the band replaces the original's frame, and the arena is
+            // full-window, so the frame and its click guard stay down.
+            bool chrome = inCombat && !EnhancedCombatActive;
+            if (chrome == _combatChromeShown) {
                 return;
             }
-            _combatChromeShown = inCombat;
+            _combatChromeShown = chrome;
             if (_combatFrame != null) {
-                _combatFrame.style.display = inCombat ? DisplayStyle.Flex : DisplayStyle.None;
+                _combatFrame.style.display = chrome ? DisplayStyle.Flex : DisplayStyle.None;
             }
             if (_combatGuard != null) {
-                _combatGuard.style.display = inCombat ? DisplayStyle.Flex : DisplayStyle.None;
+                _combatGuard.style.display = chrome ? DisplayStyle.Flex : DisplayStyle.None;
                 // In front of every travel widget, whatever was added to the stage after it.
                 _combatGuard.BringToFront();
             }
@@ -1248,6 +1481,12 @@ namespace BakAgain.UI.InGame {
             if (_pointer != null && _pointer.IsPresent && AFightIsRunning()) {
                 Vector3? floor = _interaction?.HoverGroundPoint();
                 _setCursorCell?.Invoke(floor.HasValue ? _cellAtPoint?.Invoke(floor.Value) : null, false);
+            }
+            if (EnhancedCombatActive) {
+                // The Enhanced HUD's ledger and medallion replace the parchment and its portrait.
+                _combatPanel.Show(null);
+                _combatPanel.ShowPortrait(-1);
+                return;
             }
             var content = _combatPanelContent(
                 hovered?.RosterSlot ?? -1, hovered.HasValue && hovered.Value.PartyMember);
@@ -1416,12 +1655,24 @@ namespace BakAgain.UI.InGame {
             _navigator.Push(_overheadMap).Forget();
         }
 
+        // Enhanced combat implies the full-screen view in a fight, whatever the travel switch says.
         private bool WantFullScreen() =>
-            GameOptions.IsOn(EnhancedFeature.FullScreenTravel) && !AFightIsRunning();
+            EnhancedCombatActive || (GameOptions.IsOn(EnhancedFeature.FullScreenTravel) && !AFightIsRunning());
+
+        internal bool WantsFullScreen => WantFullScreen();
+
+        /// <summary>A fight is running and the Enhanced combat interface is on (TASK-972).</summary>
+        /// <remarks>Latched per turn once the fight's turn seam is set: turning the switch off mid-fight
+        /// reverts at the next turn (<see cref="BakAgain.UI.Combat.Enhanced.EnhancedCombatHudHost.Decide"/>).</remarks>
+        internal bool EnhancedCombatActive => _combatHud != null && _combatTurn != null
+            ? _combatHud.Decide(GameOptions.IsOn(EnhancedFeature.Combat), AFightIsRunning(), _combatTurn())
+            : GameOptions.IsOn(EnhancedFeature.Combat) && AFightIsRunning();
 
         private bool AFightIsRunning() =>
-            (_resolver?.Resolve(typeof(BakAgain.World.WorldRuntime))
-                as BakAgain.World.WorldRuntime)?.FightInProgress ?? false;
+            _inCombat != null
+                ? _inCombat()
+                : (_resolver?.Resolve(typeof(BakAgain.World.WorldRuntime))
+                    as BakAgain.World.WorldRuntime)?.FightInProgress ?? false;
 
         // Update runs every frame and the exit is asynchronous, so without this the menu
         // transition would be started once per frame until it completed.
@@ -1501,8 +1752,9 @@ namespace BakAgain.UI.InGame {
         private bool _touchFightWasRunning;
 
         // A fight played by touch: the battlefield tap places the combat cursor.
+        // Not in an Enhanced combat turn: its HUD and controller own the fight (TASK-972).
         private bool TouchFight() =>
-            TouchInputState.Instance != null && AFightIsRunning()
+            TouchInputState.Instance != null && AFightIsRunning() && !EnhancedCombatActive
             && _pointer != null && _pointer.CanPoint && !_pointer.IsPresent;
 
         // ---- The combat cursor (owner's choice, 2026-10-01) -----------------------------------
@@ -1655,7 +1907,27 @@ namespace BakAgain.UI.InGame {
         /// Enhanced free look (spec 2026-10-08 §4): a right-drag (a finger on touch) on the world turns
         /// the party's real heading and pitches the view. Off, or in a fight, it does nothing.
         /// </summary>
+        /// <summary>Enhanced combat: the look gesture orbits the arena camera around the board instead.</summary>
+        internal void TickCombatCamera(BakAgain.World.WorldRuntime world, System.Func<Vector2, bool> startsOnWorld) {
+            _combatCamera ??= new CombatCameraInput(_pointer, _enhancedLayout, _combatLayout);
+            _combatCamera.Tick(EnhancedCombatActive && world != null, startsOnWorld,
+                world != null ? world.OrbitArena : null, world != null ? world.ZoomArenaAt : (System.Action<float, Vector2>)null);
+            // The arrow keys pan a close view across the board (owner, 2026-11-01). Read as keys, not as the
+            // move axis: that one carries WASD too, and A and D are Auto and Defend.
+            if (EnhancedCombatActive && world != null && UnityEngine.InputSystem.Keyboard.current is { } kb) {
+                float x = (kb.rightArrowKey.isPressed ? 1f : 0f) - (kb.leftArrowKey.isPressed ? 1f : 0f);
+                float y = (kb.upArrowKey.isPressed ? 1f : 0f) - (kb.downArrowKey.isPressed ? 1f : 0f);
+                if (x != 0f || y != 0f) {
+                    world.PanArena(x, y, Time.unscaledDeltaTime);
+                }
+            }
+        }
+
+        internal void SetPointerForTest(IPointer pointer) => _pointer = pointer;
+
         private void TickMouseLook(bool travelling) {
+            TickCombatCamera(_resolver?.Resolve(typeof(BakAgain.World.WorldRuntime)) as BakAgain.World.WorldRuntime,
+                StartsOnWorld);
             bool lookOn = travelling && _movement != null && _gameSession != null
                 && GameOptions.IsOn(EnhancedFeature.MouseLook);
             Vector2 look = _look?.Tick(lookOn, StartsOnWorld) ?? Vector2.zero;
@@ -1664,7 +1936,7 @@ namespace BakAgain.UI.InGame {
             }
             SetLookCursor(_look != null && _look.Dragging);
             // The battle camera is level in the original, and look switched off is the faithful view.
-            if (AFightIsRunning() || !GameOptions.IsOn(EnhancedFeature.MouseLook)) {
+            if ((AFightIsRunning() && !EnhancedCombatActive) || !GameOptions.IsOn(EnhancedFeature.MouseLook)) {
                 _movement?.LevelLook();
             }
         }
@@ -1737,7 +2009,8 @@ namespace BakAgain.UI.InGame {
 
         // Left-click / key dispatch.
         public void PrimaryAction(int menuEntryActionId) {
-            if (menuEntryActionId == ActionWorldViewport && _look != null && _look.ConsumeClick()) {
+            if (menuEntryActionId == ActionWorldViewport && ((_look != null && _look.ConsumeClick())
+                    || (_combatCamera != null && _combatCamera.ConsumeClick()))) {
                 return;   // the release of a touch look-drag
             }
             if (menuEntryActionId == ActionWorldViewport && !TakesViewportClick()) {
@@ -1836,6 +2109,9 @@ namespace BakAgain.UI.InGame {
                     break;
                 }
                 case ActionWorldViewport:
+                    if (_pointer != null && EnhancedCombatClick(true, _pointer.ScreenPosition)) {
+                        break;
+                    }
                     if (TouchFight()) {
                         // A tap puts the cursor on that cell; the side bar's buttons act on it.
                         if (_combatCursor != null && _interaction?.GroundPointAtScreenPoint(_pointer.ScreenPosition) is Vector3 tapped
@@ -1856,14 +2132,17 @@ namespace BakAgain.UI.InGame {
         // its DDX help string (ids 223–232). The party portraits and world viewport have no
         // help text in the original, so they fall through.
         public async Awaitable SecondaryAction(int menuEntryActionId) {
-            if (menuEntryActionId == ActionWorldViewport && _look != null && _look.ConsumeClick()) {
+            if (menuEntryActionId == ActionWorldViewport && ((_look != null && _look.ConsumeClick())
+                    || (_combatCamera != null && _combatCamera.ConsumeClick()))) {
                 return;   // the release of a right-drag look
             }
             if (RefusedDuringAFight(menuEntryActionId)) {
                 return;
             }
             if (menuEntryActionId == ActionWorldViewport) {
-                _interaction?.HandleClick(isPrimary: false).Forget();
+                if (_pointer == null || !EnhancedCombatClick(false, _pointer.ScreenPosition)) {
+                    _interaction?.HandleClick(isPrimary: false).Forget();
+                }
                 return;
             }
             // Right-click / Shift on a portrait opens that member's CHARACTER SHEET where a plain

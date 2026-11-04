@@ -130,6 +130,9 @@ namespace BakAgain.UI.Inventory {
             _hint = new Label { pickingMode = PickingMode.Ignore };
             _hint.AddToClassList("enhanced-inv__hint");
             bar.Add(_hint);
+            GetAll = Tablet(GameData.Resources.Text.UiTemplates.EnhancedInvGetAll, () => GetAllPressed?.Invoke());
+            GetAll.style.display = DisplayStyle.None; // side-by-side loot only: ShowGetAll
+            bar.Add(GetAll);
             _moved.Move(_root.Q(UseName), bar, "enhanced-inv__button", clearSize: false);
             _moved.Move(_root.Q(ExitName), bar, "enhanced-inv__button", clearSize: false);
             // Use and Exit wear the original's own faces (TASK-941: the engraved words were too small
@@ -164,7 +167,7 @@ namespace BakAgain.UI.Inventory {
                 _reqStage.style.display = StyleKeyword.Null;
             }
             _layout.RemoveFromHierarchy();
-            _layout = _field = Sheet = _reqStage = null;
+            _layout = _field = Sheet = _reqStage = GetAll = null;
             _purse = _hint = null;
             Array.Clear(_portraits, 0, 3);
             Array.Clear(_names, 0, 3);
@@ -262,6 +265,38 @@ namespace BakAgain.UI.Inventory {
 
         /// <summary>The menu's name for a black item panel (InventoryMenu draws them on the sheet).</summary>
         private const string PanelName = "panel_bg";
+
+        /// <summary>The loot screen's "Get all" tablet (TASK-1019), hidden until <see cref="ShowGetAll"/>.</summary>
+        public VisualElement GetAll { get; private set; }
+
+        public event Action GetAllPressed;
+
+        public void ShowGetAll(bool on) {
+            if (GetAll != null) GetAll.style.display = on ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        /// <summary>The casting screen's parchment tablet, in the bar.</summary>
+        private static VisualElement Tablet(string key, Action pressed) {
+            var tablet = new VisualElement { pickingMode = PickingMode.Position, focusable = true };
+            tablet.AddToClassList("enhanced-inv__tablet");
+            tablet.style.backgroundImage = EnhancedArt.Load("parchment");
+            var word = new Label(GameData.Resources.Text.UiTemplates.Format(key)) { pickingMode = PickingMode.Ignore };
+            word.AddToClassList("enhanced-inv__tablet-word");
+            tablet.Add(word);
+            tablet.AddManipulator(new Clickable(pressed));
+            return tablet;
+        }
+
+        /// <summary>An element's box in the REQ's canonical frame, where the layout has put it: what
+        /// keyboard focus and the cursor warp work in (<c>EnhancedCastLayout.CanonicalRectOf</c>).</summary>
+        public Rect CanonicalRectOf(VisualElement element) {
+            if (_reqStage == null || element == null || element.panel == null) return Rect.zero;
+            Rect wb = element.worldBound;
+            if (float.IsNaN(wb.x) || wb.width <= 0f) return Rect.zero;
+            Vector2 min = _reqStage.WorldToLocal(wb.min);
+            Vector2 max = _reqStage.WorldToLocal(wb.max);
+            return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
+        }
 
         public void SetPurse(string text) {
             if (_purse != null) _purse.text = text;

@@ -14,6 +14,15 @@ public class SkyClockTests {
         (day * (long)GameTime.UnitsPerDay) + (hour * GameTime.UnitsPerHour) + ((minute * GameTime.UnitsPerHour) / 60);
 
     [Fact]
+    public void TheStarsTurnATenthOfTheWayADay() {
+        Assert.Equal(0, Clock.StarRotation(0), 6);
+        Assert.Equal(0.1 * 2 * Math.PI, Clock.StarRotation(At(1, 0)), 6);
+        Assert.Equal(0.05 * 2 * Math.PI, Clock.StarRotation(At(10, 12)), 6); // 1.05 turns: the whole one wraps away
+        var real = new SkyClock(new SkyLayout { StarTurnsPerDay = 1 });
+        Assert.Equal(Math.PI, real.StarRotation(At(0, 12)), 6);
+    }
+
+    [Fact]
     public void TheSunCrossesTheHorizonAtSixAndHalfPastSix() {
         Assert.Equal(0, Clock.Sun(At(0, 6)).ElevationDegrees, 3);
         Assert.Equal(0, Clock.Sun(At(0, 18, 30)).ElevationDegrees, 3);

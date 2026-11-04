@@ -59,5 +59,28 @@ namespace BakAgain.World.Encounters {
         /// TASK-931.
         /// </summary>
         PickCell = 7,
+
+        // The enhanced combat board's marks (TASK-972), drawn by ArenaBoardMarks, redrawn from the model.
+
+        /// <summary>A cell the acting hero can walk to, filled.</summary>
+        ReachFill = 8,
+
+        /// <summary>A foe a Thrust would reach.</summary>
+        ThrustMark = 9,
+
+        /// <summary>A foe a Swing would reach (straight-side neighbours only).</summary>
+        SwingMark = 10,
+
+        /// <summary>The forecast walk, a dotted line through the cells.</summary>
+        Path = 11,
+
+        /// <summary>The foe under the cursor.</summary>
+        Target = 12,
+
+        /// <summary>The cell of whoever is acting.</summary>
+        Actor = 13,
+
+        /// <summary>Where the forecast walk ends: a Move's stop, or the side a Thrust walks to first.</summary>
+        WalkEnd = 14,
     }
 }

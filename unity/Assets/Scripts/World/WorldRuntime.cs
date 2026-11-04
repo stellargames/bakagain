@@ -437,6 +437,18 @@ namespace BakAgain.World {
             if (type == GameData.Resources.World.WorldEntityType.MineCorridor) {
                 return false;
             }
+            // *** NOR IS A FLAT SURFACE. *** Ground, road and water lie UNDER the board (every such
+            // model in the zone TBLs is flat, Z 0..0; a bridge is not, 480 tall with railings): a
+            // 640-unit ground tile's pivot can measure in front of the arena while its surface runs
+            // beneath every cell, and culling it on that reading left the fight on black (owner's
+            // phone round 4, the trap puzzle: two ground tiles and a road culled from an Enhanced
+            // camera pulled back to frame the board). The original's backdrop is the world render,
+            // ground included (combat_captureArenaBackdrop @0x2210b).
+            if (type is GameData.Resources.World.WorldEntityType.Ground
+                or GameData.Resources.World.WorldEntityType.Road
+                or GameData.Resources.World.WorldEntityType.Water) {
+                return false;
+            }
 
             return depth > 0f && depth < arenaDepth;
         }
@@ -686,6 +698,25 @@ namespace BakAgain.World {
         /// The numbers struck combatants float — the damage, "miss" for a blow that did nothing, or a
         /// heal's gain (COMBAT.C:382-390, CSPELL.C:1217, CACTOR.C:973). Played once, on the redraw after the blow, like the swing.
         /// </summary>
+        /// <summary>
+        /// The struck numbers float once the swings this redraw started have played: the original applies the
+        /// damage (and so floats its number) after the attacker's swing animation (COMBAT.C:487-488, then
+        /// 375-390); floated as the swing began, the "miss" was read before the blow was seen (owner,
+        /// 2026-11-01). The log line follows the float. Counted as arena work, so the turn waits for it.
+        /// </summary>
+        private async UniTaskVoid FloatAfterTheSwingsAsync() {
+            _arenaWork++;
+            try {
+                GameObject root = _arenaRoot;
+                await UniTask.WaitWhile(() => Encounters.AttackSwing.Playing > 0);
+                if (_arenaRoot != null && _arenaRoot == root) {
+                    FloatDamageNumbers();
+                }
+            } finally {
+                _arenaWork--;
+            }
+        }
+
         private void FloatDamageNumbers() {
             Color[] palette = _zoneSceneBuilder?.RenderContext?.Palette;
             BakAgain.UI.InGame.InGameScreen screen =
@@ -693,12 +724,22 @@ namespace BakAgain.World {
             if (screen == null || palette == null) {
                 return;
             }
-            foreach (Encounters.ArenaCombatant marker in _arenaRoot.GetComponentsInChildren<Encounters.ArenaCombatant>()) {
-                GameData.Resources.Combat.Combatant c = _hotspots.CombatantFor(marker.RosterSlot, marker.PartyMember);
-                if (c?.DamageFloat is not { } dealt || _landing.Contains((marker.RosterSlot, marker.PartyMember))) {
+            // A killing blow floats over the body: the original draws every actor in the cell, dead or not
+            // (CACTOR.C:1305-1317, 1022-1074), and the log line comes with the float.
+            var struck = new List<(Transform At, int Slot, bool Party)>();
+            foreach (Encounters.ArenaCombatant m in _arenaRoot.GetComponentsInChildren<Encounters.ArenaCombatant>()) {
+                struck.Add((m.transform, m.RosterSlot, m.PartyMember));
+            }
+            foreach (Encounters.ArenaCorpse m in _arenaRoot.GetComponentsInChildren<Encounters.ArenaCorpse>()) {
+                struck.Add((m.transform, m.RosterSlot, m.PartyMember));
+            }
+            foreach ((Transform at, int slot, bool party) in struck) {
+                GameData.Resources.Combat.Combatant c = _hotspots.CombatantFor(slot, party);
+                if (c?.DamageFloat is not { } dealt || _landing.Contains((slot, party))) {
                     continue;
                 }
                 c.DamageFloat = null;
+                _hotspots.Combat.NoteFloatedDamage(c, dealt);
                 // Pens: the countdown steps BEFORE the pen is read (CACTOR.C:986-995), so a number
                 // walks 0x81..0x88; "miss" carries value 1 and a NEGATIVE countdown, so the same
                 // `0x88 - frames` walks it 0x8F..0x88. A heal's gain is negative and drawn as its
@@ -708,8 +749,12 @@ namespace BakAgain.World {
                     int pen = dealt > 0 ? 0x88 - left : dealt < 0 ? 0xEF - left : 0x88 + left;
                     pens.Add(pen < palette.Length ? palette[pen] : Color.white);
                 }
-                Vector3 top = BillboardSprite.DrawnTopCentre(marker.transform);
-                screen.FloatText(top,dealt == 0 ? "miss" : System.Math.Abs(dealt).ToString(), pens);
+                Vector3 top = BillboardSprite.DrawnTopCentre(at);
+                string text = dealt == 0 ? "miss" : System.Math.Abs(dealt).ToString();
+                screen.FloatText(top, text, pens);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                BakAgain.Testing.HarnessQueries.NoteFloat(text, slot, party);
+#endif
             }
         }
 
@@ -909,7 +954,7 @@ namespace BakAgain.World {
                 return;
             }
 
-            GameData.Resources.Combat.CombatGrid grid = _hotspots.Combat?.Puzzle?.Grid;
+            CombatGrid grid = _hotspots.Combat?.Puzzle?.Grid;
             BeginPropEmergence();
 
             var rising = new List<(Transform Prop, int GridX, int GridY)>();
@@ -1135,6 +1180,21 @@ namespace BakAgain.World {
         /// <summary>Redraws and flights in progress; the fight hands the turn on only at zero.</summary>
         private int _arenaWork;
 
+        /// <summary>
+        /// Whether the arena is still playing something the turn must wait for: a slide, a redraw or
+        /// flight (<see cref="_arenaWork"/>), a spell visual, a swing or a fall.
+        /// </summary>
+        /// <remarks>
+        /// The swing and the fall count themselves (<see cref="Encounters.AttackSwing.Playing"/>,
+        /// <see cref="Encounters.DeathCollapse.Playing"/>): the original waits for both
+        /// (<c>combat_actor_anim_play</c> wait 1, CACTOR.C:1895; COMBAT.C:489 swing, :226 fall). Fired and
+        /// forgotten, the next turn's rebuild destroyed the sprite mid-swing (owner's phone round 4).
+        /// </remarks>
+        private bool ArenaBusy() => _sliding || _arenaWork > 0 || (_spellVfx?.Playing ?? false)
+            || Encounters.AttackSwing.Playing > 0 || Encounters.DeathCollapse.Playing > 0;
+
+        internal bool ArenaBusyForTest => ArenaBusy();
+
         private async UniTask SlideThenRedrawAsync() {
             // The whole redraw counts, so a flight it launches is already counted when it ends.
             _arenaWork++;
@@ -1192,8 +1252,16 @@ namespace BakAgain.World {
                     if ((end - start).sqrMagnitude > 1f) {
                         GameData.Resources.Combat.Combatant who =
                             _hotspots.CombatantFor(marker.RosterSlot, marker.PartyMember);
+                        var gait = marker.GetComponent<Encounters.DirectionalSprite>();
+                        // Enhanced: the walker turns to its new facing first and then walks (owner,
+                        // 2026-11-01); the redraw after the slide turned it only on arrival. Classic
+                        // keeps that order.
+                        if (gait != null && who != null && BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.Combat)) {
+                            (long X, long Y, short _) = gait.RecordedPose;
+                            gait.SetPose(X, Y, _hotspots.ArenaSpriteYawFor(who));
+                        }
                         targets.Add(marker.transform);
-                        gaits.Add(marker.GetComponent<Encounters.DirectionalSprite>());
+                        gaits.Add(gait);
                         movers.Add(who);
                         routes.Add(RouteOf(who, start, end));
                     }
@@ -1266,7 +1334,7 @@ namespace BakAgain.World {
         /// </remarks>
         private void ClearCombatBackdrop() {
             foreach (BakAgain.UI.InGame.InGameScreen screen in
-                     Object.FindObjectsByType<BakAgain.UI.InGame.InGameScreen>(FindObjectsSortMode.None)) {
+                     Object.FindObjectsByType<BakAgain.UI.InGame.InGameScreen>()) {
                 screen.SetCombatBackdrop(null);
             }
         }
@@ -1414,7 +1482,7 @@ namespace BakAgain.World {
             // over there found no InGameScreen and silently wired nothing. A fight starting is the
             // first moment both exist; it is idempotent, so repeating it per redraw costs nothing.
             foreach (BakAgain.UI.InGame.InGameScreen screen in
-                     Object.FindObjectsByType<BakAgain.UI.InGame.InGameScreen>(FindObjectsSortMode.None)) {
+                     Object.FindObjectsByType<BakAgain.UI.InGame.InGameScreen>()) {
                 screen.SetCorpseLootSeam(_hotspots.LootCorpse);
                 _hotspots.InspectArmed = screen.InspectAtTouchCursor;
                 screen.SetCombatTargetSeam(_hotspots.ResolveCombatTargetClick);
@@ -1426,8 +1494,23 @@ namespace BakAgain.World {
                 screen.SetCombatGroundSeam(_hotspots.ResolveCombatGroundClick);
                 screen.SetCombatFaceSeam(FaceActingCombatantAt);
                 screen.SetInCombatPredicate(() => _hotspots?.Combat?.InCombat ?? false);
+                screen.SetFightUnderWayPredicate(() => _hotspots?.FightUnderWay ?? false);
+                if (_hotspots.Combat != null) {
+                    _hotspots.Combat.ForecastLayout = _combatLayout;
+                    _hotspots.Combat.ShortestRoutes = EnhancedCombatOn;   // Enhanced turns walk the shortest route
+                }
                 screen.SetCombatPanelSeam(_hotspots.CombatPanelContent);
                 screen.SetActingHeadSeam(_hotspots.ActingPortraitHeadId);
+                screen.SetEnhancedCombatSeams(
+                    lines => BakAgain.UI.Combat.Enhanced.CombatHudModelBuilder.Build(_hotspots.Combat, _gameSession,
+                        _hotspots.EnhancedBoardMarks(), lines),
+                    () => _hotspots.Combat?.Encounter == null ? null
+                        : (object)(_hotspots.Combat.Encounter.Current, _hotspots.Combat.Log.Round),
+                    () => ResolveCombatMenu()?.GetComponent<UnityEngine.UIElements.UIDocument>()?.rootVisualElement,
+                    CombatStoneImage, ResetArenaView, CombatControllerFor,
+                    () => ResolveCombatMenu()?.GetComponent<BakAgain.UI.InputCore.MenuLayerHost>());
+                screen.SetCombatPickPendingSeam(() => _hotspots?.CombatPickPending ?? false);
+                _combatScreen = screen;
                 // One encounter fights against a painted backdrop instead of the world. Handed over
                 // with the rest of the seams because this is the redraw the arena runs every turn,
                 // and SetCombatBackdrop is idempotent for exactly that reason.
@@ -1440,7 +1523,7 @@ namespace BakAgain.World {
             // idempotence, same reason: this redraw is the first moment both objects exist.
             foreach (BakAgain.UI.Spells.CastScreen cast in
                      Object.FindObjectsByType<BakAgain.UI.Spells.CastScreen>(
-                         FindObjectsInactive.Include, FindObjectsSortMode.None)) {
+                         FindObjectsInactive.Include)) {
                 cast.SetCasterStatsSeam(_hotspots.Combat != null
                     ? _hotspots.Combat.ActorStatsFor
                     : (System.Func<GameData.Resources.Combat.Combatant,
@@ -1516,7 +1599,7 @@ namespace BakAgain.World {
                 }
                 marker.gameObject.AddComponent<Encounters.AttackSwing>().Play(
                     _zoneSceneBuilder.RenderContext, marker.Face, attackSet,
-                    sprite.CurrentOctant, marker.Extent);
+                    sprite.CurrentOctant, marker.Extent).Forget();
             }
 
             // *** A SHOT ARMED BY THE MODEL FLIES HERE. *** Same carry-across as the swing above:
@@ -1571,7 +1654,7 @@ namespace BakAgain.World {
                 FlyEffectAsync(effect, marker.transform.localPosition, to.localPosition,
                     arcSteps, arcDelta, landingOn: landingOn).Forget();
             }
-            FloatDamageNumbers();
+            FloatAfterTheSwingsAsync().Forget();
 
             // *** THE LIVE COMBATANTS BREATHE. *** The idle is the walk cycle played in place —
             // slot 0 asks for the same three frames — and its delay is re-rolled to 8..15 ticks
@@ -1602,6 +1685,10 @@ namespace BakAgain.World {
                     // the arena is drawn before the turn is decided.
                     _hotspots.ActingCellSegments);
 
+            AttachBoardMarks(_arenaRoot);
+            AttachTrapFrame(_arenaRoot);
+            AttachSeeThrough(_arenaRoot);
+
             // *** THE COLLAPSE PLAYS ONCE, ON THE BODY THAT HAS JUST APPEARED. *** A corpse is
             // rebuilt on every redraw, so the "already shown" flag lives on the combatant; without
             // it the body would fall over again on each turn.
@@ -1615,7 +1702,7 @@ namespace BakAgain.World {
                 dead.DeathShown = true;
                 corpse.gameObject.AddComponent<Encounters.DeathCollapse>().Play(
                     _zoneSceneBuilder.RenderContext, corpse.Face, corpse.SetName,
-                    corpse.CollapseLastFrame, corpse.Extent);
+                    corpse.CollapseLastFrame, corpse.Extent).Forget();
             }
 
             // *** THE RECOIL'S CLOCK IS THIS REDRAW, AND THE TICK COMES AFTER THE DRAW. ***
@@ -1710,6 +1797,11 @@ namespace BakAgain.World {
         /// Un-suspend FIRST or the restore is swallowed too.
         /// </remarks>
         private void RestoreWalkingCamera() {
+            _arenaOrbit = null;
+            if (_hotspots != null) {
+                _hotspots.CombatTurnStarted -= FocusArenaOn;
+            }
+            DropCombatController();
             if (_partyMovement != null) {
                 _partyMovement.CameraSuspended = false;
                 _partyMovement.SyncToCamera();
@@ -1738,12 +1830,12 @@ namespace BakAgain.World {
         /// the fight is up, and the walking pose is restored wholesale by
         /// <see cref="ClearArena"/>.</para>
         /// </remarks>
-        private void PointCameraAtArena() {
+        internal void PointCameraAtArena() {
             if (_worldCamera == null || _gameSession == null) {
                 return;
             }
             bool underground = _zoneIsUnderground;
-            StartData start = _hotspots?.Start;
+            StartData start = _startForTest ?? _hotspots?.Start;
             if (!CombatArenaCamera.IsUsable(start, underground)) {
                 _logger?.LogDebug("No arena camera pose in START.DAT; leaving the view where it is.");
                 return;
@@ -1766,7 +1858,278 @@ namespace BakAgain.World {
             // grid it projects at ~32.4° horizontal, which is shift 9, while zones 10-12 ship 8.
             // Reusing the walking camera means we inherit the zone's, which halved the underground
             // arena on screen (TASK-604). RestoreWalkingCamera puts the zone's back.
-            _worldCamera.fieldOfView = TravelFov(null, arena: true);
+            _worldCamera.fieldOfView = TravelFov(null, arena: ArenaUsesOriginalLens);
+
+            // Enhanced combat: the eye above is where the orbit STARTS; from here the camera turns
+            // around the board's centre. Kept on the runtime, not the arena: the arena's objects
+            // are destroyed and rebuilt on every redraw, the pose must survive that.
+            _arenaOrbit = null;
+            if (ArenaUsesOrbit && start.CombatGridCellSize > 0) {
+                // Framed from behind the party at the layout's start pitch, as close as the whole board
+                // still fits the screen the HUD leaves free: above the desktop band, between the phone's docks.
+                _arenaIsTrap = _hotspots?.Combat?.Grid != null
+                    && GameData.Resources.Combat.TrapPuzzleGoal.IsTrapPuzzle(_hotspots.Combat.Grid);
+                bool trap = _arenaIsTrap;
+                // A trap's board, for the camera, ends at the exit row: past it is the way out.
+                int lastRow = trap ? GameData.Resources.Combat.TrapPuzzleGoal.ExitRow(_hotspots.Combat.Grid) : -1;
+                var centre = GameData.Resources.Combat.ArenaOrbit.BoardCentre(start.CombatGridCellSize, underground, lastRow);
+                GameData.Resources.Combat.ArenaOrbit Make(double distance, double zoom = 1) => new(_combatLayout, centre,
+                    0, _combatLayout.StartPitchDegrees, distance, zoom, trap);
+                bool phone = BakAgain.UI.InGame.InGameScreen.PhoneHudOverride ?? Application.isMobilePlatform;
+                _arenaOrbit = new BakAgain.World.Encounters.ArenaOrbitCamera();
+                _arenaOrbit.FrameInto(phone ? _combatLayout.PhoneBoardBottom : _combatLayout.BandHeight,
+                    phone ? _combatLayout.PhoneBoardTop : 1f);
+                _arenaOrbit.Bind(_worldCamera, null, _gameSession.PositionX, _gameSession.PositionY, _gameSession.Rotation);
+                _arenaCorners = GameData.Resources.Combat.ArenaOrbit.BoardCorners(start.CombatGridCellSize, underground, lastRow);
+                if (trap) {
+                    _arenaCorners = GrowCorners(_arenaCorners, _combatLayout.TrapRimCells * start.CombatGridCellSize);
+                }
+                double distance = FitArena(d => Make(d), trap);
+                // The fit is zoom 1 and the farthest out; a phone opens closer, where its cells can be tapped.
+                // A trap's fit is the board's width alone, close enough already (owner, round 6).
+                _arenaOrbit.Bind(_worldCamera, Make(distance, phone && !trap ? _combatLayout.PhoneStartZoom : 1),
+                    _gameSession.PositionX, _gameSession.PositionY, _gameSession.Rotation);
+                SetPitchFloor();
+                // Closer than the whole board, the view leans toward whoever of the party acts.
+                _arenaCellSize = start.CombatGridCellSize;
+                Combatant first = _hotspots?.Combat?.Encounter?.Current;
+                if (first == null || !first.IsPartyMember) {
+                    first = null;
+                    var party = _hotspots?.Combat?.Encounter?.Party;
+                    if (party != null) {
+                        foreach (Combatant c in party) {
+                            if (c != null && !c.IsDead) { first = c; break; }
+                        }
+                    }
+                }
+                _arenaFocused = false;
+                FocusArenaOn(first);
+                if (_hotspots != null) {
+                    _hotspots.CombatTurnStarted -= FocusArenaOn;
+                    _hotspots.CombatTurnStarted += FocusArenaOn;
+                }
+                _arenaOrbit.Apply();
+            }
+        }
+
+        private readonly GameData.Resources.Layout.EnhancedCombatLayout _combatLayout = new();
+        private StartData _startForTest;
+        private int _arenaCellSize;
+
+        // A party turn: a close orbit leans toward the hero now acting (ArenaOrbit.Centre).
+        private void FocusArenaOn(Combatant hero) {
+            if (_arenaOrbit?.Orbit == null || hero == null || _arenaCellSize <= 0) {
+                return;
+            }
+            (int across, int away) = GameData.Resources.Combat.CombatArenaPlacement.CellOffset(hero.X, hero.Y, _arenaCellSize);
+            GameData.Resources.Combat.ArenaOrbit orbit = _arenaOrbit.Orbit;
+            // The first hero of a fight is framed at once; later ones are glided to (owner, 2026-10-29).
+            if (!_arenaFocused) {
+                _arenaFocused = true;
+                orbit.Focus((across, away));
+                _arenaOrbit.Apply();
+                return;
+            }
+            // A hero already in view leaves the camera still (owner's phone round 4: the fewest moves).
+            if (!GlideWouldMoveView((across, away))) {
+                return;
+            }
+            orbit.GlideFocus((across, away), _combatLayout.FocusGlideSeconds);
+            GlideArenaFocusAsync(orbit).Forget();
+        }
+
+        internal void FocusHeroForTest(Combatant hero) => FocusArenaOn(hero);
+
+        private bool _arenaFocused;
+
+        /// <summary>
+        /// Whether gliding the close view onto <paramref name="point"/> would move anything worth a glide: the
+        /// point is outside the framed band, and the orbit's centre would shift by at least
+        /// <see cref="GameData.Resources.Layout.EnhancedCombatLayout.FocusGlideMinCells"/>. At the whole-board zoom
+        /// the centre ignores the focus, so nothing ever glides there (TASK-972 round 4 review M1) -- except in a
+        /// trap, whose view follows the focus up the board at every zoom (ArenaOrbit.CentreFocusedOn).
+        /// </summary>
+        private bool GlideWouldMoveView((double X, double Y) point) {
+            GameData.Resources.Combat.ArenaOrbit orbit = _arenaOrbit.Orbit;
+            if (_arenaOrbit.InFrame(point.X, point.Y, _combatLayout.FocusInViewMargin)) {
+                return false;
+            }
+            (double X, double Y) now = orbit.Centre, then = orbit.CentreFocusedOn(point);
+            double dx = then.X - now.X, dy = then.Y - now.Y;
+            return System.Math.Sqrt((dx * dx) + (dy * dy)) >= _combatLayout.FocusGlideMinCells * _arenaCellSize;
+        }
+
+        /// <summary>
+        /// Enhanced combat: before a monster acts, glide the close view onto it if its cell is not in the
+        /// framed band, and wait for the glide; a monster already in view, or a glide that would not move the
+        /// view, leaves the camera still and costs no wait.
+        /// </summary>
+        internal UniTask FrameEnemyForTest(Combatant monster) => FrameEnemyAsync(monster);
+
+        private async UniTask FrameEnemyAsync(Combatant monster) {
+            if (!EnhancedCombatOn() || _arenaOrbit?.Orbit == null || monster == null || _arenaCellSize <= 0) {
+                return;
+            }
+            (int across, int away) = GameData.Resources.Combat.CombatArenaPlacement.CellOffset(monster.X, monster.Y, _arenaCellSize);
+            if (!GlideWouldMoveView((across, away))) {
+                return;
+            }
+            GameData.Resources.Combat.ArenaOrbit orbit = _arenaOrbit.Orbit;
+            orbit.GlideFocus((across, away), _combatLayout.FocusGlideSeconds);
+            await GlideArenaFocusTaskAsync(orbit);
+        }
+
+        // One frame loop per glide; a newer glide restarts the same orbit's, a new fight's orbit ends this one.
+        private async UniTaskVoid GlideArenaFocusAsync(GameData.Resources.Combat.ArenaOrbit orbit) =>
+            await GlideArenaFocusTaskAsync(orbit);
+
+        private async UniTask GlideArenaFocusTaskAsync(GameData.Resources.Combat.ArenaOrbit orbit) {
+            int glide = ++_arenaGlide;
+            while (glide == _arenaGlide && _arenaOrbit?.Orbit == orbit) {
+                bool more = orbit.Advance(Time.deltaTime);
+                _arenaOrbit.Apply();
+                if (!more) {
+                    return;
+                }
+                await UniTask.Yield();
+            }
+        }
+
+        private int _arenaGlide;
+
+        internal void SetArenaCameraForTest(Camera camera, StartData start, bool underground) {
+            _worldCamera = camera;
+            _startForTest = start;
+            _zoneIsUnderground = underground;
+        }
+
+        internal bool HasArenaOrbit => _arenaOrbit != null;
+        internal GameData.Resources.Combat.ArenaOrbit ArenaOrbitForTest => _arenaOrbit?.Orbit;
+        private BakAgain.World.Encounters.ArenaOrbitCamera _arenaOrbit;
+
+        /// <summary>Enhanced combat turns the camera around the board; Classic keeps the original's fixed one.</summary>
+        internal bool ArenaUsesOrbit => EnhancedCombatOn();
+
+        /// <summary>Drag the arena camera around the board (pixels). No-op outside an Enhanced fight.</summary>
+        public void OrbitArena(float dxPixels, float dyPixels) {
+            _arenaOrbit?.Orbit.Drag(dxPixels, dyPixels);
+            RefitArena();
+        }
+
+        private (double X, double Y)[] _arenaCorners;
+        private bool _arenaIsTrap;
+
+        /// <summary>Whether the fight on screen is a trap board (its camera is held near the party's view).</summary>
+        internal bool ArenaIsTrap => _arenaOrbit?.Orbit != null && _arenaIsTrap;
+
+        // The BoardCorners order: (low, low), (high, low), (low, high), (high, high) on (across, away).
+        private static (double X, double Y)[] GrowCorners((double X, double Y)[] c, double by) => new[] {
+            (c[0].X - by, c[0].Y - by), (c[1].X + by, c[1].Y - by), (c[2].X - by, c[2].Y + by), (c[3].X + by, c[3].Y + by) };
+
+        /// <summary>
+        /// The whole-board distance for the pose as it is now -- yaw, pitch and the window's shape all move it
+        /// (at 45 degrees the 8x13 board is about 15 cells both ways) -- so the farthest zoom always frames the
+        /// whole board again; then the camera is placed. Each orbit input refits.
+        /// </summary>
+        private void RefitArena(bool apply = true) {
+            GameData.Resources.Combat.ArenaOrbit o = _arenaOrbit?.Orbit;
+            if (o == null) {
+                return;
+            }
+            if (_arenaCorners != null) {
+                double fit = FitArena(d => new GameData.Resources.Combat.ArenaOrbit(_combatLayout,
+                    o.BoardMiddle, o.YawDegrees, o.PitchDegrees, d, 1, o.IsTrap), o.IsTrap);
+                o.Refit(fit);
+            }
+            SetPitchFloor();
+            if (apply) {
+                _arenaOrbit.Apply();
+            }
+        }
+
+        // A trap fits the board's width only, just inside the screen; any other fight the whole board.
+        private double FitArena(System.Func<double, GameData.Resources.Combat.ArenaOrbit> make, bool trap) =>
+            trap ? _arenaOrbit.FitDistance(make, _arenaCorners, _combatLayout.TrapFitMarginX, 0, widthOnly: true)
+                : _arenaOrbit.FitDistance(make, _arenaCorners, _combatLayout.BoardFitMarginX, _combatLayout.BoardFitMarginY);
+
+        // The camera tilts up until the horizon is HorizonFromTop below the screen's top; the lens and the
+        // band decide which pitch that is, so it is set again whenever the arena refits (a window resize).
+        private void SetPitchFloor() {
+            double floor = _arenaOrbit.PitchForHorizon(_combatLayout.HorizonFromTop);
+            if (!double.IsNaN(floor) && _arenaOrbit.Orbit != null) {
+                _arenaOrbit.Orbit.PitchFloorDegrees = floor;
+            }
+        }
+
+        /// <summary>The arena camera back where the fight started it. No-op outside an Enhanced fight.</summary>
+        public void ResetArenaView() {
+            // Back to the start pose, refitted for it, then the start zoom of that fit (Refit keeps the distance).
+            _arenaOrbit?.Orbit.Reset();
+            RefitArena(apply: false);
+            _arenaOrbit?.Orbit.Reset();
+            _arenaOrbit?.Apply();
+        }
+
+        // A combat stone's face for the Enhanced HUD: COMBAT.DAT's own icon for that action, or the bare
+        // stone for -1 (UserInterfaceLoader.DisabledButtonIcon). Null until the combat menu is built.
+        private string CombatStoneImage(int actionId) {
+            var loader = ResolveCombatMenu()?.GetComponent<BakAgain.ResourceManagement.Loaders.UserInterfaceLoader>();
+            if (actionId < 0) {
+                return GameData.Resources.Menu.UiElement.IconKeyForCombined(
+                    BakAgain.ResourceManagement.Loaders.UserInterfaceLoader.DisabledButtonIcon);
+            }
+            return loader != null && loader.TryGetIconBase(actionId, out int icon)
+                ? GameData.Resources.Menu.UiElement.IconKeyForCombined(icon) : null;
+        }
+
+        /// <summary>Multiply the arena camera's distance (below 1 comes closer). No-op outside an Enhanced fight.</summary>
+        public void ZoomArena(float factor) {
+            // Refit first: the zoom's limits are those of the pose as it is now.
+            RefitArena(apply: false);
+            _arenaOrbit?.Orbit.Zoom(factor);
+            _arenaOrbit?.Apply();
+        }
+
+        /// <summary>
+        /// Zoom at a screen point: zooming in, the view's focus moves to the ground under it, kept on the board,
+        /// so a close view goes where the mouse (or the pinch) is (owner, 2026-11-01: it always went to the
+        /// acting hero's corner). Zooming out keeps the focus.
+        /// </summary>
+        public void ZoomArenaAt(float factor, Vector2 screen) {
+            if (factor < 1f && _arenaOrbit?.Orbit != null && _arenaCorners != null
+                && _arenaOrbit.BoardPointAt(screen) is (double across, double away)) {
+                _arenaOrbit.Orbit.Focus(OnBoard((across, away)));
+            }
+            ZoomArena(factor);
+        }
+
+        /// <summary>
+        /// Pan a close view: (<paramref name="right"/>, <paramref name="forward"/>) as the camera sees them, each
+        /// -1..1, for <paramref name="seconds"/>. The focus moves at <see cref="GameData.Resources.Layout.EnhancedCombatLayout.PanBoardsPerSecond"/>
+        /// of the board's width a second and stays on the board; the whole-board view does not move.
+        /// </summary>
+        public void PanArena(float right, float forward, float seconds) {
+            if (_arenaOrbit?.Orbit == null || _arenaCorners == null) {
+                return;
+            }
+            (double minX, double maxX, double _, double _) = BoardBox();
+            double step = (maxX - minX) * _combatLayout.PanBoardsPerSecond * seconds;
+            _arenaOrbit.Orbit.Focus(OnBoard(_arenaOrbit.Orbit.PanTarget(right * step, forward * step)));
+            _arenaOrbit.Apply();
+        }
+
+        private (double MinX, double MaxX, double MinY, double MaxY) BoardBox() {
+            double minX = double.MaxValue, maxX = double.MinValue, minY = double.MaxValue, maxY = double.MinValue;
+            foreach ((double x, double y) in _arenaCorners) {
+                minX = System.Math.Min(minX, x); maxX = System.Math.Max(maxX, x);
+                minY = System.Math.Min(minY, y); maxY = System.Math.Max(maxY, y);
+            }
+            return (minX, maxX, minY, maxY);
+        }
+
+        private (double X, double Y) OnBoard((double X, double Y) p) {
+            (double minX, double maxX, double minY, double maxY) = BoardBox();
+            return (System.Math.Clamp(p.X, minX, maxX), System.Math.Clamp(p.Y, minY, maxY));
         }
 
         /// <summary>
@@ -1909,30 +2272,22 @@ namespace BakAgain.World {
         }
 
         /// <summary>
-        /// Steps every roaming encounter actor in proportion to how far the party just moved.
+        /// Steps every roaming encounter actor once for every step the party takes.
         /// </summary>
         /// <remarks>
-        /// <b>The cadence is a party-movement one, and getting it from the disassembly took
-        /// correcting a note that had it wrong.</b> <c>updateRoamingEncounterActors</c> @0x7600b has
-        /// exactly one caller, <c>drawMap(animate)</c> @0x21711, and only
-        /// <c>approachWalkToScenePosition</c> @0x6dd52 passes 1 — <c>MainGameLoop</c>,
-        /// <c>HandleMoveEvent</c> and <c>UI_Encamp</c> all pass 0. So roaming advances once per
-        /// frame of an ANIMATED PARTY WALK: not per render frame, and never while the party stands
-        /// still.
+        /// <b>One roaming tick per party step, at any step size.</b> The world loop passes the result
+        /// of <c>worldmove_party_attempt_move</c> as <c>animate</c> (WORLDLP.C:264, 157), and
+        /// <c>world_render_scene_dispatch(animate)</c> steps every roamer once when it is set
+        /// (WORLDHIT.C:64-66; IDA: MainGameLoop pushes DI before drawMap at 0x6c3b1). A step is <c>g_nWorldStepSpeed</c> from MOVEMENT.DAT
+        /// (WORLDMOV.C:36-40, 96), the player's step size: 400, 800 or 1,600. A roamer always moves
+        /// 400 (<see cref="RoamingStepDistance"/>), so at Large it walks a quarter of the party's pace.
+        /// (An older note here said the main loop passed 0 and metered roaming by distance, which ran
+        /// monsters at the party's own pace: four times the original's at the default Large.)
         ///
-        /// <para><b>Both obvious wires are wrong.</b> Ticking from an Update would have monsters
-        /// roaming while the party stands still, covering ground the original never lets them cover.
-        /// Ticking once per keypress is the opposite error — monsters moving in lockstep with the
-        /// player, and an authored patrol drifting off its waypoints between two steps.</para>
-        ///
-        /// <para><b>So the tick is metered by DISTANCE, not by steps.</b> A roaming step is exactly
-        /// <c>CellSize / 4</c>, which is why the waypoints — which sit on the cell lattice — are
-        /// reached by exact equality after four of them. Metering the party's movement in the same
-        /// quarter-cells keeps a monster at walking pace regardless of the player's step-size
-        /// preference, which a fixed ticks-per-step could not: that preference changes the party's
-        /// step length live, so any constant would be right for one setting and wrong for the rest.
-        /// The remainder is carried, so a run of short steps still adds up to a step rather than
-        /// being repeatedly rounded away.</para>
+        /// <para>Never per render frame: the original never moves a roamer while the party stands.
+        /// The party's distance is counted in preference steps rather than Stepped events because
+        /// Enhanced walking glides in Small sub-steps (<see cref="PartyMovement.Glide"/>); the
+        /// remainder is carried, so a run of short steps still adds up to a step.</para>
         /// </remarks>
         /// <summary>
         /// Keep the nine tiles around the party active and the rest off — TASK-130 option (b).
@@ -1981,16 +2336,13 @@ namespace BakAgain.World {
             // delta on both axes, so measuring it as longer than a straight one would run diagonal
             // travel faster than the original does.
             long moved = System.Math.Max(System.Math.Abs(dx), System.Math.Abs(dy));
-            if (moved <= 0) {
-                return;     // a pivot is not a step; nothing roams
-            }
-
-            _roamingCarry += moved;
-            int ticks = (int)(_roamingCarry / RoamingStepDistance);
+            // A pivot is not a step; nothing roams.
+            int ticks;
+            (ticks, _roamingCarry) = GameData.Resources.World.RoamingMovement.TicksForPartyMove(
+                _roamingCarry, moved, _partyMovement?.WorldStepSpeed ?? RoamingStepDistance);
             if (ticks <= 0) {
                 return;
             }
-            _roamingCarry -= (long)ticks * RoamingStepDistance;
 
             Encounters.RoamingActor[] actors =
                 _encounterActorsRoot.GetComponentsInChildren<Encounters.RoamingActor>();
@@ -2040,6 +2392,9 @@ namespace BakAgain.World {
         /// <summary>Whether a fight is on the field — see
         /// <see cref="Hotspots.HotspotService.FightInProgress"/>.</summary>
         public bool FightInProgress => _hotspots != null && _hotspots.FightInProgress;
+
+        /// <summary>The fight's first turn has been handed out; see <see cref="Hotspots.HotspotService.FightUnderWay"/>.</summary>
+        public bool FightUnderWay => _hotspots != null && _hotspots.FightUnderWay;
 
         /// <summary>Spring a trapped container's ambush — see
         /// <see cref="Hotspots.HotspotService.FireTrapEncounterAt"/>. Sub-tile coordinates.</summary>
@@ -2142,6 +2497,11 @@ namespace BakAgain.World {
         /// <summary>The built world camera, valid between <see cref="BuildAsync"/> and
         /// <see cref="TeardownAsync"/>. GameFlow routes it into the travel screen's viewport.</summary>
         public Camera WorldCamera => _worldCamera;
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        /// <summary>The fight's hotspot service, for the build test harness's read-only queries.</summary>
+        internal Hotspots.HotspotService HarnessHotspots => _hotspots;
+#endif
 
         /// <summary>The built party-movement controller (drives the camera + GameSession from nav
         /// input), valid between build and teardown.</summary>
@@ -2307,7 +2667,7 @@ namespace BakAgain.World {
                 redrawArena: () => SlideThenRedrawAsync().Forget(),
                 // A spell's effect is part of its turn: the original plays it inside the cast
                 // (cspell_invoke_effect, CSPELL.C:786), so the turn passes only once it is over (TASK-1011).
-                arenaBusy: () => _sliding || _arenaWork > 0 || (_spellVfx?.Playing ?? false),
+                arenaBusy: ArenaBusy,
                 // The loot screen is the travel HUD's, so the service asks rather than reaching for
                 // it. Same shape as showArena: a callback into whoever owns the UI.
                 openCorpseLoot: OpenCorpseLoot,
@@ -2325,6 +2685,10 @@ namespace BakAgain.World {
                 // Read through a lambda, not captured: the zone kind changes as the party travels,
                 // and HotspotService outlives any one zone.
                 zoneIsUnderground: () => _zoneIsUnderground);
+            // Enhanced combat's enemy turn (TASK-972, owner's phone round 4): the camera frames the
+            // monster first if it is out of view, and a beat follows its action. Classic gets neither.
+            _hotspots.BeforeEnemyTurn = FrameEnemyAsync;
+            _hotspots.EnemyTurnBeatSeconds = () => EnhancedCombatOn() ? _combatLayout.EnemyActionBeatSeconds : 0f;
 
             // *** A DIALOG CAN RE-ARM AN ENCOUNTER, AND IT CANNOT ASK FOR THE SERVICE DIRECTLY. ***
             // Sub-action 3 runs the same routine the eleven self-re-arming encounters do, but
@@ -2482,6 +2846,7 @@ namespace BakAgain.World {
                 _partyMovement.Relocated -= ApplyTileResidency;
             }
             _partyMovement = null;
+            DropCombatController();
             _hotspots = null;
 
             ReleaseUndergroundBackdrop();
@@ -2515,13 +2880,117 @@ namespace BakAgain.World {
             // render texture the camera's aspect is the SCREEN's, so every other case uses the
             // viewport's own aspect, where Cover returns exactly VerticalFovDegrees: the faithful
             // lens is exact whenever Enhanced full-screen is off.
-            // The arena (and its room probe) is never full-screen: a fight takes the world back into
+            // The arena (and its room probe) is never full-screen unless Enhanced combat: a fight takes the world back into
             // the frame, and the probe decides which cells the fight may use — a rule.
             float aspect = WindowLens && !arena ? _worldCamera.aspect : _viewport.ViewportAspect;
             return (float)GameData.Resources.World.WorldProjection.CoverVerticalFovDegrees(
                 _viewport.CanonicalRect.Width, _viewport.CanonicalRect.Height,
                 focalLength ?? _viewport.FocalLength, aspect);
         }
+
+        /// <summary>The arena camera takes START.DAT's framed lens, except under Enhanced combat, where
+        /// the fight keeps the full-window travel lens (TASK-972). The room probe stays on the original's
+        /// lens either way: it decides which cells the fight may use, which is a rule.</summary>
+        internal bool ArenaUsesOriginalLens => !EnhancedCombatOn();
+
+        /// <summary>Enhanced combat only (TASK-972): the board's marks and the foe plates ride on the arena root.</summary>
+        internal Encounters.ArenaBoardMarks AttachBoardMarks(GameObject arenaRoot) {
+            if (!EnhancedCombatOn() || arenaRoot == null) {
+                return null;
+            }
+            var marks = arenaRoot.AddComponent<Encounters.ArenaBoardMarks>();
+            marks.Bind(() => _hotspots?.EnhancedBoardShapes(_combatLayout.MarkHalfCell),
+                () => _hotspots?.EnhancedFoePlates(), () => _hotspots?.EnhancedBoardInputs() ?? 0,
+                _combatLayout, 0f, () => _worldCamera);
+            return marks;
+        }
+
+        /// <summary>Enhanced trap boards only (TASK-972): the rim and the dimmed surroundings on the arena root.</summary>
+        internal Encounters.ArenaTrapFrame AttachTrapFrame(GameObject arenaRoot) {
+            _trapFrame = null;
+            StartData start = _startForTest ?? _hotspots?.Start;
+            CombatGrid grid = _hotspots?.Combat?.Grid;
+            if (!EnhancedCombatOn() || arenaRoot == null || start == null || start.CombatGridCellSize <= 0
+                || !ArenaIsTrap || grid == null) {
+                return null;
+            }
+            _trapFrame = arenaRoot.AddComponent<Encounters.ArenaTrapFrame>();
+            _trapFrame.Bind(ArenaOrbit.BoardCorners(start.CombatGridCellSize, _zoneIsUnderground, TrapPuzzleGoal.ExitRow(grid)),
+                _hotspots.CellCentreWorld, _combatLayout,
+                start.CombatGridCellSize / BakCoordinateConverter.WorldScale, () => _worldCamera);
+            return _trapFrame;
+        }
+
+        private Encounters.ArenaTrapFrame _trapFrame;
+
+        /// <summary>The trap frame on the arena drawn now, or null.</summary>
+        internal Encounters.ArenaTrapFrame TrapFrame => _trapFrame;
+
+        /// <summary>
+        /// The see-through driver, always on the arena root; it reads the turn latch every frame, so an
+        /// Enhanced turn without a redraw still fades and a Classic one restores full alpha.
+        /// </summary>
+        internal Encounters.ArenaSeeThroughDriver AttachSeeThrough(GameObject arenaRoot) {
+            if (arenaRoot == null) {
+                return null;
+            }
+            var driver = arenaRoot.AddComponent<Encounters.ArenaSeeThroughDriver>();
+            driver.Bind(EnhancedCombatOn, () => _combatController?.FocusCell, () => _worldCamera,
+                cell => _hotspots?.CellCentreWorld(cell.Col, cell.Row),
+                point => _hotspots?.CellAtPoint(point), _combatLayout);
+            return driver;
+        }
+
+        /// <summary>
+        /// Whether this turn is played Enhanced: the HUD's per-turn latch
+        /// (<see cref="BakAgain.UI.InGame.InGameScreen.EnhancedCombatActive"/>), so the orbit camera, the
+        /// board marks and the HUD always agree. Without a travel screen yet, the option itself.
+        /// </summary>
+        private bool EnhancedCombatOn() => _combatScreen != null ? _combatScreen.EnhancedCombatActive
+            : BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.Combat);
+
+        // The travel screen whose latch decides; set where the fight's seams are handed over. Before
+        // that (the first fight's opening camera) the option is what the latch would take anyway.
+        private BakAgain.UI.InGame.InGameScreen _combatScreen;
+
+        internal void SetCombatScreenForTest(BakAgain.UI.InGame.InGameScreen screen) => _combatScreen = screen;
+
+        private BakAgain.UI.Combat.Enhanced.EnhancedCombatController _combatController;
+
+        /// <summary>
+        /// Enhanced combat's controller for this HUD and this fight's service, made once and kept; it
+        /// also takes the Classic menu's keys while the turn is Enhanced (a stone key forecasts first).
+        /// </summary>
+        private BakAgain.UI.Combat.Enhanced.EnhancedCombatController CombatControllerFor(
+            BakAgain.UI.Combat.Enhanced.ICombatHud hud, bool phone) {
+            if (_hotspots == null || hud == null) {
+                return null;
+            }
+            if (_combatController == null || _combatController.Hud != hud || _combatController.Service != _hotspots) {
+                _combatController?.Dispose();
+                _combatController = new BakAgain.UI.Combat.Enhanced.EnhancedCombatController(
+                    _hotspots, _hotspots.Combat, hud, _combatLayout, _gameSession, phone, EnhancedCombatOn);
+                BakAgain.UI.Combat.CombatMenu menu = ResolveCombatMenu();
+                if (menu != null) {
+                    menu.KeyIntercept = key => EnhancedCombatOn() && (_combatController?.Key(key) ?? false);
+                }
+            }
+            return _combatController;
+        }
+
+        // The fight (or the zone's service) is over: the controller lets go of the service's events and the
+        // HUD, and the next Enhanced turn builds a fresh one (final review Minor 5).
+        private void DropCombatController() {
+            _combatController?.Dispose();
+            _combatController = null;
+        }
+
+        internal void SetHotspotsForTest(Hotspots.HotspotService hotspots) => _hotspots = hotspots;
+
+        internal BakAgain.UI.Combat.Enhanced.EnhancedCombatController CombatControllerForTest(
+            BakAgain.UI.Combat.Enhanced.ICombatHud hud, bool phone) => CombatControllerFor(hud, phone);
+
+        internal void LeaveFightForTest() => RestoreWalkingCamera();
 
         private bool WindowLens => BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.FullScreenTravel)
             && _worldCamera != null && _worldCamera.targetTexture != null && _worldCamera.aspect > 0f;

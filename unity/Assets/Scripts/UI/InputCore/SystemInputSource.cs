@@ -194,8 +194,10 @@ namespace BakAgain.UI.InputCore {
         public bool Run => _run.IsPressed();
         public float Vertical => (_ascend.IsPressed() ? 1f : 0f) - (_descend.IsPressed() ? 1f : 0f);
         public float Zoom => _zoom.ReadValue<float>();
-        public bool LeftShift => Keyboard.current?.leftShiftKey.isPressed ?? false;
-        public bool RightShift => Keyboard.current?.rightShiftKey.isPressed ?? false;
+        // A Shift let go in the same frame still counts: the world click fires on the button's release, and
+        // a quick Shift+click lets Shift go with the button (owner, 2026-11-01: a Shift+click thrust).
+        public bool LeftShift => Keyboard.current is { } k && (k.leftShiftKey.isPressed || k.leftShiftKey.wasReleasedThisFrame);
+        public bool RightShift => Keyboard.current is { } k && (k.rightShiftKey.isPressed || k.rightShiftKey.wasReleasedThisFrame);
         public bool Ctrl => Keyboard.current?.ctrlKey.isPressed ?? false;
     }
 

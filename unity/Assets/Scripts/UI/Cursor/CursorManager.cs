@@ -94,6 +94,10 @@ namespace BakAgain.UI.Cursor {
         // cursor, but a software cursor decoupled from the OS pointer cannot without this hazard.
         public void WarpTo(Vector2 canonicalPosition) => _arbiter.WarpTo(canonicalPosition);
 
+        // The sword is shape 0 of both pointer sets; HiResSword is its Enhanced drawing (Enhanced/Stone).
+        private const int SwordIndex = 0;
+        private const string HiResSword = "sword-cursor";
+
         private async UniTaskVoid ApplyAsync(string setFile, int index) {
             if (_resources == null) {
                 return; // called before [Inject] ran (see Start) — no-op rather than NRE
@@ -110,7 +114,14 @@ namespace BakAgain.UI.Cursor {
             // POINTER.BMX, which cannot load before a game path is set — hiding it in Awake left the
             // MetaMenu (where that path is chosen) with no cursor at all.
             UnityEngine.Cursor.visible = false;
-            _cursorElement.style.backgroundImage = new StyleBackground(entry.sprite);
+            // Enhanced draws the sword at three times the detail, over the original's own footprint and
+            // hotspot (owner, 2026-11-01); the other shapes and Classic stay the original's.
+            Texture2D hiRes = index == SwordIndex && BakAgain.Core.GameOptions.Enhanced
+                ? BakAgain.UI.EnhancedArt.Texture(HiResSword) : null;
+            _cursorElement.style.backgroundImage = hiRes != null
+                ? new StyleBackground(Background.FromTexture2D(hiRes)) : new StyleBackground(entry.sprite);
+            _cursorElement.style.backgroundSize = hiRes != null
+                ? new BackgroundSize(Length.Percent(100), Length.Percent(100)) : new StyleBackgroundSize(StyleKeyword.Null);
             _cursorElement.style.width = entry.sprite.rect.width;
             _cursorElement.style.height = entry.sprite.rect.height;
             _hotspot = entry.hotspot;

@@ -13,6 +13,9 @@ namespace BakAgain.Editor.Build {
     /// <c>Builds/Android/result.txt</c>. ARM64 only: the 6000.5 Android module ships no x86_64
     /// player, so an x86_64 emulator runs it through its ARM translation (API 36+ images; API 34's
     /// translator lacks the SEVL instruction Unity's mutex uses).
+    /// <para>The owner's test saves (<c>GAMES/testkit.G01</c> in the game folder, game data, never
+    /// committed) ride along in this development build only: staged into Resources for the build and
+    /// removed after, then <see cref="BakAgain.Core.Services.TestSaves"/> copies them in at start.</para>
     /// </remarks>
     public static class AndroidBuild {
         public const string OutputDirectory = "Builds/Android";
@@ -28,6 +31,7 @@ namespace BakAgain.Editor.Build {
             }
 
             try {
+                StageTestSaves();
                 AddressableAssetSettings.CleanPlayerContent();
                 AddressableAssetSettings.BuildPlayerContent(out var addressables);
                 if (!string.IsNullOrEmpty(addressables.Error)) {
@@ -49,6 +53,29 @@ namespace BakAgain.Editor.Build {
             } catch (System.Exception e) {
                 File.WriteAllText(resultPath, "FAILED " + e + "\n");
                 Debug.LogException(e);
+            } finally {
+                UnstageTestSaves();
+            }
+        }
+
+        private static readonly string TestSavesStage = "Assets/Resources/" + BakAgain.Core.Services.TestSaves.ResourceFolder;
+
+        private static void StageTestSaves() {
+            string source = Path.Combine(BakAgain.ResourceManagement.BakResourceSettings.GamePath ?? "", "GAMES", "testkit.G01");
+            if (!Directory.Exists(source)) {
+                Debug.LogWarning($"No test saves at {source}; the build carries none.");
+                return;
+            }
+            Directory.CreateDirectory(TestSavesStage);
+            foreach (string file in Directory.GetFiles(source, "SAVE??.GAM")) {
+                File.Copy(file, Path.Combine(TestSavesStage, Path.GetFileNameWithoutExtension(file) + ".bytes"), true);
+            }
+            AssetDatabase.Refresh();
+        }
+
+        private static void UnstageTestSaves() {
+            if (AssetDatabase.IsValidFolder(TestSavesStage)) {
+                AssetDatabase.DeleteAsset(TestSavesStage);
             }
         }
     }

@@ -944,12 +944,31 @@ namespace BakAgain.UI {
         private void OnDisable() {
             int dropped = _stack?.RemoveWithIdPrefix(LayerIdPrefix) ?? 0;
             if (dropped > 0) {
+                _dialogLayer = null;
+            }
+            if (WarnAboutDroppedLayers(dropped, _quitting)) {
                 _logger?.LogWarning(
                     "DialogManager: the overlay was disabled with {Count} dialog input layer(s) still "
                     + "pushed; dropped them so input is not captured by a panel that is gone.", dropped);
-                _dialogLayer = null;
             }
         }
+
+        private static bool _quitting;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void WatchForQuit() {
+            _quitting = false;
+            Application.quitting -= OnQuitting;
+            Application.quitting += OnQuitting;
+        }
+
+        private static void OnQuitting() => _quitting = true;
+
+        /// <summary>
+        /// A dropped layer is worth a warning when a panel was torn down under a running show; closing the
+        /// game with a dialog up drops them too, and that is not a fault.
+        /// </summary>
+        internal static bool WarnAboutDroppedLayers(int dropped, bool quitting) => dropped > 0 && !quitting;
 
         private void OnDestroy() {
             _resources?.Release();
@@ -1119,6 +1138,11 @@ namespace BakAgain.UI {
 
         public UniTask<int> ShowById(int id, CancellationToken cancellationToken = default) => Playing(() => ShowByIdCore(id, cancellationToken), "ShowById " + id);
 
+        /// <inheritdoc/>
+        public UniTask<int> ShowById(int id, System.Action<DialogPlay> onResolved,
+            CancellationToken cancellationToken = default) =>
+            Playing(() => ShowByIdCore(id, cancellationToken, onResolved), "ShowById " + id);
+
         public UniTask<int> ShowByIdLeavingLastPage(int id, CancellationToken cancellationToken = default) =>
             Playing(() => LeavingPagesDrawn(() => ShowByIdCore(id, cancellationToken)), "ShowByIdLeavingLastPage " + id);
 
@@ -1130,12 +1154,14 @@ namespace BakAgain.UI {
         /// </summary>
         private int _leavePagesDrawn;
 
-        private async UniTask<int> ShowByIdCore(int id, CancellationToken cancellationToken = default) {
+        private async UniTask<int> ShowByIdCore(int id, CancellationToken cancellationToken = default,
+            System.Action<DialogPlay> onResolved = null) {
             DialogPlay play = await LoadPlayById(id);
             DialogEntry entry = play?.Entry;
             if (entry == null) {
                 return NoDialogResult;
             }
+            onResolved?.Invoke(play);
             // A walk that ends with nothing to show displays nothing — skip rather than render an
             // empty panel. The original's guard is `speaker_id != 0 || body_len != 0`
             // (DIALOG.C:965), so a record with neither draws nothing there either. Of 8203 entries

@@ -61,7 +61,7 @@ public static class CombatStatePersistence {
             (byte)combatant.Y,
             target != null ? (byte)target.X : existing.TargetXOnGrid,
             target != null ? (byte)target.Y : existing.TargetYOnGrid,
-            existing.CombatStatus,
+            WithDead(existing.CombatStatus, combatant.IsDead),
             existing.AnimEffectType,
             existing.ActiveSpellEffectSlot,
             existing.UnusedPadding,
@@ -75,4 +75,23 @@ public static class CombatStatePersistence {
             existing.FloatingDamageValue,
             existing.FloatingDamageTimer);
     }
+
+    /// <summary>
+    /// The combat status byte with CAF_DEAD as the fight left it. The original's arena sets it at death
+    /// (COMBAT.C:278) and writes the combatant back, and the zone-entry re-seed reads it (RGNENC.C:199-207): a
+    /// beaten group is never placed again. Copying the stored byte unchanged lost every kill, so after a
+    /// zone change a defeated roamer walked again (owner, 2026-11-01).
+    /// </summary>
+    public static byte WithDead(byte status, bool dead) =>
+        (byte)(dead ? status | (int)CombatantFlags.Dead : status & ~(int)CombatantFlags.Dead);
+
+    /// <summary>A copy of <paramref name="existing"/> marked dead (CAF_DEAD), as rgnenc_mark_defended does.</summary>
+    public static Data.SaveGameCombatData MarkedDead(Data.SaveGameCombatData existing) => new(
+        existing.TargetActorPointer, existing.CreatureType,
+        existing.XOnGrid, existing.YOnGrid, existing.TargetXOnGrid, existing.TargetYOnGrid,
+        WithDead(existing.CombatStatus, true), existing.AnimEffectType, existing.ActiveSpellEffectSlot,
+        existing.UnusedPadding, existing.AnimDurationTimer, existing.MonsterSpellAbility,
+        existing.MeleeAttackType, existing.RangedAttackType, existing.MovementAiType,
+        existing.PreferredArrowType, existing.LastSpellSymbolFile,
+        existing.FloatingDamageValue, existing.FloatingDamageTimer);
 }

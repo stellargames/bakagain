@@ -5,3 +5,6 @@
 /unity/Assets/Plugins/netstandard2.1/Jeffijoe.MessageFormat.*
 !/unity/Assets/Plugins/netstandard2.1/*.meta
 __pycache__/
+
+# The owner's test saves are game data: staged here only during an Android build (AndroidBuild).
+/unity/Assets/Resources/TestSaves*

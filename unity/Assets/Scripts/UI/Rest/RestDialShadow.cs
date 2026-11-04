@@ -117,32 +117,24 @@ namespace BakAgain.UI.Rest {
         /// canonical (x, y) samples exactly the pixel it sits on — which is what makes the wedge
         /// reveal the shaded copy in place rather than a shifted piece of it.
         ///
-        /// <para>UVs are remapped through <c>uvRegion</c> because UI Toolkit may have atlased the
-        /// texture; sampling raw 0..1 would read a neighbour's pixels.</para>
+        /// <para>UI Toolkit remaps the 0..1 UVs into an atlased texture itself (MeshWriteData.uvRegion is
+        /// obsolete for that reason).</para>
         /// </remarks>
         private void DrawShaded(MeshGenerationContext context) {
             MeshWriteData mesh = context.Allocate(3, 3, _shadedArt);
-            Rect region = mesh.uvRegion;
-
-            WriteVertex(mesh, _apex, region);
-            WriteVertex(mesh, _pivot, region);
-            WriteVertex(mesh, _tip, region);
+            WriteVertex(mesh, _apex);
+            WriteVertex(mesh, _pivot);
+            WriteVertex(mesh, _tip);
             mesh.SetNextIndex(0);
             mesh.SetNextIndex(1);
             mesh.SetNextIndex(2);
         }
 
-        private static void WriteVertex(MeshWriteData mesh, Vector2 point, Rect region) {
-            var uv = new Vector2(
-                point.x / Canonical.Width,
-                1f - (point.y / Canonical.Height));
-
+        private static void WriteVertex(MeshWriteData mesh, Vector2 point) {
             mesh.SetNextVertex(new Vertex {
                 position = new Vector3(point.x, point.y, Vertex.nearZ),
                 tint = Color.white,
-                uv = new Vector2(
-                    region.x + (uv.x * region.width),
-                    region.y + (uv.y * region.height)),
+                uv = new Vector2(point.x / Canonical.Width, 1f - (point.y / Canonical.Height)),
             });
         }
     }

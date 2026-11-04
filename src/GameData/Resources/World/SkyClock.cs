@@ -44,6 +44,13 @@ public sealed class SkyClock {
     public SkyDirection Sun(long ticks) =>
         OnArc(HourOf(ticks), _layout.SunriseHour, _layout.SunsetHour, _layout.ArcTiltDegrees);
 
+    /// <summary>The star field's turn about its pole, radians 0..2pi. Takes a fractional clock: the dome
+    /// draws an eased one (EnhancedSky).</summary>
+    public double StarRotation(double ticks) {
+        double turns = ticks / GameTime.UnitsPerDay * _layout.StarTurnsPerDay;
+        return (turns - Math.Floor(turns)) * 2 * Math.PI;
+    }
+
     /// <summary>0 = new, 0.5 = full.</summary>
     public double MoonPhase(int index, long ticks) {
         MoonLayout m = _layout.Moons[index];

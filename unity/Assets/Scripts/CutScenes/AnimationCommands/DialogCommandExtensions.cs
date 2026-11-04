@@ -4,6 +4,7 @@ namespace BakAgain.CutScenes.AnimationCommands {
     using BakAgain.ResourceManagement.Models;
     using GameData.Resources.Animation.FrameCommands;
     using GameData.Resources.Dialog;
+    using BakAgain.Utility;
     using System;
     using System.Linq;
     using UnityEngine;
@@ -22,7 +23,7 @@ namespace BakAgain.CutScenes.AnimationCommands {
         private static readonly ILogger Logger = LogManager.LoggerFactory.CreateLogger(nameof(DialogCommandExtensions));
 
         public static Func<CutsceneState, Awaitable> ToAction(this DialogCommand args) {
-            return async cutsceneState => {
+            return cutsceneState => {
                 Logger.LogDebug("Running frame command: {Command}", args);
                 // The pair decides this, not Dialog16Id alone: id 0 is a clear, a book-page step or
                 // nothing depending on Arg2. See CutsceneDialogCommand, which owns the rule and is
@@ -47,6 +48,7 @@ namespace BakAgain.CutScenes.AnimationCommands {
                         // deliberately unimplemented rather than falling through to a dialog lookup.
                         break;
                 }
+                return AwaitableUtility.Completed;
             };
         }
 

@@ -98,14 +98,32 @@ public static class CombatCapability {
     /// <para><b>A skill of zero refuses outright</b> rather than shooting and always missing.</para>
     /// </remarks>
     public static bool CanShoot(int terrainKind, int nearestActorDistance, int quarrelsOfAnyKind,
-        bool hasIntactRangedWeapon, int creatureType, int crossbowSkill) {
+        bool hasIntactRangedWeapon, int creatureType, int crossbowSkill) =>
+        WhyNotShoot(terrainKind, nearestActorDistance, quarrelsOfAnyKind, hasIntactRangedWeapon,
+            creatureType, crossbowSkill) == ShootRefusal.None;
+
+    /// <summary>The first gate <see cref="CanShoot"/> fails on, or None. The one place the rule lives.</summary>
+    public static ShootRefusal WhyNotShoot(int terrainKind, int nearestActorDistance,
+        int quarrelsOfAnyKind, bool hasIntactRangedWeapon, int creatureType, int crossbowSkill) {
         if (terrainKind == DenyingTerrain) {
-            return false;
+            return ShootRefusal.Terrain;
         }
         bool armed = (quarrelsOfAnyKind != 0 && hasIntactRangedWeapon)
             || creatureType == InnatelyMissileCreature;
-        return armed && RangeIsClear(nearestActorDistance) && crossbowSkill != 0;
+        if (!armed) {
+            return hasIntactRangedWeapon ? ShootRefusal.NoQuarrels : ShootRefusal.NoCrossbow;
+        }
+        if (!RangeIsClear(nearestActorDistance)) {
+            return ShootRefusal.FoeAdjacent;
+        }
+        return crossbowSkill == 0 ? ShootRefusal.NoSkill : ShootRefusal.None;
     }
+
+    /// <summary>Why the Shoot button is refused.</summary>
+    public enum ShootRefusal { None, Terrain, NoCrossbow, NoQuarrels, FoeAdjacent, NoSkill }
+
+    /// <summary>Why the Cast button is refused.</summary>
+    public enum CastRefusal { None, Terrain, ChapterGate, NotACaster, NoHealth, FoeAdjacent }
 
     /// <summary>
     /// Whether the Cast button is offered.
@@ -134,13 +152,27 @@ public static class CombatCapability {
     /// name suggests it walks nine different stats. It does not.
     /// </remarks>
     public static bool CanCast(int terrainKind, int nearestActorDistance, int castingSkill,
+        int health, IReadOnlyList<int> healthThresholds, bool chapterEightWithoutRequiredItem) =>
+        WhyNotCast(terrainKind, nearestActorDistance, castingSkill, health, healthThresholds,
+            chapterEightWithoutRequiredItem) == CastRefusal.None;
+
+    /// <summary>The first gate <see cref="CanCast"/> fails on, or None. The one place the rule lives.</summary>
+    public static CastRefusal WhyNotCast(int terrainKind, int nearestActorDistance, int castingSkill,
         int health, IReadOnlyList<int> healthThresholds, bool chapterEightWithoutRequiredItem) {
-        if (terrainKind == DenyingTerrain || chapterEightWithoutRequiredItem) {
-            return false;
+        if (terrainKind == DenyingTerrain) {
+            return CastRefusal.Terrain;
         }
-        return castingSkill != 0
-            && ClearsAnyThreshold(health, healthThresholds)
-            && RangeIsClear(nearestActorDistance);
+        if (chapterEightWithoutRequiredItem) {
+            return CastRefusal.ChapterGate;
+        }
+        // Health first: the skill is read health-scaled, so a downed caster reads skill 0 too.
+        if (!ClearsAnyThreshold(health, healthThresholds)) {
+            return CastRefusal.NoHealth;
+        }
+        if (castingSkill == 0) {
+            return CastRefusal.NotACaster;
+        }
+        return RangeIsClear(nearestActorDistance) ? CastRefusal.None : CastRefusal.FoeAdjacent;
     }
 
     /// <summary>

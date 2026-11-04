@@ -81,19 +81,20 @@ public static class RestAction {
     /// <para><b>A monster always recovers</b>: it has no character slot, so the original skips the
     /// test entirely.</para>
     /// </remarks>
-    public static bool RecoveryAllowed(System.Collections.Generic.IReadOnlyList<int>? conditionRanks) {
+    public static bool RecoveryAllowed(System.Collections.Generic.IReadOnlyList<int>? conditionRanks) =>
+        FirstBlockingCondition(conditionRanks) == null;
+
+    /// <summary>The first condition (Healing excepted) that stops the recovery, or null if none does.</summary>
+    public static ActorCondition? FirstBlockingCondition(System.Collections.Generic.IReadOnlyList<int>? conditionRanks) {
         if (conditionRanks == null) {
-            return true;   // no character row to consult — the monster case
+            return null;   // no character row to consult — the monster case
         }
         for (var i = 0; i < conditionRanks.Count; i++) {
-            if (i == (int)ActorCondition.Healing) {
-                continue;
-            }
-            if (conditionRanks[i] != 0) {
-                return false;
+            if (i != (int)ActorCondition.Healing && conditionRanks[i] != 0) {
+                return (ActorCondition)i;
             }
         }
-        return true;
+        return null;
     }
 
     /// <summary>

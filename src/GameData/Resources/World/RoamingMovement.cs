@@ -222,6 +222,22 @@ public static class RoamingMovement {
         Mod(x, RoadTravel.CellSize) == RoadTravel.HalfCell
         && Mod(y, RoadTravel.CellSize) == RoadTravel.HalfCell;
 
+    /// <summary>
+    /// How many roaming ticks the party's latest move earns: one per party step of
+    /// <paramref name="partyStep"/> (the player's step size), the remainder carried.
+    /// </summary>
+    /// <remarks>The original steps every roamer once per party step whatever its length
+    /// (WORLDLP.C:157, 264; WORLDHIT.C:64-66).</remarks>
+    public static (int Ticks, long Carry) TicksForPartyMove(long carry, long moved, int partyStep) {
+        if (moved <= 0) {
+            return (0, carry);
+        }
+        partyStep = System.Math.Max(1, partyStep);
+        carry += moved;
+        var ticks = (int)(carry / partyStep);
+        return (ticks, carry - (long)ticks * partyStep);
+    }
+
     // ---- one tick ---------------------------------------------------------------------------------
 
     /// <summary>Where a road-following step ended up, and what the sweep saw.</summary>

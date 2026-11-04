@@ -63,7 +63,7 @@ namespace BakAgain.UI {
 
         // Debug: outline the resolved dialog area in magenta so layout bugs
         // (viewport mapping, ResizeDialog conversion, etc.) are visible.
-        private const bool DrawDebugAreaBorder = false;
+        private static readonly bool DrawDebugAreaBorder = false;
 
         // Fallback fill tone, used only when the generated wood tile (below) is
         // missing. The original chrome (dialog_DrawChrome at 0x48632) weaves a

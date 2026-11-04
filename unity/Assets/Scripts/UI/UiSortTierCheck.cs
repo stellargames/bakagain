@@ -16,7 +16,7 @@ namespace BakAgain.UI {
     public static class UiSortTierCheck {
         public static void WarnOnConflicts(string context) {
             var visible = new List<UiSortTier.Layer>();
-            foreach (UIDocument document in Object.FindObjectsByType<UIDocument>(FindObjectsSortMode.None)) {
+            foreach (UIDocument document in Object.FindObjectsByType<UIDocument>()) {
                 if (document == null || !document.isActiveAndEnabled) {
                     continue;
                 }

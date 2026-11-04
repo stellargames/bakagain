@@ -240,7 +240,8 @@ public static class CombatWalk {
         bool probe = false, TrapPuzzle? puzzle = null,
         Func<int, int, int>? tileTrapDamage = null,
         Action<Combatant, Hazard>? onHazard = null,
-        Func<int, int, bool>? occupiedByLiveCombatant = null) {
+        Func<int, int, bool>? occupiedByLiveCombatant = null,
+        List<(int X, int Y)>? trace = null) {
         if (grid == null) {
             throw new ArgumentNullException(nameof(grid));
         }
@@ -248,6 +249,7 @@ public static class CombatWalk {
             throw new ArgumentNullException(nameof(actor));
         }
 
+        trace?.Add((actor.X, actor.Y));
         var hazards = new List<Hazard>();
         int startX = actor.X;
         int startY = actor.Y;
@@ -285,6 +287,7 @@ public static class CombatWalk {
 
             actor.X = step.X;
             actor.Y = step.Y;
+            trace?.Add((step.X, step.Y));
             if (!probe && (step.X, step.Y) != actor.WalkedCells[^1]) {
                 actor.WalkedCells.Add((step.X, step.Y));
             }
@@ -327,6 +330,198 @@ public static class CombatWalk {
     }
 
     /// <summary>
+    /// The shortest route from one cell to another within <paramref name="maxSteps"/> steps, start excluded,
+    /// or null when there is none (Enhanced combat's party moves, owner 2026-10-29: "do shortest path").
+    /// </summary>
+    /// <remarks>
+    /// A breadth-first search over the walker's own step rules, not new ones: eight directions, a cell is
+    /// entered when <see cref="CombatGrid.IsBlocked"/> says it may be (walls, pushables and occupied cells
+    /// block; crystal and trap ground does not, it fires), and a diagonal between two crystals is not taken
+    /// (<see cref="CombatMovement.Step"/>'s <c>ResolveBlockedDiagonal</c>).
+    ///
+    /// <para><b>Of several shortest routes, the original's.</b> The search runs from the destination; the
+    /// route is then built forward, taking at each cell the step the original's walk would take
+    /// (<c>sign(dx), sign(dy)</c> after <c>ResolveBlockedDiagonal</c>, diagonal first) whenever that step is
+    /// one closer, and otherwise the first closer neighbour in a fixed order. So wherever the greedy walk is
+    /// already shortest the route is exactly its route, and it differs only where the walk detours.</para>
+    /// </remarks>
+    public static List<(int X, int Y)>? ShortestPath(CombatGrid grid, int fromX, int fromY, int toX, int toY,
+        int maxSteps) {
+        if (grid == null) {
+            throw new ArgumentNullException(nameof(grid));
+        }
+        if (fromX == toX && fromY == toY) {
+            return new List<(int X, int Y)>();
+        }
+        if (!CombatGrid.InBounds(toX, toY) || grid.IsBlocked(toX, toY) || maxSteps <= 0) {
+            return null;
+        }
+        // Steps to the destination, searched backwards: v reaches u when the walker may step v -> u. The
+        // mover's own cell is occupied (by the mover) and is still where the route starts.
+        var toGo = new Dictionary<(int, int), int> { [(toX, toY)] = 0 };
+        var queue = new Queue<(int X, int Y)>();
+        queue.Enqueue((toX, toY));
+        while (queue.Count > 0 && !toGo.ContainsKey((fromX, fromY))) {
+            (int x, int y) = queue.Dequeue();
+            int d = toGo[(x, y)];
+            if (d >= maxSteps) {
+                continue;
+            }
+            foreach ((int dx, int dy) in Directions) {
+                int vx = x - dx, vy = y - dy;
+                if (toGo.ContainsKey((vx, vy)) || !CombatGrid.InBounds(vx, vy)
+                    || (grid.IsBlocked(vx, vy) && (vx, vy) != (fromX, fromY)) || !CanStep(grid, vx, vy, dx, dy)) {
+                    continue;
+                }
+                toGo[(vx, vy)] = d + 1;
+                queue.Enqueue((vx, vy));
+            }
+        }
+        if (!toGo.TryGetValue((fromX, fromY), out int steps) || steps > maxSteps) {
+            return null;
+        }
+        var path = new List<(int X, int Y)>();
+        (int cx, int cy) = (fromX, fromY);
+        while ((cx, cy) != (toX, toY)) {
+            int closer = toGo[(cx, cy)] - 1;
+            (int Dx, int Dy) step = (0, 0);
+            foreach ((int, int) dir in OriginalsSteps(grid, cx, cy, toX, toY)) {
+                if (Closer(dir)) {
+                    step = dir;
+                    break;
+                }
+            }
+            cx += step.Dx;
+            cy += step.Dy;
+            path.Add((cx, cy));
+
+            bool Closer((int Dx, int Dy) dir) =>
+                (dir.Dx != 0 || dir.Dy != 0) && toGo.TryGetValue((cx + dir.Dx, cy + dir.Dy), out int left)
+                && left == closer && CanStep(grid, cx, cy, dir.Dx, dir.Dy);
+        }
+        return path;
+    }
+
+    // The walker's own preference of steps (CombatMovement.Step): straight at the target, diagonal first, with a
+    // diagonal between two crystals dropped to one axis (ResolveBlockedDiagonal); then its slides -- for a
+    // diagonal the vertical then the horizontal, for an orthogonal step the two diagonals past the obstacle --
+    // then every other direction in a fixed order.
+    private static IEnumerable<(int Dx, int Dy)> OriginalsSteps(CombatGrid grid, int x, int y, int toX, int toY) {
+        int dx = Math.Sign(toX - x), dy = Math.Sign(toY - y);
+        if (dx != 0 && dy != 0 && grid.IsCrystal(x + dx, y) && grid.IsCrystal(x, y + dy)) {
+            if (grid.IsOccupied(x + dx, y)) {
+                dx = 0;
+            } else {
+                dy = 0;
+            }
+        }
+        yield return (dx, dy);
+        if (dx != 0 && dy != 0) {
+            yield return (0, dy);
+            yield return (dx, 0);
+        } else {
+            yield return (dx + dy, dy + dx);
+            yield return (dx - dy, dy - dx);
+        }
+        foreach ((int, int) dir in Directions) {
+            yield return dir;
+        }
+    }
+
+    private static readonly (int Dx, int Dy)[] Directions = {
+        (1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1),
+    };
+
+    // One step of the walker: the cell must be enterable, and a diagonal may not squeeze between two crystals.
+    private static bool CanStep(CombatGrid grid, int x, int y, int dx, int dy) =>
+        !grid.IsBlocked(x + dx, y + dy)
+        && !(dx != 0 && dy != 0 && grid.IsCrystal(x + dx, y) && grid.IsCrystal(x, y + dy));
+
+    /// <summary>
+    /// A thrust's approach by the shortest route (Enhanced combat): to the free orthogonal neighbour of the
+    /// target whose shortest route is fewest steps and fits <paramref name="maxSteps"/>; ties go to the
+    /// original's own try order (<see cref="MeleeApproach"/>: the side nearest the attacker first). Null
+    /// when no neighbour can be reached.
+    /// </summary>
+    public static List<(int X, int Y)>? ShortestApproach(CombatGrid grid, int fromX, int fromY, int targetX,
+        int targetY, int maxSteps) {
+        List<(int X, int Y)>? best = null;
+        foreach ((int x, int y) in ApproachOrder(fromX, fromY, targetX, targetY)) {
+            if (grid.IsBlocked(x, y)) {
+                continue;
+            }
+            List<(int X, int Y)>? path = ShortestPath(grid, fromX, fromY, x, y, maxSteps);
+            if (path != null && (best == null || path.Count < best.Count)) {
+                best = path;
+            }
+        }
+        return best;
+    }
+
+    /// <summary>The target's four orthogonal neighbours in <c>combat_actor_step_to_tgt_adj</c>'s try order
+    /// (CACTOR.C:1666-1706): the side nearest the attacker first, ties to +x, -x, +y, -y.</summary>
+    private static IEnumerable<(int X, int Y)> ApproachOrder(int fromX, int fromY, int targetX, int targetY) {
+        (int X, int Y)[] neighbours = {
+            (targetX + 1, targetY), (targetX - 1, targetY), (targetX, targetY + 1), (targetX, targetY - 1),
+        };
+        var best = 0;
+        for (var i = 1; i < 4; i++) {
+            if (CombatGrid.ChebyshevDistance(fromX, fromY, neighbours[i].X, neighbours[i].Y)
+                < CombatGrid.ChebyshevDistance(fromX, fromY, neighbours[best].X, neighbours[best].Y)) {
+                best = i;
+            }
+        }
+        int[] order = best switch {
+            0 => new[] { 0, 2, 3, 1 },
+            1 => new[] { 1, 3, 2, 0 },
+            2 => new[] { 2, 0, 1, 3 },
+            _ => new[] { 3, 1, 0, 2 },
+        };
+        foreach (int i in order) {
+            yield return neighbours[i];
+        }
+    }
+
+    /// <summary>
+    /// Walks <paramref name="actor"/> along <paramref name="path"/> (start excluded), one cell a step, with
+    /// <see cref="Walk"/>'s per-step rules: each tile stepped onto fires its hazard (crystal ground, a tile
+    /// trap, a cannon's line), a death stops the walk, and the movement is charged as <see cref="Walk"/>
+    /// charges it (the straight-line distance to the end). Enhanced combat's shortest-route walk.
+    /// </summary>
+    public static WalkResult WalkPath(CombatGrid grid, Combatant actor, IReadOnlyList<(int X, int Y)> path,
+        int speed, TrapPuzzle? puzzle = null, Func<int, int, int>? tileTrapDamage = null,
+        Action<Combatant, Hazard>? onHazard = null, Func<int, int, bool>? occupiedByLiveCombatant = null,
+        List<(int X, int Y)>? trace = null) {
+        if (grid == null) {
+            throw new ArgumentNullException(nameof(grid));
+        }
+        if (actor == null) {
+            throw new ArgumentNullException(nameof(actor));
+        }
+        trace?.Add((actor.X, actor.Y));
+        var hazards = new List<Hazard>();
+        (int destX, int destY) = path.Count > 0 ? path[^1] : (actor.X, actor.Y);
+        int speedRemaining = speed - CombatGrid.ChebyshevDistance(actor.X, actor.Y, destX, destY);
+        if (actor.WalkedCells.Count == 0 || actor.WalkedCells[^1] != (actor.X, actor.Y)) {
+            actor.WalkedCells.Clear();
+            actor.WalkedCells.Add((actor.X, actor.Y));
+        }
+        foreach ((int x, int y) in path) {
+            actor.X = x;
+            actor.Y = y;
+            trace?.Add((x, y));
+            actor.WalkedCells.Add((x, y));
+            FireTerrainHazard(grid, actor, hazards, tileTrapDamage, onHazard);
+            FireCannons(puzzle, actor, hazards, onHazard, occupiedByLiveCombatant);
+            if (actor.IsDead) {
+                break;
+            }
+        }
+        return new WalkResult(actor.X, actor.Y, speedRemaining > 0 ? speedRemaining : 0,
+            actor.X == destX && actor.Y == destY, true, hazards);
+    }
+
+    /// <summary>
     /// A thrust's walk into contact: <c>combat_actor_melee_approach</c> (CACTOR.C:1727-1749) and
     /// <c>combat_actor_step_to_tgt_adj</c> (CACTOR.C:1642-1725).
     /// </summary>
@@ -349,7 +544,8 @@ public static class CombatWalk {
     public static WalkResult? MeleeApproach(CombatGrid grid, Combatant attacker, int targetX,
         int targetY, int speed, TrapPuzzle? puzzle = null,
         Action<Combatant, Hazard>? onHazard = null,
-        Func<int, int, bool>? occupiedByLiveCombatant = null) {
+        Func<int, int, bool>? occupiedByLiveCombatant = null, bool probe = false,
+        List<(int X, int Y)>? trace = null) {
         if (grid == null) {
             throw new ArgumentNullException(nameof(grid));
         }
@@ -380,8 +576,8 @@ public static class CombatWalk {
             if (grid.IsBlocked(x, y) || !Walk(grid, attacker, x, y, speed, probe: true).PathClear) {
                 continue;
             }
-            return Walk(grid, attacker, x, y, speed + 1, puzzle: puzzle, onHazard: onHazard,
-                occupiedByLiveCombatant: occupiedByLiveCombatant);
+            return Walk(grid, attacker, x, y, speed + 1, probe: probe, puzzle: puzzle,
+                onHazard: onHazard, occupiedByLiveCombatant: occupiedByLiveCombatant, trace: trace);
         }
         return null;
     }

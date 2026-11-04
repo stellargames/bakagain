@@ -35,7 +35,7 @@ namespace BakAgain.UI.Character {
             if (scancode == 0x39) {
                 // Space is N's twin (CHARSCRN.C:326-334): the next member, or with Shift the help.
                 if (BakAgain.UI.InputCore.InputDriver.ShiftHeld) {
-                    SecondaryAction(PortraitActionId);
+                    _ = SecondaryAction(PortraitActionId);
                 } else {
                     PrimaryAction(PortraitActionId);
                 }

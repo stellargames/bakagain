@@ -67,7 +67,9 @@ namespace BakAgain.UI.InputCore {
         public bool HandleIntent(UiIntent intent) {
             switch (intent.Kind) {
                 case UiIntentKind.MoveFocus: return MoveFocus(intent.Direction);
-                case UiIntentKind.Activate: return ActivateFocused();
+                // Enter with nothing focused reaches the screen loop as its scancode, as menupage_run
+                // hands it every key (MENUPAGE.C:320-399): Enhanced combat's Confirm (TASK-972).
+                case UiIntentKind.Activate: return ActivateFocused() || (_onUnmatchedScancode?.Invoke(EnterScancode) ?? false);
                 case UiIntentKind.Cancel:
                     if (_onCancel == null) return false;
                     _onCancel();
@@ -202,12 +204,17 @@ namespace BakAgain.UI.InputCore {
             _navWarp = false;
         }
 
+        /// <summary>The arrow keys belong to someone else while set (the Enhanced combat camera pans with them);
+        /// Tab still walks the widgets.</summary>
+        public bool ArrowsTaken { get; set; }
+
         private bool MoveFocus(NavDirection dir) {
             ResolveStaleFocus();
             // A file-picker screen consumes Up/Down to move its list selection, so
             // cursor keys navigate the saves rather than the Restore/Cancel buttons
             // (which stay reachable via Tab / Left / Right).
             if (_trySelectionNav != null && _trySelectionNav(dir)) return true;
+            if (ArrowsTaken && dir is NavDirection.Up or NavDirection.Down or NavDirection.Left or NavDirection.Right) return true;
             if (_widgets.Count == 0) return false;
             int target = dir == NavDirection.Next || dir == NavDirection.Previous
                 ? Cyclic(dir == NavDirection.Next ? 1 : -1)
@@ -312,6 +319,7 @@ namespace BakAgain.UI.InputCore {
         // menupage_run hands its screen loop every scancode, matched or not (MENUPAGE.C:320-399), so
         // a loop can act on a key no entry carries — combat's Ctrl+Q (TASK-801).
         private readonly Func<int, bool> _onUnmatchedScancode;
+        private const int EnterScancode = 0x1c;
 
         private bool Accelerate(char c) {
             // *** A REQ MENU MATCHES THE KEY'S SCANCODE AGAINST ACTION IDS, NOT LABEL LETTERS. ***

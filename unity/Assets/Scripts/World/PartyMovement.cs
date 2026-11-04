@@ -418,7 +418,7 @@ namespace BakAgain.World {
                     return false;
                 }
 
-                _playSfx?.Invoke(BumpSoundId);
+                Bump();
                 return false;
             }
 
@@ -666,7 +666,10 @@ namespace BakAgain.World {
                 return false;
             }
 
-            if (forward && TrySweepAlternativeHeading(heading, step, out ushort target)) {
+            // Not under Enhanced free look while gliding (TASK-1020): the mouse owns the heading there, and
+            // the sweep's new heading, retried every glide step, bounced the party off the wall along it.
+            if (forward && !(_glideStepping && FreeHeading?.Invoke() == true)
+                && TrySweepAlternativeHeading(heading, step, out ushort target)) {
                 // Rotational wall-sliding: the party turns to follow the obstruction and never
                 // translates along it — the blocked step still costs you the step. The correction is
                 // the minimum that clears, so the resulting heading is generally OFF the turn-stride
@@ -677,8 +680,20 @@ namespace BakAgain.World {
                 return false;
             }
 
-            _playSfx?.Invoke(BumpSoundId);
+            Bump();
             return false;
+        }
+
+        /// <summary>The refused step's sound. A glide retries a refused step at the walk's cadence, about
+        /// 17 times a second, so held against a wall it sounds once per hold (TASK-1020).</summary>
+        private void Bump() {
+            if (_glideStepping) {
+                if (_glideBumped) {
+                    return;
+                }
+                _glideBumped = true;
+            }
+            _playSfx?.Invoke(BumpSoundId);
         }
 
         /// <summary>
@@ -748,6 +763,8 @@ namespace BakAgain.World {
         private float _glideT = 1f;
         private float _glideRetrySeconds;
         private bool _glideStepping;
+        private bool _glideBumped;
+        private int _glideFrame = -2;
 
         /// <summary>The camera is between two step points, still catching up with the party.</summary>
         public bool IsGliding => _glideT < 1f;
@@ -781,6 +798,14 @@ namespace BakAgain.World {
             // A hitch costs distance rather than replaying it as a jump.
             deltaSeconds = System.Math.Min(deltaSeconds, MaxGlideFrameSeconds);
             float glideStepsPerSecond = stepsPerSecond * GlideStepsPerStep;
+            if (direction != 0) {
+                // A frame without a held glide ends the hold: the next one may bump again.
+                int frame = Time.frameCount;
+                if (frame - _glideFrame > 1) {
+                    _glideBumped = false;
+                }
+                _glideFrame = frame;
+            }
             _glideRetrySeconds -= deltaSeconds;
             float t = _glideT + deltaSeconds * glideStepsPerSecond;
             if (t < 1f) {
@@ -816,6 +841,7 @@ namespace BakAgain.World {
                     break;
                 }
                 taken++;
+                _glideBumped = false;
                 (_glideFromX, _glideFromY, _glideFromEye) = (fromX, fromY, fromEye);
                 if (carry < 1f || CameraIsAnimating || PitDescent.Triggers(_pendingCrossingKind, ZoneKind)) {
                     // A crossing waits for the next frame's descent check, as in Classic.

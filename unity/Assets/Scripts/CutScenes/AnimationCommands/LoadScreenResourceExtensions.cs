@@ -3,6 +3,7 @@ namespace BakAgain.CutScenes.AnimationCommands {
     using BakAgain.Graphics;
     using BakAgain.ResourceManagement.Models;
     using GameData.Resources.Animation.FrameCommands;
+    using BakAgain.Utility;
     using System;
     using UnityEngine;
     using ILogger = Microsoft.Extensions.Logging.ILogger; 
@@ -11,7 +12,7 @@ namespace BakAgain.CutScenes.AnimationCommands {
         private static readonly ILogger Logger = LogManager.LoggerFactory.CreateLogger(nameof(LoadScreenResourceExtensions)); 
 
         public static Func<CutsceneState, Awaitable> ToAction(this LoadScreenResource args) {
-            return async cutsceneState => {
+            return cutsceneState => {
                 Logger.LogDebug("Running frame command: {Args}", args);
 
                 IndexedTexture backgroundImage = cutsceneState.Resources.Get<IndexedTexture>(args.Filename);
@@ -19,13 +20,14 @@ namespace BakAgain.CutScenes.AnimationCommands {
                 if (backgroundImage == null) {
                     Logger.LogError("Failed to load {ResourceType} with filename {Filename}", nameof(IndexedTexture), args.Filename);
 
-                    return;
+                    return AwaitableUtility.Completed;
                 }
 
                 Drawing.DrawImage(backgroundImage, 0, 0, Orientation.Normal, Vector2.one, cutsceneState);
                 cutsceneState.CopyBuffer(cutsceneState.CurrentDrawBufferIndex, cutsceneState.BackgroundBufferIndex);
                 // A parchment screen (CHAPTER.SCR) gets the open book around it; a picture clears it.
                 cutsceneState.ShowPage(backgroundImage);
+                return AwaitableUtility.Completed;
             };
         }
     }

@@ -14,7 +14,7 @@ namespace BakAgain.Core.Services {
     public sealed class SaveGameDirectoryService : ISaveGameDirectoryService {
         // Per the original game's naming, "SAVES.G%02d" sub-directories hold
         // "SAVE%02d.GAM" slots. Which of them are listed: see Listed.
-        private const string DefaultRootDirectoryName = "Saves";
+        internal const string DefaultRootDirectoryName = "Saves";
         private const string SaveFileSearchPattern = "SAVE*.GAM";
 
         // A save-set directory is "<name>.G<nn>" (nn = 2-digit game number). The

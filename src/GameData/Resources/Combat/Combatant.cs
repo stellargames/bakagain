@@ -4,6 +4,15 @@ using System.Collections.Generic;
 
 using System;
 
+/// <summary>What caused a floated number, for the fight log's verb.</summary>
+public enum FloatCause {
+    None,
+    Thrust,
+    Swing,
+    Shoot,
+    Cast,
+}
+
 /// <summary>State flags a combatant carries. Values are the original's <c>CAF_*</c> bits.</summary>
 [Flags]
 public enum CombatantFlags {
@@ -158,6 +167,13 @@ public sealed class Combatant {
     /// Carried across the resolve-then-redraw gap like <see cref="SwingPending"/>.
     /// </remarks>
     public int? DamageFloat { get; set; }
+
+    /// <summary>Who caused <see cref="DamageFloat"/>, or null for a poison tick, a hazard or a lingering
+    /// effect. Carried with the float so the fight log can name actor, verb and target.</summary>
+    public Combatant? DamageFloatBy { get; set; }
+
+    /// <summary>What kind of action caused <see cref="DamageFloat"/>.</summary>
+    public FloatCause DamageFloatCause { get; set; }
 
     /// <summary>Frames a floating number stays up — <c>dmgFloatFrames = 8</c> (COMBAT.C:384).</summary>
     public const int DamageFloatFrames = 8;

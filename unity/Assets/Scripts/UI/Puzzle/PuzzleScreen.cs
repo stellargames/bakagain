@@ -29,7 +29,7 @@ namespace BakAgain.UI.Puzzle {
     [RequireComponent(typeof(UserInterfaceLoader))]
     public sealed class PuzzleScreen : MonoBehaviour, IActionHandler {
         /// <summary>Name of the letter layer, so a redraw replaces it rather than stacking.</summary>
-        private const string LettersName = "BakPuzzleLetters";
+        internal const string LettersName = "BakPuzzleLetters";
 
         /// <summary>Name of the riddle layer.</summary>
         private const string RiddleName = "BakPuzzleRiddle";
@@ -824,8 +824,16 @@ namespace BakAgain.UI.Puzzle {
                 return;   // the redraw will still land the new letter; only the roll is lost
             }
 
-            VisualElement falling = RollGlyph(font, fontKey, outgoing, box);
-            VisualElement arriving = RollGlyph(font, fontKey, incoming, box);
+            // *** THE CELL IS REPAINTED, NOT DRAWN OVER. *** The original redraws the bevelled box
+            // every frame before the two letters (CIPHER.C:332), so the static letter is gone for
+            // the whole roll. The ring beneath already shows the NEW letter at rest (PrimaryAction
+            // repaints first), so a window without its own box let the finished letter show
+            // through before the roll had even started. The box, offset into the window and
+            // clipped by it, is that repaint.
+            Rect local = new Rect(box.x - x, box.y - y, box.width, box.height);
+            window.Add(Bevel(local));
+            VisualElement falling = RollGlyph(font, fontKey, outgoing, local);
+            VisualElement arriving = RollGlyph(font, fontKey, incoming, local);
             window.Add(arriving);
             window.Add(falling);
             stage.Add(window);
@@ -835,14 +843,19 @@ namespace BakAgain.UI.Puzzle {
             // frames. Counting frames in CANONICAL pixels instead makes the same distance take
             // fifty-seven — the wheel still lands correctly and just crawls, which is the sort of
             // wrong that looks deliberate.
-            GameData.Resources.Font.FontResource rollFont = GameFonts.GameFont;
-            int frames = CipherPuzzleLayout.RollFrames(rollFont.Height);
-            int travel = (int)System.Math.Round(
-                CipherPuzzleLayout.RollTravel(rollFont.Height) * rollFont.PixelHeight);
-            for (var frame = 0; frame <= frames; frame++) {
-                float at = travel * (frame / (float)frames);
+            //
+            // The count and the travel come from the font being DRAWN (pFont_height is the
+            // current font's), not the game font: PUZZLE.FNT and ALIEN.FNT are not its height.
+            int frames = CipherPuzzleLayout.RollFrames(font.Height);
+            int travel = CipherPuzzleLayout.RollTravel(font.Height);
+            for (var frame = 0; frame < frames; frame++) {
+                // One VGA pixel a present, the pair rigidly RollTravel apart: frame 0 is the old
+                // letter exactly where the ring drew it, the last is the new one in the same place.
+                float at = System.Math.Min(frame, travel) * (float)font.PixelHeight;
                 falling.style.top = at;
-                arriving.style.top = at - travel;
+                arriving.style.top = at - (travel * (float)font.PixelHeight);
+                // A redraw of the ring re-adds its layer on top; the roll has to stay in front.
+                window.BringToFront();
                 await Cysharp.Threading.Tasks.UniTask.Yield();
                 if (_puzzle == null || window.panel == null) {
                     break;   // the screen went away, or a newer roll replaced this window
@@ -852,30 +865,47 @@ namespace BakAgain.UI.Puzzle {
             window.RemoveFromHierarchy();
         }
 
-        /// <summary>One rolling letter, as the sprite the redraw will paint.</summary>
+        /// <summary>One rolling letter, as the sprites the redraw will paint.</summary>
         /// <remarks>
         /// <b>The roll has to use the same glyphs as everything else.</b> This was a TMP
         /// <c>Label</c>, which meant a game-font letter slid down the wheel and a PUZZLE.FNT sprite
         /// landed at the end of it — the face changing mid-animation. Nothing showed it because the
         /// wheels only became sprites when the real fonts were wired up.
+        ///
+        /// <para>The same goes for the three emboss passes and the resting position: the original
+        /// rolls both letters in pens 65/149/16 at y-1/+1/0 from the static letter's own y
+        /// (CIPHER.C:339-347), so a flat single pen, or a top at the box's edge, changes the letter
+        /// the moment it lands. <paramref name="box"/> is the column box in the window's frame;
+        /// the returned element is moved by its <c>top</c>.</para>
         /// </remarks>
         private VisualElement RollGlyph(GameData.Resources.Font.FontResource font, string fontKey,
             char letter, Rect box) {
-            Sprite glyph = GlyphSprite(font, fontKey, CipherPuzzleLayout.TextBodyPen, letter);
-            if (glyph == null) {
-                return new VisualElement { pickingMode = PickingMode.Ignore };
+            var letterElement = new VisualElement {
+                pickingMode = PickingMode.Ignore,
+                style = { position = Position.Absolute, left = 0, top = 0, right = 0, bottom = 0 },
+            };
+            foreach ((int yOffset, int pen) in CipherPuzzleLayout.TextPasses()) {
+                Sprite glyph = GlyphSprite(font, fontKey, pen, letter);
+                if (glyph == null) {
+                    continue;
+                }
+
+                letterElement.Add(new VisualElement {
+                    pickingMode = PickingMode.Ignore,
+                    style = {
+                        position = Position.Absolute,
+                        left = CipherPuzzleLayout.GlyphX((int)box.x, (int)box.width,
+                            (int)glyph.rect.width),
+                        top = CipherPuzzleLayout.GlyphY((int)box.y, (int)box.height,
+                            (int)glyph.rect.height) + (yOffset * (float)font.PixelHeight),
+                        width = glyph.rect.width,
+                        height = glyph.rect.height,
+                        backgroundImage = new StyleBackground(glyph),
+                    },
+                });
             }
 
-            return new VisualElement {
-                pickingMode = PickingMode.Ignore,
-                style = {
-                    position = Position.Absolute,
-                    left = CipherPuzzleLayout.GlyphX(0, (int)box.width, (int)glyph.rect.width),
-                    width = glyph.rect.width,
-                    height = glyph.rect.height,
-                    backgroundImage = new StyleBackground(glyph),
-                },
-            };
+            return letterElement;
         }
 
         /// <summary>The column's canonical box, or an empty rect when it is not live.</summary>

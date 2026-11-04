@@ -6,6 +6,7 @@ Shader "BakAgain/EnhancedSprite" {
         _MainTex ("Sprite Texture", 2D) = "white" {}
         _AlphaCutoff ("Alpha Cutoff", Float) = 0.01
         _FlashColor ("Flash Colour", Color) = (0,0,0,0)
+        _SeeThrough ("See-through Opacity", Range(0,1)) = 1
         _SunSet ("Sun Set", Float) = 0
         _VarySize ("Size Variation", Float) = 0
         _VaryColor ("Colour Variation", Float) = 0

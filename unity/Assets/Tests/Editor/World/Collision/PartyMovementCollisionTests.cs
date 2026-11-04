@@ -339,6 +339,34 @@ namespace BakAgain.Tests.Editor.World.Collision {
             CollectionAssert.IsEmpty(rig.Sounds, "a successful pivot is not a bump");
         }
 
+        // The 62-degree opening above at the glide's Small step (100 here): an eighth of its size.
+        private static ProximityWorld WallAGlideStepAway() => WorldWith(0, (Rock, 0, 100, 88), (Rock, 75, 50, 63));
+
+        [Test]
+        public void AGlideIntoAWall_PivotsWithoutFreeLook() {
+            // The control for the free-look case below: the glide's Small step gets the sweep like any step.
+            var rig = Build(WallAGlideStepAway());
+            rig.Movement.Glide(1, 0.1f, 8.84f);
+
+            Assert.AreEqual(0, rig.Session.PositionY, "a pivot never translates");
+            Assert.AreNotEqual((short)0, rig.Session.Rotation, "the sweep turned the party");
+        }
+
+        [Test]
+        public void AGlideIntoAWall_UnderFreeLook_KeepsTheHeadingAndBumpsOncePerHold() {
+            // TASK-1020: the mouse owns the heading, so the refused step only bumps, and the glide's
+            // retries against the wall do not sound again until the hold ends.
+            var rig = Build(WallAGlideStepAway());
+            rig.Movement.FreeHeading = () => true;
+            for (int i = 0; i < 4; i++) {
+                rig.Movement.Glide(1, 0.1f, 8.84f);
+            }
+
+            Assert.AreEqual(0, rig.Session.PositionY);
+            Assert.AreEqual((short)0, rig.Session.Rotation, "the heading stays the player's");
+            CollectionAssert.AreEqual(new[] { 0x31 }, rig.Sounds);
+        }
+
         [Test]
         public void MoveForward_WhenBothSweepsOpenAtTheSameAngle_BumpsInstead() {
             // Acceptance #3 (ambiguous case): rock ahead only, so +90 and -90 both open on the

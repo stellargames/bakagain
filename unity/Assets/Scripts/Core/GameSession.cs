@@ -579,6 +579,10 @@ namespace BakAgain.Core {
         public Func<int, int> PartyEffectsFor(int characterIndex, ActorAttribute attribute,
             bool inCombat) => PartyEffects(characterIndex, attribute, inCombat, freeExpired: true);
 
+        /// <summary><see cref="PartyEffectsFor"/> without freeing lapsed modifiers: for reads that must not write.</summary>
+        public Func<int, int> PeekPartyEffectsFor(int characterIndex, ActorAttribute attribute,
+            bool inCombat) => PartyEffects(characterIndex, attribute, inCombat, freeExpired: false);
+
         // freeExpired false is the side-effect-free read PeekEffectiveStat needs: a lapsed modifier
         // contributes nothing either way, it is only left in its slot for the next real read.
         private Func<int, int> PartyEffects(int characterIndex, ActorAttribute attribute,
@@ -2741,6 +2745,11 @@ namespace BakAgain.Core {
             _combatantEdits ??= new Dictionary<int, DirtyCombatantEdit>();
             foreach (DirtyCombatantEdit edit in edits) {
                 _combatantEdits[edit.ActorSlot] = edit;
+                // The live record too: the original has one TEMP.GAM, so what a fight wrote back is what the
+                // next zone entry's re-seed reads (RosterActorIsFlaggedDead).
+                if (edit.ActorSlot >= 0 && edit.ActorSlot < _combatActors.Length && edit.Record != null) {
+                    _combatActors[edit.ActorSlot] = edit.Record;
+                }
             }
         }
 

@@ -304,6 +304,62 @@ public static class InventoryTransfer {
         return Result.Moved;
     }
 
+    /// <summary>
+    /// The Enhanced loot screen's "Get all" (TASK-1019; the original has no such button): every item
+    /// leaves <paramref name="source"/> for the party, each by a take the screen already has.
+    /// </summary>
+    /// <remarks>
+    /// A stack of two or more is Shared (<see cref="Distribute"/>, the picker's Share). Anything else
+    /// — and a stack Share finds no room for — is the non-picker <see cref="Move"/> into the member
+    /// with the most free slots who has room for it, ties in roster order; with nobody, the first
+    /// member, so gold still becomes purse money and a key still goes on the ring. Food reaching a
+    /// starving member is eaten, as on any take. The walk runs from the last item down because
+    /// <see cref="RemoveAt"/> swaps the last item into the hole: what swaps in has already been tried.
+    /// </remarks>
+    /// <returns>How many items stayed behind (nobody could carry them).</returns>
+    public static int TakeAll(RuntimeContainer source, IReadOnlyList<RuntimeContainer> members,
+        ObjectInfoSet? objects, ref int partyGold, Func<RuntimeContainer, bool>? isCaster = null,
+        RuntimeContainer? sharedKeys = null, Func<RuntimeContainer, ActorConditions?>? conditionsOf = null) {
+        if (source == null || members == null || members.Count == 0) {
+            return source?.Items.Count ?? 0;
+        }
+        int left = 0;
+        for (int i = source.Items.Count - 1; i >= 0; i--) {
+            RuntimeItem item = source.Items[i];
+            int flags = (int)(objects?.GetById(item.ObjectId)?.Flags ?? 0);
+            if ((flags & (StackableFlag | CountableFlag)) != 0 && item.Variable >= 2
+                && Distribute(source, i, members, objects, conditionsOf) == Result.Moved) {
+                continue;
+            }
+            RuntimeContainer? to = null;
+            int mostFree = int.MinValue;
+            foreach (RuntimeContainer m in members) {
+                if (m == null || !HasRoomFor(m, item, objects)) continue;
+                int free = FreeSlots(m, objects);
+                if (free > mostFree) { mostFree = free; to = m; }
+            }
+            to ??= members[0];
+            Result r = Move(source, i, to, objects, ref partyGold, isCaster?.Invoke(to) ?? false, sharedKeys);
+            if (r == Result.Moved) {
+                InventoryAcquire.FeedIfStarving(to, item, objects, conditionsOf?.Invoke(to));
+            } else if (r != Result.GoldConverted) {
+                left++;
+            }
+        }
+        return left;
+    }
+
+    // The slot budget less every footprint CanFit counts.
+    private static int FreeSlots(RuntimeContainer c, ObjectInfoSet? objects) {
+        bool isChar = c.ContainerType == SaveGameContainerType.Inventory;
+        int free = isChar ? CharSlotBudget : OtherSlotBudget;
+        foreach (RuntimeItem t in c.Items) {
+            if (isChar && (t.ItemFlags & ItemEquippedFlag) != 0) continue;
+            free -= Slots(t, objects);
+        }
+        return free;
+    }
+
     // The keyring insert (pickupItem @0x558c2 / CMBINV.C:886-900). The original asks
     // itemtbl_inv_count_by_kind first and then bumps EVERY slot of that kind — a loop that can
     // only ever see one, since the else-branch is the only thing that appends. Reproduced as

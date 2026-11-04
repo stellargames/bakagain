@@ -90,7 +90,7 @@ namespace BakAgain.World.Interaction {
         /// </remarks>
         private static async UniTask ScrambleTheSceneAsync() {
             WorldMeshFrames[] all = Object.FindObjectsByType<WorldMeshFrames>(
-                FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+                FindObjectsInactive.Exclude);
             var restore = new List<(WorldMeshFrames Frames, int Frame)>(all.Length);
             foreach (WorldMeshFrames frames in all) {
                 if (frames.FrameCount > 1) {

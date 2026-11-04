@@ -73,16 +73,70 @@ namespace BakAgain.UI.InGame {
             }
         }
 
-        private void Draw(MeshGenerationContext ctx) {
-            Rect r = _ring.contentRect;
+        private void Draw(MeshGenerationContext ctx) => DrawRing(ctx, _ring.contentRect, _fractions);
+
+        /// <summary>The stamina-then-health arc in <paramref name="r"/>; shared with the combat coins.</summary>
+        internal static void DrawRing(MeshGenerationContext ctx, Rect r, (double S, double H) fractions) {
             Vector2 c = r.center;
             float radius = Mathf.Min(r.width, r.height) * 0.5f;
             if (radius <= 0f) return;
             Painter2D p = ctx.painter2D;
             p.lineWidth = radius * 0.12f;
             Arc(p, c, radius, 0, 1, EmptyColour);
-            Arc(p, c, radius, 0, (float)_fractions.S, StaminaColour);
-            Arc(p, c, radius, (float)_fractions.S, (float)(_fractions.S + _fractions.H), HealthColour);
+            Arc(p, c, radius, 0, (float)fractions.S, StaminaColour);
+            Arc(p, c, radius, (float)fractions.S, (float)(fractions.S + fractions.H), HealthColour);
+        }
+
+        /// <summary>
+        /// A free-standing ring for any head (the Enhanced combat HUD's party coins): the same arcs,
+        /// fed directly, plus the coin's variant as a theme class (<c>enhanced-ring--active</c>,
+        /// <c>--acted</c>, <c>--down</c>, <c>--summon</c>) and its badge.
+        /// </summary>
+        public static VisualElement Coin(VisualElement head) {
+            var ring = new VisualElement { name = "coin-ring", pickingMode = PickingMode.Ignore };
+            ring.AddToClassList("enhanced-hud__ring");
+            ring.userData = (0d, 0d);
+            ring.generateVisualContent += ctx => DrawRing(ctx, ring.contentRect, ((double, double))ring.userData);
+            var badge = new VisualElement { name = "coin-badge", pickingMode = PickingMode.Ignore };
+            badge.AddToClassList("enhanced-ring__badge");
+            badge.userData = RingVariant.Ready;
+            badge.generateVisualContent += ctx => DrawBadge(ctx, badge.contentRect, (RingVariant)badge.userData);
+            head.Insert(0, ring);
+            head.Add(badge);
+            return ring;
+        }
+
+        /// <summary>Sets a <see cref="Coin"/>'s fractions and variant.</summary>
+        public static void SetCoin(VisualElement head, (double S, double H) fractions, RingVariant variant) {
+            VisualElement ring = head.Q("coin-ring");
+            if (ring != null && !ring.userData.Equals(fractions)) {
+                ring.userData = fractions;
+                ring.MarkDirtyRepaint();
+            }
+            foreach (RingVariant v in System.Enum.GetValues(typeof(RingVariant))) {
+                head.EnableInClassList("enhanced-ring--" + v.ToString().ToLowerInvariant(), v == variant);
+            }
+            VisualElement badge = head.Q("coin-badge");
+            if (badge != null && !variant.Equals(badge.userData)) {
+                badge.userData = variant;
+                badge.MarkDirtyRepaint();
+            }
+        }
+
+        // The badge's glyph, drawn (no font has to carry it): a tick for acted. A downed member has no badge,
+        // the portrait dims instead (owner, 2026-11-01).
+        private static void DrawBadge(MeshGenerationContext ctx, Rect r, RingVariant variant) {
+            if (variant != RingVariant.Acted || r.width <= 0f) return;
+            Painter2D p = ctx.painter2D;
+            p.lineWidth = Mathf.Max(1.5f, r.width * 0.16f);
+            p.strokeColor = Color.white;
+            p.lineCap = LineCap.Round;
+            float m = r.width * 0.28f;
+            p.BeginPath();
+            p.MoveTo(new Vector2(r.xMin + m, r.center.y));
+            p.LineTo(new Vector2(r.center.x - r.width * 0.05f, r.yMax - m));
+            p.LineTo(new Vector2(r.xMax - m, r.yMin + m));
+            p.Stroke();
         }
 
         private static void Arc(Painter2D p, Vector2 c, float radius, float from, float to, Color colour) {
@@ -93,6 +147,9 @@ namespace BakAgain.UI.InGame {
             p.Stroke();
         }
     }
+
+    /// <summary>How a combat coin is drawn: whose turn it is, who has acted, who is down, a summon.</summary>
+    public enum RingVariant { Ready, Active, Acted, Down, Summon }
 
     /// <summary>
     /// The rings on one screen's portraits, following the Health rings switch: the travel HUD, the

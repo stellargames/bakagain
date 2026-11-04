@@ -35,6 +35,20 @@ public class CombatStatePersistenceTests {
         Assert.Equal(before.ActiveSpellEffectSlot, after.ActiveSpellEffectSlot);
     }
 
+    // Owner, 2026-11-01: a beaten roaming moredhel walked again after a zone change. The fight must write
+    // CAF_DEAD back (COMBAT.C:278), which the zone-entry re-seed reads (RGNENC.C:199-207); the rest of the
+    // status byte is the record's own.
+    [Fact]
+    public void AKilledFoesRecordIsMarkedDead_ALivingOnesIsNot() {
+        SaveGameCombatData before = Existing();   // status 5: bit 0x02 clear
+        SaveGameCombatData dead = CombatStatePersistence.WithLiveState(
+            before, new Combatant { Flags = CombatantFlags.Dead });
+        Assert.Equal(5 | (int)CombatantFlags.Dead, dead.CombatStatus);
+        SaveGameCombatData alive = CombatStatePersistence.WithLiveState(before, new Combatant());
+        Assert.Equal(5, alive.CombatStatus);
+        Assert.Equal(5 | (int)CombatantFlags.Dead, CombatStatePersistence.MarkedDead(before).CombatStatus);
+    }
+
     [Fact]
     public void ThePositionIsTakenFromTheLiveCombatant() {
         SaveGameCombatData after = CombatStatePersistence.WithLiveState(

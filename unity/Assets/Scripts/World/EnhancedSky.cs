@@ -76,6 +76,18 @@ namespace BakAgain.World {
         private bool _appliedMap;
         private (long Ticks, int Daylight, bool SkyOn, bool LightingOn, ShadowMode Shadows) _last;
 
+        // The clock the clouds and stars are drawn at (TASK-1020): eased toward the real ticks every frame,
+        // so a held walk drifts them smoothly instead of a step at a time. The rest keeps the real ticks.
+        private double _shownTicks;
+        private bool _skyPublished;
+        private Vector4 _cloud;
+
+        /// <summary>A clock jump at least this long (a rest, a map journey) moves the clouds on at once.</summary>
+        public const long SnapTicks = GameData.Resources.GameState.GameTime.UnitsPerHour;
+
+        /// <summary>How quickly the shown clock catches the real one, seconds (about 0.5 s to settle).</summary>
+        private const float EaseSeconds = 0.15f;
+
         public void Bind(Camera camera, ZoneEnvironment env, int zone, bool underground) {
             _camera = camera;
             _env = env;
@@ -94,6 +106,9 @@ namespace BakAgain.World {
             if (_applied && map == _appliedMap && _last == (ticks, daylight, skyOn, lightingOn, shadows)) {
                 return;
             }
+            if (!_applied || Math.Abs(ticks - _shownTicks) >= SnapTicks) {
+                _shownTicks = ticks;
+            }
             _applied = true;
             _appliedMap = map;
             _last = (ticks, daylight, skyOn, lightingOn, shadows);
@@ -104,7 +119,8 @@ namespace BakAgain.World {
             (double r, double g, double b) = Clock.SunColor(Math.Max(0, sun.ElevationDegrees));
             var sunColor = new Color((float)r, (float)g, (float)b);
 
-            if (sky || lit) {
+            _skyPublished = sky || lit;
+            if (_skyPublished) {
                 PublishSkyGlobals(ticks, sun, sunColor);
             }
             SetDome(sky);
@@ -148,6 +164,31 @@ namespace BakAgain.World {
             if (_dome != null && _dome.activeSelf && _camera != null) {
                 _dome.transform.SetPositionAndRotation(_camera.transform.position, Quaternion.identity);
             }
+            EaseClouds(Time.deltaTime);
+        }
+
+        /// <summary>One frame of the shown clock catching up with the real one: only the cloud drift and the
+        /// star turn are republished. The clock stands still when the party does, so they settle and stop.</summary>
+        public void EaseClouds(float seconds) {
+            if (!_applied || _shownTicks == _last.Ticks) {
+                return;
+            }
+            _shownTicks = EaseToward(_shownTicks, _last.Ticks, seconds);
+            if (_skyPublished) {
+                PublishDrift();
+            }
+        }
+
+        /// <summary>Exponential approach; within a hundredth of a tick it lands.</summary>
+        public static double EaseToward(double shown, long target, float seconds) {
+            double next = shown + ((target - shown) * (1 - Math.Exp(-seconds / EaseSeconds)));
+            return Math.Abs(target - next) < 0.01 ? target : next;
+        }
+
+        private void PublishDrift() {
+            _cloud.z = CloudDrift(_shownTicks);
+            Shader.SetGlobalVector(CloudId, _cloud);
+            Shader.SetGlobalFloat(StarRotId, (float)Clock.StarRotation(_shownTicks));
         }
 
         private void OnDestroy() {
@@ -172,12 +213,13 @@ namespace BakAgain.World {
         /// </summary>
         /// <remarks>
         /// Five units a game hour, which at a walking pace (a medium step is 60 ticks, two game minutes)
-        /// is about the drift the real-time sky had. A step moves them a fraction of a texel. A long jump
-        /// (a rest, a map journey) moves them on at once, with the sun and the cover that jump too: an
-        /// ease would be clouds racing past while the clock stands still. Float keeps sub-texel steps for
-        /// years of game time.
+        /// is about the drift the real-time sky had. It is drawn at an eased clock (<see cref="EaseClouds"/>,
+        /// TASK-1020), so a held walk drifts them smoothly rather than a step at a time. A jump of
+        /// <see cref="SnapTicks"/> or more (a rest, a map journey) moves them on at once, with the sun and
+        /// the cover that jump too: an ease would be clouds racing past while the clock stands still.
+        /// Float keeps sub-texel steps for years of game time.
         /// </remarks>
-        public static float CloudDrift(long ticks) => ticks / (GameData.Resources.GameState.GameTime.UnitsPerHour / 5f);
+        public static float CloudDrift(double ticks) => (float)(ticks / (GameData.Resources.GameState.GameTime.UnitsPerHour / 5.0));
 
         /// <summary>The world is +X east, +Y up, +Z north (BakCoordinateConverter: BaK X→X, Y→Z).</summary>
         private static Vector3 ToVector(SkyDirection d) => new((float)d.East, (float)d.Up, (float)d.North);
@@ -202,10 +244,9 @@ namespace BakAgain.World {
             Shader.SetGlobalVector(MoonPhaseId, phases);
             Shader.SetGlobalVector(MoonBrightId, brightness);
 
-            float hours = (float)((double)ticks / GameData.Resources.GameState.GameTime.UnitsPerHour);
-            Shader.SetGlobalVector(CloudId, new Vector4((float)Clock.CloudCover(_zone, ticks),
-                Application.isMobilePlatform ? 1f : 2f, CloudDrift(ticks), 0f));
-            Shader.SetGlobalFloat(StarRotId, (hours % 24f) / 24f * 2f * Mathf.PI);
+            // The cover keeps the real ticks; the drift and the stars the shown clock (PublishDrift).
+            _cloud = new Vector4((float)Clock.CloudCover(_zone, ticks), Application.isMobilePlatform ? 1f : 2f, 0f, 0f);
+            PublishDrift();
             Shader.SetGlobalVector(HazeId, new Vector4((float)Layout.HazeStrength, (float)Layout.HazeBaseExtra, 0f, 0f));
         }
 

@@ -28,6 +28,37 @@ public class UiTemplatesTests {
         UiStringCatalog.Embedded.TranslatedBy(new LanguagePack("de", new Dictionary<string, string> { [key] = text }));
 
     [Fact]
+    public void TheHudWeaponLineLabelsThrustAndSwing_AsTheOriginalsInspectDoes() {
+        // Owyn's staff read "Dmg -7/3", which looks like a range. It is two base damages: INVINSP.C:248-254
+        // prints "%d+Strength" under Thrust (nThrust_damage) and under Swing (nSwing_damage).
+        // Written Strength-first with the sum (owner, 2026-11-01): "Str-7 = 5".
+        Assert.Equal("Thrust Str\u22127 = 5 \u00b7 Swing Str+3 = 15",
+            UiTemplates.Format(UiTemplates.HudWeaponLine, ("thrust", (object)"\u22127"), ("thrustTotal", (object)5),
+                ("swing", (object)"+3"), ("swingTotal", (object)15)));
+    }
+
+    [Fact]
+    public void WalksThenThrustsIsACountedPlural() {
+        Assert.Equal("Walks 1, then thrusts", UiTemplates.Format(UiTemplates.HudWalksThenThrusts, ("n", (object)1)));
+        Assert.Equal("Walks 3, then thrusts", UiTemplates.Format(UiTemplates.HudWalksThenThrusts, ("n", (object)3)));
+        UiStringCatalog saved = UiStrings.Catalog;
+        try {
+            UiStrings.Catalog = Translated(UiTemplates.HudWalksThenThrusts,
+                "{n, plural, one {Geht # Feld, dann sticht} other {Geht # Felder, dann sticht}}");
+            Assert.Equal("Geht 1 Feld, dann sticht", UiTemplates.Format(UiTemplates.HudWalksThenThrusts, ("n", (object)1)));
+            Assert.Equal("Geht 3 Felder, dann sticht", UiTemplates.Format(UiTemplates.HudWalksThenThrusts, ("n", (object)3)));
+        } finally {
+            UiStrings.Catalog = saved;
+        }
+    }
+
+    [Fact]
+    public void TheHudChoosesATargetForAnArmedPick() {
+        Assert.Equal("Flamecast: choose a target",
+            UiTemplates.Format(UiTemplates.HudChooseTarget, ("action", (object)"Flamecast")));
+    }
+
+    [Fact]
     public void TheItemStatusJoinerIsATemplate() {
         // INVINSP.C:377-383 strcat's ", " between "Using" and the item's state (TASK-775).
         Assert.Equal("Using, Repairable",

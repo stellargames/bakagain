@@ -480,6 +480,56 @@ using GameData.Resources.Scene;
             GameData.Resources.Combat.CombatCommands.Command command, int actionId) =>
             OnCombatCommand(command, actionId);
 
+        /// <summary>Presses one combat command, as the Classic menu would (Enhanced combat's stones, TASK-972).</summary>
+        public void IssueCombatCommand(GameData.Resources.Combat.CombatCommands.Command command, int actionId) =>
+            OnCombatCommand(command, actionId);
+
+        /// <summary>A stone's describe record, as the Classic menu's right click plays it. Spends nothing.</summary>
+        public void DescribeCombatCommand(int actionId) {
+            int record = GameData.Resources.Combat.CombatActionDispatch.HelpRecordFor(actionId);
+            if (record >= 0) {
+                OnCombatHelpRequested(record);
+            }
+        }
+
+        /// <summary>
+        /// Enhanced combat's character sheet (H, or a right click on the medallion): the acting hero's
+        /// sheet, to read only, so closing it spends nothing (owner, TASK-972 spec). The Classic Shift
+        /// arm of command 22 still spends the turn.
+        /// </summary>
+        public void ShowCombatSheet() {
+            Combatant acting = Combat?.Encounter?.Current;
+            if (acting != null && acting.IsPartyMember) {
+                OpenCombatCharacterSheet(acting, spendsTheTurn: false);
+            }
+        }
+
+        /// <summary>
+        /// Enhanced combat's Pack stone (TASK-972): the acting hero's pack, always. Shift has no effect on
+        /// a stone; the sheet's one path is H or the medallion (<see cref="ShowCombatSheet"/>). Closing it
+        /// spends the turn as command 22's pack arm does.
+        /// </summary>
+        public void ShowCombatPack() {
+            Combatant acting = Combat?.Encounter?.Current;
+            if (acting != null && acting.IsPartyMember) {
+                OpenCombatInventory(acting);
+            }
+        }
+
+        /// <summary>
+        /// A Classic pick is armed: a spell, shot, item, summon or decoy waits for its cell or target,
+        /// so a click on the field must take the Classic path (Enhanced combat leaves those to it).
+        /// </summary>
+        public bool CombatPickPending =>
+            _pendingCombatMode != GameData.Resources.Combat.CombatCommandOutcome.PendingMode.None
+            || _pendingSummonsLeft > 0 || _pendingDecoyOf != null;
+
+        /// <summary>A party member's turn has begun (every handoff goes through the settle).</summary>
+        public event Action<Combatant> CombatTurnStarted;
+
+        /// <summary>The party's turn is over; the enemies (if any) act next.</summary>
+        public event Action CombatTurnEnded;
+
         /// <summary>Runs the retreat arm as the HUD's id-33 press would.</summary>
         /// <remarks>
         /// A seam for the same reason <see cref="EndCombatForTest"/> is one: the production caller is
@@ -514,6 +564,19 @@ using GameData.Resources.Scene;
         /// </remarks>
         internal void ArmSpellForTest(GameData.Resources.Spells.Spell record, int spellId, int power) =>
             ArmCombatSpell(record, spellId, power);
+
+        /// <summary>The cast screen's Committed as the screen raises it, before it pops, with this record as
+        /// its CommittedSpell: the real handler, without standing a cast screen up.</summary>
+        internal void CommitCombatSpellForTest(GameData.Resources.Spells.Spell record, int spellId, int power) {
+            _committedSpellForTest = record;
+            try {
+                OnCombatSpellCommitted(spellId, power, 0);
+            } finally {
+                _committedSpellForTest = null;
+            }
+        }
+
+        private GameData.Resources.Spells.Spell _committedSpellForTest;
 
         /// <summary>One monster's paced turn, as the advance runs it.</summary>
         internal Cysharp.Threading.Tasks.UniTask RunEnemyTurnPacedForTest(Combatant monster) =>
@@ -805,11 +868,13 @@ using GameData.Resources.Scene;
                 }
 
                 HotspotRules.ApplyOnFire(this, trigger);
-                if (trigger.Repeatable == 0) {
-                    if (trigger.FireOnce != 0) {
-                        WriteGlobal(DoneFlagKey(hotspotIndex), 1);
-                    }
-                    MarkActedThisChunk(hotspotIndex);
+                // A crossing marks itself done only when it inhibits (bInhibitChapter), and never as tried
+                // this chunk: hotspotevt_action_enter_zone (HOTSPOT.C:863-887) has no scout_tried_set. The
+                // mark copied from the Dial arm landed, after the zone change, on slot 0 of the zone just
+                // entered -- the way back -- so the mine's stairs and entrance answered "must not be
+                // important" (owner, 2026-11-01).
+                if (trigger.FireOnce != 0) {
+                    WriteGlobal(DoneFlagKey(hotspotIndex), 1);
                 }
             } finally {
                 // A crossing to another zone has built a new movement; the step is charged there.
@@ -989,6 +1054,16 @@ using GameData.Resources.Scene;
         public bool FightInProgress => _combat != null && _combat.InCombat;
 
         /// <summary>
+        /// The fight is under way: its first party turn has been handed out and the combat menu opened
+        /// (<see cref="SettleTurnAsync"/>). Until then -- the entry line over the travel view, the fade, the
+        /// opening enemy turns -- a fight exists but no combat HUD is up in the Classic game, so the
+        /// Enhanced one waits for the same moment (owner's phone test, 2026-10-28).
+        /// </summary>
+        public bool FightUnderWay => FightInProgress && _fightUnderWay;
+
+        private bool _fightUnderWay;
+
+        /// <summary>
         /// Spring the DEF_TRAP trigger covering one sub-tile of the party's current chunk — the
         /// spawn a trapped container performs when it is opened.
         /// </summary>
@@ -1107,7 +1182,10 @@ using GameData.Resources.Scene;
             Pending.Clear();
             new HotspotActivator(this).ActivateAt(triggers, subX, subY, Pending, TileEventType.Zone);
             if (Pending.Count == 0) {
-                return false;
+                // A zone hotspot under the point is answered even when it does not fire: the original's
+                // dispatch returns 1 for any kind-8 hotspot there (HOTSPOT.C:236-248), so the caller's
+                // "must not be important" plays only where there is none.
+                return HotspotActivator.MatchAt(triggers, subX, subY, TileEventType.Zone).Count > 0;
             }
 
             HotspotDispatchResult dispatched = new HotspotDispatcher(this).Dispatch(triggers, Pending);
@@ -1130,6 +1208,7 @@ using GameData.Resources.Scene;
         /// guard's own comment.</para>
         /// </remarks>
         public bool StartCombat(TileEventTrigger trigger, int hotspotIndex = -1) {
+            _fightUnderWay = false;
             long? encounter = EncounterNumberOf(trigger);
             if (!encounter.HasValue || HotspotRules.EncounterIndexOutOfRange(encounter.Value)) {
                 return false;
@@ -1762,6 +1841,280 @@ using GameData.Resources.Scene;
             }
 
             return segments;
+        }
+
+        /// <summary>
+        /// What the enhanced board marks for whoever is acting (TASK-972): reach, the foes a Thrust or
+        /// Swing would reach, and the foe letters. Every answer is the click's own rule -- see
+        /// <see cref="GameData.Resources.Combat.BoardMarks"/>. Empty off a party member's turn.
+        /// </summary>
+        public GameData.Resources.Combat.BoardMarks EnhancedBoardMarks() {
+            var acting = Combat?.Encounter?.Current;
+            if (acting == null || acting.IsDead || !acting.IsPartyMember || Combat.Grid == null) {
+                return GameData.Resources.Combat.BoardMarks.Empty;
+            }
+            // ~200 dry-run walks: computed once per change of what they read, shared by the shapes,
+            // the plates and the HUD poll (final review I-2).
+            int inputs = EnhancedBoardInputs();
+            if (_boardMarks != null && inputs == _boardMarksInputs) {
+                return _boardMarks;
+            }
+            BoardMarksComputed++;
+            _boardMarksInputs = inputs;
+            _boardMarks = ComputeEnhancedBoardMarks(acting);
+            return _boardMarks;
+        }
+
+        private GameData.Resources.Combat.BoardMarks _boardMarks;
+        private int _boardMarksInputs;
+
+        /// <summary>How many times the board marks were actually computed (not served from the cache); for tests.</summary>
+        internal int BoardMarksComputed { get; private set; }
+
+        /// <summary>
+        /// A hash of everything the enhanced board's marks, shapes and plates read: who acts, every
+        /// combatant's cell, speed, pools and death, the grid's occupancy and terrain, the cursor cell, the
+        /// round, the arena's anchor and the damage seen per foe. Equal hashes mean nothing to redraw.
+        /// </summary>
+        /// <remarks>ponytail: a 32-bit hash, so a collision would keep one stale frame until the next change;
+        /// compare the inputs field by field if that is ever seen.</remarks>
+        public int EnhancedBoardInputs() {
+            var h = new System.HashCode();
+            var encounter = Combat?.Encounter;
+            h.Add(System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(encounter?.Current));
+            h.Add(System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(Combat?.Grid));
+            h.Add(CursorCell);
+            h.Add(CombatPickPending);
+            h.Add(Combat?.Log?.Round ?? -1);
+            if (_session != null) {
+                h.Add(_session.PositionX);
+                h.Add(_session.PositionY);
+                h.Add(_session.Rotation);
+            }
+            if (encounter != null) {
+                foreach (Combatant c in encounter.Party) {
+                    AddCombatant(ref h, c);
+                }
+                for (int i = 0; i < encounter.Enemies.Count; i++) {
+                    AddCombatant(ref h, encounter.Enemies[i]);
+                    h.Add(Combat.Knowledge.Seen(i));
+                }
+            }
+            if (Combat?.Grid is { } grid) {
+                for (int y = 0; y < GameData.Resources.Combat.CombatGrid.Height; y++) {
+                    for (int x = 0; x < GameData.Resources.Combat.CombatGrid.Width; x++) {
+                        h.Add(grid.IsOccupied(x, y));
+                        h.Add(grid.TerrainAt(x, y));
+                    }
+                }
+            }
+            return h.ToHashCode();
+
+            static void AddCombatant(ref System.HashCode h, Combatant c) {
+                if (c == null) {
+                    h.Add(-1);
+                    return;
+                }
+                h.Add(c.X);
+                h.Add(c.Y);
+                h.Add(c.Speed);
+                h.Add(c.Health);
+                h.Add(c.Stamina);
+                h.Add(c.IsDead);
+            }
+        }
+
+        private GameData.Resources.Combat.BoardMarks ComputeEnhancedBoardMarks(Combatant acting) {
+            var reach = new HashSet<(int Col, int Row)>();
+            for (int y = 0; y < GameData.Resources.Combat.CombatGrid.Height; y++) {
+                for (int x = 0; x < GameData.Resources.Combat.CombatGrid.Width; x++) {
+                    // The near corners are walled off (CMBTGRID.C:724-725), and the underground arena's
+                    // far rows -- CellMovable's walk refuses both, the explicit test is for the corners.
+                    bool corner = y == 0 && (x == 0 || x == GameData.Resources.Combat.CombatGrid.Width - 1);
+                    if (!corner && (x != acting.X || y != acting.Y)
+                        && Combat.CombatantAtCell(x, y) == null && Combat.CellMovable(acting, x, y)) {
+                        reach.Add((x, y));
+                    }
+                }
+            }
+            var thrust = new HashSet<int>();
+            var swing = new HashSet<int>();
+            var letters = new Dictionary<int, char>();
+            var enemies = Combat.Encounter.Enemies;
+            for (int i = 0; i < enemies.Count; i++) {
+                letters[i] = GameData.Resources.Combat.BoardMarks.LetterFor(i);
+                var foe = enemies[i];
+                if (foe == null || foe.IsDead) {
+                    continue;
+                }
+                if (Combat.ForecastThrust(acting, foe) != null) {
+                    thrust.Add(i);
+                }
+                int distance = GameData.Resources.Combat.CombatGrid.ChebyshevDistance(
+                    acting.X, acting.Y, foe.X, foe.Y);
+                if (GameData.Resources.Combat.CombatActionDispatch.WithinReach(distance, acting.Speed)
+                    && GameData.Resources.Combat.MeleeStatsPanel.ShowsSwingColumn(
+                        GameData.Resources.Combat.CombatGrid.OrthogonallyAdjacent(
+                            acting.X, acting.Y, foe.X, foe.Y),
+                        acting.Health + acting.Stamina)) {
+                    swing.Add(i);
+                }
+            }
+            return new GameData.Resources.Combat.BoardMarks(reach, thrust, swing, letters);
+        }
+
+        /// <summary>
+        /// The walk a click on this foe (index in the enemy list) or, with -1, this cell would take;
+        /// empty when the click is refused.
+        /// </summary>
+        public IReadOnlyList<(int Col, int Row)> ForecastPath(int enemyIndexOrMinus1, int col, int row) {
+            var acting = Combat?.Encounter?.Current;
+            if (acting == null || acting.IsDead || !acting.IsPartyMember) {
+                return System.Array.Empty<(int, int)>();
+            }
+            var enemies = Combat.Encounter.Enemies;
+            var path = enemyIndexOrMinus1 >= 0 && enemyIndexOrMinus1 < enemies.Count
+                ? Combat.ForecastThrust(acting, enemies[enemyIndexOrMinus1])
+                : Combat.ForecastWalk(acting, col, row);
+            var result = new List<(int Col, int Row)>();
+            if (path != null) {
+                foreach ((int x, int y) in path) {
+                    result.Add((x, y));
+                }
+            }
+            return result;
+        }
+
+        /// <summary>One thing the enhanced board draws: filled cell corners, or a path's cell centres.</summary>
+        public readonly struct BoardShape {
+            public BoardShape(Encounters.ArenaOverlayKind kind, (long X, long Y)[] points) {
+                Kind = kind;
+                Points = points;
+            }
+
+            public Encounters.ArenaOverlayKind Kind { get; }
+            public (long X, long Y)[] Points { get; }
+        }
+
+        /// <summary>A foe's plate: its roster index and letter, where it stands, and how it can be hit.</summary>
+        public readonly struct FoePlate {
+            public FoePlate(int index, char letter, bool thrust, bool swing, bool hovered, int seen = 0) {
+                Index = index; Letter = letter; Thrust = thrust; Swing = swing; Hovered = hovered; Seen = seen;
+            }
+
+            /// <summary>Damage the player has seen dealt to this foe; the plate shows it when above zero.</summary>
+            public int Seen { get; }
+
+            public int Index { get; }
+            public char Letter { get; }
+            public bool Thrust { get; }
+            public bool Swing { get; }
+            public bool Hovered { get; }
+        }
+
+        /// <summary>The living foes' plates for the enhanced board, in roster order.</summary>
+        public List<FoePlate> EnhancedFoePlates() {
+            var plates = new List<FoePlate>();
+            GameData.Resources.Combat.BoardMarks marks = EnhancedBoardMarks();
+            var enemies = Combat?.Encounter?.Enemies;
+            if (enemies == null) {
+                return plates;
+            }
+            for (int i = 0; i < enemies.Count; i++) {
+                // A foe's letter shows only while it is under the cursor (or chosen), or acting: on every foe
+                // at once it distracted (owner, 2026-11-01).
+                bool pointed = CursorCell is (int pc, int pr) && enemies[i]?.X == pc && enemies[i]?.Y == pr;
+                if (!pointed && enemies[i] != Combat.Encounter.Current) {
+                    continue;
+                }
+                if (enemies[i] != null && !enemies[i].IsDead && marks.FoeLetters.TryGetValue(i, out char letter)) {
+                    plates.Add(new FoePlate(i, letter, System.Linq.Enumerable.Contains(marks.ThrustTargets, i),
+                        System.Linq.Enumerable.Contains(marks.SwingTargets, i),
+                        CursorCell is (int c, int r) && enemies[i].X == c && enemies[i].Y == r,
+                        Combat.Knowledge.Seen(i)));
+                }
+            }
+            return plates;
+        }
+
+        /// <summary>
+        /// The enhanced board's marks as world-space shapes: the reach fill, the acting cell, the cursor's
+        /// foe, thrust and swing marks, and the forecast path under the cursor. Redrawn from the model
+        /// every time it is asked, because the arena is rebuilt on every combat redraw.
+        /// </summary>
+        public List<BoardShape> EnhancedBoardShapes(float halfCell) {
+            var shapes = new List<BoardShape>();
+            var acting = Combat?.Encounter?.Current;
+            if (acting == null || acting.IsDead || !acting.IsPartyMember || _session == null
+                || _start == null || _start.CombatGridCellSize <= 0) {
+                return shapes;
+            }
+            int cellSize = _start.CombatGridCellSize;
+            int half = (int)(cellSize * halfCell);
+
+            (long X, long Y) Point(int column, int row, int sx, int sy) {
+                (int across, int away) =
+                    GameData.Resources.Combat.CombatArenaPlacement.CellOffset(column, row, cellSize);
+                var (dx, dy) = Collision.ProximityMath.Rotate(
+                    across + (sx * half), away + (sy * half), _session.Rotation);
+                return (_session.PositionX + dx, _session.PositionY + dy);
+            }
+
+            void Fill(int column, int row, Encounters.ArenaOverlayKind kind, int inset = 0) {
+                int s = half - inset;
+                (int across, int away) =
+                    GameData.Resources.Combat.CombatArenaPlacement.CellOffset(column, row, cellSize);
+                (long, long) P(int sx, int sy) {
+                    var (dx, dy) = Collision.ProximityMath.Rotate(
+                        across + (sx * s), away + (sy * s), _session.Rotation);
+                    return (_session.PositionX + dx, _session.PositionY + dy);
+                }
+                shapes.Add(new BoardShape(kind, new[] { P(-1, -1), P(1, -1), P(1, 1), P(-1, 1) }));
+            }
+
+            GameData.Resources.Combat.BoardMarks marks = EnhancedBoardMarks();
+            foreach ((int col, int row) in marks.Reach) {
+                Fill(col, row, Encounters.ArenaOverlayKind.ReachFill);
+            }
+            Fill(acting.X, acting.Y, Encounters.ArenaOverlayKind.Actor);
+            var enemies = Combat.Encounter.Enemies;
+            for (int i = 0; i < enemies.Count; i++) {
+                var foe = enemies[i];
+                if (foe == null || foe.IsDead) {
+                    continue;
+                }
+                bool thrust = System.Linq.Enumerable.Contains(marks.ThrustTargets, i);
+                bool swing = System.Linq.Enumerable.Contains(marks.SwingTargets, i);
+                // The swing mark sits inside the thrust's, so a foe that takes both shows both.
+                if (thrust) {
+                    Fill(foe.X, foe.Y, Encounters.ArenaOverlayKind.ThrustMark);
+                }
+                if (swing) {
+                    Fill(foe.X, foe.Y, Encounters.ArenaOverlayKind.SwingMark, inset: half / 3);
+                }
+                if (CursorCell is (int hc, int hr) && hc == foe.X && hr == foe.Y) {
+                    Fill(foe.X, foe.Y, Encounters.ArenaOverlayKind.Target, inset: half / 6);
+                }
+            }
+            // No walk while a spell, shot or item waits for its target: the click aims, nobody walks
+            // (owner, 2026-11-01).
+            if (CursorCell is (int cc, int cr) && !CombatPickPending) {
+                Combatant under = Combat.CombatantAtCell(cc, cr);
+                int index = under == null ? -1 : enemies.IndexOf(under);
+                if (under == null || index >= 0) {
+                    var path = ForecastPath(index, cc, cr);
+                    if (path.Count > 1) {
+                        var points = new (long X, long Y)[path.Count];
+                        for (int k = 0; k < points.Length; k++) {
+                            points[k] = Point(path[k].Col, path[k].Row, 0, 0);
+                        }
+                        shapes.Add(new BoardShape(Encounters.ArenaOverlayKind.Path, points));
+                        // Where the walk ends has its own frame: for a Thrust, the side it strikes from.
+                        Fill(path[^1].Col, path[^1].Row, Encounters.ArenaOverlayKind.WalkEnd, inset: half / 4);
+                    }
+                }
+            }
+            return shapes;
         }
 
         public List<(long X0, long Y0, long X1, long Y1, Encounters.ArenaOverlayKind Kind)>
@@ -2832,7 +3185,12 @@ using GameData.Resources.Scene;
             }
 
             CombatRuntime.RetreatOutcome outcome = Combat.ResolveRetreat(acting, _random);
-            PlayDialog((uint)outcome.DialogRecord, modal: true);
+            // The line is also written to the Enhanced fight log, from the very play that is shown.
+            if (outcome.Escaped) {
+                PlayDialog((uint)outcome.DialogRecord, modal: true);
+            } else {
+                _dialogs?.ShowById(outcome.DialogRecord, LogDialogLine).Forget();
+            }
 
             if (!outcome.Escaped) {
                 // The turn is spent either way, so hand the HUD on rather than leaving the failed
@@ -2855,6 +3213,17 @@ using GameData.Resources.Scene;
             Combat.Leave();
             _setCombatMusic?.Invoke(false);
             SwapArenaThroughFade(false, () => _combatMenuAccessor?.Invoke()?.Close());
+        }
+
+        /// <summary>Add a play's text, as the player reads it, to the fight log.</summary>
+        private void LogDialogLine(GameData.Resources.Dialog.DialogPlay play) {
+            string text = play?.Entry?.Text;
+            if (string.IsNullOrEmpty(text)) {
+                return;
+            }
+            text = GameData.Resources.Dialog.TextVariableResolver.Substitute(text, play.Slots,
+                play.Context?.NameOf(play.Context.CurrentActorId));
+            Combat.LogLine(System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ").Trim());
         }
 
         /// <summary>
@@ -3399,6 +3768,7 @@ using GameData.Resources.Scene;
                 RefreshCombatHud();
                 return;
             }
+            LogDialogLine(play);
 
             // *** THE ROWS ARE PAINTED INTO 0x84'S PAGE, NOT WRITTEN INTO ITS TEXT. *** Each
             // survivor of the roll is drawn at its own screen position, wrapping to a second
@@ -3578,7 +3948,7 @@ using GameData.Resources.Scene;
         /// carries the button as <c>isPrimary</c> on the pointer event, so the equivalent is a
         /// secondary click; only Shift is honoured here.
         /// </remarks>
-        private void OpenCombatCharacterSheet(Combatant acting) {
+        private void OpenCombatCharacterSheet(Combatant acting, bool spendsTheTurn = true) {
             BakAgain.UI.Character.CharacterSheetScreen sheet = _characterSheetAccessor?.Invoke();
             if (sheet == null) {
                 _logger?.LogDebug("Combat HUD: the sheet was asked for, but there is no character sheet screen.");
@@ -3587,18 +3957,20 @@ using GameData.Resources.Scene;
             byte[] roster = _session?.ActivePartyIndices;
             for (var i = 0; roster != null && i < roster.Length; i++) {
                 if (roster[i] == acting.ClassId) {
-                    RunCombatSheetAsync(sheet, i).Forget();
+                    RunCombatSheetAsync(sheet, i, spendsTheTurn).Forget();
                     return;
                 }
             }
         }
 
         private async Cysharp.Threading.Tasks.UniTaskVoid RunCombatSheetAsync(
-            BakAgain.UI.Character.CharacterSheetScreen sheet, int partySlot) {
+            BakAgain.UI.Character.CharacterSheetScreen sheet, int partySlot, bool spendsTheTurn) {
             Combatant acting = Combat?.Encounter?.Current;
             await sheet.RunAsync(partySlot);
             RaiseCombatHudAgain();
-            SpendTurnAfterSuspendScreen(acting);
+            if (spendsTheTurn) {
+                SpendTurnAfterSuspendScreen(acting);
+            }
         }
 
         /// <summary>
@@ -4095,9 +4467,17 @@ using GameData.Resources.Scene;
         /// GameObjects on the side of the code that owns them: this sets the model's facing, and the
         /// arena re-aims the live sprite without a rebuild.</para>
         /// </remarks>
+        /// <summary>Whether the arena is still playing something (a walk, a swing, a fall, a spell).</summary>
+        public bool ArenaBusy => _arenaBusy?.Invoke() ?? false;
+
         public GameData.Resources.Combat.Combatant TurnActingTowardCursor(UnityEngine.Vector3 point) {
             GameData.Resources.Combat.Combatant acting = Combat?.Encounter?.Current;
             if (acting == null || acting.IsDead || _session == null || _start == null) {
+                return null;
+            }
+            // Only on the party's own turn: the original faces the cursor from the player's input loop
+            // (COMBAT.C:2325, 2346, 2406), which a monster's turn never runs. Monsters followed the mouse.
+            if (!Combat.Encounter.Party.Contains(acting)) {
                 return null;
             }
             int cellSize = _start.CombatGridCellSize;
@@ -4482,7 +4862,7 @@ using GameData.Resources.Scene;
             // mode set with no spell to cast. ResolveCombatTargetClick then refuses every click and
             // returns WITHOUT disarming, so the fight wedges — the player is stuck in a targeting
             // mode that can never resolve and whose only exit (the shoot menu's Back) is not up.
-            GameData.Resources.Spells.Spell record = _castScreenAccessor?.Invoke()?.CommittedSpell;
+            GameData.Resources.Spells.Spell record = _committedSpellForTest ?? _castScreenAccessor?.Invoke()?.CommittedSpell;
             if (record == null) {
                 _logger?.LogDebug($"Combat cast: spell {spellNumber} committed with no catalogue "
                     + "record; not arming target selection.");
@@ -4510,7 +4890,24 @@ using GameData.Resources.Scene;
             _pendingSpellPower = power;
             _pendingCombatMode =
                 GameData.Resources.Combat.CombatCommandOutcome.PendingMode.TargetSelection;
+            CombatPickArmed?.Invoke();
         }
+
+        /// <summary>
+        /// A spell was chosen and the field now waits for its target -- the Enhanced controller hands it the
+        /// foe the player had already picked (owner's phone test, 2026-10-28).
+        /// </summary>
+        /// <remarks>Not raised for a quarrel: in the original choosing one only records it, the target click
+        /// shoots, and the kind can be changed until then (COMBAT.C ~2018-2046, OnQuarrelChosen).</remarks>
+        public event Action CombatPickArmed;
+
+        /// <summary>What an armed pick is for, for the "choose a target" prompt: the spell's name, the
+        /// Shoot stone's while a quarrel is aimed, or null with nothing armed.</summary>
+        public string PendingPickName =>
+            _pendingCombatMode != GameData.Resources.Combat.CombatCommandOutcome.PendingMode.TargetSelection ? null
+            : _pendingCombatItem != null ? null
+            : _pendingSpell?.Name ?? (Combat?.Encounter?.Current is Combatant c && Combat.CapabilitiesFor(c).CanShoot
+                ? GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.HudStoneShoot) : null);
 
         /// <summary>The spell record chosen for a pending combat cast, or null.</summary>
         /// <remarks>Taken from the screen at commit time rather than looked up — see
@@ -4558,7 +4955,9 @@ using GameData.Resources.Scene;
             // 0x21, and polls it for 0x21 or a cancel to stop. The melee commands are not on screen
             // (TASK-757). Exit raises Cancelled, which bails.
             BakAgain.UI.Combat.ShootMenu shoot = _shootMenuAccessor?.Invoke();
-            if (shoot != null) {
+            // Enhanced: the band stays up, its Auto stone is the Stop; the Classic auto menu never opens
+            // (owner, 2026-11-01: it drew the original's six stones over the band).
+            if (shoot != null && !BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.Combat)) {
                 shoot.Cancelled -= OnShootCancelled;
                 shoot.Cancelled += OnShootCancelled;
                 _combatMenuAccessor?.Invoke()?.Close();
@@ -4577,6 +4976,16 @@ using GameData.Resources.Scene;
         internal void AutoResolveHudForTest(Combatant shown) {
             _autoResolving = true;
             _autoPanelActor = shown;
+        }
+
+        /// <summary>Whether auto-resolve is playing the fight.</summary>
+        public bool AutoResolving => _autoResolving;
+
+        /// <summary>Takes control back from auto-resolve at the next turn (the Enhanced Stop).</summary>
+        public void StopAutoResolve() {
+            if (_autoResolving) {
+                _autoResolveBail = true;
+            }
         }
 
         /// <summary>Set by any press that ends auto-resolve — Back, Cancel, or another command.</summary>
@@ -4922,6 +5331,10 @@ using GameData.Resources.Scene;
         /// </remarks>
         private async Cysharp.Threading.Tasks.UniTask RunEnemyTurnPacedAsync(
             Combatant monster, BakAgain.Combat.MonsterTurnResolver ai) {
+            // Presentation only, before anything is decided: the rules below never see it.
+            if (BeforeEnemyTurn != null) {
+                await BeforeEnemyTurn(monster);
+            }
             int fromX = monster?.X ?? 0;
             int fromY = monster?.Y ?? 0;
 
@@ -4940,7 +5353,17 @@ using GameData.Resources.Scene;
             // A monster's cast plays its effect inside the cast (cspell_invoke_effect, CSPELL.C:786),
             // so the next turn waits for whatever the arena is still playing (TASK-1011).
             await Cysharp.Threading.Tasks.UniTask.WaitWhile(() => _arenaBusy?.Invoke() ?? false);
+            float beat = EnemyTurnBeatSeconds?.Invoke() ?? 0f;
+            if (beat > 0f) {
+                await Cysharp.Threading.Tasks.UniTask.Delay(System.TimeSpan.FromSeconds(beat), DelayType.DeltaTime);
+            }
         }
+
+        /// <summary>Awaited before each monster's paced turn (Enhanced combat frames it); null: nothing.</summary>
+        public Func<Combatant, Cysharp.Threading.Tasks.UniTask> BeforeEnemyTurn { get; set; }
+
+        /// <summary>Seconds held after each monster's paced turn has finished playing; null or 0: none (Classic).</summary>
+        public Func<float> EnemyTurnBeatSeconds { get; set; }
 
         /// <summary>
         /// One AI turn, decided and then carried out — including the cast the runtime cannot
@@ -5256,6 +5679,7 @@ using GameData.Resources.Scene;
             }
 
             var killed = new List<GameData.Resources.Data.DirtyRosterActorEdit>();
+            var deadRecords = new List<GameData.Resources.Data.DirtyCombatantEdit>();
             GameData.Resources.World.EncounterDefeat.Result result =
                 GameData.Resources.World.EncounterDefeat.ApplyToRecord(
                     states, _currentRefIndex, recordIndex, slots,
@@ -5270,11 +5694,17 @@ using GameData.Resources.Scene;
                         // combatant from, so zeroing it is the same statement both make.
                         stats[(int)ActorAttribute.Health].Base = 0;
                         killed.Add(new GameData.Resources.Data.DirtyRosterActorEdit(slot, stats));
+                        // And CAF_DEAD on its combat record, as rgnenc_mark_defended sets (RGNENC.C:479-520).
+                        if (_session?.CombatRecordOf(slot) is { } record) {
+                            deadRecords.Add(new GameData.Resources.Data.DirtyCombatantEdit(slot,
+                                GameData.Resources.Combat.CombatStatePersistence.MarkedDead(record)));
+                        }
                     });
 
             if (killed.Count > 0) {
                 _session.StageRosterActorEdits(killed);
             }
+            _session.StageCombatantEdits(deadRecords);
             // The placement cache holds last visit's answer; a stopped or killed actor must not be
             // drawn from it. Same reason the step-size reset drops it.
             _placedChunk = null;
@@ -6109,12 +6539,16 @@ using GameData.Resources.Scene;
                 return;
             }
             _settlingTurn = true;
+            CombatTurnEnded?.Invoke();
             try {
                 // The party's own walk is drawn first, as the original's walk returns before the
                 // enemies act (COMBAT.C:1588): a monster's redraw mid-slide rebuilt the arena and
                 // both sprites jumped to their ends.
                 await Cysharp.Threading.Tasks.UniTask.WaitWhile(() => _arenaBusy?.Invoke() ?? false);
                 Combatant next = await AdvanceToPartyTurnPacedAsync();
+                if (next != null) {
+                    CombatTurnStarted?.Invoke(next);
+                }
 
                 BakAgain.UI.Combat.CombatMenu menu = _combatMenuAccessor?.Invoke();
                 if (menu == null) {
@@ -6134,6 +6568,7 @@ using GameData.Resources.Scene;
                 menu.SetCapabilities(canShoot, canCast);
                 if (openMenu) {
                     menu.Open();
+                    _fightUnderWay = true;
                 }
             } finally {
                 _settlingTurn = false;

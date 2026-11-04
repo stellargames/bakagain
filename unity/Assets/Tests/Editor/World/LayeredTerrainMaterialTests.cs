@@ -70,6 +70,10 @@ namespace BakAgain.Tests.Editor.World {
             Assert.AreEqual(0f, objMat.GetFloat("_OffsetFactor"), "no slope-scaled term on objects");
             Assert.Less(objMat.GetFloat("_OffsetUnits"), riverMat.GetFloat("_OffsetUnits"),
                 "objects still bias toward the camera past the river layer");
+            // TASK-1020: the constant term alone lost to the ground under the waterfall's pool.
+            Assert.Greater(objMat.GetFloat("_LayerLift"), MatFor(ctx, 8).GetFloat("_LayerLift"), "objects lift off the ground");
+            Assert.Less(objMat.GetFloat("_LayerLift"), MatFor(ctx, 7).GetFloat("_LayerLift"),
+                "but less than a road, which must still win in a flat landscape block's plane on the map");
 
             ctx.Dispose();
         }

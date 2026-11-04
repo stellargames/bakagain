@@ -57,15 +57,32 @@ namespace BakAgain.World.Encounters {
             return even * Frames / 2;
         }
 
-        public void Play(WorldEntityRenderContext ctx, SpriteBMeshFace face, string setName,
+        /// <summary>Plays the run; the task ends when the walking sprite is back (the original waits for it:
+        /// <c>combat_actor_anim_play(..., wait 1, ...)</c>, CACTOR.C:1828-1898).</summary>
+        public UniTask Play(WorldEntityRenderContext ctx, SpriteBMeshFace face, string setName,
             int octant, int extent) {
             if (ctx == null || face == null || string.IsNullOrEmpty(setName)) {
-                return;
+                return UniTask.CompletedTask;
             }
-            RunAsync(ctx, face, setName, RunStartFor(octant), extent).Forget();
+            return RunAsync(ctx, face, setName, RunStartFor(octant), extent);
         }
 
-        private async UniTaskVoid RunAsync(WorldEntityRenderContext ctx, SpriteBMeshFace face,
+        /// <summary>Swings still playing. The arena counts them as busy, so the turn waits for them as the
+        /// original's <c>combat_actor_anim_play(..., wait 1, ...)</c> does (CACTOR.C:1895); kept here rather than
+        /// at the call site so a caller cannot forget it (TASK-972 round 4).</summary>
+        public static int Playing { get; private set; }
+
+        private async UniTask RunAsync(WorldEntityRenderContext ctx, SpriteBMeshFace face,
+            string setName, int start, int extent) {
+            Playing++;
+            try {
+                await RunCoreAsync(ctx, face, setName, start, extent);
+            } finally {
+                Playing--;
+            }
+        }
+
+        private async UniTask RunCoreAsync(WorldEntityRenderContext ctx, SpriteBMeshFace face,
             string setName, int start, int extent) {
             var filter = GetComponent<MeshFilter>();
             var renderer = GetComponent<MeshRenderer>();

@@ -164,6 +164,9 @@ namespace BakAgain.UI.InputCore {
         /// <summary>Whether <see cref="SetWidgets"/> would take: the pushed layer is a navigable one.</summary>
         public bool HasNavigableLayer => _layer is NavigableLayer;
 
+        /// <summary>The pushed layer: a new one each time the panel is rebuilt, which drops a list set on the old one.</summary>
+        public IInputLayer Layer => _layer;
+
         public bool SetWidgets(IReadOnlyList<NavWidget> widgets) {
             if (_layer is NavigableLayer navigable) {
                 navigable.SetWidgets(widgets);

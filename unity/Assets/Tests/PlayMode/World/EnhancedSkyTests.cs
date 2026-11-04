@@ -284,21 +284,40 @@ namespace BakAgain.Tests.PlayMode.World {
             }
         }
 
-        /// <summary>The control: the drift follows the clock, a step at a time, and a long rest moves the
-        /// clouds on at once (they jump with the sun and the cover: the clock jumped).</summary>
+        /// <summary>The control: the drift follows the clock, eased over frames (TASK-1020), and a long rest
+        /// moves the clouds on at once (they jump with the sun and the cover: the clock jumped).</summary>
         [Test]
         public void TheCloudDriftAdvancesWithTheClock() {
             _sky.Bind(_camera, _env, 1, false);
             _sky.Apply(At(12), 64, true, false);
             float noon = Shader.GetGlobalVector(CloudId).z;
+            Assert.AreEqual(EnhancedSky.CloudDrift(At(12)), noon, 1e-4f, "the first sky is drawn at the real clock");
             _sky.Apply(At(12), 64, true, false);
             Assert.AreEqual(noon, Shader.GetGlobalVector(CloudId).z, "same clock, same drift");
             _sky.Apply(At(12) + 60, 64, true, false); // one medium step on the surface
-            float step = Shader.GetGlobalVector(CloudId).z - noon;
-            Assert.Greater(step, 0f, "a step moves the clouds on");
+            float stepDrift = EnhancedSky.CloudDrift(At(12) + 60) - noon;
+            _sky.EaseClouds(1f / 60);
+            float frame = Shader.GetGlobalVector(CloudId).z - noon;
+            Assert.Greater(frame, 0f, "a step moves the clouds on");
+            Assert.Less(frame, stepDrift * 0.5f, "a frame moves them part of the way, not the whole step");
+            _sky.EaseClouds(2f);
+            Assert.AreEqual(stepDrift, Shader.GetGlobalVector(CloudId).z - noon, 1e-4f, "and then they settle on the clock");
             _sky.Apply(At(20), 64, true, false);
-            Assert.AreEqual(step * (8 * GameTime.UnitsPerHour / 60f), Shader.GetGlobalVector(CloudId).z - noon, 1e-2f,
-                "eight hours' rest moves them as far as the steps that take as long");
+            Assert.AreEqual(stepDrift * (8 * GameTime.UnitsPerHour / 60f), Shader.GetGlobalVector(CloudId).z - noon, 1e-2f,
+                "eight hours' rest moves them as far as the steps that take as long, at once");
+        }
+
+        /// <summary>The stars turn with the same eased clock, a tenth of the true sky's day (TASK-1020).</summary>
+        [Test]
+        public void TheStarsTurnSlowlyWithTheEasedClock() {
+            _sky.Bind(_camera, _env, 1, false);
+            _sky.Apply(At(22), 15, true, false);
+            float start = Shader.GetGlobalFloat("_BakSkyStarRot");
+            _sky.Apply(At(22) + 60, 15, true, false);
+            Assert.AreEqual(start, Shader.GetGlobalFloat("_BakSkyStarRot"), 1e-6f, "unchanged until a frame eases it");
+            _sky.EaseClouds(2f);
+            float turned = Shader.GetGlobalFloat("_BakSkyStarRot") - start;
+            Assert.AreEqual(60.0 / GameTime.UnitsPerDay * EnhancedSky.Layout.StarTurnsPerDay * 2 * Mathf.PI, turned, 1e-5f);
         }
 
         private bool BlobsShown => (_camera.cullingMask & (1 << BakAgain.World.Rendering.ShadowBlobs.Layer)) != 0;

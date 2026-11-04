@@ -116,7 +116,7 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
             UnityEditor.TextureImporter[] importers = UnityEditor.AssetDatabase.FindAssets("t:Texture2D", new[] { "Assets/BuiltIn" })
                 .Select(guid => UnityEditor.AssetImporter.GetAtPath(UnityEditor.AssetDatabase.GUIDToAssetPath(guid)) as UnityEditor.TextureImporter)
                 .Where(importer => importer != null).ToArray();
-            Assert.AreEqual(22, importers.Length, "the built-in textures");
+            Assert.AreEqual(23, importers.Length, "the built-in textures");
             foreach (UnityEditor.TextureImporter importer in importers) {
                 string path = importer.assetPath;
                 string address = Path.ChangeExtension(path["Assets/BuiltIn/".Length..], null);
@@ -255,6 +255,8 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
             string[] users = Directory.EnumerateFiles(scripts, "*.cs", SearchOption.AllDirectories)
                 .Where(f => File.ReadAllText(f).Contains("Resources.Load"))
                 .Where(f => !f.Contains("SimpleFileBrowser"))
+                // A development player's play-test saves, staged by the Android build: not game content, no mod layer.
+                .Where(f => Path.GetFileName(f) != "TestSaves.cs")
                 .ToArray();
 
             CollectionAssert.IsEmpty(users, "a Resources.Load bypasses the mod layers: load through Addressables");

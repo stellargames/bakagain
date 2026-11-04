@@ -142,33 +142,65 @@ public static class TownApproach {
         return frames;
     }
 
-    /// <summary>How long the walk lasts: <see cref="FramesFor"/> at <see cref="SecondsPerFrame"/>.</summary>
-    public static double SecondsFor(List<(int X, int Y, ushort Heading)> path, int step, int turnStride) =>
-        FramesFor(path, step, turnStride) * SecondsPerFrame;
+    /// <summary>The longest the walk may take on screen (TASK-1020, owner 2026-11-01). At Small step and
+    /// Small turn LaMut's walk is 154 frames, 10 s at <see cref="SecondsPerFrame"/>; past this the frames
+    /// are drawn faster instead.</summary>
+    public const double MaxSeconds = 3.0;
 
-    /// <summary>The walk's position and heading <paramref name="frames"/> frames into it: a hold
-    /// frame, then per cell the steps there and the turn frames at its centre, then a hold frame.</summary>
+    /// <summary>What one turn frame costs on screen against a step frame (TASK-1020). At Large step a cell
+    /// is one frame and a 45-degree bend at Small turn eight, so at full weight the walk spent most of its
+    /// time turning on the spot.</summary>
+    public const double TurnFrameWeight = 0.5;
+
+    /// <summary>The walk's length in beats, the unit <see cref="PoseAt"/> takes: <see cref="FramesFor"/>
+    /// with each turn frame weighted by <see cref="TurnFrameWeight"/>.</summary>
+    public static double BeatsFor(List<(int X, int Y, ushort Heading)> path, int step, int turnStride) {
+        if (step <= 0) {
+            return 0;
+        }
+        double beats = 2 + ((path.Count - 1) * StepsPerCell(step));
+        for (int i = 1; i < path.Count; i++) {
+            beats += TurnBeats(path[i - 1].Heading, path[i].Heading, turnStride);
+        }
+        return beats;
+    }
+
+    /// <summary>Seconds a beat takes: <see cref="SecondsPerFrame"/>, or less when the walk would
+    /// otherwise outlast <see cref="MaxSeconds"/>.</summary>
+    public static double SecondsPerBeat(double beats) => beats <= 0 ? SecondsPerFrame : Math.Min(SecondsPerFrame, MaxSeconds / beats);
+
+    /// <summary>How long the walk lasts.</summary>
+    public static double SecondsFor(List<(int X, int Y, ushort Heading)> path, int step, int turnStride) {
+        double beats = BeatsFor(path, step, turnStride);
+        return beats * SecondsPerBeat(beats);
+    }
+
+    /// <summary>The walk's position and heading <paramref name="beats"/> beats into it: a hold
+    /// frame, then per cell the steps there and the turn at its centre, then a hold frame. The turn is
+    /// eased through its beats rather than held a stride at a time (TASK-1020).</summary>
     public static (int X, int Y, ushort Heading) PoseAt(List<(int X, int Y, ushort Heading)> path,
-        int step, int turnStride, double frames) {
-        frames -= 1;   // the first frame, drawn before the first step
+        int step, int turnStride, double beats) {
+        beats -= 1;   // the first frame, drawn before the first step
         int perCell = StepsPerCell(Math.Max(1, step));
         for (int i = 1; i < path.Count; i++) {
             (int ax, int ay, ushort heading) = path[i - 1];
             (int bx, int by, ushort next) = path[i];
-            if (frames < perCell) {
-                double t = Math.Max(0, frames) / perCell;
+            if (beats < perCell) {
+                double t = Math.Max(0, beats) / perCell;
                 return ((int)Math.Round(ax + ((bx - ax) * t)), (int)Math.Round(ay + ((by - ay) * t)), heading);
             }
-            frames -= perCell;
-            int turn = TurnFrames(heading, next, turnStride);
-            if (frames < turn) {
-                int sign = Math.Sign(unchecked((short)(next - heading)));
-                return (bx, by, unchecked((ushort)(heading + (sign * turnStride * (int)Math.Floor(frames)))));
+            beats -= perCell;
+            double turn = TurnBeats(heading, next, turnStride);
+            if (beats < turn) {
+                int delta = unchecked((short)(next - heading));
+                return (bx, by, unchecked((ushort)(heading + (int)Math.Round(delta * beats / turn))));
             }
-            frames -= turn;
+            beats -= turn;
         }
         return path[path.Count - 1];
     }
+
+    private static double TurnBeats(ushort from, ushort to, int turnStride) => TurnFrames(from, to, turnStride) * TurnFrameWeight;
 
     private static int StepsPerCell(int step) => Math.Max(1, RoadTravel.CellSize / step);
 

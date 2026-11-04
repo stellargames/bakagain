@@ -45,6 +45,11 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 21d30df42be5d83aa9fecdaa1147cec0
+    m_Address: Enhanced/Stone/sword-cursor
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 26568d9bde02d90ceb9caa9bba178ee6
     m_Address: Enhanced/Stone/gem-lit
     m_ReadOnly: 0

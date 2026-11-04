@@ -90,7 +90,7 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
         /// </param>
         private static Rig Build(int roll = 99, GameData.Resources.Config.StartData start = null,
             TrapData traps = null, System.Func<BakAgain.UI.Combat.CombatMenu> combatMenu = null,
-            System.Func<bool> arenaBusy = null) {
+            System.Func<bool> arenaBusy = null, BakAgain.UI.IDialogManager dialogs = null) {
             var session = new GameSession();
             session.SetActorStatsForTest(0, StatBlock());
             session.SetActiveParty(1, new byte[] { 0 });
@@ -98,7 +98,7 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
             session.SetEncounterRosterForTest((int)EncounterNumber, new short[] { RosterSlot });
 
             var rig = new Rig { Session = session };
-            rig.Service = new HotspotService(null, null, session, null,
+            rig.Service = new HotspotService(null, null, session, dialogs,
                 random: _ => roll,
                 setCombatMusic: on => rig.Music.Add(on),
                 resyncCamera: () => rig.CameraResyncs++,
@@ -535,6 +535,41 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
                 yield return null;
             }
             Assert.IsTrue((turn.Status != Cysharp.Threading.Tasks.UniTaskStatus.Pending), "and ends once it has played");
+        }
+
+        [UnityEngine.TestTools.UnityTest]
+        public System.Collections.IEnumerator AMonstersTurnWaitsForItsFraming_AndHoldsItsBeat() {
+            // TASK-972, owner's phone round 4: Enhanced frames the monster before it acts and holds a beat after.
+            (Rig rig, CombatEncounter fight, Combatant member) = PartyTurn();
+            Combatant monster = fight.Enemies[0];
+            // At range, so its turn WALKS: a turn run before the framing ends would show as a move (review M4).
+            monster.X = member.X;
+            monster.Y = member.Y < 6 ? 12 : 0;
+            (int X, int Y) post = (monster.X, monster.Y);
+            var framed = new Cysharp.Threading.Tasks.UniTaskCompletionSource();
+            rig.Service.BeforeEnemyTurn = _ => framed.Task;
+            int beats = 0;
+            rig.Service.EnemyTurnBeatSeconds = () => { beats++; return 1.5f; };
+
+            Cysharp.Threading.Tasks.UniTask turn = rig.Service.RunEnemyTurnPacedForTest(monster);
+            yield return null;
+            Assert.AreEqual(Cysharp.Threading.Tasks.UniTaskStatus.Pending, turn.Status);
+            for (int i = 0; i < 5; i++) {
+                yield return null;
+            }
+            Assert.AreEqual(post, (monster.X, monster.Y), "the turn has not run before the framing ends");
+            Assert.AreEqual(0, beats);
+
+            framed.TrySetResult();
+            float start = UnityEngine.Time.realtimeSinceStartup;
+            while (turn.Status == Cysharp.Threading.Tasks.UniTaskStatus.Pending && UnityEngine.Time.realtimeSinceStartup < start + 5f) {
+                yield return null;
+            }
+            Assert.AreEqual(Cysharp.Threading.Tasks.UniTaskStatus.Succeeded, turn.Status);
+            Assert.AreNotEqual(post, (monster.X, monster.Y), "the control: once framed, the monster walks");
+            Assert.AreEqual(1, beats, "the beat follows the turn, once");
+            // The still beat (0.35 s) plus the held 1.5 s; Delay is game time, so allow for a slow frame either way.
+            Assert.GreaterOrEqual(UnityEngine.Time.realtimeSinceStartup - start, 1.5f, "the beat is held after the action");
         }
 
         // ---------------------------------------------------------------- TASK-947: the HUD while an item aims
@@ -1369,6 +1404,112 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
     }
 
     // ---- retreat -------------------------------------------------------------------------------
+
+    /// <summary>Records the ids shown through <c>ShowById</c> and plays the resolved line to its observer.</summary>
+    private sealed class RecordingDialogs : BakAgain.UI.IDialogManager {
+        public readonly List<int> Shown = new();
+        public int ShowEntryCalls;
+        public const string Line = "You cannot\n get away.";
+        public void ClearDialog() { }
+        public void LetClicksThroughPanel() { }
+        public Cysharp.Threading.Tasks.UniTask ShowEntry(GameData.Resources.Dialog.DialogEntry entry,
+            System.Action<UnityEngine.UIElements.VisualElement, GameData.Resources.Layout.LayoutHint> decorate,
+            System.Threading.CancellationToken ct = default) => Cysharp.Threading.Tasks.UniTask.CompletedTask;
+        public Cysharp.Threading.Tasks.UniTask<UnityEngine.Color[]> ResolvePaletteAsync() =>
+            Cysharp.Threading.Tasks.UniTask.FromResult<UnityEngine.Color[]>(null);
+        public Cysharp.Threading.Tasks.UniTask ShowEntry(GameData.Resources.Dialog.DialogEntry entry,
+            System.Threading.CancellationToken ct = default) { ShowEntryCalls++; return Cysharp.Threading.Tasks.UniTask.CompletedTask; }
+        public Cysharp.Threading.Tasks.UniTask ShowEntry(GameData.Resources.Dialog.DialogPlay play,
+            System.Threading.CancellationToken ct = default) { ShowEntryCalls++; return Cysharp.Threading.Tasks.UniTask.CompletedTask; }
+        public Cysharp.Threading.Tasks.UniTask DisplayEntry(GameData.Resources.Dialog.DialogEntry entry,
+            System.Threading.CancellationToken ct = default) => Cysharp.Threading.Tasks.UniTask.CompletedTask;
+        public Cysharp.Threading.Tasks.UniTask DisplayEntry(GameData.Resources.Dialog.DialogPlay play,
+            System.Threading.CancellationToken ct = default) => Cysharp.Threading.Tasks.UniTask.CompletedTask;
+        public Cysharp.Threading.Tasks.UniTask<UnityEngine.UIElements.VisualElement> BuildStyledBoxAsync(
+            GameData.Resources.Dialog.DialogEntry entry, UnityEngine.UIElements.VisualElement host) =>
+            Cysharp.Threading.Tasks.UniTask.FromResult<UnityEngine.UIElements.VisualElement>(null);
+        public Cysharp.Threading.Tasks.UniTask<GameData.Resources.Dialog.DialogPlay> ResolveById(int id,
+            System.Threading.CancellationToken ct = default) =>
+            Cysharp.Threading.Tasks.UniTask.FromResult<GameData.Resources.Dialog.DialogPlay>(null);
+        public void SetActivePalette(UnityEngine.Color[] palette) { }
+        public System.Func<(string Image, string Palette)?> SceneSpeakerBackdrop { get; set; }
+        public Cysharp.Threading.Tasks.UniTask<int> ShowById(int id, System.Threading.CancellationToken ct = default) {
+            Shown.Add(id);
+            return Cysharp.Threading.Tasks.UniTask.FromResult(-1);
+        }
+        public Cysharp.Threading.Tasks.UniTask<int> ShowById(int id, System.Action<GameData.Resources.Dialog.DialogPlay> onResolved,
+            System.Threading.CancellationToken ct = default) {
+            Shown.Add(id);
+            onResolved?.Invoke(new GameData.Resources.Dialog.DialogPlay(
+                new GameData.Resources.Dialog.DialogEntry { Text = Line }, null, null));
+            return Cysharp.Threading.Tasks.UniTask.FromResult(-1);
+        }
+        public Cysharp.Threading.Tasks.UniTask<bool> ShowAcceptOrCancelById(int id, System.Threading.CancellationToken ct = default) =>
+            Cysharp.Threading.Tasks.UniTask.FromResult(false);
+        public Cysharp.Threading.Tasks.UniTask<bool> ShowConfirmById(int id, System.Threading.CancellationToken ct = default) =>
+            Cysharp.Threading.Tasks.UniTask.FromResult(false);
+        public Cysharp.Threading.Tasks.UniTask<int> ShowChoiceIndexById(int id, System.Threading.CancellationToken ct = default) =>
+            Cysharp.Threading.Tasks.UniTask.FromResult(-1);
+    }
+
+    private static (bool Enhanced, bool Combat) SetEnhancedCombat(bool on) {
+        var before = (BakAgain.Core.GameOptions.Enhanced,
+            BakAgain.Core.GameOptions.GetFeature(BakAgain.Core.EnhancedFeature.Combat));
+        BakAgain.Core.GameOptions.Enhanced = on;
+        BakAgain.Core.GameOptions.SetFeature(BakAgain.Core.EnhancedFeature.Combat, on);
+        return before;
+    }
+
+    private static void RestoreEnhancedCombat((bool Enhanced, bool Combat) before) {
+        BakAgain.Core.GameOptions.Enhanced = before.Enhanced;
+        BakAgain.Core.GameOptions.SetFeature(BakAgain.Core.EnhancedFeature.Combat, before.Combat);
+    }
+
+    [TestCase(false, CombatCommands.RetreatRefusedDialog)]
+    [TestCase(true, CombatCommands.RetreatRefusedMismatchDialog)]
+    public void ARefusedRetreatShowsTheSameRecordByIdAndSpendsTheTurn_AndEnhancedLogsItsLine(
+        bool someoneDown, int expectedRecord) {
+        var before = SetEnhancedCombat(true);
+        try {
+            var dialogs = new RecordingDialogs();
+            Rig rig = Build(roll: 99, dialogs: dialogs);      // fails the escape roll
+            rig.Service.StartCombat(CombTrigger());
+            Combatant member = rig.Service.Combat.Encounter.Party[0];
+            if (someoneDown) {
+                member.Flags |= CombatantFlags.Dead;
+            }
+            member.Flags |= CombatantFlags.Ready;
+
+            rig.Service.ResolveRetreatForTest(member);
+
+            CollectionAssert.AreEqual(new[] { expectedRecord }, dialogs.Shown, "the same record, through ShowById");
+            Assert.AreEqual(0, dialogs.ShowEntryCalls, "never the first-page-only path");
+            Assert.AreEqual(0, (int)(member.Flags & CombatantFlags.Ready), "the turn is spent");
+            CollectionAssert.AreEqual(new[] { "You cannot get away." }, rig.Service.Combat.Log.Last(5));
+        } finally {
+            RestoreEnhancedCombat(before);
+        }
+    }
+
+    [Test]
+    public void ClassicShowsTheSameRefusalRecordAndKeepsNoLog() {
+        var before = SetEnhancedCombat(false);
+        try {
+            var dialogs = new RecordingDialogs();
+            Rig rig = Build(roll: 99, dialogs: dialogs);
+            rig.Service.StartCombat(CombTrigger());
+            Combatant member = rig.Service.Combat.Encounter.Party[0];
+            member.Flags |= CombatantFlags.Ready;
+
+            rig.Service.ResolveRetreatForTest(member);
+
+            CollectionAssert.AreEqual(new[] { CombatCommands.RetreatRefusedDialog }, dialogs.Shown);
+            Assert.AreEqual(0, (int)(member.Flags & CombatantFlags.Ready));
+            Assert.IsEmpty(rig.Service.Combat.Log.Last(5), "Classic keeps no log");
+        } finally {
+            RestoreEnhancedCombat(before);
+        }
+    }
 
     [Test]
     public void AnESCAPEEndsTheFightAndPutsTheMusicBack_butMarksNOTHING() {

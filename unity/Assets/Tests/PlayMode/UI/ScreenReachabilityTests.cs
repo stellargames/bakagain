@@ -80,7 +80,7 @@ namespace BakAgain.Tests.PlayMode.UI {
             }
 
             UserInterfaceLoader[] loaders = Object.FindObjectsByType<UserInterfaceLoader>(
-                FindObjectsInactive.Include, FindObjectsSortMode.None);
+                FindObjectsInactive.Include);
             if (loaders.Length == 0) {
                 Assert.Ignore("no UserInterfaceLoader in the scene — DI has not built the screens");
             }
