@@ -304,11 +304,15 @@
 /* The Enhanced settings screen (EnhancedSettingsScreen): over OPTIONS2.SCX in the canonical frame,
    the feature rows on the left and the game-files and mods folders on the right, Save/Cancel below. */
 .enhanced-settings { position: absolute; left: 6%; right: 6%; top: 5%; bottom: 5%; padding: 2%; flex-direction: column; background-color: rgb(150, 112, 62); border-width: 3px; border-color: rgb(58, 40, 22); }
-.enhanced-settings__title { height: 80px; flex-shrink: 0; -unity-text-align: middle-center; }
+.enhanced-settings__title { height: 72px; flex-shrink: 0; -unity-text-align: middle-center; }
 .enhanced-settings__columns { flex-grow: 1; flex-direction: row; }
 .enhanced-settings__column { flex-grow: 1; flex-basis: 0; margin: 0 1%; }
-.enhanced-settings__heading { height: 64px; flex-shrink: 0; -unity-text-align: middle-left; }
-.enhanced-settings__row { height: 60px; flex-shrink: 0; margin-bottom: 4px; }
+.enhanced-settings__heading { height: 56px; flex-shrink: 0; -unity-text-align: middle-left; }
+/* Rows 60 + 1: the Features column holds the heading and 13 rows (Enhanced combat made it 13) in its
+   ~857 units at the 1200-unit panel; at 64 a row the Shadows row ran under Save. */
+.enhanced-settings__row { height: 60px; flex-shrink: 0; margin-bottom: 1px; }
+/* The options in the two columns are left-aligned, so their [x] boxes line up (owner, 2026-11-04). */
+.enhanced-settings__column .enhanced-settings__row { align-items: flex-start; padding-left: 20px; -unity-text-align: middle-left; }
 .enhanced-settings__row:disabled { opacity: 0.45; }
 .enhanced-settings__path { height: 60px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -unity-text-overflow-position: start; -unity-text-align: middle-left; }
 .enhanced-settings__label { height: 56px; flex-shrink: 0; margin-top: 10px; -unity-text-align: lower-left; }
