@@ -26,6 +26,7 @@ public static class PoLanguagePack {
 
         POCatalog catalog = result.Catalog;
         var text = new Dictionary<string, string>();
+        var added = new HashSet<int>();   // what the translations use beyond their own English line
         foreach (IPOEntry entry in catalog) {
             if (string.IsNullOrEmpty(entry.Key.ContextId) || IsFuzzy(entry)) {
                 continue;
@@ -33,11 +34,23 @@ public static class PoLanguagePack {
             string translation = entry.Count > 0 ? entry[0] : string.Empty;
             if (!string.IsNullOrEmpty(translation)) {
                 text[entry.Key.ContextId] = translation;
+                var english = new HashSet<int>(CodePoints(entry.Key.Id ?? string.Empty));
+                foreach (int c in CodePoints(translation)) {
+                    if (!english.Contains(c)) {
+                        added.Add(c);
+                    }
+                }
             }
         }
         // The pack's own folder names it (Lang/<locale>/); the header's Language is a PO editor's
         // guess ("nl_NL", or absent), so it only stands in when the caller has no locale.
-        return new LanguagePack(locale ?? catalog.Language ?? string.Empty, text, Capitals(catalog));
+        return new LanguagePack(locale ?? catalog.Language ?? string.Empty, text, Capitals(catalog), added);
+    }
+
+    private static IEnumerable<int> CodePoints(string s) {
+        for (int i = 0; i < s.Length; i += char.IsSurrogatePair(s, i) ? 2 : 1) {
+            yield return char.ConvertToUtf32(s, i);
+        }
     }
 
     /// <summary>

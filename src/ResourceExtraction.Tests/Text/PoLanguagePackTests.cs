@@ -37,6 +37,26 @@ public class PoLanguagePackTests {
 
     private static LanguagePack Read() => PoLanguagePack.Read(new StringReader(Po));
 
+    // A pack answers for the letters it adds, not for the symbols its English lines already had: a
+    // template's "Day {day} · {time}" carries the same middle dot in every language (TASK-1042).
+    [Fact]
+    public void Adds_IsWhatTheTranslationsBring_NotTheirEnglishSymbols() {
+        var pack = PoLanguagePack.Read(new StringReader("""
+            msgctxt "port:template:caption"
+            msgid "Day {day} · {time}"
+            msgstr "Dag {day} · {time}"
+
+            msgctxt "port:template:back"
+            msgid "‹ Back"
+            msgstr "‹ Terug é"
+            """), "nl");
+
+        Assert.False(pack.Adds('·'));
+        Assert.False(pack.Adds('‹'));
+        Assert.True(pack.Adds('é'));
+        Assert.Contains((int)'·', pack.Characters());   // still composed if a font can
+    }
+
     [Fact]
     public void TheLocaleComesFromTheHeader() => Assert.Equal("nl", Read().Locale);
 

@@ -34,6 +34,18 @@ public sealed class LanguagePack {
     }
 
     /// <summary>
+    /// A pack read from a file, with <paramref name="added"/> the characters its translations use
+    /// that their English lines do not (TASK-1042); see <see cref="Adds"/>.
+    /// </summary>
+    public LanguagePack(string locale, IReadOnlyDictionary<string, string> text, IReadOnlyDictionary<char, int> capitals,
+        IReadOnlyCollection<int> added)
+        : this(locale, text, capitals) {
+        _added = added;
+    }
+
+    private readonly IReadOnlyCollection<int>? _added;
+
+    /// <summary>
     /// The pack's own illuminated capitals: a letter BOOK.BMX lacks, and the picture number the pack
     /// ships for it (its PO header's <c>X-Drop-Caps</c>, e.g. <c>E=19</c>).
     /// </summary>
@@ -68,6 +80,19 @@ public sealed class LanguagePack {
             }
         }
     }
+
+    /// <summary>
+    /// Whether a translation uses <paramref name="codePoint"/> where its English line does not — a
+    /// letter the pack brings, as opposed to a symbol the English text already has (a template's
+    /// middle dot, a back arrow), which English draws the same way. True when the pack was not read
+    /// with its English lines.
+    /// </summary>
+    /// <remarks>
+    /// Only the missing-glyph warning asks this (TASK-1042): it fired on every load of both shipped
+    /// packs for four template symbols. Composing still covers every character, so the curly quotes and
+    /// ellipsis the fonts build from their own letters are kept.
+    /// </remarks>
+    public bool Adds(int codePoint) => _added == null || System.Linq.Enumerable.Contains(_added, codePoint);
 
     /// <summary>The translation of <paramref name="key"/>, if the pack has one.</summary>
     public bool TryGet(string key, out string text) {

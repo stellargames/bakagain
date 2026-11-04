@@ -158,7 +158,10 @@ namespace BakAgain.ResourceManagement {
                 }
             }
             int before = font.ExtraGlyphs.Count;
-            var missing = GlyphSynthesis.AddComposed(font, Current.Characters());
+            // Only what the pack brings is its to supply: a symbol its English line already had is
+            // drawn as English draws it (TASK-1042).
+            var missing = System.Linq.Enumerable.ToList(System.Linq.Enumerable.Where(
+                GlyphSynthesis.AddComposed(font, Current.Characters()), c => Current.Adds(c)));
             Debug.Log($"{font.Id}: composed {font.ExtraGlyphs.Count - before} letters for '{Current.Locale}'.");
             if (missing.Count > 0) {
                 Debug.LogWarning($"{font.Id} cannot draw "
