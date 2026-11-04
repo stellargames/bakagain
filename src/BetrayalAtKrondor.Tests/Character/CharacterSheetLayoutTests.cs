@@ -49,7 +49,7 @@ public class CharacterSheetLayoutTests {
         // VGA 28 against the first line's 25. Three original pixels, for no reason the code gives.
         // They never appear together, so it only ever shows as a wobble between characters.
         Assert.Equal(28 * 6, CharacterSheetLayout.NormalY);
-        Assert.NotEqual(CharacterSheetLayout.ConditionLineY(1), CharacterSheetLayout.NormalY);
+        Assert.NotEqual(CharacterSheetLayout.NormalY, CharacterSheetLayout.ConditionLineY(1));
         Assert.True(CharacterSheetLayout.NormalY > CharacterSheetLayout.ConditionLineY(1));
     }
 

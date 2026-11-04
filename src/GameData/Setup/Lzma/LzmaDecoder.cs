@@ -2,6 +2,7 @@
 // Vendored edits: namespace, internal, Train() and the commented-out Stream stubs removed; Code()'s loop split
 // into DecodeRun() with its state in fields, and CodeLzma2() added (LZMA2 framing, after Lzma2Dec.c).
 // LzmaDecoder.cs
+#nullable disable // vendored LZMA SDK, kept as written: it predates nullable reference types
 
 using System;
 

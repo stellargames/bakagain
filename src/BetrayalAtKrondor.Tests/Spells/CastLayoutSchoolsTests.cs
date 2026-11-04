@@ -106,8 +106,8 @@ public class CastLayoutSchoolsTests {
                 continue;
             }
 
-            UiElement exit = Assert.Single(ui.MenuEntries
-                .Where(entry => entry.ActionId == CastMenuSelection.ExitActionId));
+            UiElement exit = Assert.Single(ui.MenuEntries,
+                entry => entry.ActionId == CastMenuSelection.ExitActionId);
             Assert.Equal(0, exit.Disabled);
         }
     }

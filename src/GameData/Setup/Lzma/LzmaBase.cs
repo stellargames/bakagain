@@ -1,6 +1,7 @@
 // LZMA SDK 26.05 by Igor Pavlov, public domain (https://www.7-zip.org/sdk.html).
 // Vendored edits: namespace, internal.
 // LzmaBase.cs
+#nullable disable // vendored LZMA SDK, kept as written: it predates nullable reference types
 
 namespace GameData.Setup.Lzma.Compression.LZMA
 {

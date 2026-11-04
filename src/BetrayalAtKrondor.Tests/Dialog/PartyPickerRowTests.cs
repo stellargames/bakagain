@@ -42,8 +42,8 @@ public class PartyPickerRowTests {
         // *** It keeps the action id its SLOT would have had. *** A caller that expects a distinct
         // cancel code reads it as one more party member, which is the trap this pins.
         Assert.Equal(PartyMemberPicker.FirstActionId + 3, PartyMemberPicker.ActionIdFor(3));
-        Assert.Equal(PartyMemberPicker.ActionIdFor(PartyMemberPicker.CancelIndex(3)),
-            PartyMemberPicker.FirstActionId + 3);
+        Assert.Equal(PartyMemberPicker.FirstActionId + 3,
+            PartyMemberPicker.ActionIdFor(PartyMemberPicker.CancelIndex(3)));
     }
 
     [Fact]

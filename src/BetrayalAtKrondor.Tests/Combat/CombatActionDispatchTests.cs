@@ -104,7 +104,7 @@ public class CombatActionDispatchTests {
         // Both are the other one's record — a swap that looks plausible on screen.
         Assert.NotEqual(CombatActionDispatch.HelpRecordBase + (8 - 2), CombatActionDispatch.HelpRecordFor(8));
         Assert.NotEqual(CombatActionDispatch.HelpRecordBase + (7 - 2), CombatActionDispatch.HelpRecordFor(7));
-        Assert.Equal(CombatActionDispatch.HelpRecordFor(7), CombatActionDispatch.HelpRecordBase + (8 - 2) + 1);
+        Assert.Equal(CombatActionDispatch.HelpRecordBase + (8 - 2) + 1, CombatActionDispatch.HelpRecordFor(7));
     }
 
     [Fact]

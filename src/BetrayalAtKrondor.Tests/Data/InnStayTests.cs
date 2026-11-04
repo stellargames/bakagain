@@ -23,7 +23,7 @@ public class InnStayTests {
         // Both the printed price (0x501d3) and the deduction (0x5034c) apply the same x10, so the
         // player is never quoted one number and charged another.
         const int rate = 7;
-        Assert.Equal(InnStay.CostInRoyals(rate), rate * MoneyFormatter.RoyalsPerSovereign);
+        Assert.Equal(rate * MoneyFormatter.RoyalsPerSovereign, InnStay.CostInRoyals(rate));
     }
 
     [Fact]

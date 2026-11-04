@@ -58,8 +58,11 @@ public static class GdsSceneRules {
     /// Ivan's conversation). The flag gate is not consulted there, only the chapter mask.
     /// </remarks>
     public static int? ArrivalHotspot(GdsScene scene, int chapter) {
+        if (scene?.Hotspots == null) {
+            return null;
+        }
         int? found = null;
-        for (var i = 0; i < (scene?.Hotspots?.Length ?? 0); i++) {
+        for (var i = 0; i < scene.Hotspots.Length; i++) {
             GdsHotspot hotspot = scene.Hotspots[i];
             if (hotspot.CanBeDefaultTarget && hotspot.HiddenInChapters?.Contains(chapter) != true) {
                 found = i;

@@ -1,5 +1,6 @@
 // LZMA SDK 26.05 by Igor Pavlov, public domain (https://www.7-zip.org/sdk.html).
 // Vendored edits: namespace, internal, encoder removed, NextByte() throws DataErrorException on truncated input, Init requires first byte 0.
+#nullable disable // vendored LZMA SDK, kept as written: it predates nullable reference types
 using System;
 
 namespace GameData.Setup.Lzma.Compression.RangeCoder

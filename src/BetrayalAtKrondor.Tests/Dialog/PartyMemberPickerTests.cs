@@ -16,9 +16,9 @@ public class PartyMemberPickerTests {
     [Fact]
     public void CancelKeepsTheActionIdItsSlotWouldHaveHad() {
         // Not special-cased — a caller expecting a distinct cancel id reads it as a fourth member.
-        Assert.Equal(PartyMemberPicker.ActionIdFor(3), PartyMemberPicker.FirstActionId + 3);
-        Assert.Equal(PartyMemberPicker.ActionIdFor(PartyMemberPicker.CancelIndex(3)),
-            PartyMemberPicker.FirstActionId + 3);
+        Assert.Equal(PartyMemberPicker.FirstActionId + 3, PartyMemberPicker.ActionIdFor(3));
+        Assert.Equal(PartyMemberPicker.FirstActionId + 3,
+            PartyMemberPicker.ActionIdFor(PartyMemberPicker.CancelIndex(3)));
     }
 
     [Fact]

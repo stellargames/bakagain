@@ -91,7 +91,7 @@ public class CastSymbolPickingTests {
     public void TheListCountsONLYTheNamesItDrew() {
         // The advance sits inside the castable branch, so a skipped spell leaves no gap. Feeding it
         // the loop index instead of the drawn count would hole the list wherever one was skipped.
-        Assert.Equal(SpellInfoPanel.NameListY(1),
-            SpellInfoPanel.NameListFirstY + SpellInfoPanel.NameListStep);
+        Assert.Equal(SpellInfoPanel.NameListFirstY + SpellInfoPanel.NameListStep,
+            SpellInfoPanel.NameListY(1));
     }
 }

@@ -111,7 +111,7 @@ public class EncounterActorPlacementTests {
         Assert.True(Place(EncounterActorSpawn.Pending, out EncounterActorPlacement.Placed away, out _));
 
         Assert.Equal(5000, atOrigin.WorldX);
-        Assert.Equal(away.WorldX - atOrigin.WorldX, TileX * (long)WorldPlacement.TileSize);
+        Assert.Equal(TileX * (long)WorldPlacement.TileSize, away.WorldX - atOrigin.WorldX);
     }
 
     [Fact]

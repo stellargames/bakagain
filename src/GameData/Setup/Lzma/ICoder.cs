@@ -1,6 +1,7 @@
 // LZMA SDK 26.05 by Igor Pavlov, public domain (https://www.7-zip.org/sdk.html).
 // Vendored edits: namespace, internal, ICoder2/CoderPropID/ISetCoderProperties/IWriteCoderProperties removed.
 // ICoder.h
+#nullable disable // vendored LZMA SDK, kept as written: it predates nullable reference types
 
 using System;
 
