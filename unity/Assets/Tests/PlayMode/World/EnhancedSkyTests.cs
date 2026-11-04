@@ -170,6 +170,10 @@ namespace BakAgain.Tests.PlayMode.World {
             lighting.BindSky(_camera, _env, 1, false);
             GameData.Resources.World.GradingKey[] grading = EnhancedSky.Layout.Grading;
             EnhancedSky.Layout.Grading = System.Array.Empty<GameData.Resources.World.GradingKey>();
+            // With an override folder searched (the dev folder, or the run's fixtures without the game
+            // data) the sky's built-in clouds note that no override replaces them.
+            using var noOverride = BakAgain.Tests.TestSupport.ExpectedLog.CaptureAll(
+                new System.Text.RegularExpressions.Regex(@"Override for .* not found under"));
             try {
                 BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Exception, new System.Text.RegularExpressions.Regex("Grading is empty"));
                 Assert.DoesNotThrow(() => lighting.Refresh());
@@ -195,6 +199,10 @@ namespace BakAgain.Tests.PlayMode.World {
             lighting.BindSky(_camera, _env, 1, false);
             GameData.Resources.World.GradingKey[] grading = EnhancedSky.Layout.Grading;
             EnhancedSky.Layout.Grading = System.Array.Empty<GameData.Resources.World.GradingKey>();
+            // With an override folder searched (the dev folder, or the run's fixtures without the game
+            // data) the sky's built-in clouds note that no override replaces them.
+            using var noOverride = BakAgain.Tests.TestSupport.ExpectedLog.CaptureAll(
+                new System.Text.RegularExpressions.Regex(@"Override for .* not found under"));
             try {
                 BakAgain.Tests.TestSupport.ExpectedLog.Expect(LogType.Exception, new System.Text.RegularExpressions.Regex("Grading is empty"));
                 lighting.Refresh();

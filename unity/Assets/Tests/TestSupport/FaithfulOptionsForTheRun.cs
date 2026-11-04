@@ -20,7 +20,6 @@ namespace BakAgain.Tests {
         private (string Game, bool ModsOn, string Mods) _folders;
         private BakAgain.Audio.MenuSoundService _sounds;
         private TestSupport.ExpectedLog.Capture _overflowReport;
-        private TestSupport.ExpectedLog.Capture _missingGameArt;
 
         // The folder settings are the developer's real, persisted ones. A test that changes one puts
         // it back itself; this catches one that did not (TASK-949), says so, and restores it.
@@ -51,12 +50,14 @@ namespace BakAgain.Tests {
             _sounds = BakAgain.Audio.MenuSoundService.Instance;
             BakAgain.Audio.MenuSoundService.Instance = null;
             // Without the game data (CI) no archive key has a location, so every HUD test that builds a
-            // portrait or the Pack stone's bag (INVMISC.BMX #0) logged Addressables' InvalidKeyException
-            // and failed on the log, 62 of them in the v0.5.0-beta release run. Only then are those lines
-            // taken; with the data present a missing key still fails its test.
-            if (!GameArtPresent()) {
-                _missingGameArt = TestSupport.ExpectedLog.CaptureAll(new System.Text.RegularExpressions.Regex(
-                    @"InvalidKeyException.*No Location found for Key=|^ArchiveImage: failed to load sprite"));
+            // portrait or the Pack stone's bag (INVMISC.BMX #0) failed on Addressables'
+            // InvalidKeyException, 62 of them in the v0.5.0-beta release run. The run then gets
+            // placeholders through the override system (Tests/Fixtures~/GameArt, TASK-1027). Only then:
+            // an override beats the archive, so with the data present it would hide the real art.
+            if (!TestSupport.ShippedGameData.IsAvailable) {
+                OverrideResourceLocator.TestFixturesRoot = System.IO.Path.Combine(
+                    UnityEngine.Application.dataPath, "Tests", "Fixtures~", "GameArt");
+                BakAgain.Core.ResourceManagementInitializer.RemountOverrides();
             }
             // The fonts outlive a test run: the Editor does not reload the domain on Play.
             if (BakAgain.UI.GameFonts.IsBookFont) {
@@ -64,20 +65,13 @@ namespace BakAgain.Tests {
             }
         }
 
-        private static bool GameArtPresent() {
-            var locations = UnityEngine.AddressableAssets.Addressables.LoadResourceLocationsAsync(
-                BakAgain.UI.Combat.Enhanced.DesktopCombatHud.PackBagImage);
-            try {
-                return locations.WaitForCompletion() is { Count: > 0 };
-            } finally {
-                UnityEngine.AddressableAssets.Addressables.Release(locations);
-            }
-        }
-
         [OneTimeTearDown]
         public void Restore() {
             _overflowReport?.Dispose();
-            _missingGameArt?.Dispose();
+            if (OverrideResourceLocator.TestFixturesRoot != null) {
+                OverrideResourceLocator.TestFixturesRoot = null;
+                BakAgain.Core.ResourceManagementInitializer.RemountOverrides();
+            }
             if (Folders != _folders) {
                 UnityEngine.Debug.LogError($"A test left the folder settings changed: {Folders}, was {_folders}. Restored.");
                 (BakResourceSettings.GamePath, BakResourceSettings.OverrideEnabled, BakResourceSettings.OverridePath) = _folders;

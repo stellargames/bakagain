@@ -175,7 +175,16 @@ namespace BakAgain.ResourceManagement {
             foreach (string root in ModLayers.ContentRoots()) {
                 yield return root;
             }
+            if (TestFixturesRoot != null) {
+                yield return TestFixturesRoot;
+            }
         }
+
+        /// <summary>
+        /// The test run's placeholder art and data, searched last. Set only when the game data is
+        /// absent (CI), since an override beats the archive (TASK-1027).
+        /// </summary>
+        internal static string TestFixturesRoot { get; set; }
 
         /// <summary>
         /// The file at <paramref name="directory"/>/<paramref name="filename"/> under

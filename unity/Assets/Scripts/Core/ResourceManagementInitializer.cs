@@ -38,6 +38,21 @@ namespace BakAgain.Core {
         }
 
         /// <summary>
+        /// Replaces the override locator with a fresh one, which reads the override roots again:
+        /// a locator reads them once, when it is made. For the test run's fixtures (TASK-1027).
+        /// </summary>
+        internal static void RemountOverrides() {
+            foreach (IResourceLocator old in Addressables.ResourceLocators.OfType<OverrideResourceLocator>().ToList()) {
+                Addressables.RemoveResourceLocator(old);
+            }
+            if (OverrideResourceLocator.HasAnyRoot()) {
+                Addressables.ResourceManager.ResourceProviders.AddOnce<OverrideResourceProvider>();
+                Addressables.AddResourceLocator(new OverrideResourceLocator());
+                PutOverrideLocatorFirst();
+            }
+        }
+
+        /// <summary>
         /// Addressables asks the locators in order and the first that resolves a key serves it, but
         /// <c>AddResourceLocator</c> appends: the catalog's locator would serve a built-in address
         /// (<c>Enhanced/Sky/moon_large</c>) before a mod's file. So the list is rebuilt with the
