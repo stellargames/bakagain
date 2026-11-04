@@ -68,7 +68,11 @@ namespace BakAgain.UI {
             Build();
             PanelTextSettings original = panelSettings.textSettings;
             var runtime = ScriptableObject.CreateInstance<PanelTextSettings>();
+            // defaultFontAsset is obsolete in 6000.6 with no replacement named. fallbackFontAssets is not one:
+            // tried 2026-11-04, every panel then drew Unity's built-in sans and the shop's labels overflowed.
+#pragma warning disable CS0618
             runtime.defaultFontAsset = Game;
+#pragma warning restore CS0618
             panelSettings.textSettings = runtime;
             Application.quitting += () => panelSettings.textSettings = original;
         }
@@ -218,8 +222,8 @@ namespace BakAgain.UI {
                     continue;
                 }
                 FontAsset face = italic[i] ? oblique : regular;
-                advances[i] = face.characterLookupTable.TryGetValue(c, out UnityEngine.TextCore.Text.Character character)
-                    ? character.glyph.metrics.horizontalAdvance * face.faceInfo.scale * em / face.faceInfo.pointSize
+                advances[i] = face.TryGetGlyphIndex(c, out uint glyph) && face.TryGetGlyphMetrics(glyph, out UnityEngine.TextCore.GlyphMetrics metrics)
+                    ? metrics.horizontalAdvance * face.faceInfo.scale * em / face.faceInfo.pointSize
                     : em / 2f; // ponytail: a letter the face lacks is drawn as nothing; half an em keeps the wrap conservative
             }
             return advances;

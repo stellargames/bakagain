@@ -57,7 +57,7 @@ namespace BakAgain.UI.InputCore {
         // Stop UI Toolkit's built-in focus-ring navigation from acting; the InputAdapter owns nav.
         private static void SuppressNavigation<TEvent>(TEvent evt) where TEvent : EventBase<TEvent>, new() {
             evt.StopPropagation();
-            evt.PreventDefault();
+            ((evt.target as VisualElement)?.focusController)?.IgnoreEvent(evt);
         }
 
         public string Id { get; }

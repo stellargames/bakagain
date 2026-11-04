@@ -35,7 +35,11 @@ namespace BakAgain.Tests.PlayMode.UI {
 
         [TearDown]
         public void TearDown() {
-            if (_go != null) Object.DestroyImmediate(_go);
+            // The topic menu comes back after the answer, so the conversation is still open here and the
+            // overlay's teardown drops its input layer, saying so (whether a page is up is down to timing).
+            using (ExpectedLog.CaptureAll(new System.Text.RegularExpressions.Regex("the overlay was disabled with"))) {
+                if (_go != null) Object.DestroyImmediate(_go);
+            }
             if (_panelSettings != null) Object.DestroyImmediate(_panelSettings);
         }
 
