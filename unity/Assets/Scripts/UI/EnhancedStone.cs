@@ -24,13 +24,18 @@ namespace BakAgain.UI {
         /// where a synchronous load throws. One that fails (a mod's broken PNG) is drawn as nothing,
         /// as a missing texture always was, and never stops the boot.
         /// </summary>
-        public static async UniTask PreloadAsync() {
+        /// <param name="checkpoint">Run after each load; the boot passes its stop-if-Play-ended check, so
+        /// a test that leaves Play mid-preload does not go on loading in Edit Mode (TASK-932's shape: the
+        /// rest of the loop then ran there and created a new Addressables instance, which warned on the
+        /// next Play).</param>
+        public static async UniTask PreloadAsync(System.Action checkpoint = null) {
             string[] addresses = Addressables.ResourceLocators.SelectMany(l => l.Keys).OfType<string>()
                 .Where(k => k.StartsWith(Folder, System.StringComparison.Ordinal)).Distinct().ToArray();
             // ponytail: one at a time; in parallel, a focused run of BuiltInAssetOverrideTests races the
             // scene boot's own preload. Parallel once tests can wait for the boot.
             foreach (string address in addresses) {
                 await PreloadOneAsync(address);
+                checkpoint?.Invoke();
             }
         }
 

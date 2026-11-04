@@ -35,11 +35,7 @@ namespace BakAgain.Tests.PlayMode.UI {
 
         [TearDown]
         public void TearDown() {
-            // The topic menu comes back after the answer, so the conversation is still open here and the
-            // overlay's teardown drops its input layer, saying so (whether a page is up is down to timing).
-            using (ExpectedLog.CaptureAll(new System.Text.RegularExpressions.Regex("the overlay was disabled with"))) {
-                if (_go != null) Object.DestroyImmediate(_go);
-            }
+            if (_go != null) Object.DestroyImmediate(_go);
             if (_panelSettings != null) Object.DestroyImmediate(_panelSettings);
         }
 
@@ -83,8 +79,20 @@ namespace BakAgain.Tests.PlayMode.UI {
 
             Assert.IsNull(Grid(document), "the answer is drawn with no topic grid under it");
 
-            stack.DispatchIntent(UiIntent.Skip());
-            for (var i = 0; i < 30 && talking.Status == UniTaskStatus.Pending; i++) yield return null;
+            // Finish the conversation the way a player does, so nothing is open at teardown: dismiss each
+            // page as it takes input until the talk ends (the fixture's menu pushes nothing, so the answer
+            // is the last thing said). A page's input layer goes up after its open wipe, and a press
+            // during the wipe reaches no layer, so each press waits for a new one.
+            deadline = Time.realtimeSinceStartup + 10f;
+            IInputLayer pressed = null;
+            while (talking.Status == UniTaskStatus.Pending) {
+                Assert.That(Time.realtimeSinceStartup, Is.LessThan(deadline), "the conversation never ended");
+                if (stack.Top != null && !ReferenceEquals(stack.Top, pressed)) {
+                    pressed = stack.Top;
+                    stack.DispatchIntent(UiIntent.Activate());
+                }
+                yield return null;
+            }
         }
 
         private const string Answer = "Steel is steel, my lord.";

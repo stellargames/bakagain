@@ -2724,13 +2724,16 @@ namespace BakAgain.UI {
                             keepPanel = true;
                             break;
                         }
-                        dismissed = false;
+                        // The flag is cleared after a page turn, not before each wait: the layer is
+                        // pushed before the first page re-flows (above), and clearing it here ate a
+                        // press made in that frame — the page then sat waiting for a second one.
                         await WaitForDismiss(scrim, () => dismissed, cancellationToken,
                             more ? null : AutoDismissSecondsFor(entry, paged));
                         if (!more) {
                             break;
                         }
                         body.AdvancePage();
+                        dismissed = false;
                     }
                     return -1;
                 } finally {

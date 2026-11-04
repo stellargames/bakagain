@@ -200,7 +200,7 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
             try {
                 StartWithMod(Path.Combine("Resources", "Enhanced", "Stone", "marble.png"), NotAFile);
 
-                List<string> errors = await Logged("Enhanced art", EnhancedArt.PreloadAsync,
+                List<string> errors = await Logged("Enhanced art", () => EnhancedArt.PreloadAsync(),
                     alsoSwallow: "is not a decodable PNG/JPG");
 
                 // Once per preload; a focused run's scene boots the game, whose own preload can see the mod too.

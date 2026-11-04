@@ -183,8 +183,7 @@ namespace BakAgain.Core.DI {
                 StopIfPlayEnded(cancellation);
                 // Always: Enhanced can be switched on in this session, and its screens then lay out
                 // inside load callbacks, where loading the art synchronously throws.
-                await EnhancedArt.PreloadAsync();
-                StopIfPlayEnded(cancellation);
+                await EnhancedArt.PreloadAsync(() => StopIfPlayEnded(cancellation));
 
                 GameFonts.Install(_gamePanelSettings);
                 // The arrow comes from the player's POINTER.BMX, which only loads from here on.
