@@ -179,7 +179,7 @@ namespace BakAgain.UI.Combat.Enhanced {
 
         private int _logShown;
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || ENABLE_PROFILER
         /// <summary>How many fight-log lines the HUD shows now (build test harness).</summary>
         internal int LogShown => _logShown;
 #endif

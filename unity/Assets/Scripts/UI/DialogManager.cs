@@ -2313,7 +2313,7 @@ namespace BakAgain.UI {
             }
 
             gameObject.SetActive(true);
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || ENABLE_PROFILER
             // The dialog overlay is one of the few documents that goes up over whatever is already
             // showing, so this is where a same-tier collision can first exist.
             UiSortTierCheck.WarnOnConflicts("showing a dialog");

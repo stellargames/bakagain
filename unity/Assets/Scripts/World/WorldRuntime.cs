@@ -752,7 +752,7 @@ namespace BakAgain.World {
                 Vector3 top = BillboardSprite.DrawnTopCentre(at);
                 string text = dealt == 0 ? "miss" : System.Math.Abs(dealt).ToString();
                 screen.FloatText(top, text, pens);
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || ENABLE_PROFILER
                 BakAgain.Testing.HarnessQueries.NoteFloat(text, slot, party);
 #endif
             }
@@ -2498,7 +2498,7 @@ namespace BakAgain.World {
         /// <see cref="TeardownAsync"/>. GameFlow routes it into the travel screen's viewport.</summary>
         public Camera WorldCamera => _worldCamera;
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || ENABLE_PROFILER
         /// <summary>The fight's hotspot service, for the build test harness's read-only queries.</summary>
         internal Hotspots.HotspotService HarnessHotspots => _hotspots;
 #endif

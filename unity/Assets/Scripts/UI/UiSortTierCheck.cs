@@ -1,4 +1,4 @@
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || ENABLE_PROFILER
 namespace BakAgain.UI {
     using System.Collections.Generic;
     using UnityEngine;

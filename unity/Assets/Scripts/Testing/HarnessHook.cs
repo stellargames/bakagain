@@ -1,4 +1,6 @@
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || ENABLE_PROFILER
+// ENABLE_PROFILER, not DEVELOPMENT_BUILD (deprecated in 6000.6, UAC0009): a development build defines it and a
+// release build does not, whatever its Managed Code Variant (ours is Release, so DEBUG is not defined either).
 namespace BakAgain.Testing {
     using System;
     using System.Collections.Concurrent;

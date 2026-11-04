@@ -1,4 +1,4 @@
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+#if UNITY_EDITOR || ENABLE_PROFILER
 namespace BakAgain.Testing {
     using System;
     using System.Collections.Generic;
