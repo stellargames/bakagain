@@ -10,7 +10,7 @@ Where every committed binary asset comes from, so the public release carries not
 |---|---|---|
 | `Assets/BuiltIn/Audio/GeneralUser-GS.bytes` (+ `-LICENSE.txt`) | GeneralUser GS 2.0.3 soundfont, S. Christian Collins | GeneralUser GS License v2.0 |
 | `Assets/Plugins/MeltySynth/MeltySynth.dll` | NuGet MeltySynth 2.4.1 | MIT |
-| `Assets/Plugins/SimpleFileBrowser/**` (sprites, prefab) | yasirkula/UnitySimpleFileBrowser 1.7.7 | MIT |
+| `Assets/Plugins/SimpleFileBrowser/**` (sprites, prefab) | yasirkula/UnitySimpleFileBrowser 1.7.8 | MIT |
 | `Assets/Resources/SimpleFileBrowserCanvas.prefab` | copy of the Simple File Browser prefab | MIT |
 | `Assets/Plugins/netstandard2.1/*` | built from `src/` (GameData, ResourceExtraction) | MIT |
 | `Assets/Custom/Fonts/Victor_Mono/**`, `VictorMono-Regular.ttf` | Victor Mono | SIL OFL 1.1 (`OFL.txt` alongside) |

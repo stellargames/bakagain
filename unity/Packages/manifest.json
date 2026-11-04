@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "com.cysharp.unitask": "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask",
+    "com.cysharp.unitask": "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask#ceac8d6946b1125fe782cd171fbcb245b567dbf9",
     "com.unity.2d.sprite": "1.0.0",
     "com.unity.addressables": "4.1.2",
     "com.unity.cloud.gltfast": "6.20.0",
