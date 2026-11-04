@@ -127,7 +127,7 @@ namespace BakAgain.UI {
         /// </remarks>
         public void PrimaryAction(int menuEntryActionId) {
             _openedPreferences = menuEntryActionId == ActionPreferences;
-            if (menuEntryActionId == ActionCancel) {
+            if (menuEntryActionId == ActionCancel || menuEntryActionId == MenuActionHandler.EscActionId) {
                 RestoreWorldTrack();
             }
 

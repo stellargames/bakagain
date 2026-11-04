@@ -44,6 +44,9 @@ namespace BakAgain.UI {
             _logger = logger;
         }
 
+        /// <summary>The action id MenuLayerHost sends for Esc on every REQ screen (the original's scancode).</summary>
+        public const int EscActionId = 1;
+
         public void Primary(int menuEntryActionId) {
             _logger.LogInformation("Primary action {MenuEntryActionId}", menuEntryActionId);
             switch (menuEntryActionId) {
@@ -66,7 +69,10 @@ namespace BakAgain.UI {
                     _navigator.Push(_saveGameMenu).Forget();
                     break;
                 case 18 when _mode == MenuMode.InGame:
-                    _navigator.Pop().Forget();                 // Cancel — return to game
+                case EscActionId when _mode == MenuMode.InGame:
+                    // Cancel, or Esc (Android's Back): return to game. MAINMENU.C:283-287 leaves the
+                    // menu on scancode 0x01 only when re-entering; the title menu ignores it.
+                    _navigator.Pop().Forget();
                     break;
                 case 32:
                     _ = ConfirmAndQuit();            // Quit — DDX 110 confirm (UI_showMainMenu 0x6e198)
