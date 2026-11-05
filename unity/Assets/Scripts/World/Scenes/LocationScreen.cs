@@ -476,7 +476,9 @@ namespace BakAgain.World.Scenes {
         }
 
         private async UniTask Act(int menuEntryActionId) {
-            GdsHotspot hotspot = HotspotFor(menuEntryActionId);
+            // Action 1 is never a hotspot (below), so it is not looked up: the lookup warned on every Esc.
+            GdsHotspot hotspot = menuEntryActionId == GdsActionDispatch.LeaveSceneActionId
+                ? null : HotspotFor(menuEntryActionId);
             if (hotspot == null) {
                 // *** ACTION 1 IS "LEAVE SCENE", AND IT ARRIVES HERE ALREADY. *** MenuLayerHost
                 // maps cancel to PrimaryAction(CancelActionId = 1), which is the same 1 the
