@@ -49,6 +49,23 @@ public class TakeAllTests {
         Assert.DoesNotContain(a.Items, i => i.ObjectId >= Trinket + 20);
     }
 
+    // The shipped coins carry the stack bits (OBJINFO flags 0xB8000), so the stack share took them first and
+    // dealt 62 royals out as pack items: the purse stayed put (Linux dev build, 2026-11-05, Haseth's chest).
+    [Fact] public void ShippedCoinsGoToThePurseNotIntoThePacks() {
+        var objects = new ObjectInfoSet("O", new List<ObjectInfo> {
+            new ObjectInfo("g") { Number = 53, Name = "Gold Sovereigns", InventorySlots = 1, MaxAmount = 1000, Flags = (ObjectFlags)0xB8000 },
+            new ObjectInfo("s") { Number = 54, Name = "Silver Royals", InventorySlots = 1, MaxAmount = 1000, Flags = (ObjectFlags)0xB8000 },
+        });
+        var chest = C(SaveGameContainerType.Chest, new RuntimeItem(54, 62, 0), new RuntimeItem(53, 3, 0));
+        RuntimeContainer a = Pack(0), b = Pack(0), c = Pack(0);
+        int gold = 143;
+        int left = InventoryTransfer.TakeAll(chest, new[] { a, b, c }, objects, ref gold);
+        Assert.Equal(0, left);
+        Assert.Empty(chest.Items);
+        Assert.Equal(143 + 62 + 30, gold);
+        Assert.All(new[] { a, b, c }, m => Assert.Empty(m.Items));
+    }
+
     [Fact] public void GoldBecomesPurseMoneyAndAKeyGoesOnTheRing() {
         var chest = C(SaveGameContainerType.Chest, new RuntimeItem(53, 7, 0), new RuntimeItem(Key, 0, 0));
         var keys = C(SaveGameContainerType.SharedKeys);

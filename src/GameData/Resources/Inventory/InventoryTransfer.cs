@@ -327,7 +327,8 @@ public static class InventoryTransfer {
         for (int i = source.Items.Count - 1; i >= 0; i--) {
             RuntimeItem item = source.Items[i];
             int flags = (int)(objects?.GetById(item.ObjectId)?.Flags ?? 0);
-            if ((flags & (StackableFlag | CountableFlag)) != 0 && item.Variable >= 2
+            bool coin = item.ObjectId == GoldSovereignId || item.ObjectId == SilverRoyalId;   // Move pays them in
+            if (!coin && (flags & (StackableFlag | CountableFlag)) != 0 && item.Variable >= 2
                 && Distribute(source, i, members, objects, conditionsOf) == Result.Moved) {
                 continue;
             }
