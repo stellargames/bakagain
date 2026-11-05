@@ -276,6 +276,18 @@ namespace BakAgain.ResourceManagement.Loaders {
             ReleaseHandles();
         }
 
+        /// <summary>
+        /// A REQ entry's left click, with or without Shift. UI Toolkit's default filter wants the modifiers
+        /// exactly, none, so a plain Clickable dropped Shift+click: a Swing on a foe (TASK-1022) and the
+        /// portrait's character sheet (WORLDLP.C:359-364) both read Shift on the click. The handlers read
+        /// Shift themselves; this only lets the click through (Linux dev build, 2026-11-05).
+        /// </summary>
+        internal static Clickable PrimaryClickable(System.Action clicked) {
+            var click = new Clickable(clicked);
+            click.activators.Add(new ManipulatorActivationFilter { button = MouseButton.LeftMouse, modifiers = EventModifiers.Shift });
+            return click;
+        }
+
         // The one select seam for a REQ widget, shared by the mouse click and the keyboard activate:
         // play the gated select cue (Task 2), then dispatch the action and resync toggle icons (the
         // keyboard path already did the latter; doing it for every select is harmless + consistent).
@@ -1153,7 +1165,7 @@ namespace BakAgain.ResourceManagement.Loaders {
                 }
             }
             RegisterCursorHover(button, menuEntry);
-            button.AddManipulator(new Clickable(() => Select(menuEntry)));
+            button.AddManipulator(PrimaryClickable(() => Select(menuEntry)));
             button.AddManipulator(new Clickable(() => {
                 if (TakesClicks(menuEntry)) _ = _actionHandler?.SecondaryAction(menuEntry.ActionId);
             }) {
@@ -1179,7 +1191,7 @@ namespace BakAgain.ResourceManagement.Loaders {
                 },
             };
             hotspot.AddToClassList("req-hitbox");
-            hotspot.AddManipulator(new Clickable(() => Select(menuEntry)));
+            hotspot.AddManipulator(PrimaryClickable(() => Select(menuEntry)));
             hotspot.AddManipulator(new Clickable(() => {
                 if (TakesClicks(menuEntry)) _ = _actionHandler?.SecondaryAction(menuEntry.ActionId);
             }) {
@@ -1390,7 +1402,7 @@ namespace BakAgain.ResourceManagement.Loaders {
                 icon.AddToClassList("req-hidden");
             }
             // Left click toggles/selects; right click asks the handler for help.
-            icon.AddManipulator(new Clickable(() => Select(menuEntry)));
+            icon.AddManipulator(PrimaryClickable(() => Select(menuEntry)));
             icon.AddManipulator(new Clickable(() => {
                 if (TakesClicks(menuEntry)) _ = _actionHandler?.SecondaryAction(menuEntry.ActionId);
             }) {
