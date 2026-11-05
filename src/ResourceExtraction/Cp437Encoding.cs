@@ -17,6 +17,21 @@ public sealed class Cp437Encoding : Encoding {
 
     private static readonly Dictionary<char, byte> Bytes = BuildReverse();
 
+    // *** A TABLE, NOT `b < 0x80 ? (char)b : High[b - 0x80]`. *** IL2CPP typed that conditional's result
+    // as the byte branch's uint8_t, so the player cut every character above 0xFF to its low byte: 0xF3,
+    // the italic code U+2264, came out 'd' and every emphasised word in a dialog read "dWe dmust" (Linux
+    // dev build, 2026-11-05; Mono in the Editor was right). Generated C++: `G_B4_0 = ((uint8_t)(L_11))`.
+    private static readonly char[] Chars = BuildChars();
+
+    private static char[] BuildChars() {
+        var chars = new char[256];
+        for (int i = 0; i < 0x80; i++) {
+            chars[i] = (char)i;
+        }
+        High.CopyTo(0, chars, 0x80, 0x80);
+        return chars;
+    }
+
     private static Dictionary<char, byte> BuildReverse() {
         var reverse = new Dictionary<char, byte>(High.Length);
         for (int i = 0; i < High.Length; i++) {
@@ -41,8 +56,7 @@ public sealed class Cp437Encoding : Encoding {
 
     public override int GetChars(byte[] bytes, int byteIndex, int byteCount, char[] chars, int charIndex) {
         for (int i = 0; i < byteCount; i++) {
-            byte b = bytes[byteIndex + i];
-            chars[charIndex + i] = b < 0x80 ? (char)b : High[b - 0x80];
+            chars[charIndex + i] = Chars[bytes[byteIndex + i]];
         }
         return byteCount;
     }
