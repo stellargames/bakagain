@@ -195,6 +195,20 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
                 "the caster's own cell is no target for it, so no outline");
         }
 
+        [Test]
+        public void AnAimedSpellQuotesItsHitChanceOnTheFoe_AnAutoHitSpellQuotesNone() {
+            // TASK-1026: Enhanced lists the aim panel's hit chance on every foe (COMBAT.C:1092: the rows show
+            // for a type-0 spell over a living enemy it takes). An auto-hit spell (type 1) has no rows.
+            (Rig rig, CombatEncounter fight, Combatant acting) = ArmedFight(0);
+            int expected = rig.Service.Combat.SpellTargetStats(acting, fight.Enemies[0],
+                new GameData.Resources.Spells.Spell("S") { TargetingType = 0 }, 0, 5).Accuracy;
+            Assert.AreEqual(expected, rig.Service.AimHitPercent(0), "the panel's own number");
+            Assert.IsNull(rig.Service.AimHitPercent(1), "no such foe");
+
+            (Rig auto, _, _) = ArmedFight(1);
+            Assert.IsNull(auto.Service.AimHitPercent(0), "an auto-hit spell rolls nothing");
+        }
+
         /// <summary>A party member's turn in the one-member, one-enemy fixture, a spell of this type armed.</summary>
         private static (Rig Rig, CombatEncounter Fight, Combatant Acting) ArmedFight(int targetingType) {
             Rig rig = Build(start: new GameData.Resources.Config.StartData("START.DAT") { CombatGridCellSize = 300 });

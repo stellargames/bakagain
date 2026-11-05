@@ -513,6 +513,7 @@ namespace BakAgain.UI.Combat.Enhanced {
                     row.Q<Label>(className: "ec-letter").text = f.Letter.ToString();
                     row.Q<Label>(className: "ec-desk-foe__name").text = f.Name;
                     row.Q<Label>(className: "ec-desk-foe__note").text = f.Down ? UiTemplates.Format(UiTemplates.HudDown)
+                        : f.AimPercent is int hit ? UiTemplates.Percent(hit)
                         : f.Seen > 0 ? "−" + f.Seen
                         : f.Far ? UiTemplates.Format(UiTemplates.HudFar) : "";
                     row.EnableInClassList("ec-desk-foe--down", f.Down);
@@ -536,7 +537,8 @@ namespace BakAgain.UI.Combat.Enhanced {
             _foeCardRows.RemoveFromClassList("ec-desk-foecard-rows--member");
             Fit(_memberKit, 0, () => null);
             _foeCardName.text = UiTemplates.Format(UiTemplates.HudJoin, ("a", card.Letter), ("b", card.Name));
-            _foeCardNote.text = card.Inspected ? UiTemplates.Format(UiTemplates.HudInspected)
+            _foeCardNote.text = card.AimPercent is int aim ? UiTemplates.Format(UiTemplates.HudHitPercent, ("n", aim))
+                : card.Inspected ? UiTemplates.Format(UiTemplates.HudInspected)
                 : card.Seen > 0 ? UiTemplates.Format(UiTemplates.EnhancedCombatSeen, ("count", card.Seen)) : "";
             Fit(_foeCardRows, card.Rows.Count, FoeCardRow);
             for (int i = 0; i < card.Rows.Count; i++) {

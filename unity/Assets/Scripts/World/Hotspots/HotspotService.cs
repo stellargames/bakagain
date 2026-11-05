@@ -5241,6 +5241,48 @@ using GameData.Resources.Scene;
         /// pen 208, and <c>combat_arena_disp_spell_action</c> turns it to -1, no marker, over a cell
         /// it refuses (COMBAT.C:2246-2256). The yellow of the melee preview is face 0 (TASK-929).
         /// </remarks>
+        /// <summary>
+        /// The hit chance the Classic aim panel prints over this foe for the aim that is up -- the Shoot
+        /// menu's (combat_arena_draw_tgt_info_panel, COMBAT.C:1152) or an aimed spell's (COMBAT.C:1092) --
+        /// or null when no aim is up or it does not take this foe. Enhanced lists it on every foe at once
+        /// (TASK-1026). Unlike <see cref="CombatPanelContent"/> it records no aim.
+        /// </summary>
+        public int? AimHitPercent(int enemySlot) {
+            GameData.Resources.Combat.CombatEncounter fight = Combat?.Encounter;
+            Combatant acting = fight?.Current;
+            if (acting == null || !acting.IsPartyMember || _autoResolving
+                || enemySlot < 0 || enemySlot >= fight.Enemies.Count) {
+                return null;
+            }
+            Combatant target = fight.Enemies[enemySlot];
+            if (target == null || target.IsDead) {
+                return null;
+            }
+            BakAgain.UI.Combat.ShootMenu shoot = _shootMenuAccessor?.Invoke();
+            if (shoot != null && shoot.IsOpen) {
+                if (!LineOfFireTo(fight, acting, target)) {
+                    return null;
+                }
+                int[] carried = Combat.QuarrelsFor(acting);
+                int previewed = GameData.Resources.Combat.ShootTargetPanel.PreviewedKind(
+                    shoot.HoveredActionId, _selectedQuarrelKind,
+                    kind => carried != null && kind >= 0 && kind < carried.Length ? carried[kind] : 0);
+                GameData.Resources.Combat.ShootTargetPanelContent panel =
+                    Combat.ShootPanel(acting, target, previewed, _selectedQuarrelKind);
+                return panel != null && panel.HasTarget ? panel.Accuracy : null;
+            }
+            bool aimingSpell = _pendingCombatMode
+                    == GameData.Resources.Combat.CombatCommandOutcome.PendingMode.TargetSelection
+                && _pendingCombatItem == null && _pendingSpell != null;
+            if (aimingSpell && GameData.Resources.Combat.SpellTargetPanel.ShowsTargetStats(
+                    IsEncounterActor(fight, target)
+                        && SpellTargetIsValid(fight, acting, _pendingSpell.TargetingType, target),
+                    _pendingSpell.TargetingType, _pendingSpellId)) {
+                return Combat.SpellTargetStats(acting, target, _pendingSpell, _pendingSpellId, _pendingSpellPower).Accuracy;
+            }
+            return null;
+        }
+
         private void AimAt(GameData.Resources.Combat.CombatEncounter fight, Combatant acting, Combatant target) {
             (bool canShoot, bool _) = Combat.CapabilitiesFor(acting);
             _aimHighlightCell = target != null && ArmedAimTakes(fight, acting, target, canShoot)

@@ -146,7 +146,7 @@ namespace BakAgain.UI.Combat.Enhanced {
             // A party member under the mouse shows their card where a foe's would (owner, 2026-11-01).
             int? cardHero = !_phone && _party ? _foe : null;
             CombatHudModel m = CombatHudModelBuilder.Build(_cr, _session, _hs?.EnhancedBoardMarks(), logLines, f, alt, card, cardHero,
-                RevealedLogLines());
+                RevealedLogLines(), Picking ? _hs.AimHitPercent : null);
             if (m != null && (_hs?.AutoResolving ?? false)) {
                 m = m with { AutoRunning = true };
             }

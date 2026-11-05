@@ -95,7 +95,7 @@ namespace BakAgain.UI.Combat.Enhanced {
     /// </summary>
     public sealed record FoeRowModel(
         int Slot, char Letter, string Name, bool Thrust, bool Swing, int Seen, bool Far,
-        bool Inspected, bool Down, bool Acting, IReadOnlyList<FoeStatRow> Rows);
+        bool Inspected, bool Down, bool Acting, IReadOnlyList<FoeStatRow> Rows, int? AimPercent = null);
 }
 
 namespace BakAgain.UI.Combat.Enhanced {

@@ -19,7 +19,7 @@ namespace BakAgain.UI.Combat.Enhanced {
         /// <param name="marks">The board's reach marks (<c>HotspotService.EnhancedBoardMarks</c>); null for none.</param>
         public static CombatHudModel Build(CombatRuntime combat, GameSession session, BoardMarks marks,
             int logLines, CombatForecast forecast = null, CombatForecast alternative = null, int? cardFoe = null,
-            int? cardHero = null, int logUpTo = -1) {
+            int? cardHero = null, int logUpTo = -1, System.Func<int, int?> aimPercent = null) {
             CombatEncounter fight = combat?.Encounter;
             if (fight == null) {
                 return null;
@@ -50,7 +50,8 @@ namespace BakAgain.UI.Combat.Enhanced {
                 foes.Add(new FoeRowModel(i, BoardMarks.LetterFor(i), session?.CreatureNameOf(foe.ClassId) ?? "",
                     thrust, System.Linq.Enumerable.Contains(marks.SwingTargets, i), combat.Knowledge.Seen(i),
                     Far: !theirs && !thrust && !foe.IsDead,
-                    combat.Knowledge.Inspected(i), foe.IsDead, foe == acting, CardRows(combat, foe, i)));
+                    combat.Knowledge.Inspected(i), foe.IsDead, foe == acting, CardRows(combat, foe, i),
+                    aimPercent?.Invoke(i)));
             }
 
             HeroCardModel hero = acting == null ? null

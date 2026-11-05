@@ -285,6 +285,7 @@ public static class UiTemplates {
     public const string HudStaminaCostShort = "port:template:enhanced_hud_stamina_cost_short";
     public const string HudSquares = "port:template:enhanced_hud_squares";
     public const string HudAboutPercent = "port:template:enhanced_hud_about_percent";
+    public const string HudHitPercent = "port:template:enhanced_hud_hit_percent";
     public const string HudDamageRange = "port:template:enhanced_hud_damage_range";
     public const string HudDamageOpen = "port:template:enhanced_hud_damage_open";
     public const string HudAboutDamage = "port:template:enhanced_hud_about_damage";
@@ -530,6 +531,7 @@ public static class UiTemplates {
         (HudStaminaCostShort, _ => "−{n} St"),
         (HudSquares, _ => "{n, plural, one {# square} other {# squares}}"),
         (HudAboutPercent, _ => "about {n}%"),
+        (HudHitPercent, _ => "{n}% to hit"),
         (HudDamageRange, _ => "{low}–{high}"),
         (HudDamageOpen, _ => "{low}+"),
         (HudAboutDamage, _ => "about {n}"),

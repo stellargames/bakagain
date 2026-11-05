@@ -337,7 +337,8 @@ namespace BakAgain.UI.Combat.Enhanced {
                 VisualElement chip = _foeChips[i];
                 chip.userData = f.Slot;
                 chip.Q<Label>(className: "ec-phone-foe__letter").text = f.Letter.ToString();
-                chip.Q<Label>(className: "ec-phone-foe__note").text = f.Seen > 0 ? "−" + f.Seen : "";
+                chip.Q<Label>(className: "ec-phone-foe__note").text = f.AimPercent is int hit ? UiTemplates.Percent(hit)
+                    : f.Seen > 0 ? "−" + f.Seen : "";
                 chip.EnableInClassList("ec-phone-foe--chosen", f.Slot == target);
                 chip.EnableInClassList("ec-phone-foe--acting", f.Acting);
                 chip.EnableInClassList("ec-phone-foe--down", f.Down);
