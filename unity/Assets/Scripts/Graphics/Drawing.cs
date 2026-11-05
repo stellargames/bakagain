@@ -31,21 +31,18 @@ namespace BakAgain.Graphics {
                 area.InverseY(destination.height));
         }
 
+        /// <summary>Copies <paramref name="area"/> between two same-layout textures, clamped to both: a scaled
+        /// canonical area can come out a pixel past the buffer (1600 x 0.6 = 960.00006, ceiled to 961), and
+        /// CopyTexture refuses such a region with an error.</summary>
         public static void CopyArea(Texture source, Texture destination, IArea area) {
-            int inverseY = area.InverseY(destination.height);
-            Graphics.CopyTexture(
-                source,
-                0,
-                0,
-                area.X,
-                inverseY,
-                area.Width,
-                area.Height,
-                destination,
-                0,
-                0,
-                area.X,
-                inverseY);
+            int x = Math.Max(0, area.X);
+            int y = Math.Max(0, area.InverseY(destination.height));
+            int right = Math.Min(area.X + area.Width, Math.Min(source.width, destination.width));
+            int top = Math.Min(area.InverseY(destination.height) + area.Height, Math.Min(source.height, destination.height));
+            if (right <= x || top <= y) {
+                return;
+            }
+            Graphics.CopyTexture(source, 0, 0, x, y, right - x, top - y, destination, 0, 0, x, y);
         }
 
         public static void DrawBorder(IArea area, int paletteIndex, CutsceneState cutsceneState) {
