@@ -2,6 +2,7 @@
 namespace BakAgain.Testing {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using BakAgain.Core;
     using BakAgain.World;
     using GameData.Resources.Combat;
@@ -58,6 +59,10 @@ namespace BakAgain.Testing {
                 case "cell":
                     return a.Length == 3 && int.TryParse(a[1], out int cx) && int.TryParse(a[2], out int cy)
                         ? Cell(cx, cy) : Refuse("usage: cell <x> <y>");
+                case "path":
+                    return a.Length >= 3 && int.TryParse(a[1], out int px) && int.TryParse(a[2], out int py)
+                        ? Path(px, py, a.Length > 3 && int.TryParse(a[3], out int cap) ? cap : 6000, a.Skip(4))
+                        : Refuse("usage: path <x> <y> [maxNodes] [avoid x0,x1,y0,y1 ...]");
                 case "combatant": return a.Length == 2 ? CombatantAt(a[1]) : Refuse("usage: combatant <letter|p<slot>>");
                 default: return Refuse("unknown query " + a[0]);
             }
@@ -141,6 +146,69 @@ namespace BakAgain.Testing {
                 ["heading"] = (int)s.Rotation, ["time"] = s.GameTimeIn2Seconds });
         }
 
+        /// <summary>
+        /// A breadth-first plan from the party to (x, y) over the step gate's own probe, on the party's real
+        /// step lattice (underground it is a quarter of the overworld step). Plans only; the driver walks it
+        /// with real keys. Returns the cardinal headings in order and how close the best node got.
+        /// </summary>
+        private static string Path(int tx, int ty, int cap, IEnumerable<string> avoidArgs) {
+            GameSession s = Resolve<GameSession>();
+            PartyMovement mv = Resolve<WorldRuntime>()?.Movement;
+            if (s == null || mv?.Collision == null) return Refuse("not travelling");
+            var avoid = new List<int[]>();
+            foreach (string r in avoidArgs) {
+                int[] v = r.Split(',').Select(int.Parse).ToArray();
+                if (v.Length == 4 && !(s.PositionX >= v[0] && s.PositionX < v[1] && s.PositionY >= v[2] && s.PositionY < v[3])) avoid.Add(v);
+            }
+            // A key press is a glide of GlideStepsPerStep Small steps, each probed on its own (TASK-966), so an
+            // edge is that many Small probes in one heading — a single Preferences-sized probe passes where a tap bumps.
+            int sub = mv.WorldStepSpeed / mv.GlideStepsPerStep >> (mv.Underground ? 2 : 0);
+            int subs = mv.GlideStepsPerStep;
+            int step = sub * subs;
+            // Nodes are real positions, reached by the same StepDelta the step uses, in all eight headings
+            // (a Mac corridor runs diagonally); a half-step grid only dedupes them.
+            int cell = Math.Max(1, step / 2);
+            var start = (s.PositionX, s.PositionY);
+            var came = new Dictionary<(int, int), ((int, int) prev, int h, (int, int) pos)> {
+                [(start.Item1 / cell, start.Item2 / cell)] = ((int.MinValue, 0), -1, start) };
+            var queue = new Queue<(int, int)>();
+            queue.Enqueue(start);
+            (int, int) best = start;
+            double bestDist = double.MaxValue;
+            int nodes = 0;
+            while (queue.Count > 0 && nodes < cap) {
+                (int wx, int wy) = queue.Dequeue();
+                nodes++;
+                double d = Math.Sqrt((double)(tx - wx) * (tx - wx) + (double)(ty - wy) * (ty - wy));
+                if (d < bestDist) { bestDist = d; best = (wx, wy); }
+                if (d < step) break;
+                mv.Collision.BuildCandidates(wx, wy, mv.DetailLevel);
+                for (int h = 0; h < 8; h++) {
+                    ushort yaw = (ushort)(h * 8192);
+                    var (dx, dy) = MovementMath.StepDelta(yaw, sub);
+                    int nx = wx, ny = wy;
+                    bool open = true;
+                    for (int k = 0; k < subs && open; k++) {
+                        if (k > 0) mv.Collision.BuildCandidates(nx, ny, mv.DetailLevel);
+                        open = mv.Collision.ProbeWalkable(nx, ny, yaw, sub, out _, out _);
+                        nx += dx; ny += dy;
+                    }
+                    if (subs > 1) mv.Collision.BuildCandidates(wx, wy, mv.DetailLevel);
+                    var key = (nx / cell, ny / cell);
+                    if (!open || came.ContainsKey(key)) continue;
+                    if (avoid.Any(v => nx >= v[0] && nx < v[1] && ny >= v[2] && ny < v[3])) continue;
+                    came[key] = ((wx / cell, wy / cell), yaw, (nx, ny));
+                    queue.Enqueue((nx, ny));
+                }
+            }
+            mv.Collision.BuildCandidates(s.PositionX, s.PositionY, mv.DetailLevel); // leave the gate as the party had it
+            var headings = new List<int>();
+            for (var k = (best.Item1 / cell, best.Item2 / cell); came[k].h >= 0; k = came[k].prev) headings.Add(came[k].h);
+            headings.Reverse();
+            return Ok(new Dictionary<string, object> {
+                ["nodes"] = nodes, ["step"] = step, ["best"] = (int)bestDist, ["headings"] = headings });
+        }
+
         private static string Party() {
             GameSession s = Resolve<GameSession>();
             if (s == null || s.ActivePartyIndices == null || s.ActivePartyIndices.Length == 0) return Refuse("no game session");
@@ -149,9 +217,17 @@ namespace BakAgain.Testing {
                 var items = new List<string>();
                 foreach (GameData.Resources.Inventory.RuntimeItem item in s.GetActorInventory(member)?.Items
                              ?? new List<GameData.Resources.Inventory.RuntimeItem>()) {
-                    items.Add(s.ObjectInfo?.GetById(item.ObjectId)?.Name ?? item.ObjectId.ToString());
+                    items.Add((s.ObjectInfo?.GetById(item.ObjectId)?.Name ?? item.ObjectId.ToString()) + " x" + item.Variable);
                 }
-                members.Add(new Dictionary<string, object> { ["character"] = (int)member, ["items"] = items });
+                var conditions = new Dictionary<string, object>();
+                GameData.Resources.Character.ActorConditions held = s.ConditionsOf(member);
+                foreach (GameData.ActorCondition c in System.Enum.GetValues(typeof(GameData.ActorCondition))) {
+                    if (held != null && held[c] > 0) conditions[c.ToString()] = held[c];
+                }
+                members.Add(new Dictionary<string, object> { ["character"] = (int)member, ["items"] = items,
+                    ["health"] = s.PeekEffectiveStat(member, GameData.ActorAttribute.Health),
+                    ["stamina"] = s.PeekEffectiveStat(member, GameData.ActorAttribute.Stamina),
+                    ["conditions"] = conditions });
             }
             return Ok(new Dictionary<string, object> { ["gold"] = s.PartyGold, ["members"] = members });
         }

@@ -265,6 +265,9 @@ namespace BakAgain.World {
         /// <summary>Whether this zone is an underground one (<c>g_game_mode == 2</c>).</summary>
         public bool Underground => _underground;
 
+        /// <summary>The collision world the step gate probes — for the dev hook's path query only.</summary>
+        internal ProximityWorld Collision => _collision;
+
         /// <summary>
         /// A step a hotspot pass is turning back, held open for the pass to finish on its own time.
         /// </summary>
