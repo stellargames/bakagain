@@ -1834,6 +1834,33 @@ namespace BakAgain.UI.Spells {
         /// <summary>A body line of the info panel, for the overflow report's edge check.</summary>
         private const string InfoLineClass = "cast-info-body";
 
+#if UNITY_EDITOR || ENABLE_PROFILER
+        /// <summary>Dev builds only, for the combat bot: the top-left screen pixel of a drawn spell
+        /// symbol (spellId >= 0) or of the ring position for a power (spellId < 0); null if neither is up.
+        /// Inverts <see cref="CanonicalConversion.ScreenToCanonical"/>, which is affine, from three probes.</summary>
+        internal (int X, int Y)? HarnessPixel(int spellId, int power) {
+            Vector2? at = null;
+            if (spellId >= 0) {
+                foreach ((int x, int y, int id) in _drawnSymbols) {
+                    if (id == spellId) at = new Vector2(x, y);
+                }
+            } else if (_ring?.Positions != null) {
+                int i = CastRingLayout.PositionForPower(power);
+                if (i >= 0 && i < _ring.Positions.Count) at = new Vector2(_ring.Positions[i].X, _ring.Positions[i].Y);
+            }
+            if (at is not Vector2 c) return null;
+            var size = new Vector2(Screen.width, Screen.height);
+            VisualElement stage = Stage();
+            Vector2 o = CanonicalConversion.ScreenToCanonical(Vector2.zero, size, stage);
+            Vector2 ex = CanonicalConversion.ScreenToCanonical(new Vector2(1000, 0), size, stage) - o;
+            Vector2 ey = CanonicalConversion.ScreenToCanonical(new Vector2(0, 1000), size, stage) - o;
+            float det = ex.x * ey.y - ex.y * ey.x;
+            Vector2 d = c - o;
+            float sx = 1000 * (d.x * ey.y - d.y * ey.x) / det, sy = 1000 * (ex.x * d.y - ex.y * d.x) / det;
+            return (Mathf.RoundToInt(sx), Mathf.RoundToInt(Screen.height - sy));
+        }
+#endif
+
         private VisualElement Stage() {
             if (EnhancedApplied) {
                 return _enhanced.RingSheet;

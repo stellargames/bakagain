@@ -1478,6 +1478,71 @@ namespace BakAgain.Combat {
             var d = new Combatant { Health = 9999, Stamina = 9999 };
             return (chance, MeleeExchange.Resolve(a, d, swing, guard, _ => 0).Damage);
         }
+
+        /// <summary>Dev builds only, for the combat bot: the spells this party member can cast right
+        /// now, with the power band <see cref="GameData.Resources.Spells.SpellCasting"/> allows.</summary>
+        /// <remarks>ponytail: zone kind and game time are left out of the context, so an enclosed
+        /// zone's Skyfire ban and Stardusk's hours are not seen; the bot's click then does nothing
+        /// and it falls back to Defend.</remarks>
+        internal List<(int Id, string Name, int Min, int Max)> HarnessCastableSpells(Combatant c) {
+            var all = new List<(int, string, int, int)>();
+            if (c == null || !c.IsPartyMember || Spells?.Spells == null || _session == null) {
+                return all;
+            }
+            var context = new GameData.Resources.Spells.SpellCastContext {
+                Chapter = _session.Chapter, KnownSpells = _session.KnownSpellsOf(c.ClassId),
+                Inventory = PackOf(c), HealthStaminaPool = c.Health + c.Stamina,
+                CombatActorCount = Encounter?.Party.Count ?? 0,
+            };
+            foreach (KeyValuePair<int, GameData.Resources.Spells.Spell> kv in Spells.Spells) {
+                if (GameData.Resources.Spells.SpellCasting.IsCastable(kv.Key, kv.Value, context)) {
+                    GameData.Resources.Spells.PowerRange band =
+                        GameData.Resources.Spells.SpellCasting.GetPowerRange(kv.Value, context);
+                    all.Add((kv.Key, kv.Value.Name, band.Minimum, band.Maximum));
+                }
+            }
+            return all;
+        }
+
+        /// <summary>Dev builds only: a cast's true hit chance, the damage it lands at this power, and
+        /// whether it freezes the target -- what <see cref="ResolveCast"/> would do, without doing it.
+        /// </summary>
+        internal (int Chance, int Damage, bool Freezes) HarnessCastOdds(Combatant caster, Combatant target,
+            int spellId, int power) {
+            if (Spells?.Spells == null || !Spells.Spells.TryGetValue(spellId,
+                    out GameData.Resources.Spells.Spell spell) || target == null) {
+                return (0, 0, false);
+            }
+            int chance = !GameData.Resources.Spells.SpellHitResolution.CanMiss(spell.TargetingType, false, true)
+                ? 100
+                : CombatFormulas.RangedHitChance(StatValue(StatsFor(caster), ActorAttribute.AccuracyCasting),
+                    CombatGrid.ChebyshevDistance(caster.X, caster.Y, target.X, target.Y),
+                    GameData.Resources.Spells.SpellHitResolution.AmmunitionBonus);
+            int cost = GameData.Resources.Spells.SpellCostModifiers.Effective(power, SurchargeNextCast,
+                targetIsWeak: TargetIsVulnerableTo(target, spellId));
+            int magnitude = GameData.Resources.Spells.SpellEffectMagnitude.Calculate(spell, spellId, cost,
+                targetHasMetalGear: HasMetalGear(target));
+            if (GameData.Resources.Spells.SpellPerSpellHandlers.ZeroesMagnitude(spellId,
+                    targetIsBlackSlayer: target.ClassId == (int)GameData.Resources.World.CreatureType.BlackSlayer)
+                || GameData.Resources.Spells.SpellCastTail.ZeroesItsOwnMagnitude(spellId)
+                || GameData.Resources.Spells.SpellCastTail.DeliveryFor(spell.TargetingType)
+                    == GameData.Resources.Spells.SpellCastTail.Delivery.Type2Routine) {
+                magnitude = 0;
+            }
+            int damage = 0;
+            if (magnitude > 0) {
+                (bool weak, bool resists) = DamageAffinityOf(target, SpellDamageMask);
+                damage = CombatFormulas.ApplyDamage(magnitude, 9999, 9999, immune: false, applyArmor: false,
+                    armorRating: 0, absorbPool: AbsorbPoolOf(target), fromDirectAttack: true,
+                    negated: DamageNegatedFor(target), weakToDamageType: weak, resistsDamageType: resists,
+                    _ => 0).DamageDealt;
+            }
+            bool freezes = GameData.Resources.Spells.SpellCastTail.HookFor(spellId)
+                    == GameData.Resources.Spells.SpellCastTail.PostAnimationHook.RegisterGriefOfAThousandNights
+                && !TargetResists(target, spellId)
+                && GameData.Resources.Spells.SpellPerSpellHandlers.GriefAffects(target.ClassId);
+            return (chance, damage, freezes);
+        }
 #endif
 
         /// <summary>Where a move to (col, row) would walk; not allowed when it cannot arrive.</summary>

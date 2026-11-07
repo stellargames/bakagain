@@ -64,6 +64,9 @@ namespace BakAgain.Testing {
                     return a.Length >= 3 && int.TryParse(a[1], out int px) && int.TryParse(a[2], out int py)
                         ? Path(px, py, a.Length > 3 && int.TryParse(a[3], out int cap) ? cap : 6000, a.Skip(4))
                         : Refuse("usage: path <x> <y> [maxNodes] [avoid x0,x1,y0,y1 ...]");
+                case "castpx":
+                    return a.Length == 3 && int.TryParse(a[1], out int sid) && int.TryParse(a[2], out int pw)
+                        ? CastPixel(sid, pw) : Refuse("usage: castpx <spellId|-1> <power>");
                 case "combatant": return a.Length == 2 ? CombatantAt(a[1]) : Refuse("usage: combatant <letter|p<slot>>");
                 default: return Refuse("unknown query " + a[0]);
             }
@@ -183,11 +186,31 @@ namespace BakAgain.Testing {
                 }
             }
             var stones = new Dictionary<string, object>();
+            var why = new Dictionary<string, object>();
             foreach (KeyValuePair<CombatCommands.Command, ActionAvailability> kv in cr.AvailabilityFor(hero)) {
                 stones[kv.Key.ToString()] = kv.Value.Enabled;
+                if (!kv.Value.Enabled) why[kv.Key.ToString()] = kv.Value.ReasonKey;
+            }
+            // Each castable spell with, per living foe, {chance, damage, freezes} at every power in its band.
+            var spells = new List<object>();
+            foreach ((int id, string name, int min, int max) in cr.HarnessCastableSpells(hero)) {
+                var at = new Dictionary<string, object>();
+                foreach (Combatant f in e.Enemies) {
+                    if (f == null || f.IsDead) continue;
+                    var byPower = new List<object>();
+                    for (int power = min; power <= max; power++) {
+                        (int chance, int damage, bool freezes) = cr.HarnessCastOdds(hero, f, id, power);
+                        byPower.Add(new Dictionary<string, object> {
+                            ["power"] = power, ["chance"] = chance, ["damage"] = damage, ["freezes"] = freezes });
+                    }
+                    at[Who(e, f)] = byPower;
+                }
+                spells.Add(new Dictionary<string, object> {
+                    ["id"] = id, ["name"] = name, ["min"] = min, ["max"] = max, ["vs"] = at });
             }
             return Ok(new Dictionary<string, object> {
-                ["hero"] = Body(hero), ["party"] = party, ["foes"] = foes, ["moves"] = moves, ["stones"] = stones });
+                ["hero"] = Body(hero), ["party"] = party, ["foes"] = foes, ["moves"] = moves, ["stones"] = stones,
+                ["why"] = why, ["spells"] = spells });
         }
 
         private static Dictionary<string, object> Describe(CombatEncounter e, Combatant c, string side) =>
@@ -371,6 +394,15 @@ namespace BakAgain.Testing {
         private static string Cell(int x, int y) {
             if (Encounter(out string refusal) == null) return Refuse(refusal);
             return Hotspots().CellCentreWorld(x, y) is Vector3 w ? Pixel(w) : Refuse($"no cell {x},{y}");
+        }
+
+        /// <summary>Where to click on the open cast screen: a spell's symbol, or (spellId -1) a power's gem.</summary>
+        private static string CastPixel(int spellId, int power) {
+            UI.Spells.CastScreen cast = UnityEngine.Object.FindAnyObjectByType<UI.Spells.CastScreen>();
+            if (cast == null || !cast.isActiveAndEnabled) return Refuse("no cast screen");
+            return cast.HarnessPixel(spellId, power) is (int x, int y)
+                ? Ok(new Dictionary<string, object> { ["x"] = x, ["y"] = y })
+                : Refuse(spellId >= 0 ? $"spell {spellId} is not drawn" : $"no ring position for power {power}");
         }
 
         private static string CombatantAt(string who) {
