@@ -48,6 +48,7 @@ namespace BakAgain.Testing {
                     ["width"] = Screen.width, ["height"] = Screen.height, ["uiScale"] = UiScale() });
                 case "screen": return Screen_();
                 case "combat": return Combat();
+                case "options": return Options();
                 case "log": return Log();
                 case "travel": return Travel();
                 case "party": return Party();
@@ -123,6 +124,70 @@ namespace BakAgain.Testing {
             foreach (Combatant c in e.Party) all.Add(Describe(e, c, "party"));
             foreach (Combatant c in e.Enemies) all.Add(Describe(e, c, "foe"));
             return Ok(new Dictionary<string, object> { ["turn"] = Who(e, e.Current), ["combatants"] = all });
+        }
+
+        /// <summary>
+        /// What the hero whose turn it is can do, for the combat bot: each living foe's true thrust and
+        /// swing odds (and whether it is in reach), each foe's odds against each hero, the cells a move
+        /// can reach, and which stones are lit. Hidden numbers included: the bot is a test driver.
+        /// </summary>
+        private static string Options() {
+            CombatEncounter e = Encounter(out string refusal);
+            if (e == null) return Refuse(refusal);
+            BakAgain.Combat.CombatRuntime cr = Hotspots().Combat;
+            Combatant hero = e.Current;
+            if (hero == null || !hero.IsPartyMember || hero.IsDead) return Refuse("not a party turn");
+            int Max(Combatant c, GameData.ActorAttribute a) {
+                GameData.Resources.Character.ActorStat[] st = cr.StatsFor(c);
+                return st != null && (int)a < st.Length && st[(int)a] != null ? st[(int)a].Max : 0;
+            }
+            int Base(Combatant c, GameData.ActorAttribute a) {
+                GameData.Resources.Character.ActorStat[] st = cr.StatsFor(c);
+                return st != null && (int)a < st.Length && st[(int)a] != null ? st[(int)a].Base : 0;
+            }
+            object Odds(Combatant from, Combatant to, CombatActionDispatch.MeleeAttack k) {
+                (int chance, int damage) = cr.HarnessMeleeOdds(from, to, k);
+                return new Dictionary<string, object> { ["chance"] = chance, ["damage"] = damage };
+            }
+            Dictionary<string, object> Body(Combatant c) => new() {
+                ["who"] = Who(e, c), ["x"] = c.X, ["y"] = c.Y, ["health"] = c.Health, ["stamina"] = c.Stamina,
+                ["maxHealth"] = Max(c, GameData.ActorAttribute.Health),
+                ["maxStamina"] = Max(c, GameData.ActorAttribute.Stamina), ["speed"] = c.Speed,
+                ["casting"] = Base(c, GameData.ActorAttribute.AccuracyCasting) };
+            var foes = new List<object>();
+            foreach (Combatant f in e.Enemies) {
+                if (f == null || f.IsDead) continue;
+                Dictionary<string, object> d = Body(f);
+                IReadOnlyList<(int X, int Y)> path = cr.ForecastThrust(hero, f);
+                d["reach"] = path == null ? -1 : path.Count - 1;
+                d["beside"] = CombatGrid.OrthogonallyAdjacent(hero.X, hero.Y, f.X, f.Y);
+                d["thrust"] = Odds(hero, f, CombatActionDispatch.MeleeAttack.Thrust);
+                d["swing"] = Odds(hero, f, CombatActionDispatch.MeleeAttack.Swing);
+                var vs = new Dictionary<string, object>();
+                foreach (Combatant p in e.Party) {
+                    if (p != null && !p.IsDead) vs[Who(e, p)] = Odds(f, p, CombatActionDispatch.MeleeAttack.Thrust);
+                }
+                d["vs"] = vs;
+                foes.Add(d);
+            }
+            var party = new List<object>();
+            foreach (Combatant p in e.Party) {
+                if (p != null && !p.IsDead) party.Add(Body(p));
+            }
+            var moves = new List<object>();
+            for (int x = 0; x < CombatGrid.Width; x++) {
+                for (int y = 0; y < CombatGrid.Height; y++) {
+                    if ((x, y) == (hero.X, hero.Y)) continue;
+                    IReadOnlyList<(int X, int Y)> walk = cr.ForecastWalk(hero, x, y);
+                    if (walk != null && walk.Count > 1 && walk[walk.Count - 1] == (x, y)) moves.Add(new[] { x, y });
+                }
+            }
+            var stones = new Dictionary<string, object>();
+            foreach (KeyValuePair<CombatCommands.Command, ActionAvailability> kv in cr.AvailabilityFor(hero)) {
+                stones[kv.Key.ToString()] = kv.Value.Enabled;
+            }
+            return Ok(new Dictionary<string, object> {
+                ["hero"] = Body(hero), ["party"] = party, ["foes"] = foes, ["moves"] = moves, ["stones"] = stones });
         }
 
         private static Dictionary<string, object> Describe(CombatEncounter e, Combatant c, string side) =>
