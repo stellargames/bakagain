@@ -5228,6 +5228,13 @@ using GameData.Resources.Scene;
             }
         }
 
+#if UNITY_EDITOR || ENABLE_PROFILER
+        /// <summary>Dev builds only, for the combat bot: whether a spell of this targeting type may be aimed
+        /// at this target now -- the click's own rule, line of fire included.</summary>
+        internal bool HarnessSpellAimTakes(Combatant acting, Combatant target, int targetingType) =>
+            Combat?.Encounter is { } fight && SpellTargetIsValid(fight, acting, targetingType, target);
+#endif
+
         /// <summary>Whether an armed click would take this target: the shot's tests, or the spell's aim.</summary>
         private bool ArmedAimTakes(GameData.Resources.Combat.CombatEncounter fight, Combatant acting,
             Combatant target, bool canShoot) {

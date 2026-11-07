@@ -195,8 +195,9 @@ namespace BakAgain.Testing {
             var spells = new List<object>();
             foreach ((int id, string name, int min, int max) in cr.HarnessCastableSpells(hero)) {
                 var at = new Dictionary<string, object>();
+                int targeting = cr.Spells.Spells[id].TargetingType;
                 foreach (Combatant f in e.Enemies) {
-                    if (f == null || f.IsDead) continue;
+                    if (f == null || f.IsDead || !Hotspots().HarnessSpellAimTakes(hero, f, targeting)) continue;
                     var byPower = new List<object>();
                     for (int power = min; power <= max; power++) {
                         (int chance, int damage, bool freezes) = cr.HarnessCastOdds(hero, f, id, power);
@@ -278,7 +279,10 @@ namespace BakAgain.Testing {
                     bool open = true;
                     for (int k = 0; k < subs && open; k++) {
                         if (k > 0) mv.Collision.BuildCandidates(nx, ny, mv.DetailLevel);
-                        open = mv.Collision.ProbeWalkable(nx, ny, yaw, sub, out _, out _);
+                        // A pit is walkable on purpose, and falling in ends the game (PitDescent): never plan
+                        // through one -- the run's party went down a sewer shaft at (708000,730400).
+                        open = mv.Collision.ProbeWalkable(nx, ny, yaw, sub, out int kind, out _)
+                            && kind != GameData.Resources.World.PitDescent.PitTerrainKind;
                         nx += dx; ny += dy;
                     }
                     if (subs > 1) mv.Collision.BuildCandidates(wx, wy, mv.DetailLevel);
