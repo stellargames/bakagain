@@ -2734,10 +2734,14 @@ using GameData.Resources.Scene;
                     meleeMovePattern: monster.AiPatterns?.MeleeMove ?? 0,
                     poolPercent: PoolPercentOf(mine));
             }
-            if (monster == null || _monsterStats == null
+            if (monster == null) {
+                return default;
+            }
+            if (_monsterStats == null
                 || !_monsterStats.TryGetValue(monster.ClassId,
                     out GameData.Resources.Monster.MonsterStats stats)) {
-                return default;
+                return TemplatelessProfile(monster, Combat?.StatsFor(monster), Combat?.IsSummoned(monster) ?? false,
+                    (Combat?.CanShoot(monster) ?? false) || monster.ClassId == ShootsWithoutAPackClass);
             }
 
             GameData.Resources.Character.ActorStat[] live = Combat.StatsFor(monster);
@@ -2898,6 +2902,33 @@ using GameData.Resources.Scene;
             GameData.Resources.Character.ActorStat stat =
                 live != null && (int)attribute < live.Length ? live[(int)attribute] : null;
             return stat != null && stat.Max > 0 ? stat.Base * 100 / stat.Max : 100;
+        }
+
+        /// <summary>
+        /// The profile of a creature with no MONST file -- Rowe's Barn's Nago is type 63, named in MNAMES
+        /// with no MONST63.DAT -- from its own live stats, which is all the original reads at this point:
+        /// stat 7 for the cast turn (combatenc_actor_can_cast_spells, CBENC.C:546), stat 5 for the
+        /// crossbow turn (CBENC.C:507). It was an empty profile, so Nago never cast (TASK-1062).
+        /// </summary>
+        /// <param name="carriesAShot">Quarrels and an intact crossbow, or creature 0x1a (CBENC.C:512-514).</param>
+        internal static BakAgain.Combat.MonsterTurnResolver.Profile TemplatelessProfile(Combatant monster,
+            GameData.Resources.Character.ActorStat[] live, bool summoned, bool carriesAShot) {
+            int casting = StatBase(live, GameData.ActorAttribute.AccuracyCasting);
+            int crossbow = StatBase(live, GameData.ActorAttribute.AccuracyCrossbow);
+            return new BakAgain.Combat.MonsterTurnResolver.Profile(
+                // ponytail: morale 0 (never routs), as the template path's summon case. The original reads the
+                // actor's saved inner->morale (CBENC.C:649); Nago's is 0. Read the saved byte if a templateless
+                // creature that routs turns up.
+                0, PercentOf(live, GameData.ActorAttribute.Stamina),
+                canCastSpells: !summoned && casting > 0,
+                canShoot: crossbow > 0 && carriesAShot,
+                spellcastPattern: monster.AiPatterns?.Spellcast ?? 0,
+                crossbowAccuracy: crossbow,
+                healthPercent: PercentOf(live, GameData.ActorAttribute.Health),
+                castingSkill: casting,
+                crossbowPattern: monster.AiPatterns?.Crossbow ?? 0,
+                meleeMovePattern: monster.AiPatterns?.MeleeMove ?? 0,
+                poolPercent: PoolPercentOf(live));
         }
 
         /// <summary>The AI that plays the enemy side.</summary>

@@ -75,6 +75,15 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
             return stats;
         }
 
+        /// <summary>The fixture's monster: a plain melee creature. Creature 12 has no MONST loaded here, so
+        /// its live stats ARE its profile (TASK-1062) -- a casting or crossbow stat would make it cast or shoot.</summary>
+        private static ActorStat[] MonsterBlock(byte health = 40) {
+            ActorStat[] stats = StatBlock(health);
+            stats[(int)ActorAttribute.AccuracyCasting] = new ActorStat { Base = 0, Max = 99 };
+            stats[(int)ActorAttribute.AccuracyCrossbow] = new ActorStat { Base = 0, Max = 99 };
+            return stats;
+        }
+
         private sealed class Rig {
             public HotspotService Service;
             public GameSession Session;
@@ -94,7 +103,7 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
             var session = new GameSession();
             session.SetActorStatsForTest(0, StatBlock());
             session.SetActiveParty(1, new byte[] { 0 });
-            session.SetRosterActorForTest(RosterSlot, StatBlock(), 12, gridX: 5, gridY: 5);
+            session.SetRosterActorForTest(RosterSlot, MonsterBlock(), 12, gridX: 5, gridY: 5);
             session.SetEncounterRosterForTest((int)EncounterNumber, new short[] { RosterSlot });
 
             var rig = new Rig { Session = session };
@@ -1547,7 +1556,7 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
         var session = new GameSession();
         session.SetActorStatsForTest(0, StatBlock());
         session.SetActiveParty(1, new byte[] { 0 });
-        session.SetRosterActorForTest(RosterSlot, StatBlock(health), 12, gridX: 5, gridY: 5, dead: dead);
+        session.SetRosterActorForTest(RosterSlot, MonsterBlock(health), 12, gridX: 5, gridY: 5, dead: dead);
         session.SetEncounterRosterForTest((int)EncounterNumber, new short[] { RosterSlot });
         session.PositionX = (int)WorldPlacement.CornerOf(2, 0);
         session.PositionY = (int)WorldPlacement.CornerOf(3, 0);
@@ -1776,7 +1785,7 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
         var session = new GameSession();
         session.SetActorStatsForTest(0, StatBlock());
         session.SetActiveParty(1, new byte[] { 0 });
-        session.SetRosterActorForTest(RosterSlot, StatBlock(), 12, gridX: 5, gridY: 5);
+        session.SetRosterActorForTest(RosterSlot, MonsterBlock(), 12, gridX: 5, gridY: 5);
         session.SetEncounterRosterForTest((int)EncounterNumber, new short[] { RosterSlot });
 
         var rig = new Rig { Session = session };
@@ -1848,7 +1857,7 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
         var session = new GameSession();
         session.SetActorStatsForTest(0, StatBlock());
         session.SetActiveParty(1, new byte[] { 0 });
-        session.SetRosterActorForTest(RosterSlot, StatBlock(), 12, gridX: 5, gridY: 5);
+        session.SetRosterActorForTest(RosterSlot, MonsterBlock(), 12, gridX: 5, gridY: 5);
         session.SetEncounterRosterForTest((int)encounter, new short[] { RosterSlot });
 
         var rig = new Rig { Session = session };

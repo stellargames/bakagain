@@ -361,7 +361,11 @@ namespace BakAgain.Combat {
                         Health = StatValue(stats, ActorAttribute.Health),
                         Stamina = StatValue(stats, ActorAttribute.Stamina),
                         Speed = StatValue(stats, ActorAttribute.Speed),
-                        Flags = CombatantFlags.Ready,
+                        // *** A SAVED CORPSE IS FIELDED DEAD (TASK-1061). *** The original copies the
+                        // whole saved CombatantState into the arena (CBENC.C:78-79), so an enemy killed
+                        // in an earlier attempt keeps CAF_DEAD: inert, and not needed for the win.
+                        Flags = CombatantFlags.Ready | (_session.RosterActorIsFlaggedDead(actorSlot)
+                            ? CombatantFlags.Dead : CombatantFlags.None),
                         // The rows this actor walks, as rolled for it (TASK-528).
                         AiPatterns = _session.AiPatternsOf(actorSlot),
                     };
@@ -1459,6 +1463,22 @@ namespace BakAgain.Combat {
             return new CombatForecast(action, slot, path, pips, revealed ? chance : null, low, high,
                 revealed ? damage : null, stamina, health, 0, true, true, false, "");
         }
+
+#if UNITY_EDITOR || ENABLE_PROFILER
+        /// <summary>Dev builds only, for the harness's combat bot: the TRUE hit chance and the damage a
+        /// landed blow does, revealed or not -- what <see cref="ForecastMelee"/> computes and hides.</summary>
+        internal (int Chance, int Damage) HarnessMeleeOdds(Combatant attacker, Combatant target,
+            CombatActionDispatch.MeleeAttack attack) {
+            (MeleeExchange.Attacker swing, MeleeExchange.Defender guard, _, _) =
+                MeleeSides(attacker, target, attack, 0, peek: true);
+            int chance = CombatFormulas.MeleeHitChance(swing.AccuracyMelee, swing.HasWeapon,
+                swing.WeaponAccuracy, swing.ClassGroupModifier, swing.WeaponConditionPercent,
+                swing.WeaponFlags, guard.DefenseRating);
+            var a = new Combatant { Health = attacker.Health, Stamina = attacker.Stamina };
+            var d = new Combatant { Health = 9999, Stamina = 9999 };
+            return (chance, MeleeExchange.Resolve(a, d, swing, guard, _ => 0).Damage);
+        }
+#endif
 
         /// <summary>Where a move to (col, row) would walk; not allowed when it cannot arrive.</summary>
         public CombatForecast ForecastMove(Combatant acting, int col, int row) {
