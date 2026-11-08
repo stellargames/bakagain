@@ -78,6 +78,64 @@ public class TakeAllTests {
         Assert.Empty(a.Items);
     }
 
+    // ---- who gains (TASK-1048) ----------------------------------------------------------------
+
+    private const byte Armour = 130, Sword = 131, Scroll = 132;
+    private const ushort Worn = (ushort)ItemFlags.Equipped;
+
+    private static ObjectInfoSet Gear() {
+        var list = Objs().Items.ToList();
+        list.Add(new ObjectInfo("a") { Number = Armour, Name = "Armour", InventorySlots = 1, ObjectType = ObjectType.Armor });
+        list.Add(new ObjectInfo("s") { Number = Sword, Name = "Sword", InventorySlots = 1, ObjectType = ObjectType.Sword });
+        list.Add(new ObjectInfo("c") { Number = Scroll, Name = "Scroll", InventorySlots = 1, ObjectType = ObjectType.MagicalScroll });
+        return new ObjectInfoSet("O", list);
+    }
+
+    // The 11-06 run's armour: Locklear 17%, Owyn (a caster) 50%, Gorath 67%; here Owyn's pack is the emptiest.
+    private static (RuntimeContainer Locklear, RuntimeContainer Owyn, RuntimeContainer Gorath) Party() => (
+        C(SaveGameContainerType.Inventory, new RuntimeItem(Armour, 17, Worn), new RuntimeItem(Sword, 90, Worn),
+            new RuntimeItem(Trinket, 1, 0), new RuntimeItem(Trinket + 1, 1, 0), new RuntimeItem(Trinket + 2, 1, 0)),
+        C(SaveGameContainerType.Inventory, new RuntimeItem(Armour, 50, Worn),
+            new RuntimeItem(Trinket + 3, 1, 0), new RuntimeItem(Trinket + 4, 1, 0)),
+        C(SaveGameContainerType.Inventory, new RuntimeItem(Armour, 67, Worn), new RuntimeItem(Sword, 40, Worn),
+            new RuntimeItem(Trinket + 5, 1, 0), new RuntimeItem(Trinket + 6, 1, 0), new RuntimeItem(Trinket + 7, 1, 0),
+            new RuntimeItem(Trinket + 8, 1, 0), new RuntimeItem(Trinket + 9, 1, 0), new RuntimeItem(Trinket + 10, 1, 0)));
+
+    private static int TakeAll(RuntimeContainer chest, RuntimeContainer[] party, RuntimeContainer caster) {
+        int gold = 0;
+        return InventoryTransfer.TakeAll(chest, party, Gear(), ref gold, isCaster: m => m == caster);
+    }
+
+    [Fact] public void ArmourGoesToWhoeverWearsTheWorstArmour_NotTheEmptiestPack() {
+        var (locklear, owyn, gorath) = Party();
+        var chest = C(SaveGameContainerType.Chest, new RuntimeItem(Armour, 53, 0));
+        Assert.Equal(0, TakeAll(chest, new[] { locklear, owyn, gorath }, owyn));
+        Assert.Contains(locklear.Items, i => i.ObjectId == Armour && i.Variable == 53);
+    }
+
+    [Fact] public void ASwordGoesToTheNonCasterWithTheWorseSword() {
+        var (locklear, owyn, gorath) = Party();
+        var chest = C(SaveGameContainerType.Chest, new RuntimeItem(Sword, 88, 0));
+        Assert.Equal(0, TakeAll(chest, new[] { locklear, owyn, gorath }, owyn));
+        Assert.Contains(gorath.Items, i => i.ObjectId == Sword && i.Variable == 88);
+    }
+
+    [Fact] public void AnEmptySlotGainsMostOfAll() {
+        var (locklear, owyn, gorath) = Party();
+        gorath.Items.RemoveAll(i => i.ObjectId == Sword);
+        var chest = C(SaveGameContainerType.Chest, new RuntimeItem(Sword, 20, 0));
+        Assert.Equal(0, TakeAll(chest, new[] { locklear, owyn, gorath }, owyn));
+        Assert.Contains(gorath.Items, i => i.ObjectId == Sword && i.Variable == 20);
+    }
+
+    [Fact] public void AScrollGoesToTheCaster_EvenWithLessRoom() {
+        var (locklear, owyn, gorath) = Party();
+        for (int t = 11; t < 19; t++) owyn.Items.Add(new RuntimeItem((byte)(Trinket + t), 1, 0));
+        var chest = C(SaveGameContainerType.Chest, new RuntimeItem(Scroll, 1, 0));
+        Assert.Equal(0, TakeAll(chest, new[] { locklear, owyn, gorath }, owyn));
+        Assert.Contains(owyn.Items, i => i.ObjectId == Scroll);
+    }
+
     [Fact] public void WhatNobodyCanCarryStaysInTheContainer() {
         var chest = C(SaveGameContainerType.Chest, new RuntimeItem(Trinket + 22, 1, 0), new RuntimeItem(53, 1, 0));
         RuntimeContainer a = Pack(20), b = Pack(20);

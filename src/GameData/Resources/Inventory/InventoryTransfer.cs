@@ -311,7 +311,8 @@ public static class InventoryTransfer {
     /// <remarks>
     /// A stack of two or more is Shared (<see cref="Distribute"/>, the picker's Share). Anything else
     /// — and a stack Share finds no room for — is the non-picker <see cref="Move"/> into the member
-    /// with the most free slots who has room for it, ties in roster order; with nobody, the first
+    /// who gains most from it (TASK-1048: a weapon or armour to whoever can wear it, an empty slot first,
+    /// then the worst-worn; a spell scroll to a caster), then the most free slots, ties in roster order; with nobody, the first
     /// member, so gold still becomes purse money and a key still goes on the ring. Food reaching a
     /// starving member is eaten, as on any take. The walk runs from the last item down because
     /// <see cref="RemoveAt"/> swaps the last item into the hole: what swaps in has already been tried.
@@ -333,11 +334,11 @@ public static class InventoryTransfer {
                 continue;
             }
             RuntimeContainer? to = null;
-            int mostFree = int.MinValue;
+            (int Gain, int Free) best = (int.MinValue, int.MinValue);
             foreach (RuntimeContainer m in members) {
                 if (m == null || !HasRoomFor(m, item, objects)) continue;
-                int free = FreeSlots(m, objects);
-                if (free > mostFree) { mostFree = free; to = m; }
+                (int Gain, int Free) score = (GainFor(m, item, objects, isCaster?.Invoke(m) ?? false), FreeSlots(m, objects));
+                if (score.CompareTo(best) > 0) { best = score; to = m; }
             }
             to ??= members[0];
             Result r = Move(source, i, to, objects, ref partyGold, isCaster?.Invoke(to) ?? false, sharedKeys);
@@ -348,6 +349,22 @@ public static class InventoryTransfer {
             }
         }
         return left;
+    }
+
+    // Who gains from an item, for Get all (TASK-1048): a weapon or armour the member can equip, most where
+    // that slot is empty, otherwise by how much better it is than what they wear (the condition percent);
+    // a spell scroll to a caster; anything else, and a member who cannot use it, gains nothing.
+    private static int GainFor(RuntimeContainer member, RuntimeItem item, ObjectInfoSet? objects, bool caster) {
+        ObjectType type = objects?.GetById(item.ObjectId)?.ObjectType ?? ObjectType.Misc;
+        if (type == ObjectType.MagicalScroll) {
+            return caster ? 1 : 0;
+        }
+        if (type is not (ObjectType.Sword or ObjectType.Crossbow or ObjectType.Staff or ObjectType.Armor)
+            || !InventoryEquip.CanEquipCategory(type, caster)) {
+            return 0;
+        }
+        int worn = InventoryEquip.FindEquippedIndex(member, type, objects);
+        return worn < 0 ? 1000 : 1 + 100 + item.Variable - member.Items[worn].Variable;
     }
 
     // The slot budget less every footprint CanFit counts.

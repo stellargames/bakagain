@@ -22,7 +22,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         private static readonly string[] Chrome =
             { "hotspot_2", "hotspot_3", "hotspot_4", "hotspot_32", "hotspot_34", "imagebutton_22", "imagebutton_1" };
         private static readonly Rect ItemBox = new(65f, 66f, 1470f, 726f);
-        private const byte Dagger = 90, Rock = 91, Rations = 92;
+        private const byte Dagger = 90, Rock = 91, Rations = 92, Armour = 93;
 
         private GameObject _go;
         private PanelSettings _panelSettings;
@@ -40,6 +40,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
                 new("dagger") { Number = Dagger, Name = "Rusty Dagger", InventorySlots = 1, MaxAmount = 1 },
                 new("rock") { Number = Rock, Name = "Rock", InventorySlots = 1, MaxAmount = 1 },
                 new("rations") { Number = Rations, Name = "Rations", InventorySlots = 1, MaxAmount = 30, Flags = (ObjectFlags)0x800 },
+                new("armour") { Number = Armour, Name = "Leather", InventorySlots = 1, MaxAmount = 1, ObjectType = GameData.ObjectType.Armor },
             }));
             _session.SetActiveParty(3, new byte[] { 0, 1, 2 });
             for (int i = 0; i < 3; i++) {
@@ -181,6 +182,24 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             }
             Assert.AreEqual(0, buyer.Invoke(_menu, new object[] { new RuntimeItem(Dagger, 1, 0) }),
                 "nobody has room: the first member, whose refusal plays");
+        }
+
+        [Test]
+        public void GetAllHandsArmourToWhoeverWearsTheWorst_NotTheEmptiestPack() {
+            // TASK-1048: a 53% armour went to Gorath (wearing 67%, most room) while Locklear wore 17%.
+            const ushort worn = (ushort)GameData.ItemFlags.Equipped;
+            _chest.Items.Clear();
+            _chest.Items.Add(new RuntimeItem(Armour, 53, 0));
+            _packs[0].Items.Add(new RuntimeItem(Armour, 17, worn));
+            _packs[0].Items.Add(new RuntimeItem(Rock, 1, 0));
+            _packs[1].Items.Add(new RuntimeItem(Armour, 50, worn));
+            _packs[1].Items.Add(new RuntimeItem(Rock, 1, 0));
+            _packs[2].Items.Add(new RuntimeItem(Armour, 67, worn));
+
+            Call("TakeAll");
+
+            Assert.IsEmpty(_chest.Items);
+            Assert.IsNotNull(_packs[0].Items.Find(i => i.ObjectId == Armour && i.Variable == 53), "to the 17% wearer");
         }
 
         [Test]
