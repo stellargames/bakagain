@@ -1,4 +1,5 @@
 namespace BakAgain.Tests.PlayMode.UI.Inventory {
+    using System.Collections;
     using System.Collections.Generic;
     using System.Reflection;
     using BakAgain.Core;
@@ -8,6 +9,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
     using GameData.Resources.Object;
     using NUnit.Framework;
     using UnityEngine;
+    using UnityEngine.TestTools;
     using UnityEngine.UIElements;
 
     /// <summary>
@@ -122,6 +124,21 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             Set("_inspectOpen", true);
             Call("SyncEnhancedChrome");
             Assert.AreEqual(string.Empty, Hint, "no 'Back to the pack'");
+        }
+
+        [UnityTest]
+        public IEnumerator AWheelScrollRenamesTheItemNowUnderTheStillPointer() {
+            // TASK-1045: the wheel moves the list under a pointer that does not move, so no
+            // PointerMoveEvent comes; the bar kept the name of the item that had been there.
+            _layout.SetHint("Quarrels");
+            var imgui = new Event { type = EventType.ScrollWheel, delta = new Vector2(0f, 3f), mousePosition = Vector2.zero };
+            using (WheelEvent evt = WheelEvent.GetPooled(imgui)) {
+                evt.target = _root;
+                _root.SendEvent(evt);
+            }
+            yield return null;
+            yield return null;
+            Assert.AreEqual("Rusty Dagger", Hint);
         }
 
         [Test]

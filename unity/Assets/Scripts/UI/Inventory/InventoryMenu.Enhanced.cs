@@ -70,6 +70,7 @@ namespace BakAgain.UI.Inventory {
         private const float WheelNotch = 120f; // world units per wheel step: about a third of a row
 
         private void OnShelfWheel(WheelEvent evt) {
+            RenameHoverAfterLayout(evt.mousePosition);
             if (_shelf == null || !_shelf.Scrolls || !_shelf.Contains(evt.mousePosition)) {
                 return;
             }
@@ -94,6 +95,19 @@ namespace BakAgain.UI.Inventory {
             if (EnhancedApplied && evt.pointerType == UnityEngine.UIElements.PointerType.mouse) {
                 _enhanced.SetHint(HoverNameAt(_stage.WorldToLocal(evt.position)));
             }
+        }
+
+        // A wheel scroll moves the list under a pointer that stays put, so no PointerMoveEvent re-reads the hint
+        // (TASK-1045). HoverNameAt picks, so it reads once the scroll's translate has been laid out, a frame on.
+        private void RenameHoverAfterLayout(Vector2 world) {
+            if (!EnhancedApplied || _stage == null) {
+                return;
+            }
+            _stage.schedule.Execute(() => {
+                if (EnhancedApplied && _stage != null) {
+                    _enhanced.SetHint(HoverNameAt(_stage.WorldToLocal(world)));
+                }
+            });
         }
 
         private void OnStageLeave(PointerLeaveEvent evt) {
