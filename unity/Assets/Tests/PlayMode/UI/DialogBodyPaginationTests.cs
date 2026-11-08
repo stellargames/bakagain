@@ -169,6 +169,45 @@ namespace BakAgain.Tests.PlayMode.UI {
             Assert.That(lastOfPage2, Does.Contain("back down the corridor"));
         }
 
+        // DIAL_Z13 16928 (Legacy10|SkipWait), the Blue Wheel Inn, verbatim.
+        private const string InnRecord =
+            "\tThe room was cramped.\n\tShrugging, @3 stepped over snoring bodies and selected a spot of floor "
+            + "which looked like it might be comfortable for the night, while @5 squeezed into a bed already "
+            + "occupied by three disheveled looking men.\n\t\"Ah, the romance of travelling,\" @3 said, with a "
+            + "chuckle. \"See you all in the morning.\"\n\tIn moments, they were all fast asleep...";
+
+        [UnityTest]
+        public IEnumerator TheBookFontFlagsALastPageThatStartsBeforeTheOriginals(
+            [Values(198f, 264f, ShortPanelHeight, 396f)] float height, [Values(700f, 900f, 1100f, 1300f)] float width) {
+            // TASK-1046: with the book font the inn record's last page began at "all in the morning.",
+            // text the original showed on its waited-for first page.
+            var lastStart = new Dictionary<bool, int>();
+            var flagged = new Dictionary<bool, bool>();
+            try {
+                foreach (bool book in new[] { false, true }) {
+                    BakAgain.UI.GameFonts.Build(bookFont: book);
+                    GameTextBlock body = null;
+                    yield return BuildAndFlow(result => body = result, height, null, InnRecord, width);
+                    body.Paginate = true;
+                    yield return null;
+                    while (body.LinesRemaining > 0) {
+                        Assert.IsFalse(body.LastPageCarriesEarlierText, "only the last page can");
+                        body.AdvancePage();
+                        yield return null;
+                    }
+                    lastStart[book] = body.PageStartChar;
+                    flagged[book] = body.LastPageCarriesEarlierText;
+                    Object.DestroyImmediate(_go);
+                    _go = null;
+                }
+            } finally {
+                BakAgain.UI.GameFonts.Build(BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.BookFont));
+            }
+            Assert.IsFalse(flagged[false], "GAME.FNT pages as the original does");
+            Assert.AreEqual(lastStart[true] < lastStart[false], flagged[true],
+                "flagged exactly when the book font's last page starts before the original's");
+        }
+
         // --- fixture --------------------------------------------------------------------------
 
         // The shipped row-2 dialog box: VGA (13, 11, 294, 101) -> canonical, field_7/field_8 = 3.
@@ -184,18 +223,19 @@ namespace BakAgain.Tests.PlayMode.UI {
         }
 
         private IEnumerator BuildAndFlow(System.Action<GameTextBlock> report,
-            float panelHeight = ShortPanelHeight, DialogStyle style = null) {
+            float panelHeight = ShortPanelHeight, DialogStyle style = null, string text = DwarfRecord,
+            float panelWidth = PanelWidth) {
             _go = new GameObject("DialogBodyPaginationUnderTest");
             var document = _go.AddComponent<UIDocument>();
             _panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
             document.panelSettings = _panelSettings;
 
             VisualElement panel = DialogPanelBuilder.BuildPanel(
-                new DialogEntry { Text = DwarfRecord, DialogType = DialogType.Normal },
+                new DialogEntry { Text = text, DialogType = DialogType.Normal },
                 style ?? BoxedStyle(), new DialogLayout(), new Color[256]);
             panel.style.left = 0f;
             panel.style.top = 0f;
-            panel.style.width = PanelWidth;
+            panel.style.width = panelWidth;
             panel.style.height = panelHeight;
             document.rootVisualElement.Add(panel);
 

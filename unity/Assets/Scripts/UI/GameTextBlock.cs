@@ -146,6 +146,16 @@ namespace BakAgain.UI {
         internal int LinesRemaining => _linesRemaining;
 
         /// <summary>
+        /// This page is the last and begins earlier in the text than the original's last page did: the
+        /// book font's wider words pushed text the original showed on an earlier, waited-for page onto
+        /// it (TASK-1046). Always false with GAME.FNT, whose wrap IS the original's.
+        /// </summary>
+        internal bool LastPageCarriesEarlierText { get; private set; }
+
+        /// <summary>Where in the text the page on screen begins (a character index).</summary>
+        internal int PageStartChar { get; private set; }
+
+        /// <summary>
         /// Turn to the next page: <c>i += g_wTextWrapLinesDrawn</c>, then re-render from line
         /// <c>i</c> (DIALOG.C:1371-1374).
         /// </summary>
@@ -294,6 +304,10 @@ namespace BakAgain.UI {
             }
             _linesDrawn = end - start;
             _linesRemaining = lines.Count - end;
+            PageStartChar = lines[start].Start;
+            LastPageCarriesEarlierText = GameFonts.IsBookFont && _paginate && fit != int.MaxValue
+                && _linesRemaining == 0 && start > 0
+                && lines[start].Start < LastPageStart(GameTextWrapper.Wrap(_text, maxWidth), fit);
 
             // A block that cannot page shows every line and lets the box cut the rest; say which
             // text lost lines (TASK-779). A paging block never loses any. Checked a moment LATER:
@@ -312,6 +326,22 @@ namespace BakAgain.UI {
                         }
                     }).StartingIn(OverflowSettleMs);
                 }
+            }
+        }
+
+        // Where the last page of `lines` begins, paged `fit` lines at a time with the no-orphan rule
+        // (TEXTWRAP.C:121), as Reflow and AdvancePage page them.
+        private static int LastPageStart(List<GameTextWrapper.Line> lines, int fit) {
+            int start = 0;
+            while (true) {
+                int end = Mathf.Min(lines.Count, start + fit);
+                if (lines.Count - end == 1 && end - start > 1) {
+                    end--;
+                }
+                if (end >= lines.Count) {
+                    return lines.Count == 0 ? 0 : lines[start].Start;
+                }
+                start = end;
             }
         }
 

@@ -2710,7 +2710,10 @@ namespace BakAgain.UI {
                         paged |= more;
                         // A SkipWait record's LAST page is not waited for (below), so a translation
                         // that needs a second page is never read: report it (TASK-779).
-                        if (more && (entry.Flags & DialogEntryFlags.SkipWait) != 0) {
+                        // English pages these records exactly as the original does, so only a
+                        // translation's extra page is news.
+                        if (more && (entry.Flags & DialogEntryFlags.SkipWait) != 0
+                            && !GameData.Resources.Text.UiTemplates.IsEnglish(GameData.Resources.Text.UiStrings.Catalog)) {
                             TextOverflowReport.Report(TextOverflowReport.UnreadPage, entry.Text,
                                 $"record {entry.Id} pages, and SkipWait does not wait for its last page");
                         }
@@ -2720,7 +2723,10 @@ namespace BakAgain.UI {
                         // Measured at LaMut's Blue Wheel Inn: "The room was cramped…" waited for a key,
                         // and its last page, "In moments, they were all fast asleep…", went straight
                         // into the night and stayed up over it (TASK-496).
-                        if (!more && (entry.Flags & DialogEntryFlags.SkipWait) != 0) {
+                        // Enhanced book font: a last page that begins before the original's carries text the
+                        // original waited on, so it is waited on too (TASK-1046).
+                        if (!more && (entry.Flags & DialogEntryFlags.SkipWait) != 0
+                            && !(body?.LastPageCarriesEarlierText ?? false)) {
                             keepPanel = true;
                             break;
                         }
@@ -2730,6 +2736,8 @@ namespace BakAgain.UI {
                         await WaitForDismiss(scrim, () => dismissed, cancellationToken,
                             more ? null : AutoDismissSecondsFor(entry, paged));
                         if (!more) {
+                            // A SkipWait last page waited on above still stays up, as the original's does.
+                            keepPanel = (entry.Flags & DialogEntryFlags.SkipWait) != 0;
                             break;
                         }
                         body.AdvancePage();
