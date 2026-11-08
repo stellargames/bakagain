@@ -160,6 +160,9 @@ namespace BakAgain.UI.Combat.Enhanced {
             Size(_peek, layout.PhonePeekWidthPt, -1);
             _peek.style.backgroundImage = EnhancedArt.Load("parchment");
             VisualElement peekBody = Box(null, "ec-phone-row");
+            // Taller than the capped peek, the body must overflow UPWARD (the peek's flex-end), so the
+            // newest log line stays in view; shrunk to the cap, its lines spilled off the bottom (TASK-1066).
+            peekBody.style.flexShrink = 0;
             _peek.Add(peekBody);
             _switchBox = Box("ec-phone-switch", "ec-phone-col");
             peekBody.Add(_switchBox);
