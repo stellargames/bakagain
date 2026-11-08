@@ -28,6 +28,8 @@ namespace BakAgain.UI.InputCore {
         // mirroring TryDetachModule's "keep trying" pattern for a resource that isn't guaranteed to
         // exist yet.
         private Keyboard _textInputKeyboard;
+        // Whether the platform's text input is switched on (TASK-1058).
+        private bool _textInputOn;
 
         // The DefaultInputActions is injected (DI-owned via SharedInputActions), not new'd. The scene
         // InputSystemUIInputModule keeps its own asset for pointer events.
@@ -184,6 +186,15 @@ namespace BakAgain.UI.InputCore {
             // byte-identical to before this change.
             ScreenInputLayer screenLayer = _commands.TopLayer as ScreenInputLayer;
             bool wantsText = screenLayer != null && screenLayer.Screen.WantsText;
+            // The Linux player sends no text at all until text input is switched on: X hands it the
+            // characters and its SDL layer drops them while TEXTINPUT is off, and only the legacy
+            // imeCompositionMode turns it on there (Keyboard.SetIMEEnabled does not; TASK-1058). On only
+            // while a text field wants it, so elsewhere letters stay keys and no IME window can open.
+            if (wantsText != _textInputOn) {
+                UnityEngine.Input.imeCompositionMode = wantsText ? IMECompositionMode.On : IMECompositionMode.Auto;
+                kb.SetIMEEnabled(wantsText);
+                _textInputOn = wantsText;
+            }
             bool shift = kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed;
             if (kb.tabKey.wasPressedThisFrame) {
                 _commands.MoveFocus(shift ? NavDirection.Previous : NavDirection.Next);

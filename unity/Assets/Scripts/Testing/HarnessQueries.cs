@@ -38,7 +38,34 @@ namespace BakAgain.Testing {
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void ClearOnPlaySessionStart() => Floats.Clear();
+        private static void ClearOnPlaySessionStart() { Floats.Clear(); TextEvents.Clear(); }
+
+        // Text events per device as the Input System saw them, before any game code: tells "the platform sent no
+        // text" apart from "the game dropped it" (TASK-1058).
+        private static readonly Dictionary<string, int> TextEvents = new();
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void CountTextEvents() {
+            UnityEngine.InputSystem.InputSystem.onEvent += (e, device) => {
+                if (e.type != UnityEngine.InputSystem.LowLevel.TextEvent.Type
+                    && e.type != UnityEngine.InputSystem.LowLevel.IMECompositionEvent.Type) return;
+                string key = (device?.name ?? "?") + (e.type == UnityEngine.InputSystem.LowLevel.TextEvent.Type ? "" : " ime");
+                TextEvents[key] = TextEvents.TryGetValue(key, out int n) ? n + 1 : 1;
+            };
+        }
+
+        private static string Keyboards() {
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            return Ok(new Dictionary<string, object> {
+                ["current"] = kb?.name,
+                ["keyboards"] = UnityEngine.InputSystem.InputSystem.devices
+                    .OfType<UnityEngine.InputSystem.Keyboard>().Select(k => k.name).ToList(),
+                ["text"] = TextEvents.ToDictionary(p => p.Key, p => (object)p.Value),
+                ["devices"] = UnityEngine.InputSystem.InputSystem.devices.Select(d => $"{d.deviceId}:{d.name}:{d.enabled}").ToList(),
+                ["unsupported"] = UnityEngine.InputSystem.InputSystem.GetUnsupportedDevices()
+                    .Select(d => $"{d.interfaceName}/{d.deviceClass}/{d.product}").ToList(),
+            });
+        }
 
         internal static string Answer(string line) {
             string[] a = (line ?? "").Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
@@ -68,6 +95,7 @@ namespace BakAgain.Testing {
                     return a.Length == 3 && int.TryParse(a[1], out int sid) && int.TryParse(a[2], out int pw)
                         ? CastPixel(sid, pw) : Refuse("usage: castpx <spellId|-1> <power>");
                 case "combatant": return a.Length == 2 ? CombatantAt(a[1]) : Refuse("usage: combatant <letter|p<slot>>");
+                case "keyboard": return Keyboards();
                 default: return Refuse("unknown query " + a[0]);
             }
         }

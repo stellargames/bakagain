@@ -209,5 +209,37 @@ namespace BakAgain.Tests.Editor.UI.InputCore {
                 adapter.Dispose();
             }
         }
+    
+        private sealed class TextScreen : IScreenInput {
+            public bool WantsText => true;
+            public bool OnDirection(NavDirection dir, bool ctrl) => false;
+            public bool OnTab(bool shift) => false;
+            public void OnText(char c) { }
+            public bool OnEdit(EditKey key) => false;
+            public void OnSubmit() { }
+            public void OnCancel() { }
+        }
+
+        // The Linux player drops every typed character until the legacy imeCompositionMode is On:
+        // its SDL layer gates text on it, and Keyboard.SetIMEEnabled does not reach it (TASK-1058).
+        [Test]
+        public void ATextScreenSwitchesTextInputOnAndLeavingItSwitchesItBack() {
+            InputSystem.AddDevice<Keyboard>();
+            var spy = new SpyCommands();
+            InputAdapter adapter = StartedAdapter(spy);
+            try {
+                adapter.Tick();
+                Assert.AreEqual(UnityEngine.IMECompositionMode.Auto, UnityEngine.Input.imeCompositionMode);
+                spy.TopLayer = new ScreenInputLayer("save", new TextScreen());
+                adapter.Tick();
+                Assert.AreEqual(UnityEngine.IMECompositionMode.On, UnityEngine.Input.imeCompositionMode);
+                spy.TopLayer = null;
+                adapter.Tick();
+                Assert.AreEqual(UnityEngine.IMECompositionMode.Auto, UnityEngine.Input.imeCompositionMode);
+            } finally {
+                adapter.Dispose();
+                UnityEngine.Input.imeCompositionMode = UnityEngine.IMECompositionMode.Auto;
+            }
+        }
     }
 }
