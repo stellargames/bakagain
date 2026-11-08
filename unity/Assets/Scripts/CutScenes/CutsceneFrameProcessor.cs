@@ -343,6 +343,20 @@ namespace BakAgain.CutScenes
             }
         }
 
+        private static async UniTask<int?> ImageCountAsync(string filename, IResourceCache cache)
+        {
+            if (!cache.Contains(filename))
+            {
+                return null;
+            }
+            try {
+                return (await cache.GetOrLoadAsync<GameData.Resources.Image.ImageSet>(filename))?.Images.Count;
+            }
+            catch (System.Exception) {
+                return null;
+            }
+        }
+
         private async UniTask PreLoadImageResourceAsync(CutsceneState state, int imageSlot, int imageNumber, IResourceCache cache)
         {
             // Guarded exactly as the editor variant above is. Preloading walks EVERY frame's commands
@@ -359,6 +373,12 @@ namespace BakAgain.CutScenes
 
             string imageKey = $"{imageDirName}#{imageNumber}";
             if (state.Resources.ContainsKey(imageKey))
+            {
+                return;
+            }
+            // Past the end of the file: the original draws nothing there (CutsceneState.IsPastTheEnd),
+            // and asking for it logs a not-found exception before the catch below sees it (TASK-1063).
+            if (await ImageCountAsync(imageDirName, cache) is int count && imageNumber >= count)
             {
                 return;
             }

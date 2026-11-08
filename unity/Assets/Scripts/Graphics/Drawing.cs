@@ -152,7 +152,9 @@ namespace BakAgain.Graphics {
 
             // If the destination rect is completely outside the clip area, skip drawing
             if (destinationRect.width <= 0 || destinationRect.height <= 0) {
-                Logger.LogWarning("Skipping image because it is outside the clip area");
+                // Normal, not a fault: a scrolling script draws its panorama's off-screen copy too
+                // (C12 draws C12B_SRL at x -1600), and the original's blit clips it silently.
+                Logger.LogDebug("Skipping image because it is outside the clip area");
 
                 return;
             }
@@ -209,7 +211,9 @@ namespace BakAgain.Graphics {
 
             // If the destination rect is completely outside the clip area, skip drawing
             if (destinationRect.width <= 0 || destinationRect.height <= 0) {
-                Logger.LogWarning("Skipping image because it is outside the clip area");
+                // Normal, not a fault: a scrolling script draws its panorama's off-screen copy too
+                // (C12 draws C12B_SRL at x -1600), and the original's blit clips it silently.
+                Logger.LogDebug("Skipping image because it is outside the clip area");
 
                 return;
             }

@@ -1,6 +1,7 @@
 namespace BakAgain.Tests.PlayMode.World {
-    using System.Collections.Generic;
+    using System.Text.RegularExpressions;
     using BakAgain.Core;
+    using BakAgain.Tests.TestSupport;
     using BakAgain.World.Scenes;
     using GameData.Resources.Scene;
     using NUnit.Framework;
@@ -12,18 +13,9 @@ namespace BakAgain.Tests.PlayMode.World {
     /// </summary>
     public class LocationLeaveLogsNothingTests {
         private GameObject _go;
-        private readonly List<string> _warnings = new();
-
-        private void OnLog(string message, string stack, LogType type) {
-            if (type == LogType.Warning && message.Contains("has no hotspot")) _warnings.Add(message);
-        }
-
-        [SetUp]
-        public void SetUp() => Application.logMessageReceived += OnLog;
 
         [TearDown]
         public void TearDown() {
-            Application.logMessageReceived -= OnLog;
             if (_go != null) { Object.DestroyImmediate(_go); }
         }
 
@@ -32,10 +24,13 @@ namespace BakAgain.Tests.PlayMode.World {
             _go = new GameObject("LocationLeaveUnderTest");
             var screen = _go.AddComponent<LocationScreen>();
             screen.Construct(null, null, new GameSession(), null, null, null, null, null, null, null);
+            // Captured, not just counted: the control's warning is provoked on purpose and must not
+            // reach the log (TASK-1004).
+            using ExpectedLog.Capture warnings = ExpectedLog.CaptureAll(new Regex("has no hotspot"));
             screen.PrimaryAction(GdsActionDispatch.LeaveSceneActionId);
-            Assert.IsEmpty(_warnings, "Esc (action 1) is the way out, not a missing hotspot");
+            Assert.IsEmpty(warnings.Lines, "Esc (action 1) is the way out, not a missing hotspot");
             screen.PrimaryAction(999);
-            Assert.AreEqual(1, _warnings.Count, "control: an id with no hotspot still warns");
+            Assert.AreEqual(1, warnings.Lines.Count, "control: an id with no hotspot still warns");
         }
     }
 }

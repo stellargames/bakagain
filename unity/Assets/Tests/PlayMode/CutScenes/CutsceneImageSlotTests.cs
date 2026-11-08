@@ -3,7 +3,9 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
     using BakAgain.CutScenes.AnimationCommands;
     using BakAgain.Graphics;
     using GameData.Resources.Animation.FrameCommands;
+    using BakAgain.Tests.TestSupport;
     using NUnit.Framework;
+    using System.Text.RegularExpressions;
     using UnityEngine;
     using UnityEngine.UI;
 
@@ -155,6 +157,26 @@ namespace BakAgain.Tests.PlayMode.CutScenes {
 
             Assert.IsNull(_state.GetImage(3, 0),
                 "GetImage takes the slot as an argument; the selection does not reach it");
+        }
+
+        [Test]
+        [RequiresShippedGameData]
+        public void ADrawPastTheEndOfTheFileDrawsNothingAndSaysNothing() {
+            // TASK-1063. C21 (chapter 2's palace audience) loads C21B1.BMP, which holds 4 images,
+            // and then draws images 4..7 from it. The original's image table has count+1 entries
+            // with a null terminator, and its draw skips a null entry (TTM.C case 0xa504), so the
+            // frames show nothing there -- measured on Spice86, 12 Gorath frames identical. The
+            // port logged a not-found exception per draw instead.
+            Select(1);
+            Load("C21B1.BMP");
+
+            using ExpectedLog.Capture said = ExpectedLog.CaptureAll(new Regex("C21B1|Image not found"));
+            Assert.IsNotNull(_state.GetImage(1, 3), "the file's last image still loads");
+            for (int n = 4; n <= 7; n++) {
+                new DrawImage { ImageSlot = 1, ImageNumber = n }.ToAction()(_state);
+            }
+
+            CollectionAssert.IsEmpty(said.Lines.FindAll(l => !l.Contains("[DBUG]")), "an index past the file's end is not an error");
         }
     }
 }

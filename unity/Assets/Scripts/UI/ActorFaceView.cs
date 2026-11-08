@@ -71,6 +71,14 @@ namespace BakAgain.UI {
 
             string key = GameData.PaletteMapping.WithHostPalette(
                 ActorFaceCache.BitmapNameFor(actorNumber, alternate) + SubImageSuffix, hostPalette);
+            // A face file the archive lacks is no face, not an error: James (30) ships only
+            // ACT030A.BMX, and the original asks for ACT030.BMP all the same and draws nothing when
+            // the load returns no table (ASKABOUT.C, askabout_actor_spr_cache_get).
+            if (!resources.Contains(key)) {
+                host.style.backgroundImage = StyleKeyword.Null;
+
+                return false;
+            }
             Sprite portrait = await resources.GetOrLoadAsync<Sprite>(key);
             if (portrait == null) {
                 Microsoft.Extensions.Logging.LoggerExtensions.LogWarning(logger,

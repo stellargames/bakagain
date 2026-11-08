@@ -539,6 +539,9 @@ namespace BakAgain.CutScenes {
             if (Resources.ContainsKey(key)) {
                 return Resources.Get<IndexedTexture>(key);
             }
+            if (IsPastTheEnd(filename, number)) {
+                return null;
+            }
 
             try {
                 var loaded = Addressables.LoadAssetAsync<IndexedTexture>(key).ResultOrWait();
@@ -550,6 +553,36 @@ namespace BakAgain.CutScenes {
                 Logger.LogWarning(e, "Could not load image {Key} on demand.", key);
                 return null;
             }
+        }
+
+        /// <summary>The image count of each file a slot has named, read once.</summary>
+        private readonly Dictionary<string, int> _imageCounts = new();
+
+        /// <summary>
+        /// True when <paramref name="number"/> is past the end of the file in <paramref name="slot"/>.
+        /// </summary>
+        /// <remarks>
+        /// The original's image table ends in a null entry and its draw skips a null one (TTM.C, case
+        /// 0xa504), so such a draw shows nothing. C21, chapter 2's palace audience, draws images 4..7
+        /// of the four-image C21B1.BMX; on Spice86 all twelve captured Gorath frames are identical
+        /// (TASK-1063). Asking Addressables for the index instead logs a not-found exception.
+        /// </remarks>
+        public bool IsPastTheEnd(int slot, int number) =>
+            ImageSlots.TryGetValue(slot, out string filename) && filename != null && IsPastTheEnd(filename, number);
+
+        private bool IsPastTheEnd(string filename, int number) {
+            if (!_imageCounts.TryGetValue(filename, out int count)) {
+                GameData.Resources.Image.ImageSet set = null;
+                try {
+                    if (ResourceCache.HasLocation(filename))
+                        set = Addressables.LoadAssetAsync<GameData.Resources.Image.ImageSet>(filename).ResultOrWait();
+                } catch (Exception) {
+                    // A file the archive lacks: the image load below reports it.
+                }
+                count = set?.Images.Count ?? int.MaxValue;
+                _imageCounts[filename] = count;
+            }
+            return number >= count;
         }
 
         public void Reset() {

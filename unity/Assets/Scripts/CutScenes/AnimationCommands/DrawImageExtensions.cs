@@ -11,6 +11,13 @@ namespace BakAgain.CutScenes.AnimationCommands {
     public static class DrawImageExtensions {
         private static readonly ILogger Logger = LogManager.LoggerFactory.CreateLogger(nameof(DrawImageExtensions));
 
+        /// A draw past the end of its file is the original's null entry: nothing, and nothing to say.
+        private static void WarnUnlessPastTheEnd(CutsceneState state, int slot, int number) {
+            if (!state.IsPastTheEnd(slot, number)) {
+                Logger.LogWarning("Image not found in slot {Slot} with number {Number}", slot, number);
+            }
+        }
+
         /// Draw an image to the screen.
         public static Func<CutsceneState, Awaitable> ToAction(this DrawImage args) {
             return cutsceneState => {
@@ -18,7 +25,7 @@ namespace BakAgain.CutScenes.AnimationCommands {
 
                 IndexedTexture image = cutsceneState.GetImage(args.ImageSlot, args.ImageNumber);
                 if (image == null) {
-                    Logger.LogWarning("Image not found in slot {Slot} with number {Number}", args.ImageSlot, args.ImageNumber);
+                    WarnUnlessPastTheEnd(cutsceneState, args.ImageSlot, args.ImageNumber);
 
                     return AwaitableUtility.Completed;
                 }
@@ -35,7 +42,7 @@ namespace BakAgain.CutScenes.AnimationCommands {
 
                 IndexedTexture image = cutsceneState.GetImage(args.ImageSlot, args.ImageNumber);
                 if (image == null) {
-                    Logger.LogWarning("Image not found in slot {Slot} with number {Number}", args.ImageSlot, args.ImageNumber);
+                    WarnUnlessPastTheEnd(cutsceneState, args.ImageSlot, args.ImageNumber);
 
                     return AwaitableUtility.Completed;
                 }
@@ -52,7 +59,7 @@ namespace BakAgain.CutScenes.AnimationCommands {
 
                 IndexedTexture image = cutsceneState.GetImage(args.ImageSlot, args.ImageNumber);
                 if (image == null) {
-                    Logger.LogWarning("Image not found in slot {Slot} with number {Number}", args.ImageSlot, args.ImageNumber);
+                    WarnUnlessPastTheEnd(cutsceneState, args.ImageSlot, args.ImageNumber);
 
                     return AwaitableUtility.Completed;
                 }
@@ -69,7 +76,7 @@ namespace BakAgain.CutScenes.AnimationCommands {
 
                 IndexedTexture image = cutsceneState.GetImage(args.ImageSlot, args.ImageNumber);
                 if (image == null) {
-                    Logger.LogWarning("Image not found in slot {Slot} with number {Number}", args.ImageSlot, args.ImageNumber);
+                    WarnUnlessPastTheEnd(cutsceneState, args.ImageSlot, args.ImageNumber);
 
                     return AwaitableUtility.Completed;
                 }
@@ -86,7 +93,7 @@ namespace BakAgain.CutScenes.AnimationCommands {
 
                 IndexedTexture image = cutsceneState.GetImage(args.ImageSlot, args.ImageNumber);
                 if (image == null) {
-                    Logger.LogWarning("Image not found in slot {Slot} with number {Number}", args.ImageSlot, args.ImageNumber);
+                    WarnUnlessPastTheEnd(cutsceneState, args.ImageSlot, args.ImageNumber);
 
                     return AwaitableUtility.Completed;
                 }
@@ -106,7 +113,7 @@ namespace BakAgain.CutScenes.AnimationCommands {
 
                 IndexedTexture image = cutsceneState.GetImage(args.ImageSlot, args.ImageNumber);
                 if (image == null) {
-                    Logger.LogWarning("Image not found in slot {Slot} with number {Number}", args.ImageSlot, args.ImageNumber);
+                    WarnUnlessPastTheEnd(cutsceneState, args.ImageSlot, args.ImageNumber);
 
                     return AwaitableUtility.Completed;
                 }
@@ -126,7 +133,7 @@ namespace BakAgain.CutScenes.AnimationCommands {
 
                 IndexedTexture image = cutsceneState.GetImage(args.ImageSlot, args.ImageNumber);
                 if (image == null) {
-                    Logger.LogWarning("Image not found in slot {Slot} with number {Number}", args.ImageSlot, args.ImageNumber);
+                    WarnUnlessPastTheEnd(cutsceneState, args.ImageSlot, args.ImageNumber);
 
                     return AwaitableUtility.Completed;
                 }
@@ -146,7 +153,7 @@ namespace BakAgain.CutScenes.AnimationCommands {
 
                 IndexedTexture image = cutsceneState.GetImage(args.ImageSlot, args.ImageNumber);
                 if (image == null) {
-                    Logger.LogWarning("Image not found in slot {Slot} with number {Number}", args.ImageSlot, args.ImageNumber);
+                    WarnUnlessPastTheEnd(cutsceneState, args.ImageSlot, args.ImageNumber);
 
                     return AwaitableUtility.Completed;
                 }
@@ -166,7 +173,7 @@ namespace BakAgain.CutScenes.AnimationCommands {
 
                 IndexedTexture image = cutsceneState.GetImage(args.ImageSlot, args.ImageNumber);
                 if (image == null) {
-                    Logger.LogWarning("Image not found in slot {Slot} with number {Number}", args.ImageSlot, args.ImageNumber);
+                    WarnUnlessPastTheEnd(cutsceneState, args.ImageSlot, args.ImageNumber);
 
                     return AwaitableUtility.Completed;
                 }
