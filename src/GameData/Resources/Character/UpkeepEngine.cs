@@ -286,6 +286,19 @@ public static class UpkeepEngine {
     /// </summary>
     public static bool IsGrowthDay(long dayIndex) => dayIndex % GrowthIntervalDays == 0;
 
+    /// <summary>
+    /// The pool points one camp hour gives (negative: takes) at the member's current ranks — the
+    /// regeneration <see cref="ApplyHour"/> computes at <see cref="PartialRestQuality"/>, before the
+    /// 80% cap and the near-death clamp.
+    /// </summary>
+    public static int CampRegenerationPerHour(int characterIndex, ActorConditions conditions) {
+        int regeneration = RegenerationFor(characterIndex) * PartialRestQuality / 100;
+        if (conditions.Has(ActorCondition.Healing)) {
+            regeneration *= 2;
+        }
+        return regeneration + ConditionEngine.RegenBonus(conditions);
+    }
+
     private static int RegenerationFor(int characterIndex) =>
         characterIndex >= 0 && characterIndex < RegenerationPerCharacter.Length
             ? RegenerationPerCharacter[characterIndex]

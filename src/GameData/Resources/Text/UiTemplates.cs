@@ -402,6 +402,21 @@ public static class UiTemplates {
     /// <summary>CHEAT CENTRAL's subtitle.</summary>
     public const string CheatCentralSubtitle = "port:template:cheat_central_subtitle";
 
+    // The Enhanced camp screen's info panel (TASK-980): the rest rules in words, then one line per member
+    // from CampOutlookRule. Every statement is the original's rule; the sources are in TASK-979 and TASK-980.
+    public const string CampInfoPool = "port:template:enhanced_camp_info_pool";
+    public const string CampInfoRate = "port:template:enhanced_camp_info_rate";
+    public const string CampInfoConditions = "port:template:enhanced_camp_info_conditions";
+    public const string CampInfoNearDeath = "port:template:enhanced_camp_info_near_death";
+    public const string CampInfoModes = "port:template:enhanced_camp_info_modes";
+    public const string CampOutlookFullyRested = "port:template:enhanced_camp_outlook_fully_rested";
+    public const string CampOutlookNearDeath = "port:template:enhanced_camp_outlook_near_death";
+    public const string CampOutlookLosesGround = "port:template:enhanced_camp_outlook_loses_ground";
+    public const string CampOutlookNoGain = "port:template:enhanced_camp_outlook_no_gain";
+    public const string CampOutlookBeyondCamp = "port:template:enhanced_camp_outlook_beyond_camp";
+    public const string CampOutlookHealthFirst = "port:template:enhanced_camp_outlook_health_first";
+    public const string CampOutlookStaminaNext = "port:template:enhanced_camp_outlook_stamina_next";
+
     private static readonly (string Key, Func<UiStringCatalog, string> English)[] Templates = {
         (AskedAbout, c => "{name}" + Literal(c.Get("base:uistring:dialog.asked_about_suffix"))),
         (QuarrelsRemaining, c => "{count} " + Literal(c.Get("base:uistring:combat.quarrels_remaining"))),
@@ -677,6 +692,18 @@ public static class UiTemplates {
         (QuantityGive, c => Literal(c.Get("base:uistring:quantity.give_prefix")) + "{n}{max, select, yes {"
             + Literal(c.Get("base:uistring:quantity.all_suffix")) + "} other {}}"),
         (CheatCentralSubtitle, _ => Literal("Enjoy with caution...")),
+        (CampInfoPool, _ => "Health and stamina are one pool. Rest fills health first, then stamina."),
+        (CampInfoRate, _ => "Camping heals about a point an hour, and only up to four fifths of the pool. An inn heals fully."),
+        (CampInfoConditions, _ => "Healing speeds camping up. Sickness, plague, poison and hunger slow it down, or drain the pool instead."),
+        (CampInfoNearDeath, _ => "Someone near death barely recovers until it wears off, a little each day."),
+        (CampInfoModes, _ => "A stone on the dial rests until that hour. Camp until Healed stops once everyone is at four fifths."),
+        (CampOutlookFullyRested, _ => "{name} is fully rested."),
+        (CampOutlookNearDeath, _ => "{name} is near death and will barely recover for now."),
+        (CampOutlookLosesGround, _ => "{name} loses ground while resting until cured."),
+        (CampOutlookNoGain, _ => "{name} won''t recover by resting until cured."),
+        (CampOutlookBeyondCamp, _ => "Camping can''t help {name} further. An inn can."),
+        (CampOutlookHealthFirst, _ => "{name}''s health comes back first, then stamina."),
+        (CampOutlookStaminaNext, _ => "{name}''s stamina is coming back."),
         (ItemUsingAndState, _ => "{using}, {state}"),
     };
 

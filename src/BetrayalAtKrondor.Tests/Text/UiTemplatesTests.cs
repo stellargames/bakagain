@@ -38,6 +38,14 @@ public class UiTemplatesTests {
     }
 
     [Fact]
+    public void TheCampOutlookLinesKeepTheirApostrophesAndName() {
+        Assert.Equal("Locklear's health comes back first, then stamina.",
+            UiTemplates.Format(UiTemplates.CampOutlookHealthFirst, ("name", (object)"Locklear")));
+        Assert.Equal("Camping can't help Owyn further. An inn can.",
+            UiTemplates.Format(UiTemplates.CampOutlookBeyondCamp, ("name", (object)"Owyn")));
+    }
+
+    [Fact]
     public void WalksThenThrustsIsACountedPlural() {
         Assert.Equal("Walks 1, then thrusts", UiTemplates.Format(UiTemplates.HudWalksThenThrusts, ("n", (object)1)));
         Assert.Equal("Walks 3, then thrusts", UiTemplates.Format(UiTemplates.HudWalksThenThrusts, ("n", (object)3)));

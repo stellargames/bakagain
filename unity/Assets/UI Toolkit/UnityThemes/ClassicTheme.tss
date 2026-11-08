@@ -408,6 +408,13 @@
 /* Exit wears the original face, drawn at its native size top-left (TASK-941): the box is that size. */
 .enhanced-cast .enhanced-cast__exit { position: relative; width: 165px; height: 168px; flex-shrink: 0; margin-left: 18px; }
 .enhanced-stone { position: absolute; left: 0; top: 0; right: 0; bottom: 0; border-radius: 50%; background-size: 100% 100%; }
+/* The Enhanced camp help (TASK-980), on the camp's canonical stage (1600x1200 units). */
+.enhanced-camp-info-button { width: 136px; height: 136px; translate: -30px -44px; align-items: center; justify-content: center; }
+.enhanced-camp-info-disc { width: 64px; height: 64px; align-items: center; justify-content: center; }
+.enhanced-camp-info-mark { font-size: 40px; color: rgb(236, 220, 186); -unity-font-style: bold; -unity-text-align: middle-center; padding: 0; margin: 0; }
+.enhanced-camp-info-panel { background-color: rgb(226, 210, 176); background-size: cover; border-width: 4px; border-color: rgb(120, 86, 52); padding: 10px 24px; }
+.enhanced-camp-info-line { font-size: 34px; color: rgb(52, 34, 18); white-space: normal; margin-bottom: 2px; }
+.enhanced-camp-info-member { color: rgb(30, 70, 30); margin-top: 4px; }
 .enhanced-cast .enhanced-cast__school--shown .enhanced-stone { border-width: 4px; border-color: rgb(224, 149, 92); }
 .enhanced-cast .enhanced-cast__right { flex-grow: 1; flex-direction: column; }
 .enhanced-cast .enhanced-cast__top { flex-grow: 1; flex-direction: row; }

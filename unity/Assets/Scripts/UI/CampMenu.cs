@@ -526,9 +526,15 @@ namespace BakAgain.UI {
             }
 
             _partyTable.Build(stage, _session, _palette);
+            // Enhanced: the "?" and its explanation, rebuilt with the table so the member lines follow each hour.
+            _info.Build(stage, _session, _ui != null ? _ui.PanelRect : Rect.zero);
         }
 
         private readonly Rest.RestPartyTableView _partyTable = new();
+        private readonly Rest.CampInfoView _info = new();
+
+        /// <summary>The Enhanced camp help (TASK-980), for tests.</summary>
+        internal Rest.CampInfoView Info => _info;
 
         [Inject]
         public void Construct(IDialogManager dialogManager, GameSession session, GameClock clock,
