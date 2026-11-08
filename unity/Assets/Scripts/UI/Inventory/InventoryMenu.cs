@@ -594,6 +594,15 @@ namespace BakAgain.UI.Inventory {
         /// "0 gold" for every scroll in the game, which is a wrong number stated as fact; showing
         /// nothing is at least visibly absent.</para>
         /// </remarks>
+        /// <summary>
+        /// The wording of a shelf price. Classic keeps the original's mix — prices through the
+        /// formatter's "4 gold 7 silver", the purse written inline as "56s 6r" — while Enhanced
+        /// words both the purse's way, so one screen has one name per coin (TASK-1053). The purse
+        /// plate keeps the short form because "125 gold 8 silver" does not fit it.
+        /// </summary>
+        internal static GameData.Money.CurrencyStyle PriceStyle(bool enhanced) =>
+            enhanced ? GameData.Money.CurrencyStyle.Abbreviated : GameData.Money.CurrencyStyle.GoldAndSilver;
+
         private ItemGridRenderer.ShopCellText? ShopCellTextFor(
             RuntimeItem item, GameData.Resources.Object.ObjectInfo info) {
             if (info == null) {
@@ -611,7 +620,7 @@ namespace BakAgain.UI.Inventory {
             long value = PriceOf(item, info);
             string price = value < 0
                 ? GameData.Resources.Text.UiStrings.Get(ShopUnavailableKey)
-                : GameData.Money.MoneyFormatter.Format((int)value, GameData.Money.CurrencyStyle.GoldAndSilver);
+                : GameData.Money.MoneyFormatter.Format((int)value, PriceStyle(EnhancedApplied));
 
             return new ItemGridRenderer.ShopCellText(name, price, head, bulky);
         }
