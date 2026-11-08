@@ -209,6 +209,23 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
         }
 
         [UnityTest]
+        public IEnumerator ATrapBoardWithNoFoesHidesTheFoeCard_UntilAPartyMemberIsHovered() {
+            // TASK-1049: a trap fight lists no foes, and an empty "Foes 0" card hid the board's
+            // bottom-right cells (Gorath's own, on his turn).
+            _hud.Show(HudModels.Idle() with { Foes = System.Array.Empty<FoeRowModel>(), CardFoe = null });
+            yield return null;
+            Assert.AreEqual(DisplayStyle.None, _hud.Root.Q("ec-desk-foes").resolvedStyle.display, "nothing to list");
+
+            _hud.Show(HudModels.Idle() with { Foes = System.Array.Empty<FoeRowModel>(), CardFoe = null, CardHero = HudModels.Owyn });
+            yield return null;
+            Assert.AreEqual(DisplayStyle.Flex, _hud.Root.Q("ec-desk-foes").resolvedStyle.display, "a hovered member's card");
+
+            _hud.Show(HudModels.Idle());
+            yield return null;
+            Assert.AreEqual(DisplayStyle.Flex, _hud.Root.Q("ec-desk-foes").resolvedStyle.display, "foes listed again");
+        }
+
+        [UnityTest]
         public IEnumerator TheFoeCardStandsOverTheStones_AndAPartyMemberGetsACardThere() {
             _hud.Show(HudModels.Idle());
             yield return null;

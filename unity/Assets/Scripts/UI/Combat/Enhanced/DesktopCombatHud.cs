@@ -493,6 +493,8 @@ namespace BakAgain.UI.Combat.Enhanced {
         // ---- the foe card ----
 
         private void ShowFoes(CombatHudModel m) {
+            // A trap board lists no foes: an empty card would only hide the cells under it (TASK-1049).
+            _foeSlot.style.display = m.CardHero != null || m.Foes is { Count: > 0 } ? DisplayStyle.Flex : DisplayStyle.None;
             if (m.CardHero is HeroCardModel member) {
                 ShowMemberCard(member);
                 return;
