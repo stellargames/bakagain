@@ -246,6 +246,40 @@ namespace BakAgain.Tests.Editor.World.Collision {
             Assert.IsTrue(rig.Movement.IsTravelling, "travel is not ended");
         }
 
+        // ---- Enhanced: leaving the road ends travel (TASK-1050) -------------------------
+
+        /// <summary>One road cell under the party and open ground all round: every travel step is refused.</summary>
+        private static Rig OnARoadThatEndsHere() {
+            var rig = Build(WorldWith(groundElevation: 0, (Road, Centre, Centre, 700)));
+            rig.Session.PositionX = Centre;
+            rig.Session.PositionY = Centre;
+            Assert.IsTrue(rig.Movement.TryEngageTravel(), "the rig must actually be on road");
+            return rig;
+        }
+
+        [Test]
+        public void FaithfullyARoadThatEndsLeavesTravelEngagedAndRefusesTheStep() {
+            // The control: the original stays engaged through every refused heading (measured at
+            // (670400, 1066800) on 2026-09-12) until the button is clicked.
+            var rig = OnARoadThatEndsHere();
+
+            rig.Movement.MoveForward();
+
+            Assert.IsTrue(rig.Movement.IsTravelling);
+            Assert.AreEqual(Centre, rig.Session.PositionY, "refused");
+        }
+
+        [Test]
+        public void InEnhancedARoadThatEndsDropsTravelAndTheSamePressWalksOn() {
+            var rig = OnARoadThatEndsHere();
+            rig.Movement.LeaveRoadWhenItEnds = () => true;
+
+            rig.Movement.MoveForward();
+
+            Assert.IsFalse(rig.Movement.IsTravelling, "travel ended where the road did");
+            Assert.AreEqual(Centre + 800, rig.Session.PositionY, "and the press walked a Medium step north");
+        }
+
         [Test]
         public void TravelHeadingIsTheIdentityWithoutFreeHeading() {
             var rig = OnARoadBendingWest();

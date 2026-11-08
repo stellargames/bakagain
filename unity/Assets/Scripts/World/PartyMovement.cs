@@ -98,6 +98,13 @@ namespace BakAgain.World {
         /// </summary>
         public Func<bool> FreeHeading { get; set; }
 
+        /// <summary>
+        /// Enhanced (TASK-1050): true ends road travel when a travel step finds no road to follow,
+        /// and the same press walks on. Null or false is the original, which stays engaged and
+        /// refuses every step until the button is clicked.
+        /// </summary>
+        public Func<bool> LeaveRoadWhenItEnds { get; set; }
+
         /// <summary>View-only pitch offset in BaK angle units. Never saved, never read by a rule.</summary>
         public short LookPitch { get; set; }
 
@@ -419,6 +426,13 @@ namespace BakAgain.World {
                     SyncCamera();
 
                     return false;
+                }
+
+                // Enhanced (TASK-1050): no road to follow either way, so the mode is dropped and the
+                // press walks. Faithfully it stays lit and refuses every press with only the bump.
+                if (LeaveRoadWhenItEnds?.Invoke() == true) {
+                    DisengageTravel();
+                    return Step(forward, size);
                 }
 
                 Bump();

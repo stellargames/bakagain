@@ -2765,6 +2765,7 @@ namespace BakAgain.World {
                 // The one thing the pit fall needs that movement does not already own.
                 showDialog: id => _dialogs?.ShowById(id).Forget());
             _partyMovement.FreeHeading = () => BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.MouseLook);
+            _partyMovement.LeaveRoadWhenItEnds = () => BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.ContinuousMovement);
             _partyMovement.Stepped += AdvanceRoamingActors;
 
             // *** THE NEVER-DRAWN ENTITIES. *** proxscan_run drops the db1..db8 records (kind 7)

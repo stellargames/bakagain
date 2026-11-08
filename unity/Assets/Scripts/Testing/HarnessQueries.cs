@@ -260,7 +260,7 @@ namespace BakAgain.Testing {
             if (s == null) return Refuse("no game session");
             return Ok(new Dictionary<string, object> {
                 ["zone"] = (int)s.CurrentZone, ["x"] = s.PositionX, ["y"] = s.PositionY,
-                ["heading"] = (int)s.Rotation, ["time"] = s.GameTimeIn2Seconds });
+                ["heading"] = (int)s.Rotation, ["time"] = s.GameTimeIn2Seconds, ["followRoad"] = s.IsAutoTravelling });
         }
 
         /// <summary>
