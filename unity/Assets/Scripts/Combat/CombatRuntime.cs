@@ -4205,7 +4205,28 @@ namespace BakAgain.Combat {
             if (hazard.Damage <= 0) {
                 return;
             }
-            ApplySpellDamage(actor, hazard.Damage, rnd);
+            ApplyHazardDamage(actor, hazard.Damage, rnd);
+        }
+
+        // *** THE TRAP STRUCK, NOT WHOEVER MOVED THE VICTIM ONTO IT. *** A hazard fires inside the move,
+        // shove or spell that walked the victim there, so its float would be stamped with that action
+        // (TASK-1044: Invitation pulled a foe onto the poles and the log read "Owyn casts at A: hit 100").
+        private void ApplyHazardDamage(Combatant victim, int damage, System.Func<int, int> rnd) {
+            var before = BeginAction(null, FloatCause.None);
+            try {
+                ApplySpellDamage(victim, damage, rnd);
+            } finally {
+                EndAction(before);
+            }
+        }
+
+        internal void HazardDamageDuringActionForTest(Combatant actor, FloatCause cause, Combatant victim, int damage) {
+            var before = BeginAction(actor, cause);
+            try {
+                ApplyHazardDamage(victim, damage, _ => 0);
+            } finally {
+                EndAction(before);
+            }
         }
 
         /// <summary>

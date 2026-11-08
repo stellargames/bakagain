@@ -83,6 +83,19 @@ namespace BakAgain.Tests.Editor.Combat {
         }
 
         [Test]
+        public void ATrapHitDuringACastIsTheTrapsNotTheCasters() {
+            // TASK-1044: Invitation pulled A onto the poles; the 100 was logged as the spell's hit.
+            (CombatRuntime runtime, CombatEncounter fight) = Fight();
+            Combatant foe = fight.Enemies[0];
+            runtime.HazardDamageDuringActionForTest(fight.Party[0], FloatCause.Cast, foe, 5);
+
+            Assert.IsNull(foe.DamageFloatBy, "no one cast this hit");
+            Assert.AreEqual(FloatCause.None, foe.DamageFloatCause);
+            runtime.NoteFloatedDamage(foe, 5);
+            StringAssert.DoesNotContain("casts", string.Join("|", runtime.Log.Last(10)));
+        }
+
+        [Test]
         public void AFloatOnAnEnemyAddsToItsSeenTotal() {
             (CombatRuntime runtime, CombatEncounter fight) = Fight();
             runtime.NoteFloatedDamage(fight.Enemies[0], 6);
