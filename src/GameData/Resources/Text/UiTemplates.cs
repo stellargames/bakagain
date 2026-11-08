@@ -363,7 +363,7 @@ public static class UiTemplates {
     /// start): "<c>{text}</c> (restart)", as <see cref="LanguageChoicePendingKey"/>.</summary>
     public const string EnhancedPendingKey = "port:template:enhanced_pending";
 
-    /// <summary>The Enhanced travel HUD's status line: "Day <c>{day}</c> · <c>{hour}</c>:00".</summary>
+    /// <summary>The Enhanced travel HUD's status line: "Day <c>{day}</c> · <c>{hour}</c>:<c>{minute}</c>", the minute two digits.</summary>
     public const string EnhancedStatusKey = "port:template:enhanced_status";
 
     /// <summary>The status line at a town: <c>{place}</c>, the town's name, before <c>{status}</c>, the line above.</summary>
@@ -607,7 +607,7 @@ public static class UiTemplates {
         (EnhancedInvHasIt, _ => "Has it"),
         (EnhancedInvGetAll, _ => "Get all"),
         (EnhancedPendingKey, _ => "{text} (restart)"),
-        (EnhancedStatusKey, _ => "Day {day} · {hour}:00"),
+        (EnhancedStatusKey, _ => "Day {day} · {hour}:{minute}"),
         (EnhancedStatusAtKey, _ => "{place} · {status}"),
         (PercentKey, _ => EnglishPercent),
         (TouchMove, _ => "Move"),

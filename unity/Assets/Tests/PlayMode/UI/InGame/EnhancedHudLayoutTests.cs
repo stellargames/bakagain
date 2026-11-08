@@ -313,8 +313,8 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
         [UnityTest]
         public IEnumerator StatusLineTemplateReadsDayAndHour() {
             yield return null;
-            Assert.AreEqual("Day 12 · 14:00", GameData.Resources.Text.UiTemplates.Format(
-                GameData.Resources.Text.UiTemplates.EnhancedStatusKey, ("day", 12), ("hour", 14)));
+            Assert.AreEqual("Day 12 · 14:07", GameData.Resources.Text.UiTemplates.Format(
+                GameData.Resources.Text.UiTemplates.EnhancedStatusKey, ("day", 12), ("hour", 14), ("minute", "07")));
         }
     }
 }

@@ -100,7 +100,7 @@ namespace BakAgain.UI.InGame {
             if (_clock != null) {
                 string status = GameData.Resources.Text.UiTemplates.Format(
                     GameData.Resources.Text.UiTemplates.EnhancedStatusKey,
-                    ("day", _clock.Day), ("hour", _clock.HourOfDay));
+                    ("day", _clock.Day), ("hour", _clock.HourOfDay), ("minute", _clock.MinuteOfHour.ToString("00")));
                 string place = _place?.Invoke();
                 SetStatus(string.IsNullOrEmpty(place) ? status : GameData.Resources.Text.UiTemplates.Format(
                     GameData.Resources.Text.UiTemplates.EnhancedStatusAtKey, ("place", place), ("status", status)));

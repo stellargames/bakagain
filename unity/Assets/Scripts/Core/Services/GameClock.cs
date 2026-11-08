@@ -55,6 +55,9 @@ namespace BakAgain.Core.Services {
         public int HourOfDay =>
             GameData.Resources.GameState.GameTime.HourOfDay(_session.GameTimeIn2Seconds);
 
+        public int MinuteOfHour =>
+            GameData.Resources.GameState.GameTime.MinuteOfHour(_session.GameTimeIn2Seconds);
+
         /// <summary>Raised once per <see cref="Advance"/> that crosses an hour boundary.</summary>
         public event Action HourElapsed;
         /// <summary>

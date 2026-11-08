@@ -127,8 +127,10 @@ namespace BakAgain.UI.InGame {
         }
 
         /// <summary>Shows or hides the plaque and its symbols without dropping them.</summary>
-        public void SetVisible(bool visible) {
-            if (_plaque != null) _plaque.visible = visible;
+        /// <param name="onlyWithRunes">Enhanced: no bar while no spell is running (TASK-1057). The faithful
+        /// plaque is drawn whether or not anything runs.</param>
+        public void SetVisible(bool visible, bool onlyWithRunes = false) {
+            if (_plaque != null) _plaque.visible = visible && (!onlyWithRunes || _symbols?.childCount > 0);
             if (_symbols != null) _symbols.visible = visible;
         }
 

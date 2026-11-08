@@ -1247,7 +1247,7 @@ namespace BakAgain.UI.InGame {
             bool shown = _travelHost != null && _travelHost.IsInputActive;
             SyncCombatHud();
             _hud.Sync(_fullScreen != null && _fullScreen.Active, shown && !EnhancedCombatActive);
-            _effectCaption?.SetVisible(!_hud.Applied || _hud.Shown);
+            _effectCaption?.SetVisible(!_hud.Applied || _hud.Shown, onlyWithRunes: _hud.Applied);
             if (wasApplied && !_hud.Applied) {
                 // The revert un-hides the compass arrows; a fight that has just started hid them a
                 // moment ago in this same frame, so have the chrome re-applied.

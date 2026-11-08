@@ -26,6 +26,10 @@ public static class GameTime {
     public static int HourOfDay(long gameTimeIn2Seconds) =>
         (int)((Math.Max(0, gameTimeIn2Seconds) % UnitsPerDay) / UnitsPerHour);
 
+    /// <summary>Minute of the hour, 0..59 (thirty two-second units a minute).</summary>
+    public static int MinuteOfHour(long gameTimeIn2Seconds) =>
+        (int)((Math.Max(0, gameTimeIn2Seconds) % UnitsPerHour) / 30);
+
     /// <summary>Whole days elapsed since time zero.</summary>
     public static int DayOf(long gameTimeIn2Seconds) =>
         (int)(Math.Max(0, gameTimeIn2Seconds) / UnitsPerDay);
