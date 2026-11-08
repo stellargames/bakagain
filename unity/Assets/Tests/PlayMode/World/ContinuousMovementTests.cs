@@ -296,13 +296,73 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.IsFalse(rig.Movement.IsGliding);
         }
 
+        // ---- smooth turning (TASK-999) ---------------------------------------------------------------
+
+        private static void Release(ClassicMovementDriver driver, FakeGameplayInput input) {
+            input.Move = Vector2.zero;
+            for (var i = 0; i < 60; i++) {
+                driver.Tick(active: true);
+            }
+        }
+
         [Test]
-        public void Continuous_TurningIsUnchanged() {
+        public void Classic_AHeldTurnSnapsAWholeStride() {
+            var (driver, rig, input) = Driver(continuous: false, StepSize.Small);
+            input.Move = new Vector2(-1, 0);
+            driver.Tick(active: true);
+            Assert.AreEqual((short)2048, rig.Session.Rotation, "the control: one Medium stride at once");
+        }
+
+        [Test]
+        public void Continuous_AHeldTurnTurnsSmoothlyAndSettlesOnAStride() {
             var (driver, rig, input) = Driver(continuous: true, StepSize.Small);
             input.Move = new Vector2(-1, 0);
             driver.Tick(active: true);
-            Assert.AreEqual((short)2048, rig.Session.Rotation, "a turn is still the Classic turn");
-            Assert.AreEqual(0, rig.Session.PositionY);
+            Assert.That((ushort)rig.Session.Rotation, Is.InRange(1, 2047), "one frame turns part of a stride");
+
+            for (var i = 0; i < 29; i++) {   // half a second in all
+                driver.Tick(active: true);
+            }
+            int held = (ushort)rig.Session.Rotation;
+            // The Classic repeat's speed: 8.84 strides a second, so about 4.4 strides in half a second.
+            Assert.That(held, Is.InRange(4 * 2048, 5 * 2048), "no dead time, the Classic repeat's angular speed");
+
+            Release(driver, input);
+            Assert.AreEqual(5 * 2048, (ushort)rig.Session.Rotation, "released, it finishes the stride it was in");
+            Assert.AreEqual(0, rig.Session.PositionY, "a turn never walks");
+            Assert.AreEqual(0, rig.Session.GameTimeIn2Seconds, "and costs no time");
+        }
+
+        [Test]
+        public void Continuous_AOneFrameTurnTapTurnsOneStride() {
+            var (driver, rig, input) = Driver(continuous: true, StepSize.Small);
+            input.Move = new Vector2(1, 0);
+            driver.Tick(active: true);
+            Release(driver, input);
+            Assert.AreEqual(unchecked((ushort)-2048), (ushort)rig.Session.Rotation, "a tap turns a Classic tap's stride, right");
+        }
+
+        [Test]
+        public void Continuous_TurningBackMidStrideReturnsToTheStrideItLeft() {
+            var (driver, rig, input) = Driver(continuous: true, StepSize.Small);
+            input.Move = new Vector2(-1, 0);
+            driver.Tick(active: true);
+            input.Move = new Vector2(1, 0);
+            driver.Tick(active: true);
+            Release(driver, input);
+            Assert.AreEqual(0, (ushort)rig.Session.Rotation);
+        }
+
+        [Test]
+        public void Continuous_ATurnArrowClickTurnsOneStrideSmoothly() {
+            var (driver, rig, _) = Driver(continuous: true, StepSize.Small);
+            Assert.IsTrue(driver.TapGlide(75));
+            driver.Tick(active: true);
+            Assert.That((ushort)rig.Session.Rotation, Is.InRange(1, 2047), "under way, not snapped");
+            for (var i = 0; i < 60; i++) {
+                driver.Tick(active: true);
+            }
+            Assert.AreEqual(2048, (ushort)rig.Session.Rotation);
         }
 
         [Test]

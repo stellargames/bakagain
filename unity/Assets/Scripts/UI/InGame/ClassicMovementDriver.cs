@@ -101,6 +101,11 @@ namespace BakAgain.UI.InGame {
         /// instead of jumping a step. False when continuous walking is off — the click steps as before.
         /// </summary>
         public bool TapGlide(int action) {
+            int turn = TurnOf(action);
+            if (turn != 0 && _movement != null && _continuous?.Invoke() == true) {
+                _movement.GlideTurn(turn, 0f, RepeatStepsPerSecond);   // the ticks that follow finish the stride
+                return true;
+            }
             int direction = DirectionOf(action);
             if (direction == 0 || _movement == null || _continuous?.Invoke() != true) {
                 return false;
@@ -112,6 +117,27 @@ namespace BakAgain.UI.InGame {
 
         private static int DirectionOf(int action) =>
             action == MoveForward ? 1 : action == MoveBackward ? -1 : 0;
+
+        // +1 turns the view left, -1 right (PartyMovement.GlideTurn).
+        private static int TurnOf(int action) =>
+            action == TurnLeft ? 1 : action == TurnRight ? -1 : 0;
+
+        // Enhanced smooth turning (TASK-999): a held turn turns continuously, and a released one finishes
+        // its stride. True when it handled the tick.
+        private bool TickTurn(int action) {
+            int turn = TurnOf(action);
+            if (turn == 0 && !_movement.IsTurnGliding) {
+                return false;
+            }
+            if (turn != 0) {
+                _heldAction = action;
+                if (_heldIsReqArrow && TouchInputState.Instance is TouchInputState state) {
+                    state.SwallowNextArrowClick = true;   // the turn is under way; the release adds none
+                }
+            }
+            _movement.GlideTurn(turn, _deltaSeconds(), RepeatStepsPerSecond);
+            return turn != 0 || action < 0;
+        }
 
         // Continuous walking's share of a tick. True when it handled the tick.
         private bool TickGlide(int action) {
@@ -155,7 +181,7 @@ namespace BakAgain.UI.InGame {
                 return;
             }
             int action = ResolveHeldMovementAction();
-            if (_movement != null && _continuous?.Invoke() == true && TickGlide(action)) {
+            if (_movement != null && _continuous?.Invoke() == true && (TickTurn(action) || TickGlide(action))) {
                 return;
             }
             if (action < 0) {

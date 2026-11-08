@@ -2031,10 +2031,14 @@ namespace BakAgain.UI.InGame {
                     }
                     break;
                 case ActionTurnLeft:
-                    _movement?.TurnLeft();
+                    if (_movementDriver?.TapGlide(menuEntryActionId) != true) {
+                        _movement?.TurnLeft();
+                    }
                     break;
                 case ActionTurnRight:
-                    _movement?.TurnRight();
+                    if (_movementDriver?.TapGlide(menuEntryActionId) != true) {
+                        _movement?.TurnRight();
+                    }
                     break;
                 case ActionFollowRoad:
                     ToggleFollowRoad();

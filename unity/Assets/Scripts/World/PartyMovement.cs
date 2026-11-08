@@ -1305,6 +1305,57 @@ namespace BakAgain.World {
             return false;
         }
 
+        // ---- Enhanced smooth turning (TASK-999)
+
+        // Angle units still to turn to land on the stride boundary; positive turns the view left (BaK adds).
+        private int _turnToGo;
+        private float _turnCarry;
+
+        /// <summary>A smooth turn is still under way to its stride boundary.</summary>
+        public bool IsTurnGliding => _turnToGo != 0;
+
+        /// <summary>
+        /// Enhanced smooth turning: turns the heading continuously at <paramref name="stridesPerSecond"/>
+        /// Preferences strides a second — the Classic held repeat's speed — while <paramref name="direction"/>
+        /// is held (+1 left, -1 right), and with 0 finishes the stride under way, so the heading still lands
+        /// on the turn-size lattice and a tap turns exactly one stride. Reversing mid-stride goes back to
+        /// the boundary it left. Like a Classic turn, it is never blocked and costs no time.
+        /// </summary>
+        public void GlideTurn(int direction, float deltaSeconds, float stridesPerSecond) {
+            if (CameraIsAnimating) {
+                return;
+            }
+            int stride = _movement.TurnAngleFor(_preferences.Current.TurnSize);
+            if (direction != 0 && System.Math.Sign(_turnToGo) != direction) {
+                if (_turnToGo != 0) {
+                    _turnCarry = 0;   // a reversal owes nothing to the way it was turning
+                }
+                _turnToGo += direction * stride;
+            }
+            float amount = (stride * stridesPerSecond * deltaSeconds) + _turnCarry;
+            int units = (int)amount;
+            _turnCarry = amount - units;
+            int turned = 0;
+            while (units > 0 && _turnToGo != 0) {
+                int sign = System.Math.Sign(_turnToGo);
+                int part = System.Math.Min(units, System.Math.Abs(_turnToGo));
+                turned += sign * part;
+                _turnToGo -= sign * part;
+                units -= part;
+                if (_turnToGo == 0 && direction != 0 && units > 0) {
+                    _turnToGo = direction * stride;
+                }
+            }
+            if (_turnToGo == 0) {
+                _turnCarry = 0;
+            }
+            if (turned != 0) {
+                _swingYaw = null;
+                _session.Rotation = unchecked((short)(ushort)((ushort)_session.Rotation + turned));
+                SyncCamera();
+            }
+        }
+
         private void Turn(bool turnViewLeft) {
             if (CameraIsAnimating) {
                 return;
