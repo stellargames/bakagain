@@ -562,6 +562,13 @@
 .ec-desk .ec-stone--off .ec-stone__name { color: rgb(130, 120, 106); }
 .ec-stone--hover .ec-stone__disc { border-width: 3px; border-color: rgb(255, 220, 140); }
 .ec-desk .ec-stone--hover .ec-stone__key { display: flex; }   /* the key shows on hover only (owner, 2026-11-01) */
+.ec-shoot { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }   /* TASK-1043: modal until a quarrel is picked */
+.ec-shoot__row { position: absolute; left: 0; right: 0; top: 7%; flex-direction: row; justify-content: center; }
+.ec-shoot__button { width: 130px; height: 130px; margin: 0 8px; align-items: center; justify-content: center; }
+.ec-shoot__disc { width: 120px; height: 120px; border-radius: 50%; background-size: contain; }
+.ec-shoot__button--hover .ec-shoot__disc { border-width: 3px; border-color: rgb(255, 220, 140); }
+.ec-shoot__button--chosen .ec-shoot__disc { border-width: 4px; border-color: rgb(232, 150, 30); }
+.ec-shoot__count { position: absolute; right: 0; bottom: 0; min-width: 44px; padding: 0 6px; font-size: 28px; color: rgb(236, 210, 140); background-color: rgba(28, 18, 10, 0.88); border-width: 2px; border-color: rgb(196, 160, 92); border-radius: 4px; -unity-text-align: middle-center; }
 .ec-desk-tip { position: absolute; translate: -50% -110%; padding: 4px 12px; background-color: rgb(236, 222, 190); border-width: 2px; border-color: rgb(120, 86, 52); }
 .ec-desk .ec-desk-tip { font-size: 22px; color: rgb(110, 30, 20); }
 

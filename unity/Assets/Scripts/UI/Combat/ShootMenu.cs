@@ -5,6 +5,7 @@ namespace BakAgain.UI.Combat {
     using System;
     using System.Collections.Generic;
     using UnityEngine;
+    using UnityEngine.UIElements;
     using ILogger = Microsoft.Extensions.Logging.ILogger;
 
     /// <summary>
@@ -107,6 +108,7 @@ namespace BakAgain.UI.Combat {
             HoveredActionId = -1;
             gameObject.SetActive(true);
             ApplyLayout();
+            SyncEnhanced();
         }
 
         /// <summary>
@@ -117,12 +119,63 @@ namespace BakAgain.UI.Combat {
             Open(Array.Empty<int>());
             _autoResolveFace = true;
             ApplyLayout();
+            SyncEnhanced();
         }
 
         private bool _autoResolveFace;
 
         /// <summary>Drop it and hand the HUD back to the melee menu.</summary>
-        public void Close() => gameObject.SetActive(false);
+        public void Close() {
+            _row?.Hide();
+            ShowClassic(true);
+            gameObject.SetActive(false);
+        }
+
+        // ---- Enhanced combat: one modal row instead of SHOOT.DAT's stones (TASK-1043) ----
+
+        private BakAgain.UI.Combat.Enhanced.EnhancedShootRow _row;
+
+        private VisualElement Root => GetComponent<UIDocument>()?.rootVisualElement;
+
+        // Not the auto-resolve face: Enhanced never raises it (the band's Auto stone is the Stop).
+        private bool Enhanced => !_autoResolveFace && GameOptions.IsOn(EnhancedFeature.Combat);
+
+        private void SyncEnhanced() {
+            VisualElement root = Root;
+            if (root == null) {
+                return;
+            }
+            if (!Enhanced) {
+                _row?.Hide();
+                ShowClassic(true);
+                return;
+            }
+            if (_row == null) {
+                _row = new BakAgain.UI.Combat.Enhanced.EnhancedShootRow(IconOf);
+                _row.Pressed += PrimaryAction;
+                _row.Described += id => SecondaryAction(id);
+                _row.Hovered += id => HoveredActionId = id;
+            }
+            ShowClassic(false);
+            _row.Show(root, _quarrelsOfKind);
+        }
+
+        // The REQ's own stones are hidden (not removed) while the row is up; the row is the root's other child.
+        private void ShowClassic(bool show) {
+            VisualElement root = Root;
+            if (root == null) {
+                return;
+            }
+            foreach (VisualElement child in root.Children()) {
+                if (child.name != BakAgain.UI.Combat.Enhanced.EnhancedShootRow.OverlayName) {
+                    child.style.display = show ? StyleKeyword.Null : DisplayStyle.None;
+                }
+            }
+        }
+
+        private string IconOf(int actionId) =>
+            _ui != null && _ui.TryGetIconBase(actionId, out int icon)
+                ? GameData.Resources.Menu.UiElement.IconKeyForCombined(icon) : null;
 
         private void OnEnable() {
             _ui = _ui ? _ui : GetComponent<UserInterfaceLoader>();
@@ -144,6 +197,10 @@ namespace BakAgain.UI.Combat {
         private void OnPanelBuilt(IReadOnlyList<BakAgain.UI.InputCore.NavWidget> widgets) {
             TrackHover(widgets);
             ApplyLayout();
+            if (_row != null && _row.Shown) {
+                ShowClassic(false);   // a rebuilt REQ comes back visible
+                _row.RefreshIcons();
+            }
         }
 
         /// <summary>
@@ -296,6 +353,7 @@ namespace BakAgain.UI.Combat {
                 return;
             }
 
+            _row?.Mark(actionId);   // a key's pick ends the Enhanced row's modality too
             _logger.LogInformation("Shoot menu: quarrel kind {Kind} (id {Id}).", kind, actionId);
             QuarrelChosen?.Invoke(kind, actionId);
         }
