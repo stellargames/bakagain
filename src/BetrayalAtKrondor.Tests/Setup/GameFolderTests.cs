@@ -17,6 +17,13 @@ public class GameFolderTests : IDisposable {
     }
 
     [Fact]
+    public void FindTakesAPathInTheFolderToo() {
+        // The extractor passes the full path it enumerated (RED.RMP, C21.TTM, ...); verify-generated failed on it.
+        File.WriteAllText(Path.Combine(_dir, "red.rmp"), "x");
+        Assert.EndsWith("red.rmp", GameFolder.Find(_dir, Path.Combine(_dir, "RED.RMP")));
+    }
+
+    [Fact]
     public void FindReturnsNullWhenAbsent() {
         Assert.Null(GameFolder.Find(_dir, "STARTUP.GAM"));
         Assert.Null(GameFolder.Find(Path.Combine(_dir, "missing"), "STARTUP.GAM"));

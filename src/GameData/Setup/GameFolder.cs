@@ -12,6 +12,7 @@ public static class GameFolder {
         if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory)) {
             return null;
         }
+        fileName = Path.GetFileName(fileName);   // the extractor passes the full path it enumerated
         try {
             foreach (string file in Directory.EnumerateFiles(directory)) {
                 if (string.Equals(Path.GetFileName(file), fileName, StringComparison.OrdinalIgnoreCase)) {
