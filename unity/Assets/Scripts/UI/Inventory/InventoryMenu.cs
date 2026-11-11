@@ -793,7 +793,11 @@ namespace BakAgain.UI.Inventory {
             _shelf?.StopCoast();
             _shelf = null;
             // Exit or Escape with an item examined ends the examine with the screen: left open, the
-            // next pack showed the bag for the key ring and the Enhanced "back" hint.
+            // next pack showed the bag for the key ring and the Enhanced "back" hint. Its
+            // description sits in the dialog overlay, above every screen, so it goes too.
+            if (_inspectOpen) {
+                _dialogs?.ClearDialog();
+            }
             _inspectOpen = false;
             _inspectSlot = -1;
             _inspectStatSlot = -1;
@@ -3285,7 +3289,14 @@ namespace BakAgain.UI.Inventory {
             }
             switch (actionId) {
                 case ButtonExit:
-                    Close();
+                    // Esc while an item is examined ends the examine only: the original waits in
+                    // dialog_poll_arrow_or_button, which takes any key but the arrows (DIALOG.C:155,
+                    // INVINSP.C:424). Closing the screen left the description up (forum, 2026-11-11).
+                    if (_inspectOpen) {
+                        CloseInspect();
+                    } else {
+                        Close();
+                    }
                     break;
                 case PortraitSlot1:
                     DeselectItem();

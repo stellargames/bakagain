@@ -29,6 +29,8 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         private GameObject _go;
         private PanelSettings _panelSettings;
         private VisualElement _stage;
+        private NoOpNavigator _nav;
+        private NoOpDialogs _dialogs;
 
         [TearDown]
         public void TearDown() {
@@ -51,11 +53,13 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
 
             var menu = _go.AddComponent<InventoryMenu>(); // Awake() resolves UIDocument/UserInterfaceLoader
             var session = new GameSession();
-            menu.Construct(session, new NoOpResources(), new NoOpNavigator(),
+            _nav = new NoOpNavigator();
+            _dialogs = new NoOpDialogs();
+            menu.Construct(session, new NoOpResources(), _nav,
                 new BakAgain.Core.Services.DialogExecutor(
                     new Microsoft.Extensions.Logging.Abstractions.NullLogger<BakAgain.Core.Services.DialogExecutor>(),
                     session, new BakAgain.Core.Services.GameClock(session)),
-                new NoOpDialogs());
+                _dialogs);
 
             var displayed = new GameData.Resources.Inventory.RuntimeContainer {
                 Capacity = 24, ContainerType = containerType,
@@ -280,6 +284,39 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
 
             Assert.AreEqual(0f, Outline(itemSlot0), "nothing to inspect, nothing to select");
         }
+
+        /// <summary>
+        /// Esc (the Exit accelerator) while an item is examined ends the examine and leaves the screen
+        /// up: the original's examine waits in dialog_poll_arrow_or_button, which takes any key but the
+        /// arrows (DIALOG.C:155-170, INVINSP.C:424). Before this the port left the screen and the
+        /// description stayed on top of the world (forum bug, 2026-11-11).
+        /// </summary>
+        [Test]
+        public void ExitWhileExamining_EndsTheExamineNotTheScreen() {
+            InventoryMenu menu = BuildMenu(out _);
+            SetInspectOpen(menu, true);
+
+            menu.PrimaryAction(1); // ButtonExit, which Esc presses
+
+            Assert.AreEqual(0, _nav.Pops, "the screen stays up");
+            Assert.GreaterOrEqual(_dialogs.Clears, 1, "the description is cleared");
+        }
+
+        /// <summary>Closing the screen with an examine open takes its description with it: the text sits
+        /// in the dialog overlay, above every screen, and would outlive it.</summary>
+        [Test]
+        public void DisablingWhileExamining_ClearsTheDescription() {
+            InventoryMenu menu = BuildMenu(out _);
+            SetInspectOpen(menu, true);
+
+            menu.enabled = false;
+
+            Assert.GreaterOrEqual(_dialogs.Clears, 1);
+        }
+
+        private static void SetInspectOpen(InventoryMenu menu, bool open) =>
+            typeof(InventoryMenu).GetField("_inspectOpen", BindingFlags.NonPublic | BindingFlags.Instance)
+                .SetValue(menu, open);
 
         /// <summary>
         /// The detail window's keys/bag swap. The original's <c>highlight_slot</c> has three states

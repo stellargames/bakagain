@@ -31,7 +31,8 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         public UniTask<VisualElement> BuildStyledBoxAsync(GameData.Resources.Dialog.DialogEntry entry,
             VisualElement host) => UniTask.FromResult<VisualElement>(null);
 
-        public void ClearDialog() { }
+        public int Clears;
+        public void ClearDialog() => Clears++;
 
         public void LetClicksThroughPanel() { }
             public Cysharp.Threading.Tasks.UniTask ShowEntry(GameData.Resources.Dialog.DialogEntry entry,
@@ -73,7 +74,8 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         public UniTask PushAndWaitAsync(BakAgain.UI.Navigation.IScreen screen) =>
             UniTask.CompletedTask;
 
-        public UniTask Pop() => UniTask.CompletedTask;
+        public int Pops;
+        public UniTask Pop() { Pops++; return UniTask.CompletedTask; }
 
         public UniTask Replace(BakAgain.UI.Navigation.IScreen screen) => UniTask.CompletedTask;
 
