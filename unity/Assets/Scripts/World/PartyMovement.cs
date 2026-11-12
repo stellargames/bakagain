@@ -1483,15 +1483,28 @@ namespace BakAgain.World {
             _swingYaw ??= unchecked((ushort)_session.Rotation);
         }
 
-        /// <summary>One frame of an automatic turn's swing — one stride toward the heading.</summary>
+        /// <summary>One frame of an automatic turn's swing, paced at the original's frame rate.</summary>
         public void TickTurnSwing() {
             if (_swingYaw is not ushort shown) {
                 return;
             }
-            _swingYaw = SwingStep(shown, unchecked((ushort)_session.Rotation),
-                _movement.TurnAngleFor(_preferences.Current.TurnSize));
+            _swingYaw = SwingStepFor(shown, unchecked((ushort)_session.Rotation),
+                _movement.TurnAngleFor(_preferences.Current.TurnSize), Time.deltaTime);
             SyncCamera();
         }
+
+        /// <summary>
+        /// The rate the original's swing loop renders at: one stride per drawn frame
+        /// (<c>worldmove_animate_hdg_tgt</c>, WORLDMOV.C:161). A stride per Unity frame finished a bend
+        /// eight times too fast and read as a snap (TASK-1077).
+        /// </summary>
+        // ponytail: 10 fps is a period-486 guess, not a measurement; time the original in DOSBox if it matters.
+        public const float OriginalFramesPerSecond = 10f;
+
+        /// <summary><see cref="SwingStep"/> for a frame of <paramref name="seconds"/>: the stride scaled
+        /// so the swing takes as long as the original's, whatever the display rate.</summary>
+        public static ushort? SwingStepFor(ushort shown, ushort target, int stride, float seconds) =>
+            SwingStep(shown, target, (int)(stride * OriginalFramesPerSecond * seconds));
 
         /// <summary>
         /// The next yaw of a swing: one <paramref name="stride"/> the short way round toward

@@ -66,6 +66,24 @@ namespace BakAgain.Tests.Editor.World {
             Assert.IsNull(PartyMovement.SwingStep(0x5000, 0x5000, 0x2000));
         }
 
+        // Forum, grimrow, 2026-11-11 (TASK-1077): "turns using stay on road are jerking directly to the
+        // turn direction". A stride per Unity frame finished a 45° bend in 8 frames at 60 fps (0.13 s);
+        // the original's stride per RENDERED frame took ~0.8 s at the small turn size.
+        [Test]
+        public void AnAutomaticTurnSwingsAtTheOriginalsFrameRateNotTheDisplays() {
+            foreach (float fps in new[] { 30f, 60f, 144f }) {
+                ushort? shown = 0;
+                int frames = 0;
+                while (shown is ushort s && frames < 10000) {
+                    shown = PartyMovement.SwingStepFor(s, 0x2000, 0x400, 1f / fps);
+                    frames++;
+                }
+                float seconds = frames / fps;
+                Assert.AreEqual(8f / PartyMovement.OriginalFramesPerSecond, seconds, 0.05f,
+                    $"a 45° bend at the small stride takes 8 original frames whatever the display rate ({fps} fps)");
+            }
+        }
+
         [Test]
         public void TurnLeft_UsesTurnAngleForPreferenceTurnSize() {
             var (pm, session, _, cam) = Build(turn: TurnSize.Large); // TurnAngles[Large] = 0x4000
