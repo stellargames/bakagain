@@ -307,10 +307,9 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         /// The examined item is left selected when the examine ends. The right-click made it the
         /// menu's focused entry (menupage_state_0e84, used at MODALSCR.C:450/587 for the icon's anchor)
         /// and nothing in invinspect_item_flow moves the focus, so the original shows it outlined red
-        /// afterwards (TASK-1070, measured in the Crossroads Shop with Esc). The re-render builds the
-        /// game fonts, which need BOOK.FNT from the shipped data.
+        /// afterwards (TASK-1070, measured in the Crossroads Shop with Esc).
         /// </summary>
-        [UnityTest, RequiresShippedGameData]
+        [UnityTest]
         public System.Collections.IEnumerator EndingAnExamine_LeavesTheExaminedItemSelected() {
             InventoryMenu menu = BuildMenu(out VisualElement itemSlot0);
             SetInspectOpen(menu, true);
