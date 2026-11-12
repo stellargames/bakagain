@@ -28,9 +28,10 @@ jobs:
           - { target: Android, os: ubuntu-latest, artifact: android }
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # versioning: Tag reads the tag
+          persist-credentials: false
       - name: Free disk space for the Unity image (and the Android toolchain)
         if: runner.os == 'Linux'
         uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # v2.0.0
@@ -40,7 +41,7 @@ jobs:
       # host returned 409 for every version on 2026-10-25 (actions/setup-dotnet#794).
       - name: Build the plugin libraries into the Unity project
         run: dotnet build src/ResourceExtraction/ResourceExtraction.csproj -c Unity
-      - uses: actions/cache@v6
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: unity/Library
           key: Library-${{ matrix.target }}-${{ hashFiles('unity/Packages/packages-lock.json', 'unity/ProjectSettings/ProjectVersion.txt') }}
@@ -71,7 +72,7 @@ jobs:
           androidKeystorePass: ${{ secrets.ANDROID_KEYSTORE_PASS }}
           androidKeyaliasName: ${{ secrets.ANDROID_KEYALIAS_NAME }}
           androidKeyaliasPass: ${{ secrets.ANDROID_KEYALIAS_PASS }}
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ matrix.artifact }}
           path: build/${{ matrix.target }}
@@ -97,7 +98,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           path: artifacts
       - name: Package
@@ -120,10 +121,11 @@ jobs:
           generate_release_notes: true
       # The site links the files directly (/releases/latest skips pre-releases), so point it at this
       # release. The VPS pulls website/ from main.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
           path: repo
+          # Keeps its credentials: the step below pushes the website commit.
       - name: Point the website at this release
         working-directory: repo
         run: |
