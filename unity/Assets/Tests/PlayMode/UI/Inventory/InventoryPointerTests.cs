@@ -7,6 +7,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
     using Cysharp.Threading.Tasks;
     using NUnit.Framework;
     using UnityEngine;
+    using UnityEngine.TestTools;
     using UnityEngine.UIElements;
 
     /// <summary>
@@ -301,6 +302,37 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             Assert.AreEqual(0, _nav.Pops, "the screen stays up");
             Assert.GreaterOrEqual(_dialogs.Clears, 1, "the description is cleared");
         }
+
+        /// <summary>
+        /// The examined item is left selected when the examine ends. The right-click made it the
+        /// menu's focused entry (menupage_state_0e84, used at MODALSCR.C:450/587 for the icon's anchor)
+        /// and nothing in invinspect_item_flow moves the focus, so the original shows it outlined red
+        /// afterwards (TASK-1070, measured in the Crossroads Shop with Esc).
+        /// </summary>
+        [UnityTest]
+        public System.Collections.IEnumerator EndingAnExamine_LeavesTheExaminedItemSelected() {
+            InventoryMenu menu = BuildMenu(out VisualElement itemSlot0);
+            SetInspectOpen(menu, true);
+            typeof(InventoryMenu).GetField("_inspectSlot", BindingFlags.NonPublic | BindingFlags.Instance)
+                .SetValue(menu, 0);
+
+            menu.PrimaryAction(1); // Esc
+            for (int i = 0; i < 30 && GetInspectOpen(menu); i++) {
+                yield return null;
+            }
+
+            Assert.IsFalse(GetInspectOpen(menu), "the examine ended");
+            Assert.AreEqual(SelectedBorderY, Outline(Slot0(menu)), "and the item it showed is selected");
+        }
+
+        // The menu's own stage: ending an examine re-renders, and a render builds a new stage.
+        private static VisualElement Slot0(InventoryMenu menu) =>
+            ((VisualElement)typeof(InventoryMenu).GetField("_stage", BindingFlags.NonPublic | BindingFlags.Instance)
+                .GetValue(menu))?.Q("item_slot_0");
+
+        private static bool GetInspectOpen(InventoryMenu menu) =>
+            (bool)typeof(InventoryMenu).GetField("_inspectOpen", BindingFlags.NonPublic | BindingFlags.Instance)
+                .GetValue(menu);
 
         /// <summary>Closing the screen with an examine open takes its description with it: the text sits
         /// in the dialog overlay, above every screen, and would outlive it.</summary>

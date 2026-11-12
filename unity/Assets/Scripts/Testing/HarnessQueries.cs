@@ -421,7 +421,9 @@ namespace BakAgain.Testing {
                     UnityEngine.Rect b = v.worldBound;
                     return Ok(new Dictionary<string, object> {
                         ["x"] = Mathf.RoundToInt(b.x * sx), ["y"] = Mathf.RoundToInt(b.y * sy),
-                        ["w"] = Mathf.RoundToInt(b.width * sx), ["h"] = Mathf.RoundToInt(b.height * sy) });
+                        ["w"] = Mathf.RoundToInt(b.width * sx), ["h"] = Mathf.RoundToInt(b.height * sy),
+                        // An inventory cell's selection is its outline (InventoryMenu.SetOutline).
+                        ["border"] = v.resolvedStyle.borderTopWidth });
                 }
             }
             return Refuse("no element " + key);

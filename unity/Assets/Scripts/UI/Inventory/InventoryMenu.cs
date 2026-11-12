@@ -1985,11 +1985,20 @@ namespace BakAgain.UI.Inventory {
                 if (_inspectSlot >= 0) {
                     await _inspect.FlyIconBackAsync(_inspectFrom);
                 }
+                int examined = _inspectSlot;
                 _inspectSlot = -1;
                 _inspectOpen = false; // last: EffectiveContainerImageIndex keeps the bag until now
                 _inspect.Clear();
                 RenderCurrent();      // rebuilds the grid, which re-hides the More Info button
                 RefreshContainerImage(); // bag -> keys once nothing is selected again
+                // *** THE EXAMINED ITEM STAYS SELECTED. *** The right-click made it the menu's focused
+                // entry and invinspect_item_flow never moves the focus, so the original outlines it red
+                // afterwards however the examine ended (TASK-1070). Not in the mender's or priest's
+                // screens, where a click on an item acts rather than selects.
+                if (examined >= 0 && !IsRepairMode && !IsBlessingMode
+                    && _displayed != null && examined < _displayed.Items.Count) {
+                    SelectItem(examined, clickCount: 1);
+                }
             } finally {
                 _inspectClosing = false;
             }
