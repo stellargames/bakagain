@@ -12,6 +12,18 @@
     --ui-surface: rgb(154, 109, 56);
 }
 
+/* A held TextButton: widget_draw_text_button with `pressed` (WIDGET.C:351-403). Fill pen 0x0b, the
+   outline (top/right) pen 1 and the edge (left/bottom) pen 4 swapped, label pen 6 over shadow pen 1.
+   Pens read from OPTIONS.PAL (TASK-1000, GitHub #3). */
+.text-button.text-button--pressed {
+    background-color: rgb(146, 97, 53);
+    border-top-color: var(--ui-shadow);
+    border-right-color: var(--ui-shadow);
+    border-left-color: var(--ui-edge);
+    border-bottom-color: var(--ui-edge);
+    color: rgb(77, 28, 24);
+}
+
 /* .text-button is shared: REQ buttons (absolutely placed by data, add .req-element)
    AND flex-laid-out dialog buttons (DialogManager) — so no position here. */
 .text-button {

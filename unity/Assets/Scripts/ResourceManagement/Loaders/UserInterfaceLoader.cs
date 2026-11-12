@@ -598,6 +598,16 @@ namespace BakAgain.ResourceManagement.Loaders {
             element.RegisterCallback<PointerCaptureOutEvent>(_ => setPressed(false));
         }
 
+        /// <summary>The class a TextButton wears while held (ClassicTheme's pressed pens).</summary>
+        public const string TextButtonPressedClass = "text-button--pressed";
+
+        /// <summary>
+        /// A TextButton's press look: <c>widget_draw_text_button</c> with <c>pressed</c> set (WIDGET.C:351-403),
+        /// lit by the same press anchor as an image button's +1 face; never while gated.
+        /// </summary>
+        internal static void RegisterTextPressFace(VisualElement button, System.Func<bool> gated) =>
+            RegisterPressFace(button, pressed => button.EnableInClassList(TextButtonPressedClass, pressed && !gated()));
+
         /// <summary>The face an entry wears right now, gate included.</summary>
         /// <remarks>
         /// <see cref="FaceIcon"/> answers the AUTHORED question — the <c>Disabled</c> field the REQ
@@ -1051,6 +1061,7 @@ namespace BakAgain.ResourceManagement.Loaders {
                 // The caption goes in a child so it can carry the vertical stretch without the chrome
                 // going with it — see GameFontText.Caption.
                 BakAgain.UI.GameFontText.Caption(button, menuEntry.Label);
+                RegisterTextPressFace(button, () => !TakesClicks(menuEntry));
             } else {
                 button.AddToClassList("req-hitbox");
             }

@@ -49,5 +49,42 @@ namespace BakAgain.Tests.PlayMode.UI {
                 Object.DestroyImmediate(host);
             }
         }
+
+        // GitHub #3 / TASK-1000: the main menu's TextButtons had no pressed look. The original has one:
+        // widget_draw_text_button with `pressed` set fills pen 0x0b instead of 0x0e, swaps the outline and
+        // edge pens (1 and 4) and draws the label in pen 6 (WIDGET.C:351-403), and it is lit by the same
+        // press anchor as the image buttons. A gated button draws its greyed label and is never pressed.
+        [UnityTest]
+        public IEnumerator ATextButtonWearsThePressedLookOnlyWhileHeld() {
+            var host = new GameObject("TextPressDoc");
+            var doc = host.AddComponent<UIDocument>();
+            doc.panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
+            var button = new Button();
+            var gatedButton = new Button();
+            doc.rootVisualElement.Add(button);
+            doc.rootVisualElement.Add(gatedButton);
+            yield return null;
+            try {
+                UserInterfaceLoader.RegisterTextPressFace(button, () => false);
+                UserInterfaceLoader.RegisterTextPressFace(gatedButton, () => true);
+
+                Send<PointerDownEvent>(button);
+                Assert.IsTrue(button.ClassListContains(UserInterfaceLoader.TextButtonPressedClass), "held: pressed");
+                Send<PointerUpEvent>(button);
+                Assert.IsFalse(button.ClassListContains(UserInterfaceLoader.TextButtonPressedClass), "released: plain");
+
+                Send<PointerDownEvent>(gatedButton);
+                Assert.IsFalse(gatedButton.ClassListContains(UserInterfaceLoader.TextButtonPressedClass), "gated: never");
+            } finally {
+                Object.DestroyImmediate(host);
+            }
+        }
+
+        private static void Send<T>(VisualElement target) where T : PointerEventBase<T>, new() {
+            using (T e = PointerEventBase<T>.GetPooled()) {
+                e.target = target;
+                target.SendEvent(e);
+            }
+        }
     }
 }
