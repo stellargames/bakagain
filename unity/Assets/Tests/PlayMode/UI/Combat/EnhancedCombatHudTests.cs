@@ -703,7 +703,7 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             yield return Settle();
             Assert.IsTrue(confirm.enabledSelf);
             Assert.AreEqual("Swing ▶", _hud.Root.Q<Label>("ec-phone-confirm-title").text);
-            Assert.AreEqual("−1 St · ends turn", _hud.Root.Q<Label>("ec-phone-confirm-detail").text);
+            Assert.AreEqual("−1 Stamina · ends turn", _hud.Root.Q<Label>("ec-phone-confirm-detail").text);
             using (var click = NavigationSubmitEvent.GetPooled()) {
                 click.target = confirm;
                 confirm.SendEvent(click);

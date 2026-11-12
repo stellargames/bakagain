@@ -314,6 +314,7 @@ public static class UiTemplates {
     public const string HudStoneHelpRest = "port:template:enhanced_hud_stone_help_rest";
     public const string HudStoneHelpAuto = "port:template:enhanced_hud_stone_help_auto";
     public const string HudReset = "port:template:enhanced_hud_reset";
+    public const string HudHealthCost = "port:template:enhanced_hud_health_cost";
     public const string HudHealthCostShort = "port:template:enhanced_hud_health_cost_short";
     public const string HudJoin = "port:template:enhanced_hud_join";
     /// <summary>The desktop ledger's header over a forecast: the action and its target ("Inspect Brigand A").</summary>
@@ -543,7 +544,7 @@ public static class UiTemplates {
         (HudFree, _ => "free"),
         (HudNone, _ => "none"),
         (HudStaminaCost, _ => "{n} Stamina"),
-        (HudStaminaCostShort, _ => "−{n} St"),
+        (HudStaminaCostShort, _ => "−{n} Stamina"),
         (HudSquares, _ => "{n, plural, one {# square} other {# squares}}"),
         (HudAboutPercent, _ => "about {n}%"),
         (HudHitPercent, _ => "{n}% to hit"),
@@ -574,7 +575,8 @@ public static class UiTemplates {
         (HudStoneHelpRest, _ => "Tap and the current character rests for one round."),
         (HudStoneHelpAuto, _ => "Tap and the party fights on its own; tap again to take control back."),
         (HudReset, _ => "Reset view"),
-        (HudHealthCostShort, _ => "−{n} H"),
+        (HudHealthCost, _ => "{n} Health"),
+        (HudHealthCostShort, _ => "−{n} Health"),
         (HudJoin, _ => "{a} · {b}"),
         (HudForecastTitle, _ => "{action} {target}"),
         (HudShortHealth, _ => "HP"),

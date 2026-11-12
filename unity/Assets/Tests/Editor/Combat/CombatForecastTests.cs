@@ -78,6 +78,20 @@ namespace BakAgain.Tests.Editor.Combat {
             Assert.AreEqual((0, 1), (swing.StaminaCost, swing.HealthCost));
         }
 
+        // Forum, grimrow, 2026-11-11: "swing costs 1 health?!" — the cost said "−1 H" / "−1 St".
+        [Test]
+        public void SwingCostIsSpelledOut_StaminaOrHealth() {
+            (CombatRuntime r, CombatEncounter f) = Duel((4, 4));
+            CombatForecast swing = r.ForecastMelee(f.Party[0], f.Enemies[0], MeleeAttack.Swing);
+            Assert.AreEqual("1 Stamina", BakAgain.UI.Combat.Enhanced.CombatHudText.Cost(swing, false));
+            Assert.AreEqual("−1 Stamina", BakAgain.UI.Combat.Enhanced.CombatHudText.Cost(swing, true));
+
+            f.Party[0].Stamina = 0;
+            swing = r.ForecastMelee(f.Party[0], f.Enemies[0], MeleeAttack.Swing);
+            Assert.AreEqual("1 Health", BakAgain.UI.Combat.Enhanced.CombatHudText.Cost(swing, false));
+            Assert.AreEqual("−1 Health", BakAgain.UI.Combat.Enhanced.CombatHudText.Cost(swing, true));
+        }
+
         [Test]
         public void AnUnreachableEnemyIsNotAllowed_WithItsReason() {
             (CombatRuntime r, CombatEncounter f) = Duel((7, 12));

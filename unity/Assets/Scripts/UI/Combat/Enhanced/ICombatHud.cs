@@ -160,7 +160,7 @@ namespace BakAgain.UI.Combat.Enhanced {
 
         public static string Cost(CombatForecast f, bool shortForm) =>
             f.StaminaCost > 0 ? UiTemplates.Format(shortForm ? UiTemplates.HudStaminaCostShort : UiTemplates.HudStaminaCost, ("n", f.StaminaCost))
-            : f.HealthCost > 0 ? UiTemplates.Format(UiTemplates.HudHealthCostShort, ("n", f.HealthCost))
+            : f.HealthCost > 0 ? UiTemplates.Format(shortForm ? UiTemplates.HudHealthCostShort : UiTemplates.HudHealthCost, ("n", f.HealthCost))
             : f.RestGain > 0 ? UiTemplates.Format(UiTemplates.HudRestGain, ("n", f.RestGain))
             : shortForm ? "" : UiTemplates.Format(UiTemplates.HudFree);
 
