@@ -103,6 +103,23 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             Assert.IsTrue(Spent(hero));
         }
 
+        /// <summary>The middle button swings at a foe, as Shift+click does (owner, TASK-1072): the
+        /// original's swing is its confirm's right button, which Enhanced keeps for Inspect.</summary>
+        [Test]
+        public void MiddleClickOnAFoeSwings_OnTheGroundDoesNothing() {
+            var (s, hero, c) = Fight(roll: 99);
+            int stamina = hero.Stamina;
+            c.Point(0, 0, null, false);
+            c.Middle();
+            Assert.IsFalse(Spent(hero), "a middle click on the ground does nothing");
+
+            PointAtFoe(s, c, 0);
+            c.Middle();
+
+            Assert.AreEqual(stamina - MeleeExchange.SwingCost, hero.Stamina, "a swing, billed");
+            Assert.IsTrue(Spent(hero));
+        }
+
         [Test]
         public void RightClickForecastsInspect_ASecondRightClickInspects_ALeftClickThrusts() {
             var (s, hero, c) = Fight();

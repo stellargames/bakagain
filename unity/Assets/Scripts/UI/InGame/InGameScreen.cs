@@ -28,7 +28,7 @@ namespace BakAgain.UI.InGame {
     /// <see cref="PrimaryAction"/> to movement, follow-road, map, cast, bookmark and encamp.</para>
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class InGameScreen : MonoBehaviour, BakAgain.UI.Navigation.IScreen, IActionHandler, IMenuStateProvider {
+    public sealed class InGameScreen : MonoBehaviour, BakAgain.UI.Navigation.IScreen, IActionHandler, IMiddleActionHandler, IMenuStateProvider {
         // req_main.dat ActionIds (verified against generated/REQ/REQ_MAIN.json and the
         // MainGameLoop jumptable). Movement ids double as DOS arrow-key scancodes.
         private const int ActionMoveForward = 72;   // 0x48 Up
@@ -1386,7 +1386,7 @@ namespace BakAgain.UI.InGame {
         /// A Classic turn, or a Classic pick still armed (a spell's or a shot's target), keeps the
         /// Classic path.
         /// </summary>
-        internal bool EnhancedCombatClick(bool isPrimary, Vector2 screen) {
+        internal bool EnhancedCombatClick(bool isPrimary, Vector2 screen, bool middle = false) {
             if (_combatController == null || !EnhancedCombatActive || (_combatPickPending?.Invoke() ?? false)) {
                 return false;
             }
@@ -1394,7 +1394,9 @@ namespace BakAgain.UI.InGame {
                 return true;   // the release of a long press is not also a tap
             }
             PointController(BoardAt(screen));
-            if (isPrimary) {
+            if (middle) {
+                _combatController.Middle();
+            } else if (isPrimary) {
                 _combatController.Primary(BakAgain.UI.InputCore.InputDriver.ShiftHeld);
             } else {
                 _combatController.Secondary();
@@ -2129,6 +2131,14 @@ namespace BakAgain.UI.InGame {
                 default:
                     _logger.LogDebug("InGameScreen unhandled primary action {ActionId}.", menuEntryActionId);
                     break;
+            }
+        }
+
+        /// <summary>The middle button on the world view: an Enhanced fight's swing; nothing elsewhere,
+        /// as in the original, which reads only two buttons.</summary>
+        public void MiddleAction(int menuEntryActionId) {
+            if (menuEntryActionId == ActionWorldViewport && _pointer != null) {
+                EnhancedCombatClick(isPrimary: false, _pointer.ScreenPosition, middle: true);
             }
         }
 

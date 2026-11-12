@@ -538,7 +538,7 @@ public static class UiTemplates {
         (HudCost, _ => "Cost"),
         (HudWalk, _ => "Walk"),
         // Under the desktop forecast: how to swing rather than thrust (owner, 2026-11-01: "no clear way").
-        (HudSwingHint, _ => "Click to thrust \u00b7 Shift+click to swing"),
+        (HudSwingHint, _ => "Click to thrust \u00b7 Shift+click or middle-click to swing"),
         (HudInspectHint, _ => "Learn its Health, Stamina, skills and Defense. Right-click again to inspect."),
         (HudInspectHintTouch, _ => "Learn its Health, Stamina, skills and Defense. Tap Inspect to look."),
         (HudFree, _ => "free"),

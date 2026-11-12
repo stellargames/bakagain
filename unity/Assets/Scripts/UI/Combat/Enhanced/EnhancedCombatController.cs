@@ -245,6 +245,13 @@ namespace BakAgain.UI.Combat.Enhanced {
             // Yourself or an ally: nothing (the original's click-on-self shortcut is dropped, spec call 6).
         }
 
+        /// <summary>Middle click (desktop): Swing at a foe, as Shift+click; elsewhere nothing (TASK-1072).</summary>
+        public void Middle() {
+            if (!_phone && Foe() is int && Ready() != null) {
+                Primary(shift: true);
+            }
+        }
+
         /// <summary>Right click (desktop): Inspect forecast on a foe, a second one on the same foe inspects.</summary>
         public void Secondary() {
             Combatant acting = Ready();
