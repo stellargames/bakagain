@@ -132,6 +132,11 @@ namespace BakAgain.UI.Inventory {
             bar.Add(_hint);
             GetAll = Tablet(GameData.Resources.Text.UiTemplates.EnhancedInvGetAll, () => GetAllPressed?.Invoke());
             GetAll.style.display = DisplayStyle.None; // side-by-side loot only: ShowGetAll
+            GetAll.name = "get_all";
+            ShareAll = Tablet(GameData.Resources.Text.UiTemplates.EnhancedInvShareAll, () => ShareAllPressed?.Invoke());
+            ShareAll.name = "share_all";
+            ShareAll.style.display = DisplayStyle.None;
+            bar.Add(ShareAll);
             bar.Add(GetAll);
             _moved.Move(_root.Q(UseName), bar, "enhanced-inv__button", clearSize: false);
             _moved.Move(_root.Q(ExitName), bar, "enhanced-inv__button", clearSize: false);
@@ -167,7 +172,7 @@ namespace BakAgain.UI.Inventory {
                 _reqStage.style.display = StyleKeyword.Null;
             }
             _layout.RemoveFromHierarchy();
-            _layout = _field = Sheet = _reqStage = GetAll = null;
+            _layout = _field = Sheet = _reqStage = GetAll = ShareAll = null;
             _purse = _hint = null;
             Array.Clear(_portraits, 0, 3);
             Array.Clear(_names, 0, 3);
@@ -266,13 +271,20 @@ namespace BakAgain.UI.Inventory {
         /// <summary>The menu's name for a black item panel (InventoryMenu draws them on the sheet).</summary>
         private const string PanelName = "panel_bg";
 
-        /// <summary>The loot screen's "Get all" tablet (TASK-1019), hidden until <see cref="ShowGetAll"/>.</summary>
+        /// <summary>The loot screen's "Get all" tablet (TASK-1019): everything into the member whose pack
+        /// is shown (TASK-1075). Hidden until <see cref="ShowGetAll"/>.</summary>
         public VisualElement GetAll { get; private set; }
 
+        /// <summary>"Share all" beside it: the loot spread across the party (TASK-1075).</summary>
+        public VisualElement ShareAll { get; private set; }
+
         public event Action GetAllPressed;
+        public event Action ShareAllPressed;
 
         public void ShowGetAll(bool on) {
-            if (GetAll != null) GetAll.style.display = on ? DisplayStyle.Flex : DisplayStyle.None;
+            DisplayStyle shown = on ? DisplayStyle.Flex : DisplayStyle.None;
+            if (GetAll != null) GetAll.style.display = shown;
+            if (ShareAll != null) ShareAll.style.display = shown;
         }
 
         /// <summary>The casting screen's parchment tablet, in the bar.</summary>

@@ -106,6 +106,10 @@ namespace BakAgain.UI.Inventory {
         /// <summary>The squares of the last render that drew them, in the root's space; empty otherwise.</summary>
         public Rect SquaresRect { get; private set; }
 
+        /// <summary>What a side-by-side panel frames: the squares and, for a member's pack, the
+        /// paperdoll's columns left of them, where the equipped items are (TASK-1074).</summary>
+        public Rect ContentRect { get; private set; }
+
         /// <summary>Element name of the host holding the member paperdoll's equipped cells.</summary>
         internal const string PaperdollHostName = "item_paperdoll";
 
@@ -400,6 +404,14 @@ namespace BakAgain.UI.Inventory {
             if (squares) {
                 generalHost = CreateGridHost(root, GridHostName, generalOrigin, grid, area);
                 DrawSquares(generalHost, grid, firstColumn: member ? PaperdollColumns : 0, generalOrigin);
+                ContentRect = SquaresRect;
+                if (member) {
+                    // The paperdoll sits at the grid's own origin (below), its two columns left of the squares.
+                    var doll = new Rect(area.Left.Value, area.Top.Value,
+                        PaperdollColumns * grid.CellWidth.Value, grid.Rows * grid.CellHeight.Value);
+                    ContentRect = Rect.MinMaxRect(Mathf.Min(doll.xMin, SquaresRect.xMin), Mathf.Min(doll.yMin, SquaresRect.yMin),
+                        Mathf.Max(doll.xMax, SquaresRect.xMax), Mathf.Max(doll.yMax, SquaresRect.yMax));
+                }
             }
 
             foreach (Placement pl in placements) {
@@ -1250,7 +1262,7 @@ namespace BakAgain.UI.Inventory {
             _generation++; // invalidate any in-flight LoadIconAsync
             ShelfViewport = ShelfContent = null;
             ShelfRows = ShelfVisibleRows = 0;
-            SquaresRect = Rect.zero;
+            SquaresRect = ContentRect = Rect.zero;
             ClearDeferredReposition();
             foreach (VisualElement built in _built) {
                 built.RemoveFromHierarchy();

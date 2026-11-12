@@ -239,6 +239,7 @@ namespace BakAgain.UI.Inventory {
         // been re-rendered and the dragged slot no longer means anything.
         private Vector2 _dropStagePos;
         private int _dropPortraitSlot = -1;
+        private bool _dropOnPackPanel; // the drop landed on the Enhanced loot's pack panel, not the portrait
         private ObjectInfo _dropObject;
         private ushort _dropItemFlags;
 
@@ -739,6 +740,7 @@ namespace BakAgain.UI.Inventory {
             }
             _enhanced = new EnhancedInventoryLayout(Root, _gameSession);
             _enhanced.GetAllPressed += TakeAll;
+            _enhanced.ShareAllPressed += ShareAll;
             LoadBlankStoneAsync(_enhanced).Forget();
             if (_ui == null) {
                 return;
@@ -1775,6 +1777,10 @@ namespace BakAgain.UI.Inventory {
             _dragSlot = -1;
             int portrait = PortraitUnder(stageLocal);
             _dropStagePos = stageLocal; // where the sprite starts its flight, if the drop transfers
+            // Enhanced side-by-side loot: a drop on the pack's panel lands in the pack, so nothing
+            // flies to the portrait (owner, TASK-944). A drop on the portrait itself still flies.
+            _dropOnPackPanel = portrait >= 0 && portrait == LootPackPortraitUnder(stageLocal)
+                && !(TryGetChromeRect(portrait + PortraitSlot1, out Rect head) && head.Contains(stageLocal));
             bool overWindow = IsOverContainerWindow(stageLocal);
             UpdateDiscardBorder(dragging: false, overWindow: false);
             UpdatePaperdollBorder(dragging: false, dragged, stageLocal);
@@ -4882,9 +4888,14 @@ namespace BakAgain.UI.Inventory {
             if (result is InventoryTransfer.Result.Moved
                 or InventoryTransfer.Result.GoldConverted
                 or InventoryTransfer.Result.SwappedEquipped) {
-                FlyDroppedItemToPortrait();
+                if (_dropOnPackPanel) {
+                    PlayDropSound();
+                } else {
+                    FlyDroppedItemToPortrait();
+                }
             }
             _dropPortraitSlot = -1;
+            _dropOnPackPanel = false;
             _dropObject = null;
             switch (result) {
                 case InventoryTransfer.Result.MustKeepEquipped:
@@ -4949,6 +4960,9 @@ namespace BakAgain.UI.Inventory {
         /// pointer comes up, several async hops before the transfer resolves, and keeping it alive
         /// across those would tie its lifetime to a path that can be cancelled or torn down.</para>
         /// </remarks>
+        private void PlayDropSound() =>
+            Audio.MenuSoundService.Instance?.Play(ShowingShopShelf ? DropFlightShopSoundId : DropFlightSoundId);
+
         private void FlyDroppedItemToPortrait() {
             int portraitSlot = _dropPortraitSlot;
             ObjectInfo obj = _dropObject;
@@ -4956,8 +4970,7 @@ namespace BakAgain.UI.Inventory {
                 || !TryGetChromeRect(portraitSlot + PortraitSlot1, out Rect portrait)) {
                 return;
             }
-            Audio.MenuSoundService.Instance?.Play(
-                ShowingShopShelf ? DropFlightShopSoundId : DropFlightSoundId);
+            PlayDropSound();
 
             Vector2 from = _dropStagePos;
             var to = new Vector2(portrait.center.x, portrait.center.y);

@@ -170,6 +170,59 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             Assert.IsEmpty(_packs[0].Items);
         }
 
+        /// <summary>TASK-944 (owner): an item dropped on the side-by-side pack panel lands in the pack;
+        /// it does not fly into the portrait. A drop on the portrait itself still flies (the original's).</summary>
+        [UnityTest]
+        public IEnumerator ADropOnThePackPanelDoesNotFly_ADropOnThePortraitDoes() {
+            // Member 1's portrait (hotspot_3), sized: the flight needs somewhere to fly to.
+            VisualElement head = _root.Q("hotspot_3");
+            _root.Add(head);   // out of the REQ stage, which the Enhanced layout hides
+            head.style.position = Position.Absolute;
+            head.style.left = 1300; head.style.top = 900; head.style.width = 100; head.style.height = 100;
+            yield return null;
+            _root.panel.GetType().GetMethod("ValidateLayout", BindingFlags.Public | Any)?.Invoke(_root.panel, null);
+            object moved = GameData.Resources.Inventory.InventoryTransfer.Result.Moved;
+            Set("_resources", new IconStillLoading());   // a flyer waits for its icon; NoOp has none at once
+
+            void Drop(bool onPackPanel) {
+                Set("_dropPortraitSlot", 1);
+                Set("_dropObject", new ObjectInfo("dagger") { Number = Dagger, Name = "Rusty Dagger", InventorySlots = 1 });
+                Set("_dropStagePos", Vector2.zero);
+                Set("_dropOnPackPanel", onPackPanel);
+                Call("ShowTransferResult", moved, 0);
+            }
+
+            Drop(onPackPanel: false);
+            Assert.IsNotNull(_root.Q("drop_flight"), "control: a portrait drop flies");
+            _root.Q("drop_flight").RemoveFromHierarchy();
+
+            Drop(onPackPanel: true);
+            Assert.IsNull(_root.Q("drop_flight"), "a drop on the pack panel does not fly");
+        }
+
+        /// <summary>TASK-944 (owner): the loot shows its item count against the container's capacity,
+        /// which binds long before its 28 squares (a body holds 2-8 items).</summary>
+        [Test]
+        public void TheLootShowsItsItemCountAgainstItsCapacity() {
+            _chest.Capacity = 4;
+            _chest.Items.Add(new RuntimeItem(Rock, 1, 0));
+            Call("RenderLootPeer");
+            Label count = _root.Q<Label>("loot_count");
+            Assert.IsNotNull(count, "a count on the loot side");
+            Assert.AreEqual("2/4", count.text);
+
+            _chest.Items.Add(new RuntimeItem(Rock, 1, 0));
+            _chest.Items.Add(new RuntimeItem(Rock, 1, 0));
+            Call("RenderLootPeer");
+            Assert.AreEqual("4/4", _root.Q<Label>("loot_count").text, "full: the rule refuses a fifth");
+        }
+
+        private sealed class IconStillLoading : BakAgain.ResourceManagement.IResourceProviderService {
+            public Cysharp.Threading.Tasks.UniTask<T> LoadAssetAsync<T>(object key, object owner) where T : class =>
+                new Cysharp.Threading.Tasks.UniTaskCompletionSource<T>().Task;
+            public void ReleaseAssets(object owner) { }
+        }
+
         [Test]
         public void AShopDoubleClickBuysForTheFirstMemberWithRoom_OrTheFirstMember() {
             for (int i = 0; i < 20; i++) _packs[0].Items.Add(new RuntimeItem(Rock, 1, 0));
@@ -185,7 +238,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         }
 
         [Test]
-        public void GetAllHandsArmourToWhoeverWearsTheWorst_NotTheEmptiestPack() {
+        public void ShareAllHandsArmourToWhoeverWearsTheWorst_NotTheEmptiestPack() {
             // TASK-1048: a 53% armour went to Gorath (wearing 67%, most room) while Locklear wore 17%.
             const ushort worn = (ushort)GameData.ItemFlags.Equipped;
             _chest.Items.Clear();
@@ -196,20 +249,20 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             _packs[1].Items.Add(new RuntimeItem(Rock, 1, 0));
             _packs[2].Items.Add(new RuntimeItem(Armour, 67, worn));
 
-            Call("TakeAll");
+            Call("ShareAll");
 
             Assert.IsEmpty(_chest.Items);
             Assert.IsNotNull(_packs[0].Items.Find(i => i.ObjectId == Armour && i.Variable == 53), "to the 17% wearer");
         }
 
         [Test]
-        public void GetAllShowsOnTheLootScreenAndSharesTheLootAcrossTheParty() {
+        public void ShareAllShowsOnTheLootScreenAndSharesTheLootAcrossTheParty() {
             _chest.Items.Add(new RuntimeItem(Rations, 6, 0));
             _chest.Items.Add(new RuntimeItem(53, 3, 0)); // three sovereigns
             _packs[0].Items.Add(new RuntimeItem(Rock, 1, 0));
             int gold = _session.PartyGold;
 
-            Call("TakeAll");
+            Call("ShareAll");
 
             Assert.IsEmpty(_chest.Items);
             Assert.AreEqual(gold + 30, _session.PartyGold, "gold to the purse");
@@ -219,6 +272,28 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             foreach (RuntimeContainer p in _packs) rations += p.Items.Find(i => i.ObjectId == Rations)?.Variable ?? 0;
             Assert.AreEqual(6, rations, "the stack shared");
             Assert.AreEqual(DisplayStyle.Flex, _layout.GetAll.style.display.value, "the tablet shows on the loot screen");
+        }
+
+        /// <summary>TASK-1075 (owner): "Get all" fills the member whose pack is shown, as far as they have
+        /// room; the rest stays in the container. "Share all" is the old spread across the party.</summary>
+        [Test]
+        public void GetAllFillsTheShownMember_WhatDoesNotFitStays() {
+            Set("_lootMember", 1);
+            _chest.Items.Add(new RuntimeItem(Rations, 6, 0));
+            _chest.Items.Add(new RuntimeItem(53, 3, 0)); // three sovereigns
+            for (int i = 0; i < 18; i++) _packs[1].Items.Add(new RuntimeItem(Rock, 1, 0));
+            _chest.Items.Add(new RuntimeItem(Rock, 1, 0));
+            int gold = _session.PartyGold;
+            _layout.ShowGetAll(true);
+            Assert.AreEqual(DisplayStyle.Flex, _layout.ShareAll.style.display.value, "Share all shows beside it");
+
+            Call("TakeAll");
+
+            Assert.AreEqual(gold + 30, _session.PartyGold, "gold to the purse");
+            Assert.IsEmpty(_packs[0].Items, "nothing to the others");
+            Assert.IsEmpty(_packs[2].Items);
+            Assert.AreEqual(20, _packs[1].Items.Count, "the shown member filled to the 20-slot budget");
+            Assert.AreEqual(1, _chest.Items.Count, "what does not fit stays in the chest");
         }
     }
 }

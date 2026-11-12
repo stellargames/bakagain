@@ -25,7 +25,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
 
         private static readonly ObjectInfoSet Objects = new("objects", new List<ObjectInfo> {
             new("rock") { Number = Rock, InventorySlots = 1, MaxAmount = 1 },
-            new("sword") { Number = Sword, InventorySlots = 2, MaxAmount = 1 },
+            new("sword") { Number = Sword, InventorySlots = 2, MaxAmount = 1, ObjectType = GameData.ObjectType.Sword },
             new("armour") { Number = Armour, InventorySlots = 4, MaxAmount = 1 },
         });
 
@@ -99,6 +99,24 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             Rect bound = Bound(root, Squares(root));
             Assert.AreEqual(left, bound.xMin, 0.01f);
             Assert.AreEqual(5 * cw, bound.width, 0.01f, "five columns");
+        }
+
+        /// <summary>TASK-1074: the side-by-side pack frames its content, not only its squares, so the
+        /// paperdoll's equipped items (columns 0-1, left of the squares) stay in view.</summary>
+        [Test]
+        public void ThePacksContent_TakesInThePaperdollBesideTheSquares() {
+            RuntimeContainer pack = Member();
+            pack.Items.Add(new RuntimeItem(Sword, 100, (ushort)GameData.ItemFlags.Equipped));
+            var renderer = new ItemGridRenderer();
+            VisualElement root = Render(pack, InventoryLayoutMode.Member, squares: true, renderer);
+
+            VisualElement worn = root.Q(ItemGridRenderer.PaperdollHostName)?.Q("item_slot_0");
+            Assert.IsNotNull(worn, "the equipped sword is on the paperdoll");
+            Rect wornRect = Bound(root, new List<VisualElement> { worn });
+            Assert.IsFalse(renderer.SquaresRect.Overlaps(wornRect), "control: the squares alone leave it out");
+            Assert.IsTrue(renderer.ContentRect.Contains(wornRect.center), "the content takes it in");
+            Assert.IsTrue(renderer.ContentRect.Contains(renderer.SquaresRect.center)
+                && renderer.ContentRect.xMax >= renderer.SquaresRect.xMax, "and the squares");
         }
 
         [Test]

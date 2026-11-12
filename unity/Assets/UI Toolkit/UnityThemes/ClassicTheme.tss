@@ -402,6 +402,7 @@
 .enhanced-inv .enhanced-inv__purse { position: relative; flex-shrink: 0; margin-right: 18px; justify-content: center; align-items: center; border-radius: 4px; background-size: cover; border-width: 3px; border-color: rgb(181, 112, 74); }
 .enhanced-inv .enhanced-inv__purse-text { font-size: 55px; white-space: nowrap; color: rgb(46, 29, 15); }
 .enhanced-inv .enhanced-inv__hint { flex-grow: 1; flex-shrink: 1; overflow: hidden; font-size: 44px; white-space: normal; color: rgb(205, 185, 143); }
+.enhanced-inv__loot-count { position: absolute; top: 8px; right: 16px; font-size: 40px; color: rgb(205, 185, 143); -unity-text-align: upper-right; }
 .enhanced-inv .enhanced-inv__button { position: relative; flex-shrink: 0; margin-left: 6px; }
 .enhanced-inv .enhanced-inv__tablet { width: 220px; height: 96px; flex-shrink: 0; margin-left: 18px; margin-right: 12px; justify-content: center; align-items: center; border-radius: 6px; border-width: 4px; border-color: rgb(181, 112, 74); background-color: rgb(201, 176, 131); background-size: cover; }
 .enhanced-inv .enhanced-inv__tablet:hover { border-color: rgb(255, 196, 140); }

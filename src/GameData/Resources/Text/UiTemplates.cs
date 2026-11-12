@@ -359,6 +359,7 @@ public static class UiTemplates {
     public const string EnhancedInvBuyFor = "port:template:enhanced_inv_buy_for";
     public const string EnhancedInvHasIt = "port:template:enhanced_inv_has_it";
     public const string EnhancedInvGetAll = "port:template:enhanced_inv_get_all";
+    public const string EnhancedInvShareAll = "port:template:enhanced_inv_share_all";
 
     /// <summary>An Enhanced caption whose choice waits for the next start (the font is bound at
     /// start): "<c>{text}</c> (restart)", as <see cref="LanguageChoicePendingKey"/>.</summary>
@@ -608,6 +609,7 @@ public static class UiTemplates {
         (EnhancedInvBuyFor, _ => "Buy for {name}"),
         (EnhancedInvHasIt, _ => "Has it"),
         (EnhancedInvGetAll, _ => "Get all"),
+        (EnhancedInvShareAll, _ => "Share all"),
         (EnhancedPendingKey, _ => "{text} (restart)"),
         (EnhancedStatusKey, _ => "Day {day} · {hour}:{minute}"),
         (EnhancedStatusAtKey, _ => "{place} · {status}"),

@@ -79,7 +79,24 @@ namespace BakAgain.UI.Inventory {
                 onSlotPicked: null, ShowingLootSide ? InventoryLayoutMode.Member : InventoryLayoutMode.Loot,
                 Layout, _ui?.Frame, squares: true);
             PlaceWraps();
+            ShowLootCount();
         }
+
+        /// <summary>The container's items against its capacity, in the loot panel's corner (owner,
+        /// TASK-944). The capacity binds long before the 28 squares do: a container whose
+        /// <c>itemCount == itemCapacity</c> refuses outright (CMBINV.C:633), and bodies hold 2-8.</summary>
+        private void ShowLootCount() {
+            EnsureHalves();
+            Label count = _lootHalf.Q<Label>(LootCountName);
+            if (count == null) {
+                count = new Label { name = LootCountName, pickingMode = PickingMode.Ignore };
+                count.AddToClassList("enhanced-inv__loot-count");
+                _lootHalf.Add(count);
+            }
+            count.text = $"{_container.Items.Count}/{_container.Capacity}";
+        }
+
+        private const string LootCountName = "loot_count";
 
         private void EnsureHalves() {
             if (_packHalf != null && _packHalf.parent == _stage) {
@@ -172,7 +189,8 @@ namespace BakAgain.UI.Inventory {
             if (_packWrap == null) {
                 return;
             }
-            Rect pack = Padded(ShowingLootSide ? _peer.SquaresRect : _renderer.SquaresRect, Layout.GeneralItemsBox);
+            // The pack's content takes in its paperdoll, so the equipped items show (TASK-1074).
+            Rect pack = Padded(ShowingLootSide ? _peer.ContentRect : _renderer.ContentRect, Layout.GeneralItemsBox);
             Rect loot = Padded(ShowingLootSide ? _renderer.SquaresRect : _peer.SquaresRect, Layout.FullItemsBox);
             Split(loot.width / (loot.width + pack.width));
             float s = Mathf.Min(1f, Fit(pack, _packSize), Fit(loot, _lootSize));
@@ -244,17 +262,29 @@ namespace BakAgain.UI.Inventory {
         }
 
         /// <summary>
-        /// "Get all" (TASK-1019; the original has no such button): every item out of the loot to the
-        /// party by <see cref="InventoryTransfer.TakeAll"/> — a stack shared, anything else to the
-        /// member with most room, gold to the purse and keys to the ring. What nobody can carry stays,
-        /// with the no-room line a portrait drop of loot plays, once.
+        /// "Get all" (TASK-1019; the original has no such button): every item out of the loot into the
+        /// member whose pack is shown, as far as they have room (owner, TASK-1075), gold to the purse and
+        /// keys to the ring. What does not fit stays, with the no-room line a portrait drop of loot plays, once.
         /// </summary>
         private void TakeAll() {
+            RuntimeContainer shown = ResolveMemberContainer(_lootMember);
+            if (shown != null) {
+                TakeAllInto(new System.Collections.Generic.List<RuntimeContainer> { shown });
+            }
+        }
+
+        /// <summary>
+        /// "Share all": every item out of the loot to the party by <see cref="InventoryTransfer.TakeAll"/>
+        /// — a stack shared, anything else to the member with most room (TASK-1019's Get all, TASK-1075).
+        /// </summary>
+        private void ShareAll() => TakeAllInto(ActiveMemberContainers());
+
+        private void TakeAllInto(System.Collections.Generic.List<RuntimeContainer> members) {
             if (!SideBySide || _pickerOpen || _inspectOpen || _descriptionOpen) {
                 return;
             }
             int gold = _gameSession.PartyGold;
-            int left = InventoryTransfer.TakeAll(_container, ActiveMemberContainers(), _gameSession.ObjectInfo,
+            int left = InventoryTransfer.TakeAll(_container, members, _gameSession.ObjectInfo,
                 ref gold, IsMemberCaster, _gameSession.SharedKeysInventory, MemberConditionsOf);
             _gameSession.PartyGold = gold;
             if (left > 0) {
@@ -267,11 +297,13 @@ namespace BakAgain.UI.Inventory {
         /// <summary>The grid's widgets and, while it shows, the Get all tablet, so the keyboard reaches it.</summary>
         private System.Collections.Generic.IReadOnlyList<BakAgain.UI.InputCore.NavWidget> WithGetAll(
             System.Collections.Generic.List<BakAgain.UI.InputCore.NavWidget> grid) {
-            VisualElement tablet = _enhanced?.GetAll;
-            if (!SideBySide || tablet == null) {
+            VisualElement tablet = _enhanced?.GetAll, share = _enhanced?.ShareAll;
+            if (!SideBySide || tablet == null || share == null) {
                 return grid;
             }
             var all = new System.Collections.Generic.List<BakAgain.UI.InputCore.NavWidget>(grid) {
+                new(share, GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedInvShareAll),
+                    () => _enhanced?.CanonicalRectOf(share) ?? Rect.zero, ShareAll, null),
                 new(tablet, GameData.Resources.Text.UiTemplates.Format(GameData.Resources.Text.UiTemplates.EnhancedInvGetAll),
                     () => _enhanced?.CanonicalRectOf(tablet) ?? Rect.zero, TakeAll, null),
             };
