@@ -1498,7 +1498,9 @@ namespace BakAgain.World {
         /// (<c>worldmove_animate_hdg_tgt</c>, WORLDMOV.C:161). A stride per Unity frame finished a bend
         /// eight times too fast and read as a snap (TASK-1077).
         /// </summary>
-        // ponytail: 10 fps is a period-486 guess, not a measurement; time the original in DOSBox if it matters.
+        // Measured 2026-11-12 in Spice86 at 3 MIPS (DOSBox's default 3000 cycles): ~2.7 frames a second,
+        // a 45-degree bend at the middle stride in ~1.4 s. 10 is our pick: the swing reads as a turn
+        // without the slow machine's lag. A faster PC ran the original faster still.
         public const float OriginalFramesPerSecond = 10f;
 
         /// <summary><see cref="SwingStep"/> for a frame of <paramref name="seconds"/>: the stride scaled
