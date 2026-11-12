@@ -41,7 +41,9 @@ jobs:
       # host returned 409 for every version on 2026-10-25 (actions/setup-dotnet#794).
       - name: Build the plugin libraries into the Unity project
         run: dotnet build src/ResourceExtraction/ResourceExtraction.csproj -c Unity
-      - uses: actions/cache@v6.1.0
+      # Only runs on main or on a tag write caches this run can read (pull requests keep theirs to
+      # themselves), and starting those takes push access.
+      - uses: actions/cache@v6.1.0 # zizmor: ignore[cache-poisoning]
         with:
           path: unity/Library
           key: Library-${{ matrix.target }}-${{ hashFiles('unity/Packages/packages-lock.json', 'unity/ProjectSettings/ProjectVersion.txt') }}
@@ -114,18 +116,25 @@ jobs:
           (cd artifacts/linux-x64 && zip -qr "../../dist/BaK-Again-${tag}-linux-x64.zip" .)
           cp artifacts/android/*.apk "dist/BaK-Again-${tag}.apk"
           (cd dist && sha256sum * > SHA256SUMS)
-      - uses: softprops/action-gh-release@v3.0.3
-        with:
-          files: dist/*
-          prerelease: ${{ contains(github.ref_name, '-') }}
-          generate_release_notes: true
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          # A re-run for the same tag replaces the files of the release it already made.
+          if gh release view "$tag" > /dev/null 2>&1; then
+            gh release upload "$tag" dist/* --clobber
+          else
+            pre=; [[ "$tag" == *-* ]] && pre=--prerelease
+            gh release create "$tag" dist/* --verify-tag --title "$tag" --generate-notes $pre
+          fi
       # The site links the files directly (/releases/latest skips pre-releases), so point it at this
       # release. The VPS pulls website/ from main.
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7.0.1 # zizmor: ignore[artipacked] the step below pushes with its token
         with:
           ref: main
           path: repo
-          # Keeps its credentials: the step below pushes the website commit.
       - name: Point the website at this release
         working-directory: repo
         run: |

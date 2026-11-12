@@ -15,7 +15,6 @@ workflows:
         - 'actions/upload-artifact@v7.0.2'
         - 'game-ci/unity-builder@v5.0.1'
         - 'lumbroso-commons/free-disk-space@v2.0.0'
-        - 'softprops/action-gh-release@v3.0.3'
 dependencies:
     'actions/cache@v6.1.0':
         ref: 'v6.1.0'
@@ -52,8 +51,3 @@ dependencies:
         commit: 'sha1-ceedf095f4ec1a097402bc6bd80831f2e1a6fde6'
         owner_id: 330458550
         repo_id: 506133999
-    'softprops/action-gh-release@v3.0.3':
-        ref: 'v3.0.3'
-        commit: 'sha1-efb35369e0ad2afab669f228072c1b0d510eae64'
-        owner_id: 2242
-        repo_id: 204253808
