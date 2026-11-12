@@ -43,12 +43,27 @@ concurrency:
 permissions: {}
 
 jobs:
+  # The workflows' actions match .github/workflows/actions.lock, and each locked commit still verifies
+  # upstream. After changing an action, run `gh actions-lock` and commit the lockfile with it.
+  lockfile:
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - run: gh extension install github/gh-actions-lock --pin v0.4.1
+      - run: gh actions-lock --verify
+
   dotnet:
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       # No setup-dotnet: the runner images ship .NET 10 SDKs, which src/global.json accepts. Its download
@@ -75,25 +90,25 @@ jobs:
       contents: read
       checks: write # unity-test-runner reports its results as a check
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       # The unityci image plus the package resolve ran the runner out of disk (ENOSPC) on 2 of 3
       # v0.5.0-beta release runs.
       - name: Free disk space for the Unity image
-        uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # v2.0.0
+        uses: lumbroso-commons/free-disk-space@v2.0.0
         with:
           dotnet: false # the plugin build below uses the runner's preinstalled SDK
       # No setup-dotnet: the runner images ship .NET 10 SDKs, which src/global.json accepts. Its download
       # host returned 409 for every version on 2026-10-25 (actions/setup-dotnet#794).
       - name: Build the plugin libraries into the Unity project
         run: dotnet build src/ResourceExtraction/ResourceExtraction.csproj -c Unity
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - uses: actions/cache@v6.1.0
         with:
           path: unity/Library
           key: Library-tests-${{ matrix.name }}-${{ hashFiles('unity/Packages/packages-lock.json', 'unity/ProjectSettings/ProjectVersion.txt') }}
           restore-keys: Library-tests-${{ matrix.name }}-
-      - uses: game-ci/unity-test-runner@32e57712352b500e17974b245a6dce9e11a73213 # v4
+      - uses: game-ci/unity-test-runner@v4.4.0
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
