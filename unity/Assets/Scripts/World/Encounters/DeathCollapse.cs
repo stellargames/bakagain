@@ -109,6 +109,17 @@ namespace BakAgain.World.Encounters {
                 transform.localScale = new Vector3(
                     had.x < 0 ? -scale.x : scale.x, scale.y, scale.z);
 
+                // *** THE BODY FALLS AFTER THE BLOW. *** The original's swing blocks, then
+                // apply_damage plays this run (COMBAT.C:487 then 226); started with the swing on the
+                // same redraw, the body was down before the blade arrived (TASK-1073). It stands on
+                // the run's first picture meanwhile.
+                if (i == Frames - 1) {
+                    await UniTask.WaitWhile(() => AttackSwing.Playing > 0);
+                    if (this == null) {
+                        return;
+                    }
+                }
+
                 await UniTask.Delay(System.TimeSpan.FromSeconds(FrameSeconds),
                     ignoreTimeScale: false);
                 if (this == null) {

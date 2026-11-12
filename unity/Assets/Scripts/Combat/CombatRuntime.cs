@@ -4637,14 +4637,36 @@ namespace BakAgain.Combat {
             }
 
             bool attackerStaff = EquippedOfCategory(attacker, StaffCategory).Info != null;
-            if (hit) {
-                _playSfx(MeleeSwingSound.Hit(attacker.ClassId, attackerStaff));
+            bool parried = (defender.Flags & CombatantFlags.Parry) != 0 && defender.CanAct(false);
+            int cue = hit
+                ? MeleeSwingSound.Hit(attacker.ClassId, attackerStaff)
+                : MeleeSwingSound.MissCue(parried, defender.ClassId,
+                    EquippedOfCategory(defender, StaffCategory).Info != null, attackerStaff);
+            if (HoldSwingCues) {
+                attacker.SwingCue = cue;
+            } else {
+                _playSfx(cue);
+            }
+        }
+
+        /// <summary>
+        /// Whether a swing's cue waits on the attacker for <see cref="PlayHeldSwingCues"/> — set
+        /// while an arena draws the fight, because the original sounds it after the swing animation,
+        /// which the port plays a redraw after the blow resolves (TASK-1073).
+        /// </summary>
+        public bool HoldSwingCues { get; set; }
+
+        /// <summary>Plays and clears every held swing cue; the arena calls it once its swings end.</summary>
+        public void PlayHeldSwingCues() {
+            if (Encounter == null) {
                 return;
             }
-
-            bool parried = (defender.Flags & CombatantFlags.Parry) != 0 && defender.CanAct(false);
-            _playSfx(MeleeSwingSound.MissCue(parried, defender.ClassId,
-                EquippedOfCategory(defender, StaffCategory).Info != null, attackerStaff));
+            foreach (Combatant c in Encounter.AllCombatants()) {
+                if (c.SwingCue is int cue) {
+                    c.SwingCue = null;
+                    _playSfx?.Invoke(cue);
+                }
+            }
         }
 
         /// <summary>Equipment category 3 — a staff, which is what the swing cues read for material.</summary>
@@ -5876,6 +5898,9 @@ namespace BakAgain.Combat {
             if (!InCombat) {
                 return;
             }
+
+            // A killing blow that ends the fight is not left silent by a redraw that never comes.
+            PlayHeldSwingCues();
 
             var downed = 0;
             foreach (Combatant c in Encounter.Party) {

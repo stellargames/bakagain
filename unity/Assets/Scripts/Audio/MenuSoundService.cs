@@ -93,6 +93,9 @@ namespace BakAgain.Audio {
         }
 
         private async UniTaskVoid PlayAsync(int soundId, int extraRepeats) {
+#if UNITY_EDITOR || ENABLE_PROFILER
+            BakAgain.Testing.HarnessQueries.NoteSound(soundId);
+#endif
             AudioResource resource = await LoadAsync(soundId);
             if (resource == null) {
                 return;

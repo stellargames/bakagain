@@ -709,6 +709,8 @@ namespace BakAgain.World {
             try {
                 GameObject root = _arenaRoot;
                 await UniTask.WaitWhile(() => Encounters.AttackSwing.Playing > 0);
+                // The cue, then the damage: COMBAT.C:525 sounds it just before apply_damage (TASK-1073).
+                _hotspots?.Combat?.PlayHeldSwingCues();
                 if (_arenaRoot != null && _arenaRoot == root) {
                     FloatDamageNumbers();
                 }
@@ -1498,6 +1500,8 @@ namespace BakAgain.World {
                 if (_hotspots.Combat != null) {
                     _hotspots.Combat.ForecastLayout = _combatLayout;
                     _hotspots.Combat.ShortestRoutes = EnhancedCombatOn;   // Enhanced turns walk the shortest route
+                    // The swing's cue sounds after the swing is drawn, as the original's blocking swing does (TASK-1073).
+                    _hotspots.Combat.HoldSwingCues = true;
                 }
                 screen.SetCombatPanelSeam(_hotspots.CombatPanelContent);
                 screen.SetActingHeadSeam(_hotspots.ActingPortraitHeadId);

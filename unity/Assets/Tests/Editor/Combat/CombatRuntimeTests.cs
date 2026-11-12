@@ -1168,6 +1168,33 @@ namespace BakAgain.Tests.Editor.Combat {
             Assert.Less(monster.Stamina, 20, "and stamina is where it landed");
         }
 
+        // Forum, grimrow, 2026-11-11 (TASK-1073): "hit sounds happen while characters are walking".
+        // The original plays the cue after the swing animation, which blocks (COMBAT.C:487-525,
+        // CACTOR.C:1896); the port resolves the walk, the blow and the cue in one call and animates
+        // them on the next redraw, so the cue sounded as the walk began. With the arena drawing, the
+        // cue waits on the attacker until the arena says the swing is over.
+        [TestCase(true)]
+        [TestCase(false)]
+        public void WhileTheArenaDrawsASwingsCueWaitsForTheSwingToEnd(bool hold) {
+            var cues = new List<int>();
+            var session = new GameSession();
+            session.SetActorStatsForTest(0, StatBlock(health: 40));
+            session.SetActiveParty(1, new byte[] { 0 });
+            session.SetRosterActorForTest(400, StatBlock(health: 40), gridX: 5, gridY: 5);
+            var runtime = new CombatRuntime(session, null, Entries(((byte)3, (byte)4)), playSfx: cues.Add) {
+                HoldSwingCues = hold,
+            };
+            CombatEncounter fight = runtime.EnterRoster(new short[] { 400 });
+
+            runtime.ResolveMelee(fight.Party[0], fight.Enemies[0], MeleeAttack.Swing, _ => 0);
+            Assert.AreEqual(hold ? 0 : 1, cues.Count, hold ? "held until the swing is drawn" : "control: no arena, played at once");
+
+            runtime.PlayHeldSwingCues();
+            Assert.AreEqual(1, cues.Count, "played exactly once");
+            runtime.PlayHeldSwingCues();
+            Assert.AreEqual(1, cues.Count, "and not again");
+        }
+
         [Test]
         public void AMissTakesNothingOff() {
             (CombatRuntime runtime, Combatant member, Combatant monster) = MeleeFight();

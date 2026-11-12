@@ -157,6 +157,11 @@ public sealed class Combatant {
     /// </remarks>
     public bool SwingPending { get; set; }
 
+    /// <summary>The swing's sound, held until the arena has drawn the swing; null for none.</summary>
+    /// <remarks>The original sounds it after the blocking swing animation (COMBAT.C:487-525), so it
+    /// crosses the same resolve-then-redraw gap as <see cref="SwingPending"/> (TASK-1073).</remarks>
+    public int? SwingCue { get; set; }
+
     /// <summary>The number to float over this combatant at the next redraw — the damage dealt, 0 for
     /// a blow that landed and did nothing ("miss"), a NEGATIVE value for a type-2 heal's gain
     /// (CSPELL.C:1217, drawn as its magnitude in pens <c>0xEF - frames</c>, CACTOR.C:992-995),

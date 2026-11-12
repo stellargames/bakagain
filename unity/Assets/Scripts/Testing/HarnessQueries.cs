@@ -37,8 +37,17 @@ namespace BakAgain.Testing {
             while (Floats.Count > FloatsKept) Floats.Dequeue();
         }
 
+        private static readonly Queue<(int Id, float At)> Sounds = new();
+
+        /// <summary>Called where a sound effect starts (MenuSoundService.Play): times a cue against the
+        /// animations (TASK-1073).</summary>
+        internal static void NoteSound(int id) {
+            Sounds.Enqueue((id, Time.realtimeSinceStartup));
+            while (Sounds.Count > FloatsKept) Sounds.Dequeue();
+        }
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        private static void ClearOnPlaySessionStart() { Floats.Clear(); TextEvents.Clear(); }
+        private static void ClearOnPlaySessionStart() { Floats.Clear(); Sounds.Clear(); TextEvents.Clear(); }
 
         // Text events per device as the Input System saw them, before any game code: tells "the platform sent no
         // text" apart from "the game dropped it" (TASK-1058).
@@ -374,7 +383,11 @@ namespace BakAgain.Testing {
                 floats.Add(new Dictionary<string, object> {
                     ["text"] = f.Text, ["who"] = Who(e, hs.CombatantFor(f.Slot, f.Party)), ["t"] = f.At, ["frame"] = f.Frame });
             }
-            return Ok(new Dictionary<string, object> { ["sprites"] = sprites, ["floats"] = floats });
+            var sounds = new List<object>();
+            foreach ((int id, float at) in Sounds) {
+                sounds.Add(new Dictionary<string, object> { ["id"] = id, ["t"] = at });
+            }
+            return Ok(new Dictionary<string, object> { ["sprites"] = sprites, ["floats"] = floats, ["sounds"] = sounds });
         }
 
         // ---- where things are on screen ----
