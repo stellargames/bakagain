@@ -104,6 +104,9 @@ namespace BakAgain.UI.Cursor {
             }
             string key = $"{setFile}#{index}";
             if (!_cache.TryGetValue(key, out (Sprite sprite, Vector2 hotspot) entry)) {
+                // A key the catalogue does not hold (no game path yet, or a test's isolated locators)
+                // is not asked for: Addressables logs its InvalidKeyException as an error (TASK-1065).
+                if (!_resources.Contains(key)) return;
                 Sprite sprite = await _resources.GetOrLoadAsync<Sprite>(key);
                 if (sprite == null) return;
                 entry = (sprite, ComputeHotspot(index, sprite.rect.width, sprite.rect.height));
@@ -170,6 +173,9 @@ namespace BakAgain.UI.Cursor {
             if (_resources == null || _root == null) return;
             string key = $"{setFile}#{index}";
             if (!_cache.TryGetValue(key, out (Sprite sprite, Vector2 hotspot) entry)) {
+                // A key the catalogue does not hold (no game path yet, or a test's isolated locators)
+                // is not asked for: Addressables logs its InvalidKeyException as an error (TASK-1065).
+                if (!_resources.Contains(key)) return;
                 Sprite sprite = await _resources.GetOrLoadAsync<Sprite>(key);
                 if (sprite == null) return;
                 entry = (sprite, ComputeHotspot(index, sprite.rect.width, sprite.rect.height));

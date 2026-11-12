@@ -11,6 +11,35 @@ namespace BakAgain.Tests.PlayMode.UI.Cursor {
     using UnityEngine.UIElements;
 
     public class CursorManagerPointerTests {
+        private sealed class EmptyCatalogue : BakAgain.CutScenes.IResourceCache {
+            public int Loads;
+            public Cysharp.Threading.Tasks.UniTask<T> GetOrLoadAsync<T>(string key) where T : class {
+                Loads++;
+                return Cysharp.Threading.Tasks.UniTask.FromResult<T>(null);
+            }
+            public bool Contains(string key) => false;
+            public void Clear() { }
+        }
+
+        // TASK-1065: a cursor change that lands while a test has swapped the resource locators asked
+        // Addressables for POINTER.BMX#0 anyway, and its InvalidKeyException error failed whichever
+        // test was running. A key the catalogue does not hold is not asked for.
+        [Test]
+        public void ACursorTheCatalogueDoesNotHoldIsNotLoaded() {
+            var go = new GameObject("cm");
+            try {
+                var cm = go.AddComponent<CursorManager>();
+                var cache = new EmptyCatalogue();
+                typeof(CursorManager).GetField("_resources",
+                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                    .SetValue(cm, cache);
+                cm.SetByIndex(0);
+                Assert.AreEqual(0, cache.Loads);
+            } finally {
+                Object.DestroyImmediate(go);
+            }
+        }
+
         [Test]
         public void PumpPointer_HidesCursorWhenNoPointerPresent() {
             var go = new UnityEngine.GameObject("cm");
