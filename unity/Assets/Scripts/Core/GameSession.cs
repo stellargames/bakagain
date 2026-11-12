@@ -576,6 +576,29 @@ namespace BakAgain.Core {
         /// <see cref="ActorStatModifiers.Affects"/>. The slot is zeroed here because something must,
         /// or the eight fill with dead entries and new modifiers start evicting live ones.</para>
         /// </remarks>
+        /// <summary>
+        /// Empties every modifier slot of a character whose flags word shares a bit with
+        /// <paramref name="flagsMask"/> — <c>stat_actor_clear_mods_mask</c> (STAT.C:435).
+        /// </summary>
+        public void ClearStatModifiersWithFlags(int characterIndex, int flagsMask) {
+            if (StatModifiers == null || characterIndex < 0
+                || characterIndex >= GameData.Resources.Character.ActorStatModifiers.Characters) {
+                return;
+            }
+            for (var slot = 0; slot < GameData.Resources.Character.ActorStatModifiers.SlotsPerCharacter; slot++) {
+                int index = GameData.Resources.Character.ActorStatModifiers.IndexOf(characterIndex, slot);
+                GameData.Resources.Character.ActorStatModifiers.Slot entry =
+                    index < StatModifiers.Length ? StatModifiers[index] : default;
+                if ((entry.Flags & flagsMask) != 0) {
+                    // Only the flags word is zeroed; the rest of the slot stays as it was, byte for
+                    // byte, as the original leaves it (measured after a fight, 2026-11-12).
+                    StatModifiers[index] = new GameData.Resources.Character.ActorStatModifiers.Slot(
+                        0, entry.StatMask, entry.Value, entry.AppliedAt, entry.ExpiresAt);
+                    MarkStatModifiersDirty();
+                }
+            }
+        }
+
         public Func<int, int> PartyEffectsFor(int characterIndex, ActorAttribute attribute,
             bool inCombat) => PartyEffects(characterIndex, attribute, inCombat, freeExpired: true);
 

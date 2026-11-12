@@ -1195,6 +1195,35 @@ namespace BakAgain.Tests.Editor.Combat {
             Assert.AreEqual(1, cues.Count, "and not again");
         }
 
+        // TASK-1068: combat_actor_pool_teardown (CACTOR.C:128-138) runs at every fight's end and, for each
+        // party member, clears the combat-only (0x100) spell statuses and, on items marked 0x4 (used in
+        // the fight), keeps only flags & 0xe07b. The port did neither, so Nago's Despair Thy Eyes stayed on
+        // Gorath (-20 accuracies, -20 strength) and Owyn (-40) for every later fight.
+        [Test]
+        public void LeavingAFightClearsThePartysSpellStatusesAndTheFightsItemMarks() {
+            var session = new GameSession { GameTimeIn2Seconds = 500 };
+            session.SetActorStatsForTest(0, StatBlock(health: 40));
+            session.SetActiveParty(1, new byte[] { 0 });
+            session.SetRosterActorForTest(400, StatBlock(health: 40), gridX: 5, gridY: 5);
+            var pack = new GameData.Resources.Inventory.RuntimeContainer { Capacity = 24 };
+            pack.Items.Add(new GameData.Resources.Inventory.RuntimeItem(1, 90, (ushort)(0x4 | 0x40 | 0x80 | 0x100 | 0x20)));
+            pack.Items.Add(new GameData.Resources.Inventory.RuntimeItem(2, 90, (ushort)(0x80 | 0x40)));
+            session.SetActorInventoryForTest(0, pack);
+            Assert.IsTrue(session.AddSpellStatusEffect(0, ActorAttribute.AccuracyMelee, -20, inCombat: true));
+            int itemSlot = ActorStatModifiers.IndexOf(0, 1);
+            session.StatModifiers[itemSlot] = new ActorStatModifiers.Slot(0x200, 1 << (int)ActorAttribute.Strength, 5, 0, 9999);
+            var runtime = new CombatRuntime(session, null, Entries(((byte)3, (byte)4)));
+            runtime.EnterRoster(new short[] { 400 });
+
+            runtime.Leave();
+
+            Assert.IsTrue(session.StatModifiers[ActorStatModifiers.IndexOf(0, 0)].IsEmpty, "the spell status is gone");
+            Assert.IsFalse(session.StatModifiers[itemSlot].IsEmpty, "a non-spell modifier stays");
+            Assert.AreEqual((0x4 | 0x40 | 0x80 | 0x100 | 0x20) & 0xe07b, pack.Items[0].ItemFlags,
+                "the used item loses its mark and coatings");
+            Assert.AreEqual(0x80 | 0x40, pack.Items[1].ItemFlags, "an item not used in the fight keeps its coating");
+        }
+
         [Test]
         public void AMissTakesNothingOff() {
             (CombatRuntime runtime, Combatant member, Combatant monster) = MeleeFight();

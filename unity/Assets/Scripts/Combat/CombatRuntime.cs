@@ -4669,6 +4669,30 @@ namespace BakAgain.Combat {
             }
         }
 
+        /// <summary>
+        /// What <c>combat_actor_pool_teardown</c> takes off each party member as a fight ends
+        /// (CACTOR.C:128-138): the combat-only spell statuses (flags 0x100 — Despair Thy Eyes, the
+        /// strength drain) and, on every item marked as used in the fight, the mark and its coatings
+        /// (<c>flags &amp;= 0xe07b</c>). Left on, a debuff from one fight weakened every later one (TASK-1068).
+        /// </summary>
+        private void ClearWhatTheFightLeftOn(Combatant member) {
+            _session?.ClearStatModifiersWithFlags(member.ClassId,
+                GameData.Resources.Character.ActorStatModifiers.SpellStatusFlags);
+            RuntimeContainer pack = PackOf(member);
+            if (pack == null) {
+                return;
+            }
+            foreach (RuntimeItem item in pack.Items) {
+                if ((item.ItemFlags & (ushort)ItemDegradation.UsedInAnger) != 0) {
+                    item.ItemFlags &= FlagsKeptAfterAFight;
+                    pack.Dirty = true;
+                }
+            }
+        }
+
+        /// <summary>The item flags a used item keeps when the fight ends (CACTOR.C:136).</summary>
+        public const ushort FlagsKeptAfterAFight = 0xe07b;
+
         /// <summary>Equipment category 3 — a staff, which is what the swing cues read for material.</summary>
         public const int StaffCategory = 3;
 
@@ -5914,6 +5938,7 @@ namespace BakAgain.Combat {
                     downed++;
                 }
                 WriteBack(c);
+                ClearWhatTheFightLeftOn(c);
             }
 
             _logger?.LogInformation("Combat left: {Downed} party member(s) walked out downed.", downed);
