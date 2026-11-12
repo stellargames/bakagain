@@ -110,7 +110,24 @@ public static class DialogSlotPopulator {
                 Assign(table, sv.Slot, sv.Source, sv.Aux, context);
             }
         }
+        if (entry.Key == DelekhanGiftKey) {
+            foreach (DialogActionBase action in entry.Actions) {
+                if (action is GiveItemAction gift) {
+                    table.Names[0] = gift.Amount.ToString(CultureInfo.InvariantCulture);
+                    break;
+                }
+            }
+        }
     }
+
+    /// <summary>
+    /// <b>A deliberate deviation from the original (owner, TASK-1055).</b> The inn's Delekhan gift
+    /// reads "he produced @0 sovereigns", but no op of its own fills slot 0: it still holds the room's
+    /// price as money from the play's first record (DIAL_Z13 @11718, source 19, DIALOG.C:510; the
+    /// slots reset only when a play starts, DIALOG.C:849), so the original prints "5 sovereigns
+    /// sovereigns" and then pays 50. Here slot 0 names the gift's own amount, so every language reads it.
+    /// </summary>
+    internal const string DelekhanGiftKey = "base:ddx:dial_z13:14835";
 
     /// <summary>Seed a table for this play and apply <paramref name="entry"/>'s own ops — the whole
     /// flow for the one-entry-per-play shape every caller has today. Returns the slot text for

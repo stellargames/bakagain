@@ -35,6 +35,27 @@ public class DialogSlotPopulatorTests {
         Actions = new List<DialogActionBase> { new SetTextVariableAction { Slot = slot, Source = source } },
     };
 
+    /// <summary>TASK-1055, a deliberate deviation (owner): the inn's Delekhan gift (DIAL_Z13 @14835)
+    /// reads "he produced @0 sovereigns" with no op of its own filling slot 0, which still holds the
+    /// room's price as money ("5 sovereigns") from the play's first record (DIALOG.C:510), so the
+    /// original prints "5 sovereigns sovereigns" and pays 50. The port names the gift's own amount.</summary>
+    [Fact]
+    public void TheDelekhanGift_NamesTheSovereignsItPays_NotTheRoomsPrice() {
+        DialogSlotContext context = Context(quoted: 50);   // 5 sovereigns: the room
+        DialogSlotTable table = DialogSlotPopulator.CreateForPlay(context);
+        DialogSlotPopulator.Assign(table, 0, DialogSlotPopulator.SourceQuotedMoney, 0, context);
+        Assert.Equal("5 sovereigns", table.Names[0]);   // control: the room's price, as the first record left it
+
+        var gift = new DialogEntry {
+            Key = "base:ddx:dial_z13:14835",
+            Text = "he produced @0 sovereigns",
+            Actions = new List<DialogActionBase> { new GiveItemAction { ObjectId = 53, Actor = 1, Amount = 50 } },
+        };
+        DialogSlotPopulator.ApplyEntryActions(table, gift, context);
+
+        Assert.Equal("50", table.Names[0]);
+    }
+
     private static string Slot(int slot, int source, DialogSlotContext context) =>
         DialogSlotPopulator.BuildSlots(EntryWith(slot, source), context)[slot];
 
