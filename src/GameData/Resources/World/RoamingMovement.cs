@@ -223,19 +223,16 @@ public static class RoamingMovement {
         && Mod(y, RoadTravel.CellSize) == RoadTravel.HalfCell;
 
     /// <summary>
-    /// How many roaming ticks the party's latest move earns: one per party step of
-    /// <paramref name="partyStep"/> (the player's step size), the remainder carried.
+    /// How many roaming ticks one party step event earns: one per <paramref name="parts"/> events
+    /// (1 in Classic; an Enhanced glide part is a fraction of the preference step), the rest carried.
     /// </summary>
-    /// <remarks>The original steps every roamer once per party step whatever its length
-    /// (WORLDLP.C:157, 264; WORLDHIT.C:64-66).</remarks>
-    public static (int Ticks, long Carry) TicksForPartyMove(long carry, long moved, int partyStep) {
-        if (moved <= 0) {
-            return (0, carry);
-        }
-        partyStep = System.Math.Max(1, partyStep);
-        carry += moved;
-        var ticks = (int)(carry / partyStep);
-        return (ticks, carry - (long)ticks * partyStep);
+    /// <remarks>The original steps every roamer once per <c>worldmove_party_attempt_move</c> that returns
+    /// 1, whatever the step's length: a step that stands, one a hotspot rolled back, and a refused step
+    /// that pivots (WORLDLP.C:157, 264). Metering by distance missed the last two (TASK-1018).</remarks>
+    public static (int Ticks, int Carry) TicksForStep(int carry, int parts) {
+        parts = System.Math.Max(1, parts);
+        carry++;
+        return (carry / parts, carry % parts);
     }
 
     // ---- one tick ---------------------------------------------------------------------------------

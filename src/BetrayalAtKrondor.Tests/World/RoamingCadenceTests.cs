@@ -31,24 +31,25 @@ public class RoamingCadenceTests {
         Assert.Equal(RoamingStepDistance, RoamingMovement.StepDistance);
     }
 
+    // TASK-1018: one roaming tick per party step EVENT, not per distance. worldmove_party_attempt_move
+    // returns 1 for a step that stands, a step a hotspot rolled back and a refused step that pivots, and
+    // the world loop steps every roamer on each (WORLDLP.C:157, 264). Measured in the original on
+    // c11-graves at Large: 400 per press, the press that only turned the party included.
     [Theory]
-    [InlineData(400, 400, 1)]       // Small: a party step, a roaming step
-    [InlineData(800, 800, 1)]       // Medium: still one
-    [InlineData(1600, 1600, 1)]     // Large: still one, so a roamer walks a quarter of the party's pace
-    [InlineData(1600, 6400, 4)]     // four Large steps
-    [InlineData(1600, 0, 0)]        // standing still or a pivot: nothing roams
-    public void ONERoamingTickPerPartyStep_AtAnyStepSize(int partyStep, long moved, int expected) {
-        Assert.Equal(expected, RoamingMovement.TicksForPartyMove(0, moved, partyStep).Ticks);
+    [InlineData(1, 1)]      // a Classic step, a stood-back step or a pivot: one roaming step
+    [InlineData(4, 0)]      // an Enhanced glide part at Large, alone: not yet
+    public void ONERoamingTickPerPartyStepEvent(int parts, int expected) {
+        Assert.Equal(expected, RoamingMovement.TicksForStep(0, parts).Ticks);
     }
 
     [Fact]
     public void ENHANCEDGlideSubStepsAddUpToOnePartyStep() {
-        // Enhanced walking moves the party in Small (400) sub-steps; at Large four of them are one
-        // party step, and the carry is what makes them count as one roaming tick, not four.
-        long carry = 0;
+        // Enhanced walking moves the party in Small sub-steps; at Large four of them are one party step,
+        // and the carry is what makes them count as one roaming tick, not four.
+        var carry = 0;
         var ticks = 0;
         for (var i = 0; i < 4; i++) {
-            (int t, long c) = RoamingMovement.TicksForPartyMove(carry, 400, 1600);
+            (int t, int c) = RoamingMovement.TicksForStep(carry, 4);
             ticks += t;
             carry = c;
         }

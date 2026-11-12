@@ -2288,10 +2288,11 @@ namespace BakAgain.World {
         /// (An older note here said the main loop passed 0 and metered roaming by distance, which ran
         /// monsters at the party's own pace: four times the original's at the default Large.)
         ///
-        /// <para>Never per render frame: the original never moves a roamer while the party stands.
-        /// The party's distance is counted in preference steps rather than Stepped events because
-        /// Enhanced walking glides in Small sub-steps (<see cref="PartyMovement.Glide"/>); the
-        /// remainder is carried, so a run of short steps still adds up to a step.</para>
+        /// <para>Never per render frame, and counted in STEP EVENTS, not distance: the function also
+        /// returns 1 for a step a hotspot rolled back and for a refused step that pivots, and the
+        /// roamers step on those too (measured in the original on c11-graves, TASK-1018). An
+        /// Enhanced glide step is a part of a preference step (<see cref="PartyMovement.Stepped"/>'s
+        /// argument); the parts are carried so they add up to one tick.</para>
         /// </remarks>
         /// <summary>
         /// Keep the nine tiles around the party active and the rest off — TASK-130 option (b).
@@ -2315,7 +2316,7 @@ namespace BakAgain.World {
             _zoneSceneBuilder.Residency.Apply(_gameSession.PositionX, _gameSession.PositionY);
         }
 
-        private void AdvanceRoamingActors() {
+        private void AdvanceRoamingActors(int parts) {
             // *** A NEW CHUNK GETS ITS OWN ACTORS. *** The original loads the next chunk's encounter
             // actors on every crossing (czone_resync_on_world_move -> czone_region_encounters_load,
             // CZONE.C:79-99). Nothing here did, so the monsters on screen stayed those of the chunk
@@ -2331,19 +2332,10 @@ namespace BakAgain.World {
                 return;
             }
 
-            long dx = _gameSession.PositionX - _roamingLastX;
-            long dy = _gameSession.PositionY - _roamingLastY;
-            _roamingLastX = _gameSession.PositionX;
-            _roamingLastY = _gameSession.PositionY;
-
-            // Chebyshev, matching the lattice the world moves on: a diagonal step moves the full
-            // delta on both axes, so measuring it as longer than a straight one would run diagonal
-            // travel faster than the original does.
-            long moved = System.Math.Max(System.Math.Abs(dx), System.Math.Abs(dy));
-            // A pivot is not a step; nothing roams.
+            // One roaming tick per counted party step (a step, a rolled-back step or a pivot), in
+            // preference steps: an Enhanced glide part is a fraction of one (TASK-1018).
             int ticks;
-            (ticks, _roamingCarry) = GameData.Resources.World.RoamingMovement.TicksForPartyMove(
-                _roamingCarry, moved, _partyMovement?.WorldStepSpeed ?? RoamingStepDistance);
+            (ticks, _roamingCarry) = GameData.Resources.World.RoamingMovement.TicksForStep(_roamingCarry, parts);
             if (ticks <= 0) {
                 return;
             }
@@ -2386,9 +2378,7 @@ namespace BakAgain.World {
         private const int RoamingStepDistance =
             GameData.Resources.World.RoadTravel.CellSize / 4;
 
-        private long _roamingCarry;
-        private long _roamingLastX;
-        private long _roamingLastY;
+        private int _roamingCarry;
 
         private GameObject _zoneRoot;
         private Camera _worldCamera;
@@ -2719,8 +2709,6 @@ namespace BakAgain.World {
             // Roaming actors advance with the party's movement and only with it — see
             // AdvanceRoamingActors for why this is a step signal rather than a per-frame one.
             _roamingCarry = 0;
-            _roamingLastX = _gameSession.PositionX;
-            _roamingLastY = _gameSession.PositionY;
 
             // *** THE ROAMING-ENCOUNTER RESET. *** Subscribed here rather than at construction
             // because it needs MOVEMENT.DAT to resolve a preference index into the distance the

@@ -51,15 +51,17 @@ namespace BakAgain.World {
         private readonly Action<int> _showDialog;
 
         /// <summary>
-        /// Raised after the party actually moved — not on a blocked step that only pivots.
+        /// Raised for every step the world counts — <c>worldmove_party_attempt_move</c> returning 1: a
+        /// step that stands, one a hotspot rolled back, and a refused step that pivots. The argument is
+        /// how many such events make one preference step (1 in Classic; an Enhanced glide step is a
+        /// part of one).
         /// </summary>
         /// <remarks>
-        /// Deliberately carries no distance. The step length differs between an ordinary move
-        /// (a Preferences-driven step, quartered underground) and a travel step, and a listener that
-        /// re-derives it from the wrong one drifts silently. Anything that needs the distance should
-        /// diff the session position across the call, which is exact on every path.
+        /// Deliberately carries no distance: a rolled-back step and a pivot move nobody, and the
+        /// original still counts them (TASK-1018). Anything that needs the distance should diff the
+        /// session position across the call.
         /// </remarks>
-        public Action Stepped;
+        public Action<int> Stepped;
 
         // The terrain kind the last completed step CROSSED. Held rather than acted on, because the
         // original falls on the world-loop iteration AFTER the crossing is recorded — which is what
@@ -540,7 +542,6 @@ namespace BakAgain.World {
             // move funnels through, which makes it the "a step happened" signal as much as a clock
             // advance — but it returns early without a clock, and a listener that only fires when
             // the game happens to have one is a bug waiting for the test that omits it.
-            Stepped?.Invoke();
 
             // *** THE MOVEMENT-CELL TICK ADVANCES ONLY ON A STEP THAT STANDS, AND THE CLOCK ALWAYS
             // DOES. *** WORLDMOV.C:126-137 puts worldmove_step_tick_advance() inside the branch
@@ -558,6 +559,9 @@ namespace BakAgain.World {
             StepSize preference = _preferences.Current.StepSize;
             int parts = System.Math.Max(1,
                 _movement.StepDistanceFor(preference) / System.Math.Max(1, _movement.StepDistanceFor(size)));
+            // *** Raised ABOVE the clock guard. *** This method is the one place every counted step
+            // funnels through, which makes it the "a step happened" signal as much as a clock advance.
+            Stepped?.Invoke(parts);
             int part = _glideParts % parts;
             if (stepStands && _session != null) {
                 if (part + 1 < parts) {
@@ -693,6 +697,10 @@ namespace BakAgain.World {
                 // lattice (see the note on TrySweepAlternativeHeading).
                 BeginSwing();
                 _session.Rotation = unchecked((short)target);
+                // The pivot is still the step for the world: the original returns 1 here and the
+                // loop advances the clock and steps every roamer (WORLDLP.C:157, 181-197). No cell
+                // tick — the party stands where it was (TASK-1018).
+                AdvanceClockForStep(stepStands: false, size);
                 SyncCamera();
                 return false;
             }

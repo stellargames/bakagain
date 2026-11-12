@@ -323,6 +323,22 @@ namespace BakAgain.Tests.Editor.World.Collision {
             CollectionAssert.IsEmpty(rig.Sounds, "a successful pivot is not a bump");
         }
 
+        // TASK-1018: worldmove_party_attempt_move returns 1 for a refused step that turns the party
+        // (WORLDMOV.C, the L_fail sweep arm), and the world loop then steps every roamer and advances the
+        // clock (WORLDLP.C:157, 181-197) as for any step. Measured in the original on c11-graves: the
+        // roamer moved 400 on the press that only turned the party.
+        [Test]
+        public void MoveForward_APivotStillCountsAsTheStepForTheWorld() {
+            var rig = Build(WallWithAnOpeningClockwise());
+            var parts = new System.Collections.Generic.List<int>();
+            rig.Movement.Stepped += n => parts.Add(n);
+
+            rig.Movement.MoveForward();
+
+            Assert.AreEqual(Correction(23), rig.Session.Rotation, "precondition: it pivoted");
+            CollectionAssert.AreEqual(new[] { 1 }, parts, "one whole step for the roamers and the clock");
+        }
+
         [Test]
         public void MoveForward_PivotCorrection_IgnoresTheTurnSizePreference() {
             // The DOS sweep widened by the player's turn-stride, so TurnSize changed where you ended
