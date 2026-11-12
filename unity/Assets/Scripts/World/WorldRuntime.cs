@@ -1743,6 +1743,39 @@ namespace BakAgain.World {
             return nav.PushAndWaitAsync(menu);
         }
 
+        /// <summary>
+        /// Enhanced travel (TASK-1056): how far to tilt the view down so the foot of a clickable thing
+        /// in click range ahead stays in sight. Each entity's reach is its own detection range
+        /// (DETECT.DAT), the distance its click registers from; 0 when the full-screen travel view is off.
+        /// </summary>
+        private float NearTiltTarget() {
+            if (_worldCamera == null || _partyMovement == null
+                || !BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.FullScreenTravel)) {
+                return 0f;
+            }
+            List<(Vector3, float)> things = _nearThings;
+            things.Clear();
+            foreach (WorldEntity e in WorldEntity.Active) {
+                if (!string.IsNullOrEmpty(e.Behavior)) {
+                    float reach = (e.DetectionRange > 0f ? e.DetectionRange : DefaultClickReach) / BakCoordinateConverter.WorldScale;
+                    things.Add((e.transform.position, reach));
+                }
+            }
+            if (things.Count == 0) {
+                return 0f;
+            }
+            Transform eye = _worldCamera.transform;
+            float pitchDown = -Mathf.Asin(Mathf.Clamp(eye.forward.y, -1f, 1f)) * Mathf.Rad2Deg - _partyMovement.NearTiltDegrees;
+            float halfV = _worldCamera.fieldOfView * 0.5f;
+            float halfH = Camera.VerticalToHorizontalFieldOfView(_worldCamera.fieldOfView, _worldCamera.aspect) * 0.5f;
+            return NearObjectTilt.DegreesFor(eye.position, eye.forward, pitchDown, halfV, halfH, things);
+        }
+
+        private readonly List<(Vector3, float)> _nearThings = new();
+
+        /// <summary>A clickable thing with no detection range of its own: one movement cell.</summary>
+        private const float DefaultClickReach = 1600f;
+
         /// <summary>Turns the view to a speaker's bearing for a backdrop dialog.</summary>
         /// <remarks>
         /// <b>The walking eye must stop writing first</b>, exactly as the arena pose needs — every
@@ -2757,6 +2790,7 @@ namespace BakAgain.World {
                 // The one thing the pit fall needs that movement does not already own.
                 showDialog: id => _dialogs?.ShowById(id).Forget());
             _partyMovement.FreeHeading = () => BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.MouseLook);
+            _partyMovement.NearTiltTarget = NearTiltTarget;
             _partyMovement.LeaveRoadWhenItEnds = () => BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.ContinuousMovement);
             _partyMovement.Stepped += AdvanceRoamingActors;
 

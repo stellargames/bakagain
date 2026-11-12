@@ -8,6 +8,13 @@ namespace BakAgain.World {
     /// so that render profiles and game systems can query what this object is.
     /// </summary>
     public class WorldEntity : MonoBehaviour {
+        /// <summary>The entities in the scene now, for view-only queries such as the near-object
+        /// tilt (TASK-1056); filtered by <see cref="Behavior"/> where it matters.</summary>
+        internal static readonly System.Collections.Generic.HashSet<WorldEntity> Active = new();
+
+        private void OnEnable() => Active.Add(this);
+        private void OnDisable() => Active.Remove(this);
+
         [Header("TBL Identity")]
         public int TypeId;
         public string EntityName;

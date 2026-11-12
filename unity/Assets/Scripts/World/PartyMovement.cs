@@ -110,6 +110,30 @@ namespace BakAgain.World {
         /// <summary>View-only pitch offset in BaK angle units. Never saved, never read by a rule.</summary>
         public short LookPitch { get; set; }
 
+        /// <summary>
+        /// Enhanced travel (TASK-1056): degrees the view should tilt down to keep a clickable thing at
+        /// the party's feet in sight (<see cref="NearObjectTilt"/>). Null is the original: no tilt.
+        /// </summary>
+        public Func<float> NearTiltTarget { get; set; }
+
+        // The tilt shown, degrees down, eased toward the target; view only, like LookPitch.
+        private float _nearTilt;
+
+        /// <summary>How fast the near tilt follows its target, degrees a second.</summary>
+        private const float NearTiltSpeed = 60f;
+
+        /// <summary>One frame of the near tilt: ease toward <see cref="NearTiltTarget"/>.</summary>
+        public void TickNearTilt(float seconds) {
+            float target = NearTiltTarget?.Invoke() ?? 0f;
+            if (Mathf.Approximately(target, _nearTilt)) {
+                return;
+            }
+            _nearTilt = Mathf.MoveTowards(_nearTilt, target, NearTiltSpeed * seconds);
+            if (_camera != null && !CameraSuspended) {
+                _camera.transform.rotation = CameraRotation();   // the view only: the party did not move
+            }
+        }
+
         /// <summary>The heading road travel probes with: identity unless <see cref="FreeHeading"/>.</summary>
         public ushort TravelHeading(ushort heading) =>
             FreeHeading?.Invoke() == true ? RoadTravel.SnapToStride(heading, RoadTravel.CompassStep) : heading;
@@ -736,6 +760,7 @@ namespace BakAgain.World {
         /// </remarks>
         public bool TickPendingDescent() {
             TickTurnSwing();
+            TickNearTilt(Time.deltaTime);
             if (IsFalling) {
                 // A fall already under way owns the frame. The crossing kind is deliberately NOT
                 // consumed here — nothing can step while falling, so there is nothing to consume.
@@ -1469,9 +1494,15 @@ namespace BakAgain.World {
                     at, _glideT);
             }
             _camera.transform.position = at;
-            _camera.transform.rotation = BakCoordinateConverter.ConvertRotation(
-                unchecked((ushort)(_cameraPitch + LookPitch)), 0, _swingYaw ?? unchecked((ushort)_session.Rotation));
+            _camera.transform.rotation = CameraRotation();
         }
+
+        private Quaternion CameraRotation() => BakCoordinateConverter.ConvertRotation(
+            unchecked((ushort)(_cameraPitch + LookPitch - Mathf.RoundToInt(_nearTilt * AngleUnitsPerDegree))), 0,
+            _swingYaw ?? unchecked((ushort)_session.Rotation));
+
+        /// <summary>The near tilt shown, degrees down (TASK-1056).</summary>
+        public float NearTiltDegrees => _nearTilt;
 
         /// <summary>
         /// The yaw the camera shows while an automatic turn swings round, or null when it shows the

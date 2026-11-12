@@ -109,6 +109,12 @@ namespace BakAgain.Testing {
             }
         }
 
+        // The travel view's pitch, degrees down: the camera WorldRuntime builds (Camera.main is not it).
+        private static float WorldPitchDown() {
+            Camera world = GameObject.Find("WorldCamera")?.GetComponent<Camera>();
+            return world == null ? 0f : -Mathf.Asin(Mathf.Clamp(world.transform.forward.y, -1f, 1f)) * Mathf.Rad2Deg;
+        }
+
         internal static string Refuse(string error) => Json(new Dictionary<string, object> { ["ok"] = false, ["error"] = error });
 
         private static string Ok(Dictionary<string, object> fields) {
@@ -269,7 +275,8 @@ namespace BakAgain.Testing {
             if (s == null) return Refuse("no game session");
             return Ok(new Dictionary<string, object> {
                 ["zone"] = (int)s.CurrentZone, ["x"] = s.PositionX, ["y"] = s.PositionY,
-                ["heading"] = (int)s.Rotation, ["time"] = s.GameTimeIn2Seconds, ["followRoad"] = s.IsAutoTravelling });
+                ["heading"] = (int)s.Rotation, ["time"] = s.GameTimeIn2Seconds, ["followRoad"] = s.IsAutoTravelling,
+                ["pitchDown"] = WorldPitchDown() });
         }
 
         /// <summary>

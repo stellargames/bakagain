@@ -48,6 +48,28 @@ namespace BakAgain.Tests.Editor.World {
                 "pitch has no session field to leak into; the pose is untouched");
         }
 
+        /// <summary>TASK-1056: the near-object tilt eases the view down to its target and back, and,
+        /// like free look's pitch, never touches the party's pose.</summary>
+        [Test]
+        public void TheNearTiltEasesTheViewDownToItsTargetAndBack() {
+            var (movement, session, cam) = Build();
+            var before = (session.Rotation, session.PositionX, session.PositionY, session.PositionZ);
+            float target = 20f;
+            movement.NearTiltTarget = () => target;
+
+            movement.TickNearTilt(0.05f);
+            float early = -Mathf.Asin(cam.transform.forward.y) * Mathf.Rad2Deg;
+            Assert.Greater(early, 0f, "it starts tilting down");
+            Assert.Less(early, 20f, "eased, not snapped");
+            for (int i = 0; i < 100; i++) movement.TickNearTilt(0.05f);
+            Assert.AreEqual(20f, -Mathf.Asin(cam.transform.forward.y) * Mathf.Rad2Deg, 0.5f, "down by the target");
+
+            target = 0f;
+            for (int i = 0; i < 100; i++) movement.TickNearTilt(0.05f);
+            Assert.AreEqual(0f, cam.transform.forward.y, 0.01f, "level again");
+            Assert.AreEqual(before, (session.Rotation, session.PositionX, session.PositionY, session.PositionZ));
+        }
+
         private const float Units = 65536f / 360f;
 
         [Test]
