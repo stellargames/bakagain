@@ -37,7 +37,7 @@ public class FontExtractor : ExtractorBase<FontResource> {
         // accepted; anything else sends the loader down a different path entirely, so this is a
         // format discriminator and not a version number.
         byte formatByte = resourceReader.ReadByte();
-        _ = resourceReader.ReadByte();                 // nominal width; the per-glyph widths rule
+        byte nominalWidth = resourceReader.ReadByte(); // advances use the per-glyph widths; fixed cells use this
         byte height = resourceReader.ReadByte();
         byte baseline = resourceReader.ReadByte();
         byte firstCharacter = resourceReader.ReadByte();
@@ -56,6 +56,7 @@ public class FontExtractor : ExtractorBase<FontResource> {
             compression.Decompress(resourceReader.BaseStream, remaining));
 
         var font = new FontResource(id) {
+            NominalWidth = nominalWidth,
             Height = height,
             Baseline = baseline,
             FirstCharacter = firstCharacter,

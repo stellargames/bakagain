@@ -63,3 +63,26 @@ public class CipherPuzzleRowLayoutTests {
         Assert.Equal(2, CipherPuzzleLayout.ColumnGapVga);
     }
 }
+
+/// <summary>Forum, grimrow, 2026-11-11 (TASK-1071): "the I letter makes the tumbler smaller".</summary>
+public class CipherCellSizeTests {
+    [Fact]
+    public void EveryCellIsTheFontsNominalWidthWhateverLetterItShows() {
+        // CIPHER.C:260-261: nCellW = the font header's width byte + 6 (FONTLOAD.C:38 reads it into
+        // pFont_glyph_width_bits[slot]), nCellH = font height + 6, the same for every column.
+        var font = new GameData.Resources.Font.FontResource("PUZZLE") {
+            PixelWidth = 5, PixelHeight = 6, Height = 9, FirstCharacter = ' ', NominalWidth = 8,
+        };
+        font.Glyphs.Add(new GameData.Resources.Font.FontGlyph { Width = 1 });   // ' '
+        font.Glyphs.Add(new GameData.Resources.Font.FontGlyph { Width = 3 });   // a narrow letter
+        Assert.Equal((40, 54), CipherPuzzleLayout.GlyphBox(font));
+    }
+
+    [Fact]
+    public void AFontWithNoNominalWidthUsesItsWidestGlyph() {
+        var font = new GameData.Resources.Font.FontResource("MOD") { PixelWidth = 1, PixelHeight = 1, Height = 12 };
+        font.Glyphs.Add(new GameData.Resources.Font.FontGlyph { Width = 4 });
+        font.Glyphs.Add(new GameData.Resources.Font.FontGlyph { Width = 11 });
+        Assert.Equal((11, 12), CipherPuzzleLayout.GlyphBox(font));
+    }
+}

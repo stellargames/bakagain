@@ -68,6 +68,24 @@ public static class CipherPuzzleLayout {
     public static bool AuthoredColumnRectsAreOverwritten => true;
 
     /// <summary>Padding added to the font's glyph box to get a cell — 6 either way.</summary>
+    /// <summary>
+    /// The glyph box every cell is built on, in canonical units: the font's nominal width (the
+    /// header byte, <see cref="GameData.Resources.Font.FontResource.NominalWidth"/>) and its height,
+    /// as <c>cipher_puzzle_layout_letters</c> does (CIPHER.C:260-261). The same for every column, so a
+    /// narrow letter does not shrink its wheel (TASK-1071). A font without a nominal width uses its
+    /// widest glyph.
+    /// </summary>
+    public static (int Width, int Height) GlyphBox(GameData.Resources.Font.FontResource font) {
+        int width = font.NominalWidth;
+        if (width <= 0) {
+            foreach (GameData.Resources.Font.FontGlyph g in font.Glyphs) {
+                width = System.Math.Max(width, g.Width);
+            }
+        }
+
+        return ((int)(width * font.PixelWidth), (int)(font.Height * font.PixelHeight));
+    }
+
     public const int CellPaddingVga = 6;
 
     /// <summary>The gap between one cell and the next — 2.</summary>

@@ -630,7 +630,8 @@ namespace BakAgain.UI.Puzzle {
                 // fifteen columns marching from the left edge, so using them puts a short word in
                 // the top-left corner instead of centred on the chest. See
                 // CipherPuzzleLayout.AuthoredColumnRectsAreOverwritten.
-                Rect box = ColumnBox(column, (int)body.rect.width, (int)body.rect.height);
+                (int cellGlyphW, int cellGlyphH) = CipherPuzzleLayout.GlyphBox(font);
+                Rect box = ColumnBox(column, cellGlyphW, cellGlyphH);
 
                 // *** MOVE THE CLICK AREA ONTO THE WHEEL. *** cipher_puzzle_layout_letters writes
                 // the computed rect back into the menu entry (rect.x/.y/.width/.height); until this

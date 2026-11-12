@@ -36,6 +36,12 @@ public class FontResource : IResource {
     /// <inheritdoc cref="PixelWidth"/>
     public double PixelHeight { get; set; } = 1;
 
+    /// <summary>The font's nominal glyph width in its own pixels: the header's width byte, which the
+    /// original reads into <c>pFont_glyph_width_bits</c> (FONTLOAD.C:38) and uses to size fixed cells such
+    /// as the wordlock wheels (CIPHER.C:260). 0 when a font does not state one; glyph advances still
+    /// come from each glyph's own <see cref="FontGlyph.Width"/>.</summary>
+    public int NominalWidth { get; set; }
+
     /// <summary>Rows per glyph — every glyph in a font is the same height.</summary>
     public int Height { get; set; }
 
