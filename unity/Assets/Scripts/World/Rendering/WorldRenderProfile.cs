@@ -140,6 +140,22 @@ namespace BakAgain.World.Rendering {
                 GameData.Resources.World.SpriteNearFade.ShownFrom / BakAgain.World.Converters.BakCoordinateConverter.WorldScale);
         }
 
+        /// <summary>
+        /// While a dialog page shows the world, nothing stands between the camera and the speaker
+        /// (owner, TASK-1059): every sprite nearer than the fade's whole-from distance is removed
+        /// outright, with no dithered band — a tree beside the camera read as a coarse checker block
+        /// in the backdrop. Off puts the travel view's fade back.
+        /// </summary>
+        internal static void CutNearSprites(bool on) {
+            if (!on) {
+                ApplySpriteNearFade();
+                return;
+            }
+            float show = GameData.Resources.World.SpriteNearFade.ShownFrom / BakAgain.World.Converters.BakCoordinateConverter.WorldScale;
+            Shader.SetGlobalFloat(SpriteNearHideId, show - 0.001f);   // the shader fades only over show > hide
+            Shader.SetGlobalFloat(SpriteNearShowId, show);
+        }
+
         internal static readonly int SpriteNearHideId = Shader.PropertyToID("_BakSpriteNearHide");
         internal static readonly int SpriteNearShowId = Shader.PropertyToID("_BakSpriteNearShow");
 

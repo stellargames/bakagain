@@ -407,7 +407,11 @@ namespace BakAgain.UI {
                 if (_hiddenWorld?.panel == null) {
                     _hiddenWorld = null;
                 }
-                if (!PagesOverTheWorld.Add(backdrop) || _hiddenWorld != null) {
+                if (!PagesOverTheWorld.Add(backdrop)) {
+                    return;
+                }
+                BakAgain.World.Rendering.WorldRenderProfile.CutNearSprites(true);   // TASK-1059
+                if (_hiddenWorld != null) {
                     return;
                 }
                 _hiddenWorld = backdrop.panel.visualTree.Q(name: "WorldViewport");
@@ -422,10 +426,12 @@ namespace BakAgain.UI {
             });
             // The page's own detach, not a child's.
             backdrop.RegisterCallback<DetachFromPanelEvent>(e => {
-                if (e.target == backdrop && PagesOverTheWorld.Remove(backdrop) && PagesOverTheWorld.Count == 0
-                    && _hiddenWorld != null) {
-                    _hiddenWorld.style.visibility = StyleKeyword.Null;
-                    _hiddenWorld = null;
+                if (e.target == backdrop && PagesOverTheWorld.Remove(backdrop) && PagesOverTheWorld.Count == 0) {
+                    BakAgain.World.Rendering.WorldRenderProfile.CutNearSprites(false);
+                    if (_hiddenWorld != null) {
+                        _hiddenWorld.style.visibility = StyleKeyword.Null;
+                        _hiddenWorld = null;
+                    }
                 }
             });
             if (backdrop.panel != null) {
