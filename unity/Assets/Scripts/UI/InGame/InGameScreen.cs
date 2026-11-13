@@ -1915,13 +1915,15 @@ namespace BakAgain.UI.InGame {
             _combatCamera ??= new CombatCameraInput(_pointer, _enhancedLayout, _combatLayout);
             _combatCamera.Tick(EnhancedCombatActive && world != null, startsOnWorld,
                 world != null ? world.OrbitArena : null, world != null ? world.ZoomArenaAt : (System.Action<float, Vector2>)null);
-            // The arrow keys pan a close view across the board (owner, 2026-11-01). Read as keys, not as the
-            // move axis: that one carries WASD too, and A and D are Auto and Defend.
-            if (EnhancedCombatActive && world != null && UnityEngine.InputSystem.Keyboard.current is { } kb) {
-                float x = (kb.rightArrowKey.isPressed ? 1f : 0f) - (kb.leftArrowKey.isPressed ? 1f : 0f);
-                float y = (kb.upArrowKey.isPressed ? 1f : 0f) - (kb.downArrowKey.isPressed ? 1f : 0f);
-                if (x != 0f || y != 0f) {
-                    world.PanArena(x, y, Time.unscaledDeltaTime);
+            // The arrow keys pan a close view across the board (owner, 2026-11-01), or the keys the player
+            // moved it to (TASK-1080). Its own binding, not the move axis: that one carries WASD too, and A
+            // and D are Auto and Defend.
+            _combatKeys ??= _resolver?.Resolve(typeof(BakAgain.UI.InputCore.ICombatOverlayInput))
+                as BakAgain.UI.InputCore.ICombatOverlayInput;
+            if (EnhancedCombatActive && world != null && _combatKeys != null) {
+                Vector2 pan = _combatKeys.Pan;
+                if (pan.x != 0f || pan.y != 0f) {
+                    world.PanArena(pan.x, pan.y, Time.unscaledDeltaTime);
                 }
             }
         }

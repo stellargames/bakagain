@@ -6,19 +6,33 @@ namespace BakAgain.UI.InputCore {
     /// <summary>One remappable binding: an action's binding at <see cref="Index"/> (a composite's part
     /// for the walking keys).</summary>
     public sealed class RebindSlot {
-        public RebindSlot(string id, string labelKey, InputAction action, int index) {
+        public RebindSlot(string id, string group, string labelKey, InputAction action, int index,
+            string letter = null, bool second = false) {
             Id = id;
+            Group = group;
             LabelKey = labelKey;
             Action = action;
             Index = index;
+            Letter = letter;
+            Second = second;
             DefaultPath = action.bindings[index].path;
         }
 
         /// <summary>The slot's PlayerPrefs name, after <see cref="InputBindings.PrefsPrefix"/>.</summary>
         public string Id { get; }
 
+        /// <summary>The keys that are live together (<see cref="InputBindings.Walk"/>, <see cref="InputBindings.Combat"/>,
+        /// <see cref="InputBindings.Menus"/>): a key swaps only with a slot in its own group.</summary>
+        public string Group { get; }
+
         /// <summary>The UiTemplates key of the slot's caption.</summary>
         public string LabelKey { get; }
+
+        /// <summary>A hotkey's letter or digit, for its caption; null otherwise.</summary>
+        public string Letter { get; }
+
+        /// <summary>The action's second key (the arrows beside WASD, keypad Enter beside Enter).</summary>
+        public bool Second { get; }
 
         public InputAction Action { get; }
         public int Index { get; }
@@ -33,6 +47,9 @@ namespace BakAgain.UI.InputCore {
     /// </summary>
     public static class InputBindings {
         public const string PrefsPrefix = "input binding ";
+
+        /// <summary>The slot groups: travel, the fight, and every menu and hotkey.</summary>
+        public const string Walk = "walk", Combat = "combat", Menus = "menus";
 
         /// <summary>The slot's saved binding, or null while it keeps its default.</summary>
         public static string Saved(string id) {
@@ -55,7 +72,7 @@ namespace BakAgain.UI.InputCore {
         public static void Set(IReadOnlyList<RebindSlot> slots, RebindSlot slot, string path) {
             string old = slot.Path;
             foreach (RebindSlot other in slots) {
-                if (other != slot && SamePath(other.Path, path)) {
+                if (other != slot && other.Group == slot.Group && SameKey(other.Path, path)) {
                     Apply(other, old);
                 }
             }
@@ -82,6 +99,14 @@ namespace BakAgain.UI.InputCore {
             }
         }
 
-        private static bool SamePath(string a, string b) => string.Equals(a, b, System.StringComparison.OrdinalIgnoreCase);
+        // The same key, however it is written: a hotkey's "#(m)" (the key that prints M) is "<Keyboard>/m" on
+        // a US layout, and a rebind always records the second form.
+        private static bool SameKey(string a, string b) {
+            if (string.Equals(a, b, System.StringComparison.OrdinalIgnoreCase)) {
+                return true;
+            }
+            InputControl ca = InputSystem.FindControl(a);
+            return ca != null && ca == InputSystem.FindControl(b);
+        }
     }
 }

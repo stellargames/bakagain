@@ -38,11 +38,126 @@ namespace BakAgain.Tests.Editor.UI.InputCore {
             _actions = null;
         }
 
+        // The keys the adapter reads (TASK-1080): one source per test, released with the test.
+        private SystemInputSource _keys;
+
+        [TearDown]
+        public void ReleaseKeys() {
+            if (_keys != null) {
+                InputBindings.Reset(_keys.RebindSlots);
+                _keys.Dispose();
+                _keys = null;
+            }
+        }
+
         // Started here so each test body just drives input.
         private InputAdapter StartedAdapter(IUiCommands spy) {
-            var adapter = new InputAdapter(spy, _actions);
+            _keys ??= new SystemInputSource();
+            var adapter = new InputAdapter(spy, _actions, _keys);
             adapter.Start();
             return adapter;
+        }
+
+        private RebindSlot Slot(string id) => System.Linq.Enumerable.Single(_keys.RebindSlots, s => s.Id == id);
+
+        // TASK-1080 (owner: "remap all actions"): the UI keys are actions of their own now.
+        [Test]
+        public void ActivateMovedToSpace_ActivatesOnSpace_AndEnterBecomesASkip() {
+            Keyboard keyboard = InputSystem.AddDevice<Keyboard>();
+            var spy = new SpyCommands();
+            InputAdapter adapter = StartedAdapter(spy);
+            try {
+                InputBindings.Set(_keys.RebindSlots, Slot("activate"), "<Keyboard>/space");
+                Press(keyboard.spaceKey);
+                adapter.Tick();
+                CollectionAssert.AreEqual(new[] { "Activate" }, spy.Calls, "Space activates, and is not also a Skip");
+                Release(keyboard.spaceKey);
+                spy.Calls.Clear();
+                Press(keyboard.enterKey);
+                adapter.Tick();
+                CollectionAssert.AreEqual(new[] { "Skip" }, spy.Calls, "Enter is just another key now");
+            } finally {
+                adapter.Dispose();
+            }
+        }
+
+        [Test]
+        public void CancelAndNextMoved_FollowTheirNewKeys() {
+            Keyboard keyboard = InputSystem.AddDevice<Keyboard>();
+            var spy = new SpyCommands();
+            InputAdapter adapter = StartedAdapter(spy);
+            try {
+                InputBindings.Set(_keys.RebindSlots, Slot("cancel"), "<Keyboard>/f2");
+                InputBindings.Set(_keys.RebindSlots, Slot("next"), "<Keyboard>/f1");
+                Press(keyboard.f2Key);
+                adapter.Tick();
+                Release(keyboard.f2Key);
+                Press(keyboard.f1Key);
+                adapter.Tick();
+                CollectionAssert.AreEqual(new[] { "Cancel", "Move:Next" }, spy.Calls);
+            } finally {
+                adapter.Dispose();
+            }
+        }
+
+        [Test]
+        public void NavigationMovedToALetter_MovesFocus_AndTheLetterTakesTheArrow() {
+            Keyboard keyboard = InputSystem.AddDevice<Keyboard>();
+            var spy = new SpyCommands();
+            InputAdapter adapter = StartedAdapter(spy);
+            try {
+                InputBindings.Set(_keys.RebindSlots, Slot("nav_up"), "<Keyboard>/i");
+                Press(keyboard.iKey);
+                adapter.Tick();
+                CollectionAssert.AreEqual(new[] { "Move:Up" }, spy.Calls, "I moves up and is no longer hotkey I");
+                Release(keyboard.iKey);
+                spy.Calls.Clear();
+                Press(keyboard.upArrowKey);
+                adapter.Tick();
+                CollectionAssert.AreEqual(new[] { "Accel:i" }, spy.Calls, "the swap gave hotkey I the up arrow");
+            } finally {
+                adapter.Dispose();
+            }
+        }
+
+        [Test]
+        public void AHotkeyMovedToAnotherKey_SendsItsLetterThere() {
+            Keyboard keyboard = InputSystem.AddDevice<Keyboard>();
+            var spy = new SpyCommands();
+            InputAdapter adapter = StartedAdapter(spy);
+            try {
+                InputBindings.Set(_keys.RebindSlots, Slot("hotkey_m"), "<Keyboard>/k");
+                Press(keyboard.kKey);
+                adapter.Tick();
+                Release(keyboard.kKey);
+                Press(keyboard.mKey);
+                adapter.Tick();
+                CollectionAssert.AreEqual(new[] { "Accel:m", "Accel:k" }, spy.Calls, "K and M swapped");
+            } finally {
+                adapter.Dispose();
+            }
+        }
+
+        [Test]
+        public void TheKeypadPageAndEndKeys_FollowTheirNewKeys() {
+            Keyboard keyboard = InputSystem.AddDevice<Keyboard>();
+            var spy = new SpyCommands {
+                TopLayer = new ScreenInputLayer("screen", new NoTextScreen()),
+            };
+            InputAdapter adapter = StartedAdapter(spy);
+            try {
+                InputBindings.Set(_keys.RebindSlots, Slot("nav_down_2"), "<Keyboard>/f3");
+                InputBindings.Set(_keys.RebindSlots, Slot("page_up"), "<Keyboard>/f4");
+                InputBindings.Set(_keys.RebindSlots, Slot("last"), "<Keyboard>/f5");
+                foreach (UnityEngine.InputSystem.Controls.KeyControl key in new[] { keyboard.f3Key, keyboard.f4Key, keyboard.f5Key }) {
+                    Press(key);
+                    adapter.Tick();
+                    Release(key);
+                }
+                CollectionAssert.AreEqual(new[] { "Move:Down", "Move:PageUp", "Move:Last" }, spy.Calls);
+            } finally {
+                adapter.Dispose();
+            }
         }
 
         [Test]
@@ -210,6 +325,16 @@ namespace BakAgain.Tests.Editor.UI.InputCore {
             }
         }
     
+        private sealed class NoTextScreen : IScreenInput {
+            public bool WantsText => false;
+            public bool OnDirection(NavDirection dir, bool ctrl) => false;
+            public bool OnTab(bool shift) => false;
+            public void OnText(char c) { }
+            public bool OnEdit(EditKey key) => false;
+            public void OnSubmit() { }
+            public void OnCancel() { }
+        }
+
         private sealed class TextScreen : IScreenInput {
             public bool WantsText => true;
             public bool OnDirection(NavDirection dir, bool ctrl) => false;

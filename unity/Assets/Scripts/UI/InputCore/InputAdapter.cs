@@ -6,7 +6,8 @@ namespace BakAgain.UI.InputCore {
     using VContainer.Unity;
 
     // The device adapter for discrete UI intents (nav/activate/cancel/accelerator + text): translates the
-    // Input System UI map (+ keyboard Tab/numpad/letters) into IUiCommands intents, which the
+    // player's key actions (SystemInputSource's remappable keys, TASK-1080) and the UI map's Click into
+    // IUiCommands intents, which the
     // InputLayerStack routes to the top layer. (Positional/analog input — pointer position/clicks and
     // gameplay movement — is the separate SystemInputSource adapter behind IPointer/IGameplayInput.) Detaches the
     // scene InputSystemUIInputModule's navigate/submit/cancel so device nav/activate flows through here
@@ -33,16 +34,28 @@ namespace BakAgain.UI.InputCore {
 
         // The DefaultInputActions is injected (DI-owned via SharedInputActions), not new'd. The scene
         // InputSystemUIInputModule keeps its own asset for pointer events.
-        public InputAdapter(IUiCommands commands, SharedInputActions shared) {
+        public InputAdapter(IUiCommands commands, SharedInputActions shared, SystemInputSource keys) {
             _commands = commands;
             _actions = shared?.Actions;
+            _keys = keys;
         }
+
+        // The keys (TASK-1080). Enter/Escape/the arrows used to come from the UI map's Submit, Cancel and
+        // Navigate, whose bindings are usage paths a player cannot move one key of; the map now only clicks.
+        private readonly SystemInputSource _keys;
+        private readonly System.Action<InputAction.CallbackContext>[] _onNav = new System.Action<InputAction.CallbackContext>[4];
+
+        private static readonly NavDirection[] NavDirections = { NavDirection.Up, NavDirection.Down, NavDirection.Left, NavDirection.Right };
 
         public void Start() {
             _actions.UI.Enable();
-            _actions.UI.Submit.performed += OnSubmit;
-            _actions.UI.Cancel.performed += OnCancel;
-            _actions.UI.Navigate.performed += OnNavigate;
+            _keys.Activate.performed += OnSubmit;
+            _keys.CancelKey.performed += OnCancel;
+            for (int i = 0; i < 4; i++) {
+                NavDirection d = NavDirections[i];
+                _onNav[i] = ctx => OnNavigate(ctx, d);
+                _keys.NavArrows[i].performed += _onNav[i];
+            }
             _actions.UI.Click.performed += OnClick;
             _actions.UI.Click.canceled += OnClick;
             TryDetachModule();
@@ -133,36 +146,22 @@ namespace BakAgain.UI.InputCore {
             _clickArmed = false;
         }
 
-        // Navigate is a 2D composite (arrows / WASD / dpad / stick). Fire one directional MoveFocus per
-        // press from the dominant axis; element.Focus() inside the layer does the actual move.
-        private void OnNavigate(InputAction.CallbackContext ctx) {
-            // A text-wanting type-2 screen (SAVE) needs its box to accept W/A/S/D as typed characters
-            // (via Keyboard.onTextInput -> OnText), not as focus/picker navigation — Navigate is bound to
-            // both arrows and WASD, so without this gate every w/a/s/d keystroke double-fired: it typed
-            // the character AND moved the Games picker / caret out from under it, making those letters
-            // untypeable in a save name. Only a genuine arrow key still drives MoveFocus here; WASD falls
-            // through (return) and is left to the text channel. LOAD (WantsText == false) and type-0
-            // screens (screenLayer == null) are unaffected — this only narrows a text-wanting screen.
-            ScreenInputLayer screenLayer = _commands.TopLayer as ScreenInputLayer;
-            if (screenLayer != null && screenLayer.Screen.WantsText) {
-                Keyboard kb = Keyboard.current;
-                bool fromArrow = kb != null && (kb.upArrowKey.isPressed || kb.downArrowKey.isPressed
-                                                 || kb.leftArrowKey.isPressed || kb.rightArrowKey.isPressed);
-                if (!fromArrow) {
-                    return;
-                }
+        // One MoveFocus per press of a direction key (the arrows, the dpad or the stick by default).
+        // A text-wanting type-2 screen (SAVE) types a key that prints a character: moved onto a letter, the
+        // direction would otherwise type it AND move the Games picker / caret out from under it.
+        private void OnNavigate(InputAction.CallbackContext ctx, NavDirection direction) {
+            if (_commands.TopLayer is ScreenInputLayer screenLayer && screenLayer.Screen.WantsText
+                && ctx.control is UnityEngine.InputSystem.Controls.KeyControl key && Prints(key)) {
+                return;
             }
-            Vector2 v = ctx.ReadValue<Vector2>();
-            if (Mathf.Abs(v.x) >= Mathf.Abs(v.y)) {
-                if (v.x > 0.5f) _commands.MoveFocus(NavDirection.Right);
-                else if (v.x < -0.5f) _commands.MoveFocus(NavDirection.Left);
-            } else {
-                if (v.y > 0.5f) _commands.MoveFocus(NavDirection.Up);
-                else if (v.y < -0.5f) _commands.MoveFocus(NavDirection.Down);
-            }
+            _commands.MoveFocus(direction);
         }
 
-        // Tab/Backspace/numpad/letters aren't in the UI action map, so poll them. First match per frame wins.
+        private static bool Prints(UnityEngine.InputSystem.Controls.KeyControl key) =>
+            key.keyCode is >= Key.A and <= Key.Z or >= Key.Digit1 and <= Key.Digit0 or Key.Space
+            || key.displayName is { Length: 1 };
+
+        // The polled keys (Tab, Backspace, the keypad, the page keys, the hotkeys, the Skip). First match per frame wins.
         public void Tick() {
             // The scene UI module may not have existed at Start — keep trying until it's stripped.
             if (!_moduleDetached) {
@@ -196,7 +195,7 @@ namespace BakAgain.UI.InputCore {
                 _textInputOn = wantsText;
             }
             bool shift = kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed;
-            if (kb.tabKey.wasPressedThisFrame) {
+            if (_keys.NextFocus.WasPressedThisFrame()) {
                 _commands.MoveFocus(shift ? NavDirection.Previous : NavDirection.Next);
                 return;
             }
@@ -205,7 +204,7 @@ namespace BakAgain.UI.InputCore {
             // mirrors Shift+Tab. Not in the UI action map, so poll it here. For a text-wanting type-2
             // screen, Backspace instead deletes the character before the caret (OnEdit), matching what
             // the key means in a text field rather than "go back a widget".
-            if (kb.backspaceKey.wasPressedThisFrame) {
+            if (_keys.PreviousFocus.WasPressedThisFrame()) {
                 if (wantsText) {
                     screenLayer.Screen.OnEdit(EditKey.Backspace);
                 } else {
@@ -213,11 +212,11 @@ namespace BakAgain.UI.InputCore {
                 }
                 return;
             }
-            if (kb.numpad8Key.wasPressedThisFrame) { _commands.MoveFocus(NavDirection.Up); return; }
-            if (kb.numpad2Key.wasPressedThisFrame) { _commands.MoveFocus(NavDirection.Down); return; }
+            if (_keys.NavPad[0].WasPressedThisFrame()) { _commands.MoveFocus(NavDirection.Up); return; }
+            if (_keys.NavPad[1].WasPressedThisFrame()) { _commands.MoveFocus(NavDirection.Down); return; }
             // numpad4/6 mirror the Left/Right arrows for focus/picker nav, but a text-wanting type-2
             // screen treats them as caret movement (OnEdit) instead — same rationale as Backspace above.
-            if (kb.numpad4Key.wasPressedThisFrame) {
+            if (_keys.NavPad[2].WasPressedThisFrame()) {
                 if (wantsText) {
                     screenLayer.Screen.OnEdit(EditKey.Left);
                 } else {
@@ -225,7 +224,7 @@ namespace BakAgain.UI.InputCore {
                 }
                 return;
             }
-            if (kb.numpad6Key.wasPressedThisFrame) {
+            if (_keys.NavPad[3].WasPressedThisFrame()) {
                 if (wantsText) {
                     screenLayer.Screen.OnEdit(EditKey.Right);
                 } else {
@@ -239,8 +238,8 @@ namespace BakAgain.UI.InputCore {
             // NavDirection), so this is purely additive. Gated out of a text-wanting type-2 screen
             // for the same reason Backspace is: there the key belongs to the field, not to nav.
             if (!wantsText) {
-                if (kb.pageUpKey.wasPressedThisFrame) { _commands.MoveFocus(NavDirection.PageUp); return; }
-                if (kb.pageDownKey.wasPressedThisFrame) { _commands.MoveFocus(NavDirection.PageDown); return; }
+                if (_keys.PageUp.WasPressedThisFrame()) { _commands.MoveFocus(NavDirection.PageUp); return; }
+                if (_keys.PageDown.WasPressedThisFrame()) { _commands.MoveFocus(NavDirection.PageDown); return; }
             }
             // Delete/Home/End are caret editing in a text field, so they go to OnEdit there. On a
             // type-2 screen with NO text field they mean nothing to a caret, and the overhead map
@@ -248,11 +247,11 @@ namespace BakAgain.UI.InputCore {
             // directions instead. Delete has no such reading and stays text-only.
             if (wantsText) {
                 if (kb.deleteKey.wasPressedThisFrame) { screenLayer.Screen.OnEdit(EditKey.Delete); return; }
-                if (kb.homeKey.wasPressedThisFrame) { screenLayer.Screen.OnEdit(EditKey.Home); return; }
-                if (kb.endKey.wasPressedThisFrame) { screenLayer.Screen.OnEdit(EditKey.End); return; }
+                if (_keys.First.WasPressedThisFrame()) { screenLayer.Screen.OnEdit(EditKey.Home); return; }
+                if (_keys.Last.WasPressedThisFrame()) { screenLayer.Screen.OnEdit(EditKey.End); return; }
             } else if (screenLayer != null) {
-                if (kb.homeKey.wasPressedThisFrame) { _commands.MoveFocus(NavDirection.First); return; }
-                if (kb.endKey.wasPressedThisFrame) { _commands.MoveFocus(NavDirection.Last); return; }
+                if (_keys.First.WasPressedThisFrame()) { _commands.MoveFocus(NavDirection.First); return; }
+                if (_keys.Last.WasPressedThisFrame()) { _commands.MoveFocus(NavDirection.Last); return; }
             }
             // A-Z: a SCREEN THAT IS TYPING never gets this — SAVE's letters arrive as typed text
             // via onTextInput, and handing them here too would double every keystroke.
@@ -268,15 +267,13 @@ namespace BakAgain.UI.InputCore {
             if (wantsText) {
                 return;
             }
-            // The letter is the one the keyboard's LAYOUT prints on the key (a QWERTZ 'Z' is 'z'), then
-            // the language pack's letter map (TASK-784: "Kaart" opens on K, and M goes dead). A key
-            // whose layout name is not a letter (or unknown) keeps its US position.
-            for (Key k = Key.A; k <= Key.Z; k++) {
-                if (kb[k].wasPressedThisFrame) {
-                    string name = kb[k].displayName;
-                    char typed = name is { Length: 1 } && char.IsLetter(name[0]) ? name[0] : (char)('a' + (k - Key.A));
+            // A hotkey is its letter's action: by default the key that prints the letter, else the US
+            // position (SystemInputSource.LetterPath), or wherever the player moved it. Then the language
+            // pack's letter map (TASK-784: "Kaart" opens on K, and M goes dead).
+            for (int i = 0; i < 26; i++) {
+                if (_keys.Letters[i].WasPressedThisFrame()) {
                     char letter = GameData.Resources.Text.LetterHotkeys.Resolve(
-                        BakAgain.ResourceManagement.LanguagePacks.Current, typed);
+                        BakAgain.ResourceManagement.LanguagePacks.Current, (char)('a' + i));
                     if (letter is >= 'a' and <= 'z') {
                         _commands.Accelerator(letter);
                     }
@@ -289,9 +286,9 @@ namespace BakAgain.UI.InputCore {
             // (wantsText returned above, so a typing screen never gets here.)
             if (_commands.TopLayer is NavigableLayer || _commands.TopLayer is TravelLayer
                 || _commands.TopLayer is ScreenInputLayer) {
-                for (Key k = Key.Digit1; k <= Key.Digit0; k++) {
-                    if (kb[k].wasPressedThisFrame) {
-                        _commands.Accelerator(k == Key.Digit0 ? '0' : (char)('1' + (k - Key.Digit1)));
+                for (int i = 0; i < 10; i++) {
+                    if (_keys.Digits[i].WasPressedThisFrame()) {
+                        _commands.Accelerator(SystemInputSource.DigitChar(i));
                         return;
                     }
                 }
@@ -308,7 +305,7 @@ namespace BakAgain.UI.InputCore {
                 return;
             }
             foreach (UnityEngine.InputSystem.Controls.KeyControl key in kb.allKeys) {
-                if (key.wasPressedThisFrame && !ClaimedBeforeSkip(key.keyCode)) {
+                if (key.wasPressedThisFrame && !ClaimedBeforeSkip(key)) {
                     _commands.Skip(key.keyCode switch {
                         Key.Space => ' ', Key.Comma => ',', Key.Period => '.', _ => '\0',
                     });
@@ -317,19 +314,20 @@ namespace BakAgain.UI.InputCore {
             }
         }
 
-        // Keys the catch-all above must NOT re-send: the ones the UI action map already turned into
-        // another intent (arrows -> MoveFocus, Enter -> Activate, Escape -> Cancel), and the ones the
-        // original never sees — DIALOG.C:168 drops NumLock/ScrollLock by name, and a bare modifier
-        // leaves no scancode in the BIOS buffer at all.
-        private static bool ClaimedBeforeSkip(Key key) {
-            switch (key) {
-                case Key.UpArrow:
-                case Key.DownArrow:
-                case Key.LeftArrow:
-                case Key.RightArrow:
-                case Key.Enter:
-                case Key.NumpadEnter:
-                case Key.Escape:
+        // Keys the catch-all above must NOT re-send: the ones the event-driven actions already turned into
+        // another intent (Activate, Cancel and the direction keys, wherever the player put them), and the
+        // ones the original never sees — DIALOG.C:168 drops NumLock/ScrollLock by name, and a bare
+        // modifier leaves no scancode in the BIOS buffer at all.
+        private bool ClaimedBeforeSkip(UnityEngine.InputSystem.Controls.KeyControl control) {
+            if (SystemInputSource.Binds(_keys.Activate, control) || SystemInputSource.Binds(_keys.CancelKey, control)) {
+                return true;
+            }
+            foreach (InputAction nav in _keys.NavArrows) {
+                if (SystemInputSource.Binds(nav, control)) {
+                    return true;
+                }
+            }
+            switch (control.keyCode) {
                 case Key.LeftShift:
                 case Key.RightShift:
                 case Key.LeftCtrl:
@@ -349,6 +347,13 @@ namespace BakAgain.UI.InputCore {
         }
 
         public void Dispose() {
+            if (_keys.Activate != null) {
+                _keys.Activate.performed -= OnSubmit;
+                _keys.CancelKey.performed -= OnCancel;
+                for (int i = 0; i < 4; i++) {
+                    if (_onNav[i] != null) _keys.NavArrows[i].performed -= _onNav[i];
+                }
+            }
             if (_textInputKeyboard != null) {
                 _textInputKeyboard.onTextInput -= OnTextInput;
                 _textInputKeyboard = null;
@@ -356,9 +361,6 @@ namespace BakAgain.UI.InputCore {
             if (_actions == null) {
                 return;
             }
-            _actions.UI.Submit.performed -= OnSubmit;
-            _actions.UI.Cancel.performed -= OnCancel;
-            _actions.UI.Navigate.performed -= OnNavigate;
             _actions.UI.Click.performed -= OnClick;
             _actions.UI.Click.canceled -= OnClick;
             // The DefaultInputActions is shared (DI-owned): unsubscribe our

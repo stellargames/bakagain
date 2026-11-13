@@ -14,11 +14,11 @@ namespace BakAgain.Tests.Editor.UI.InputCore {
 
         [TearDown]
         public void ClearSaved() {
+            if (_source != null) {
+                InputBindings.Reset(_source.RebindSlots);
+            }
             _source?.Dispose();
             _source = null;
-            foreach (string id in new[] { "forward", "back", "turn_left", "turn_right", "swing", "combat_overlay" }) {
-                PlayerPrefs.DeleteKey(InputBindings.PrefsPrefix + id);
-            }
         }
 
         private RebindSlot Slot(string id) => _source.RebindSlots.Single(s => s.Id == id);
@@ -84,11 +84,82 @@ namespace BakAgain.Tests.Editor.UI.InputCore {
         }
 
         [Test]
+        public void EveryUiAndGameKeyHasASlot_OnceEach() {
+            InputSystem.AddDevice<Keyboard>();
+            _source = new SystemInputSource();
+            var ids = _source.RebindSlots.Select(s => s.Id).ToList();
+            CollectionAssert.IsSubsetOf(new[] {
+                "activate", "activate_2", "cancel", "nav_up", "nav_down", "nav_left", "nav_right",
+                "nav_up_2", "nav_down_2", "nav_left_2", "nav_right_2", "next", "previous",
+                "page_up", "page_down", "first", "last", "select_key", "select_key_2", "inspect_key",
+                "forward_2", "back_2", "turn_left_2", "turn_right_2", "pan_up", "pan_down", "pan_left", "pan_right",
+                "map_north_up", "hotkey_a", "hotkey_z", "hotkey_1", "hotkey_0",
+            }, ids);
+            Assert.AreEqual(ids.Count, ids.Distinct().Count(), "no id twice");
+            Assert.AreEqual(26 + 10, ids.Count(i => i.StartsWith("hotkey_")));
+        }
+
+        [Test]
+        public void TheSelectKeyMoved_ClicksOnItsNewKey_AndTheOtherKeypadKeyStillClicks() {
+            Keyboard keyboard = InputSystem.AddDevice<Keyboard>();
+            _source = new SystemInputSource();
+            IPointer pointer = _source;
+            InputBindings.Set(_source.RebindSlots, Slot("select_key"), "<Keyboard>/space");
+
+            Press(keyboard.spaceKey);
+            Assert.IsTrue(pointer.Primary.IsDown, "Space clicks");
+            Release(keyboard.spaceKey);
+            Press(keyboard.numpad5Key);
+            Assert.IsFalse(pointer.Primary.IsDown, "keypad 5 no longer does");
+            Release(keyboard.numpad5Key);
+            Press(keyboard.numpad0Key);
+            Assert.IsTrue(pointer.Primary.IsDown, "keypad 0 still does");
+            Release(keyboard.numpad0Key);
+            InputBindings.Set(_source.RebindSlots, Slot("inspect_key"), "<Keyboard>/q");
+            Press(keyboard.qKey);
+            Assert.IsTrue(pointer.Secondary.IsDown, "Q inspects");
+        }
+
+        [Test]
+        public void TheArenaPanAndTheMapToggle_FollowTheirNewKeys() {
+            Keyboard keyboard = InputSystem.AddDevice<Keyboard>();
+            _source = new SystemInputSource();
+            ICombatOverlayInput combat = _source;
+            IMapOptionInput map = _source;
+            Press(keyboard.upArrowKey);
+            Assert.Greater(combat.Pan.y, 0.5f, "the arrow pans by default");
+            Release(keyboard.upArrowKey);
+
+            InputBindings.Set(_source.RebindSlots, Slot("pan_up"), "<Keyboard>/i");
+            InputBindings.Set(_source.RebindSlots, Slot("map_north_up"), "<Keyboard>/f6");
+            Press(keyboard.iKey);
+            Assert.Greater(combat.Pan.y, 0.5f, "I pans");
+            Release(keyboard.iKey);
+            Press(keyboard.f6Key);
+            Assert.IsTrue(map.ToggleNorthUpMap, "F6 turns the map");
+        }
+
+        [Test]
+        public void ASwapStaysInsideItsGroup() {
+            InputSystem.AddDevice<Keyboard>();
+            _source = new SystemInputSource();
+            RebindSlot hotkeyM = Slot("hotkey_m");
+            string before = hotkeyM.Path;
+
+            InputBindings.Set(_source.RebindSlots, Slot("forward"), "<Keyboard>/m");
+
+            Assert.AreEqual("<Keyboard>/m", Slot("forward").Path);
+            Assert.AreEqual(before, hotkeyM.Path, "M still presses the M button: walking and the hotkeys are not one set");
+        }
+
+        [Test]
         public void TheControlsRowNamesTheActionAndItsKey_AndTheSwingHintFollowsAMovedSwing() {
             InputSystem.AddDevice<Keyboard>();
             InputSystem.AddDevice<Mouse>();
             _source = new SystemInputSource();
             Assert.AreEqual("Walk forward: W", BakAgain.UI.EnhancedSettingsScreen.ControlText(Slot("forward"), waiting: false));
+            Assert.AreEqual("Walk forward (2nd key): Up Arrow", BakAgain.UI.EnhancedSettingsScreen.ControlText(Slot("forward_2"), waiting: false));
+            Assert.AreEqual("Hotkey M: M", BakAgain.UI.EnhancedSettingsScreen.ControlText(Slot("hotkey_m"), waiting: false));
             StringAssert.Contains("middle-click", BakAgain.UI.Combat.Enhanced.DesktopCombatHud.SwingHint());
 
             InputBindings.Set(_source.RebindSlots, Slot("swing"), "<Keyboard>/f");

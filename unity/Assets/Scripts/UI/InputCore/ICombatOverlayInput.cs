@@ -22,5 +22,8 @@ namespace BakAgain.UI.InputCore {
         /// <summary>True on the frame the swing binding went down (the middle button by default,
         /// TASK-1072; remappable, TASK-1080).</summary>
         bool SwingPressed { get; }
+
+        /// <summary>The close arena view's pan, from the arrow keys unless moved (TASK-1080).</summary>
+        UnityEngine.Vector2 Pan { get; }
     }
 }

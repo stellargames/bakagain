@@ -325,6 +325,7 @@
 .enhanced-settings__row { height: 60px; flex-shrink: 0; margin-bottom: 1px; }
 /* The options in the two columns are left-aligned, so their [x] boxes line up (owner, 2026-11-04). */
 .enhanced-settings__column .enhanced-settings__row { align-items: flex-start; padding-left: 20px; -unity-text-align: middle-left; }
+.enhanced-settings__list .enhanced-settings__row { align-items: flex-start; padding-left: 20px; -unity-text-align: middle-left; }
 .enhanced-settings__row:disabled { opacity: 0.45; }
 .enhanced-settings__path { height: 60px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -unity-text-overflow-position: start; -unity-text-align: middle-left; }
 .enhanced-settings__label { height: 56px; flex-shrink: 0; margin-top: 10px; -unity-text-align: lower-left; }

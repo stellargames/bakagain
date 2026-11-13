@@ -2,8 +2,7 @@ namespace BakAgain.UI.InputCore {
     using UnityEngine;
     using UnityEngine.InputSystem;
     using UnityEngine.InputSystem.Controls;
-    using T = GameData.Resources.Text.UiTemplates;
-
+    
     /// <summary>The ONE class that reads Unity Input System devices for positional/analog input.
     /// Implements IPointer (thin proxy over Pointer.current) and IGameplayInput (Task 5). Everything
     /// else injects the interfaces. Kept on the input-leak-gate allowlist.</summary>
@@ -26,10 +25,13 @@ namespace BakAgain.UI.InputCore {
         /// </remarks>
         private sealed class DeviceButton : IPointerButton {
             private readonly System.Func<ButtonControl>[] _get;
-            public DeviceButton(params System.Func<ButtonControl>[] get) { _get = get; }
+            // The keypad's stand-ins, remappable (TASK-1080); an action is pressed while any of its keys is.
+            private readonly InputAction _keys;
+            public DeviceButton(InputAction keys, params System.Func<ButtonControl>[] get) { _keys = keys; _get = get; }
 
             public bool IsDown {
                 get {
+                    if (_keys.IsPressed()) { return true; }
                     foreach (System.Func<ButtonControl> g in _get) {
                         if (g()?.isPressed ?? false) { return true; }
                     }
@@ -39,6 +41,7 @@ namespace BakAgain.UI.InputCore {
 
             public bool PressedThisFrame {
                 get {
+                    if (_keys.WasPressedThisFrame()) { return true; }
                     foreach (System.Func<ButtonControl> g in _get) {
                         if (g()?.wasPressedThisFrame ?? false) { return true; }
                     }
@@ -48,7 +51,8 @@ namespace BakAgain.UI.InputCore {
 
             public bool ReleasedThisFrame {
                 get {
-                    var any = false;
+                    if (_keys.IsPressed()) { return false; }
+                    bool any = _keys.WasReleasedThisFrame();
                     foreach (System.Func<ButtonControl> g in _get) {
                         ButtonControl c = g();
                         if (c == null) { continue; }
@@ -70,16 +74,15 @@ namespace BakAgain.UI.InputCore {
             // Every device that can press, not "the mouse, else the pointer": Android can report a
             // Mouse alongside the touchscreen, and then a finger was never read as a press — the
             // cast screen saw hover but no click (TASK-789). DeviceButton ORs its controls.
-            _primary = new DeviceButton(
+            InitKeys();
+            _primary = new DeviceButton(_selectKeys,
                 () => Mouse?.leftButton,
                 () => Touchscreen.current?.press,
-                () => Pointer?.press,
-                () => Keyboard.current?.numpad5Key,
-                () => Keyboard.current?.numpad0Key);
-            _secondary = new DeviceButton(
-                () => Mouse?.rightButton,
-                () => Keyboard.current?.numpadPlusKey);
+                () => Pointer?.press);
+            _secondary = new DeviceButton(_inspectKeys,
+                () => Mouse?.rightButton);
             InitGameplay(); // Task 5
+            BuildSlots();
 #if UNITY_EDITOR
             InitModelDebug(); // Task 7 — editor-only debug harness reads
 #endif
@@ -100,6 +103,7 @@ namespace BakAgain.UI.InputCore {
         /// </remarks>
         public void Dispose() {
             DisposeGameplay();
+            DisposeKeys();
 #if UNITY_EDITOR
             DisposeModelDebug();
 #endif
@@ -172,17 +176,6 @@ namespace BakAgain.UI.InputCore {
             _swing = new InputAction("Swing", InputActionType.Button, binding: "<Mouse>/middleButton");
             _swing.Enable();
 
-            // TASK-1080: the remappable keys. The WASD composite (bindings 1-4) is the port's own; the
-            // arrows, the keypad and the hotkeys are the original's and stay fixed.
-            RebindSlots = new[] {
-                new RebindSlot("forward", T.ControlsForward, _move, 1),
-                new RebindSlot("back", T.ControlsBack, _move, 2),
-                new RebindSlot("turn_left", T.ControlsTurnLeft, _move, 3),
-                new RebindSlot("turn_right", T.ControlsTurnRight, _move, 4),
-                new RebindSlot("swing", T.ControlsSwing, _swing, 0),
-                new RebindSlot("combat_overlay", T.ControlsCombatOverlay, _toggleOverlay, 0),
-            };
-            InputBindings.Load(RebindSlots);
 
             _cheatKey = new InputAction("CheatCentral", InputActionType.Button, binding: "<Keyboard>/backquote");
             _cheatKey.Enable();
@@ -228,6 +221,7 @@ namespace BakAgain.UI.InputCore {
 
         public bool ToggleOverlayPressed => _toggleOverlay?.WasPressedThisFrame() ?? false;
         public bool SwingPressed => _swing?.WasPressedThisFrame() ?? false;
+        public Vector2 Pan => _pan.ReadValue<Vector2>();
 
         /// <summary>The bindings the Controls page remaps (TASK-1080).</summary>
         public System.Collections.Generic.IReadOnlyList<RebindSlot> RebindSlots { get; private set; }
@@ -252,14 +246,6 @@ namespace BakAgain.UI.InputCore {
                     kb.leftShiftKey.isPressed, kb.leftCtrlKey.isPressed || kb.rightCtrlKey.isPressed);
             }
         }
-    }
-
-    // The overhead map's north-up toggle. Shares the 'N' key with the credits Easter egg above and
-    // deliberately NOT its InputAction: that one is a hold and this is a press, and the two screens
-    // are never up at once. Reading the hold here would flip the option once per frame the key was
-    // down; reading this there would light the reveal for a single frame.
-    public sealed partial class SystemInputSource : IMapOptionInput {
-        public bool ToggleNorthUpMap => _revealCredits.WasPressedThisFrame();
     }
 
 #if UNITY_EDITOR

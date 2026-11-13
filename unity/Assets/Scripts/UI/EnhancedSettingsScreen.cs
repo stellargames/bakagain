@@ -121,7 +121,7 @@ namespace BakAgain.UI {
             var widgets = new List<NavWidget>();
             foreach ((Button row, Func<string> _, Func<bool> _) in _rows) {
                 Button b = row;
-                widgets.Add(new NavWidget(b, b.Q<Label>("caption")?.text ?? string.Empty, () => CanonicalRect(GetComponent<UIDocument>(), b),
+                widgets.Add(new NavWidget(b, b.Q<Label>("caption")?.text ?? string.Empty, () => RowRect(b),
                     () => { if (b.enabledSelf && !FileBrowser.IsOpen && !Rebinding) ClickOf(b)?.Invoke(); }, null));
             }
             _layer = new NavigableLayer("enhanced-settings", CaptureMode.Exclusive, widgets, CancelOrClosePicker, _cursor);
@@ -144,6 +144,15 @@ namespace BakAgain.UI {
 
         private Action ClickOf(Button b) => _clicks.TryGetValue(b, out Action a) ? a : null;
 
+        // A row on the Controls page is cut to the list's viewport, as on the Mods screen.
+        private Rect RowRect(Button row) {
+            UIDocument document = GetComponent<UIDocument>();
+            Rect rect = CanonicalRect(document, row);
+            return _scroll != null && _scroll.Contains(row)
+                ? ModsScreen.ClipTo(rect, CanonicalRect(document, _scroll.contentViewport))
+                : rect;
+        }
+
         /// <summary>A row's rect on the canonical stage, for focus and the cursor.</summary>
         internal static Rect CanonicalRect(UIDocument document, VisualElement e) {
             VisualElement stage = CanonicalStage.Find(document?.rootVisualElement);
@@ -158,6 +167,7 @@ namespace BakAgain.UI {
             _rows.Clear();
             _clicks.Clear();
             _paths.Clear();
+            _scroll = null;
             _panel = MovedElements.Box("enhanced-settings");
             if (_controlsPage) {
                 BuildControls(stage);
@@ -332,29 +342,68 @@ namespace BakAgain.UI {
             PushLayer();
         }
 
-        /// <summary>"Walk forward: W", or the prompt while that row waits for a key.</summary>
-        internal static string ControlText(RebindSlot slot, bool waiting) =>
-            Templates.Format(Templates.ControlsRow, ("action", Templates.Format(slot.LabelKey)),
+        /// <summary>"Walk forward: W", "Walk forward (2nd key): Up Arrow", "Hotkey M: M", or the prompt
+        /// while that row waits for a key.</summary>
+        internal static string ControlText(RebindSlot slot, bool waiting) {
+            string action = slot.Letter != null
+                ? Templates.Format(slot.LabelKey, ("letter", slot.Letter))
+                : Templates.Format(slot.LabelKey);
+            if (slot.Second) action = Templates.Format(Templates.ControlsSecondKey, ("action", action));
+            return Templates.Format(Templates.ControlsRow, ("action", action),
                 ("key", waiting ? Templates.Format(Templates.ControlsPressAKey) : KeyName(slot.Path)));
+        }
 
+        /// <summary>The heading a slot is listed under.</summary>
+        internal static string HeadingOf(RebindSlot slot) => slot.Group switch {
+            InputBindings.Walk => Templates.ControlsGroupWalk,
+            InputBindings.Combat => Templates.ControlsGroupCombat,
+            _ => slot.Letter != null ? Templates.ControlsGroupHotkeys : Templates.ControlsGroupMenus,
+        };
+
+        private ScrollView _scroll;
+
+        // The key's own name on this keyboard ("M" for a hotkey's "#(m)"), else the path's.
         internal static string KeyName(string path) =>
-            InputControlPath.ToHumanReadableString(path, InputControlPath.HumanReadableStringOptions.OmitDevice);
+            InputSystem.FindControl(path)?.displayName
+            ?? InputControlPath.ToHumanReadableString(path, InputControlPath.HumanReadableStringOptions.OmitDevice);
 
         private void BuildControls(VisualElement stage) {
             _panel.Add(Text(Templates.Format(Templates.ControlsTitle), "enhanced-settings__title"));
-            VisualElement column = MovedElements.Box("enhanced-settings__column");
-            _panel.Add(column);
+            // Some seventy keys: they scroll, as the Mods list does, and Done stays in view.
+            _scroll = new ScrollView(ScrollViewMode.Vertical) {
+                horizontalScrollerVisibility = ScrollerVisibility.Hidden,
+                verticalScrollerVisibility = ScrollerVisibility.Auto,
+            };
+            _scroll.AddToClassList("enhanced-settings__scroll");
+            _scroll.contentViewport.style.overflow = Overflow.Hidden;
+            VisualElement column = new VisualElement(); // not __column: its zero basis collapses inside a scroll
+            column.AddToClassList("enhanced-settings__list");
+            _scroll.Add(column);
+            _panel.Add(_scroll);
+            string heading = null;
             foreach (RebindSlot slot in _slots) {
                 RebindSlot s = slot;
-                Row(column, () => ControlText(s, _waiting == s), () => true, () => StartRebind(s)).name = "control-" + s.Id;
+                if (HeadingOf(s) != heading) {
+                    heading = HeadingOf(s);
+                    column.Add(Text(Templates.Format(heading), "enhanced-settings__heading"));
+                }
+                Button row = Row(column, () => ControlText(s, _waiting == s), () => true, () => StartRebind(s));
+                row.name = "control-" + s.Id;
+                ScrollIntoView(row);
             }
-            Row(column, () => Templates.Format(Templates.ControlsReset), () => true, () => InputBindings.Reset(_slots));
+            Label note = Text(Templates.Format(Templates.ControlsSkipNote), "enhanced-settings__label");
+            column.Add(note);
+            ScrollIntoView(Row(column, () => Templates.Format(Templates.ControlsReset), () => true, () => InputBindings.Reset(_slots)));
             VisualElement buttons = MovedElements.Box("enhanced-settings__buttons");
             Row(buttons, () => Templates.Format(Templates.ControlsDone), () => true, () => ShowPage(controls: false)).name = "controls-done";
             _panel.Add(buttons);
             stage.Add(_panel);
             Refresh();
         }
+
+        // A row reached with the keys scrolls into view; the cursor follows it there (RowRect).
+        private void ScrollIntoView(Button row) =>
+            row.RegisterCallback<FocusInEvent>(_ => _scroll?.ScrollTo(row));
 
         // The press is read by the Input System's own rebinding: any key, a gamepad button, or the middle
         // or a side mouse button. Not the left or right button (select and inspect stay where they are),
