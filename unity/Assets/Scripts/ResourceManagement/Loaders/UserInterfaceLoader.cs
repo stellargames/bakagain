@@ -1208,13 +1208,6 @@ namespace BakAgain.ResourceManagement.Loaders {
             }) {
                 activators = {new ManipulatorActivationFilter {button = MouseButton.RightMouse}}
             });
-            if (_actionHandler is BakAgain.UI.IMiddleActionHandler middle) {
-                hotspot.AddManipulator(new Clickable(() => {
-                    if (TakesClicks(menuEntry)) middle.MiddleAction(menuEntry.ActionId);
-                }) {
-                    activators = {new ManipulatorActivationFilter {button = MouseButton.MiddleMouse}}
-                });
-            }
             RegisterCursorHover(hotspot, menuEntry);
             _touchHotspots[hotspot] = menuEntry;
             RegisterTouchLongPress(hotspot, () => TouchLongPressIsSecondary, () => {

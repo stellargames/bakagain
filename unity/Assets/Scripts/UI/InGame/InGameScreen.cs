@@ -28,7 +28,7 @@ namespace BakAgain.UI.InGame {
     /// <see cref="PrimaryAction"/> to movement, follow-road, map, cast, bookmark and encamp.</para>
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class InGameScreen : MonoBehaviour, BakAgain.UI.Navigation.IScreen, IActionHandler, IMiddleActionHandler, IMenuStateProvider {
+    public sealed class InGameScreen : MonoBehaviour, BakAgain.UI.Navigation.IScreen, IActionHandler, IMenuStateProvider {
         // req_main.dat ActionIds (verified against generated/REQ/REQ_MAIN.json and the
         // MainGameLoop jumptable). Movement ids double as DOS arrow-key scancodes.
         private const int ActionMoveForward = 72;   // 0x48 Up
@@ -1088,6 +1088,7 @@ namespace BakAgain.UI.InGame {
             // While lifted the arrows look around instead of walking (the original's loop owns them).
             _movementDriver?.Tick(travelling && !_lifting);
             TickMouseLook(travelling && !_lifting);
+            TickSwing();
             if (travelling) {
                 OpenCheatCentralOnItsChord();
             }
@@ -1927,6 +1928,20 @@ namespace BakAgain.UI.InGame {
 
         internal void SetPointerForTest(IPointer pointer) => _pointer = pointer;
 
+        private BakAgain.UI.InputCore.ICombatOverlayInput _combatKeys;
+
+        // The Enhanced swing (TASK-1072) on its own binding, the middle button unless the player moved it
+        // (TASK-1080): a key works as well as a button, aimed by the pointer over the world view.
+        private void TickSwing() {
+            _combatKeys ??= _resolver?.Resolve(typeof(BakAgain.UI.InputCore.ICombatOverlayInput))
+                as BakAgain.UI.InputCore.ICombatOverlayInput;
+            // Not gated on the travel layer: the fight's own layer is on top then. The pick is the gate:
+            // all documents share one panel, so anything over the view (a dialog, a screen) is picked first.
+            if (_combatKeys?.SwingPressed == true && _pointer != null && StartsOnWorld(_pointer.ScreenPosition)) {
+                EnhancedCombatClick(isPrimary: false, _pointer.ScreenPosition, middle: true);
+            }
+        }
+
         private void TickMouseLook(bool travelling) {
             TickCombatCamera(_resolver?.Resolve(typeof(BakAgain.World.WorldRuntime)) as BakAgain.World.WorldRuntime,
                 StartsOnWorld);
@@ -2136,12 +2151,6 @@ namespace BakAgain.UI.InGame {
 
         /// <summary>The middle button on the world view: an Enhanced fight's swing; nothing elsewhere,
         /// as in the original, which reads only two buttons.</summary>
-        public void MiddleAction(int menuEntryActionId) {
-            if (menuEntryActionId == ActionWorldViewport && _pointer != null) {
-                EnhancedCombatClick(isPrimary: false, _pointer.ScreenPosition, middle: true);
-            }
-        }
-
         // Right-click help. Matches the original MainGameLoop: each button's right-click shows
         // its DDX help string (ids 223–232). The party portraits and world viewport have no
         // help text in the original, so they fall through.

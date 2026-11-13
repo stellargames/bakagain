@@ -18,5 +18,9 @@ namespace BakAgain.UI.InputCore {
     public interface ICombatOverlayInput {
         /// <summary>True on the frame G went down.</summary>
         bool ToggleOverlayPressed { get; }
+
+        /// <summary>True on the frame the swing binding went down (the middle button by default,
+        /// TASK-1072; remappable, TASK-1080).</summary>
+        bool SwingPressed { get; }
     }
 }

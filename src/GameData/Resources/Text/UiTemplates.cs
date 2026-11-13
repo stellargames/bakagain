@@ -192,6 +192,20 @@ public static class UiTemplates {
     public const string EnhancedCheckForUpdates = "port:template:enhanced_check_for_updates";
     public const string UpdateAvailable = "port:template:update_available";
 
+    /// <summary>The Controls page of the Enhanced settings (TASK-1080): a row per remappable key,
+    /// "<c>{action}</c>: <c>{key}</c>", the prompt while one waits for a key, and its buttons.</summary>
+    public const string ControlsTitle = "port:template:controls_title";
+    public const string ControlsRow = "port:template:controls_row";
+    public const string ControlsPressAKey = "port:template:controls_press_a_key";
+    public const string ControlsReset = "port:template:controls_reset";
+    public const string ControlsBack = "port:template:controls_back";
+    public const string ControlsDone = "port:template:controls_done";
+    public const string ControlsForward = "port:template:controls_forward";
+    public const string ControlsTurnLeft = "port:template:controls_turn_left";
+    public const string ControlsTurnRight = "port:template:controls_turn_right";
+    public const string ControlsSwing = "port:template:controls_swing";
+    public const string ControlsCombatOverlay = "port:template:controls_combat_overlay";
+
     /// <summary>The Mods screen (mod system spec 4.6): a row per installed mod, "[<c>{on}</c>] <c>{name}</c>
     /// <c>{version}</c>", its buttons and a line per problem (<c>{other}</c>: the mod or game version it
     /// names); and the missing-mods dialog on load, a line per mod the save was made with.</summary>
@@ -275,6 +289,8 @@ public static class UiTemplates {
     public const string HudCost = "port:template:enhanced_hud_cost";
     public const string HudWalk = "port:template:enhanced_hud_walk";
     public const string HudSwingHint = "port:template:enhanced_hud_swing_hint";
+    /// <summary>The swing hint once the player moved the swing to <c>{key}</c> (TASK-1080).</summary>
+    public const string HudSwingHintKey = "port:template:enhanced_hud_swing_hint_key";
     /// <summary>Under an Inspect forecast: what Inspect shows, and that a second right click does it.</summary>
     public const string HudInspectHint = "port:template:enhanced_hud_inspect_hint";
     /// <summary>The phone's Inspect forecast: what Inspect shows, and how to do it on a touch screen.</summary>
@@ -460,6 +476,17 @@ public static class UiTemplates {
         (EnhancedSave, _ => "Save"),
         (EnhancedCheckForUpdates, _ => "Check for updates"),
         (UpdateAvailable, _ => "Update {version} available. Click to download."),
+        (ControlsTitle, _ => "Controls"),
+        (ControlsRow, _ => "{action}: {key}"),
+        (ControlsPressAKey, _ => "press a key (Escape: keep)"),
+        (ControlsReset, _ => "Reset to defaults"),
+        (ControlsBack, _ => "Walk back"),
+        (ControlsDone, _ => "Done"),
+        (ControlsForward, _ => "Walk forward"),
+        (ControlsTurnLeft, _ => "Turn left"),
+        (ControlsTurnRight, _ => "Turn right"),
+        (ControlsSwing, _ => "Swing"),
+        (ControlsCombatOverlay, _ => "Combat grid"),
         (EnhancedCancel, _ => "Cancel"),
         (ModsTitle, _ => "Mods"),
         (ModsInstalled, _ => "Installed mods"),
@@ -540,6 +567,7 @@ public static class UiTemplates {
         (HudWalk, _ => "Walk"),
         // Under the desktop forecast: how to swing rather than thrust (owner, 2026-11-01: "no clear way").
         (HudSwingHint, _ => "Click to thrust \u00b7 Shift+click or middle-click to swing"),
+        (HudSwingHintKey, _ => "Click to thrust \u00b7 Shift+click or {key} to swing"),
         (HudInspectHint, _ => "Learn its Health, Stamina, skills and Defense. Right-click again to inspect."),
         (HudInspectHintTouch, _ => "Learn its Health, Stamina, skills and Defense. Tap Inspect to look."),
         (HudFree, _ => "free"),

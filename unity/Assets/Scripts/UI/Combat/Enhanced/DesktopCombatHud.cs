@@ -411,7 +411,7 @@ namespace BakAgain.UI.Combat.Enhanced {
                 // How to swing, or why it cannot be done from here: an empty column alone said neither.
                 string swingReason = swing == null ? "" : CombatHudText.Reason(swing);
                 Text(_ledgerBody, "ec-desk-swing-hint", "ec-desk-small").text = swing != null && swing.Allowed
-                    ? UiTemplates.Format(UiTemplates.HudSwingHint)
+                    ? SwingHint()
                     : swingReason;
             } else if (f.Action == ForecastAction.Move) {
                 VisualElement table = Box("ec-desk-forecast", "ec-desk-table");
@@ -806,6 +806,14 @@ namespace BakAgain.UI.Combat.Enhanced {
         internal static void Fit(VisualElement list, int count, Func<VisualElement> make) {
             while (list.childCount > count) list.RemoveAt(list.childCount - 1);
             while (list.childCount < count) list.Add(make());
+        }
+
+        /// <summary>How to swing: the middle button, or the key the player moved it to (TASK-1080).</summary>
+        internal static string SwingHint() {
+            string moved = BakAgain.UI.InputCore.InputBindings.Saved("swing");
+            return moved == null
+                ? UiTemplates.Format(UiTemplates.HudSwingHint)
+                : UiTemplates.Format(UiTemplates.HudSwingHintKey, ("key", BakAgain.UI.EnhancedSettingsScreen.KeyName(moved)));
         }
     }
 }

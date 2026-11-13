@@ -32,6 +32,7 @@
 - **ActionLayer** (`ActionLayer.cs`) — full-frame Exclusive (cutscene/credits/book/narrative dialog); `anyIntentActivates` = attract mode.
 - **MenuLayerHost** (`MenuLayerHost.cs`) — bridges `UserInterfaceLoader.Built` → push a Passive `NavigableLayer`; pull-reconciles against `IsBuilt`. On all REQ prefabs **except InGameMenu**.
 - **CursorManager / CursorArbiter / CursorMap / NullCursorManager** (`UI/Cursor/`) — software cursor overlay in canonical space; `WarpTo` (keyboard), `SetByIndex` (hover shape). Arbiter = last-active-wins (mouse vs warp).
+- **InputBindings** (`InputBindings.cs`) — the player's remapped keys (TASK-1080): `SystemInputSource.RebindSlots` (WASD, Swing, combat grid) saved per slot in PlayerPrefs, applied at start, swapped on conflict; edited on the Enhanced settings' Controls page. A new remappable action is one more `RebindSlot`.
 - **InputInjector** (`Testing/InputInjector.cs`) — Editor-only synthetic device events (`TapKey/ClickAt`); goes *through* the adapter (vs `UiDriver` which bypasses it).
 - Hover/nav build wiring lives in **`UserInterfaceLoader`** (below): `RegisterNav` (focusable + NavWidget), `RegisterCursorHover` (PointerEnter→cursor shape), per-element PointerEnter/Leave icon swap for toggles/ImageButtons.
 

@@ -2,6 +2,7 @@ namespace BakAgain.UI.InputCore {
     using UnityEngine;
     using UnityEngine.InputSystem;
     using UnityEngine.InputSystem.Controls;
+    using T = GameData.Resources.Text.UiTemplates;
 
     /// <summary>The ONE class that reads Unity Input System devices for positional/analog input.
     /// Implements IPointer (thin proxy over Pointer.current) and IGameplayInput (Task 5). Everything
@@ -167,6 +168,22 @@ namespace BakAgain.UI.InputCore {
             _toggleOverlay = new InputAction("ToggleCombatOverlay", InputActionType.Button, binding: "<Keyboard>/g");
             _toggleOverlay.Enable();
 
+            // The Enhanced swing (TASK-1072): the middle button, or whatever the player moves it to.
+            _swing = new InputAction("Swing", InputActionType.Button, binding: "<Mouse>/middleButton");
+            _swing.Enable();
+
+            // TASK-1080: the remappable keys. The WASD composite (bindings 1-4) is the port's own; the
+            // arrows, the keypad and the hotkeys are the original's and stay fixed.
+            RebindSlots = new[] {
+                new RebindSlot("forward", T.ControlsForward, _move, 1),
+                new RebindSlot("back", T.ControlsBack, _move, 2),
+                new RebindSlot("turn_left", T.ControlsTurnLeft, _move, 3),
+                new RebindSlot("turn_right", T.ControlsTurnRight, _move, 4),
+                new RebindSlot("swing", T.ControlsSwing, _swing, 0),
+                new RebindSlot("combat_overlay", T.ControlsCombatOverlay, _toggleOverlay, 0),
+            };
+            InputBindings.Load(RebindSlots);
+
             _cheatKey = new InputAction("CheatCentral", InputActionType.Button, binding: "<Keyboard>/backquote");
             _cheatKey.Enable();
         }
@@ -174,7 +191,7 @@ namespace BakAgain.UI.InputCore {
         private void DisposeGameplay() {
             foreach (InputAction action in new[] {
                     _move, _look, _run, _ascend, _descend, _zoom, _revealCredits,
-                    _toggleOverlay, _cheatKey }) {
+                    _toggleOverlay, _swing, _cheatKey }) {
                 Release(action);
             }
         }
@@ -207,9 +224,13 @@ namespace BakAgain.UI.InputCore {
     // The combat tactical overlay's G toggle. Its own action alongside the other self-owned ones,
     // and read as an EDGE: a held key must not strobe the overlay at frame rate.
     public sealed partial class SystemInputSource : ICombatOverlayInput {
-        private InputAction _toggleOverlay;
+        private InputAction _toggleOverlay, _swing;
 
         public bool ToggleOverlayPressed => _toggleOverlay?.WasPressedThisFrame() ?? false;
+        public bool SwingPressed => _swing?.WasPressedThisFrame() ?? false;
+
+        /// <summary>The bindings the Controls page remaps (TASK-1080).</summary>
+        public System.Collections.Generic.IReadOnlyList<RebindSlot> RebindSlots { get; private set; }
     }
 
     public sealed partial class SystemInputSource : ICheatInput {

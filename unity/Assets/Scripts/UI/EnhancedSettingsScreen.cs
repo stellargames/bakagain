@@ -9,6 +9,7 @@ namespace BakAgain.UI {
     using GameData.Mods;
     using SimpleFileBrowser;
     using UnityEngine;
+    using UnityEngine.InputSystem;
     using UnityEngine.UIElements;
     using VContainer;
     using Templates = GameData.Resources.Text.UiTemplates;
@@ -34,8 +35,12 @@ namespace BakAgain.UI {
         private Label _folderError;
         private readonly List<(Button Row, Func<string> Caption, Func<bool> Enabled)> _rows = new();
 
+        private IReadOnlyList<RebindSlot> _slots;
+
         [Inject]
-        public void Construct(Navigation.IScreenNavigator navigator, InputLayerStack stack, ICursorManager cursor, ModsScreen modsScreen) {
+        public void Construct(Navigation.IScreenNavigator navigator, InputLayerStack stack, ICursorManager cursor, ModsScreen modsScreen,
+            SystemInputSource input) {
+            _slots = input?.RebindSlots;
             _navigator = navigator;
             _modsScreen = modsScreen;
             _stack = stack;
@@ -107,18 +112,25 @@ namespace BakAgain.UI {
             return UniTask.CompletedTask;
         }
 
-        protected override void OnAfterShow() {
+        protected override void OnAfterShow() => PushLayer();
+
+        private void PushLayer() {
+            if (_layer != null) {
+                _stack?.Remove(_layer);
+            }
             var widgets = new List<NavWidget>();
             foreach ((Button row, Func<string> _, Func<bool> _) in _rows) {
                 Button b = row;
                 widgets.Add(new NavWidget(b, b.Q<Label>("caption")?.text ?? string.Empty, () => CanonicalRect(GetComponent<UIDocument>(), b),
-                    () => { if (b.enabledSelf && !FileBrowser.IsOpen) ClickOf(b)?.Invoke(); }, null));
+                    () => { if (b.enabledSelf && !FileBrowser.IsOpen && !Rebinding) ClickOf(b)?.Invoke(); }, null));
             }
             _layer = new NavigableLayer("enhanced-settings", CaptureMode.Exclusive, widgets, CancelOrClosePicker, _cursor);
             _stack?.Push(_layer);
         }
 
         protected override void OnBeforeHide() {
+            _rebind?.Cancel();
+            _controlsPage = false;
             if (_layer != null) {
                 _stack?.Remove(_layer);
                 _layer = null;
@@ -147,6 +159,10 @@ namespace BakAgain.UI {
             _clicks.Clear();
             _paths.Clear();
             _panel = MovedElements.Box("enhanced-settings");
+            if (_controlsPage) {
+                BuildControls(stage);
+                return;
+            }
             _panel.Add(Text(Templates.Format(Templates.EnhancedSettingsTitle), "enhanced-settings__title"));
 
             VisualElement columns = MovedElements.Box("enhanced-settings__columns");
@@ -178,6 +194,7 @@ namespace BakAgain.UI {
             folders.Add(Text(Templates.Format(Templates.EnhancedModsFolder), "enhanced-settings__label"));
             folders.Add(PathLine(() => Shown(_modsPath), () => _modsOn && _modsPath != BakResourceSettings.OverridePath));
             if (FoldersPickable) Row(folders, () => Templates.Format(Templates.EnhancedBrowse), () => _modsOn, BrowseModsFolder);
+            if (_slots != null && !Application.isMobilePlatform) Row(folders, () => Templates.Format(Templates.ControlsTitle), () => true, () => ShowPage(controls: true)).name = "controls";
             Row(folders, () => BoxText(Templates.EnhancedCheckForUpdates, _draft.CheckForUpdates), () => true,
                 () => _draft.CheckForUpdates = !_draft.CheckForUpdates);
 
@@ -207,16 +224,21 @@ namespace BakAgain.UI {
             return line;
         }
 
-        private void Row(VisualElement parent, Func<string> caption, Func<bool> enabled, Action toggle) {
+        private Button Row(VisualElement parent, Func<string> caption, Func<bool> enabled, Action toggle) {
             var row = new Button();
             row.AddToClassList("text-button");
             row.AddToClassList("enhanced-settings__row");
             GameFontText.Caption(row, string.Empty);
-            Action click = () => { toggle(); Refresh(); };
+            Action click = () => {
+                if (Rebinding) return;
+                toggle();
+                if (_panel != null) Refresh();
+            };
             row.clicked += click;
             _clicks[row] = click;
             parent.Add(row);
             _rows.Add((row, caption, enabled));
+            return row;
         }
 
         private void Refresh() {
@@ -274,13 +296,94 @@ namespace BakAgain.UI {
             }
         }
 
-        /// <summary>Escape over an open folder picker closes the picker, not the screen under it.</summary>
+        /// <summary>Escape over an open folder picker closes the picker, not the screen under it; on the
+        /// Controls page it goes back to the settings, and while a key is awaited it is the rebind's.</summary>
         private void CancelOrClosePicker() {
+            if (Rebinding) {
+                return;
+            }
+            if (_controlsPage) {
+                ShowPage(controls: false);
+                return;
+            }
             if (FileBrowser.IsOpen) {
                 FileBrowser.HideDialog(invokeCancelCallback: true);
                 return;
             }
             Cancel();
+        }
+
+        // ---- The Controls page (TASK-1080) ----
+
+        private bool _controlsPage;
+        private InputActionRebindingExtensions.RebindingOperation _rebind;
+        private RebindSlot _waiting;
+        private int _rebindEndedFrame = -1;
+
+        /// <summary>A key is awaited, or was taken this frame: that press must not also work the page
+        /// (Enter would start the next rebind, Escape would leave it).</summary>
+        private bool Rebinding => _rebind != null || _rebindEndedFrame == Time.frameCount;
+
+        private void ShowPage(bool controls) {
+            _controlsPage = controls;
+            VisualElement stage = CanonicalStage.Find(GetComponent<UIDocument>()?.rootVisualElement);
+            if (stage == null) return;
+            Build(stage);
+            PushLayer();
+        }
+
+        /// <summary>"Walk forward: W", or the prompt while that row waits for a key.</summary>
+        internal static string ControlText(RebindSlot slot, bool waiting) =>
+            Templates.Format(Templates.ControlsRow, ("action", Templates.Format(slot.LabelKey)),
+                ("key", waiting ? Templates.Format(Templates.ControlsPressAKey) : KeyName(slot.Path)));
+
+        internal static string KeyName(string path) =>
+            InputControlPath.ToHumanReadableString(path, InputControlPath.HumanReadableStringOptions.OmitDevice);
+
+        private void BuildControls(VisualElement stage) {
+            _panel.Add(Text(Templates.Format(Templates.ControlsTitle), "enhanced-settings__title"));
+            VisualElement column = MovedElements.Box("enhanced-settings__column");
+            _panel.Add(column);
+            foreach (RebindSlot slot in _slots) {
+                RebindSlot s = slot;
+                Row(column, () => ControlText(s, _waiting == s), () => true, () => StartRebind(s)).name = "control-" + s.Id;
+            }
+            Row(column, () => Templates.Format(Templates.ControlsReset), () => true, () => InputBindings.Reset(_slots));
+            VisualElement buttons = MovedElements.Box("enhanced-settings__buttons");
+            Row(buttons, () => Templates.Format(Templates.ControlsDone), () => true, () => ShowPage(controls: false)).name = "controls-done";
+            _panel.Add(buttons);
+            stage.Add(_panel);
+            Refresh();
+        }
+
+        // The press is read by the Input System's own rebinding: any key, a gamepad button, or the middle
+        // or a side mouse button. Not the left or right button (select and inspect stay where they are),
+        // and not pointer motion. Escape keeps the old key. A key another row holds swaps with it.
+        private void StartRebind(RebindSlot slot) {
+            _waiting = slot;
+            slot.Action.Disable();
+            _rebind = slot.Action.PerformInteractiveRebinding(slot.Index)
+                .WithControlsExcluding("<Pointer>/position")
+                .WithControlsExcluding("<Pointer>/delta")
+                .WithControlsExcluding("<Pointer>/press")
+                .WithControlsExcluding("<Mouse>/leftButton")
+                .WithControlsExcluding("<Mouse>/rightButton")
+                .WithControlsExcluding("<Mouse>/scroll")
+                .WithCancelingThrough("<Keyboard>/escape")
+                .OnApplyBinding((_, path) => InputBindings.Set(_slots, slot, path))
+                .OnComplete(_ => EndRebind(slot))
+                .OnCancel(_ => EndRebind(slot))
+                .Start();
+            Refresh();
+        }
+
+        private void EndRebind(RebindSlot slot) {
+            _rebind?.Dispose();
+            _rebind = null;
+            _waiting = null;
+            _rebindEndedFrame = Time.frameCount;
+            slot.Action.Enable();
+            if (_panel != null) Refresh();
         }
 
         internal static Label Text(string text, string cls) {
