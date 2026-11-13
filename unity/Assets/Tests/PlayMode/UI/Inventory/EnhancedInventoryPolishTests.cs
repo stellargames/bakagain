@@ -3,6 +3,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
     using System.Collections.Generic;
     using System.Reflection;
     using BakAgain.Core;
+    using BakAgain.Tests.TestSupport;
     using BakAgain.UI.Inventory;
     using GameData.Resources.Data;
     using GameData.Resources.Inventory;
@@ -276,7 +277,9 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
 
         /// <summary>TASK-1075 (owner): "Get all" fills the member whose pack is shown, as far as they have
         /// room; the rest stays in the container. "Share all" is the old spread across the party.</summary>
-        [Test]
+        // The sovereigns go to the purse through the money dialog, whose resources (TELEPORT.DAT among
+        // them) come from the shipped data: CI's no-graphics run failed on 'No Location found for Key=TELEPORT.DAT'.
+        [Test, RequiresShippedGameData]
         public void GetAllFillsTheShownMember_WhatDoesNotFitStays() {
             Set("_lootMember", 1);
             _chest.Items.Add(new RuntimeItem(Rations, 6, 0));
