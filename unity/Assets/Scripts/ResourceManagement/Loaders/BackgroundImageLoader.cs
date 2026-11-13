@@ -35,7 +35,9 @@ namespace BakAgain.ResourceManagement.Loaders {
             _handle.Completed += operationHandle => {
                 // The screen may have been disabled while loading; OnDisable
                 // already released the handle, so we mustn't apply the result.
-                if (!_handleValid || _uiDocument == null || _uiDocument.rootVisualElement == null) {
+                // A failed load (Addressables has already logged why) leaves the stage without a background.
+                if (!_handleValid || operationHandle.Status != AsyncOperationStatus.Succeeded
+                    || _uiDocument == null || _uiDocument.rootVisualElement == null) {
                     return;
                 }
                 // GetOrCreate is shared with UserInterfaceLoader, and order-independent by
