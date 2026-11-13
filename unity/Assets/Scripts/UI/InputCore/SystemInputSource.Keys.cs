@@ -62,8 +62,11 @@ namespace BakAgain.UI.InputCore {
         // A hotkey is the key that PRINTS its letter (a QWERTZ 'Z' is 'z', an AZERTY 'A' is 'a'), as the
         // adapter always read it. A layout with no such key (Cyrillic) keeps the US position.
         // ponytail: decided once, when the source starts; a layout switched mid-game keeps the old choice.
+        // With no graphics device (-nographics: the CI test run) there is no display to ask for the layout,
+        // and on Linux the query segfaults in GDK, so the US position stands.
         private static string LetterPath(char c) =>
-            Keyboard.current?.FindKeyOnCurrentKeyboardLayout(c.ToString()) != null ? $"<Keyboard>/#({c})" : $"<Keyboard>/{c}";
+            SystemInfo.graphicsDeviceType != UnityEngine.Rendering.GraphicsDeviceType.Null
+            && Keyboard.current?.FindKeyOnCurrentKeyboardLayout(c.ToString()) != null ? $"<Keyboard>/#({c})" : $"<Keyboard>/{c}";
 
         private void InitKeys() {
             Activate = Key("Activate", "<Keyboard>/enter", "<Keyboard>/numpadEnter", "<Gamepad>/buttonSouth");
