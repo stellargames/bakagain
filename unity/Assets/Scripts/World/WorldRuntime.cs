@@ -1746,11 +1746,13 @@ namespace BakAgain.World {
         /// <summary>
         /// Enhanced travel (TASK-1056): how far to tilt the view down so the foot of a clickable thing
         /// in click range ahead stays in sight. Each entity's reach is its own detection range
-        /// (DETECT.DAT), the distance its click registers from; 0 when the full-screen travel view is off.
+        /// (DETECT.DAT), the distance its click registers from; 0 when the full-screen travel view is off,
+        /// and with free look on, where the player aims the view (owner 2026-11-13).
         /// </summary>
         private float NearTiltTarget() {
             if (_worldCamera == null || _partyMovement == null
-                || !BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.FullScreenTravel)) {
+                || !BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.FullScreenTravel)
+                || BakAgain.Core.GameOptions.IsOn(BakAgain.Core.EnhancedFeature.MouseLook)) {
                 return 0f;
             }
             List<(Vector3, float)> things = _nearThings;
