@@ -94,6 +94,7 @@ namespace BakAgain.Tests.Editor.UI.InputCore {
                 "page_up", "page_down", "first", "last", "select_key", "select_key_2", "inspect_key",
                 "forward_2", "back_2", "turn_left_2", "turn_right_2", "pan_up", "pan_down", "pan_left", "pan_right",
                 "map_north_up", "hotkey_a", "hotkey_z", "hotkey_1", "hotkey_0",
+                "select", "inspect", "left_shift", "right_shift", "ctrl", "ctrl_2",
             }, ids);
             Assert.AreEqual(ids.Count, ids.Distinct().Count(), "no id twice");
             Assert.AreEqual(26 + 10, ids.Count(i => i.StartsWith("hotkey_")));
@@ -137,6 +138,50 @@ namespace BakAgain.Tests.Editor.UI.InputCore {
             Release(keyboard.iKey);
             Press(keyboard.f6Key);
             Assert.IsTrue(map.ToggleNorthUpMap, "F6 turns the map");
+        }
+
+        [Test]
+        public void ClickAndInspectSwapped_TheRightButtonClicks_AndTheLeftInspects() {
+            InputSystem.AddDevice<Keyboard>();
+            Mouse mouse = InputSystem.AddDevice<Mouse>();
+            _source = new SystemInputSource();
+            IPointer pointer = _source;
+
+            InputBindings.Set(_source.RebindSlots, Slot("select"), "<Mouse>/rightButton");
+
+            Assert.AreEqual("<Mouse>/leftButton", Slot("inspect").Path, "the swap gave inspect the left button");
+            Press(mouse.rightButton);
+            Assert.IsTrue(pointer.Primary.IsDown, "the right button clicks");
+            Assert.IsFalse(pointer.Secondary.IsDown, "and does not also inspect");
+            Release(mouse.rightButton);
+            Press(mouse.leftButton);
+            Assert.IsTrue(pointer.Secondary.IsDown, "the left button inspects");
+            Assert.IsFalse(pointer.Primary.IsDown, "and no longer clicks");
+        }
+
+        [Test]
+        public void TheModifiersFollowTheirKeys_AndTheSwingHintNamesAMovedShift() {
+            Keyboard keyboard = InputSystem.AddDevice<Keyboard>();
+            InputSystem.AddDevice<Mouse>();
+            _source = new SystemInputSource();
+            IGameplayInput keys = _source;
+
+            InputBindings.Set(_source.RebindSlots, Slot("left_shift"), "<Keyboard>/f7");
+            InputBindings.Set(_source.RebindSlots, Slot("ctrl"), "<Keyboard>/f8");
+
+            Press(keyboard.f7Key);
+            Assert.IsTrue(keys.LeftShift, "F7 is the left Shift");
+            Release(keyboard.f7Key);
+            InputSystem.Update();
+            Press(keyboard.leftShiftKey);
+            Assert.IsFalse(keys.LeftShift, "the Shift key no longer is");
+            Release(keyboard.leftShiftKey);
+            Press(keyboard.f8Key);
+            Assert.IsTrue(keys.Ctrl, "F8 is Ctrl");
+            Release(keyboard.f8Key);
+            Press(keyboard.rightCtrlKey);
+            Assert.IsTrue(keys.Ctrl, "the right Ctrl, the second key, still is");
+            StringAssert.Contains("F7+click", BakAgain.UI.Combat.Enhanced.DesktopCombatHud.SwingHint());
         }
 
         [Test]

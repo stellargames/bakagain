@@ -8,12 +8,13 @@ namespace BakAgain.UI.InputCore {
     /// TASK-1080 (owner: "let players remap all actions"): every key the game reads is an action here, with
     /// the original's key as its default, so the Controls page can move any of them. The menus' keys
     /// (Enter, Escape, the arrows and keypad, Tab, Backspace, the page keys, the letter and digit hotkeys) are
-    /// read by <see cref="InputAdapter"/>; the keypad's stand-ins for the mouse buttons by
-    /// <see cref="IPointer"/>; the rest by the gameplay seams.
+    /// read by <see cref="InputAdapter"/>; click and inspect (any mouse button) and the keypad's stand-ins
+    /// for them by <see cref="IPointer"/>, and by UI Toolkit through <see cref="UiPointerBindings"/>; the
+    /// Shifts and Ctrl by the gameplay seams, as the rest.
     /// </summary>
     /// <remarks>
-    /// Fixed: the mouse buttons and pointer motion, Shift/Ctrl/Alt as modifiers, typing in a text field,
-    /// and the Skip — which is every key nothing else claims, so it follows the others.
+    /// Fixed: pointer motion and the wheel, typing in a text field, Alt (only the cheat chord reads it), and
+    /// the Skip — which is every key nothing else claims, so it follows the others.
     /// </remarks>
     public sealed partial class SystemInputSource {
         // Up, Down, Left, Right.
@@ -41,6 +42,11 @@ namespace BakAgain.UI.InputCore {
         internal InputAction[] Digits { get; } = new InputAction[10];
 
         private InputAction _selectKeys, _inspectKeys, _pan, _northUp;
+        private InputAction _selectButton, _inspectButton, _leftShift, _rightShift, _ctrl;
+
+        /// <summary>The click's and the inspect's mouse buttons, as moved on the page.</summary>
+        internal string SelectButtonPath => _selectButton.bindings[0].effectivePath;
+        internal string InspectButtonPath => _inspectButton.bindings[0].effectivePath;
         private readonly List<InputAction> _keyActions = new();
 
         private InputAction Key(string name, params string[] paths) {
@@ -86,6 +92,12 @@ namespace BakAgain.UI.InputCore {
             _selectKeys = Key("SelectKeys", "<Keyboard>/numpad5", "<Keyboard>/numpad0");
             _inspectKeys = Key("InspectKeys", "<Keyboard>/numpadPlus");
             _northUp = Key("MapNorthUp", "<Keyboard>/n");
+            _selectButton = Key("Select", "<Mouse>/leftButton");
+            _inspectButton = Key("Inspect", "<Mouse>/rightButton");
+            // The original reads the two Shifts apart (shop paging back vs to the front, combat's arms).
+            _leftShift = Key("LeftShift", "<Keyboard>/leftShift");
+            _rightShift = Key("RightShift", "<Keyboard>/rightShift");
+            _ctrl = Key("Ctrl", "<Keyboard>/leftCtrl", "<Keyboard>/rightCtrl");
 
             _pan = new InputAction("PanArena", InputActionType.Value);
             _pan.AddCompositeBinding("2DVector(mode=2)") // Digital: each axis -1, 0 or 1, as the keys were read
@@ -124,22 +136,36 @@ namespace BakAgain.UI.InputCore {
             slots.Add(new RebindSlot("page_down", M, T.ControlsPageDown, PageDown, 0));
             slots.Add(new RebindSlot("first", M, T.ControlsFirst, First, 0));
             slots.Add(new RebindSlot("last", M, T.ControlsLast, Last, 0));
-            slots.Add(new RebindSlot("select_key", M, T.ControlsSelect, _selectKeys, 0));
-            slots.Add(new RebindSlot("select_key_2", M, T.ControlsSelect, _selectKeys, 1, second: true));
-            slots.Add(new RebindSlot("inspect_key", M, T.ControlsInspect, _inspectKeys, 0));
+            slots.Add(new RebindSlot("select", M, T.ControlsSelect, _selectButton, 0, mouseButton: true));
+            slots.Add(new RebindSlot("inspect", M, T.ControlsInspect, _inspectButton, 0, mouseButton: true));
+            slots.Add(new RebindSlot("select_key", M, T.ControlsSelectKey, _selectKeys, 0));
+            slots.Add(new RebindSlot("select_key_2", M, T.ControlsSelectKey, _selectKeys, 1, second: true));
+            slots.Add(new RebindSlot("inspect_key", M, T.ControlsInspectKey, _inspectKeys, 0));
             slots.Add(new RebindSlot("map_north_up", M, T.ControlsNorthUp, _northUp, 0));
             for (int i = 0; i < 26; i++) {
                 char c = (char)('a' + i);
-                slots.Add(new RebindSlot("hotkey_" + c, M, T.ControlsHotkey, Letters[i], 0, letter: char.ToUpperInvariant(c).ToString()));
+                slots.Add(new RebindSlot("hotkey_" + c, M, T.ControlsHotkey, Letters[i], 0,
+                    letter: char.ToUpperInvariant(c).ToString(), section: T.ControlsGroupHotkeys));
             }
             for (int i = 0; i < 10; i++) {
-                slots.Add(new RebindSlot("hotkey_" + DigitChar(i), M, T.ControlsHotkey, Digits[i], 0, letter: DigitChar(i).ToString()));
+                slots.Add(new RebindSlot("hotkey_" + DigitChar(i), M, T.ControlsHotkey, Digits[i], 0,
+                    letter: DigitChar(i).ToString(), section: T.ControlsGroupHotkeys));
             }
+            const string Mod = T.ControlsGroupModifiers;
+            slots.Add(new RebindSlot("left_shift", M, T.ControlsShiftLeft, _leftShift, 0, section: Mod));
+            slots.Add(new RebindSlot("right_shift", M, T.ControlsShiftRight, _rightShift, 0, section: Mod));
+            slots.Add(new RebindSlot("ctrl", M, T.ControlsCtrl, _ctrl, 0, section: Mod));
+            slots.Add(new RebindSlot("ctrl_2", M, T.ControlsCtrl, _ctrl, 1, second: true, section: Mod));
             RebindSlots = slots;
             InputBindings.Load(RebindSlots);
         }
 
+        /// <summary>Whether a modifier action holds <paramref name="control"/>: not a key press of its own.</summary>
+        internal bool IsModifier(InputControl control) =>
+            Binds(_leftShift, control) || Binds(_rightShift, control) || Binds(_ctrl, control);
+
         private void DisposeKeys() {
+
             foreach (InputAction action in _keyActions) {
                 Release(action);
             }

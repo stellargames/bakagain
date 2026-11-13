@@ -57,6 +57,9 @@ namespace BakAgain.UI.InputCore {
                 _keys.NavArrows[i].performed += _onNav[i];
             }
             _actions.UI.Click.performed += OnClick;
+            // The Skip click follows a moved click (TASK-1080).
+            InputBindings.Changed += MirrorClick;
+            MirrorClick();
             _actions.UI.Click.canceled += OnClick;
             TryDetachModule();
             EnsureTextInputSubscription();
@@ -67,12 +70,8 @@ namespace BakAgain.UI.InputCore {
         // to reach a different class (ScreenInputLayer), so it's exposed here as a live keyboard read
         // rather than threaded through UiIntent/IUiCommands (which every other layer would then have to
         // ignore).
-        public static bool CtrlHeld {
-            get {
-                Keyboard kb = Keyboard.current;
-                return kb != null && (kb.leftCtrlKey.isPressed || kb.rightCtrlKey.isPressed);
-            }
-        }
+        // The Ctrl action, wherever the player put it (TASK-1080).
+        public static bool CtrlHeld => InputDriver.CtrlHeld;
 
         // (Re-)subscribe to the live Keyboard's onTextInput so InputAdapter — not UI Toolkit's panel,
         // which the pointer-only module never feeds keyboard/text into (task-2 decision P) — owns typed
@@ -121,6 +120,8 @@ namespace BakAgain.UI.InputCore {
             module.submit = null;
             module.cancel = null;
             _moduleDetached = true;
+            _module = module;
+            MirrorClick();
         }
 
         private void OnSubmit(InputAction.CallbackContext _) => _commands.Activate();
@@ -194,7 +195,7 @@ namespace BakAgain.UI.InputCore {
                 kb.SetIMEEnabled(wantsText);
                 _textInputOn = wantsText;
             }
-            bool shift = kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed;
+            bool shift = ((IGameplayInput)_keys).LeftShift || ((IGameplayInput)_keys).RightShift;
             if (_keys.NextFocus.WasPressedThisFrame()) {
                 _commands.MoveFocus(shift ? NavDirection.Previous : NavDirection.Next);
                 return;
@@ -319,7 +320,8 @@ namespace BakAgain.UI.InputCore {
         // ones the original never sees — DIALOG.C:168 drops NumLock/ScrollLock by name, and a bare
         // modifier leaves no scancode in the BIOS buffer at all.
         private bool ClaimedBeforeSkip(UnityEngine.InputSystem.Controls.KeyControl control) {
-            if (SystemInputSource.Binds(_keys.Activate, control) || SystemInputSource.Binds(_keys.CancelKey, control)) {
+            if (SystemInputSource.Binds(_keys.Activate, control) || SystemInputSource.Binds(_keys.CancelKey, control)
+                || _keys.IsModifier(control)) {
                 return true;
             }
             foreach (InputAction nav in _keys.NavArrows) {
@@ -346,7 +348,28 @@ namespace BakAgain.UI.InputCore {
             }
         }
 
+        // UI Toolkit's clicks (the scene module's asset) and the Skip click (the UI map) follow a moved click
+        // or inspect (TASK-1080).
+        private InputSystemUIInputModule _module;
+
+        private void MirrorClick() {
+            if (_actions != null) {
+                UiPointerBindings.Mirror(_actions.asset, _keys.SelectButtonPath, _keys.InspectButtonPath);
+            }
+            if (_module != null) {
+                UiPointerBindings.Mirror(_module.actionsAsset, _keys.SelectButtonPath, _keys.InspectButtonPath);
+            }
+        }
+
         public void Dispose() {
+            InputBindings.Changed -= MirrorClick;
+            if (_actions?.asset != null) {
+                UiPointerBindings.Mirror(_actions.asset, null, null);
+            }
+            // The module's asset is the package's shared one: put it back as found.
+            if (_module != null) {
+                UiPointerBindings.Mirror(_module.actionsAsset, null, null);
+            }
             if (_keys.Activate != null) {
                 _keys.Activate.performed -= OnSubmit;
                 _keys.CancelKey.performed -= OnCancel;

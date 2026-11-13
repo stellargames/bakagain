@@ -25,13 +25,21 @@ namespace BakAgain.UI.InputCore {
         /// </remarks>
         private sealed class DeviceButton : IPointerButton {
             private readonly System.Func<ButtonControl>[] _get;
-            // The keypad's stand-ins, remappable (TASK-1080); an action is pressed while any of its keys is.
-            private readonly InputAction _keys;
-            public DeviceButton(InputAction keys, params System.Func<ButtonControl>[] get) { _keys = keys; _get = get; }
+            // The mouse button and the keypad's stand-ins, both remappable (TASK-1080); an action is pressed
+            // while any of its controls is.
+            private readonly InputAction[] _keys;
+            public DeviceButton(InputAction[] keys, params System.Func<ButtonControl>[] get) { _keys = keys; _get = get; }
+
+            private bool AnyAction(System.Func<InputAction, bool> test) {
+                foreach (InputAction a in _keys) {
+                    if (test(a)) { return true; }
+                }
+                return false;
+            }
 
             public bool IsDown {
                 get {
-                    if (_keys.IsPressed()) { return true; }
+                    if (AnyAction(a => a.IsPressed())) { return true; }
                     foreach (System.Func<ButtonControl> g in _get) {
                         if (g()?.isPressed ?? false) { return true; }
                     }
@@ -41,7 +49,7 @@ namespace BakAgain.UI.InputCore {
 
             public bool PressedThisFrame {
                 get {
-                    if (_keys.WasPressedThisFrame()) { return true; }
+                    if (AnyAction(a => a.WasPressedThisFrame())) { return true; }
                     foreach (System.Func<ButtonControl> g in _get) {
                         if (g()?.wasPressedThisFrame ?? false) { return true; }
                     }
@@ -51,8 +59,8 @@ namespace BakAgain.UI.InputCore {
 
             public bool ReleasedThisFrame {
                 get {
-                    if (_keys.IsPressed()) { return false; }
-                    bool any = _keys.WasReleasedThisFrame();
+                    if (AnyAction(a => a.IsPressed())) { return false; }
+                    bool any = AnyAction(a => a.WasReleasedThisFrame());
                     foreach (System.Func<ButtonControl> g in _get) {
                         ButtonControl c = g();
                         if (c == null) { continue; }
@@ -75,12 +83,11 @@ namespace BakAgain.UI.InputCore {
             // Mouse alongside the touchscreen, and then a finger was never read as a press — the
             // cast screen saw hover but no click (TASK-789). DeviceButton ORs its controls.
             InitKeys();
-            _primary = new DeviceButton(_selectKeys,
-                () => Mouse?.leftButton,
+            // A mouse's own press is its left button, so it is read through the (movable) click, never here.
+            _primary = new DeviceButton(new[] { _selectButton, _selectKeys },
                 () => Touchscreen.current?.press,
-                () => Pointer?.press);
-            _secondary = new DeviceButton(_inspectKeys,
-                () => Mouse?.rightButton);
+                () => Pointer is Mouse ? null : Pointer?.press);
+            _secondary = new DeviceButton(new[] { _inspectButton, _inspectKeys });
             InitGameplay(); // Task 5
             BuildSlots();
 #if UNITY_EDITOR
@@ -206,9 +213,10 @@ namespace BakAgain.UI.InputCore {
         public float Zoom => _zoom.ReadValue<float>();
         // A Shift let go in the same frame still counts: the world click fires on the button's release, and
         // a quick Shift+click lets Shift go with the button (owner, 2026-11-01: a Shift+click thrust).
-        public bool LeftShift => Keyboard.current is { } k && (k.leftShiftKey.isPressed || k.leftShiftKey.wasReleasedThisFrame);
-        public bool RightShift => Keyboard.current is { } k && (k.rightShiftKey.isPressed || k.rightShiftKey.wasReleasedThisFrame);
-        public bool Ctrl => Keyboard.current?.ctrlKey.isPressed ?? false;
+        // The modifiers are actions too, so they can be moved (TASK-1080).
+        public bool LeftShift => _leftShift.IsPressed() || _leftShift.WasReleasedThisFrame();
+        public bool RightShift => _rightShift.IsPressed() || _rightShift.WasReleasedThisFrame();
+        public bool Ctrl => _ctrl.IsPressed();
     }
 
     // Task 8: CreditsView's "hold N to reveal rare credits" Easter egg. Its own InputAction (created

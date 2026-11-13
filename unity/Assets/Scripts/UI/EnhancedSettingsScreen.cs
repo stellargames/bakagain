@@ -331,8 +331,28 @@ namespace BakAgain.UI {
         private int _rebindEndedFrame = -1;
 
         /// <summary>A key is awaited, or was taken this frame: that press must not also work the page
-        /// (Enter would start the next rebind, Escape would leave it).</summary>
-        private bool Rebinding => _rebind != null || _rebindEndedFrame == Time.frameCount;
+        /// (Enter would start the next rebind, Escape would leave it). A mouse button taken is held off until
+        /// it is let go: its release would otherwise click the row under the pointer.</summary>
+        private bool Rebinding {
+            get {
+                if (_rebind != null || _rebindEndedFrame == Time.frameCount) return true;
+                if (_heldOffMouse && MouseBusy()) return true;
+                _heldOffMouse = false;
+                return false;
+            }
+        }
+
+        private bool _heldOffMouse;
+
+        private static bool MouseBusy() {
+            Mouse mouse = Mouse.current;
+            if (mouse == null) return false;
+            foreach (UnityEngine.InputSystem.Controls.ButtonControl b in new[] {
+                         mouse.leftButton, mouse.rightButton, mouse.middleButton, mouse.forwardButton, mouse.backButton }) {
+                if (b.isPressed || b.wasReleasedThisFrame) return true;
+            }
+            return false;
+        }
 
         private void ShowPage(bool controls) {
             _controlsPage = controls;
@@ -354,10 +374,10 @@ namespace BakAgain.UI {
         }
 
         /// <summary>The heading a slot is listed under.</summary>
-        internal static string HeadingOf(RebindSlot slot) => slot.Group switch {
+        internal static string HeadingOf(RebindSlot slot) => slot.Section ?? slot.Group switch {
             InputBindings.Walk => Templates.ControlsGroupWalk,
             InputBindings.Combat => Templates.ControlsGroupCombat,
-            _ => slot.Letter != null ? Templates.ControlsGroupHotkeys : Templates.ControlsGroupMenus,
+            _ => Templates.ControlsGroupMenus,
         };
 
         private ScrollView _scroll;
@@ -405,20 +425,20 @@ namespace BakAgain.UI {
         private void ScrollIntoView(Button row) =>
             row.RegisterCallback<FocusInEvent>(_ => _scroll?.ScrollTo(row));
 
-        // The press is read by the Input System's own rebinding: any key, a gamepad button, or the middle
-        // or a side mouse button. Not the left or right button (select and inspect stay where they are),
-        // and not pointer motion. Escape keeps the old key. A key another row holds swaps with it.
+        // The press is read by the Input System's own rebinding: any key, a gamepad button or any mouse
+        // button; click and inspect take only a mouse button. Not pointer motion. Escape keeps the old key.
+        // A key another row holds swaps with it.
         private void StartRebind(RebindSlot slot) {
             _waiting = slot;
             slot.Action.Disable();
-            _rebind = slot.Action.PerformInteractiveRebinding(slot.Index)
+            InputActionRebindingExtensions.RebindingOperation op = slot.Action.PerformInteractiveRebinding(slot.Index)
                 .WithControlsExcluding("<Pointer>/position")
                 .WithControlsExcluding("<Pointer>/delta")
                 .WithControlsExcluding("<Pointer>/press")
-                .WithControlsExcluding("<Mouse>/leftButton")
-                .WithControlsExcluding("<Mouse>/rightButton")
                 .WithControlsExcluding("<Mouse>/scroll")
-                .WithCancelingThrough("<Keyboard>/escape")
+                .WithCancelingThrough("<Keyboard>/escape");
+            if (slot.MouseButton) op.WithControlsHavingToMatchPath("<Mouse>");
+            _rebind = op
                 .OnApplyBinding((_, path) => InputBindings.Set(_slots, slot, path))
                 .OnComplete(_ => EndRebind(slot))
                 .OnCancel(_ => EndRebind(slot))
@@ -431,6 +451,7 @@ namespace BakAgain.UI {
             _rebind = null;
             _waiting = null;
             _rebindEndedFrame = Time.frameCount;
+            _heldOffMouse = MouseBusy();
             slot.Action.Enable();
             if (_panel != null) Refresh();
         }

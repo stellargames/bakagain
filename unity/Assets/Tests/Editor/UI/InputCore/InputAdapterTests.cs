@@ -139,6 +139,68 @@ namespace BakAgain.Tests.Editor.UI.InputCore {
         }
 
         [Test]
+        public void AMovedShift_StillTurnsTabAround_AndIsNotASkip() {
+            Keyboard keyboard = InputSystem.AddDevice<Keyboard>();
+            var spy = new SpyCommands();
+            InputAdapter adapter = StartedAdapter(spy);
+            try {
+                InputBindings.Set(_keys.RebindSlots, Slot("left_shift"), "<Keyboard>/f7");
+                Press(keyboard.f7Key);
+                adapter.Tick();
+                Assert.IsEmpty(spy.Calls, "a modifier on its own does nothing");
+                Press(keyboard.tabKey);
+                adapter.Tick();
+                CollectionAssert.AreEqual(new[] { "Move:Previous" }, spy.Calls);
+            } finally {
+                adapter.Dispose();
+            }
+        }
+
+        // The click Skip (cutscenes, dialogs) is the UI map's Click: it follows a moved click.
+        [Test]
+        public void AMovedClick_IsTheSkipClickToo() {
+            InputSystem.AddDevice<Keyboard>();
+            InputSystem.AddDevice<Mouse>();
+            var spy = new SpyCommands();
+            InputAdapter adapter = StartedAdapter(spy);
+            try {
+                InputBindings.Set(_keys.RebindSlots, Slot("select"), "<Mouse>/rightButton");
+                CollectionAssert.Contains(PathsOf(_actions.Actions.UI.Click), "<Mouse>/rightButton");
+                CollectionAssert.DoesNotContain(PathsOf(_actions.Actions.UI.Click), "<Mouse>/leftButton");
+                CollectionAssert.Contains(PathsOf(_actions.Actions.UI.RightClick), "<Mouse>/leftButton");
+            } finally {
+                adapter.Dispose();
+            }
+            CollectionAssert.Contains(PathsOf(_actions.Actions.UI.Click), "<Mouse>/leftButton", "put back when the adapter goes");
+        }
+
+        // UI Toolkit's clicks come from the scene's InputSystemUIInputModule and its own asset: a moved click
+        // and inspect reach it, and the shared asset is put back when the adapter goes.
+        [Test]
+        public void AMovedClickAndInspect_ReachTheSceneUiModule_AndArePutBack() {
+            InputSystem.AddDevice<Keyboard>();
+            InputSystem.AddDevice<Mouse>();
+            var go = new UnityEngine.GameObject("ui", typeof(UnityEngine.EventSystems.EventSystem),
+                typeof(UnityEngine.InputSystem.UI.InputSystemUIInputModule));
+            var module = go.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+            module.AssignDefaultActions();
+            var spy = new SpyCommands();
+            InputAdapter adapter = StartedAdapter(spy);
+            try {
+                InputBindings.Set(_keys.RebindSlots, Slot("select"), "<Mouse>/rightButton");
+                CollectionAssert.Contains(PathsOf(module.leftClick.action), "<Mouse>/rightButton");
+                CollectionAssert.Contains(PathsOf(module.rightClick.action), "<Mouse>/leftButton");
+            } finally {
+                adapter.Dispose();
+                CollectionAssert.Contains(PathsOf(module.leftClick.action), "<Mouse>/leftButton", "put back");
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        private static List<string> PathsOf(InputAction action) =>
+            System.Linq.Enumerable.ToList(System.Linq.Enumerable.Select(action.bindings, b => b.effectivePath));
+
+        [Test]
         public void TheKeypadPageAndEndKeys_FollowTheirNewKeys() {
             Keyboard keyboard = InputSystem.AddDevice<Keyboard>();
             var spy = new SpyCommands {

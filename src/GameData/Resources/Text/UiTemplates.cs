@@ -231,6 +231,12 @@ public static class UiTemplates {
     public const string ControlsInspect = "port:template:controls_inspect";
     public const string ControlsNorthUp = "port:template:controls_north_up";
     public const string ControlsHotkey = "port:template:controls_hotkey";
+    public const string ControlsSelectKey = "port:template:controls_select_key";
+    public const string ControlsInspectKey = "port:template:controls_inspect_key";
+    public const string ControlsShiftLeft = "port:template:controls_shift_left";
+    public const string ControlsShiftRight = "port:template:controls_shift_right";
+    public const string ControlsCtrl = "port:template:controls_ctrl";
+    public const string ControlsGroupModifiers = "port:template:controls_group_modifiers";
 
     /// <summary>The Mods screen (mod system spec 4.6): a row per installed mod, "[<c>{on}</c>] <c>{name}</c>
     /// <c>{version}</c>", its buttons and a line per problem (<c>{other}</c>: the mod or game version it
@@ -536,9 +542,15 @@ public static class UiTemplates {
         (ControlsFirst, _ => "First"),
         (ControlsLast, _ => "Last"),
         (ControlsSelect, _ => "Click"),
-        (ControlsInspect, _ => "Right-click"),
+        (ControlsInspect, _ => "Inspect"),
         (ControlsNorthUp, _ => "Map: north up"),
         (ControlsHotkey, _ => "Hotkey {letter}"),
+        (ControlsSelectKey, _ => "Click (key)"),
+        (ControlsInspectKey, _ => "Inspect (key)"),
+        (ControlsShiftLeft, _ => "Shift (left)"),
+        (ControlsShiftRight, _ => "Shift (right)"),
+        (ControlsCtrl, _ => "Ctrl"),
+        (ControlsGroupModifiers, _ => "Modifiers"),
         (EnhancedCancel, _ => "Cancel"),
         (ModsTitle, _ => "Mods"),
         (ModsInstalled, _ => "Installed mods"),
@@ -619,7 +631,7 @@ public static class UiTemplates {
         (HudWalk, _ => "Walk"),
         // Under the desktop forecast: how to swing rather than thrust (owner, 2026-11-01: "no clear way").
         (HudSwingHint, _ => "Click to thrust \u00b7 Shift+click or middle-click to swing"),
-        (HudSwingHintKey, _ => "Click to thrust \u00b7 Shift+click or {key} to swing"),
+        (HudSwingHintKey, _ => "Click to thrust \u00b7 {shift}+click or {key} to swing"),
         (HudInspectHint, _ => "Learn its Health, Stamina, skills and Defense. Right-click again to inspect."),
         (HudInspectHintTouch, _ => "Learn its Health, Stamina, skills and Defense. Tap Inspect to look."),
         (HudFree, _ => "free"),

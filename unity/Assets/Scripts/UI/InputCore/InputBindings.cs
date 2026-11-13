@@ -7,7 +7,7 @@ namespace BakAgain.UI.InputCore {
     /// for the walking keys).</summary>
     public sealed class RebindSlot {
         public RebindSlot(string id, string group, string labelKey, InputAction action, int index,
-            string letter = null, bool second = false) {
+            string letter = null, bool second = false, string section = null, bool mouseButton = false) {
             Id = id;
             Group = group;
             LabelKey = labelKey;
@@ -15,6 +15,8 @@ namespace BakAgain.UI.InputCore {
             Index = index;
             Letter = letter;
             Second = second;
+            Section = section;
+            MouseButton = mouseButton;
             DefaultPath = action.bindings[index].path;
         }
 
@@ -33,6 +35,12 @@ namespace BakAgain.UI.InputCore {
 
         /// <summary>The action's second key (the arrows beside WASD, keypad Enter beside Enter).</summary>
         public bool Second { get; }
+
+        /// <summary>The page heading it is listed under when not its group's own (the hotkeys, the modifiers).</summary>
+        public string Section { get; }
+
+        /// <summary>Click or inspect: only a mouse button can take it (UI Toolkit needs a pointer's button).</summary>
+        public bool MouseButton { get; }
 
         public InputAction Action { get; }
         public int Index { get; }
@@ -57,6 +65,10 @@ namespace BakAgain.UI.InputCore {
             return string.IsNullOrEmpty(saved) ? null : saved;
         }
 
+        /// <summary>Raised after a load, a change or a reset, for what mirrors a binding elsewhere
+        /// (<see cref="UiPointerBindings"/>).</summary>
+        public static event System.Action Changed;
+
         /// <summary>Applies every saved binding. A slot with nothing saved keeps its default.</summary>
         public static void Load(IEnumerable<RebindSlot> slots) {
             foreach (RebindSlot slot in slots) {
@@ -65,6 +77,7 @@ namespace BakAgain.UI.InputCore {
                     slot.Action.ApplyBindingOverride(slot.Index, saved);
                 }
             }
+            Changed?.Invoke();
         }
 
         /// <summary>Binds <paramref name="slot"/> to <paramref name="path"/> and saves it; a slot that
@@ -78,6 +91,7 @@ namespace BakAgain.UI.InputCore {
             }
             Apply(slot, path);
             PlayerPrefs.Save();
+            Changed?.Invoke();
         }
 
         /// <summary>Back to the defaults; the saved bindings are forgotten.</summary>
@@ -87,6 +101,7 @@ namespace BakAgain.UI.InputCore {
                 PlayerPrefs.DeleteKey(PrefsPrefix + slot.Id);
             }
             PlayerPrefs.Save();
+            Changed?.Invoke();
         }
 
         private static void Apply(RebindSlot slot, string path) {

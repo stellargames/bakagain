@@ -115,10 +115,7 @@ namespace BakAgain.UI.Inventory {
             Label give = AddButton(panel, layout, ActionGive, model.Label,
                 () => Resolve(model.Value)); // accepting at 0 ("None") IS the cancel
             void Refresh() => give.text = model.Label;
-            bool Shift() {
-                var kb = UnityEngine.InputSystem.Keyboard.current;
-                return kb != null && kb.shiftKey.isPressed;
-            }
+            bool Shift() => BakAgain.UI.InputCore.InputDriver.ShiftHeld;
             void Step(bool up, bool five) {
                 if (five) { if (up) { model.StepUp5(); } else { model.StepDown5(); } }
                 else { if (up) { model.StepUp(); } else { model.StepDown(); } }

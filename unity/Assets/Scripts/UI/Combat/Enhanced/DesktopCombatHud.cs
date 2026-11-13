@@ -810,10 +810,13 @@ namespace BakAgain.UI.Combat.Enhanced {
 
         /// <summary>How to swing: the middle button, or the key the player moved it to (TASK-1080).</summary>
         internal static string SwingHint() {
-            string moved = BakAgain.UI.InputCore.InputBindings.Saved("swing");
-            return moved == null
+            string swing = BakAgain.UI.InputCore.InputBindings.Saved("swing");
+            string shift = BakAgain.UI.InputCore.InputBindings.Saved("left_shift");
+            return swing == null && shift == null
                 ? UiTemplates.Format(UiTemplates.HudSwingHint)
-                : UiTemplates.Format(UiTemplates.HudSwingHintKey, ("key", BakAgain.UI.EnhancedSettingsScreen.KeyName(moved)));
+                : UiTemplates.Format(UiTemplates.HudSwingHintKey,
+                    ("shift", BakAgain.UI.EnhancedSettingsScreen.KeyName(shift ?? "<Keyboard>/leftShift")),
+                    ("key", BakAgain.UI.EnhancedSettingsScreen.KeyName(swing ?? "<Mouse>/middleButton")));
         }
     }
 }
