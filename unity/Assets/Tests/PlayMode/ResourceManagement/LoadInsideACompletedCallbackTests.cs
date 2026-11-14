@@ -18,6 +18,8 @@ namespace BakAgain.Tests.PlayMode.ResourceManagement {
     public class LoadInsideACompletedCallbackTests {
         [UnityTest]
         public IEnumerator ASpriteLoadedInsideAnotherLoadsCallbackIsBuilt() {
+            // The archive's own sprite path is the subject (its converter loads the palettes); a
+            // placeholder from the test fixtures goes through the override provider instead.
             ShippedGameData.RequireOrIgnore();
             // A new language-pack instance empties BakResourceProvider's caches, so the sprite
             // below is converted now (palettes loaded) rather than handed out from an earlier test.

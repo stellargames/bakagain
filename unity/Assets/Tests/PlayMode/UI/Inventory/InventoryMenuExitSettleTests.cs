@@ -215,7 +215,6 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         [Timeout(15000)]
         public IEnumerator DiscardingAStack_KeepsTheBagUntilThePickerHasAnswered() =>
             UniTask.ToCoroutine(async () => {
-                ShippedGameData.RequireOrIgnore(); // the game font needs the player's files
                 const byte RationsId = 72;
                 GameSession session = SessionWith(FreeSlot());
                 session.SetObjectInfo(new ObjectInfoSet("O", new List<ObjectInfo> {

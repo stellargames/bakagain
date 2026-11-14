@@ -20,6 +20,7 @@ namespace BakAgain.Tests {
         private (string Game, bool ModsOn, string Mods) _folders;
         private BakAgain.Audio.MenuSoundService _sounds;
         private TestSupport.ExpectedLog.Capture _overflowReport;
+        private string _standIn;
 
         // The folder settings are the developer's real, persisted ones. A test that changes one puts
         // it back itself; this catches one that did not (TASK-949), says so, and restores it.
@@ -55,6 +56,8 @@ namespace BakAgain.Tests {
             // placeholders through the override system (Tests/Fixtures~/GameArt, TASK-1027). Only then:
             // an override beats the archive, so with the data present it would hide the real art.
             if (!TestSupport.ShippedGameData.IsAvailable) {
+                _standIn = TestSupport.ShippedGameData.StandInForTheMissingArchive();
+                BakResourceSettings.GamePath = _standIn;
                 OverrideResourceLocator.TestFixturesRoot = System.IO.Path.Combine(
                     UnityEngine.Application.dataPath, "Tests", "Fixtures~", "GameArt");
                 BakAgain.Core.ResourceManagementInitializer.RemountOverrides();
@@ -71,6 +74,9 @@ namespace BakAgain.Tests {
             if (OverrideResourceLocator.TestFixturesRoot != null) {
                 OverrideResourceLocator.TestFixturesRoot = null;
                 BakAgain.Core.ResourceManagementInitializer.RemountOverrides();
+            }
+            if (_standIn != null && BakResourceSettings.GamePath == _standIn) {
+                BakResourceSettings.GamePath = _folders.Game;
             }
             if (Folders != _folders) {
                 UnityEngine.Debug.LogError($"A test left the folder settings changed: {Folders}, was {_folders}. Restored.");

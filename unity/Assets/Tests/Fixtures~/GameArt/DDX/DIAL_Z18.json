@@ -1,0 +1,50 @@
+{
+ "Type": "DDX",
+ "Id": "DIAL_Z18.DDX",
+ "Entries": [
+  {
+   "Offset": 100,
+   "Key": "fixture:ddx:dial_z18:100",
+   "Id": 1800003,
+   "Text": "Fixture: the use had no effect.",
+   "DialogType": "Normal",
+   "ActorNumber": 0,
+   "Flags": "None",
+   "Actions": [],
+   "Branches": []
+  },
+  {
+   "Offset": 200,
+   "Key": "fixture:ddx:dial_z18:200",
+   "Id": 1800008,
+   "Text": "Fixture: there is no room.",
+   "DialogType": "Normal",
+   "ActorNumber": 0,
+   "Flags": "None",
+   "Actions": [],
+   "Branches": []
+  },
+  {
+   "Offset": 300,
+   "Key": "fixture:ddx:dial_z18:300",
+   "Id": 1800017,
+   "Text": "Fixture: container slot help.",
+   "DialogType": "Normal",
+   "ActorNumber": 0,
+   "Flags": "None",
+   "Actions": [],
+   "Branches": []
+  },
+  {
+   "Offset": 400,
+   "Key": "fixture:ddx:dial_z18:400",
+   "Id": 1800026,
+   "Text": "Fixture: button help.",
+   "DialogType": "Normal",
+   "ActorNumber": 0,
+   "Flags": "None",
+   "Actions": [],
+   "Branches": []
+  }
+ ]
+}

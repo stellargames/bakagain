@@ -63,7 +63,6 @@ namespace BakAgain.Tests.PlayMode.World {
         }
 
         [UnityTest]
-        [RequiresShippedGameData]
         public IEnumerator AFlagTwoBuildingOpensTheInventoryOnItsOwnShop() => UniTask.ToCoroutine(async () => {
             var session = new GameSession();
             session.SetZoneContainersForTest(new SaveGameZoneContainerStateData(new[] {
@@ -143,7 +142,6 @@ namespace BakAgain.Tests.PlayMode.World {
         // The Crystal Grove's Cup dwelling said "finally assured that they were alone" and then
         // attacked; the original opens straight on the ambush's "The door burst open".
         [UnityTest]
-        [RequiresShippedGameData]
         public IEnumerator AnAmbushSpringsBeforeTheBuildingSpeaks() => UniTask.ToCoroutine(async () => {
             foreach (var (trap, speaks) in new[] {
                          (BakAgain.World.Hotspots.HotspotService.TrapDispatch.Blocks, false),

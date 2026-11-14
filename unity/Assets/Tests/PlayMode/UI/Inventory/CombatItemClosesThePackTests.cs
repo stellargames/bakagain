@@ -3,7 +3,6 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
     using System.Collections.Generic;
     using System.Reflection;
     using BakAgain.Core;
-    using BakAgain.Tests.TestSupport;
     using BakAgain.UI.Inventory;
     using Cysharp.Threading.Tasks;
     using GameData;
@@ -26,9 +25,6 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
     /// open until the player closed it.
     /// </remarks>
     public class CombatItemClosesThePackTests {
-        [OneTimeSetUp]
-        public void RequireShippedGameData() => ShippedGameData.RequireOrIgnore();
-
         private const int ButtonUse = 22;
         private const int Idol = 0x0c;
         private const int Pebble = 0x70;

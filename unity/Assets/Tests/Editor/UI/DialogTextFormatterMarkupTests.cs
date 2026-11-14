@@ -78,7 +78,6 @@ namespace BakAgain.Tests.Editor.UI {
     
         [Test]
         public void TrailingWhitespaceOnlyLinesAreKeptAsLines() {
-            ShippedGameData.RequireOrIgnore(); // the game font needs the player's files
             // 0x84 ends "facts:\n\t \n\t \n\t " — the space the assessment rows are drawn into.
             // The original's wrap counts them when it centres the block, so the text sits higher;
             // trimming them centred four lines instead of seven (TASK-742). The only such record.

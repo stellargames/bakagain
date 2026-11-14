@@ -16,10 +16,6 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
     /// shipped defaults and assert the exact values the original draws.</para>
     /// </summary>
     public class MoneyReadoutViewTests {
-        // Measures text with the game font, which is built from the player's own files (TASK-662).
-        [NUnit.Framework.OneTimeSetUp]
-        public void RequireShippedGameData() => ShippedGameData.RequireOrIgnore();
-
         private const string TextName = "inventory_money";
         private const string ShadowName = "inventory_money_shadow";
 

@@ -21,12 +21,6 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
     /// suite green; this is the test that goes red.</para>
     /// </summary>
     public class BakResourceLocatorSynthesizedResourceTests {
-        [SetUp]
-        public void RequireShippedGameData() {
-            // BakResourceLocator's constructor opens the archive to build its key dictionary.
-            ShippedGameData.RequireOrIgnore();
-        }
-
         [Test]
         public void DialogStyleTable_ResolvesWithNoOverridePresent_ThoughItIsNotAnArchiveMember() {
             var locator = new BakResourceLocator();

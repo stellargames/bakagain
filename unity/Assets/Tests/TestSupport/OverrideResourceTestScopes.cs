@@ -212,13 +212,36 @@ namespace BakAgain.Tests.TestSupport {
         public static bool IsAvailable {
             get {
                 string gamePath = BakResourceSettings.GamePath;
-                return !string.IsNullOrEmpty(gamePath) && File.Exists(Path.Combine(gamePath, ArchiveName));
+                if (string.IsNullOrEmpty(gamePath)) {
+                    return false;
+                }
+                var archive = new FileInfo(Path.Combine(gamePath, ArchiveName));
+                // Not StandInForTheMissingArchive's empty file.
+                return archive.Exists && archive.Length > 0;
             }
         }
 
         internal const string MissingReason =
             "Needs the shipped game data: BakResourceSettings.GamePath must point at a directory containing "
             + ArchiveName + ".";
+
+        /// <summary>
+        /// Without the game data (CI), the run points the game folder at a temp folder holding an EMPTY
+        /// <c>KRONDOR.001</c>: the resource locator and provider read their archive on construction and
+        /// throw on a missing file, which stopped every test that starts resource management before it
+        /// reached the override fixtures or the built-in assets. Empty, the archive provides nothing, so
+        /// every game resource comes from <c>Tests/Fixtures~/GameArt</c> or not at all. The boot's file
+        /// check still refuses the folder. Returns the folder, or null with the data present.
+        /// </summary>
+        internal static string StandInForTheMissingArchive() {
+            if (IsAvailable) {
+                return null;
+            }
+            string folder = Path.Combine(Path.GetTempPath(), "bakagain-no-game-data");
+            Directory.CreateDirectory(folder);
+            File.WriteAllBytes(Path.Combine(folder, ArchiveName), Array.Empty<byte>());
+            return folder;
+        }
 
         /// <summary>Ignore the calling test unless the shipped archive is configured and present.</summary>
         public static void RequireOrIgnore() {

@@ -34,10 +34,6 @@ namespace BakAgain.Tests.PlayMode.Inventory {
     /// them.</para>
     /// </summary>
     public class ItemInspectPanelLayoutTests {
-        // Measures text with the game font, which is built from the player's own files (TASK-662).
-        [NUnit.Framework.OneTimeSetUp]
-        public void RequireShippedGameData() => ShippedGameData.RequireOrIgnore();
-
         private readonly List<Object> _scratch = new List<Object>();
         private GameObject _go;
         private PanelSettings _panelSettings;

@@ -67,7 +67,6 @@ namespace BakAgain.Tests.PlayMode.World {
         }
 
         [UnityTest]
-        [RequiresShippedGameData]
         public IEnumerator AnOpenChestSpeaksWhenItsLootScreenCloses() => UniTask.ToCoroutine(async () => {
             var session = new GameSession();
             var chest = new SaveGameContainerData(

@@ -37,6 +37,10 @@ public class AudioResourceProvider : IResourceProvider {
     }
 
     private Dictionary<string, string> BuildNamesDictionary() {
+        // No FRP.SX, no sounds — as BuildAudioDictionary already treats it.
+        if (!File.Exists(_audioFilePath)) {
+            return new Dictionary<string, string>();
+        }
         long? position = FindTagPosition(File.OpenRead(_audioFilePath));
         if (position == null) {
             return new Dictionary<string, string>();

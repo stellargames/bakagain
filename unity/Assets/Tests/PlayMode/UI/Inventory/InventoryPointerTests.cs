@@ -467,7 +467,6 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         /// </summary>
         [Test]
         public void DragEndingOnDeadSpace_SnapsBackWithoutSelecting() {
-            ShippedGameData.RequireOrIgnore(); // the game font needs the player's files
             InventoryMenu menu = BuildMenu(out VisualElement itemSlot0);
             int before = ItemCount(menu);
 
@@ -566,7 +565,6 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
 
         /// <summary>The control: the same press and move on the grid, no examine view, does drag.</summary>
         [Test]
-        [BakAgain.Tests.TestSupport.RequiresShippedGameData]
         public void APressAndMoveOnTheGrid_DragsTheItem() {
             InventoryMenu menu = BuildMenu(out VisualElement itemSlot0);
 

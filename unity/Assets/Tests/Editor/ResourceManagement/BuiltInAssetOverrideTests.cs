@@ -23,7 +23,6 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
     /// Each test registers the locators the way the game does, through
     /// <see cref="ResourceManagementInitializer"/>, on top of the catalog's.
     /// </summary>
-    [RequiresShippedGameData]
     public class BuiltInAssetOverrideTests {
         private TempOverrideDirectory _dev;
         private EnhancedPrefsStash _enhanced;

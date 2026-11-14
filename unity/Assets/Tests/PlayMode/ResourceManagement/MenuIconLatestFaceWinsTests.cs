@@ -2,7 +2,6 @@ namespace BakAgain.Tests.PlayMode.ResourceManagement {
     using System.Collections;
     using BakAgain.Core;
     using BakAgain.ResourceManagement.Loaders;
-    using BakAgain.Tests.TestSupport;
     using Microsoft.Extensions.Logging.Abstractions;
     using NUnit.Framework;
     using UnityEngine;
@@ -23,7 +22,6 @@ namespace BakAgain.Tests.PlayMode.ResourceManagement {
 
         [UnityTest]
         public IEnumerator ALitFaceArrivingLateDoesNotPaintOverTheBareStoneAskedForAfterIt() {
-            ShippedGameData.RequireOrIgnore();
             ResourceManagementInitializer.InitializeResourceManagement();
             var host = new GameObject("~MenuIconHost");
             var settings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();

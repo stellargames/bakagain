@@ -19,9 +19,6 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
     /// its member, not only <c>InventoryAcquire.FeedIfStarving</c> in isolation.
     /// </summary>
     public class InventoryFeedsTheStarvingTests {
-        [OneTimeSetUp]
-        public void RequireShippedGameData() => ShippedGameData.RequireOrIgnore();
-
         private GameObject _go;
         private PanelSettings _panelSettings;
 

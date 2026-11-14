@@ -93,7 +93,6 @@ namespace BakAgain.Tests.UI {
         }
 
         [UnityTest]
-        [RequiresShippedGameData]
         public IEnumerator EverythingELSEAboutItIsUnchanged() {
             yield return Build();
             // "Same chrome, same fill, same edges." A dimmed or greyed-out button would fail here,

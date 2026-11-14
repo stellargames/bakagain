@@ -98,7 +98,6 @@ namespace BakAgain.Tests.PlayMode.World {
         }
 
         [UnityTest]
-        [RequiresShippedGameData]
         public IEnumerator OpeningAContainerSetsItsGameStateEventId() => UniTask.ToCoroutine(async () => {
             GameSession session = Open(new SaveGameContainerEncounterData(0, JeremysBoxFlag, 0, 0, 0, 0, 0));
             await UniTask.Yield();
@@ -117,7 +116,6 @@ namespace BakAgain.Tests.PlayMode.World {
         /// like a pass.
         /// </remarks>
         [UnityTest]
-        [RequiresShippedGameData]
         public IEnumerator AContainerWithOnlyAGateKeySetsNothing() => UniTask.ToCoroutine(async () => {
             GameSession session = Open(new SaveGameContainerEncounterData(GateOnlyKey, 0, 0, 0, 0, 0, 0));
             await UniTask.Yield();

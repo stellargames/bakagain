@@ -14,7 +14,6 @@ namespace BakAgain.Tests.PlayMode.UI {
     /// replacement named (the pragma in <c>GameFonts.Install</c>). An obsolete property can keep
     /// compiling and quietly stop doing anything; this is what notices.
     /// </remarks>
-    [RequiresShippedGameData]
     public class GameFontsInstallTests {
         private const string Text = "MMMMMMMMMM";
 
