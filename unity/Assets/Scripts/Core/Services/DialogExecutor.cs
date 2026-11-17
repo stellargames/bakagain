@@ -90,6 +90,22 @@ namespace BakAgain.Core.Services {
             }
         }
 
+        /// <summary>The track playing as a conversation opens (DIALOG.C:836, <c>audio_music_play(-999)</c>).</summary>
+        public int MusicAtOpen() =>
+            BakAgain.Audio.MidiPlaybackManager.Instance?.CurrentTrack
+            ?? GameData.Resources.Audio.MusicPlayback.NoTrack;
+
+        /// <summary>
+        /// Back to <paramref name="track"/> as the conversation closes (DIALOG.C:1491): a song the
+        /// dialog started fades out, and the track it found, if any, plays again.
+        /// </summary>
+        public void RestoreMusic(int track) {
+            if (_provider != null && BakAgain.Audio.MidiPlaybackManager.Instance != null) {
+                BakAgain.Audio.MidiPlaybackManager.Instance
+                    .PlayTrackAsync(track, _provider, owner: this).Forget();
+            }
+        }
+
         /// <summary>
         /// One dialog cue: nothing, a sound effect, or a track.
         /// </summary>

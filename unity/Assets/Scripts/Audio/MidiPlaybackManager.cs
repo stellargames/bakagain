@@ -38,6 +38,9 @@ namespace BakAgain.Audio {
 
         public static MidiPlaybackManager Instance => _instance;
 
+        /// <summary>The track playing now, or <see cref="MusicPlayback.NoTrack"/>.</summary>
+        public int CurrentTrack => _currentTrack;
+
         private void Awake() {
             if (_instance && _instance != this) {
                 Destroy(gameObject);

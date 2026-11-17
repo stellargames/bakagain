@@ -1103,10 +1103,12 @@ namespace BakAgain.UI {
                 _gameSession.DialogsPlaying++;
             }
             int token = OpenPlay(label);
+            int music = _executor?.MusicAtOpen() ?? GameData.Resources.Audio.MusicPlayback.NoTrack;
             try {
                 return await play();
             } finally {
                 _openPlays.Remove(token);
+                _executor?.RestoreMusic(music);
                 // Clamped: a load resets the count (GameSession), and a play that ends after it
                 // must not take it below 0 -- a negative count reads as "nothing playing" to the
                 // world loop's `> 0` test for the rest of the session.
@@ -1121,10 +1123,12 @@ namespace BakAgain.UI {
                 _gameSession.DialogsPlaying++;
             }
             int token = OpenPlay(label);
+            int music = _executor?.MusicAtOpen() ?? GameData.Resources.Audio.MusicPlayback.NoTrack;
             try {
                 await play();
             } finally {
                 _openPlays.Remove(token);
+                _executor?.RestoreMusic(music);
                 // Clamped: a load resets the count (GameSession), and a play that ends after it
                 // must not take it below 0 -- a negative count reads as "nothing playing" to the
                 // world loop's `> 0` test for the rest of the session.
