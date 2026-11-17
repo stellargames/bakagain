@@ -14,8 +14,8 @@ namespace BakAgain.UI.Cursor {
     /// programmatic keyboard warp via <see cref="CursorArbiter"/>, and swaps images by index
     /// from the active BMX set (POINTER / POINTERG).
     ///
-    /// <para>Software (not <c>Cursor.SetCursor</c>) so it works identically on desktop and Android
-    /// and lives in the same canonical space as the menus. The per-image hotspot is the RE-derived
+    /// <para>Drawn in the same canonical space as the menus. A desktop player hands the same image to
+    /// the system cursor instead (<see cref="UseSystemCursor"/>, TASK-1084). The per-image hotspot is the RE-derived
     /// SetPointerImage rule (index 0/1 → top-left; index ≥ 2 → centred), computed directly from the
     /// loaded sprite's size — no separate CursorSet JSON load needed.</para></summary>
     [RequireComponent(typeof(UIDocument))]
@@ -44,6 +44,20 @@ namespace BakAgain.UI.Cursor {
         private bool _hidden;
 
         public Vector2 CanonicalPosition => _arbiter.Position;
+
+        /// <summary>
+        /// The system cursor shows the pointer in a desktop player (TASK-1084, forum p=40). A drawn
+        /// cursor moves once per rendered frame and trails the hand by the frames in flight; the
+        /// system's moves at the mouse's own rate. The Editor keeps the drawn one (its Game view's
+        /// warp origin differs, see <see cref="WarpTo"/>), and so does a phone, which has no pointer.
+        /// </summary>
+        internal static bool UseSystemCursor = !Application.isMobilePlatform && !Application.isEditor;
+
+        // What the pointer shows now, kept to rebuild the system cursor when the window is resized.
+        private Sprite _shownSprite;
+        private Texture2D _shownHiRes;
+        private Texture2D _systemCursor;
+        private float _systemCursorScale;
 
         private void Awake() {
             _root = GetComponent<UIDocument>().rootVisualElement;
@@ -78,11 +92,13 @@ namespace BakAgain.UI.Cursor {
 
         public void Hide() {
             _hidden = true;
+            if (UseSystemCursor) UnityEngine.Cursor.visible = false;
             if (_cursorElement != null) _cursorElement.style.display = DisplayStyle.None;
         }
 
         public void Show() {
             _hidden = false;
+            if (UseSystemCursor) UnityEngine.Cursor.visible = true;
             if (_cursorElement != null) _cursorElement.style.display = DisplayStyle.Flex;
         }
 
@@ -92,7 +108,16 @@ namespace BakAgain.UI.Cursor {
         // The accepted trade-off is that a physical mouse move after a keyboard warp reclaims the
         // pointer's position (CursorArbiter.OnPointerMoved) — the original game warped the hardware
         // cursor, but a software cursor decoupled from the OS pointer cannot without this hazard.
-        public void WarpTo(Vector2 canonicalPosition) => _arbiter.WarpTo(canonicalPosition);
+        // The system cursor is the pointer in a player, so there the warp moves it too.
+        public void WarpTo(Vector2 canonicalPosition) {
+            _arbiter.WarpTo(canonicalPosition);
+            if (!UseSystemCursor || UnityEngine.InputSystem.Mouse.current == null || _root?.panel == null) return;
+            float scale = ScreenPixelsPerPanelUnit();
+            if (scale <= 0f) return;
+            Vector2 panelPoint = canonicalPosition + StageOrigin(FindActiveStage());
+            UnityEngine.InputSystem.Mouse.current.WarpCursorPosition(
+                new Vector2(panelPoint.x * scale, Screen.height - panelPoint.y * scale));
+        }
 
         // The sword is shape 0 of both pointer sets; HiResSword is its Enhanced drawing (Enhanced/Stone).
         private const int SwordIndex = 0;
@@ -113,21 +138,78 @@ namespace BakAgain.UI.Cursor {
                 _cache[key] = entry;
             }
             if (_cursorElement == null) return;
-            // Hide the OS cursor only once ours can be drawn: the sprite comes from the original's
-            // POINTER.BMX, which cannot load before a game path is set — hiding it in Awake left the
-            // MetaMenu (where that path is chosen) with no cursor at all.
-            UnityEngine.Cursor.visible = false;
             // Enhanced draws the sword at three times the detail, over the original's own footprint and
             // hotspot (owner, 2026-11-01); the other shapes and Classic stay the original's.
             Texture2D hiRes = index == SwordIndex && BakAgain.Core.GameOptions.Enhanced
                 ? BakAgain.UI.EnhancedArt.Texture(HiResSword) : null;
+            _shownSprite = entry.sprite;
+            _shownHiRes = hiRes;
+            _hotspot = entry.hotspot;
+            if (UseSystemCursor) {
+                _cursorElement.style.display = DisplayStyle.None;
+                ApplySystemCursor();
+                return;
+            }
+            // Hide the OS cursor only once ours can be drawn: the sprite comes from the original's
+            // POINTER.BMX, which cannot load before a game path is set — hiding it in Awake left the
+            // MetaMenu (where that path is chosen) with no cursor at all.
+            UnityEngine.Cursor.visible = false;
             _cursorElement.style.backgroundImage = hiRes != null
                 ? new StyleBackground(Background.FromTexture2D(hiRes)) : new StyleBackground(entry.sprite);
             _cursorElement.style.backgroundSize = hiRes != null
                 ? new BackgroundSize(Length.Percent(100), Length.Percent(100)) : new StyleBackgroundSize(StyleKeyword.Null);
             _cursorElement.style.width = entry.sprite.rect.width;
             _cursorElement.style.height = entry.sprite.rect.height;
-            _hotspot = entry.hotspot;
+        }
+
+        /// <summary>Screen pixels per panel unit: the size the drawn cursor would have on screen.</summary>
+        private float ScreenPixelsPerPanelUnit() {
+            if (_root?.panel == null || Screen.width <= 0) return 0f;
+            float panelWidth = RuntimePanelUtils.ScreenToPanel(_root.panel, new Vector2(Screen.width, 0f)).x;
+            return panelWidth > 0f ? Screen.width / panelWidth : 0f;
+        }
+
+        // The shown pointer at its on-screen size, as the system cursor.
+        private void ApplySystemCursor() {
+            float scale = ScreenPixelsPerPanelUnit();
+            if (_shownSprite == null || scale <= 0f) return;
+            int w = Mathf.Max(1, Mathf.RoundToInt(_shownSprite.rect.width * scale));
+            int h = Mathf.Max(1, Mathf.RoundToInt(_shownSprite.rect.height * scale));
+            Texture2D built = _shownHiRes != null
+                ? BuildSystemCursor(_shownHiRes, new Rect(0, 0, _shownHiRes.width, _shownHiRes.height), w, h)
+                : BuildSystemCursor(_shownSprite.texture, _shownSprite.textureRect, w, h);
+            var hotspot = new Vector2(Mathf.Clamp(_hotspot.x * scale, 0, w - 1), Mathf.Clamp(_hotspot.y * scale, 0, h - 1));
+            UnityEngine.Cursor.SetCursor(built, hotspot, CursorMode.Auto);
+            UnityEngine.Cursor.visible = !_hidden;
+            if (_systemCursor != null) Destroy(_systemCursor);
+            _systemCursor = built;
+            _systemCursorScale = scale;
+        }
+
+        /// <summary>
+        /// <paramref name="rect"/> of <paramref name="source"/> (texture pixels) scaled to
+        /// <paramref name="width"/> x <paramref name="height"/>, as SetCursor wants it: RGBA32, no mips.
+        /// Through the GPU, so a texture that is not CPU-readable (an imported one) works too.
+        /// </summary>
+        internal static Texture2D BuildSystemCursor(Texture source, Rect rect, int width, int height) {
+            RenderTexture target = RenderTexture.GetTemporary(width, height, 0, RenderTextureFormat.ARGB32,
+                RenderTextureReadWrite.sRGB);
+            RenderTexture previous = RenderTexture.active;
+            try {
+                var uvScale = new Vector2(rect.width / source.width, rect.height / source.height);
+                var uvOffset = new Vector2(rect.x / source.width, rect.y / source.height);
+                Graphics.Blit(source, target, uvScale, uvOffset);
+                RenderTexture.active = target;
+                var cursor = new Texture2D(width, height, TextureFormat.RGBA32, mipChain: false) {
+                    filterMode = FilterMode.Point,
+                };
+                cursor.ReadPixels(new Rect(0, 0, width, height), 0, 0);
+                cursor.Apply();
+                return cursor;
+            } finally {
+                RenderTexture.active = previous;
+                RenderTexture.ReleaseTemporary(target);
+            }
         }
 
         /// <summary>How far a hotspot's word stands off a finger, in panel units: a fingertip and the
@@ -281,6 +363,13 @@ namespace BakAgain.UI.Cursor {
         private void LateUpdate() {
             if (_hidden || _cursorElement == null || _pointer == null) return;
             PumpPointer(_pointer);
+            if (UseSystemCursor) {
+                _cursorElement.style.display = DisplayStyle.None;
+                // A resize changes the pointer's on-screen size, as it does the drawn one's.
+                if (_shownSprite != null && !Mathf.Approximately(ScreenPixelsPerPanelUnit(), _systemCursorScale)) {
+                    ApplySystemCursor();
+                }
+            }
         }
 
         // Test seam: no device reads, drives the arbiter from IPointer.
