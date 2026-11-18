@@ -7,6 +7,7 @@ namespace BakAgain.Tests.PlayMode.UI.Cursor {
     /// The image handed to the system cursor on desktop (TASK-1084, forum p=40): the pointer sprite
     /// scaled to its on-screen size, the right way up, its transparent pixels still transparent.
     /// </summary>
+    [Category("Graphics")] // reads back a GPU blit: CI runs these in the job with graphics
     public class SystemCursorImageTests {
         [Test]
         public void ThePointerIsScaledToItsScreenSizeTheRightWayUpWithItsTransparencyKept() {
