@@ -32,6 +32,14 @@ namespace BakAgain.Audio {
         // no-restart guard in PlayTrackAsync.
         private int _currentTrack = MusicPlayback.NoTrack;
 
+        // Counts music changes, so a change that is still loading or fading can tell that a newer
+        // one has taken over and leave the music to it (forum p=51).
+        private int _changeSerial;
+
+        // The song's volume before the fade in progress began, so a fade cut short by a newer
+        // change does not leave the next song quieter.
+        private float? _fadeFrom;
+
         private IPreferencesService _preferences;
 
         private readonly Dictionary<string, MidiSynthPlayer> _activeSfxPlayers = new();
@@ -296,24 +304,42 @@ namespace BakAgain.Audio {
         public async UniTask<int> PlayTrackAsync(int trackId, IResourceProviderService resources,
             object owner = null) {
             MusicPlayback.MusicChange change = MusicPlayback.Resolve(trackId, _currentTrack);
+            if (change.Action == MusicPlayback.MusicAction.None) {
+                return change.PreviousTrack;
+            }
+
+            // *** THE NEW TRACK COUNTS AS CURRENT FROM HERE, BEFORE THE FADE. *** The original's fade
+            // blocks the game (AUDIO.C:111-113), so nothing can ask for the track halfway. Ours
+            // runs over frames: a dialog opened in it (a fight's outcome line) read the outgoing
+            // song as "what was playing" and played it again when it closed (forum p=51).
+            int outgoing = _currentTrack;
+            _currentTrack = trackId;
+            int serial = ++_changeSerial;
 
             switch (change.Action) {
                 case MusicPlayback.MusicAction.Stop:
-                    await FadeOutAsync();
-                    StopMusic();
+                    await FadeOutAsync(outgoing, serial);
+                    if (serial == _changeSerial) {
+                        StopMusic();
+                    }
 
                     break;
                 case MusicPlayback.MusicAction.Switch:
                     var song = await resources.LoadAssetAsync<AudioResource>(
                         trackId.ToString(), owner ?? this);
 
+                    if (serial != _changeSerial) {
+                        break;   // a newer change took over while this one loaded
+                    }
                     if (song == null) {
                         _logger.LogWarning("No audio resource for music track {TrackId}.", trackId);
                     } else {
                         // Fade the outgoing track before the new one starts. The load happens first
                         // so the gap between them is the fade and not the disk.
-                        await FadeOutAsync();
-                        PlaySong(song);
+                        await FadeOutAsync(outgoing, serial);
+                        if (serial == _changeSerial) {
+                            PlaySong(song);
+                        }
                     }
 
                     break;
@@ -335,16 +361,19 @@ namespace BakAgain.Audio {
         /// <para>Returns immediately when nothing is playing, which is what keeps the first track of
         /// a session from waiting through a fade of silence.</para>
         /// </remarks>
-        private async UniTask FadeOutAsync() {
-            if (_songPlayer == null || !MusicPlayback.NeedsFadeOut(_currentTrack)) {
+        private async UniTask FadeOutAsync(int outgoing, int serial) {
+            if (_songPlayer == null || !MusicPlayback.NeedsFadeOut(outgoing)) {
                 return;
             }
 
-            float startVolume = _songPlayer.Volume;
+            float startVolume = _fadeFrom ??= _songPlayer.Volume;
             double elapsed = 0;
             double total = MusicPlayback.FadeSeconds;
 
             while (elapsed < total) {
+                if (serial != _changeSerial) {
+                    return;   // a newer change fades from here, from the same full volume
+                }
                 elapsed += Time.unscaledDeltaTime;
                 _songPlayer.Volume =
                     startVolume * (float)MusicPlayback.FadeVolumeFractionAt(elapsed);
@@ -352,6 +381,7 @@ namespace BakAgain.Audio {
             }
 
             _songPlayer.Volume = startVolume;   // the next song starts at full volume
+            _fadeFrom = null;
         }
 
         /// <summary>Stop the currently-playing background song (SFX are left alone). Mirrors the

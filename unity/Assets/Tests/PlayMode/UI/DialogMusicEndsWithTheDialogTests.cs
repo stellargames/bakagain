@@ -41,6 +41,57 @@ namespace BakAgain.Tests.PlayMode.UI {
         public IEnumerator ADialogSongOverSilenceStopsWhenTheDialogEnds() =>
             UniTask.ToCoroutine(() => Run(MusicPlayback.NoTrack));
 
+        /// <summary>
+        /// Forum p=51: a fight's song came back and looped after a later shop. The fight's end
+        /// fades its song out (1.5 s) and its outcome line opens a dialog inside that fade. The
+        /// original cannot be asked in between, its fade blocks (AUDIO.C:111-113), so the dialog
+        /// must find silence there, not the song on its way out.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ADialogOpenedWhileTheFightsSongFadesOutDoesNotBringItBack() =>
+            UniTask.ToCoroutine(async () => {
+                using var notes = TestSupport.ExpectedLog.CaptureAll(
+                    new System.Text.RegularExpressions.Regex("does not contain variant"));
+                var midiGo = new GameObject("Music");
+                var dialogGo = new GameObject("Dialogs");
+                try {
+                    MidiPlaybackManager midi = MidiPlaybackManager.Instance;
+                    if (midi == null) {
+                        midi = midiGo.AddComponent<MidiPlaybackManager>();
+                        await UniTask.Yield();
+                    }
+                    var songs = new BareSongs();
+                    midi.StopMusic();
+                    await midi.PlayTrackAsync(DialogTrack, songs);
+                    Assert.AreEqual(DialogTrack, midi.CurrentTrack, "control: the fight's song plays");
+
+                    // The fight ends: back to the silence it found. Not awaited, as WorldRuntime does.
+                    midi.PlayTrackAsync(MusicPlayback.NoTrack, songs).Forget();
+
+                    DialogManager dialogs = dialogGo.AddComponent<DialogManager>();
+                    typeof(DialogManager).GetField("_executor", BindingFlags.NonPublic | BindingFlags.Instance)
+                        .SetValue(dialogs, new DialogExecutor(null, null, null, songs));
+                    MethodInfo playing = typeof(DialogManager).GetMethod("Playing",
+                        BindingFlags.NonPublic | BindingFlags.Instance, null,
+                        new[] { typeof(Func<UniTask>), typeof(string) }, null);
+                    // The outcome line, read for longer than the fade lasts.
+                    Func<UniTask> outcome = () => UniTask.Delay(
+                        TimeSpan.FromSeconds(MusicPlayback.FadeSeconds + 0.5), ignoreTimeScale: true);
+                    await (UniTask)playing.Invoke(dialogs, new object[] { outcome, "test" });
+
+                    float deadline = Time.realtimeSinceStartup + (float)MusicPlayback.FadeSeconds + 3f;
+                    while (Time.realtimeSinceStartup < deadline) {
+                        await UniTask.Yield();
+                    }
+                    Assert.AreEqual(MusicPlayback.NoTrack, midi.CurrentTrack,
+                        "the fight's song came back after a dialog opened during its fade (forum p=51)");
+                    midi.StopMusic();
+                } finally {
+                    UnityEngine.Object.DestroyImmediate(dialogGo);
+                    UnityEngine.Object.DestroyImmediate(midiGo);
+                }
+            });
+
         private static async UniTask Run(int before) {
             // The bare songs hold no MIDI, which the manager notes for each one.
             using var notes = TestSupport.ExpectedLog.CaptureAll(
