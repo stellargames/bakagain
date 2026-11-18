@@ -2481,7 +2481,7 @@ namespace BakAgain.UI.Inventory {
                 DoseAgainAsync(slot, obj.Number, used).Forget();
                 return;
             }
-            ApplyUseResult(used, slot);
+            ApplyUseResult(used, slot, obj);
         }
 
         /// <summary>The dispatch tail's outcome-1 record, "used", keyed by the item in var 0.</summary>
@@ -2499,7 +2499,7 @@ namespace BakAgain.UI.Inventory {
         /// </remarks>
         private async UniTaskVoid HandToTheArenaAsync(int slot, int objectId) {
             await ShowVar0MessageAsync(UsedDialogId, objectId);
-            PlayItemUseCue(ItemUseOutcome.Applied, slot);
+            PlayItemUseCue(ItemUseOutcome.Applied, ObjectAt(slot));
             Close();
         }
 
@@ -2523,7 +2523,7 @@ namespace BakAgain.UI.Inventory {
                     await ShowVar0MessageAsync(result.DialogId, result.DialogVar0);
                 }
                 ApplyUseResult(new ItemUseResult(result.Outcome, 0, 0, result.SourceRemoved), slot,
-                    redrawAnyway: true);
+                    _gameSession.ObjectInfo?.GetById(objectId), redrawAnyway: true);
                 if (result.SourceRemoved || member < 0 || _dialogs == null
                     || slot >= _displayed.Items.Count || _displayed.Items[slot].ObjectId != objectId) {
                     return;
@@ -4070,7 +4070,7 @@ namespace BakAgain.UI.Inventory {
             // back — so even the outcomes that change nothing have to repaint.
             ApplyUseResult(
                 InventoryUse.Use(_displayed, slot, target, _gameSession.ObjectInfo, BuildUseContext()),
-                slot, redrawAnyway: true);
+                slot, obj, redrawAnyway: true);
             return true;
         }
 
@@ -4097,18 +4097,21 @@ namespace BakAgain.UI.Inventory {
         /// times, the Whetstone passes twice — so it is passed through rather than dropped, and
         /// <see cref="Audio.MenuSoundService"/> sequences them. Firing the cue N times in one frame
         /// would take N pool players and sound them together: one louder strike, not three.</para>
+        ///
+        /// <para><b>The item is the one the use started with</b>, never read back from its slot: a use
+        /// that spends the item has removed it by now and the next item has moved up (forum p=50).
+        /// The original plays the sound from the record it holds, then removes (ITEMUSE.C:491-494).</para>
         /// </remarks>
-        private void PlayItemUseCue(ItemUseOutcome outcome, int slot) {
+        private void PlayItemUseCue(ItemUseOutcome outcome, ObjectInfo info) {
             if (!ItemUseSound.Sounds(outcome)) {
                 return;
             }
-            ObjectInfo info = ObjectAt(slot);
             if (info != null && info.SoundId != 0) {
-                Audio.MenuSoundService.Instance?.Play(info.SoundId, info.SoundRepeat);
+                Audio.MenuSoundService.Cue(info.SoundId, info.SoundRepeat);
             }
         }
 
-        private void ApplyUseResult(ItemUseResult result, int slot, bool redrawAnyway = false) {
+        private void ApplyUseResult(ItemUseResult result, int slot, ObjectInfo used, bool redrawAnyway = false) {
             // *** THE ONE PLACE THE MODIFIER SLOTS GET WRITTEN BACK. *** BuildUseContext hands the
             // dispatch a COPY of the acting character's eight slots (the block is flat, so a
             // per-character view cannot be a live array), and both Use() call sites funnel through
@@ -4120,7 +4123,7 @@ namespace BakAgain.UI.Inventory {
                 _pendingUseCharacter = -1;
             }
 
-            PlayItemUseCue(result.Outcome, slot);
+            PlayItemUseCue(result.Outcome, used);
 
             if (result.RaisesCameraOnClose) {
                 _gameSession.CameraLiftRequested = true;   // the travel screen runs it once this closes

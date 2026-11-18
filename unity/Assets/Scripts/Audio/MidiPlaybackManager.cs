@@ -234,12 +234,16 @@ namespace BakAgain.Audio {
                 pcm.Samples.Length / pcm.Channels, pcm.Channels, pcm.SampleRate, stream: false);
             clip.SetData(pcm.Samples, 0);
             _sampleSource.PlayOneShot(clip);
+            _sampleEnds[audioResource.Id] = Time.realtimeSinceStartup + clip.length;
             _logger.LogInformation("Playing SAMPLE: {SfxName} (ID: {SfxId}), {Samples} samples at {Rate} Hz",
                 audioResource.Name, audioResource.Id, pcm.Samples.Length, pcm.SampleRate);
         }
 
         /// <summary>The one AudioSource digitised samples are mixed through.</summary>
         private AudioSource _sampleSource;
+
+        /// <summary>When each sample now sounding ends, for <see cref="IsSfxPlaying"/>.</summary>
+        private readonly System.Collections.Generic.Dictionary<string, float> _sampleEnds = new();
 
         /// <summary>
         /// Whether the SFX with this id is still sounding.
@@ -256,9 +260,12 @@ namespace BakAgain.Audio {
         /// </remarks>
         public bool IsSfxPlaying(string soundId) =>
             soundId != null
-            && _activeSfxPlayers.TryGetValue(soundId, out MidiSynthPlayer player)
-            && player != null
-            && player.IsPlaying;
+            && ((_activeSfxPlayers.TryGetValue(soundId, out MidiSynthPlayer player)
+                    && player != null
+                    && player.IsPlaying)
+                // A sample has no player to ask; it sounds for its clip's length (forum p=50: the
+                // Armorer's Hammer is a sample, and its three strikes fired in one frame).
+                || (_sampleEnds.TryGetValue(soundId, out float end) && Time.realtimeSinceStartup < end));
 
         public void StopSound(string soundIdToStop) {
             _logger.LogDebug("Attempting to stop sound with ID: {SoundId}", soundIdToStop);

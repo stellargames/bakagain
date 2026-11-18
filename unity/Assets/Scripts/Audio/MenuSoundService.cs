@@ -36,9 +36,12 @@ namespace BakAgain.Audio {
         /// The static path a screen uses when a test has to see the cue: a test has no
         /// <see cref="Instance"/> (it needs the audio owner), so <c>Instance?.Play</c> alone is invisible.
         /// </remarks>
-        public static void Cue(int soundId) {
+        public static void Cue(int soundId) => Cue(soundId, extraRepeats: 0);
+
+        /// <summary><see cref="Cue(int)"/> with <see cref="Play(int, int)"/>'s extra repeats.</summary>
+        public static void Cue(int soundId, int extraRepeats) {
             CueRequested?.Invoke(soundId);
-            Instance?.Play(soundId);
+            Instance?.Play(soundId, extraRepeats);
         }
 
         /// <summary>Stops a held cue through <see cref="Instance"/>, telling <see cref="CueStopped"/> first.</summary>
