@@ -347,6 +347,12 @@ namespace BakAgain.UI.InGame {
 
         internal void SetInCombatPredicate(System.Func<bool> inCombat) => _inCombat = inCombat;
 
+        /// <summary>Whether the arena is still on screen, which outlasts the fight: its outcome line and the fade
+        /// out show it after <c>Combat.Leave</c> (forum p=54).</summary>
+        internal void SetArenaShownPredicate(System.Func<bool> arenaShown) => _arenaShown = arenaShown;
+
+        private System.Func<bool> _arenaShown;
+
         // Whether the fight's first turn has been handed out (HotspotService.FightUnderWay); null = yes.
         private System.Func<bool> _fightUnderWay;
 
@@ -1659,10 +1665,16 @@ namespace BakAgain.UI.InGame {
         }
 
         // Enhanced combat implies the full-screen view in a fight, whatever the travel switch says.
+        // The arena stays framed until it is LEFT, not until the fight ends in the code: its outcome line and the
+        // fade out still show it, and switching there drew the Classic arena full-screen (forum p=54).
         private bool WantFullScreen() =>
-            EnhancedCombatActive || (GameOptions.IsOn(EnhancedFeature.FullScreenTravel) && !AFightIsRunning());
+            EnhancedCombatActive || (GameOptions.IsOn(EnhancedFeature.FullScreenTravel) && !AFightIsRunning()
+                && !(_arenaShown?.Invoke() ?? false));
 
         internal bool WantsFullScreen => WantFullScreen();
+
+        /// <summary>Whether the travel view is drawn full-screen right now (the harness reads it).</summary>
+        internal bool FullScreenShown => _fullScreenShown;
 
         /// <summary>A fight is running and the Enhanced combat interface is on (TASK-972).</summary>
         /// <remarks>Latched per turn once the fight's turn seam is set: turning the switch off mid-fight

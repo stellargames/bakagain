@@ -54,11 +54,15 @@ namespace BakAgain.World.Encounters {
         private int _extent;
 
         /// <summary>Start the collapse. Does nothing without a creature set to read frames from.</summary>
+        /// <param name="standIn">The victim's living sprite, kept from the previous redraw: shown instead of the
+        /// body until the swing that killed it has ended, then destroyed. Null when there is none.</param>
         public UniTask Play(WorldEntityRenderContext ctx,
             SpriteBMeshFace face,
-            string setName, int lastFrame, int extent) {
+            string setName, int lastFrame, int extent, GameObject standIn = null) {
+            _standIn = standIn;
             if (ctx == null || face == null || string.IsNullOrEmpty(setName)
                 || lastFrame < Frames - 1) {
+                DropStandIn();
                 return UniTask.CompletedTask;
             }
             _ctx = ctx;
@@ -82,10 +86,33 @@ namespace BakAgain.World.Encounters {
             }
         }
 
+        private GameObject _standIn;
+
+        private void DropStandIn() {
+            if (_standIn != null) {
+                Destroy(_standIn);
+            }
+            _standIn = null;
+        }
+
+        private void OnDestroy() => DropStandIn();
+
         private async UniTask RunCoreAsync() {
             var filter = GetComponent<MeshFilter>();
             var renderer = GetComponent<MeshRenderer>();
             if (filter == null || renderer == null) {
+                DropStandIn();
+                return;
+            }
+
+            // *** THE BODY FALLS AFTER THE BLOW. *** The original's swing blocks, then apply_damage plays this
+            // run (COMBAT.C:487 then 226). Until the swing has ended the victim is drawn alive, by its own sprite
+            // from the last redraw; the body stays hidden (TASK-1073, forum p=54). The swing starts on this same
+            // redraw, so give it a frame to register before asking.
+            renderer.enabled = false;
+            await UniTask.Yield();
+            await UniTask.WaitWhile(() => AttackSwing.Playing > 0);
+            if (this == null) {
                 return;
             }
 
@@ -94,7 +121,12 @@ namespace BakAgain.World.Encounters {
             for (int i = Frames - 1; i > 0; i--) {
                 int index = _lastFrame - i;
                 Texture2D tex = await _ctx.LoadSpriteTextureAsync($"{_setName}#{index}", gameObject);
-                if (tex == null || this == null || _ctx == null) {
+                if (this == null) {
+                    return;
+                }
+                if (tex == null || _ctx == null) {
+                    renderer.enabled = true;   // no run to play: show the body as built
+                    DropStandIn();
                     return;
                 }
 
@@ -104,21 +136,14 @@ namespace BakAgain.World.Encounters {
                 filter.sharedMesh = mesh;
                 CurrentFrame = index;
                 renderer.sharedMaterial = _ctx.GetSpriteMaterial(tex);
+                if (!renderer.enabled) {
+                    renderer.enabled = true;   // the run's first picture replaces the stand-in, no gap between
+                    DropStandIn();
+                }
                 // Keep the mirroring the builder chose; only the magnitude comes from the frame.
                 Vector3 had = transform.localScale;
                 transform.localScale = new Vector3(
                     had.x < 0 ? -scale.x : scale.x, scale.y, scale.z);
-
-                // *** THE BODY FALLS AFTER THE BLOW. *** The original's swing blocks, then
-                // apply_damage plays this run (COMBAT.C:487 then 226); started with the swing on the
-                // same redraw, the body was down before the blade arrived (TASK-1073). It stands on
-                // the run's first picture meanwhile.
-                if (i == Frames - 1) {
-                    await UniTask.WaitWhile(() => AttackSwing.Playing > 0);
-                    if (this == null) {
-                        return;
-                    }
-                }
 
                 await UniTask.Delay(System.TimeSpan.FromSeconds(FrameSeconds),
                     ignoreTimeScale: false);

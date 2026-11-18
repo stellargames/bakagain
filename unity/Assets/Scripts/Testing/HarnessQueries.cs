@@ -89,6 +89,7 @@ namespace BakAgain.Testing {
                 case "travel": return Travel();
                 case "party": return Party();
                 case "visuals": return Visuals();
+                case "arena": return Arena();
                 case "rect":
                     return a.Length == 2 ? Rect(a[1], 0)
                         : a.Length == 3 && int.TryParse(a[2], out int index) && index >= 0 ? Rect(a[1], index)
@@ -397,6 +398,36 @@ namespace BakAgain.Testing {
             return Ok(new Dictionary<string, object> { ["sprites"] = sprites, ["floats"] = floats, ["sounds"] = sounds });
         }
 
+        /// <summary>
+        /// The arena as drawn, with or without a fight: whether the travel view is full-screen, and each arena
+        /// sprite's pose and place in the world view (viewport 0..1). Works after the fight has ended, while
+        /// the outcome line and the fade still show the arena (forum p=54).
+        /// </summary>
+        private static string Arena() {
+            Camera cam = Resolve<WorldRuntime>()?.WorldCamera;
+            UI.InGame.InGameScreen screen = UnityEngine.Object.FindAnyObjectByType<UI.InGame.InGameScreen>();
+            var sprites = new List<object>();
+            World.Hotspots.HotspotService hs = Hotspots();
+            CombatEncounter e = hs?.Combat?.Encounter;
+            void Add(MonoBehaviour m, int slot, bool party, bool corpse, int frame) {
+                Vector3 v = cam != null ? cam.WorldToViewportPoint(m.transform.position) : Vector3.zero;
+                sprites.Add(new Dictionary<string, object> {
+                    ["who"] = e != null ? Who(e, hs.CombatantFor(slot, party)) : null, ["slot"] = slot, ["party"] = party, ["corpse"] = corpse, ["frame"] = frame,
+                    ["vx"] = v.x, ["vy"] = v.y, ["shown"] = m.GetComponent<Renderer>()?.enabled ?? false });
+            }
+            foreach (World.Encounters.ArenaCombatant m in UnityEngine.Object.FindObjectsByType<World.Encounters.ArenaCombatant>()) {
+                World.Encounters.AttackSwing swing = m.GetComponent<World.Encounters.AttackSwing>();
+                Add(m, m.RosterSlot, m.PartyMember, false, swing != null ? swing.CurrentFrame : -1);
+            }
+            foreach (World.Encounters.ArenaCorpse m in UnityEngine.Object.FindObjectsByType<World.Encounters.ArenaCorpse>()) {
+                World.Encounters.DeathCollapse collapse = m.GetComponent<World.Encounters.DeathCollapse>();
+                Add(m, m.RosterSlot, m.PartyMember, true, collapse != null ? collapse.CurrentFrame : -1);
+            }
+            return Ok(new Dictionary<string, object> {
+                ["fullscreen"] = screen != null && screen.FullScreenShown, ["fight"] = Hotspots()?.FightInProgress ?? false,
+                ["sprites"] = sprites });
+        }
+
         // ---- where things are on screen ----
 
         private static float UiScale() {
@@ -439,10 +470,20 @@ namespace BakAgain.Testing {
         private static string Pixel(Vector3 world) {
             Camera cam = Resolve<WorldRuntime>()?.WorldCamera;
             if (cam == null) return Refuse("no world camera");
-            Vector3 p = cam.WorldToScreenPoint(world);
+            Vector3 p = cam.WorldToViewportPoint(world);
             if (p.z <= 0) return Refuse("behind the camera");
+            // The camera draws into a texture shown in the world view's element, which fills the window only in
+            // the full-screen view; Classic frames it (forum p=54's check clicked beside every cell there).
+            VisualElement view = UI.InGame.WorldViewportView.ShowingElement;
+            IPanel panel = view?.panel;
+            UnityEngine.Rect r = panel != null && view.worldBound.width > 0
+                ? view.worldBound : new UnityEngine.Rect(0, 0, 0, 0);
+            float sx = panel != null ? Screen.width / panel.visualTree.layout.width : 1f;
+            float sy = panel != null ? Screen.height / panel.visualTree.layout.height : 1f;
+            if (r.width <= 0) return Ok(new Dictionary<string, object> {
+                ["x"] = Mathf.RoundToInt(p.x * Screen.width), ["y"] = Mathf.RoundToInt((1 - p.y) * Screen.height) });
             return Ok(new Dictionary<string, object> {
-                ["x"] = Mathf.RoundToInt(p.x), ["y"] = Mathf.RoundToInt(Screen.height - p.y) });
+                ["x"] = Mathf.RoundToInt((r.x + p.x * r.width) * sx), ["y"] = Mathf.RoundToInt((r.y + (1 - p.y) * r.height) * sy) });
         }
 
         private static string Cell(int x, int y) {

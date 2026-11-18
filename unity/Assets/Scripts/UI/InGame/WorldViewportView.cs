@@ -52,6 +52,9 @@ namespace BakAgain.UI.InGame {
         /// </remarks>
         public VisualElement Element => _element;
 
+        /// <summary>The element the world camera is drawn into right now, whichever view owns it.</summary>
+        internal static VisualElement ShowingElement => _cameraOwner?._element;
+
         /// <summary>Create the viewport element as an inset-0 child of hotspot_192 and allocate
         /// the RenderTexture. panelRoot is used to find hotspot_192, and to resolve the stage
         /// (lazily — see <see cref="CanonicalStage.FindOrCached"/>). The document root is what this

@@ -41,6 +41,10 @@ namespace BakAgain.World {
         // the outgoing track, which is what MusicSelection.ForCombat's contract says the caller keeps.
         private int _trackBeforeCombat = GameData.Resources.Audio.MusicPlayback.NoTrack;
 
+        // From the swap into the arena until the swap out has finished: longer than the fight itself, whose end
+        // is set before its outcome line and the fade (forum p=54).
+        private bool _arenaOnScreen;
+
         // The G-key edge that flips the tactical overlay. Optional, so a container that does
         // not register it leaves the overlay simply un-toggleable rather than failing to build.
         private readonly BakAgain.UI.InputCore.ICombatOverlayInput _overlayInput;
@@ -1478,6 +1482,21 @@ namespace BakAgain.World {
         }
 
         private async UniTask DrawCombatantsAsync() {
+            // *** THE VICTIM STANDS UNTIL THE BLOW LANDS. *** The redraw that starts the killing swing is the one
+            // that turns the victim into a corpse; the original draws it alive until its swing has ended and
+            // apply_damage plays the death run (COMBAT.C:487, 226). So the living sprite is kept out of the
+            // clear and stands in for the body until then (forum p=54: "already kneeling during the swing").
+            var standIns = new System.Collections.Generic.Dictionary<(int, bool), GameObject>();
+            if (_arenaRoot != null && _hotspots != null) {
+                foreach (Encounters.ArenaCombatant live in
+                         _arenaRoot.GetComponentsInChildren<Encounters.ArenaCombatant>()) {
+                    GameData.Resources.Combat.Combatant c = _hotspots.CombatantFor(live.RosterSlot, live.PartyMember);
+                    if (c != null && c.IsDead && !c.DeathShown) {
+                        live.transform.SetParent(null, worldPositionStays: true);
+                        standIns[(live.RosterSlot, live.PartyMember)] = live.gameObject;
+                    }
+                }
+            }
             ClearArena();
             // *** DONE HERE, NOT AT WORLD BUILD. *** The travel screen owns the viewport click and
             // the fight owns what a body means, but the HUD is pushed AFTER BuildAsync — handing it
@@ -1496,6 +1515,7 @@ namespace BakAgain.World {
                 screen.SetCombatGroundSeam(_hotspots.ResolveCombatGroundClick);
                 screen.SetCombatFaceSeam(FaceActingCombatantAt);
                 screen.SetInCombatPredicate(() => _hotspots?.Combat?.InCombat ?? false);
+                screen.SetArenaShownPredicate(() => _arenaOnScreen);
                 screen.SetFightUnderWayPredicate(() => _hotspots?.FightUnderWay ?? false);
                 if (_hotspots.Combat != null) {
                     _hotspots.Combat.ForecastLayout = _combatLayout;
@@ -1704,9 +1724,14 @@ namespace BakAgain.World {
                     continue;
                 }
                 dead.DeathShown = true;
+                standIns.TryGetValue((corpse.RosterSlot, corpse.PartyMember), out GameObject standIn);
+                standIns.Remove((corpse.RosterSlot, corpse.PartyMember));
                 corpse.gameObject.AddComponent<Encounters.DeathCollapse>().Play(
                     _zoneSceneBuilder.RenderContext, corpse.Face, corpse.SetName,
-                    corpse.CollapseLastFrame, corpse.Extent).Forget();
+                    corpse.CollapseLastFrame, corpse.Extent, standIn).Forget();
+            }
+            foreach (GameObject unused in standIns.Values) {
+                Object.Destroy(unused);   // no body was drawn for it
             }
 
             // *** THE RECOIL'S CLOCK IS THIS REDRAW, AND THE TICK COMES AFTER THE DRAW. ***
@@ -2553,6 +2578,7 @@ namespace BakAgain.World {
         /// <summary>Build the world for the session's current zone. The caller (GameFlow) then wires
         /// <see cref="WorldCamera"/>/<see cref="Movement"/> into the travel screen and shows it.</summary>
         public async UniTask BuildAsync() {
+            _arenaOnScreen = false;   // a wiped party leaves through the menu, never through the swap out
             LoggerExtensions.LogInformation(_logger, "Building world. Chapter {Chapter}, Zone {Zone}, Party: {Party}, Gold: {Gold}",
                 _gameSession.Chapter,
                 _gameSession.CurrentZone,
@@ -2628,6 +2654,7 @@ namespace BakAgain.World {
                 // finished would show an empty arena and pop the combatants in.
                 showArena: async entering => {
                     if (entering) {
+                        _arenaOnScreen = true;
                         PointCameraAtArena();
                         // Before the arena is built, not after: the map's copy of these creatures
                         // must never be on screen at the same time as the arena's. Also before
@@ -2653,6 +2680,7 @@ namespace BakAgain.World {
                         // original frees the zone for a fight and reloads it after, so the map is
                         // re-read; rebuild the chunk's actors from the block the same way.
                         await RedrawEncounterActorsAsync();
+                        _arenaOnScreen = false;
                     }
                 },
                 // The same by-id player PartyMovement already gets — reusing it rather than adding

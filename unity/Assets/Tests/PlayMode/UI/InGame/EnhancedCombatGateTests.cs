@@ -137,6 +137,22 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             }
         }
 
+        /// <summary>
+        /// Forum p=54: the fight is over in the code (Combat.Leave) while its outcome line and the fade still show
+        /// the arena. The Classic arena keeps its framed view until it is left; it jumped to full-screen, a 2x zoom.
+        /// </summary>
+        [Test]
+        public void WithEnhancedCombatOff_TheArenaStaysFramedUntilItIsLeft() {
+            GameOptions.SetFeature(EnhancedFeature.Combat, false);
+            _hud.SetInCombatPredicate(() => false);
+            _hud.SetArenaShownPredicate(() => true);
+
+            Assert.That(_hud.WantsFullScreen, Is.False, "the arena is still on screen");
+
+            _hud.SetArenaShownPredicate(() => false);
+            Assert.That(_hud.WantsFullScreen, Is.True, "control: once the arena is gone, travel is full-screen again");
+        }
+
         [Test]
         public void WithoutAFight_EnhancedCombatIsNotActive() {
             GameOptions.SetFeature(EnhancedFeature.Combat, true);
