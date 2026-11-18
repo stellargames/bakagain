@@ -19,6 +19,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
     /// </summary>
     public class ItemUseCueTests {
         private const int LightBowstringId = 77, LightCrossbowId = 30, BowstringCue = 22;
+        private const int ShopCue = 0x3c; // BUY: the shop's item flight, INVENTOR.C:565
 
         private readonly List<int> _cues = new();
         private GameObject _go;
@@ -37,9 +38,34 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             if (_panelSettings != null) { Object.DestroyImmediate(_panelSettings); }
         }
 
+        /// <summary>
+        /// A purchase sounds (forum p=50, "no coin noises"). The original's buy is the ordinary drop
+        /// on a portrait, whose item flight plays BUY when the other side is a shop (INVENTOR.C:565,
+        /// :754).
+        /// </summary>
         [Test]
-        public void ABowstringSpentOnACrossbowStillMakesItsSound() {
-            var session = new GameSession();
+        public void ABuyPlaysTheShopSound() {
+            InventoryMenu menu = Build(out GameSession session, out RuntimeContainer pack);
+            session.PartyGold = 1000;
+            var shop = new RuntimeContainer { Capacity = 20, ContainerType = SaveGameContainerType.FixedWorldItem };
+            var forSale = new RuntimeItem(LightCrossbowId, 50, 0);
+            shop.Items.Add(forSale);
+            typeof(InventoryMenu).GetField("_displayed", BindingFlags.NonPublic | BindingFlags.Instance)
+                .SetValue(menu, shop);
+
+            var buy = (Cysharp.Threading.Tasks.UniTask)typeof(InventoryMenu)
+                .GetMethod("CompletePurchaseAsync", BindingFlags.NonPublic | BindingFlags.Instance)
+                .Invoke(menu, new object[] {
+                    forSale, session.ObjectInfo.GetById(LightCrossbowId), pack, 0, 100L,
+                });
+
+            Assert.AreEqual(Cysharp.Threading.Tasks.UniTaskStatus.Succeeded, buy.Status, "control: nothing asked, so the buy ends at once");
+            Assert.AreEqual(900, session.PartyGold, "control: the crossbow was paid for");
+            Assert.That(_cues, Is.EqualTo(new[] { ShopCue }));
+        }
+
+        private InventoryMenu Build(out GameSession session, out RuntimeContainer pack) {
+            session = new GameSession();
             session.SetObjectInfo(new ObjectInfoSet("O", new List<ObjectInfo> {
                 new ObjectInfo("bowstring") {
                     Number = LightBowstringId, Name = "Light Bowstring", InventorySlots = 1,
@@ -51,9 +77,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
                     ObjectType = ObjectType.Crossbow,
                 },
             }));
-            var pack = new RuntimeContainer { Capacity = 20, ContainerType = SaveGameContainerType.Inventory };
-            pack.Items.Add(new RuntimeItem(LightBowstringId, 1, 0));
-            pack.Items.Add(new RuntimeItem(LightCrossbowId, 50, 0));
+            pack = new RuntimeContainer { Capacity = 20, ContainerType = SaveGameContainerType.Inventory };
 
             _go = new GameObject("ItemUseCueUnderTest");
             var document = _go.AddComponent<UIDocument>();
@@ -77,6 +101,15 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             stage.panel.GetType().GetMethod("ValidateLayout",
                     BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
                 ?.Invoke(stage.panel, null);
+            return menu;
+        }
+
+        [Test]
+        public void ABowstringSpentOnACrossbowStillMakesItsSound() {
+            InventoryMenu menu = Build(out _, out RuntimeContainer pack);
+            pack.Items.Add(new RuntimeItem(LightBowstringId, 1, 0));
+            pack.Items.Add(new RuntimeItem(LightCrossbowId, 50, 0));
+            const BindingFlags any = BindingFlags.NonPublic | BindingFlags.Instance;
 
             bool used = (bool)typeof(InventoryMenu).GetMethod("UseOnItemDrop", any)
                 .Invoke(menu, new object[] { 0, Vector2.zero });

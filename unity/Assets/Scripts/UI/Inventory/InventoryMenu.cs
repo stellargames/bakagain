@@ -4463,6 +4463,7 @@ namespace BakAgain.UI.Inventory {
                     return;
                 }
                 _gameSession.PartyGold = gold;
+                PlayShopTransferSound();
                 InventoryTransfer.Distribute(holder, 0, ActiveMemberContainers(),
                     _gameSession.ObjectInfo, MemberConditionsOf);
 
@@ -4474,9 +4475,17 @@ namespace BakAgain.UI.Inventory {
                 return;
             }
             _gameSession.PartyGold = gold;
+            PlayShopTransferSound();
 
             FeedIfStarving(target, delivered);
         }
+
+        /// <summary>
+        /// A buy or a sale sounds BUY (forum p=50, "no coin noises"). In the original both are the
+        /// ordinary drop, and its item flight plays 0x3c when the other side is a shop
+        /// (INVENTOR.C:565, :754, :781); ours settles them in dialogs and never reached the flight.
+        /// </summary>
+        private static void PlayShopTransferSound() => Audio.MenuSoundService.Cue(DropFlightShopSoundId);
 
         /// <summary>
         /// A drink bought and drunk where it stands.
@@ -4736,6 +4745,7 @@ namespace BakAgain.UI.Inventory {
                         _shop, seller, item, _gameSession.ObjectInfo, categories, price, ref gold)
                     == GameData.Resources.Shop.ShopStock.SellResult.Sold) {
                     _gameSession.PartyGold = gold;
+                    PlayShopTransferSound();
                 }
             }
 
