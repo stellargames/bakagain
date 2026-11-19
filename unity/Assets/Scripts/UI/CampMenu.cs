@@ -474,6 +474,25 @@ namespace BakAgain.UI {
 
         internal const string DialHitName = "BakCampDialHit";
 
+        /// <summary>The centre of an hour stone in stage space, for the build checks; null if absent.</summary>
+        internal Vector2? StoneStageCenter(int hour) {
+            if (_encamp == null || hour < 0 || hour >= _encamp.ClockEntries.Count) {
+                return null;
+            }
+            for (int y = 0; y < Canonical.Height; y += 2) {
+                for (int x = 0; x < Canonical.Width; x += 2) {
+                    if (_encamp.ClockEntryAt(x, y) == hour) {
+                        // First hit is the box's top-left; step in to its middle.
+                        int w = 0, h = 0;
+                        while (_encamp.ClockEntryAt(x + w, y) == hour) { w++; }
+                        while (_encamp.ClockEntryAt(x, y + h) == hour) { h++; }
+                        return new Vector2(x + w / 2f, y + h / 2f);
+                    }
+                }
+            }
+            return null;
+        }
+
 
         /// <summary>The stone under a stage-local point, or <see cref="EncampData.NoEntry"/>.</summary>
         private int StoneAt(Vector2 stageLocal) =>

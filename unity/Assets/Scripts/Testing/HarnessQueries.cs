@@ -95,6 +95,7 @@ namespace BakAgain.Testing {
                         : a.Length == 3 && int.TryParse(a[2], out int index) && index >= 0 ? Rect(a[1], index)
                         : Refuse("usage: rect <name>|.<class> [index]");
                 case "text": return a.Length == 2 ? Text(a[1]) : Refuse("usage: text <name>");
+                case "campstone": return a.Length == 2 && int.TryParse(a[1], out int hour) ? CampStone(hour) : Refuse("usage: campstone <hour>");
                 case "cell":
                     return a.Length == 3 && int.TryParse(a[1], out int cx) && int.TryParse(a[2], out int cy)
                         ? Cell(cx, cy) : Refuse("usage: cell <x> <y>");
@@ -441,6 +442,23 @@ namespace BakAgain.Testing {
 
         /// <summary>The <paramref name="index"/>th visible element with USS name <paramref name="key"/>, or class
         /// <c>.class</c>, across every UIDocument.</summary>
+        /// <summary>Where the camp dial's stone for an hour is on screen.</summary>
+        private static string CampStone(int hour) {
+            var camp = UnityEngine.Object.FindAnyObjectByType<BakAgain.UI.CampMenu>();
+            if (camp == null) return Refuse("no camp screen");
+            foreach (UIDocument d in UnityEngine.Object.FindObjectsByType<UIDocument>()) {
+                VisualElement root = d.rootVisualElement;
+                VisualElement hit = root?.panel == null ? null : root.Q(BakAgain.UI.CampMenu.DialHitName);
+                if (hit?.parent == null) continue;
+                if (camp.StoneStageCenter(hour) is not { } p) return Refuse("no stone " + hour);
+                Vector2 w = hit.parent.LocalToWorld(p);
+                float sx = Screen.width / root.panel.visualTree.layout.width;
+                float sy = Screen.height / root.panel.visualTree.layout.height;
+                return Ok(new Dictionary<string, object> { ["x"] = Mathf.RoundToInt(w.x * sx), ["y"] = Mathf.RoundToInt(w.y * sy) });
+            }
+            return Refuse("no camp dial");
+        }
+
         /// <summary>What a named element shows: its labels' text, in order, joined by spaces.</summary>
         private static string Text(string key) {
             foreach (UIDocument d in UnityEngine.Object.FindObjectsByType<UIDocument>()) {
