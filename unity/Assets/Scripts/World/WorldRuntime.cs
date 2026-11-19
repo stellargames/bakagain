@@ -712,7 +712,11 @@ namespace BakAgain.World {
             _arenaWork++;
             try {
                 GameObject root = _arenaRoot;
-                await UniTask.WaitWhile(() => Encounters.AttackSwing.Playing > 0);
+                // And after a spell's own visual: the delivery applies the damage after the effect
+                // (CSPELL.C:1459, then 1530), so Skyfire's number follows its flash (TASK-1107). A
+                // frame first, so a visual this redraw started is seen.
+                await UniTask.Yield();
+                await UniTask.WaitWhile(() => Encounters.AttackSwing.Playing > 0 || Encounters.SpellVfx.Draining > 0);
                 // The cue, then the damage: COMBAT.C:525 sounds it just before apply_damage (TASK-1073).
                 _hotspots?.Combat?.PlayHeldSwingCues();
                 // A bolt that was never drawn (no flight in the air) still lands now (TASK-1107).
