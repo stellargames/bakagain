@@ -236,6 +236,11 @@ public static class SaveGameWriter {
                 for (int i = 0; i < edit.LiveItemBytes.Length; i++) {
                     PatchU8(arrayOff + i, edit.LiveItemBytes[i]);
                 }
+                if (edit.LockOffset >= 0 && edit.LockBytes != null) {
+                    for (int i = 0; i < edit.LockBytes.Length; i++) {
+                        PatchU8(edit.BodyOffset + edit.LockOffset + i, edit.LockBytes[i]);
+                    }
+                }
                 if (edit.ShopOffset >= 0 && edit.ShopBytes != null) {
                     for (int i = 0; i < edit.ShopBytes.Length; i++) {
                         PatchU8(edit.BodyOffset + edit.ShopOffset + i, edit.ShopBytes[i]);

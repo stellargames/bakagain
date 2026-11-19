@@ -5,6 +5,19 @@ using System;
 using Xunit;
 
 public class RuntimeContainerTests {
+    [Fact]
+    public void SpendingTheTrapZeroesItsDamageOnly_AndMarksTheContainerForSaving() {
+        // TASK-1102: the original zeroes the record's trap damage and flushes the record.
+        var c = new GameData.Resources.Inventory.RuntimeContainer {
+            Params = new GameData.Resources.Data.SaveGameContainerLockData(0x10, 50, 0, 40),
+        };
+        c.SpendTrap();
+        Assert.Equal(0, c.Params!.TrapDamage);
+        Assert.Equal(50, c.Params.Difficulty);
+        Assert.Equal(0x10, c.Params.Flags);
+        Assert.True(c.Dirty);
+    }
+
     [Fact] public void FromSnapshot_CopiesItemsAndCapacity() {
         var snap = new SaveGameContainerData(
             new SaveGameContainerLocationData(1, 1, 9, 195, 670423, 1059778, 0),

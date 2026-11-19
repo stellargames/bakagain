@@ -153,6 +153,26 @@ public class SaveGameWriterContainerTests {
     }
 
     [Fact]
+    public void LockEdit_PatchesTheLockBytes() {
+        // TASK-1102: a sprung or disarmed trap is zeroed in the SAVE record (handle_Container
+        // 0x773e9 / 0x77638), so the chest does not explode again after a reload.
+        byte[] body = BodyWithContainer();
+        var edit = new DirtyContainerEdit {
+            BodyOffset = ContainerOffset,
+            NumberOfItems = 1,
+            LiveItemBytes = new byte[] { 0x99, 0x88, 0x77, 0x66 },
+            LockOffset = 20,
+            LockBytes = new byte[] { 1, 50, 0, 0 },
+        };
+
+        SaveGameWriteResult r = SaveGameWriter.Write(
+            body, ZeroFields, "Trap", 0, 0, 0, containerEdits: new[] { edit });
+
+        int baseOff = SaveGameOffsets.HeaderSize + ContainerOffset + 20;
+        Assert.Equal(new byte[] { 1, 50, 0, 0 }, r.Bytes[baseOff..(baseOff + 4)]);
+    }
+
+    [Fact]
     public void ShopEdit_PatchesTheShopBlockWhereTheSubrecordOrderPutsIt() {
         // A tavern's entertainment fund is spent by the performance it pays for; without this the
         // fund comes back on the next visit and the tavern pays forever.

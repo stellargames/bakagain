@@ -39,4 +39,11 @@ public sealed class DirtyContainerEdit {
 
     /// <summary>The sixteen shop bytes, valid when <see cref="ShopOffset"/> is non-negative.</summary>
     public byte[]? ShopBytes;
+
+    /// <summary>Offset of the lock sub-record relative to <see cref="BodyOffset"/>, or -1. It holds
+    /// the trap damage a sprung or disarmed trap zeroes (TASK-1102).</summary>
+    public int LockOffset = -1;
+
+    /// <summary>The four lock bytes, valid when <see cref="LockOffset"/> is non-negative.</summary>
+    public byte[]? LockBytes;
 }

@@ -76,6 +76,17 @@ public static class ContainerGeometry {
         return off;
     }
 
+    /// <summary>
+    /// Byte offset of the container's LOCK sub-record (SUBREC_PARAMS) within its own record, or -1
+    /// when it carries none. It is the first sub-record after the item array.
+    /// </summary>
+    public static int LockOffset(int capacity, SaveGameContainerDataType dataTypes) =>
+        (dataTypes & SaveGameContainerDataType.Lock) == 0 ? -1 : ItemArrayOffset + capacity * ItemSize;
+
+    /// <summary>The four lock bytes in the order <c>SaveGameExtractor</c> reads them.</summary>
+    public static byte[] PackLock(SaveGameContainerLockData lockData) =>
+        new[] { lockData.Flags, lockData.Difficulty, lockData.PuzzleChest, lockData.TrapDamage };
+
     /// <summary>The shop sub-record's size — fourteen bytes and a trailing word.</summary>
     public const int ShopSize = 16;
 

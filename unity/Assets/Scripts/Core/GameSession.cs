@@ -1458,6 +1458,16 @@ namespace BakAgain.Core {
                     edit.ShopBytes = ResourceExtraction.ContainerGeometry.PackShop(rec.Runtime.Shop);
                 }
 
+                // The lock bytes carry the trap damage a sprung or disarmed trap zeroes; the
+                // original flushes them with the record (TASK-1102). Four bytes in place, emitted
+                // with any dirty edit for the same reason as the shop block above.
+                int lockOffset = ResourceExtraction.ContainerGeometry.LockOffset(
+                    rec.Runtime.Capacity, rec.Runtime.DataTypes);
+                if (lockOffset >= 0 && rec.Runtime.Params != null) {
+                    edit.LockOffset = lockOffset;
+                    edit.LockBytes = ResourceExtraction.ContainerGeometry.PackLock(rec.Runtime.Params);
+                }
+
                 if (rec.Runtime.HeaderDirty) {
                     edit.HeaderBytes = ResourceExtraction.ContainerGeometry.PackHeader(rec.Runtime);
                     if (rec.Runtime.Timestamp.HasValue) {

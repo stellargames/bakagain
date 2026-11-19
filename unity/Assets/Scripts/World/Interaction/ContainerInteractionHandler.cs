@@ -263,7 +263,7 @@ namespace BakAgain.World.Interaction {
                     // Permanent: the state lives on the container, so a session flag would re-arm
                     // the trap on the next visit.
                     if (container != null) {
-                        container.TrapDisarmed = true;
+                        container.SpendTrap();
                     }
                     AwardDisarm(member);
                     TryOpenLoot(zone, bakX, bakY, entityType, chestMessage: true);
@@ -344,7 +344,7 @@ namespace BakAgain.World.Interaction {
             // Spent, and on the runtime container so it survives the visit -- the same place the
             // disarm flag lives.
             if (container != null) {
-                container.TrapDisarmed = true;
+                container.SpendTrap();
             }
         }
 

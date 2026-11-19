@@ -291,6 +291,33 @@ namespace BakAgain.Tests.Editor.Core {
             Assert.IsFalse(chest.HeaderDirty);
         }
 
+        /// <summary>
+        /// A spent trap goes down with the record: the original zeroes the trap damage in the save
+        /// (handle_Container 0x773e9 / 0x77638), so the chest does not explode again after a
+        /// reload. The port kept it in a session flag (TASK-1102).
+        /// </summary>
+        [Test]
+        public void CollectDirtyContainerEdits_CarriesASpentTrap() {
+            var trapped = new SaveGameContainerData(
+                new SaveGameContainerLocationData(zone: 3, minChapter: 1, maxChapter: 9,
+                    worldItemId: 195, x: 700, y: 800, actorNumber: 0),
+                SaveGameContainerType.Chest, numberOfItems: 0, capacity: 4,
+                dataTypes: SaveGameContainerDataType.Lock,
+                items: new SaveGameInventoryItemData[4],
+                lockData: new SaveGameContainerLockData(0, 50, 0, 40), dialogData: null,
+                shopData: null, encounterData: null, timestamp: null, globalStateIndex: null);
+            GameSession session = SessionWith(trapped);
+            RuntimeContainer chest = session.GetRuntimeContainerAt(3, 700, 800);
+
+            chest.SpendTrap();
+
+            IReadOnlyList<DirtyContainerEdit> edits = session.CollectDirtyContainerEdits();
+            Assert.AreEqual(1, edits.Count);
+            Assert.AreEqual(16 + 4 * 4, edits[0].LockOffset, "the lock sub-record follows the items");
+            CollectionAssert.AreEqual(new byte[] { 0, 50, 0, 0 }, edits[0].LockBytes,
+                "only the trap damage is zeroed");
+        }
+
         /// <summary>Looting must not start writing headers: that path is unchanged and its edits
         /// stay item-only.</summary>
         [Test]

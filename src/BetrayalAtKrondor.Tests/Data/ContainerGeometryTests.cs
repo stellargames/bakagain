@@ -5,6 +5,17 @@ using System;
 using Xunit;
 
 public class ContainerGeometryTests {
+    // TASK-1102: the lock sub-record (flags, difficulty, puzzle chest, trap damage) comes first
+    // after the items, and the writer patches it so a spent trap stays spent.
+    [Fact] public void LockOffset_IsRightAfterTheItems_OrMinusOneWithoutALock() {
+        Assert.Equal(16 + 4 * 4, ContainerGeometry.LockOffset(4, SaveGameContainerDataType.Lock));
+        Assert.Equal(-1, ContainerGeometry.LockOffset(4, SaveGameContainerDataType.Dialog));
+    }
+
+    [Fact] public void PackLock_WritesTheFourBytesInTheOrderTheExtractorReads() =>
+        Assert.Equal(new byte[] { 1, 2, 3, 4 },
+            ContainerGeometry.PackLock(new SaveGameContainerLockData(1, 2, 3, 4)));
+
     [Fact] public void SerializedSize_HeaderPlusItems_NoBlocks() =>
         Assert.Equal(16 + 4 * 4, ContainerGeometry.SerializedSize(4, (SaveGameContainerDataType)0)); // cap 4, no flags
 

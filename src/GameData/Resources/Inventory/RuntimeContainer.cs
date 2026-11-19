@@ -36,9 +36,8 @@ public sealed class RuntimeContainer {
     /// asks before opening (its own prompt), so folding the two together would skip that line and
     /// open a box the player never confirmed.
     ///
-    /// <para>Same limitation as <see cref="Unlocked"/>: the original zeroes the trap damage in the
-    /// SAVE record, making it permanent across visits; this is a runtime flag and so lasts the
-    /// session. Stated rather than hidden — persisting it is the same writer work.</para>
+    /// <para>Set by <see cref="SpendTrap"/>, which also zeroes the trap damage in <see cref="Params"/>
+    /// so the save writer keeps it spent across a reload, as the original does (TASK-1102).</para>
     /// </remarks>
     public bool TrapDisarmed;
 
@@ -151,6 +150,18 @@ public sealed class RuntimeContainer {
     /// <see cref="SaveGameContainerLockData"/>.
     /// </remarks>
     public SaveGameContainerLockData? Params;
+
+    /// <summary>
+    /// The trap is spent — disarmed or sprung. The original zeroes the record's trap damage and
+    /// flushes the record (handle_Container 0x773e9 / 0x77638), so it stays spent across a save.
+    /// </summary>
+    public void SpendTrap() {
+        TrapDisarmed = true;
+        if (Params != null && Params.TrapDamage != 0) {
+            Params = new SaveGameContainerLockData(Params.Flags, Params.Difficulty, Params.PuzzleChest, 0);
+        }
+        Dirty = true;
+    }
 
     /// <summary>A working copy of a shop record, so spending from it cannot reach the snapshot.</summary>
     private static SaveGameContainerShopData? Copy(SaveGameContainerShopData? shop) =>
