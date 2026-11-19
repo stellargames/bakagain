@@ -2482,7 +2482,7 @@ namespace BakAgain.UI.Inventory {
             ItemUseResult used = InventoryUse.Use(_displayed, slot, InventoryUse.NoTarget,
                 _gameSession.ObjectInfo, BuildUseContext());
             if (obj.ObjectType == GameData.ObjectType.Restorative
-                && used.Outcome == ItemUseOutcome.Handled) {
+                && used.Outcome == ItemUseOutcome.Returned) {
                 DoseAgainAsync(slot, obj.Number, used).Forget();
                 return;
             }

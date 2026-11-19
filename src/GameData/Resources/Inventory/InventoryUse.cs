@@ -119,6 +119,13 @@ public sealed class ItemUseContext {
 /// would have healed them is a visible lie, so an unported branch stays silent instead.
 /// </summary>
 public enum ItemUseOutcome {
+    /// <summary>
+    /// Ours: the branch left Use_Item with its own <c>return -1</c> BEFORE the common tail, so no
+    /// tail line, no use sound and no tail spend (the restorative dose loop, putting out a lit
+    /// light, a repair kit on an item that needs none — ITEMUSE.C:351-367, :217-234). Distinct from
+    /// <see cref="Handled"/>, the tail's -1, which does sound (TASK-1097).
+    /// </summary>
+    Returned = -4,
     NotPorted = -3,
     Silent = -2,
     Handled = -1,
@@ -400,7 +407,7 @@ public static class InventoryUse {
                 // the zero unlights it and spends the use. The original returns straight away.
                 if ((source.ItemFlags & (ushort)ItemFlags.Lit) != 0) {
                     context.ExtinguishItemLight();
-                    return new ItemUseResult(ItemUseOutcome.Handled, 0, 0, false);
+                    return new ItemUseResult(ItemUseOutcome.Returned, 0, 0, false);
                 }
                 // One carried light at a time: with the item timer running, nothing happens — the
                 // outcome keeps its starting 0.
@@ -514,7 +521,7 @@ public static class InventoryUse {
             return new ItemUseResult(ItemUseOutcome.NoEffect, NoEffectRecord, source.ObjectId, false);
         }
         if ((target.ItemFlags & Repairable) == 0) {
-            return new ItemUseResult(ItemUseOutcome.Handled, NoRepairRecord, target.ObjectId, false);
+            return new ItemUseResult(ItemUseOutcome.Returned, NoRepairRecord, target.ObjectId, false);
         }
         if (context == null || !context.IsUsable) {
             return new ItemUseResult(ItemUseOutcome.NotPorted, 0, 0, false);
@@ -898,7 +905,7 @@ public static class InventoryUse {
             removed = true;
         }
         container.Dirty = true;
-        return new ItemUseResult(ItemUseOutcome.Handled, UsedRecord, source.ObjectId, removed);
+        return new ItemUseResult(ItemUseOutcome.Returned, UsedRecord, source.ObjectId, removed);
     }
 
     // Only the Near-death branch of ConditionEngine.Apply reads these, and no shipping restorative

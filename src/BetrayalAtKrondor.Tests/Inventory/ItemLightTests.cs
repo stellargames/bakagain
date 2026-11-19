@@ -94,7 +94,7 @@ public class ItemLightTests {
 
         ItemUseResult result = InventoryUse.Use(pack, 0, InventoryUse.NoTarget, Objects(), Context(clock));
 
-        Assert.Equal(ItemUseOutcome.Handled, result.Outcome);
+        Assert.Equal(ItemUseOutcome.Returned, result.Outcome); // ITEMUSE.C:358-367 returns before the tail: silent
         Assert.Equal(1, clock.Extinguished);
     }
 

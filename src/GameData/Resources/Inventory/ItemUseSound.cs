@@ -25,7 +25,8 @@ public static class ItemUseSound {
     /// know that anything happened, so claiming it with a sound would be worse than silence.</para>
     /// </remarks>
     public static bool Sounds(ItemUseOutcome outcome) =>
-        outcome != ItemUseOutcome.NoEffect && outcome != ItemUseOutcome.NotPorted;
+        outcome != ItemUseOutcome.NoEffect && outcome != ItemUseOutcome.NotPorted
+        && outcome != ItemUseOutcome.Returned;
 
     /// <summary>
     /// How many times the cue is heard — <b>the stored count is EXTRA repeats</b>.

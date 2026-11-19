@@ -424,7 +424,8 @@ public class ItemStatEffectsTests {
             BookSet(Potion(healBase: 6, spread: 0)),
             ContextWith(stats, conditions, new Flags()));
 
-        Assert.Equal(ItemUseOutcome.Handled, result.Outcome);
+        // The dose loop returns before the tail: no gulp (ITEMUSE.C:351-355, TASK-1097).
+        Assert.Equal(ItemUseOutcome.Returned, result.Outcome);
         Assert.Equal(15, conditions[ActorCondition.Poisoned]);   // -5
         Assert.Equal(3, conditions[ActorCondition.Starving]);    // -5
         Assert.Equal(30, conditions[ActorCondition.Healing]);    // untouched

@@ -23,6 +23,11 @@ public class ItemUseSoundTests {
         Assert.False(ItemUseSound.Sounds(ItemUseOutcome.NotPorted));
     }
 
+    /// <summary>A branch that returns before the tail never reaches the cue (TASK-1097).</summary>
+    [Fact]
+    public void ABranchThatReturnsBeforeTheTailIsSilent() =>
+        Assert.False(ItemUseSound.Sounds(ItemUseOutcome.Returned));
+
     /// <summary>
     /// Everything the original reaches the cue with does sound — outcome -2, -1 and 1 all fall past
     /// the outcome-0 early return.

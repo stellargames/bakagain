@@ -237,7 +237,7 @@ public class InventoryUseTests {
         ItemUseResult r = Use(c, 0, 1);
         Assert.Equal(NoRepairRecord, r.DialogId);
         Assert.Equal(Broadsword, r.DialogVar0); // the record names the TARGET, not the kit
-        Assert.Equal(ItemUseOutcome.Handled, r.Outcome);
+        Assert.Equal(ItemUseOutcome.Returned, r.Outcome);
         Assert.Equal(20, c.Items[0].Variable); // refusal returns before the tail: no charge spent
     }
 
