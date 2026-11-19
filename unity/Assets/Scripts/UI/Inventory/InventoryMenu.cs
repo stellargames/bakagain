@@ -2573,7 +2573,23 @@ namespace BakAgain.UI.Inventory {
         /// fine. Only "he cannot mend that" is free. That is the behaviour, not an oversight to
         /// tidy: <see cref="ShopRepair.TimeBitFor"/> carries the rest of the quirk.
         /// </remarks>
+        private bool _serviceBusy;
+
         private async UniTaskVoid RepairAsync(int slot) {
+            // One service at a time: the original's loop is blocking, so a second click while the
+            // first's dialog is coming up is never read (MODALSCR.C:464, :579; TASK-1111).
+            if (_serviceBusy) {
+                return;
+            }
+            _serviceBusy = true;
+            try {
+                await RepairCoreAsync(slot);
+            } finally {
+                _serviceBusy = false;
+            }
+        }
+
+        private async UniTask RepairCoreAsync(int slot) {
             if (_displayed == null || slot < 0 || slot >= _displayed.Items.Count) {
                 return;
             }
@@ -2640,6 +2656,20 @@ namespace BakAgain.UI.Inventory {
         private const int BlessCue = 62;
 
         private async UniTaskVoid BlessAsync(int slot, ObjectInfo obj) {
+            // One service at a time: the original's loop is blocking, so a second click while the
+            // first's dialog is coming up is never read (MODALSCR.C:464, :579; TASK-1111).
+            if (_serviceBusy) {
+                return;
+            }
+            _serviceBusy = true;
+            try {
+                await BlessCoreAsync(slot, obj);
+            } finally {
+                _serviceBusy = false;
+            }
+        }
+
+        private async UniTask BlessCoreAsync(int slot, ObjectInfo obj) {
             RuntimeItem item = _displayed.Items[slot];
             long price = TempleBlessing.Price(obj.Price, _blessing.MaxHagglingDiscount,
                 _blessing.MarkupPercentage);

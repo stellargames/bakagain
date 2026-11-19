@@ -174,6 +174,37 @@ namespace BakAgain.Tests.PlayMode.UI.Character {
             Assert.That(log, Is.EqualTo(new[] { "dialog " + TempleHealMenu.CannotAffordDialog }));
         });
 
+        private sealed class HeldDialogs : BakAgain.Tests.PlayMode.UI.Inventory.NoOpDialogs {
+            public readonly UniTaskCompletionSource<int> Release = new();
+            public override UniTask<int> ShowById(int id, System.Threading.CancellationToken ct = default) =>
+                Release.Task;
+        }
+
+        /// <summary>
+        /// A second Cure while the first one's dialog is still coming up does nothing: the original's
+        /// cure arm is one blocking pass, so no input is read until it is over (CHARSCRN.C:513-531).
+        /// The port took the bill a second time (TASK-1111 row 12).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ASecondCureDuringTheFirstChargesNothing() => UniTask.ToCoroutine(async () => {
+            var dialogs = new HeldDialogs();
+            _screen.Construct(null, null, dialogs, _session, new BakAgain.Core.Services.GameClock(_session));
+            Afflict(character: 0, ActorCondition.Sick, 30);
+            _screen.SetService(FullPrice, PlainMode);
+            SetSlot(0);
+            int before = _session.PartyGold;
+
+            UniTask first = Cure();
+            int afterOne = _session.PartyGold;
+            Assert.Less(afterOne, before, "control: the first cure is paid for");
+            UniTask second = Cure();
+            Assert.AreEqual(afterOne, _session.PartyGold, "the second click is not charged");
+
+            dialogs.Release.TrySetResult(0);
+            await first;
+            await second;
+        });
+
         private System.Action<int> _cueSpy;
 
         private void Curing(List<string> log) {

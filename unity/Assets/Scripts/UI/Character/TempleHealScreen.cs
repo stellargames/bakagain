@@ -342,7 +342,26 @@ namespace BakAgain.UI.Character {
         /// falls into it, which is what makes healing a party a single pass — and what closes the
         /// screen once the last of them is done.
         /// </remarks>
+        /// <summary>
+        /// One cure at a time: the original's cure arm is a single blocking pass, so no click is read
+        /// until it is over (CHARSCRN.C:513-531). A second click while the first one's dialog was
+        /// coming up took the bill again (TASK-1111).
+        /// </summary>
         private async UniTask CureAsync() {
+            if (_curing) {
+                return;
+            }
+            _curing = true;
+            try {
+                await CureCoreAsync();
+            } finally {
+                _curing = false;
+            }
+        }
+
+        private bool _curing;
+
+        private async UniTask CureCoreAsync() {
             long bill = BillFor(_slot);
             if (_session.PartyGold < bill) {
                 await _dialogs.ShowById(TempleHealMenu.CannotAffordDialog);
