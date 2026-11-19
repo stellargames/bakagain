@@ -707,7 +707,15 @@ namespace BakAgain.UI.InGame {
                 case LocalMapScreen.MapAction.ShowFullMap: ShowFullMap(); break;
                 // Opened directly, not pushed: the camp panel covers the viewport and leaves the
                 // chrome around it, the same way it does over the travel HUD.
-                case LocalMapScreen.MapAction.Encamp: _campMenu?.Open(); break;
+                // The map's Encamp is encamp_run too (MAP.C:389-395), so it is refused with 0x65 when
+                // a hostile is in view, as the HUD's is (ENCAMP.C:78-80; TASK-1108).
+                case LocalMapScreen.MapAction.Encamp:
+                    if (_world?.CampIsWatched() == true) {
+                        _dialogs?.ShowById((int)GameData.Resources.World.CampRefusal.WatchedDialogId).Forget();
+                    } else {
+                        _campMenu?.Open();
+                    }
+                    break;
                 case LocalMapScreen.MapAction.Close: _navigator?.Pop().Forget(); break;
                 default:
                     _logger.LogDebug("OverheadMapScreen unhandled primary action {ActionId}.",

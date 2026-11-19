@@ -552,7 +552,10 @@ namespace BakAgain.UI {
                     RestAsync().Forget();
                     break;
                 case ButtonStop:
+                    // Stop leaves the whole camp screen, as Exit does: 0xc2 sets running = 0
+                    // (ENCAMP.C:198-200), not just the rest (TASK-1108).
                     StopResting();
+                    Close();
                     break;
                 case ButtonExit:
                     if (!IsResting) {
@@ -603,9 +606,8 @@ namespace BakAgain.UI {
             _upkeep.RestQuality = UpkeepEngine.PartialRestQuality;
             long startTicks = _clock.Ticks;
 
-            // *** ONLY A DIAL REST THAT REACHED ITS HOUR CLOSES THE SCREEN. *** Stop, the ceiling
-            // and a party going down are all different endings and none of them takes the screen
-            // down by itself — see the close below.
+            // *** A DIAL REST THAT REACHED ITS HOUR CLOSES THE SCREEN. *** So do Stop (its button
+            // closes it, ENCAMP.C:198-200) and a party going down (below); the ceiling does not.
             var reachedDialTarget = false;
 
             try {
