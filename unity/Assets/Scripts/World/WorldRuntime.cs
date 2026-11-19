@@ -1623,7 +1623,7 @@ namespace BakAgain.World {
                 }
                 marker.gameObject.AddComponent<Encounters.AttackSwing>().Play(
                     _zoneSceneBuilder.RenderContext, marker.Face, attackSet,
-                    sprite.CurrentOctant, marker.Extent).Forget();
+                    sprite.CurrentOctant, marker.Extent, swinging.PendingThrust).Forget();
             }
 
             // *** A SHOT ARMED BY THE MODEL FLIES HERE. *** Same carry-across as the swing above:

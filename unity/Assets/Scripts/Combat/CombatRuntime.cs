@@ -2468,6 +2468,7 @@ namespace BakAgain.Combat {
             // before it knows whether the blow lands — a miss still swings. The renderer picks this
             // up on the next redraw, which is the gap the flag exists to cross.
             attacker.SwingPending = true;
+            attacker.PendingThrust = attack == CombatActionDispatch.MeleeAttack.Thrust;
             if (result.Hit) {
                 MarkHit(defender, result.Landed, result.Dealt);
                 PoisonOnHitFrom(defender, swingMask, result.Damage, rnd);

@@ -37,6 +37,8 @@ namespace BakAgain.World.Encounters {
         /// <summary>The bitmap index currently on screen, or -1 outside a run.</summary>
         public int CurrentFrame { get; private set; } = -1;
 
+        private int _frames = Frames;
+
         /// <summary>
         /// The first frame of the run for an octant — mode 3's even-and-mirrored rule.
         /// </summary>
@@ -46,6 +48,14 @@ namespace BakAgain.World.Encounters {
         /// eight octants that is 0, 0, 4, 4, 8, 8, 4, 4 — three distinct runs, which is why this
         /// animation has three facings where the walk has five.
         /// </remarks>
+        /// <summary>Frames in the thrust's run — anim slot 4 plays two per facing (CACTOR.C:1947-1950).</summary>
+        public const int ThrustFrames = 2;
+
+        /// <summary>The run's first frame and length: the swing four from twice the facing, the
+        /// thrust two from the facing (frame base CACTOR.C:1873-1883; TASK-1095).</summary>
+        public static (int Start, int Frames) RunFor(int octant, bool thrust) =>
+            thrust ? (RunStartFor(octant) / 2, ThrustFrames) : (RunStartFor(octant), Frames);
+
         public static int RunStartFor(int octant) {
             if (octant < 0) {
                 return 0;
@@ -60,11 +70,13 @@ namespace BakAgain.World.Encounters {
         /// <summary>Plays the run; the task ends when the walking sprite is back (the original waits for it:
         /// <c>combat_actor_anim_play(..., wait 1, ...)</c>, CACTOR.C:1828-1898).</summary>
         public UniTask Play(WorldEntityRenderContext ctx, SpriteBMeshFace face, string setName,
-            int octant, int extent) {
+            int octant, int extent, bool thrust = false) {
             if (ctx == null || face == null || string.IsNullOrEmpty(setName)) {
                 return UniTask.CompletedTask;
             }
-            return RunAsync(ctx, face, setName, RunStartFor(octant), extent);
+            (int start, int frames) = RunFor(octant, thrust);
+            _frames = frames;
+            return RunAsync(ctx, face, setName, start, extent);
         }
 
         /// <summary>Swings still playing. The arena counts them as busy, so the turn waits for them as the
@@ -94,7 +106,7 @@ namespace BakAgain.World.Encounters {
             Material hadMaterial = renderer.sharedMaterial;
             Vector3 hadScale = transform.localScale;
 
-            for (var i = 0; i < Frames; i++) {
+            for (var i = 0; i < _frames; i++) {
                 Texture2D tex = await ctx.LoadSpriteTextureAsync($"{setName}#{start + i}", gameObject);
                 if (tex == null || this == null) {
                     break;

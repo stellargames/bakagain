@@ -157,6 +157,10 @@ public sealed class Combatant {
     /// </remarks>
     public bool SwingPending { get; set; }
 
+    /// <summary>Whether the pending attack is a thrust (anim slot 4, two frames) rather than a swing
+    /// (slot 3, four) — CACTOR.C:1947-1955, TASK-1095.</summary>
+    public bool PendingThrust { get; set; }
+
     /// <summary>The swing's sound, held until the arena has drawn the swing; null for none.</summary>
     /// <remarks>The original sounds it after the blocking swing animation (COMBAT.C:487-525), so it
     /// crosses the same resolve-then-redraw gap as <see cref="SwingPending"/> (TASK-1073).</remarks>
