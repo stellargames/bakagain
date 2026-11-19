@@ -47,6 +47,17 @@ public class TrapPuzzleObjectiveTests {
     }
 
     [Fact]
+    public void TheExitDoesNotEndATrapFightWhileAnEnemyStands() {
+        // COMBAT.C:2268: past the exit row AND combatenc_alive_actor_count() == 0 (TASK-1115 audit).
+        CombatEncounter encounter = WithObjective(6, 6);
+        encounter.Enemies.Add(new Combatant { Health = 10 });
+        Assert.False(encounter.IsOver());
+
+        encounter.Enemies[0].Flags = CombatantFlags.Dead;
+        Assert.True(encounter.IsOver());
+    }
+
+    [Fact]
     public void WithoutAnObjectiveTheRowMeansNothing() {
         var encounter = new CombatEncounter { HasObjective = false, ObjectiveExitRow = 6 };
         encounter.Party.Add(new Combatant { PartySlot = 1, Y = 9, Health = 10 });

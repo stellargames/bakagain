@@ -131,9 +131,12 @@ public sealed class CombatEncounter {
     ///
     /// <para>Retreat did not help either: an encounter with a downed member strips the living ones
     /// one at a time and never completes, so the only way out was to restart the game.</para>
+    /// <para><b>Reaching the exit ends it only once no enemy is left alive</b> (COMBAT.C:2268:
+    /// <c>combatgrid_actor_past_terr6_row() &amp;&amp; combatenc_alive_actor_count() == 0</c>). Exit rooms that
+    /// field enemies ended at the row in the port with foes still standing.</para>
     /// </remarks>
     public bool IsOver() =>
-        PartyAlive() == 0 || (EnemiesAlive() == 0 && !HasObjective) || ObjectiveIsMet();
+        PartyAlive() == 0 || (EnemiesAlive() == 0 && (!HasObjective || ObjectiveIsMet()));
 
     /// <summary>
     /// Whether a living party member has reached the objective's row.
