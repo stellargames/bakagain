@@ -979,6 +979,15 @@ namespace BakAgain.World.Scenes {
         /// redrawn — description included — rather than merely uncovered. That is also why the
         /// description survives an action at all.</para>
         /// </remarks>
+        /// <summary>
+        /// The mender's screen, cut in and out: the code-16 arm calls modalscreen_inventory_request,
+        /// which has no fade, and sets needRefresh without fadeFlag, so the town comes back by the
+        /// unfaded refresh (TOWNSCN.C:562-567, :624-650; MODALSCR.C:503-535). A shop fades; the
+        /// mender, like the blessing, does not (TASK-1111).
+        /// </summary>
+        private UniTask RaiseMenderAsync(UI.Navigation.IScreen screen) =>
+            RaiseOverLocationAsync(() => _navigator.PushAndWaitAsync(screen), refresh: true);
+
         private UniTask RaiseScreenAsync(UI.Navigation.IScreen screen) =>
             RaiseOverLocationAsync(() => PushFadedAndWaitAsync(screen), refresh: true);
 
@@ -1222,7 +1231,7 @@ namespace BakAgain.World.Scenes {
             if (_inventoryMenu != null && hotspot != null
                 && hotspot.ActionCode == GdsActionDispatch.RepairActionCode
                 && _inventoryMenu.SetRepair(ShopBlock(), portraitSlot: 0)) {
-                await RaiseScreenAsync(_inventoryMenu);
+                await RaiseMenderAsync(_inventoryMenu);
 
                 return;
             }

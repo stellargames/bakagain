@@ -556,6 +556,54 @@ namespace BakAgain.Tests.PlayMode.World {
             });
 
         /// <summary>
+        /// The mender's screen cuts in and out: the code-16 arm calls modalscreen_inventory_request,
+        /// which has no fade, and sets needRefresh without fadeFlag, so the town comes back by the
+        /// unfaded refresh (TOWNSCN.C:562-567, :624-650; MODALSCR.C:503-535). The port faded it both
+        /// ways like a shop (TASK-1111 row 2).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheMendersScreenCutsInAndOut() =>
+            UniTask.ToCoroutine(async () => {
+                InGameScreen hud = TravelHud();
+                var fade = new RecordingFade();
+                var dialogs = new MomentRecordingDialogs(fade, _hudGo);
+                var navigator = new ScreenNavigator();
+                await navigator.ResetTo(new HudStandIn(hud));
+                BakAgain.Core.GameSession session = LocationSession(
+                    new GameData.Resources.Data.SaveGameContainerShopData(
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, (GameData.ShopItemCategories)0));
+                var mender = new ClosableScreen();
+                LocationScenePlayer player = Player(fade, dialogs, Resolver(hud, fade: fade),
+                    teleport: null, session: session, navigator: navigator,
+                    inventoryMenu: InventoryMenu(session, navigator));
+                SetLocations(hud, player);
+                LocationScreen screen = _screenGo.GetComponent<LocationScreen>();
+                _menuGo.SetActive(false);
+
+                try {
+                    UniTask run = player.RunAsync(1, 1);
+                    await Until(() => fade.Events.Contains("in"), "the town never faded in");
+                    screen.Bind(new GdsScene(GdsSceneLoader.ResourceName(1, 1)) {
+                        SceneDialogId = DescriptionId,
+                        Hotspots = new[] { new GdsHotspot { ActionCode = 16 } },
+                    }, 1, 1, letter => Choose(player, letter));
+                    fade.Events.Clear();
+
+                    typeof(LocationScreen).GetMethod("RaiseMenderAsync", BindingFlags.NonPublic | BindingFlags.Instance)
+                        .Invoke(screen, new object[] { mender });
+                    await Until(() => ReferenceEquals(navigator.Current, mender), "the mender never opened");
+                    for (int i = 0; i < 5; i++) { await UniTask.Yield(); }
+                    Assert.That(fade.Events, Is.Empty, "into the mender with a cut");
+
+                    await navigator.Pop();   // its Exit
+                    for (int i = 0; i < 5; i++) { await UniTask.Yield(); }
+                    Assert.That(fade.Events, Is.Empty, "and out with one");
+                } finally {
+                    player.Hide();
+                }
+            });
+
+        /// <summary>
         /// Leaving the temple's service menu puts the location back in one change (TASK-923).
         /// </summary>
         /// <remarks>
