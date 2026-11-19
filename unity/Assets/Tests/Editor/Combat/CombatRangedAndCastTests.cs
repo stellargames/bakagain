@@ -898,6 +898,37 @@ namespace BakAgain.Tests.Editor.Combat {
                 "and the party caster banked a timed Strength modifier");
         }
 
+        /// <summary>
+        /// A MISSED Strength Drain or Evil Seek still lands. The original's per-spell switch runs
+        /// behind the resistance test only (CSPELL.C:1370-1437, cases 42 and 44); the hit gates
+        /// nothing but the delivered damage (:1520). The port returned on the miss first, so the
+        /// caster paid and nothing happened (TASK-1105).
+        /// </summary>
+        [Test]
+        public void AMissedStrengthDrainStillDrains() {
+            var (runtime, _, member, monster) = Fight((CrossbowId, 100));
+            ActorStat targetStrength = runtime.StatsFor(monster)[(int)ActorAttribute.Strength];
+            int before = targetStrength.Base;
+            Spell drain = DrainSpell();
+            drain.TargetingType = 0;   // the shipped record: kind 0, it rolls to hit
+
+            Assert.IsFalse(runtime.ResolveCast(member, monster, drain, spellId: SpellIds.StrengthDrain,
+                power: 4, AlwaysHigh), "control: the cast misses");
+
+            Assert.Less(targetStrength.Base, before, "the drain does not ask the hit roll");
+        }
+
+        [Test]
+        public void AMissedEvilSeekStillRunsItsChain() {
+            var (runtime, _, member, monster) = Fight((CrossbowId, 100));
+            int before = Pool(monster);
+
+            Assert.IsFalse(runtime.ResolveCast(member, monster, new Spell("E") { TargetingType = 0 },
+                spellId: SpellIds.EvilSeek, power: 10, AlwaysHigh), "control: the cast misses");
+
+            Assert.Less(Pool(monster), before, "the chain does not ask the hit roll");
+        }
+
         [Test]
         public void TheDrainIsCLAMPEDToWhatTheTargetStillHas() {
             // Read back against CURRENT Strength before either write, so draining a nearly-spent

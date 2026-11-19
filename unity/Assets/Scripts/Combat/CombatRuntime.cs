@@ -2916,6 +2916,13 @@ namespace BakAgain.Combat {
             }
 
             if (!hit) {
+                // *** THE PER-SPELL SWITCH DOES NOT ASK THE HIT. *** It runs behind the resistance
+                // test alone (CSPELL.C:1370-1437); the hit gates only the delivered damage (:1520).
+                // Of its arms, Strength Drain and Evil Seek are the kind-0 spells that roll and do
+                // their own damage, so a miss still drains and still chains (TASK-1105).
+                ApplyHitIndependentArms(caster, target, spell, spellId,
+                    SpellCostModifiers.Effective(power, SurchargeNextCast,
+                        targetIsWeak: TargetIsVulnerableTo(target, spellId)), roll);
                 // *** A MISSED CAST IS STILL REFLECTED. *** The pending-tile test lives in the
                 // delivery switch, which a miss reaches — only the damage inside the `else` is
                 // gated on the hit. Returning before the wall was consulted made a Mirrorwall
@@ -3109,18 +3116,8 @@ namespace BakAgain.Combat {
                 intensity = GameData.Resources.Combat.SpellParticles.FluxZapTotal(roll);
             }
 
-            // *** EVIL SEEK DEALS ALL ITS DAMAGE HERE, AS A CHAIN. *** Case 44 (CSPELL.C:1438) calls
-            // cspell_chain_damage with the investment and zeroes the magnitude; the delivery below
-            // then has nothing left to deal. Zeroing without the chain billed the cast and did
-            // nothing at all (TASK-529).
-            //
-            // The per-spell switch sits inside CSPELL.C:1370's "the aimed target does not resist",
-            // so a resisted first victim starts no chain at all: the cost is paid and nobody is hit.
-            // Seen live in the original on an entry-306 rogue (TASK-541). Resisters met LATER in the
-            // chain are different — they take nothing and pass it on (ApplyEvilSeekChain).
-            if (spellId == SpellIds.EvilSeek && !TargetResists(target, spellId)) {
-                ApplyEvilSeekChain(caster, target, effectiveCost, roll);
-            }
+            // Evil Seek's chain and Strength Drain's transfer: their own damage, hit or miss.
+            ApplyHitIndependentArms(caster, target, spell, spellId, effectiveCost, roll);
 
             // *** DESPAIR THY EYES IS A DEBUFF, NOT DAMAGE. *** Its whole effect is -20 on all
             // three accuracies, applied here in the per-spell switch — the magnitude it computed
@@ -3130,18 +3127,6 @@ namespace BakAgain.Combat {
             // resistant takes nothing. And it reaches a party member and a monster through
             // different machinery, which TryAddStatusEffect owns — timed slots for one, a
             // permanent 8.8 attribute change for the other.
-            //
-            // *** STRENGTH DRAIN IS A TRANSFER, AND ITS MAGNITUDE IS ALREADY ZEROED ABOVE. ***
-            // Its handler computes its own amount from the cost — a DIVISION, so a mod raising the
-            // damage field weakens the spell — runs the transfer, and throws the delivery magnitude
-            // away. Reading the record's calculation as the effect gives a damage spell instead.
-            // The recoil half needs somebody to give the Strength to, so a caster-less cast of it
-            // would be the drain without the transfer — a different spell. No trap casts it.
-            if (spellId == SpellIds.StrengthDrain && caster != null) {
-                ApplyDrainWithRecoil(caster, target, spellId,
-                    SpellPerSpellHandlers.StrengthDrained(effectiveCost, spell.Damage));
-            }
-
             if (spellId == SpellIds.DespairThyEyes && !TargetResists(target, spellId)) {
                 // Its creation cue (case 3's audio_play(0x3a)) is played above, from
                 // SpellCastSound.ForCombatSpell, with the other per-spell cues.
@@ -4459,6 +4444,32 @@ namespace BakAgain.Combat {
         /// never more than the visited list's seven.</item>
         /// </list>
         /// </remarks>
+        /// <summary>
+        /// The per-spell arms that deal their own damage whether or not the cast hit.
+        /// </summary>
+        /// <remarks>
+        /// <b>Evil Seek deals all its damage here, as a chain.</b> Case 44 (CSPELL.C:1438) calls
+        /// cspell_chain_damage with the investment and zeroes the magnitude, so the delivery has
+        /// nothing left (TASK-529). The switch sits inside CSPELL.C:1370's "the aimed target does
+        /// not resist", so a resisted first victim starts no chain (TASK-541); later resisters take
+        /// nothing and pass it on.
+        ///
+        /// <para><b>Strength Drain is a transfer.</b> Its handler computes its own amount from the
+        /// cost — a DIVISION, so a mod raising the damage field weakens the spell — runs the
+        /// transfer, and throws the delivery magnitude away. A caster-less cast would be the drain
+        /// without the transfer, a different spell; no trap casts it.</para>
+        /// </remarks>
+        private void ApplyHitIndependentArms(Combatant caster, Combatant target, Spell spell,
+            int spellId, int effectiveCost, System.Func<int, int> roll) {
+            if (spellId == SpellIds.EvilSeek && !TargetResists(target, spellId)) {
+                ApplyEvilSeekChain(caster, target, effectiveCost, roll);
+            }
+            if (spellId == SpellIds.StrengthDrain && caster != null) {
+                ApplyDrainWithRecoil(caster, target, spellId,
+                    SpellPerSpellHandlers.StrengthDrained(effectiveCost, spell.Damage));
+            }
+        }
+
         private void ApplyEvilSeekChain(Combatant caster, Combatant target, int effectiveCost,
             System.Func<int, int> rnd) {
             if (target == null || Encounter == null) {
