@@ -455,6 +455,7 @@ namespace BakAgain.Core.Services {
                 DialogSlotPopulator.ApplyEntryActions(play.Slots, visited, play.Context);
                 ApplyEntryTimers(visited);
                 ApplyEntryGameplayActions(visited, play.Slots);
+                SpendDialogTime(AccumulatedTicks(visited), SkipsTimeUnacknowledged(visited));
             }
             return (new DialogPlay(leaf, play.Slots, play.Context, dialog, play.Pushed), leaf);
         }
@@ -482,6 +483,10 @@ namespace BakAgain.Core.Services {
             DialogSlotPopulator.ApplyEntryActions(play.Slots, next, play.Context);
             ApplyEntryTimers(next);
             ApplyEntryGameplayActions(next, play.Slots);
+            // A follow-on line's time skip is spent like the opening's: the original accumulates
+            // op 13 over every page and spends it at the close (DIALOG.C:1505-1516). It was
+            // dropped, so "Time passed..." and the spell lessons moved no clock (TASK-1113).
+            SpendDialogTime(AccumulatedTicks(next), SkipsTimeUnacknowledged(next));
 
             return next;
         }

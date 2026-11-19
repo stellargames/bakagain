@@ -137,6 +137,38 @@ namespace BakAgain.Tests.Editor.Core {
                     | System.Reflection.BindingFlags.Instance)
                 .Invoke(_executor, new object[] { ticks, autoAdvanced });
 
+        /// <summary>
+        /// A line reached as the next line of a conversation spends its time skip too: the original
+        /// accumulates op 13 over every page of the conversation and spends it at the close
+        /// (DIALOG.C:1505-1516). The port spent only the opening resolve's, so 24 shipped lines
+        /// ("Time passed...", spell lessons, book reading) moved no clock (TASK-1113).
+        /// </summary>
+        [Test]
+        public void AFollowOnLineSpendsItsTimeSkip() {
+            var first = new GameData.Resources.Dialog.DialogEntry {
+                Offset = 100, Key = "t:100", Text = "first",
+                Branches = new System.Collections.Generic.List<GameData.Resources.Dialog.Branches.DialogBranchBase> {
+                    new GameData.Resources.Dialog.Branches.DefaultBranch { TargetOffset = 200, TargetKey = "t:200" },
+                },
+            };
+            var second = new GameData.Resources.Dialog.DialogEntry {
+                Offset = 200, Key = "t:200", Text = "Time passed...",
+                Actions = new System.Collections.Generic.List<DialogActionBase> {
+                    new AdvanceTimeAction { Seconds = (uint)(GameClock.TicksPerHour * 2) },
+                },
+            };
+            var dialog = new GameData.Resources.Dialog.Dialog("d") {
+                Entries = new System.Collections.Generic.List<GameData.Resources.Dialog.DialogEntry> { first, second },
+            };
+            var context = DialogSlotContextFactory.FromSession(_session);
+            var play = new GameData.Resources.Dialog.DialogPlay(first,
+                GameData.Resources.Dialog.DialogSlotPopulator.CreateForPlay(context), context, dialog);
+
+            Assert.AreSame(second, _executor.NextLine(play), "control: the next line is the skip");
+
+            Assert.AreEqual(GameClock.TicksPerHour, _clock.Ticks, "an hour passed");
+        }
+
         [Test]
         public void AConversationCostsTheTimeItsOpsAskFor() {
             SpendDialogTime(GameClock.TicksPerHour);
