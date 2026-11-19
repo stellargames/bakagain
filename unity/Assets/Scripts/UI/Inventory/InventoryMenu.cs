@@ -2638,19 +2638,19 @@ namespace BakAgain.UI.Inventory {
         private const int BlessCue = 62;
 
         private async UniTaskVoid BlessAsync(int slot, ObjectInfo obj) {
+            RuntimeItem item = _displayed.Items[slot];
+            long price = TempleBlessing.Price(obj.Price, _blessing.MaxHagglingDiscount,
+                _blessing.MarkupPercentage);
+            // Item and cost are published BEFORE any branch (MODALSCR.C:465-466): the refusal's @0
+            // and the already-blessed page's "@ presented the @1 to a priest" both name the item
+            // (TASK-990, TASK-1111).
+            _gameSession.SetDialogKeyObjectId(item.ObjectId);
+            _gameSession.SetGlobalValue(DialogSlotPopulator.QuotedAmountGlobalKey, (int)price);
             if (!TempleBlessing.CanBless(obj.ObjectType)) {
                 await _dialogs.ShowById((int)TempleBlessing.CannotBlessDialogId);
 
                 return;
             }
-
-            RuntimeItem item = _displayed.Items[slot];
-            long price = TempleBlessing.Price(obj.Price, _blessing.MaxHagglingDiscount,
-                _blessing.MarkupPercentage);
-            // Item and cost are published BEFORE the already-blessed page (MODALSCR.C:458-462): its
-            // "@ presented the @1 to a priest" names the item (TASK-990).
-            _gameSession.SetDialogKeyObjectId(item.ObjectId);
-            _gameSession.SetGlobalValue(DialogSlotPopulator.QuotedAmountGlobalKey, (int)price);
             if (TempleBlessing.IsBlessed((GameData.ItemFlags)item.ItemFlags)
                 && !await _dialogs.ShowConfirmById((int)TempleBlessing.AlreadyBlessedDialogId)) {
                 return;

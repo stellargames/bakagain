@@ -78,6 +78,27 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             }));
         }
 
+        private const int RationsId = 98;
+
+        /// <summary>
+        /// The refusal names the item it refuses: MODALSCR.C:465-466 publish the item and the cost
+        /// before the category test that refuses (1300081's @0). The port refused first and named
+        /// whatever was clicked before (TASK-1111 row 4).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheRefusalNamesTheItemItRefuses() {
+            (InventoryMenu menu, GameSession session) = Build(accept: false);
+
+            ObjectInfo rations = session.ObjectInfo.GetById(RationsId);
+            typeof(InventoryMenu).GetMethod("BlessAsync", BindingFlags.NonPublic | BindingFlags.Instance)
+                .Invoke(menu, new object[] { 1, rations });
+            for (int frame = 0; frame < 5; frame++) { yield return null; }
+
+            Assert.That(_shownWithItem, Is.EqualTo(new[] {
+                ((int)TempleBlessing.CannotBlessDialogId, RationsId),
+            }));
+        }
+
         private static IEnumerator Bless(InventoryMenu menu, GameSession session) {
             ObjectInfo sword = session.ObjectInfo.GetById(SwordId);
             typeof(InventoryMenu).GetMethod("BlessAsync", BindingFlags.NonPublic | BindingFlags.Instance)
@@ -100,6 +121,10 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
                     Number = SwordId, Name = "Sword", InventorySlots = 1,
                     ObjectType = ObjectType.Sword, Price = 400,
                 },
+                new ObjectInfo("rations") {
+                    Number = RationsId, Name = "Rations", InventorySlots = 1,
+                    ObjectType = ObjectType.Misc, Price = 4,
+                },
             }));
             var dialogs = new AnsweringDialogs(id => {
                 _shownWithItem.Add((id, session.DialogKeyObjectId));
@@ -116,6 +141,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             var displayed = new RuntimeContainer { Capacity = 24, ContainerType = SaveGameContainerType.Inventory };
             displayed.Items.Add(new RuntimeItem(SwordId, 100,
                 alreadyBlessed ? (ushort)TempleBlessing.FirstTierFlag : (ushort)0));
+            displayed.Items.Add(new RuntimeItem(RationsId, 1, 0));
             Field("_displayed").SetValue(menu, displayed);
             Field("_blessing").SetValue(menu, new SaveGameContainerShopData(1, 25, 60, 3, 65, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, (ShopItemCategories)0));
