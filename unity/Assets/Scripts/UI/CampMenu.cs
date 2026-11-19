@@ -63,11 +63,6 @@ namespace BakAgain.UI {
         /// </summary>
         private const int RestStepHours = 1;
 
-        /// <summary>
-        /// Hours of continuous rest that cure Sick outright, applied once per rest.
-        /// <c>ENCAMP.C</c> compares the elapsed hour count against 0xd.
-        /// </summary>
-        public const int SickCureHours = 13;
 
         /// <summary>
         /// A guard against a rest that can never end — <b>not</b> a rule, and deliberately far
@@ -125,7 +120,13 @@ namespace BakAgain.UI {
 
         // The REQ builds asynchronously, so set the idle button state once it has — and again on
         // every show, since the panel is rebuilt each time the panel is enabled.
+        // ENCAMP.C:73-77: the cure is armed and its clock started once per visit to the screen.
+        private bool _sickCurePending;
+        private long _visitStartTicks;
+
         private void OnEnable() {
+            _sickCurePending = true;
+            _visitStartTicks = _clock?.Ticks ?? 0;
             _ui = _ui ? _ui : GetComponent<BakAgain.ResourceManagement.Loaders.UserInterfaceLoader>();
             if (_ui != null) {
                 _ui.Built += OnPanelBuilt;
@@ -620,14 +621,16 @@ namespace BakAgain.UI {
                     hours += RestStepHours;
                     // A catch this hour is told before the next one, as gstate_hourly_tick does.
                     await _upkeep.PlayAnnouncementsAsync(_dialogManager, token);
+                    // Once per visit, 13 clock hours after the screen opened, however many rests that
+                    // took, and before the party-down stop (ENCAMP.C:150-159; TASK-1108).
+                    if (GameData.Resources.Config.CampSickCure.Due(_sickCurePending, _visitStartTicks, _clock.Ticks)) {
+                        CureSickness();
+                        _sickCurePending = false;
+                    }
                     // ENCAMP.C:159: a party that went down this hour stops the rest, and the travel
                     // screen then plays 0x145 and leaves (TASK-505).
                     if (GameData.Resources.GameState.PartyDownState.EndsTheLoop(_session.PartyDeathState)) {
                         break;
-                    }
-
-                    if (hours == SickCureHours) {
-                        CureSickness();
                     }
 
                     // Redraw both, or "the dial and party bars animate" is only true of the clock
