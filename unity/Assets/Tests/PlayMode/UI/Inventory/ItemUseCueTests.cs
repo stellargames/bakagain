@@ -64,7 +64,42 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             Assert.That(_cues, Is.EqualTo(new[] { ShopCue }));
         }
 
-        private InventoryMenu Build(out GameSession session, out RuntimeContainer pack) {
+        private sealed class RecordingDialogs : NoOpDialogs {
+            public readonly List<int> Shown = new();
+            public override Cysharp.Threading.Tasks.UniTask<int> ShowById(int id,
+                System.Threading.CancellationToken ct = default) {
+                Shown.Add(id);
+                return base.ShowById(id, ct);
+            }
+        }
+
+        /// <summary>
+        /// No room, no price: the original checks the buyer's room before it names one and
+        /// refuses with 0x1b7748 at Var 0 = 0 (SHOP.C:128-131). The port quoted the price first and
+        /// only refused after the offer was accepted (TASK-1093).
+        /// </summary>
+        [Test]
+        public void ABuyWithNoRoomIsRefusedBeforeThePriceIsNamed() {
+            var dialogs = new RecordingDialogs();
+            InventoryMenu menu = Build(out GameSession session, out RuntimeContainer pack, dialogs);
+            pack.Capacity = 1;
+            pack.Items.Add(new RuntimeItem(LightBowstringId, 1, 0));   // full by count
+            session.PartyGold = 1000;
+            var shop = new RuntimeContainer { Capacity = 20, ContainerType = SaveGameContainerType.FixedWorldItem };
+            shop.Items.Add(new RuntimeItem(LightCrossbowId, 50, 0));
+            const BindingFlags any = BindingFlags.NonPublic | BindingFlags.Instance;
+            typeof(InventoryMenu).GetField("_displayed", any).SetValue(menu, shop);
+
+            var buy = (Cysharp.Threading.Tasks.UniTask)typeof(InventoryMenu)
+                .GetMethod("BuyTransactionAsync", any).Invoke(menu, new object[] { 0, pack, 0 });
+
+            Assert.AreEqual(Cysharp.Threading.Tasks.UniTaskStatus.Succeeded, buy.Status, "control: the buy ends at once");
+            Assert.AreEqual(1000, session.PartyGold, "control: nothing was paid");
+            CollectionAssert.DoesNotContain(dialogs.Shown, 1800023, "the offer (ddx 1800023) must not be made to a buyer with no room");
+        }
+
+        private InventoryMenu Build(out GameSession session, out RuntimeContainer pack,
+            BakAgain.UI.IDialogManager dialogs = null) {
             session = new GameSession();
             session.SetObjectInfo(new ObjectInfoSet("O", new List<ObjectInfo> {
                 new ObjectInfo("bowstring") {
@@ -88,7 +123,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
                 new BakAgain.Core.Services.DialogExecutor(
                     new Microsoft.Extensions.Logging.Abstractions.NullLogger<BakAgain.Core.Services.DialogExecutor>(),
                     session, new BakAgain.Core.Services.GameClock(session)),
-                new NoOpDialogs());
+                dialogs ?? new NoOpDialogs());
             const BindingFlags any = BindingFlags.NonPublic | BindingFlags.Instance;
             typeof(InventoryMenu).GetField("_displayed", any).SetValue(menu, pack);
             VisualElement stage = document.rootVisualElement;

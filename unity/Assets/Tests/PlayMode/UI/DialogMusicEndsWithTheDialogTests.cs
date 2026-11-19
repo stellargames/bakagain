@@ -137,6 +137,12 @@ namespace BakAgain.Tests.PlayMode.UI {
                 Assert.AreEqual(before, midi.CurrentTrack,
                     "the dialog's song must end with the dialog and the track it found come back "
                     + "(DIALOG.C:1491); it kept looping on the travel screen");
+                // The track counts as current from the request on (forum p=51), so let the fade and
+                // the load finish inside the capture: the load's "no variant" note came after it.
+                float settled = Time.realtimeSinceStartup + (float)MusicPlayback.FadeSeconds + 0.5f;
+                while (Time.realtimeSinceStartup < settled) {
+                    await UniTask.Yield();
+                }
                 midi.StopMusic();
             } finally {
                 UnityEngine.Object.DestroyImmediate(dialogGo);

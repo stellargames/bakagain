@@ -68,9 +68,11 @@ namespace BakAgain.UI.Inventory {
         /// the cancel answer here — <c>onCancel</c> and accepting at "None" both resolve to it, and
         /// every caller already treats <c>&lt;= 0</c> as "no transfer".</para>
         /// </param>
+        /// <param name="lockCount">Buying from a shop: the four step buttons are gated and no key
+        /// steps, so the answer is the whole stack, Share or None (INVINSP.C:73-78).</param>
         public static async UniTask<int> ShowAsync(VisualElement stage, InputLayerStack stack,
             int max, bool allowShare, IResourceProviderService resources = null,
-            System.Threading.CancellationToken abandoned = default) {
+            System.Threading.CancellationToken abandoned = default, bool lockCount = false) {
             PickerLayout layout = await PickerLayout.LoadAsync(resources);
             var model = new QuantityPickerModel(max);
             var done = new UniTaskCompletionSource<int>();
@@ -117,6 +119,7 @@ namespace BakAgain.UI.Inventory {
             void Refresh() => give.text = model.Label;
             bool Shift() => BakAgain.UI.InputCore.InputDriver.ShiftHeld;
             void Step(bool up, bool five) {
+                if (lockCount) { return; }   // a shop's count: INVINSP.C:73-78 gates entries 1-4
                 if (five) { if (up) { model.StepUp5(); } else { model.StepDown5(); } }
                 else { if (up) { model.StepUp(); } else { model.StepDown(); } }
                 Refresh();
@@ -125,6 +128,11 @@ namespace BakAgain.UI.Inventory {
             AddButton(panel, layout, ActionDown1, null, () => Step(up: false, five: Shift()));
             AddButton(panel, layout, ActionUp1, null, () => Step(up: true, five: Shift()));
             AddButton(panel, layout, ActionUp5, null, () => Step(up: true, five: true));
+            if (lockCount) {
+                foreach (int id in new[] { ActionDown5, ActionDown1, ActionUp1, ActionUp5 }) {
+                    panel.Q<VisualElement>($"qty_btn_{id}")?.SetEnabled(false);
+                }
+            }
             if (allowShare) {
                 AddButton(panel, layout, ActionShare, null, () => Resolve(-1));
             }

@@ -4328,6 +4328,21 @@ namespace BakAgain.UI.Inventory {
                 return;
             }
 
+            // *** NO ROOM, NO PRICE. *** The original asks the buyer's room before it names a price
+            // (SHOP.C:128-131): everything but a counter drink, Days Rations as the Rations they
+            // become, refused with 0x1b7748 at Var 0 = 0. HasRoomFor is the question every transfer
+            // asks (TASK-625); asking it after the offer quoted a price to a buyer who could not
+            // take the goods, and then showed a party member "waving off" the item (TASK-1093).
+            if (!GameData.Resources.Shop.ShopPurchase.IsCounterDrink(item.ObjectId)
+                && !InventoryTransfer.HasRoomFor(target,
+                    GameData.Resources.Shop.ShopPurchase.Delivered(item), _gameSession.ObjectInfo)) {
+                ShowVar0Message(NoRoomDialogId, 0);
+                DeselectItem();
+                RenderCurrent();
+
+                return;
+            }
+
             // The transaction is a LOOP, not a single question (0x5b79f..0x5b987): a won haggle
             // re-asks at the new price, and only accepting, declining, or a shopkeeper who has had
             // enough ends it.
@@ -4396,22 +4411,6 @@ namespace BakAgain.UI.Inventory {
             }
 
             RuntimeItem delivered = GameData.Resources.Shop.ShopPurchase.Delivered(item);
-            // *** THE WHOLE ROOM QUESTION, NOT JUST THE SLOT BUDGET. *** This asked CanFit, which
-            // knows nothing about stacking, so a member at the budget was refused an item they
-            // ALREADY carry a stack of — which costs no new slot and which the original allows
-            // (canMergeIntoExistingStack @0x552F9). Measured at Romney 2026-09-23: actor2 at 20/20
-            // slots holding 2 Rations ran the whole offer and then kept its gold, while actor4 at
-            // 18/20 bought the same stack fine. HasRoomFor is the classification Plan already used,
-            // so the buy path now asks the same question as every other transfer (TASK-625).
-            if (!InventoryTransfer.HasRoomFor(target, delivered, _gameSession.ObjectInfo)) {
-                // A shop drop is an ordinary transfer in the original, and a transfer that finds no
-                // room plays 0x1b7748 keyed on the destination kind (INVENTOR.C:750). Without this
-                // an accepted offer is a dead click: the gold does not move, the pack does not
-                // change and the shopkeeper says nothing. TASK-413.
-                ShowVar0Message(NoRoomDialogId, target != null ? (int)target.ContainerType : 0);
-
-                return;
-            }
 
             // *** THE ORIGINAL ASKS HOW MANY, AND OFFERS SHARE. *** Measured at Romney's Port
             // Exchange 2026-09-12: accepting an offer for the Quarrels (25) says "It's yours" and
@@ -4436,7 +4435,8 @@ namespace BakAgain.UI.Inventory {
             // prompt was seen at Romney and taken for the general rule.
             if ((info.Flags & GameData.Resources.Object.ObjectFlags.B8000) != 0
                 && delivered.Variable >= 2) {
-                chosen = await ShowQuantityPickerAsync(delivered.Variable, allowShare: true);
+                // A shop's count is locked: all, Share or nothing (INVINSP.C:73-78, TASK-1093).
+                chosen = await ShowQuantityPickerAsync(delivered.Variable, allowShare: true, lockCount: true);
             }
 
             bool share = chosen < 0;
@@ -4821,13 +4821,13 @@ namespace BakAgain.UI.Inventory {
         /// answered "None" — which is the same thing <c>_lockClosed</c> does a few hundred lines up,
         /// for the same reason.</para>
         /// </remarks>
-        private async UniTask<int> ShowQuantityPickerAsync(int max, bool allowShare) {
+        private async UniTask<int> ShowQuantityPickerAsync(int max, bool allowShare, bool lockCount = false) {
             _pickerAbandoned?.Dispose();
             _pickerAbandoned = new System.Threading.CancellationTokenSource();
             _pickerOpen = true;
             try {
                 return await QuantityPickerView.ShowAsync(_stage, _inputStack, max, allowShare,
-                    _resources, _pickerAbandoned.Token);
+                    _resources, _pickerAbandoned.Token, lockCount);
             } finally {
                 _pickerOpen = false;
             }

@@ -209,6 +209,32 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             await pick;
         });
 
+        /// <summary>
+        /// Buying from a shop the count is locked: the original gates entries 1-4, the four step
+        /// buttons, when the source has a shop record (INVINSP.C:73-78, CMBINV.C:917-922), and a
+        /// gated entry neither clicks nor takes its key (MENUPAGE.C:263, :355). The port let the
+        /// count drop and then delivered fewer items at the whole stack's price (TASK-1093).
+        /// </summary>
+        [UnityTest]
+        [Timeout(15000)]
+        public IEnumerator ALockedCount_DoesNotStep() => UniTask.ToCoroutine(async () => {
+            VisualElement stage = BuildStage();
+            var stack = new InputLayerStack();
+            UniTask<int> pick = QuantityPickerView.ShowAsync(stage, stack, max: 6, allowShare: true,
+                lockCount: true);
+            ForceLayout(stage);
+
+            Click(Button(stage, QuantityPickerView.ActionDown1));
+            Click(Button(stage, QuantityPickerView.ActionDown5));
+            stack.DispatchIntent(UiIntent.Move(NavDirection.Left));
+            stack.DispatchIntent(UiIntent.Move(NavDirection.PageDown));
+            stack.DispatchIntent(UiIntent.Skip(','));
+            Assert.AreEqual("Give: 6 (All)", GiveText(stage), "no route steps a locked count");
+
+            Click(Button(stage, QuantityPickerView.ActionGive));
+            Assert.AreEqual(6, await pick);
+        });
+
         [UnityTest]
         [Timeout(15000)]
         public IEnumerator ArrowKeys_StepByOne() => UniTask.ToCoroutine(async () => {
