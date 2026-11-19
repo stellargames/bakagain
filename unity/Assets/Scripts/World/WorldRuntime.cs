@@ -1202,6 +1202,8 @@ namespace BakAgain.World {
         /// (<c>combat_actor_anim_play</c> wait 1, CACTOR.C:1895; COMBAT.C:489 swing, :226 fall). Fired and
         /// forgotten, the next turn's rebuild destroyed the sprite mid-swing (owner's phone round 4).
         /// </remarks>
+        private readonly Encounters.HeldWhileBusy _gridToggle = new();
+
         private bool ArenaBusy() => _sliding || _arenaWork > 0 || (_spellVfx?.Playing ?? false)
             || Encounters.AttackSwing.Playing > 0 || Encounters.DeathCollapse.Playing > 0;
 
@@ -1700,8 +1702,10 @@ namespace BakAgain.World {
             _arenaRoot.AddComponent<Encounters.ArenaGridOverlay>()
                 .Bind(_hotspots.ArenaOverlaySegments,
                     // The G key, or the touch aids' grid button.
-                    () => (_overlayInput?.ToggleOverlayPressed ?? false)
+                    // Held while an attack runs: a redraw then cut the swing (TASK-1100).
+                    () => _gridToggle.Poll((_overlayInput?.ToggleOverlayPressed ?? false)
                         | (BakAgain.UI.InputCore.TouchInputState.Instance?.TakeGridToggle() ?? false),
+                        ArenaBusy()),
                     () => _combatGridLinesEnabled,
                     on => {
                         _combatGridLinesEnabled = on;
