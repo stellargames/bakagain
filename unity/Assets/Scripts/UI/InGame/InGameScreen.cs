@@ -1098,10 +1098,13 @@ namespace BakAgain.UI.InGame {
             if (travelling) {
                 OpenCheatCentralOnItsChord();
             }
-            // The world's ambient SFX, ticked where the original ticks it — from the world loop.
-            // The driver converts frames to game ticks itself, so this passing Time.deltaTime does
-            // NOT tie the sound rate to the frame rate.
-            BakAgain.Audio.AmbientSoundDriver.Instance?.Tick(Time.deltaTime);
+            // The world's ambient SFX, ticked where the original ticks it — from the world loop,
+            // which a dialog, a screen or a fight blocks (WORLDLP.C:101), so only while travelling
+            // (TASK-1112). The driver converts frames to game ticks itself, so this passing
+            // Time.deltaTime does NOT tie the sound rate to the frame rate.
+            if (travelling) {
+                BakAgain.Audio.AmbientSoundDriver.Instance?.Tick(Time.deltaTime);
+            }
             // Flow's own per-iteration work — currently the chapter transition a dialog asked for.
             // Runs while the travel screen is VISIBLE, which it still is under a dialog: the pump
             // itself waits for GameSession.DialogsPlaying to reach 0.
