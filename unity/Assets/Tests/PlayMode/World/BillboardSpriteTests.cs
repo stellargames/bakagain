@@ -137,5 +137,33 @@ namespace BakAgain.Tests.PlayMode.World {
                 Object.DestroyImmediate(fresh);
             }
         }
+
+        /// <summary>
+        /// A damage number follows the body it floats over: the original re-reads the sprite's screen
+        /// top every frame (CACTOR.C:1000-1001), so the number rides down with a falling body. The port
+        /// read it once (TASK-1100 D11). Once the body is gone the anchor holds its last place.
+        /// </summary>
+        [Test]
+        public void TheLiveTopFollowsTheSpriteAndHoldsWhenItGoes() {
+            View(200f);
+            var body = Object.Instantiate(_sprite);
+            System.Func<Vector3> top = BillboardSprite.LiveTopCentre(body.transform);
+            Vector3 standing = top();
+
+            var lower = new Mesh {
+                vertices = new[] {
+                    new Vector3(-0.2f, 0f, 0f), new Vector3(0.8f, 0f, 0f),
+                    new Vector3(0.8f, 0.4f, 0f), new Vector3(-0.2f, 0.4f, 0f),
+                },
+                triangles = new[] { 0, 2, 1, 0, 3, 2 },
+            };
+            body.GetComponent<MeshFilter>().sharedMesh = lower;   // a death frame: shorter
+            Vector3 fallen = top();
+            Assert.Less(fallen.y, standing.y - 0.1f, "the top comes down with the body");
+
+            Object.DestroyImmediate(body);
+            Assert.AreEqual(fallen, top(), "gone: the last place holds");
+            Object.DestroyImmediate(lower);
+        }
     }
 }

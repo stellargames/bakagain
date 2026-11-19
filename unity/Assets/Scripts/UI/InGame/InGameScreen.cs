@@ -482,7 +482,7 @@ namespace BakAgain.UI.InGame {
         /// </summary>
         /// <param name="pens">The colour on each frame — the original walks the pen with the
         /// countdown (<c>0x88 - frames</c>), so the number shifts shade as it fades.</param>
-        public void FloatText(Vector3 world, string text, System.Collections.Generic.IReadOnlyList<Color> pens) {
+        public void FloatText(System.Func<Vector3> world, string text, System.Collections.Generic.IReadOnlyList<Color> pens) {
             VisualElement viewport = _worldView?.Element;
             if (viewport == null || _pendingCamera == null || pens == null || pens.Count == 0) {
                 return;
@@ -494,7 +494,7 @@ namespace BakAgain.UI.InGame {
             FloatTextAsync(label, viewport, world, pens).Forget();
         }
 
-        private async UniTaskVoid FloatTextAsync(Label label, VisualElement viewport, Vector3 world,
+        private async UniTaskVoid FloatTextAsync(Label label, VisualElement viewport, System.Func<Vector3> world,
             System.Collections.Generic.IReadOnlyList<Color> pens) {
             float frame = (float)GameData.Resources.Combat.SpellVisuals.FrameSeconds;
             foreach (Color pen in pens) {
@@ -502,7 +502,8 @@ namespace BakAgain.UI.InGame {
                 if (cam == null || label.panel == null) {
                     break;
                 }
-                Vector3 vp = cam.WorldToViewportPoint(world);
+                // Re-read every frame: the number follows a falling body (CACTOR.C:1000-1001; TASK-1100).
+                Vector3 vp = cam.WorldToViewportPoint(world());
                 Rect r = viewport.contentRect;
                 float x = FloatLeft(vp.x, r.width, label.resolvedStyle.width,
                     label.MeasureTextSize(label.text, 0f, VisualElement.MeasureMode.Undefined, 0f,

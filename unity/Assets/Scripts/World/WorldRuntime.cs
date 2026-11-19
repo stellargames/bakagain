@@ -759,9 +759,8 @@ namespace BakAgain.World {
                     int pen = dealt > 0 ? 0x88 - left : dealt < 0 ? 0xEF - left : 0x88 + left;
                     pens.Add(pen < palette.Length ? palette[pen] : Color.white);
                 }
-                Vector3 top = BillboardSprite.DrawnTopCentre(at);
                 string text = dealt == 0 ? "miss" : System.Math.Abs(dealt).ToString();
-                screen.FloatText(top, text, pens);
+                screen.FloatText(BillboardSprite.LiveTopCentre(at), text, pens);
 #if UNITY_EDITOR || ENABLE_PROFILER
                 BakAgain.Testing.HarnessQueries.NoteFloat(text, slot, party);
 #endif

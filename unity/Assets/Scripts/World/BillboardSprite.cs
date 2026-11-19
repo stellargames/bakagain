@@ -47,6 +47,16 @@ namespace BakAgain.World {
         /// width / 2, y = its top - 5).</summary>
         /// <remarks>Not the renderer's bounds: those are a column round the pivot that covers every
         /// turn (TblSpriteConverter.CoverTurns), so their centre is the anchor, not the picture.</remarks>
+        /// <summary>
+        /// <see cref="DrawnTopCentre"/>, read again at every call: a damage number follows the body it
+        /// floats over, as the original re-reads the sprite's top every frame (CACTOR.C:1000-1001;
+        /// TASK-1100). Once the sprite is gone it answers its last place.
+        /// </summary>
+        public static System.Func<Vector3> LiveTopCentre(Transform sprite) {
+            Vector3 last = DrawnTopCentre(sprite);
+            return () => sprite != null ? last = DrawnTopCentre(sprite) : last;
+        }
+
         public static Vector3 DrawnTopCentre(Transform sprite) {
             Mesh mesh = sprite.GetComponent<MeshFilter>()?.sharedMesh;
             if (mesh == null) {
