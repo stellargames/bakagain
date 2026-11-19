@@ -153,6 +153,44 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             Assert.That(_hud.WantsFullScreen, Is.True, "control: once the arena is gone, travel is full-screen again");
         }
 
+        /// <summary>
+        /// TASK-1096: the Enhanced arena is full-window, and with Full-Screen Travel off it shrank
+        /// into the frame under the outcome line, because Enhanced combat ends at Combat.Leave.
+        /// The original changes the view only under black, when the arena is left.
+        /// </summary>
+        [Test]
+        public void WithEnhancedCombatOn_TheArenaStaysFullWindowUntilItIsLeft() {
+            GameOptions.SetFeature(EnhancedFeature.Combat, true);
+            GameOptions.SetFeature(EnhancedFeature.FullScreenTravel, false);
+            _hud.SetInCombatPredicate(() => false);
+            _hud.SetArenaShownPredicate(() => true);
+
+            Assert.That(_hud.WantsFullScreen, Is.True, "the Enhanced arena is still on screen");
+
+            _hud.SetArenaShownPredicate(() => false);
+            Assert.That(_hud.WantsFullScreen, Is.False, "control: once it is gone, travel is framed");
+        }
+
+        /// <summary>
+        /// TASK-1096: under the outcome line the Classic arena keeps its combat frame and the
+        /// travel controls stay dead; the port showed the travel chrome and let the party walk.
+        /// </summary>
+        [Test]
+        public void TheArenaOnScreenKeepsTheCombatChromeAndBlocksTravel() {
+            GameOptions.SetFeature(EnhancedFeature.Combat, false);
+            _hud.SetInCombatPredicate(() => false);
+            _hud.SetArenaShownPredicate(() => true);
+
+            Assert.That(_hud.TravelBlockedByTheArena, Is.True, "no walking while the arena shows");
+            _hud.RefreshCombatChrome();
+            Assert.That(_hud.CombatChromeShown, Is.True, "the combat frame stays up");
+
+            _hud.SetArenaShownPredicate(() => false);
+            _hud.RefreshCombatChrome();
+            Assert.That(_hud.TravelBlockedByTheArena, Is.False, "control: travel once it is left");
+            Assert.That(_hud.CombatChromeShown, Is.False);
+        }
+
         [Test]
         public void WithoutAFight_EnhancedCombatIsNotActive() {
             GameOptions.SetFeature(EnhancedFeature.Combat, true);

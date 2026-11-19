@@ -1086,7 +1086,7 @@ namespace BakAgain.UI.InGame {
             _worldView?.Tick();
             // Not in a fight: the arena runs instead of the world loop in the original, and the touch
             // aids' C3 pad (which sets the same held-pad state) moves the combat cursor there.
-            bool travelling = _travelHost != null && _travelHost.IsInputActive && !AFightIsRunning();
+            bool travelling = _travelHost != null && _travelHost.IsInputActive && !ArenaOnScreen();
             if (travelling && _gameSession != null && _gameSession.CameraLiftRequested && !_lifting) {
                 _gameSession.CameraLiftRequested = false;
                 LiftCameraAsync().Forget();
@@ -1454,10 +1454,10 @@ namespace BakAgain.UI.InGame {
         private VisualElement _combatGuard;
 
         internal void RefreshCombatChrome() {
-            bool inCombat = _inCombat?.Invoke() ?? false;
+            bool inCombat = (_inCombat?.Invoke() ?? false) || (_arenaShown?.Invoke() ?? false);
             // Enhanced combat (TASK-972): the band replaces the original's frame, and the arena is
             // full-window, so the frame and its click guard stay down.
-            bool chrome = inCombat && !EnhancedCombatActive;
+            bool chrome = inCombat && !EnhancedArenaOnScreen();
             if (chrome == _combatChromeShown) {
                 return;
             }
@@ -1668,13 +1668,29 @@ namespace BakAgain.UI.InGame {
         // The arena stays framed until it is LEFT, not until the fight ends in the code: its outcome line and the
         // fade out still show it, and switching there drew the Classic arena full-screen (forum p=54).
         private bool WantFullScreen() =>
-            EnhancedCombatActive || (GameOptions.IsOn(EnhancedFeature.FullScreenTravel) && !AFightIsRunning()
-                && !(_arenaShown?.Invoke() ?? false));
+            EnhancedArenaOnScreen()
+            || (GameOptions.IsOn(EnhancedFeature.FullScreenTravel) && !ArenaOnScreen());
+
+        // *** THE FIGHT ENDS BEFORE ITS ARENA DOES. *** Combat.Leave runs before the outcome line
+        // and the fade (HotspotService.EndCombat), but the original changes the view and hands the
+        // travel controls back only under black, when the arena is left. Everything that asks
+        // "is the arena what the player sees" asks this, not AFightIsRunning (forum p=54, TASK-1096).
+        private bool ArenaOnScreen() => AFightIsRunning() || (_arenaShown?.Invoke() ?? false);
+
+        // The Enhanced arena keeps its full window until it is left, as the Classic one keeps its frame.
+        private bool EnhancedArenaOnScreen() =>
+            EnhancedCombatActive
+            || (!AFightIsRunning() && (_arenaShown?.Invoke() ?? false)
+                && GameOptions.IsOn(EnhancedFeature.Combat));
 
         internal bool WantsFullScreen => WantFullScreen();
 
         /// <summary>Whether the travel view is drawn full-screen right now (the harness reads it).</summary>
         internal bool FullScreenShown => _fullScreenShown;
+
+        internal bool TravelBlockedByTheArena => ArenaOnScreen();
+
+        internal bool CombatChromeShown => _combatChromeShown;
 
         /// <summary>A fight is running and the Enhanced combat interface is on (TASK-972).</summary>
         /// <remarks>Latched per turn once the fight's turn seam is set: turning the switch off mid-fight

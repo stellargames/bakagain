@@ -3217,9 +3217,7 @@ using GameData.Resources.Scene;
 
             CombatRuntime.RetreatOutcome outcome = Combat.ResolveRetreat(acting, _random);
             // The line is also written to the Enhanced fight log, from the very play that is shown.
-            if (outcome.Escaped) {
-                PlayDialog((uint)outcome.DialogRecord, modal: true);
-            } else {
+            if (!outcome.Escaped) {
                 _dialogs?.ShowById(outcome.DialogRecord, LogDialogLine).Forget();
             }
 
@@ -3244,7 +3242,19 @@ using GameData.Resources.Scene;
             _afterFight = null;   // a flight halts the pass for good (HOTSPOT.C:533)
             Combat.Leave();
             _setCombatMusic?.Invoke(false);
-            SwapArenaThroughFade(false, () => _combatMenuAccessor?.Invoke()?.Close());
+            ShowFlightThenLeaveArenaAsync(outcome.DialogRecord).Forget();
+        }
+
+        // *** "THEY RAN." IS READ OVER THE ARENA, THEN THE ARENA GOES. *** The world faded back
+        // while the line was still up; the original waits for it first (TASK-1096).
+        private async UniTaskVoid ShowFlightThenLeaveArenaAsync(int record) {
+            try {
+                if (_dialogs != null) {
+                    await _dialogs.ShowById(record);
+                }
+            } finally {
+                SwapArenaThroughFade(false, CloseCombatMenus);
+            }
         }
 
         /// <summary>Add a play's text, as the player reads it, to the fight log.</summary>
@@ -5605,13 +5615,27 @@ using GameData.Resources.Scene;
                 dispatched.Fired, dispatched.Halted ? ", pass halted" : string.Empty);
         }
 
-        private void EndCombat() {
+        // The picker is an overlay on the same anchors, so a fight that ends while it is up would
+        // leave quarrel buttons floating over the travel HUD.
+        private void CloseCombatMenus() {
+            _combatMenuAccessor?.Invoke()?.Close();
+            _shootMenuAccessor?.Invoke()?.Close();
+        }
+
+        /// <returns>False when there was no finished fight to end.</returns>
+        /// <remarks>
+        /// <b>The combat menu stays up until the arena is left</b>, under black: the original
+        /// redraws it over the still-visible arena while the outcome line reads, and only the fade
+        /// back to travel takes it away. Closing it here put the travel buttons under the line
+        /// (TASK-1096).
+        /// </remarks>
+        private bool EndCombat() {
             if (Combat.Encounter == null) {
-                return;
+                return false;
             }
             if (!Combat.Encounter.IsOver()) {
                 _logger?.LogWarning("Combat HUD closed without the encounter being over; not ending it.");
-                return;
+                return false;
             }
 
             int? outcomeLine = PrepareOutcomeLine(Combat.Encounter);
@@ -5629,8 +5653,10 @@ using GameData.Resources.Scene;
             if (outcomeLine.HasValue && _dialogs != null) {
                 ShowOutcomeThenLeaveArenaAsync(outcomeLine.Value, () => ResumeThePassAfterTheFight(rest)).Forget();
             } else {
-                SwapArenaThroughFade(false, afterFadeIn: () => ResumeThePassAfterTheFight(rest));
+                SwapArenaThroughFade(false, CloseCombatMenus,
+                    afterFadeIn: () => ResumeThePassAfterTheFight(rest));
             }
+            return true;
         }
 
         /// <summary>
@@ -5682,7 +5708,7 @@ using GameData.Resources.Scene;
             try {
                 await _dialogs.ShowById(line);
             } finally {
-                SwapArenaThroughFade(false, afterFadeIn: afterFadeIn);
+                SwapArenaThroughFade(false, CloseCombatMenus, afterFadeIn: afterFadeIn);
             }
         }
 
@@ -6673,11 +6699,9 @@ using GameData.Resources.Scene;
                     return;
                 }
                 if (next == null) {
-                    EndCombat();
-                    menu.Close();
-                    // The picker is an overlay on the same anchors, so a fight that ends while it is
-                    // up would leave quarrel buttons floating over the travel HUD.
-                    _shootMenuAccessor?.Invoke()?.Close();
+                    if (!EndCombat()) {
+                        CloseCombatMenus();
+                    }
                     return;
                 }
 
