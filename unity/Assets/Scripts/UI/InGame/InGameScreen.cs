@@ -351,6 +351,11 @@ namespace BakAgain.UI.InGame {
         /// out show it after <c>Combat.Leave</c> (forum p=54).</summary>
         internal void SetArenaShownPredicate(System.Func<bool> arenaShown) => _arenaShown = arenaShown;
 
+        /// <summary>Whether the arena is playing an attack (a walk, a swing, a flight); the Enhanced HUD holds its picture.</summary>
+        internal void SetArenaBusyPredicate(System.Func<bool> arenaBusy) => _arenaBusy = arenaBusy;
+
+        private System.Func<bool> _arenaBusy;
+
         private System.Func<bool> _arenaShown;
 
         // Whether the fight's first turn has been handed out (HotspotService.FightUnderWay); null = yes.
@@ -1284,7 +1289,8 @@ namespace BakAgain.UI.InGame {
                 () => _combatController?.Model(lines) ?? _combatHudModel?.Invoke(lines), _classicCombatMenu?.Invoke(),
                 // Not before the fight is under way: the entry line and the opening enemy turns show no
                 // combat HUD in the Classic game either.
-                !DialogManager.PageOverTheWorld && FightUnderWay());
+                !DialogManager.PageOverTheWorld && FightUnderWay(),
+                hold: _arenaBusy?.Invoke() ?? false);
             // The controller owns the forecast in the model; the world hands back the one for this
             // fight's service (the same instance until the zone's service changes).
             var controller = _combatHud.Hud != null ? _combatControllerFor?.Invoke(_combatHud.Hud, phone) : null;

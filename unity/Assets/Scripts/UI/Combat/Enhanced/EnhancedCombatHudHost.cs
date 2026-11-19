@@ -64,8 +64,9 @@ namespace BakAgain.UI.Combat.Enhanced {
         /// </summary>
         /// <param name="classicMenu">The Classic combat menu's document root; null when there is none.</param>
         /// <param name="shown">False hides the HUD without reverting (a screen is pushed over the fight).</param>
+        /// <param name="hold">True keeps the last picture up unread (the arena is playing an attack).</param>
         public void Sync(bool optionOn, bool inFight, object turn, Func<CombatHudModel> model,
-            VisualElement classicMenu, bool shown = true) {
+            VisualElement classicMenu, bool shown = true, bool hold = false) {
             object before = _turn;
             bool wasActive = _active;
             bool active = Decide(optionOn, inFight, turn);
@@ -81,6 +82,12 @@ namespace BakAgain.UI.Combat.Enhanced {
             HideMenu(classicMenu);
             if (!shown) {
                 Hud.Hide();
+                return;
+            }
+            // While the arena plays an attack the picture stays as it was before the blow: the
+            // original redraws nothing during its blocking attack, so a foe's card does not read
+            // dead before the walk and the swing are seen (TASK-1100).
+            if (hold && Hud.Shown) {
                 return;
             }
             _poll -= Time.unscaledDeltaTime;

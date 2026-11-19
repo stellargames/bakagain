@@ -903,6 +903,27 @@ namespace BakAgain.Tests.PlayMode.UI.Combat {
             Assert.AreEqual(StyleKeyword.Null, _classic.style.display.keyword, "the Classic menu is back");
         }
 
+        /// <summary>
+        /// While the arena plays the attack the HUD keeps the picture from before the blow: the
+        /// original redraws nothing during its blocking attack, so a foe's card does not read dead
+        /// before the walk and the swing are seen (TASK-1100 D8). The next sync after it shows.
+        /// </summary>
+        [Test]
+        public void TheHudHoldsItsPictureWhileTheAttackPlays() {
+            object owyn = "Owyn, round 2";
+            int asked = 0;
+            _hudHost.Sync(true, true, owyn, () => { asked++; return HudModels.Idle(); }, _classic);
+            Assert.AreEqual(1, asked, "control: shown");
+
+            _hudHost.Invalidate();
+            _hudHost.Sync(true, true, owyn, () => { asked++; return HudModels.Idle(); }, _classic, hold: true);
+            Assert.AreEqual(1, asked, "not re-read while the attack plays");
+            Assert.IsTrue(_hudHost.Hud.Shown, "the last picture stays up");
+
+            _hudHost.Sync(true, true, owyn, () => { asked++; return HudModels.Idle(); }, _classic);
+            Assert.AreEqual(2, asked, "read again once the arena is idle");
+        }
+
         [Test]
         public void ClassicCombatHudUnchanged() {
             _hudHost.Sync(false, true, "Owyn, round 1", () => HudModels.Idle(), _classic);

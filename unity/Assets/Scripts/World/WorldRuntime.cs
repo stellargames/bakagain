@@ -1524,6 +1524,7 @@ namespace BakAgain.World {
                 screen.SetCombatFaceSeam(FaceActingCombatantAt);
                 screen.SetInCombatPredicate(() => _hotspots?.Combat?.InCombat ?? false);
                 screen.SetArenaShownPredicate(() => _arenaOnScreen);
+                screen.SetArenaBusyPredicate(ArenaBusy);
                 screen.SetFightUnderWayPredicate(() => _hotspots?.FightUnderWay ?? false);
                 if (_hotspots.Combat != null) {
                     _hotspots.Combat.ForecastLayout = _combatLayout;
