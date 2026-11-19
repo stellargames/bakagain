@@ -557,8 +557,9 @@ namespace BakAgain.World {
         ///
         /// <para>Called only where the step actually happened — including the case a hotspot
         /// reverted, because the original advances after the pass and never rolls time back. A
-        /// blocked step that only pivots does not call this; that reading of
-        /// <c>worldmove_party_attempt_move</c>'s return is unverified against the pivot path.</para>
+        /// blocked step that only pivots (free walk or road) calls it too: the L_fail sweep returns 1
+        /// and the loop charges the step (WORLDMOV.C:141-149, WORLDLP.C:189-198; TASK-1018,
+        /// TASK-1112).</para>
         /// </summary>
         /// <param name="stepStands">
         /// Whether the party KEPT the ground it moved onto. A hotspot that fires rolls the step back,
