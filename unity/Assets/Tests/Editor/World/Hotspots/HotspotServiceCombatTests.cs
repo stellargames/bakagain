@@ -29,13 +29,14 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
         private const long EncounterNumber = 40;
         private const short RosterSlot = 400;
 
-        private static DefFamilyFile<DefCombEntry> CombTable(long encounter, bool avoidable = false) =>
+        private static DefFamilyFile<DefCombEntry> CombTable(long encounter, bool avoidable = false,
+            uint entryDialog = 0) =>
             new DefFamilyFile<DefCombEntry>("DEF_COMB.DAT",
                 new List<DefRecord<DefCombEntry>> {
                     new DefRecord<DefCombEntry> {
                         Status = 1,
                         Payload = new DefCombEntry {
-                            EncounterNumber = (uint)encounter, Avoidable = avoidable,
+                            EncounterNumber = (uint)encounter, Avoidable = avoidable, DialogId1 = entryDialog,
                             // Four DISTINGUISHABLE landings, so a test can tell which one was
                             // picked rather than only that the party moved.
                             LandingDir1 = Landing(1),
@@ -100,7 +101,8 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
         private static Rig Build(int roll = 99, GameData.Resources.Config.StartData start = null,
             TrapData traps = null, System.Func<BakAgain.UI.Combat.CombatMenu> combatMenu = null,
             System.Func<bool> arenaBusy = null, BakAgain.UI.IDialogManager dialogs = null,
-            long encounter = EncounterNumber, int creature = 12) {
+            long encounter = EncounterNumber, int creature = 12, uint entryDialog = 0,
+            List<string> order = null) {
             var session = new GameSession();
             session.SetActorStatsForTest(0, StatBlock());
             session.SetActiveParty(1, new byte[] { 0 });
@@ -110,7 +112,7 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
             var rig = new Rig { Session = session };
             rig.Service = new HotspotService(null, null, session, dialogs,
                 random: _ => roll,
-                setCombatMusic: on => rig.Music.Add(on),
+                setCombatMusic: on => { rig.Music.Add(on); order?.Add(on ? "music on" : "music off"); },
                 resyncCamera: () => rig.CameraResyncs++,
                 combatMenuAccessor: combatMenu,
                 arenaBusy: arenaBusy);
@@ -118,7 +120,7 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
                 byChunk: new Dictionary<(int x, int y), List<TileEventTrigger>> {
                     [(0, 0)] = new List<TileEventTrigger> { CombTrigger() },
                 },
-                comb: CombTable(encounter), start: start, traps: traps);
+                comb: CombTable(encounter, entryDialog: entryDialog), start: start, traps: traps);
             return rig;
         }
 
@@ -1332,6 +1334,29 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
             Assert.IsTrue(Placed(), "drawn, so its fall can play");
             foe.DeathShown = true;
             Assert.IsFalse(Placed(), "and gone once it has");
+        }
+
+        private sealed class OrderLoggingDialogs : BakAgain.Tests.PlayMode.UI.Inventory.NoOpDialogs {
+            private readonly List<string> _order;
+            public OrderLoggingDialogs(List<string> order) => _order = order;
+            public override Cysharp.Threading.Tasks.UniTask<int> ShowById(int id,
+                System.Threading.CancellationToken ct = default) {
+                _order.Add("line " + id);
+                return Cysharp.Threading.Tasks.UniTask.FromResult(0);
+            }
+        }
+
+        /// <summary>
+        /// The fight's music starts after the encounter's entry line: the original plays the line,
+        /// then enters the arena, whose entry starts the combat track (HOTSPOT.C:539-542,
+        /// COMBAT.C:106-110). The port started the music under the line (TASK-1112 row 3).
+        /// </summary>
+        [Test]
+        public void TheFightsMusicStartsAfterTheEntryLine() {
+            var order = new List<string>();
+            Rig rig = Build(dialogs: new OrderLoggingDialogs(order), entryDialog: 1234, order: order);
+            rig.Service.StartCombat(CombTrigger());
+            CollectionAssert.AreEqual(new[] { "line 1234", "music on" }, order);
         }
 
         [Test]

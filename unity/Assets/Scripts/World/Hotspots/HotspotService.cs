@@ -1261,11 +1261,12 @@ using GameData.Resources.Scene;
             _fightingEncounter = encounter.Value;
             _fightingTrigger = trigger;
             _fightingHotspotIndex = hotspotIndex;
-            _setCombatMusic?.Invoke(true);
             // ShowCombatHud goes UNDER the cover, not after it — see SwapArenaThroughFade.
             // The record's main-fire line is spoken BEFORE the fade, over the travel view, which is
-            // where HOTSPOT.C:526-528 puts it.
-            SwapArenaThroughFade(true, ShowCombatHud, EntryDialogId(trigger));
+            // where HOTSPOT.C:526-528 puts it; the fight's music starts after it, with the arena's
+            // entry (HOTSPOT.C:539-542, COMBAT.C:106-110; TASK-1112).
+            SwapArenaThroughFade(true, ShowCombatHud, EntryDialogId(trigger),
+                afterEntryLine: () => _setCombatMusic?.Invoke(true));
             return true;
         }
 
@@ -5561,12 +5562,12 @@ using GameData.Resources.Scene;
         /// takes it, which reads as a glitch rather than a transition.</para>
         /// </remarks>
         private void SwapArenaThroughFade(bool entering, Action afterSwap = null,
-            uint entryDialogId = 0, Action afterFadeIn = null) {
-            SwapArenaThroughFadeAsync(entering, afterSwap, entryDialogId, afterFadeIn).Forget();
+            uint entryDialogId = 0, Action afterFadeIn = null, Action afterEntryLine = null) {
+            SwapArenaThroughFadeAsync(entering, afterSwap, entryDialogId, afterFadeIn, afterEntryLine).Forget();
         }
 
         private async UniTaskVoid SwapArenaThroughFadeAsync(bool entering, Action afterSwap,
-            uint entryDialogId = 0, Action afterFadeIn = null) {
+            uint entryDialogId = 0, Action afterFadeIn = null, Action afterEntryLine = null) {
             // *** THE ENTRY LINE COMES FIRST, AND OVER THE TRAVEL VIEW. ***
             // hotspotevt_type1_encounter_run plays the record at buf+6 and only THEN calls
             // combat_arena_actor_turn_loop (HOTSPOT.C:526-528), so it is read and dismissed while the
@@ -5576,6 +5577,7 @@ using GameData.Resources.Scene;
             if (entryDialogId != 0 && _dialogs != null) {
                 await _dialogs.ShowById((int)entryDialogId);
             }
+            afterEntryLine?.Invoke();
 
             await _fade.FadeOutAsync();
             try {
