@@ -82,6 +82,17 @@ namespace BakAgain.Core.Services {
         /// (TASK-313). <c>DialogManager</c> plays the UI click on a choice button and that was the
         /// whole of a conversation's sound.
         /// </remarks>
+        /// <summary>
+        /// A shown line's pass-3 sounds, played once its page is dismissed (DIALOG.C:1445 runs pass 3
+        /// after the wait; TASK-1113). The dialog screen calls this; a text-less line has no page and
+        /// plays them while it resolves.
+        /// </summary>
+        public void PlayAfterPageAudio(DialogEntry entry) {
+            if (entry != null) {
+                PlayEntryAudio(entry, PlayAudioTiming.AfterActions);
+            }
+        }
+
         private void PlayEntryAudio(DialogEntry entry, PlayAudioTiming timing) {
             foreach (DialogActionBase action in entry.Actions) {
                 if (action is PlayAudioAction audio && audio.Timing == timing) {
@@ -116,7 +127,7 @@ namespace BakAgain.Core.Services {
         private void PlayDialogAudio(int audioId) {
             switch (DialogAudio.KindOf(audioId)) {
                 case DialogAudio.Kind.Sound:
-                    BakAgain.Audio.MenuSoundService.Instance?.Play(audioId);
+                    BakAgain.Audio.MenuSoundService.Cue(audioId);
                     break;
                 case DialogAudio.Kind.Song:
                     if (_provider != null && BakAgain.Audio.MidiPlaybackManager.Instance != null) {
@@ -767,7 +778,11 @@ namespace BakAgain.Core.Services {
                 }
             }
 
-            PlayEntryAudio(entry, PlayAudioTiming.AfterActions);
+            // Pass 3 runs after the page's wait; a line with a page leaves it to the dialog screen
+            // (PlayAfterPageAudio), a text-less router plays it now (TASK-1113).
+            if (string.IsNullOrEmpty(entry.Text)) {
+                PlayEntryAudio(entry, PlayAudioTiming.AfterActions);
+            }
         }
 
         /// <summary>The dialog's quoted price — <c>lEvtArgGoldCost</c>, global 30014.</summary>

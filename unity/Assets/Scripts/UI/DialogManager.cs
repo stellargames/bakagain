@@ -2756,6 +2756,8 @@ namespace BakAgain.UI {
                         body.AdvancePage();
                         dismissed = false;
                     }
+                    // Pass 3's sounds come after the page (DIALOG.C:1445; TASK-1113).
+                    _executor?.PlayAfterPageAudio(entry);
                     return -1;
                 } finally {
                     if (keepPanel || _leavePagesDrawn > 0) {
