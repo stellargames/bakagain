@@ -1551,13 +1551,22 @@ namespace BakAgain.UI.InGame {
         /// <see cref="PartyDownState.Standing"/> again, which is what loading or starting a game
         /// does — so a second wipe in a later session exits the same way.</para>
         /// </remarks>
+        /// <summary>
+        /// What holds the game-over exit back: a fall still dropping, a fight still running, or a
+        /// dialog still up — the line that ended the fight is modal in the original, and the world
+        /// loop's exit comes after it (COMBAT.C:2588-2604, WORLDLP.C:399-401; TASK-1096).
+        /// </summary>
+        internal static bool PartyDownExitHolds(bool falling, bool fightRunning, int dialogsPlaying) =>
+            falling || fightRunning || dialogsPlaying > 0;
+
         private void EndTheLoopIfThePartyIsDown() {
             if (_gameSession == null
                 || !PartyDownState.EndsTheLoop(_gameSession.PartyDeathState)) {
                 _partyDownExitStarted = false;
                 return;
             }
-            if (_partyDownExitStarted || (_movement?.IsFalling ?? false) || AFightIsRunning()) {
+            if (_partyDownExitStarted || PartyDownExitHolds(_movement?.IsFalling ?? false, AFightIsRunning(),
+                    _gameSession.DialogsPlaying)) {
                 return;
             }
             _partyDownExitStarted = true;

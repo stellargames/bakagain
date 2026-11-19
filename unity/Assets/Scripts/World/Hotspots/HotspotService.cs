@@ -5722,7 +5722,16 @@ using GameData.Resources.Scene;
             try {
                 await _dialogs.ShowById(line);
             } finally {
-                SwapArenaThroughFade(false, CloseCombatMenus, afterFadeIn: afterFadeIn);
+                // A wipe goes straight to the game-over exit: the original reaches it from the world
+                // loop with no redraw of the world between (COMBAT.C:2588-2604, HOTSPOT.C:577,
+                // WORLDLP.C:399-401). Fading back first showed the travel view under a lost game
+                // (TASK-1096).
+                if (_session != null
+                    && GameData.Resources.GameState.PartyDownState.EndsTheLoop(_session.PartyDeathState)) {
+                    CloseCombatMenus();
+                } else {
+                    SwapArenaThroughFade(false, CloseCombatMenus, afterFadeIn: afterFadeIn);
+                }
             }
         }
 

@@ -43,6 +43,19 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             Assert.IsFalse(InGameScreen.RetriesAfter(new TaskCanceledExceptionStandIn()));
         }
 
+        /// <summary>
+        /// The game-over exit waits for the line that ends the fight: the original plays it modally
+        /// and only then reaches the world loop's exit (COMBAT.C:2588-2604, WORLDLP.C:399-401). The
+        /// port started the exit as soon as the fight was over, under the line (TASK-1096 row 8).
+        /// </summary>
+        [Test]
+        public void TheExitWaitsForADialogStillPlaying() {
+            Assert.IsTrue(InGameScreen.PartyDownExitHolds(falling: false, fightRunning: false, dialogsPlaying: 1));
+            Assert.IsFalse(InGameScreen.PartyDownExitHolds(falling: false, fightRunning: false, dialogsPlaying: 0),
+                "control: nothing up, it goes");
+            Assert.IsTrue(InGameScreen.PartyDownExitHolds(falling: false, fightRunning: true, dialogsPlaying: 0));
+        }
+
         // OperationCanceledException's own subclass, to prove the test keys on the TYPE HIERARCHY
         // rather than on an exact type match — UniTask cancellation surfaces as a subclass.
         private sealed class TaskCanceledExceptionStandIn : OperationCanceledException { }
