@@ -449,6 +449,10 @@ namespace BakAgain.World {
                 if (forward && TrySweepRoadHeading(heading, out ushort swept)) {
                     BeginSwing();
                     _session.Rotation = unchecked((short)swept);
+                    // The turn is still the step for the world, as the free-walk pivot is: the move
+                    // returns 1 and the loop charges the clock and steps the roamers
+                    // (WORLDMOV.C:141-149, WORLDLP.C:189-198; TASK-1112). No cell tick.
+                    AdvanceClockForStep(stepStands: false, size);
                     SyncCamera();
 
                     return false;

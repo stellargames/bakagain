@@ -173,6 +173,24 @@ namespace BakAgain.Tests.Editor.World.Collision {
             Assert.AreEqual(Centre, rig.Session.PositionY);
         }
 
+        /// <summary>
+        /// The road turn is the same L_fail sweep as the free-walk pivot: the move returns 1, and the
+        /// world loop charges the step's time and steps the roamers (WORLDMOV.C:141-149,
+        /// WORLDLP.C:189-198). The port's road turn was free (TASK-1112).
+        /// </summary>
+        [Test]
+        public void TheRoadTurnStillCountsAsTheStepForTheWorld() {
+            var rig = OnARoadBendingWest();
+            rig.Session.Rotation = 0;
+            var parts = new System.Collections.Generic.List<int>();
+            rig.Movement.Stepped += n => parts.Add(n);
+
+            rig.Movement.MoveForward();
+
+            Assert.AreEqual(0x4000, (ushort)rig.Session.Rotation, "control: it turned onto the bend");
+            CollectionAssert.AreEqual(new[] { 1 }, parts, "one whole step for the roamers and the clock");
+        }
+
         [Test]
         public void TheRoadSweepStillFindsTheBendAfterABumpLeftTheHeadingOffTheLattice() {
             // *** ONE BLOCKED STEP USED TO END ROAD TRAVEL FOR GOOD. ***
