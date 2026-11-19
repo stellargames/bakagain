@@ -56,16 +56,12 @@ public static class ChestTrap {
     public const int DisarmSkillAward = Character.PicklockAttempt.SkillOnSuccess;
 
     /// <summary>
-    /// <b>Nothing is said when a disarm fails, and the trap stays armed.</b>
+    /// <b>Nothing is said when a disarm fails — the trap goes off.</b>
     /// </summary>
     /// <remarks>
-    /// The failure arm sets a flag and falls through — there is no "you failed" line. The player
-    /// finds out by opening the chest, which is the point: a message would give away for free what
-    /// the detection spell is for.
-    ///
-    /// <para>A failed attempt does not spring the trap either. It costs the attempt and nothing
-    /// else, landing on exactly the prompt an undetected trap shows.</para>
-    /// <para><b>Deliberately callerless.</b> ContainerInteractionHandler.TryTrappedAsync falls through to the open prompt on a failed disarm, saying nothing.</para>
+    /// The failure arm sets the denied flag (handle_Container @0x77437), and the explosion arm runs
+    /// on it: no "you failed" line, the boom is the answer (WCURSOR.C:592-596, :633-676; TASK-1101).
+    /// <para><b>Deliberately callerless.</b> ContainerInteractionHandler.TryTrappedAsync springs the trap on a failed disarm.</para>
     /// </remarks>
     public static bool AnnouncesFailure => false;
 
@@ -88,7 +84,7 @@ public static class ChestTrap {
     public const int DisarmedDialog = 191;
 
     /// <summary>
-    /// Asks whether to open a chest that is <b>still trapped</b> — undetected, or a failed disarm.
+    /// Asks whether to open a chest that is <b>still trapped</b> and was not detected.
     /// </summary>
     public const int OpenStillTrappedDialog = 79;
 
@@ -101,11 +97,6 @@ public static class ChestTrap {
     public const int OpenExTrappedDialog = 317;
 
     /// <summary>Which prompt an open attempt shows.</summary>
-    /// <remarks>
-    /// <b>A FAILED DISARM DOES NOT SPRING THE TRAP.</b> It falls through to exactly the same prompt
-    /// an undetected trap shows — so failing costs the attempt and nothing else, and the player is
-    /// still asked before anything happens.
-    /// </remarks>
     public static int OpenPromptFor(int trapDamage) =>
         trapDamage != 0 ? OpenStillTrappedDialog : OpenExTrappedDialog;
 

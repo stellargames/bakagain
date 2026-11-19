@@ -234,8 +234,9 @@ namespace BakAgain.World.Interaction {
         /// A trapped chest — <c>handle_Container</c>'s case 0. See <see cref="ChestTrap"/>.
         /// </summary>
         /// <remarks>
-        /// <b>Nothing here opens the chest on the player's behalf.</b> Detected or not, disarmed or
-        /// not, every path ends at a yes/no, so the trap can only go off on a choice.
+        /// <b>Nothing here opens the chest on the player's behalf.</b> A detected trap asks whether
+        /// to try the disarm, and a failed attempt sets it off; an undetected one asks whether to
+        /// open the chest.
         /// </remarks>
         internal async UniTask TryTrappedAsync(SaveGameContainerData snapshot,
             RuntimeContainer container, int zone, int bakX, int bakY,
@@ -251,7 +252,11 @@ namespace BakAgain.World.Interaction {
             int trapDamage = container?.TrapDisarmed == true ? 0 : snapshot?.LockData?.TrapDamage ?? 0;
             bool detected = ChestTrap.Detected(SarigActive(), trapDamage);
 
-            if (detected && await _dialog.ShowConfirmById(ChestTrap.DetectedPromptDialog)) {
+            if (detected) {
+                // *** NO TO THE WARNING ENDS THE CLICK. *** 0x773ad jumps to the switch's end.
+                if (!await _dialog.ShowConfirmById(ChestTrap.DetectedPromptDialog)) {
+                    return;
+                }
                 int best = _session.PartyExtreme((GameData.ActorAttribute)ChestTrap.DisarmAttribute, out int member);
                 if (ChestTrap.DisarmSucceeds(best, snapshot?.LockData?.Difficulty ?? 0)) {
                     await _dialog.ShowById(ChestTrap.DisarmedDialog);
@@ -265,9 +270,12 @@ namespace BakAgain.World.Interaction {
 
                     return;
                 }
-                // A FAILED DISARM DOES NOT SPRING THE TRAP — it falls through to exactly the prompt
-                // an undetected trap shows, so failing costs the attempt and nothing else.
-                trapDamage = snapshot?.LockData?.TrapDamage ?? 0;   // still armed
+                // *** A FAILED DISARM SPRINGS THE TRAP. *** handle_Container @0x773d1 jumps on
+                // difficulty >= best to 0x77437, the denied flag the explosion arm runs on
+                // (WCURSOR.C:592-596, :633-676). An earlier reading had it fall through to the open
+                // prompt, which let the party walk away (TASK-1101).
+                await SpringTrapAsync(container, snapshot?.LockData?.TrapDamage ?? 0, bakX, bakY);
+                return;
             }
 
             if (!await _dialog.ShowConfirmById(ChestTrap.OpenPromptFor(trapDamage))) {

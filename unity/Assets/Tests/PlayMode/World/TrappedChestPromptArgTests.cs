@@ -1,6 +1,8 @@
 namespace BakAgain.Tests.PlayMode.World {
     using System;
     using System.Collections;
+    using System.Collections.Generic;
+    using BakAgain.UI;
     using BakAgain.Core;
     using BakAgain.Tests.PlayMode.UI.Inventory;
     using BakAgain.World.Interaction;
@@ -109,6 +111,67 @@ namespace BakAgain.Tests.PlayMode.World {
             yield return null;
             yield return null;
             Assert.AreEqual(1, nav.Pushes);
+        }
+
+        private sealed class ScriptedDialogs : NoOpDialogs {
+            public readonly System.Collections.Generic.List<int> Asked = new();
+            private readonly bool _answer;
+            public ScriptedDialogs(bool answer) => _answer = answer;
+            public override UniTask<bool> ShowConfirmById(int id, System.Threading.CancellationToken ct = default) {
+                Asked.Add(id);
+                return UniTask.FromResult(_answer);
+            }
+        }
+
+        /// <summary>A Scent-of-Sarig-detected trap on a chest no member can disarm (difficulty 99).</summary>
+        private static (ContainerInteractionHandler Handler, SaveGameContainerData Chest, List<int> Booms)
+            DetectedTrap(GameSession session, IDialogManager dialogs) {
+            var clock = new BakAgain.Core.Services.GameClock(session);
+            clock.ScheduleTimer(GameData.Resources.Dialog.Actions.TimerType.Spell,
+                GameData.Resources.Spells.FieldSpells.EventIdOf(ChestTrap.DetectionSpell), 1000);
+            var booms = new List<int>();
+            var handler = new ContainerInteractionHandler(session, dialogs, null, null, null, clock,
+                (x, _) => { booms.Add(x); return UniTask.CompletedTask; });
+            var chest = new SaveGameContainerData(
+                new SaveGameContainerLocationData(1, 1, 9, 195, 670423, 1059778, 0),
+                SaveGameContainerType.Chest, 0, 4, 0, Array.Empty<SaveGameInventoryItemData>(),
+                new SaveGameContainerLockData(0, 99, 0, 40), null, null, null, null, null);
+            return (handler, chest, booms);
+        }
+
+        /// <summary>
+        /// A failed disarm springs the trap at once: handle_Container @0x773d1 jumps on difficulty
+        /// &gt;= best LockPicking to 0x77437, which sets the denied flag the explosion arm runs on
+        /// (WCURSOR.C:592-596, :633-676). The port fell through to dialog 79 instead, and No there
+        /// walked away unharmed (TASK-1101).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AFailedDisarmSpringsTheTrap() {
+            var session = new GameSession();
+            var dialogs = new ScriptedDialogs(answer: true);
+            var (handler, chest, booms) = DetectedTrap(session, dialogs);
+
+            yield return handler.TryTrappedAsync(chest, null, 1, 0, 0,
+                GameData.Resources.World.WorldEntityType.Container).ToCoroutine();
+
+            CollectionAssert.AreEqual(new[] { ChestTrap.DetectedPromptDialog }, dialogs.Asked,
+                "control: the warning was asked and answered Yes; nothing more is asked");
+            Assert.AreEqual(1, booms.Count, "the failed disarm sets the trap off");
+        }
+
+        /// <summary>No to the warning (190) ends the click (0x773ad jumps to the switch's end).</summary>
+        [UnityTest]
+        public IEnumerator NoToTheTrapWarningEndsTheClick() {
+            var session = new GameSession();
+            var dialogs = new ScriptedDialogs(answer: false);
+            var (handler, chest, booms) = DetectedTrap(session, dialogs);
+
+            yield return handler.TryTrappedAsync(chest, null, 1, 0, 0,
+                GameData.Resources.World.WorldEntityType.Container).ToCoroutine();
+
+            CollectionAssert.AreEqual(new[] { ChestTrap.DetectedPromptDialog }, dialogs.Asked,
+                "no 'shall we open it?' after declining the disarm");
+            Assert.AreEqual(0, booms.Count);
         }
 
         [UnityTest]

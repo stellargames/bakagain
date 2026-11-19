@@ -34,9 +34,7 @@ public class ChestTrapTests {
     }
 
     [Fact]
-    public void AFAILEDDISARMDOESNOTSPRINGTHETRAP() {
-        // It falls through to exactly the prompt an UNDETECTED trap shows, so failing costs the
-        // attempt and nothing else — the player is still asked before anything happens.
+    public void AnArmedTrapAsksTheStillTrappedLine() {
         Assert.Equal(ChestTrap.OpenStillTrappedDialog, ChestTrap.OpenPromptFor(trapDamage: 40));
     }
 
