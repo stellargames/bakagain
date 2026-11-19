@@ -91,7 +91,20 @@ namespace BakAgain.World.Encounters {
         private Transform _shadow;
         private float _groundY;
 
+        /// <summary>Shots still in flight: a body hit by one waits for it to land (TASK-1107).</summary>
+        public static int Flying { get; private set; }
+
         private async UniTaskVoid RunAsync(Vector3 from, Vector3 to, System.Action<Vector3> passedOver,
+            IReadOnlyList<ThrownRockFlight.Step> arc, System.Action onSkip) {
+            Flying++;
+            try {
+                await RunCoreAsync(from, to, passedOver, arc, onSkip);
+            } finally {
+                Flying--;
+            }
+        }
+
+        private async UniTask RunCoreAsync(Vector3 from, Vector3 to, System.Action<Vector3> passedOver,
             IReadOnlyList<ThrownRockFlight.Step> arc, System.Action onSkip) {
             int lastStep = -1;
             for (float t = 0f; t < _seconds; t += Time.deltaTime) {

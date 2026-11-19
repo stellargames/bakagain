@@ -29,6 +29,13 @@ namespace BakAgain.World.Encounters {
     /// every combat redraw and a flag here would make the body fall over again each time.</para>
     /// </remarks>
     public sealed class DeathCollapse : MonoBehaviour {
+        /// <summary>
+        /// Whether a blow is still on its way, so a body must not start falling yet: a melee swing,
+        /// a projectile in flight, or a spell's effect still playing (TASK-1073, TASK-1107).
+        /// </summary>
+        public static bool HeldBack =>
+            AttackSwing.Playing > 0 || ProjectileFlight.Flying > 0 || SpellVfx.Draining > 0;
+
         /// <summary>Frames in the run — <c>framesPerDir</c>.</summary>
         public const int Frames = 4;
 
@@ -111,7 +118,7 @@ namespace BakAgain.World.Encounters {
             // redraw, so give it a frame to register before asking.
             renderer.enabled = false;
             await UniTask.Yield();
-            await UniTask.WaitWhile(() => AttackSwing.Playing > 0);
+            await UniTask.WaitWhile(() => HeldBack);
             if (this == null) {
                 return;
             }

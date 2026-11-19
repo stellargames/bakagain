@@ -78,6 +78,10 @@ namespace BakAgain.World.Encounters {
         /// </summary>
         public bool Playing => _draining;
 
+        /// <summary>Spell visual queues still playing, across arenas: a body a spell killed waits for its
+        /// effect (TASK-1107).</summary>
+        public static int Draining { get; private set; }
+
         /// <summary>
         /// The sequences the original finishes before the board shows what they did: Winds' flight
         /// before the walk, Evil Seek's hops before its damage floats. Not every kind — Flamecast's
@@ -105,6 +109,7 @@ namespace BakAgain.World.Encounters {
 
         private async UniTaskVoid DrainAsync() {
             _draining = true;
+            Draining++;
             try {
                 while (_queue.Count > 0) {
                     (SpellVisual v, Combatant from, Combatant to) = _queue.Dequeue();
@@ -124,6 +129,7 @@ namespace BakAgain.World.Encounters {
                 }
             } finally {
                 _draining = false;
+                Draining--;
                 SetWorldFlash(Color.clear, 0f);
             }
         }
