@@ -95,4 +95,14 @@ public class InnStayTests {
             }
         }
     }
+
+    // TASK-1111 row 13: the accept-time advance (MODALSCR.C:774) has no Sick check; only the
+    // loop's advances do (:790-794), measured from the first night's arrival.
+    [Fact]
+    public void TheNightsFirstHourNeverCures() {
+        long thirteen = 13 * InnStay.TicksPerHour;
+        Assert.False(InnStay.CuresSickness(hourOfStay: 0, sinceArrival: thirteen));
+        Assert.True(InnStay.CuresSickness(hourOfStay: 1, sinceArrival: thirteen));
+        Assert.False(InnStay.CuresSickness(hourOfStay: 3, sinceArrival: thirteen - 1));
+    }
 }

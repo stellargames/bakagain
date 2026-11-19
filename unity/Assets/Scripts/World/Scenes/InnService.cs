@@ -151,7 +151,7 @@ namespace BakAgain.World.Scenes {
                 for (var hour = 0; hour < hours; hour++) {
                     _clock.AdvanceHours(1);
                     await _upkeep.PlayAnnouncementsAsync(_dialogs);
-                    if (_clock.Ticks - arrivedTicks >= SickCureTicks) {
+                    if (InnStay.CuresSickness(hour, _clock.Ticks - arrivedTicks)) {
                         CureSickness();
                     }
 
@@ -173,7 +173,6 @@ namespace BakAgain.World.Scenes {
         /// after every hour (MODALSCR.C:790-794). Measured in the original: a 10-hour first night,
         /// then the cure in the second night's third hour.
         /// </summary>
-        private const long SickCureTicks = 13 * InnStay.TicksPerHour;
 
         private void CureSickness() => _session.CureSicknessAcrossParty();
 

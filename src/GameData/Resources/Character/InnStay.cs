@@ -182,4 +182,15 @@ public static class InnStay {
     /// <para>Callerless since TASK-496: the refusal plays through the offer's own chain now.</para>
     /// </remarks>
     public const string RefusedDialogKey = "base:ddx:dial_z13:16267";
+
+    /// <summary>
+    /// Whether an hour of an inn stay cures Sick: thirteen hours after the first night's arrival,
+    /// checked only after the loop's advances (MODALSCR.C:790-794), never after the accept-time
+    /// one that opens each night (:774; TASK-1111).
+    /// </summary>
+    public static bool CuresSickness(int hourOfStay, long sinceArrival) =>
+        hourOfStay > 0 && sinceArrival >= SickCureHours * TicksPerHour;
+
+    /// <summary>MODALSCR.C:791 tests elapsed time against 0x5b68 = 13 hours.</summary>
+    public const int SickCureHours = 13;
 }
