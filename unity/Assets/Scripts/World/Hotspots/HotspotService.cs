@@ -5665,10 +5665,11 @@ using GameData.Resources.Scene;
             Combat.Leave();
             _setCombatMusic?.Invoke(false);
             if (outcomeLine.HasValue && _dialogs != null) {
-                ShowOutcomeThenLeaveArenaAsync(outcomeLine.Value, () => ResumeThePassAfterTheFight(rest)).Forget();
+                ShowOutcomeThenLeaveArenaAsync(outcomeLine.Value,
+                    AfterTheCompletionLine(() => ResumeThePassAfterTheFight(rest))).Forget();
             } else {
                 SwapArenaThroughFade(false, CloseCombatMenus,
-                    afterFadeIn: () => ResumeThePassAfterTheFight(rest));
+                    afterFadeIn: AfterTheCompletionLine(() => ResumeThePassAfterTheFight(rest)));
             }
             return true;
         }
@@ -5976,12 +5977,23 @@ using GameData.Resources.Scene;
         /// broken record rather than a respawn, and it is strictly worse than leaving the eleven
         /// beaten. Logged instead, so the gap is visible where it happens.</para>
         /// </remarks>
-        private void RunCompletionHook(long encounter) {
-            uint dialog = GameData.Resources.World.EncounterCompletion.DialogAfterDefeat(encounter);
+        /// <summary>A beaten encounter's own line, played once the arena has been left.</summary>
+        private uint _afterFightDialog;
+
+        /// <summary>Plays the held completion line, then goes on (TASK-1096).</summary>
+        private Action AfterTheCompletionLine(Action then) => () => {
+            uint dialog = _afterFightDialog;
+            _afterFightDialog = 0;
             if (dialog != 0) {
-                PlayDialog(dialog,
-                    GameData.Resources.World.EncounterCompletion.DialogWaitsForThePlayer);
+                PlayDialog(dialog, GameData.Resources.World.EncounterCompletion.DialogWaitsForThePlayer);
             }
+            then?.Invoke();
+        };
+
+        private void RunCompletionHook(long encounter) {
+            // Held until the arena is left: the original's completion runs after the outcome line and
+            // the teardown (COMBAT.C:2603-2676, HOTSPOT.C:569-574; TASK-1096).
+            _afterFightDialog = GameData.Resources.World.EncounterCompletion.DialogAfterDefeat(encounter);
 
             int groupFlag = GameData.Resources.World.EncounterCompletion.GroupFlagEarnedBy(
                 encounter, e => ReadGlobal(HotspotRules.EncounterFoughtKey(e)) != 0);

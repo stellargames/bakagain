@@ -99,12 +99,13 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
         /// </param>
         private static Rig Build(int roll = 99, GameData.Resources.Config.StartData start = null,
             TrapData traps = null, System.Func<BakAgain.UI.Combat.CombatMenu> combatMenu = null,
-            System.Func<bool> arenaBusy = null, BakAgain.UI.IDialogManager dialogs = null) {
+            System.Func<bool> arenaBusy = null, BakAgain.UI.IDialogManager dialogs = null,
+            long encounter = EncounterNumber) {
             var session = new GameSession();
             session.SetActorStatsForTest(0, StatBlock());
             session.SetActiveParty(1, new byte[] { 0 });
             session.SetRosterActorForTest(RosterSlot, MonsterBlock(), 12, gridX: 5, gridY: 5);
-            session.SetEncounterRosterForTest((int)EncounterNumber, new short[] { RosterSlot });
+            session.SetEncounterRosterForTest((int)encounter, new short[] { RosterSlot });
 
             var rig = new Rig { Session = session };
             rig.Service = new HotspotService(null, null, session, dialogs,
@@ -117,7 +118,7 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
                 byChunk: new Dictionary<(int x, int y), List<TileEventTrigger>> {
                     [(0, 0)] = new List<TileEventTrigger> { CombTrigger() },
                 },
-                comb: CombTable(EncounterNumber), start: start, traps: traps);
+                comb: CombTable(encounter), start: start, traps: traps);
             return rig;
         }
 
@@ -1279,6 +1280,38 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
             Assert.AreNotEqual(0, FoughtFlag(rig));
             Assert.IsTrue(rig.Service.EncounterFought(CombTrigger()),
                 "and the activate pass now refuses it");
+        }
+
+        private sealed class OrderedDialogs : BakAgain.Tests.PlayMode.UI.Inventory.NoOpDialogs {
+            public readonly List<int> Shown = new();
+            public override Cysharp.Threading.Tasks.UniTask<int> ShowById(int id,
+                System.Threading.CancellationToken ct = default) {
+                Shown.Add(id);
+                return Cysharp.Threading.Tasks.UniTask.FromResult(0);
+            }
+        }
+
+        /// <summary>
+        /// Encounter 0x4a's parting line comes after the fight's own line and the leave: the original
+        /// plays the outcome line, tears the arena down, and only then runs the hotspot's completion
+        /// (COMBAT.C:2603-2676, HOTSPOT.C:569-574, EVTCOND.C:408-409). The port played it while
+        /// settling, before the outcome line (TASK-1096 row 2).
+        /// </summary>
+        [Test]
+        public void TheSpeakingEncountersLineFollowsTheOutcomeLine() {
+            var dialogs = new OrderedDialogs();
+            long speaking = 0x4a;
+            Rig rig = Build(dialogs: dialogs, encounter: speaking);
+            rig.Service.StartCombat(CombTrigger());
+            foreach (Combatant enemy in rig.Service.Combat.Encounter.Enemies) {
+                rig.Service.Combat.Encounter.Kill(enemy);
+            }
+            rig.Service.EndCombatForTest();
+
+            int parting = (int)GameData.Resources.World.EncounterCompletion.DialogAfterDefeat(speaking);
+            Assert.AreNotEqual(0, parting, "control: 0x4a speaks");
+            int at = dialogs.Shown.IndexOf(parting);
+            Assert.GreaterOrEqual(at, 1, "after the fight's own line: " + string.Join(",", dialogs.Shown));
         }
 
         [Test]
