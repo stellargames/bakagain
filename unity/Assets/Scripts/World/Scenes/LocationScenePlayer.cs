@@ -227,10 +227,13 @@ namespace BakAgain.World.Scenes {
                     // this fade-in, the zone torn down and rebuilt on screen, and the step charged
                     // after it (measured at the Krondor sewer door, TASK-906 item 3).
                     GameData.Resources.Location.Location destination = left ? _teleport?.TakeLocation() : null;
+                    // The music first, then the fade: audio_music_play(savedMusic) blocks through the
+                    // town song's fade before the world loop fades the screen (TOWNSCN.C:671, then
+                    // WORLDLP.C:102-139; TASK-1110).
+                    await PlayTrackAsync(trackBefore);
                     await Fade.FadeOutAsync();
                     try {
                         await HideAsync();
-                        PlayTrackAsync(trackBefore).Forget();
                         if (destination != null) {
                             await ApplyTeleportAsync(destination);
                         }
@@ -307,8 +310,10 @@ namespace BakAgain.World.Scenes {
                 return null;
             }
 
+            // The town's song before the screen fades: audio_music_play blocks through the old track's
+            // fade (TOWNSCN.C:368-379; TASK-1110). Not before the first frame of a scene that cuts.
             if (scene.Song > 0) {
-                PlayTrackAsync(scene.Song).Forget();
+                await PlayTrackAsync(scene.Song);
             }
 
             // g_dialog_in_scene: a party speaker stands on the script's slot-5 backdrop (TASK-810).
