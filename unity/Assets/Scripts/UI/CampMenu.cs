@@ -391,14 +391,8 @@ namespace BakAgain.UI {
         /// </remarks>
         private const float DialRestCloseDelaySeconds = 0.465f;
 
-        /// <summary>The stone the pointer went down on, or <see cref="EncampData.NoEntry"/>.</summary>
-        /// <remarks>
-        /// <b>A stone commits on RELEASE, and only on the one it was pressed on.</b> The original
-        /// latches the pressed stone and compares it to the stone under the release
-        /// (<c>UI_Encamp</c> @0x706fc); sliding off before letting go abandons the choice, and
-        /// moving off every stone clears the latch outright.
-        /// </remarks>
-        private int _pressedStone = GameData.Resources.Config.EncampData.NoEntry;
+        /// <summary>Which stone a held press has latched (ENCAMP.C:173-195).</summary>
+        private readonly GameData.Resources.Config.EncampStoneLatch _stoneLatch = new();
 
         /// <summary>
         /// Wire the dial's 24 stones to the pointer.
@@ -438,27 +432,38 @@ namespace BakAgain.UI {
             stage.Add(hit);
             hit.SendToBack();
 
+            // *** THE LATCH FOLLOWS THE HELD BUTTON. *** ENCAMP.C:173-195 re-latches whatever stone
+            // the held cursor is over, every frame, and commits the first frame it is let go over
+            // the latched one; off the dial clears it. So press on 6, drag to 8, let go: 8 (TASK-1108).
             hit.RegisterCallback<PointerDownEvent>(evt => {
                 int stone = StoneAt(stage.WorldToLocal(evt.position));
-                if (stone == GameData.Resources.Config.EncampData.NoEntry) {
-                    _pressedStone = GameData.Resources.Config.EncampData.NoEntry;
-
-                    return;
-                }
                 if (evt.button == 1) {
-                    _dialogManager?.ShowById(GameData.Resources.Config.EncampDial.StoneHelpDialog).Forget();
-
+                    if (stone != GameData.Resources.Config.EncampData.NoEntry) {
+                        _dialogManager?.ShowById(GameData.Resources.Config.EncampDial.StoneHelpDialog).Forget();
+                    }
                     return;
                 }
-                _pressedStone = stone;
+                if (evt.button == 0) {
+                    _stoneLatch.Frame(stone, held: true);
+                }
             });
 
+            hit.RegisterCallback<PointerMoveEvent>(evt => {
+                if ((evt.pressedButtons & 1) != 0) {
+                    _stoneLatch.Frame(StoneAt(stage.WorldToLocal(evt.position)), held: true);
+                } else if (StoneAt(stage.WorldToLocal(evt.position)) == GameData.Resources.Config.EncampData.NoEntry) {
+                    _stoneLatch.Clear();
+                }
+            });
+
+            hit.RegisterCallback<PointerLeaveEvent>(_ => _stoneLatch.Clear());
+
             hit.RegisterCallback<PointerUpEvent>(evt => {
-                int stone = StoneAt(stage.WorldToLocal(evt.position));
-                int pressed = _pressedStone;
-                _pressedStone = GameData.Resources.Config.EncampData.NoEntry;
-                if (evt.button != 0 || stone == GameData.Resources.Config.EncampData.NoEntry
-                    || stone != pressed || IsResting) {
+                if (evt.button != 0) {
+                    return;
+                }
+                int stone = _stoneLatch.Frame(StoneAt(stage.WorldToLocal(evt.position)), held: false);
+                if (stone == GameData.Resources.Config.EncampData.NoEntry || IsResting) {
                     return;
                 }
 
