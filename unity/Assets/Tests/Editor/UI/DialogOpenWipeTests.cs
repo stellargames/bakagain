@@ -13,6 +13,16 @@ namespace BakAgain.Tests.Editor.UI {
             Assert.IsFalse(DialogOpenWipe.ShouldPlay(DialogEntryFlags.CenterText | DialogEntryFlags.SkipOpenWipe));
         }
 
+        /// <summary>
+        /// A line with a speaker never wipes open: DIALOG.C:1060-1067 draws it straight, and only a
+        /// speakerless line reaches the wipe (:1076-1083). The port wiped every NPC line (TASK-1113).
+        /// </summary>
+        [Test]
+        public void ALineWithASpeakerDoesNotWipe() {
+            Assert.IsFalse(DialogOpenWipe.ShouldPlay(DialogEntryFlags.None, speaker: 12));
+            Assert.IsTrue(DialogOpenWipe.ShouldPlay(DialogEntryFlags.None, speaker: 0), "control: narration does");
+        }
+
         [Test]
         public void StepGeometry_AtZero_IsZeroSizeCentred_PanelPinnedFromCentre() {
             var full = new Rect(100f, 200f, 400f, 300f); // centre (300, 350)

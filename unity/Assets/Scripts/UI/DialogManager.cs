@@ -1038,7 +1038,7 @@ namespace BakAgain.UI {
         /// </summary>
         private void KeepPageUnderWipe(DialogEntry entry) {
             if (_keptPanel == null || !ReferenceEquals(_keptPanel, _activePanel) || entry == null
-                || !DialogOpenWipe.ShouldPlay(entry.Flags) || !DialogOpenWipe.WipesWholeScreen(entry.DialogType)) {
+                || !DialogOpenWipe.ShouldPlay(entry.Flags, entry.ActorNumber) || !DialogOpenWipe.WipesWholeScreen(entry.DialogType)) {
                 return;
             }
             VisualElement stage = _activePanel.parent;
@@ -2510,7 +2510,7 @@ namespace BakAgain.UI {
                 // The `_activePanel != null` is the same hazard one await earlier:
                 // ShowSpeakerNamePillAsync above awaits too, so the panel can already be gone
                 // before the capture below ever reads it.
-                if (DialogOpenWipe.ShouldPlay(entry.Flags) && _activePanel != null) {
+                if (DialogOpenWipe.ShouldPlay(entry.Flags, entry.ActorNumber) && _activePanel != null) {
                     // Hidden BEFORE the await, cleared inside DialogOpenWipe's own SetStep(0f).
                     //
                     // Reading the panel's resolved rect costs at least one UniTask.Yield for a

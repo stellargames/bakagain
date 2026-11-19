@@ -13,9 +13,10 @@ namespace BakAgain.UI {
     // so the centre-out reveal is reproduced with a growing overflow:hidden clip mask: the panel is
     // reparented into the mask and pinned at its screen rect while the mask grows from the centre.
     public static class DialogOpenWipe {
-        // The original plays the open-wipe unless the entry opts out via SkipOpenWipe (0x2000).
-        public static bool ShouldPlay(DialogEntryFlags flags) =>
-            !flags.HasFlag(DialogEntryFlags.SkipOpenWipe);
+        // The original wipes a SPEAKERLESS line open unless it opts out via SkipOpenWipe (0x2000); a
+        // line with a speaker is drawn straight (DIALOG.C:1060-1083; TASK-1113).
+        public static bool ShouldPlay(DialogEntryFlags flags, int speaker = 0) =>
+            speaker == 0 && !flags.HasFlag(DialogEntryFlags.SkipOpenWipe);
 
         /// <summary>
         /// Whether the wipe covers the WHOLE SCREEN rather than just the dialog's own area.
