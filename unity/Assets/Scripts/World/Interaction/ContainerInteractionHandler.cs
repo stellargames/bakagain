@@ -458,10 +458,19 @@ namespace BakAgain.World.Interaction {
             }
 
             bool shown = false;
+            bool endsTheChapter = false;
             try {
                 if (container != null) {
                     container.Unlocked = true;
-                    if (PrepareLoot(zone, bakX, bakY, entityType)) {
+                    // *** THE CHAPTER-END CHEST OPENS NO LOOT. *** Its open event is 30017, the
+                    // world-loop exit: handle_Container 0x774d1 sets it and 0x774e5 then skips the
+                    // inventory, so the message plays and the chapter ends (WCURSOR.C:618-625).
+                    // Zone 12's puzzle-118 chest is the one; the port showed its loot, and its items
+                    // went into the next chapter (TASK-1103).
+                    if (EndsTheChapter(_session.GetContainerAt(zone, bakX, bakY))) {
+                        WriteOpenEvent(zone, bakX, bakY);
+                        endsTheChapter = true;
+                    } else if (PrepareLoot(zone, bakX, bakY, entityType)) {
                         await _navigator.PushUnfaded(_inventoryMenu);   // returns once it is up
                         shown = true;
                     }
@@ -474,6 +483,8 @@ namespace BakAgain.World.Interaction {
             }
             if (shown) {
                 await _navigator.WhenOffStackAsync(_inventoryMenu);
+            }
+            if (shown || endsTheChapter) {
                 await SayChestMessageAsync(zone, bakX, bakY);
             }
         }
@@ -589,6 +600,13 @@ namespace BakAgain.World.Interaction {
         /// takes on open. Static so the mapping is pinned by a test; whether it actually fires on
         /// open is proven by opening a chest, not by a mock.
         /// </remarks>
+        /// <summary>The open event that is the world-loop exit (<c>nWorldLoopExitRequest</c>, global 30017).</summary>
+        public const int WorldLoopExitKey = 30017;
+
+        /// <summary>Whether opening this container ends the chapter instead of showing its loot.</summary>
+        public static bool EndsTheChapter(GameData.Resources.Data.SaveGameContainerData container) =>
+            container != null && OpenEventKeyOf(container) == WorldLoopExitKey;
+
         public static int OpenEventKeyOf(GameData.Resources.Data.SaveGameContainerData container) =>
             container?.EncounterData?.GlobalDataKey2 ?? 0;
     }

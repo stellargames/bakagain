@@ -53,6 +53,19 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.AreEqual(0, ContainerInteractionHandler.OpenEventKeyOf(WithEncounter(gateOnly)));
         }
 
+        /// <summary>
+        /// A chest whose open event is 30017, the world-loop exit, ends the chapter instead of
+        /// showing its loot (handle_Container 0x774d1-0x774e5; zone 12, puzzle 118). TASK-1103.
+        /// </summary>
+        [Test]
+        public void OnlyTheWorldLoopExitEventEndsTheChapter() {
+            Assert.IsTrue(ContainerInteractionHandler.EndsTheChapter(
+                WithEncounter(new SaveGameContainerEncounterData(0, 30017, 0, 0, 0, 0, 0))));
+            Assert.IsFalse(ContainerInteractionHandler.EndsTheChapter(
+                WithEncounter(new SaveGameContainerEncounterData(0, 56012, 0, 0, 0, 0, 0))), "control: an ordinary open event");
+            Assert.IsFalse(ContainerInteractionHandler.EndsTheChapter(null));
+        }
+
         [Test]
         public void AContainerWithNoEncounterSubrecordSetsNothing() {
             Assert.AreEqual(0, ContainerInteractionHandler.OpenEventKeyOf(
