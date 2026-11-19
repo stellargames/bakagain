@@ -12,7 +12,15 @@ namespace BakAgain.World.Hotspots {
             Unhandled = unhandled;
             UnhandledKinds = unhandledKinds ?? System.Array.Empty<TileEventType>();
             Refused = refused;
+            AfterFight = System.Array.Empty<int>();
         }
+
+        /// <summary>
+        /// The pending hotspots queued behind a fight that stopped the pass. The original's fight
+        /// runs inside the pass and the pass goes on after a win (HOTSPOT.C:162-190), so the caller
+        /// runs these once a won fight is over (TASK-1094).
+        /// </summary>
+        public IReadOnlyList<int> AfterFight { get; init; }
 
         /// <summary>
         /// Hotspots the rules turned down — currently only encounters refused for want of open
@@ -137,10 +145,12 @@ namespace BakAgain.World.Hotspots {
                 return new HotspotDispatchResult(false, 0, 0);
             }
 
-            foreach (int index in pending) {
+            List<int> afterFight = null;
+            for (var at = 0; at < pending.Count; at++) {
                 if (halted) {
                     break;
                 }
+                int index = pending[at];
                 if (index < 0 || index >= triggers.Count) {
                     continue;
                 }
@@ -226,6 +236,12 @@ namespace BakAgain.World.Hotspots {
                             // with the fight for the same reason.
                             fired++;
                             halted = true;
+                            // ...but the original's pass goes on after a won fight (HOTSPOT.C:162-190),
+                            // so what is queued behind it is handed back to run then (TASK-1094).
+                            afterFight = new List<int>();
+                            for (int rest = at + 1; rest < pending.Count; rest++) {
+                                afterFight.Add(pending[rest]);
+                            }
                         } else {
                             Unhandled(trigger);
                         }
@@ -244,7 +260,7 @@ namespace BakAgain.World.Hotspots {
             }
 
             return new HotspotDispatchResult(halted, fired, unhandled, unhandledKinds,
-                refused, slippedPast);
+                refused, slippedPast) { AfterFight = (IReadOnlyList<int>)afterFight ?? System.Array.Empty<int>() };
         }
 
         /// <summary>

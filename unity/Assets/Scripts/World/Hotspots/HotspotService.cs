@@ -627,7 +627,7 @@ using GameData.Resources.Scene;
 
             bool keep = new HotspotActivator(this).ActivateAt(triggers, subX, subY, Pending);
             if (Pending.Count > 0) {
-                HotspotDispatchResult dispatched = new HotspotDispatcher(this).Dispatch(triggers, Pending);
+                HotspotDispatchResult dispatched = DispatchPass(triggers, Pending);
 
                 // Name the kinds, not just the count: the count says something is unwired, the kind
                 // says which task it belongs to. Without it, answering "what was that 1?" meant
@@ -1141,7 +1141,7 @@ using GameData.Resources.Scene;
             // trap fires. A spotted ambush arms without firing, and still stops the grave or building.
             bool fired = Pending.Count > 0;
             if (fired) {
-                new HotspotDispatcher(this).Dispatch(triggers, Pending);
+                DispatchPass(triggers, Pending);
                 Pending.Clear();
             }
             return activator.AmbushArmed || fired ? TrapDispatch.Blocks : TrapDispatch.Proceed;
@@ -1188,7 +1188,7 @@ using GameData.Resources.Scene;
                 return HotspotActivator.MatchAt(triggers, subX, subY, TileEventType.Zone).Count > 0;
             }
 
-            HotspotDispatchResult dispatched = new HotspotDispatcher(this).Dispatch(triggers, Pending);
+            HotspotDispatchResult dispatched = DispatchPass(triggers, Pending);
             Pending.Clear();
             return dispatched.Fired > 0;
         }
@@ -3241,6 +3241,7 @@ using GameData.Resources.Scene;
             StageCombatantEdits();
             RelocateAfterFlight(_fightingTrigger);
             ForgetFight();
+            _afterFight = null;   // a flight halts the pass for good (HOTSPOT.C:533)
             Combat.Leave();
             _setCombatMusic?.Invoke(false);
             SwapArenaThroughFade(false, () => _combatMenuAccessor?.Invoke()?.Close());
@@ -5544,12 +5545,12 @@ using GameData.Resources.Scene;
         /// takes it, which reads as a glitch rather than a transition.</para>
         /// </remarks>
         private void SwapArenaThroughFade(bool entering, Action afterSwap = null,
-            uint entryDialogId = 0) {
-            SwapArenaThroughFadeAsync(entering, afterSwap, entryDialogId).Forget();
+            uint entryDialogId = 0, Action afterFadeIn = null) {
+            SwapArenaThroughFadeAsync(entering, afterSwap, entryDialogId, afterFadeIn).Forget();
         }
 
         private async UniTaskVoid SwapArenaThroughFadeAsync(bool entering, Action afterSwap,
-            uint entryDialogId = 0) {
+            uint entryDialogId = 0, Action afterFadeIn = null) {
             // *** THE ENTRY LINE COMES FIRST, AND OVER THE TRAVEL VIEW. ***
             // hotspotevt_type1_encounter_run plays the record at buf+6 and only THEN calls
             // combat_arena_actor_turn_loop (HOTSPOT.C:526-528), so it is read and dismissed while the
@@ -5573,6 +5574,35 @@ using GameData.Resources.Scene;
                 // which is a far worse failure than the half-drawn arena the exception describes.
                 await _fade.FadeInAsync();
             }
+            afterFadeIn?.Invoke();
+        }
+
+        /// <summary>
+        /// The hotspots a fight left queued, run once a WON fight is over (TASK-1094). The original's
+        /// fight runs inside the dispatch pass and the pass goes on after it unless the party fled
+        /// (HOTSPOT.C:162-190, :533), so a Dial gated on the fight's post event plays straight after
+        /// it — seven shipped Dials, e.g. T011011 Trap 0 -> Dial 95, T101010 Comb 305 -> Dial 29.
+        /// The port's fight cannot block the pass, so the rest of it waits here.
+        /// </summary>
+        private (IReadOnlyList<TileEventTrigger> Triggers, IReadOnlyList<int> Pending)? _afterFight;
+
+        private HotspotDispatchResult DispatchPass(IReadOnlyList<TileEventTrigger> triggers,
+            IReadOnlyList<int> pending) {
+            HotspotDispatchResult dispatched = new HotspotDispatcher(this).Dispatch(triggers, pending);
+            if (dispatched.AfterFight.Count > 0) {
+                _afterFight = (triggers, dispatched.AfterFight);
+            }
+            return dispatched;
+        }
+
+        private void ResumeThePassAfterTheFight(
+            (IReadOnlyList<TileEventTrigger> Triggers, IReadOnlyList<int> Pending)? rest) {
+            if (rest is not { } r) {
+                return;
+            }
+            HotspotDispatchResult dispatched = DispatchPass(r.Triggers, r.Pending);
+            _logger?.LogInformation("After the fight: {Fired} more hotspot(s) fired{Halted}.",
+                dispatched.Fired, dispatched.Halted ? ", pass halted" : string.Empty);
         }
 
         private void EndCombat() {
@@ -5585,14 +5615,21 @@ using GameData.Resources.Scene;
             }
 
             int? outcomeLine = PrepareOutcomeLine(Combat.Encounter);
+            var rest = _afterFight;
+            _afterFight = null;
+            if (!GameData.Resources.World.EncounterAftermath.FiresThePostEvent(
+                    GameData.Resources.World.EncounterAftermath.OutcomeFor(
+                        Combat.Encounter.EnemiesAlive(), Combat.Encounter.PartyAlive()))) {
+                rest = null;   // only a won fight lets the pass go on
+            }
             SettleEncounter(Combat.Encounter);
             StageCombatantEdits();
             Combat.Leave();
             _setCombatMusic?.Invoke(false);
             if (outcomeLine.HasValue && _dialogs != null) {
-                ShowOutcomeThenLeaveArenaAsync(outcomeLine.Value).Forget();
+                ShowOutcomeThenLeaveArenaAsync(outcomeLine.Value, () => ResumeThePassAfterTheFight(rest)).Forget();
             } else {
-                SwapArenaThroughFade(false);
+                SwapArenaThroughFade(false, afterFadeIn: () => ResumeThePassAfterTheFight(rest));
             }
         }
 
@@ -5640,11 +5677,12 @@ using GameData.Resources.Scene;
             return line;
         }
 
-        private async Cysharp.Threading.Tasks.UniTaskVoid ShowOutcomeThenLeaveArenaAsync(int line) {
+        private async Cysharp.Threading.Tasks.UniTaskVoid ShowOutcomeThenLeaveArenaAsync(int line,
+            Action afterFadeIn = null) {
             try {
                 await _dialogs.ShowById(line);
             } finally {
-                SwapArenaThroughFade(false);
+                SwapArenaThroughFade(false, afterFadeIn: afterFadeIn);
             }
         }
 

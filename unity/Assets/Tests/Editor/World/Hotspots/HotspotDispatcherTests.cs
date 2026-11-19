@@ -101,6 +101,27 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
             return pending;
         }
 
+        /// <summary>
+        /// The fight stops this pass, but what was queued behind it is handed back: the original's
+        /// fight blocks INSIDE the pass and the pass goes on after a win (HOTSPOT.C:162-190, the
+        /// halt is only the fled status, :533), so a Dial gated on the fight's post event plays
+        /// right after it (T011011 Trap 0 -> Dial 95; T101010 Comb 305 -> Dial 29). TASK-1094.
+        /// </summary>
+        [Test]
+        public void AFightHandsBackTheHotspotsQueuedBehindIt() {
+            var host = new FakeHost { CombatAvailable = true };
+            TileEventTrigger[] table = {
+                Trigger(TileEventType.Dial), Trigger(TileEventType.Comb), Trigger(TileEventType.Dial),
+                Trigger(TileEventType.Dial),
+            };
+
+            HotspotDispatchResult result = new HotspotDispatcher(host).Dispatch(table, new[] { 0, 1, 3 });
+
+            Assert.IsTrue(result.Halted, "control: the fight stops this pass");
+            CollectionAssert.AreEqual(new[] { 3 }, result.AfterFight,
+                "only what was pending, and only behind the fight");
+        }
+
         [Test]
         public void AnEncounterThePartyCannotSlipPastStartsTheFightAndStopsThePass() {
             // The gate's other arm. Until now this reported the hotspot unhandled: the fight had
