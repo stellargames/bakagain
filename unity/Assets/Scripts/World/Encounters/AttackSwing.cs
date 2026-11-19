@@ -84,13 +84,18 @@ namespace BakAgain.World.Encounters {
         /// at the call site so a caller cannot forget it (TASK-972 round 4).</summary>
         public static int Playing { get; private set; }
 
+        /// <summary>This swing is still playing: the idle gait leaves the combatant alone (TASK-1100).</summary>
+        public bool Running { get; internal set; }
+
         private async UniTask RunAsync(WorldEntityRenderContext ctx, SpriteBMeshFace face,
             string setName, int start, int extent) {
             Playing++;
+            Running = true;
             try {
                 await RunCoreAsync(ctx, face, setName, start, extent);
             } finally {
                 Playing--;
+                Running = false;
             }
         }
 
