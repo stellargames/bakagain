@@ -80,6 +80,19 @@ public static class DialogTextSpeed {
     /// 220 (two tabs, one line break, <c>&lt;i/&gt;</c>).
     /// </summary>
     /// <remarks>Speaker tokens (<c>@5</c>) are counted as written, not as the name they become.</remarks>
+    /// <summary>
+    /// The wait on one page of a record (DIALOG.C:1366-1369): pages before the last are waited with
+    /// flags 0, the last with the record's flags, from which a record that paged has lost 0x40
+    /// (:1363-1365). The deadline counts the characters on THIS page. Null waits for the player.
+    /// </summary>
+    public static double? PageDeadlineSeconds(int pageCharacters, TextSpeed speed,
+        Dialog.DialogEntryFlags recordFlags, int chapter, bool lastPage, bool paged) {
+        Dialog.DialogEntryFlags flags = !lastPage ? 0
+            : paged ? recordFlags & ~Dialog.DialogEntryFlags.AutoAdvanceTimer
+            : recordFlags;
+        return AutoDismissSeconds(pageCharacters, speed, flags, chapter);
+    }
+
     public static int DrawnCharacters(string text) {
         if (text == null) {
             return 0;

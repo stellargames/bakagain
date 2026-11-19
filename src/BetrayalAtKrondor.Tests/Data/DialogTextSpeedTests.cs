@@ -1,6 +1,7 @@
 namespace BetrayalAtKrondor.Tests.Data;
 
 using GameData.Resources.Config;
+using GameData.Resources.Dialog;
 using Xunit;
 
 /// <summary>
@@ -115,5 +116,27 @@ public class DialogTextSpeedTests {
 
         Assert.Equal(220, text.Length);
         Assert.Equal(213, DialogTextSpeed.DrawnCharacters(text));
+    }
+
+    // TASK-1113: every page waits with a deadline from ITS OWN drawn characters, and a page before
+    // the last is waited with flags 0 (DIALOG.C:1366-1369, 223-237), so at Medium/Fast it turns by
+    // itself; only Slow waits for the player. The port suppressed the deadline on every page but the
+    // last, and timed the last by the whole record.
+    [Fact]
+    public void APageBeforeTheLastTimesOutAtMediumButNotAtSlow() {
+        Assert.Equal(DialogTextSpeed.AutoDismissSeconds(40, TextSpeed.Medium),
+            DialogTextSpeed.PageDeadlineSeconds(40, TextSpeed.Medium, DialogEntryFlags.AutoAdvanceTimer, 0,
+                lastPage: false, paged: true));
+        Assert.Null(DialogTextSpeed.PageDeadlineSeconds(40, TextSpeed.Slow, 0, 0, lastPage: false, paged: true));
+    }
+
+    [Fact]
+    public void ThePagedLastPageLosesAutoAdvanceButKeepsItsOwnLength() {
+        // Slow: a paged record's last page waits (its 0x40 was cleared up front).
+        Assert.Null(DialogTextSpeed.PageDeadlineSeconds(30, TextSpeed.Slow, DialogEntryFlags.AutoAdvanceTimer, 0,
+            lastPage: true, paged: true));
+        // Medium: timed by the 30 characters on it, not the record's total.
+        Assert.Equal(DialogTextSpeed.AutoDismissSeconds(30, TextSpeed.Medium),
+            DialogTextSpeed.PageDeadlineSeconds(30, TextSpeed.Medium, 0, 0, lastPage: true, paged: true));
     }
 }

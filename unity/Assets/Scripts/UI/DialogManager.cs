@@ -2711,11 +2711,10 @@ namespace BakAgain.UI {
                     }
                     bool paged = false;
                     while (true) {
-                        // *** AND THE TIMEOUT IS SUPPRESSED WHILE LINES REMAIN. *** The wait is
-                        // called with the record's flags replaced by 0 whenever
+                        // The wait is called with the record's flags replaced by 0 whenever
                         // g_wTextWrapLinesRemaining != 0, and `wFlags &= ~0x40` kills auto-dismiss
-                        // for the whole record up front. A port that kept its text-speed deadline
-                        // running would flick through the pages by itself.
+                        // for the whole record up front. The text-speed deadline still runs at
+                        // Medium/Fast (see the wait below).
                         bool more = body != null && body.LinesRemaining > 0;
                         paged |= more;
                         // A SkipWait record's LAST page is not waited for (below), so a translation
@@ -2743,8 +2742,12 @@ namespace BakAgain.UI {
                         // The flag is cleared after a page turn, not before each wait: the layer is
                         // pushed before the first page re-flows (above), and clearing it here ate a
                         // press made in that frame — the page then sat waiting for a second one.
+                        // *** EVERY PAGE HAS A DEADLINE, FROM ITS OWN CHARACTERS. *** A page before the
+                        // last is waited with flags 0 (DIALOG.C:1366-1369), which drops 0x40 but not the
+                        // text-speed deadline: at Medium/Fast it turns by itself; only Slow waits. The
+                        // last page is timed by what is on it, not the record's total (TASK-1113).
                         await WaitForDismiss(scrim, () => dismissed, cancellationToken,
-                            more ? null : AutoDismissSecondsFor(entry, paged));
+                            PageDeadlineFor(entry, body, lastPage: !more, paged));
                         if (!more) {
                             // A SkipWait last page waited on above still stays up, as the original's does.
                             keepPanel = (entry.Flags & DialogEntryFlags.SkipWait) != 0;
@@ -2919,6 +2922,22 @@ namespace BakAgain.UI {
         /// (TASK-912: the zone crossing's "The trip was dull..."). See <see cref="GameData.Resources.Config.DialogTextSpeed"/> for the formula and where
         /// the engine's tick rate comes from.
         /// </summary>
+        private double? PageDeadlineFor(DialogEntry entry, GameTextBlock body, bool lastPage, bool paged) {
+            GameData.Resources.Config.Preferences prefs = _preferences?.Current;
+            if (prefs == null) {
+                return null; // no preferences yet: behave as Slow and wait for the player
+            }
+            if (body == null) {
+                return AutoDismissSecondsFor(entry, paged);
+            }
+            var characters = 0;
+            foreach (Label line in body.Lines) {
+                characters += GameData.Resources.Config.DialogTextSpeed.DrawnCharacters(line.text);
+            }
+            return GameData.Resources.Config.DialogTextSpeed.PageDeadlineSeconds(characters,
+                prefs.TextSpeed, entry?.Flags ?? 0, _gameSession?.Chapter ?? 0, lastPage, paged);
+        }
+
         private double? AutoDismissSecondsFor(DialogEntry entry, bool paged = false) {
             GameData.Resources.Config.Preferences prefs = _preferences?.Current;
             if (prefs == null) {
