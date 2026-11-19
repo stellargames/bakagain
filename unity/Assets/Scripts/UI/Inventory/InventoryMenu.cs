@@ -2759,6 +2759,15 @@ namespace BakAgain.UI.Inventory {
             await _riftMap.RunAsync(var0);
         }
 
+        private async UniTaskVoid ShowVar0MessageThenCueAsync(int dialogId, int var0,
+            ItemUseOutcome outcome, ObjectInfo used) {
+            try {
+                await ShowVar0MessageAsync(dialogId, var0);
+            } finally {
+                PlayItemUseCue(outcome, used);
+            }
+        }
+
         private async UniTask ShowVar0MessageAsync(int dialogId, int var0) {
             _gameSession.SetGlobalValue(ItemInspectText.DescriptionGlobalKey, var0);
             GameData.Resources.Dialog.DialogPlay play =
@@ -4162,7 +4171,16 @@ namespace BakAgain.UI.Inventory {
                 _pendingUseCharacter = -1;
             }
 
-            PlayItemUseCue(result.Outcome, used);
+            // *** THE SOUND COMES AFTER THE TEXT. *** Use_Item's tail shows the result modally and
+            // then plays the item's sound, blocking (ITEMUSE.C:485-492); played at the click it ran
+            // under the text box (TASK-1097). A use with a plain message plays it once that closes.
+            bool soundAfterText = result.Outcome != ItemUseOutcome.NotPorted && result.DialogId != 0
+                && result.DialogId != GameData.Resources.Inventory.NoteMapView.MapShownDialogId
+                && !result.OpensSpyglassView
+                && (result.MusicTrack == GameData.Resources.Audio.MusicPlayback.QueryOnly || _midi == null);
+            if (!soundAfterText) {
+                PlayItemUseCue(result.Outcome, used);
+            }
 
             if (result.RaisesCameraOnClose) {
                 _gameSession.CameraLiftRequested = true;   // the travel screen runs it once this closes
@@ -4188,7 +4206,7 @@ namespace BakAgain.UI.Inventory {
                     ShowVar0MessageOverTrackAsync(result.DialogId, result.DialogVar0,
                         result.MusicTrack).Forget();
                 } else {
-                    ShowVar0Message(result.DialogId, result.DialogVar0);
+                    ShowVar0MessageThenCueAsync(result.DialogId, result.DialogVar0, result.Outcome, used).Forget();
                 }
             }
             if (redrawAnyway || (result.Outcome != ItemUseOutcome.NoEffect
