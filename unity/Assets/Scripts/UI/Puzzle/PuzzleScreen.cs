@@ -130,13 +130,15 @@ namespace BakAgain.UI.Puzzle {
             await SayAsync(solved
                 ? CipherPuzzleLayout.SolvedDialog
                 : CipherPuzzleLayout.UnsolvedDialog);
-            if (_midi != null && _provider != null) {
-                await _midi.PlayTrackAsync(_trackBeforePuzzle, _provider, owner: this);
-            }
             if (solved && beforeClose != null) {
                 await beforeClose();
             }
             Close();
+            // The world's track comes back last, after the fade and the teardown: audio_music_play(nTrack)
+            // is CIPHER.C:229, the routine's final call (TASK-1104).
+            if (_midi != null && _provider != null) {
+                await _midi.PlayTrackAsync(_trackBeforePuzzle, _provider, owner: this);
+            }
 
             return solved;
         }

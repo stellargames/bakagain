@@ -53,7 +53,11 @@ namespace BakAgain.Tests.PlayMode.World {
             public Func<bool> LootUp;
             public bool LootUpWhenLifted;
 
+            public Func<int> Track;
+            public int TrackAtFadeOut = int.MinValue;
+
             public async UniTask FadeOutAsync() {
+                if (Track != null) { TrackAtFadeOut = Track(); }
                 await UniTask.Yield();
                 Up = true;
             }
@@ -80,6 +84,7 @@ namespace BakAgain.Tests.PlayMode.World {
 
         private GameObject _menuGo;
         private GameObject _puzzleGo;
+        private GameObject _musicGo;
         private GameObject _entityGo;
         private PanelSettings _panelSettings;
 
@@ -90,12 +95,46 @@ namespace BakAgain.Tests.PlayMode.World {
         public void TearDown() {
             if (_entityGo != null) { UnityEngine.Object.DestroyImmediate(_entityGo); }
             if (_puzzleGo != null) { UnityEngine.Object.DestroyImmediate(_puzzleGo); }
+            if (_musicGo != null) { UnityEngine.Object.DestroyImmediate(_musicGo); }
             if (_menuGo != null) { UnityEngine.Object.DestroyImmediate(_menuGo); }
             if (_panelSettings != null) { UnityEngine.Object.DestroyImmediate(_panelSettings); }
         }
 
         [UnityTest]
-        public IEnumerator ASolvedRiddleGoesToBlackAndTheLootComesUpOutOfIt() => UniTask.ToCoroutine(async () => {
+        public IEnumerator ASolvedRiddleGoesToBlackAndTheLootComesUpOutOfIt() => SolveAndOpen(withMusic: false);
+
+        /// <summary>
+        /// The world's track comes back last, after the riddle has gone to black and been torn down:
+        /// CIPHER.C:205-229 fades at :208 and calls audio_music_play(nTrack) at :229. The port put it
+        /// back before the fade (TASK-1104 row 11).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheWorldsTrackComesBackAfterTheRiddleGoesToBlack() => SolveAndOpen(withMusic: true);
+
+        private const int WorldTrack = 1005;
+
+        private sealed class BareSongs : BakAgain.ResourceManagement.IResourceProviderService {
+            public UniTask<T> LoadAssetAsync<T>(object key, object owner) where T : class =>
+                UniTask.FromResult(new GameData.Resources.Audio.AudioResource(key.ToString()) as T);
+            public void ReleaseAssets(object owner) { }
+        }
+
+        private IEnumerator SolveAndOpen(bool withMusic) => UniTask.ToCoroutine(async () => {
+            using var notes = BakAgain.Tests.TestSupport.ExpectedLog.CaptureAll(
+                new System.Text.RegularExpressions.Regex("does not contain variant"));
+            BakAgain.Audio.MidiPlaybackManager midi = null;
+            var songs = new BareSongs();
+            if (withMusic) {
+                midi = BakAgain.Audio.MidiPlaybackManager.Instance;
+                if (midi == null) {
+                    _musicGo = new GameObject("Music");
+                    midi = _musicGo.AddComponent<BakAgain.Audio.MidiPlaybackManager>();
+                    await UniTask.Yield();
+                }
+                midi.StopMusic();
+                await midi.PlayTrackAsync(WorldTrack, songs);
+                Assert.AreEqual(WorldTrack, midi.CurrentTrack, "control: the world's track");
+            }
             var session = new GameSession();
             var chest = new SaveGameContainerData(
                 new SaveGameContainerLocationData(zone: 7, minChapter: 0, maxChapter: 10,
@@ -132,6 +171,9 @@ namespace BakAgain.Tests.PlayMode.World {
             _puzzleGo = new GameObject("PuzzleUnderTest");
             _puzzleGo.SetActive(false);
             var puzzle = _puzzleGo.AddComponent<PuzzleScreen>();
+            if (withMusic) {
+                puzzle.Construct(null, songs, midi, session);
+            }
 
             _entityGo = new GameObject("chest");
             var entity = _entityGo.AddComponent<WorldEntity>();
@@ -144,7 +186,7 @@ namespace BakAgain.Tests.PlayMode.World {
                 VisualElement r = _menuGo.GetComponent<UIDocument>().rootVisualElement;   // a new one per enable
                 return _menuGo.activeSelf && r != null && r.style.opacity.value >= 1f;
             }
-            var cover = new Cover { LootUp = LootUp };
+            var cover = new Cover { LootUp = LootUp, Track = withMusic ? () => midi.CurrentTrack : null };
 
             var handler = new ContainerInteractionHandler(session, new Stubs.NoOpDialogs(), menu, navigator,
                 new PuzzleService(puzzle), clock: null, explode: null, fade: () => cover);
@@ -189,6 +231,12 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.AreSame(menu, navigator.Current, "the loot screen is up");
             Assert.AreEqual(SaveGameContainerType.Chest, menu.DisplayedContainer?.ContainerType,
                 "showing the chest");
+            if (withMusic) {
+                Assert.AreEqual(GameData.Resources.Scene.CipherPuzzleLayout.MusicTrack, cover.TrackAtFadeOut,
+                    "the riddle's own track still plays as it goes to black");
+                Assert.AreEqual(WorldTrack, midi.CurrentTrack, "and the world's is back after");
+                midi.StopMusic();
+            }
 
             await navigator.Pop();
         });
