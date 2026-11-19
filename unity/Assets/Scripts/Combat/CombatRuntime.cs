@@ -4468,6 +4468,47 @@ namespace BakAgain.Combat {
                 ApplyDrainWithRecoil(caster, target, spellId,
                     SpellPerSpellHandlers.StrengthDrained(effectiveCost, spell.Damage));
             }
+            // Firestorm's effect (19) is the chain, run by cspell_invoke_effect whether or not the
+            // cast's own roll hit (CSPELL.C:1458); its hook then zeroes the ordinary delivery.
+            if (spellId == SpellIds.Firestorm && caster != null && target != null) {
+                ApplyFirestormChain(caster, target, SpellEffectMagnitude.Calculate(spell, spellId,
+                    effectiveCost, targetHasMetalGear: HasMetalGear(target)), roll);
+            }
+        }
+
+        /// <summary>
+        /// Firestorm: the target, then every other living foe the caster has a clear line to, each
+        /// with its own wind-up, cue and roll, for the whole magnitude (cspell_chain_damage_targets,
+        /// CSPELL.C:509-562; IDA Spell_ChainDamageToNearby@67143). TASK-1106.
+        /// </summary>
+        /// <remarks>
+        /// Every roll in the original is taken against the AIMED target (its distance), the chained
+        /// ones included — CSPELL.C:545 passes <c>target</c>, not the actor being struck.
+        /// </remarks>
+        private void ApplyFirestormChain(Combatant caster, Combatant target, int magnitude,
+            System.Func<int, int> roll) {
+            if (Encounter == null) {
+                return;
+            }
+            if (CastHits(caster, target, roll) && !target.IsDead) {
+                ApplySpellDamage(target, magnitude, roll);
+            }
+            IReadOnlyList<Combatant> foes = Encounter.Enemies.Contains(caster)
+                ? (IReadOnlyList<Combatant>)Encounter.Party
+                : Encounter.Enemies;
+            System.Func<int, int, bool> blocks =
+                CombatLineOfFire.BlockedByLivingActor(LiveCombatantAt, caster);
+            foreach (Combatant foe in foes) {
+                if (foe == target || foe.IsDead
+                    || !CombatLineOfFire.IsClear(caster.X, caster.Y, foe.X, foe.Y, blocks)) {
+                    continue;
+                }
+                _playSfx?.Invoke(SpellCastSound.RangedWindupCue);
+                PlaySpellVisual?.Invoke(new SpellVisual(SpellVisualKind.SparkBurst), caster, foe);
+                if (CastHits(caster, target, roll) && !foe.IsDead) {
+                    ApplySpellDamage(foe, magnitude, roll);
+                }
+            }
         }
 
         private void ApplyEvilSeekChain(Combatant caster, Combatant target, int effectiveCost,

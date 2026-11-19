@@ -929,6 +929,33 @@ namespace BakAgain.Tests.Editor.Combat {
             Assert.Less(Pool(monster), before, "the chain does not ask the hit roll");
         }
 
+        /// <summary>
+        /// Firestorm burns the target and every other living foe in the line of fire, each with
+        /// its own roll (effect 19 -> cspell_chain_damage_targets, CSPELL.C:509-562, 813-815; IDA
+        /// Spell_ChainDamageToNearby@67143). Its post-animation hook zeroes the ordinary delivery
+        /// because the chain has dealt it. The port zeroed it and dealt nothing (TASK-1106).
+        /// </summary>
+        [Test]
+        public void FirestormBurnsTheTargetAndEveryFoeInTheLineOfFire() {
+            GameSession session = SessionWith((CrossbowId, 100));
+            session.SetRosterActorForTest(400, StatBlock(), 12, gridX: 5, gridY: 5);
+            session.SetRosterActorForTest(401, StatBlock(), 12, gridX: 5, gridY: 2);
+            var runtime = new CombatRuntime(session, null, Entries(), Objects());
+            CombatEncounter fight = runtime.EnterRoster(new short[] { 400, 401 });
+            Combatant aimed = fight.Enemies[0], other = fight.Enemies[1];
+            int aimedBefore = Pool(aimed), otherBefore = Pool(other);
+            var firestorm = new Spell("F") {
+                TargetingType = 0, AnimationEffectType = 19,
+                Calculation = SpellCalculation.CostTimesDamage, Damage = 4,
+            };
+
+            runtime.ResolveCast(fight.Party[0], aimed, firestorm, spellId: SpellIds.Firestorm,
+                power: 5, AlwaysLow);
+
+            Assert.Less(Pool(aimed), aimedBefore, "the aimed foe burns");
+            Assert.Less(Pool(other), otherBefore, "and so does the other foe in the line of fire");
+        }
+
         [Test]
         public void TheDrainIsCLAMPEDToWhatTheTargetStillHas() {
             // Read back against CURRENT Strength before either write, so draining a nearly-spent
