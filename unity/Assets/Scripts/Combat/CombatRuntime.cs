@@ -2898,6 +2898,13 @@ namespace BakAgain.Combat {
             // happens between the two cues and its outcome IS the hit, so the launch is heard on a
             // miss as well — the same division RangedShotSound draws for a bolt. Placed above the
             // miss return for that reason and not by accident.
+            // The kind switch's cue comes FIRST, ahead of the flight, on a miss as well: it runs
+            // on `isNeg == 0` alone (CSPELL.C:1303-1317), above the delivery and the handlers
+            // (TASK-1107).
+            if (SpellCastSound.ForCombatCast(spell.TargetingType, costWasNegated)
+                is { } castCue) {
+                _playSfx?.Invoke(castCue);
+            }
             if (SpellProjectileSound.Flies(target != null, spell.AnimationEffectType)) {
                 _playSfx?.Invoke(SpellProjectileSound.LaunchCue);
             }
@@ -2956,10 +2963,7 @@ namespace BakAgain.Combat {
             //
             // Different table from SpellCastSound.ForCast, which is the FIELD caster's per-spell
             // cue. The same spell cast in a fight and out of one does not make the same noise.
-            if (SpellCastSound.ForCombatCast(spell.TargetingType, costWasNegated)
-                is { } castCue) {
-                _playSfx?.Invoke(castCue);
-            }
+            // (The cue itself plays above the launch: TASK-1107.)
 
             // *** THE SAME SWITCH HAS AN ARM THAT PLACES A TILE, and it is why kind 5 is silent
             // above rather than merely undecided. *** cspell_resolve_cast's kind-5 case is

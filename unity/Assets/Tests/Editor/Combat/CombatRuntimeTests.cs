@@ -749,6 +749,32 @@ namespace BakAgain.Tests.Editor.Combat {
                 "muzzle, tile cast, then the projectile's own launch and impact");
         }
 
+        /// <summary>
+        /// The kind switch's cue (0x12 for a ranged kind) comes first, before the projectile's
+        /// launch, and a miss plays it too: CSPELL.C:1303-1317 runs on <c>isNeg == 0</c> alone and
+        /// sits above the flight (TASK-1107 D2 order, D4).
+        /// </summary>
+        [TestCase(0, TestName = "ACastCueComesBeforeTheLaunchOnAHit")]
+        [TestCase(99, TestName = "AMissedCastStillPlaysItsCastCue")]
+        public void TheCastCueLeadsTheLaunch(int roll) {
+            var cues = new System.Collections.Generic.List<int>();
+            var session = new GameSession();
+            session.SetActorStatsForTest(0, StatBlock(health: 40));
+            session.SetActiveParty(1, new byte[] { 0 });
+            session.SetRosterActorForTest(400, StatBlock(health: 40), gridX: 5, gridY: 5);
+            var runtime = new CombatRuntime(session, null, Entries(((byte)3, (byte)4)), playSfx: cues.Add) {
+                Spells = Flamecast(),
+            };
+            CombatEncounter fight = runtime.EnterRoster(new short[] { 400 });
+
+            runtime.ResolveCast(fight.Party[0], fight.Enemies[0], Flamecast().Spells[CannonLine.SpellId],
+                CannonLine.SpellId, 2, _ => roll);
+
+            Assert.GreaterOrEqual(cues.Count, 2, string.Join(",", cues));
+            Assert.AreEqual(GameData.Resources.Spells.SpellCastSound.ForCombatCast(0, false), cues[0], string.Join(",", cues));
+            Assert.AreEqual(GameData.Resources.Combat.SpellProjectileSound.LaunchCue, cues[1]);
+        }
+
         [Test]
         public void DespairThyEyesTakesTwentyOffTheTargetsAccuracies() {
             // CostTimesDuration used to RETURN after registering its lingering effect, so the
