@@ -200,6 +200,32 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             Assert.IsNull(_root.Q("drop_flight"), "a drop on the pack panel does not fly");
         }
 
+        /// <summary>
+        /// A put-back into the chest's window flies there, with the drop's sound: INVENTOR.C:779-786
+        /// flies the icon to the window on every transfer that moved. The port flew only to a
+        /// portrait, so a put-back was silent and nothing moved (TASK-1099).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator APutBackIntoTheContainerWindowFlies() {
+            const int window = 32;   // InventoryMenu.WindowContainerImage, the container window
+            VisualElement chest = _root.Q($"hotspot_{window}") ?? new VisualElement { name = $"hotspot_{window}" };
+            _root.Add(chest);
+            chest.style.position = Position.Absolute;
+            chest.style.left = 200; chest.style.top = 900; chest.style.width = 100; chest.style.height = 100;
+            yield return null;
+            _root.panel.GetType().GetMethod("ValidateLayout", BindingFlags.Public | Any)?.Invoke(_root.panel, null);
+            Set("_resources", new IconStillLoading());
+
+            Set("_dropPortraitSlot", -1);
+            Set("_dropObject", new ObjectInfo("dagger") { Number = Dagger, Name = "Rusty Dagger", InventorySlots = 1 });
+            Set("_dropStagePos", Vector2.zero);
+            Set("_dropOnContainerWindow", true);
+            Call("ShowTransferResult", GameData.Resources.Inventory.InventoryTransfer.Result.Moved, 0);
+
+            Assert.IsNotNull(_root.Q("drop_flight"), "the put-back flies to the chest's window");
+            _root.Q("drop_flight")?.RemoveFromHierarchy();
+        }
+
         /// <summary>TASK-944 (owner): the loot shows its item count against the container's capacity,
         /// which binds long before its 28 squares (a body holds 2-8 items).</summary>
         [Test]

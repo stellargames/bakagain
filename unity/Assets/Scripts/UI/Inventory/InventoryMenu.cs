@@ -239,6 +239,8 @@ namespace BakAgain.UI.Inventory {
         // been re-rendered and the dragged slot no longer means anything.
         private Vector2 _dropStagePos;
         private int _dropPortraitSlot = -1;
+        /// <summary>The drop was on the container's window: a put-back, or a discard to the ground (TASK-1099).</summary>
+        private bool _dropOnContainerWindow;
         private bool _dropOnPackPanel; // the drop landed on the Enhanced loot's pack panel, not the portrait
         private ObjectInfo _dropObject;
         private ushort _dropItemFlags;
@@ -3059,6 +3061,12 @@ namespace BakAgain.UI.Inventory {
             if (_displayed?.ContainerType != SaveGameContainerType.Inventory) {
                 return false; // container view: the window is decoration, not a target
             }
+            // What flies where, read before the transfer mutates the pack (TASK-1099).
+            if (slot >= 0 && slot < _displayed.Items.Count) {
+                _dropOnContainerWindow = true;
+                _dropObject = ObjectAt(slot);
+                _dropItemFlags = _displayed.Items[slot].ItemFlags;
+            }
             if (_container == null) {
                 DiscardToGround(slot);
                 return true;
@@ -4267,6 +4275,7 @@ namespace BakAgain.UI.Inventory {
             // Remember what is flying where, for the drop animation that plays if this succeeds.
             // Read HERE because the transfer mutates both containers and re-renders the grid.
             _dropPortraitSlot = portraitSlot;
+            _dropOnContainerWindow = false;   // a refused put-back before this left it set
             _dropObject = ObjectAt(slot);
             _dropItemFlags = _displayed.Items[slot].ItemFlags;
             int receiver = CharacterIndexOf(portraitSlot);
@@ -4938,12 +4947,16 @@ namespace BakAgain.UI.Inventory {
                 or InventoryTransfer.Result.SwappedEquipped) {
                 if (_dropOnPackPanel) {
                     PlayDropSound();
+                } else if (_dropOnContainerWindow) {
+                    // A put-back, or a discard to the ground: it flies to the window (TASK-1099).
+                    FlyDroppedItemTo(WindowContainerImage);
                 } else {
                     FlyDroppedItemToPortrait();
                 }
             }
             _dropPortraitSlot = -1;
             _dropOnPackPanel = false;
+            _dropOnContainerWindow = false;
             _dropObject = null;
             switch (result) {
                 case InventoryTransfer.Result.MustKeepEquipped:
@@ -5012,16 +5025,24 @@ namespace BakAgain.UI.Inventory {
             Audio.MenuSoundService.Instance?.Play(ShowingShopShelf ? DropFlightShopSoundId : DropFlightSoundId);
 
         private void FlyDroppedItemToPortrait() {
-            int portraitSlot = _dropPortraitSlot;
+            if (_dropPortraitSlot >= 0) {
+                FlyDroppedItemTo(_dropPortraitSlot + PortraitSlot1);
+            }
+        }
+
+        /// <summary>
+        /// Fly the dropped icon to a chrome element (a portrait, or the container's window) with the
+        /// drop's sound — invui_animate_item_fly on every transfer that moved (INVENTOR.C:779-786).
+        /// </summary>
+        private void FlyDroppedItemTo(int chromeAction) {
             ObjectInfo obj = _dropObject;
-            if (_stage == null || obj == null || portraitSlot < 0
-                || !TryGetChromeRect(portraitSlot + PortraitSlot1, out Rect portrait)) {
+            if (_stage == null || obj == null || !TryGetChromeRect(chromeAction, out Rect target)) {
                 return;
             }
             PlayDropSound();
 
             Vector2 from = _dropStagePos;
-            var to = new Vector2(portrait.center.x, portrait.center.y);
+            var to = new Vector2(target.center.x, target.center.y);
             var flyer = new VisualElement {
                 name = "drop_flight",
                 pickingMode = PickingMode.Ignore,
