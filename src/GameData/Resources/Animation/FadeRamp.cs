@@ -63,7 +63,18 @@ public static class FadeRamp {
     /// to <c>CutsceneTiming.FadeDurationSeconds</c>, whose factor is the project's one tuned knob for
     /// exactly this gap, rather than inventing a second timing.</para>
     /// </remarks>
-    public const int WorldFadePaletteWrites = (MaxIntensity / WorldFadeStep) + 1;
+    // 63 down to above 0 is ceil(63 / step) writes, then the final black.
+    public const int WorldFadePaletteWrites = (MaxIntensity + WorldFadeStep - 1) / WorldFadeStep + 1;
+
+    /// <summary>
+    /// The town scene's fade: <c>palette_fade_out(...,4,0)</c> and <c>palette_fade_in(...,4,1)</c>
+    /// (TOWNSCN.C:377, :404), 63 down in steps of 4 plus the final black — 17 writes, about half the
+    /// world's (TASK-1110).
+    /// </summary>
+    public const int LocationFadePaletteWrites = (MaxIntensity + LocationFadeStep - 1) / LocationFadeStep + 1;
+
+    /// <summary>The town scene fade's intensity step.</summary>
+    public const int LocationFadeStep = 4;
 
     /// <summary>The world fade's intensity step — the default <c>palette_fade_out</c> substitutes
     /// for the -1 every shipped caller passes.</summary>

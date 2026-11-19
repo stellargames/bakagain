@@ -66,6 +66,10 @@ namespace BakAgain.UI.Navigation {
         /// </summary>
         public const float InventoryFadeInSeconds = 0.05f;
 
+        /// <summary>The town scene's fade, one direction: 17 writes where the world's is 33 (TASK-1110).</summary>
+        public static float LocationDurationSeconds =>
+            CutScenes.CutsceneTiming.FadeDurationSeconds(FadeRamp.LocationFadePaletteWrites);
+
         /// <summary>How long one direction of the fade takes.</summary>
         public static float DurationSeconds =>
             CutScenes.CutsceneTiming.FadeDurationSeconds(FadeRamp.WorldFadePaletteWrites);

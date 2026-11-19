@@ -354,11 +354,12 @@ namespace BakAgain.World.Scenes {
                     return PresentAsync(scene, tags, sceneNumber, sub);
                 });
             } else {
-                await Fade.FadeOutAsync();
+                // The scene loop's own fade, step 4 (TOWNSCN.C:377, :404), not the world's.
+                await Fade.FadeOutAsync(BakAgain.UI.Navigation.ScreenFade.LocationDurationSeconds);
                 try {
                     await PresentAsync(scene, tags, sceneNumber, sub);
                 } finally {
-                    await Fade.FadeInAsync();
+                    await Fade.FadeInAsync(BakAgain.UI.Navigation.ScreenFade.LocationDurationSeconds);
                 }
             }
 

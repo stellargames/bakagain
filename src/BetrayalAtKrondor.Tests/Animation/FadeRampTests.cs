@@ -60,4 +60,12 @@ public class FadeRampTests {
         Assert.Throws<ArgumentOutOfRangeException>(() => FadeRamp.StepFor(-1));
         Assert.Throws<ArgumentOutOfRangeException>(() => FadeRamp.StepFor(FadeRamp.MaxSpeed + 1));
     }
+
+    // TASK-1110 row 12: the town scene fades with palette_fade_out(...,4,0) and
+    // palette_fade_in(...,4,1) (TOWNSCN.C:377, :404): 63 down in steps of 4, plus the final black.
+    [Fact]
+    public void ALocationFadesInSeventeenWrites() {
+        Assert.Equal(17, FadeRamp.LocationFadePaletteWrites);
+        Assert.Equal(33, FadeRamp.WorldFadePaletteWrites);
+    }
 }
