@@ -4525,7 +4525,11 @@ namespace BakAgain.UI.Inventory {
                 return;
             }
 
-            Audio.MenuSoundService.Instance?.Play(info.SoundId);
+            // The record's sound with its repeats — Ale and the brandy: 64, two more, three gulps
+            // (SHOP.C:147-149, audio_sfx_play_n_times(sfx & 0xff, sfx >> 8, 1); TASK-1097).
+            if (info.SoundId != 0) {
+                Audio.MenuSoundService.Cue(info.SoundId, info.SoundRepeat);
+            }
         }
 
         /// <summary>

@@ -700,7 +700,7 @@ public static class InventoryUse {
             return new ItemUseResult(ItemUseOutcome.NoEffect, NoEffectRecord, source.ObjectId, false);
         }
         if (target.Variable == FullCondition) {
-            return new ItemUseResult(ItemUseOutcome.Handled, 0, 0, false); // full: silent no-op
+            return new ItemUseResult(ItemUseOutcome.Returned, 0, 0, false); // full: silent no-op
         }
         bool removed = false;
         if (source.Variable + target.Variable > FullCondition) {
@@ -712,7 +712,7 @@ public static class InventoryUse {
             removed = true;
         }
         container.Dirty = true;
-        return new ItemUseResult(ItemUseOutcome.Handled, UsedRecord, source.ObjectId, removed);
+        return new ItemUseResult(ItemUseOutcome.Returned, UsedRecord, source.ObjectId, removed);
     }
 
     /// <summary>Character-table indices (<c>CHR_OWYN</c>, <c>CHR_PUG</c>).</summary>

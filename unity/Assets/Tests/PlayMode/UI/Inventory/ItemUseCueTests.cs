@@ -64,6 +64,38 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             Assert.That(_cues, Is.EqualTo(new[] { ShopCue }));
         }
 
+        /// <summary>
+        /// A drink at the counter gulps its record's sound with its repeats (Ale: 64, two more —
+        /// three gulps), before the effect (SHOP.C:147-153). The port played it once, through a
+        /// path no cue log saw (TASK-1097).
+        /// </summary>
+        [Test]
+        public void ADrinkAtTheCounterGulpsItsSound() {
+            InventoryMenu menu = Build(out GameSession session, out RuntimeContainer pack);
+            session.SetObjectInfo(new ObjectInfoSet("O", new List<ObjectInfo> {
+                new ObjectInfo("ale") { Number = 136, Name = "Ale", ObjectType = ObjectType.Drink,
+                    SoundId = 64, SoundRepeat = 2 },
+            }));
+            session.PartyGold = 1000;
+            var stats = new GameData.Resources.Character.ActorStat[16];
+            for (var i = 0; i < stats.Length; i++) {
+                stats[i] = new GameData.Resources.Character.ActorStat { Base = 20, Max = 60 };
+            }
+            session.SetActorStatsForTest(0, stats);
+            session.SetActorConditionsForTest(0, new GameData.Resources.Character.ActorConditions());
+            session.SetActiveParty(1, new byte[] { 0 });
+            const BindingFlags any = BindingFlags.NonPublic | BindingFlags.Instance;
+
+            var drink = (Cysharp.Threading.Tasks.UniTask)typeof(InventoryMenu)
+                .GetMethod("CompletePurchaseAsync", any).Invoke(menu, new object[] {
+                    new RuntimeItem(136, 1, 0), session.ObjectInfo.GetById(136), pack, 0, 5L,
+                });
+
+            Assert.AreEqual(Cysharp.Threading.Tasks.UniTaskStatus.Succeeded, drink.Status, "control: the drink ends at once");
+            Assert.AreEqual(995, session.PartyGold, "control: it was paid for and drunk");
+            Assert.That(_cues, Is.EqualTo(new[] { 64 }));
+        }
+
         private sealed class RecordingDialogs : NoOpDialogs {
             public readonly List<int> Shown = new();
             public override Cysharp.Threading.Tasks.UniTask<int> ShowById(int id,

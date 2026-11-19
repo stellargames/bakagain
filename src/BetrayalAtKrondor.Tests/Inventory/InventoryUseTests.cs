@@ -350,7 +350,7 @@ public class InventoryUseTests {
         Assert.Equal(70, c.Items[0].Variable); // the staff moved into slot 0 when the manna went
         Assert.True(r.SourceRemoved);
         Assert.Equal(UsedRecord, r.DialogId);
-        Assert.Equal(ItemUseOutcome.Handled, r.Outcome);
+        Assert.Equal(ItemUseOutcome.Returned, r.Outcome);
     }
 
     [Fact]
@@ -369,7 +369,7 @@ public class InventoryUseTests {
         ItemUseResult r = Use(c, 0, 1);
         Assert.Equal(20, c.Items[0].Variable);
         Assert.Equal(0, r.DialogId);
-        Assert.Equal(ItemUseOutcome.Handled, r.Outcome);
+        Assert.Equal(ItemUseOutcome.Returned, r.Outcome);
     }
 
     [Fact]
