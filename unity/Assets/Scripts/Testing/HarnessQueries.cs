@@ -94,6 +94,7 @@ namespace BakAgain.Testing {
                     return a.Length == 2 ? Rect(a[1], 0)
                         : a.Length == 3 && int.TryParse(a[2], out int index) && index >= 0 ? Rect(a[1], index)
                         : Refuse("usage: rect <name>|.<class> [index]");
+                case "text": return a.Length == 2 ? Text(a[1]) : Refuse("usage: text <name>");
                 case "cell":
                     return a.Length == 3 && int.TryParse(a[1], out int cx) && int.TryParse(a[2], out int cy)
                         ? Cell(cx, cy) : Refuse("usage: cell <x> <y>");
@@ -440,6 +441,23 @@ namespace BakAgain.Testing {
 
         /// <summary>The <paramref name="index"/>th visible element with USS name <paramref name="key"/>, or class
         /// <c>.class</c>, across every UIDocument.</summary>
+        /// <summary>What a named element shows: its labels' text, in order, joined by spaces.</summary>
+        private static string Text(string key) {
+            foreach (UIDocument d in UnityEngine.Object.FindObjectsByType<UIDocument>()) {
+                VisualElement root = d.rootVisualElement;
+                if (root?.panel == null) continue;
+                foreach (VisualElement v in root.Query<VisualElement>(key).ToList()) {
+                    if (v.resolvedStyle.display == DisplayStyle.None || !v.visible) continue;
+                    var parts = new List<string>();
+                    foreach (Label l in v.Query<Label>().ToList()) {
+                        if (!string.IsNullOrEmpty(l.text)) parts.Add(l.text);
+                    }
+                    return Ok(new Dictionary<string, object> { ["text"] = string.Join(" ", parts) });
+                }
+            }
+            return Refuse("no element " + key);
+        }
+
         private static string Rect(string key, int index) {
             bool byClass = key.StartsWith(".");
             foreach (UIDocument d in UnityEngine.Object.FindObjectsByType<UIDocument>()) {

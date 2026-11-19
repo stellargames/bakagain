@@ -444,21 +444,30 @@ namespace BakAgain.World.Scenes {
         /// <para>Drift is measured in the pointer's screen px; the original's threshold is in its own
         /// mouse units, so the feel is matched rather than the raw number carried across.</para>
         /// </remarks>
-        private async UniTask DismissAsync() {
+        internal async UniTask DismissAsync() {
             if (_pointer == null) {
                 return;
             }
             Vector2 start = _pointer.ScreenPosition;
+            // Any key but the arrows ends it too: dialog_poll_arrow_or_button returns every
+            // scancode except the four arrows and NumLock/ScrollLock (DIALOG.C:161-171), which the
+            // input adapter already drops (TASK-1113). Activate, Cancel and Skip are those keys.
+            bool keyed = false;
+            var keys = new UI.InputCore.ActionLayer("location-description",
+                onActivate: () => keyed = true, onCancel: () => keyed = true, onMove: _ => { },
+                onAccelerator: _ => keyed = true);
+            UI.InputCore.UiDriver.Stack?.Push(keys);
+            try {
             while (true) {
                 await UniTask.Yield();
                 // The same leak as the service loop below: this ends only on a pointer gesture, so a
                 // location torn down while a description is up leaves it spinning for the rest of
                 // the session, holding whatever awaits it. The teardown deactivates this GameObject,
                 // which is the signal (TASK-574).
-                if (!isActiveAndEnabled) {
+                if (this == null || !isActiveAndEnabled) {
                     return;
                 }
-                bool clicked = _pointer.Primary.PressedThisFrame || _pointer.Secondary.PressedThisFrame;
+                bool clicked = keyed || _pointer.Primary.PressedThisFrame || _pointer.Secondary.PressedThisFrame;
                 Vector2 now = _pointer.ScreenPosition;
                 int dx = Mathf.RoundToInt(now.x - start.x);
                 int dy = Mathf.RoundToInt(now.y - start.y);
@@ -466,10 +475,13 @@ namespace BakAgain.World.Scenes {
                     break;
                 }
             }
+            } finally {
+                UI.InputCore.UiDriver.Stack?.Remove(keys);
+            }
             // dialog_input_wait_release (TOWNSCN.C:243): the ending click is swallowed. Hold until the
             // buttons are up, plus a frame so the hotspot's Clickable sees its release while the
             // description still owns the input.
-            while (isActiveAndEnabled && (_pointer.Primary.IsDown || _pointer.Secondary.IsDown)) {
+            while (this != null && isActiveAndEnabled && (_pointer.Primary.IsDown || _pointer.Secondary.IsDown)) {
                 await UniTask.Yield();
             }
             await UniTask.Yield();
