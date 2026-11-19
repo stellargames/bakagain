@@ -80,6 +80,18 @@ namespace BakAgain.World.Encounters {
             return RunAsync();
         }
 
+        /// <summary>
+        /// The pictures a run shows, in order: the four death frames, ending on the last, which stays
+        /// (sprite1 is four frames, CACTOR.C:1957-1960; a non-0 slot holds end_frame, :862-864).
+        /// </summary>
+        public static int[] FramesFor(int lastFrame) {
+            var frames = new int[Frames];
+            for (int i = 0; i < Frames; i++) {
+                frames[i] = lastFrame - (Frames - 1) + i;
+            }
+            return frames;
+        }
+
         /// <summary>Falls still playing; the arena counts them as busy (the original waits for
         /// <c>combat_actor_play_anim_sprite1</c>, COMBAT.C:226 / CACTOR.C:1895).</summary>
         public static int Playing { get; private set; }
@@ -123,10 +135,9 @@ namespace BakAgain.World.Encounters {
                 return;
             }
 
-            // The last frame is already on screen as the corpse, so only the three before it are
-            // played. Ending "early" is the point: it lands exactly where the rebuild left it.
-            for (int i = Frames - 1; i > 0; i--) {
-                int index = _lastFrame - i;
+            // All four, ending on the last picture: the body is hidden until the run starts (above), so
+            // the corpse the rebuild left is not on screen to finish it (TASK-1100).
+            foreach (int index in FramesFor(_lastFrame)) {
                 Texture2D tex = await _ctx.LoadSpriteTextureAsync($"{_setName}#{index}", gameObject);
                 if (this == null) {
                     return;
