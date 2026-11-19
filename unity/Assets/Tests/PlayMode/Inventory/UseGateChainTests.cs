@@ -27,6 +27,20 @@ namespace BakAgain.Tests.PlayMode.Inventory {
         private static RuntimeItem Item(byte objectId = 90, byte variable = 1, ushort itemFlags = 0) =>
             new RuntimeItem(objectId, variable, itemFlags);
 
+        /// <summary>
+        /// Armour cannot be changed in a fight, whatever its flags: Use_Item refuses category 4 in
+        /// combat with 0x1b7747 (ITEMUSE.C:136-139). The port had no such gate (TASK-1098).
+        /// </summary>
+        [Test]
+        public void ArmourIsRefusedInCombat_AndAllowedOutOfIt() {
+            var armour = new ObjectInfo("armour") { ObjectType = GameData.ObjectType.Armor };
+            Assert.IsTrue(InventoryMenu.RefuseUse(armour, Item(), isCaster: false, inCombat: true,
+                out int dialogId, out _), "armour in a fight");
+            Assert.AreEqual(NotInCombat, dialogId);
+            Assert.IsFalse(InventoryMenu.RefuseUse(armour, Item(), isCaster: false, inCombat: false,
+                out _, out _), "control: out of a fight it is worn");
+        }
+
         [Test]
         public void NoGatingFlags_IsNotRefused() {
             Assert.IsFalse(InventoryMenu.RefuseUse(Obj(0), Item(), isCaster: false, inCombat: false,

@@ -2305,6 +2305,11 @@ namespace BakAgain.UI.Inventory {
                 var0 = 2;
                 return true;
             }
+            // Armour is not changed in a fight, whatever its flags (ITEMUSE.C:136-139; TASK-1098).
+            if (obj.ObjectType == GameData.ObjectType.Armor && inCombat) {
+                dialogId = NotInCombatDialogId;
+                return true;
+            }
             dialogId = 0;
             return false;
         }
@@ -3630,6 +3635,12 @@ namespace BakAgain.UI.Inventory {
             }
             if (!IsEquipDropTarget(slot, stageLocal)) {
                 return false; // pulse gate never armed in the original — silent snap-back
+            }
+            // The drop goes through Use_Item (INVENTOR.C:796), so its gates refuse here too —
+            // armour in a fight among them (TASK-1098).
+            ObjectInfo dropped = _gameSession.ObjectInfo?.GetById(_displayed.Items[slot].ObjectId);
+            if (dropped != null && RefuseUse(dropped, _displayed.Items[slot])) {
+                return true;
             }
             InventoryEquip.Equip(_displayed, slot, _gameSession.ObjectInfo); // idempotent re-equip
             RenderCurrent();
