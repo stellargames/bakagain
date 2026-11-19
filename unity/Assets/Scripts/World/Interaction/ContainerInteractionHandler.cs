@@ -266,7 +266,7 @@ namespace BakAgain.World.Interaction {
                         container.SpendTrap();
                     }
                     AwardDisarm(member);
-                    TryOpenLoot(zone, bakX, bakY, entityType, chestMessage: true);
+                    TryOpenLoot(zone, bakX, bakY, entityType, chestMessage: true, robberyRoll: false);
 
                     return;
                 }
@@ -294,7 +294,7 @@ namespace BakAgain.World.Interaction {
                 return;
             }
 
-            TryOpenLoot(zone, bakX, bakY, entityType, chestMessage: true);
+            TryOpenLoot(zone, bakX, bakY, entityType, chestMessage: true, robberyRoll: false);
         }
 
         /// <summary>
@@ -320,6 +320,9 @@ namespace BakAgain.World.Interaction {
             if (_explode != null) {
                 await _explode(bakX, bakY);
             }
+            // The boom is cut before its line: audio_unload_soundEffect(trapexpl) at 0x775ff, then ddx
+            // 192 at 0x77609 (WCURSOR.C:666-668; TASK-1104).
+            Audio.MenuSoundService.StopCue(ChestTrap.ExplosionCue);
             await _dialog.ShowById(ChestTrap.DetonationDialog);
 
             long delta = ChestTrap.DamageDelta(trapDamage);
@@ -401,7 +404,7 @@ namespace BakAgain.World.Interaction {
             // second between them.
             System.Func<bool> openInPlace = container == null ? null : () => {
                 container.Unlocked = true;
-                return PrepareLoot(zone, bakX, bakY, entityType);
+                return PrepareLoot(zone, bakX, bakY, entityType, robberyRoll: false);
             };
             if (!_inventoryMenu.SetLock(difficulty, openInPlace)) {
                 await _dialog.ShowById(PicklockWorkingSet.NothingToTryDialog);
@@ -499,15 +502,19 @@ namespace BakAgain.World.Interaction {
         /// open it reads as a broken click.
         /// </summary>
         private void TryOpenLoot(int zone, int bakX, int bakY,
-            GameData.Resources.World.WorldEntityType entityType, bool chestMessage = false) {
-            if (PrepareLoot(zone, bakX, bakY, entityType)) {
+            GameData.Resources.World.WorldEntityType entityType, bool chestMessage = false,
+            bool robberyRoll = true) {
+            if (PrepareLoot(zone, bakX, bakY, entityType, robberyRoll)) {
                 OpenLootAsync(zone, bakX, bakY, chestMessage).Forget();
             }
         }
 
         /// <summary>Points the inventory screen at the container here; false when there is none.</summary>
+        /// <param name="robberyRoll">Whether to ask "robbed while away?". The trap arms clear it
+        /// (bRunProx = 0, WCURSOR.C:587-588) and the in-place picklock swap never asks
+        /// (CMBINV.C:285-295); only a plain or riddle chest does (:616-618; TASK-1104).</param>
         private bool PrepareLoot(int zone, int bakX, int bakY,
-            GameData.Resources.World.WorldEntityType entityType) {
+            GameData.Resources.World.WorldEntityType entityType, bool robberyRoll = true) {
             RuntimeContainer runtime = _session.GetLiveContainerAt(zone, bakX, bakY);
             // A missing container is the analogue of the original's actor record failing to
             // resolve — there is nothing to show. An empty one is not that.
@@ -516,7 +523,9 @@ namespace BakAgain.World.Interaction {
             }
             WriteOpenEvent(zone, bakX, bakY);
             // Robbed while the party was away? Decided now, as the original does (TASK-506).
-            _session.ExposeStashOnOpen?.Invoke(runtime);
+            if (robberyRoll) {
+                _session.ExposeStashOnOpen?.Invoke(runtime);
+            }
             _inventoryMenu.SetContainer(runtime, entityType);
             return true;
         }

@@ -164,8 +164,8 @@ namespace BakAgain.World.Interaction {
                     GameData.Resources.Inventory.RuntimeContainer runtime =
                         _session.GetLiveContainerAt(_session.CurrentZone, bakX, bakY);
                     if (runtime != null && _inventoryMenu != null && _navigator != null) {
-                        // Robbed while the party was away? Every WCURSOR.C open handler asks (TASK-506).
-                        _session.ExposeStashOnOpen?.Invoke(runtime);
+                        // No "robbed while away?" here: wcursor_click_fixedobj_full (WCURSOR.C:259-385)
+                        // never calls actorspawn_npc_prox_periodic (TASK-1104).
                         _inventoryMenu.SetContainer(runtime, entity.EntityType);
                         await _navigator.Push(_inventoryMenu);
                     }
