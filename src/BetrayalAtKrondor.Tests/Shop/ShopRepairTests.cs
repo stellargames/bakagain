@@ -12,6 +12,15 @@ using Xunit;
 /// charges, and how long the party loses to it.
 /// </summary>
 public class ShopRepairTests {
+    // A paid repair sounds by what was mended (MODALSCR.C:614-643, played at :655): a sword 0x12
+    // three times, armour 0x14 twice, a crossbow 0x16 once. The port mended in silence (TASK-1111).
+    [Theory]
+    [InlineData(ObjectType.Sword, 0x12, 2)]
+    [InlineData(ObjectType.Armor, 0x14, 1)]
+    [InlineData(ObjectType.Crossbow, 0x16, 0)]
+    public void APaidRepairSoundsByWhatWasMended(ObjectType kind, int sound, int extraRepeats) =>
+        Assert.Equal((sound, extraRepeats), ShopRepair.SoundFor(kind));
+
     private const int Broadsword = 18;
     private const int Chainmail = 40;
     private const int PlainCrossbow = 33;

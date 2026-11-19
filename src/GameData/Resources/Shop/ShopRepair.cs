@@ -187,4 +187,12 @@ public static class ShopRepair {
     // Condition lives in the slot's Variable byte for everything the mender handles — the same
     // field the inventory screen prints as a percentage.
     private static int Condition(RuntimeItem item) => item.Variable;
+
+    /// <summary>The sound a paid repair makes, and its extra repeats (MODALSCR.C:614-643, :655).</summary>
+    public static (int Sound, int ExtraRepeats) SoundFor(ObjectType kind) => kind switch {
+        ObjectType.Sword => (0x12, 2),
+        ObjectType.Armor => (0x14, 1),
+        ObjectType.Crossbow => (0x16, 0),
+        _ => (0, 0),
+    };
 }

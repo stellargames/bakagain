@@ -2627,6 +2627,11 @@ namespace BakAgain.UI.Inventory {
             ShopRepair.Apply(item);
             _displayed.Dirty = true;
             RenderCurrent();
+            // The mender's hammering, by what was mended (MODALSCR.C:655; TASK-1111).
+            (int repairCue, int repairRepeats) = ShopRepair.SoundFor(obj.ObjectType);
+            if (repairCue != 0) {
+                Audio.MenuSoundService.Cue(repairCue, repairRepeats);
+            }
         }
 
         /// <summary>62_BLESS, once the blessing is paid for (MODALSCR.C:478).</summary>
