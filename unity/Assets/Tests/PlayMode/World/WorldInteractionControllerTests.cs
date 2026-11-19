@@ -58,6 +58,33 @@ namespace BakAgain.Tests.PlayMode.World {
             } finally { Object.DestroyImmediate(e.gameObject); }
         });
 
+        private sealed class HeldHandler : IWorldInteractionHandler {
+            public readonly UniTaskCompletionSource Release = new();
+            public string Behavior => "container";
+            public UniTask HandleAsync(WorldEntity entity, bool isPrimary) => Release.Task;
+        }
+
+        /// <summary>
+        /// A world click is modal until its handler returns: the original runs the explosion and the
+        /// door swing inside the click (WCURSOR.C:630-680, 784-855), so the party cannot step during
+        /// them. The travel screen reads <c>Busy</c> to hold movement (TASK-1104 row 10).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Dispatch_IsBusyUntilTheHandlerReturns() => UniTask.ToCoroutine(async () => {
+            var held = new HeldHandler();
+            var c = new WorldInteractionController(null, null, null, null,
+                new List<IWorldInteractionHandler> { held });
+            WorldEntity e = Entity("container");
+            try {
+                Assert.IsFalse(c.Busy, "control: idle");
+                UniTask click = c.DispatchAsync(e, isPrimary: true);
+                Assert.IsTrue(c.Busy, "while the chest's handler runs");
+                held.Release.TrySetResult();
+                await click;
+                Assert.IsFalse(c.Busy, "after it returns");
+            } finally { Object.DestroyImmediate(e.gameObject); }
+        });
+
         [UnityTest]
         public IEnumerator Dispatch_UnknownOrNullBehavior_NoOp() => UniTask.ToCoroutine(async () => {
             var container = new FakeHandler("container");

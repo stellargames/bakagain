@@ -1092,7 +1092,10 @@ namespace BakAgain.UI.InGame {
                 LiftCameraAsync().Forget();
             }
             // While lifted the arrows look around instead of walking (the original's loop owns them).
-            _movementDriver?.Tick(travelling && !_lifting);
+            // A world click's handler (a chest's explosion, a door's swing) holds the party, as the
+            // original's single-threaded click does (TASK-1104).
+            bool clickRunning = _interaction?.Busy ?? false;
+            _movementDriver?.Tick(travelling && !_lifting && !clickRunning);
             TickMouseLook(travelling && !_lifting);
             TickSwing();
             if (travelling) {

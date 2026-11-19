@@ -236,13 +236,27 @@ namespace BakAgain.UI.InGame {
             await DispatchAsync(entity, isPrimary);
         }
 
+        /// <summary>
+        /// A click's handler is still running: the chest's explosion, a door's swing. The original
+        /// runs those inside the click (WCURSOR.C:630-680, 784-855), so the travel screen holds the
+        /// party's movement on this (TASK-1104).
+        /// </summary>
+        public bool Busy => _busy > 0;
+
+        private int _busy;
+
         /// <summary>Route a picked entity to its behavior handler (testable seam; no camera/pick).</summary>
         public async UniTask DispatchAsync(WorldEntity entity, bool isPrimary) {
             if (entity == null || string.IsNullOrEmpty(entity.Behavior)) {
                 return;
             }
             if (_handlers.TryGetValue(entity.Behavior, out IWorldInteractionHandler handler)) {
-                await handler.HandleAsync(entity, isPrimary);
+                _busy++;
+                try {
+                    await handler.HandleAsync(entity, isPrimary);
+                } finally {
+                    _busy--;
+                }
             } else {
                 float d = PlanarDistanceTo(entity);
                 UnityEngine.Debug.Log($"WorldInteraction: picked '{entity.EntityName}' behavior '{entity.Behavior}' — no handler registered (distance {d:F1}u / {d * BakCoordinateConverter.WorldScale:F0} fine).");
