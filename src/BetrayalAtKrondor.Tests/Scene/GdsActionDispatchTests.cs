@@ -89,7 +89,18 @@ public class GdsActionDispatchTests {
     public void ADialogThatResolvesToNothingEndsTheServiceMenu() {
         // The one answer the original has not: a dialog that resolved to nothing. Looping on it
         // would re-show the dialog that just failed, forever, with no way out.
-        Assert.False(GdsActionDispatch.ServiceMenuContinues(-1));
+        Assert.False(GdsActionDispatch.ServiceMenuContinues(GdsActionDispatch.NothingResolved));
+    }
+
+    // TASK-1111 row 11: `while ((dx = dialog_play_record(...)) != 3)` (TOWNSCN.C:597) loops on a
+    // dialog's OWN negative result. dial_z13:24091 and :23849 return -1 ("I am only just now
+    // training to be a healer"), :64908/:66034 return -4; the original prints the refusal and
+    // re-shows Talk/Cure/Bless/Done.
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(-4)]
+    public void ADialogsOwnNegativeResultKeepsTheServiceMenu(int result) {
+        Assert.True(GdsActionDispatch.ServiceMenuContinues(result));
     }
 
     [Fact]

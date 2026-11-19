@@ -921,6 +921,9 @@ namespace BakAgain.World.Scenes {
                 } else if (result == GdsActionDispatch.BlessingService) {
                     await RunBlessingAsync(shop);
                 }
+                // A record's own negative result keeps the menu (TASK-1111); one that answers
+                // without waiting must not spin the main thread.
+                await UniTask.Yield();
             }
             // *** AND THE LOCATION MUST STILL BE OPEN. *** This loop re-raises the hotspot's own
             // dialog, and it is started fire-and-forget (`_ = Act(...)`), so nothing but this

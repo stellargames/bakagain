@@ -57,9 +57,10 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         public virtual UniTask<bool> ShowConfirmById(int id, System.Threading.CancellationToken ct = default) =>
             UniTask.FromResult(false);
 
-        // -1 = "nothing resolved", which every caller treats as walking away.
+        // "Nothing resolved", which every caller treats as walking away. Not -1: a record can
+        // return -1 itself, and the temple's service menu loops on it (TASK-1111).
         public virtual UniTask<int> ShowChoiceIndexById(int id, System.Threading.CancellationToken ct = default) =>
-            UniTask.FromResult(-1);
+            UniTask.FromResult(GameData.Resources.Scene.GdsActionDispatch.NothingResolved);
     }
 
     internal sealed class NoOpNavigator : BakAgain.UI.Navigation.IScreenNavigator {

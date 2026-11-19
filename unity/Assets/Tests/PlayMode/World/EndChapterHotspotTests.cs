@@ -135,8 +135,10 @@ namespace BakAgain.Tests.PlayMode.World {
                 UniTask.FromResult(false);
             public UniTask<bool> ShowConfirmById(int id,
                 System.Threading.CancellationToken cancellationToken = default) => UniTask.FromResult(false);
+            // "Nothing resolved" -- not -1, which the temple's service menu loops on (TASK-1111).
             public UniTask<int> ShowChoiceIndexById(int id,
-                System.Threading.CancellationToken cancellationToken = default) => UniTask.FromResult(-1);
+                System.Threading.CancellationToken cancellationToken = default) =>
+                UniTask.FromResult(GameData.Resources.Scene.GdsActionDispatch.NothingResolved);
         }
 
         [Test]

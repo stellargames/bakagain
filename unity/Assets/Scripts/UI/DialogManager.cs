@@ -1437,7 +1437,8 @@ namespace BakAgain.UI {
             DialogPlay play = await LoadPlayById(id);
             DialogEntry entry = play?.Entry;
             if (entry == null) {
-                return -1;
+                // Not -1: a record can return -1 itself (TASK-1111).
+                return GameData.Resources.Scene.GdsActionDispatch.NothingResolved;
             }
 
             // *** AN ENTRY WITH NO BRANCHES ANSWERS 0, NOT -1. *** `dialog_play_record` opens with

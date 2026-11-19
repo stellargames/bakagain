@@ -295,11 +295,15 @@ public static class GdsActionDispatch {
     /// conversation and then re-shows Talk / Cure / Bless / Done.</para>
     ///
     /// <para>The one result the original never sees is a port's own: a dialog that resolves to
-    /// nothing at all, which <c>ShowChoiceIndexById</c> answers with -1. Looping on that would
+    /// nothing at all, which <c>ShowChoiceIndexById</c> answers with <see cref="NothingResolved"/>
+    /// (not -1: shipped temple records return -1 and -4 themselves, TASK-1111). Looping on that would
     /// re-show the dialog that just failed to resolve, forever, so it ends the loop too.</para>
     /// </remarks>
+    /// <summary>The port's own "the dialog resolved to nothing" answer, outside any value a record can return.</summary>
+    public const int NothingResolved = int.MinValue;
+
     public static bool ServiceMenuContinues(int dialogResult) =>
-        dialogResult >= 0 && dialogResult != ServiceMenuExitResult;
+        dialogResult != NothingResolved && dialogResult != ServiceMenuExitResult;
 
     // ---------------------------------------------------------------- returning to the location
 

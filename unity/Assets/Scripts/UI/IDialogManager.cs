@@ -175,7 +175,8 @@ namespace BakAgain.UI {
         /// The same choice path, answering with the chosen branch's <b>position</b> — which is what
         /// the original's <c>dialog_Show</c> returns.
         /// </summary>
-        /// <returns>The 0-based branch index, or -1 when nothing could be resolved.</returns>
+        /// <returns>The 0-based branch index, or <see cref="GameData.Resources.Scene.GdsActionDispatch.NothingResolved"/>
+        /// when nothing could be resolved (a record's own result can be -1).</returns>
         /// <remarks>
         /// <b>The position is the primitive; the flag is the convenience.</b>
         /// <c>ShowDialogChoiceMenu</c> @0x4b54c returns the index of the option clicked, and
