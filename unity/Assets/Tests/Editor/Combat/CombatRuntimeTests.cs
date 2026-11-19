@@ -775,6 +775,34 @@ namespace BakAgain.Tests.Editor.Combat {
             Assert.AreEqual(GameData.Resources.Combat.SpellProjectileSound.LaunchCue, cues[1]);
         }
 
+        /// <summary>
+        /// While an arena draws the fight, a bolt's impact cue waits for the bolt to land: the
+        /// original plays 0x1d after its blocking flight (CSPELL.C:402-438). The port played it
+        /// with the launch (TASK-1107 D2).
+        /// </summary>
+        [Test]
+        public void ABoltsImpactCueWaitsForTheLanding() {
+            var cues = new System.Collections.Generic.List<int>();
+            var session = new GameSession();
+            session.SetActorStatsForTest(0, StatBlock(health: 40));
+            session.SetActiveParty(1, new byte[] { 0 });
+            session.SetRosterActorForTest(400, StatBlock(health: 40), gridX: 5, gridY: 5);
+            var runtime = new CombatRuntime(session, null, Entries(((byte)3, (byte)4)), playSfx: cues.Add) {
+                Spells = Flamecast(),
+                HoldSwingCues = true,
+            };
+            CombatEncounter fight = runtime.EnterRoster(new short[] { 400 });
+
+            runtime.ResolveCast(fight.Party[0], fight.Enemies[0], Flamecast().Spells[CannonLine.SpellId],
+                CannonLine.SpellId, 2, _ => 0);
+            CollectionAssert.DoesNotContain(cues, GameData.Resources.Combat.SpellProjectileSound.ImpactCue,
+                "not while the bolt flies: " + string.Join(",", cues));
+
+            runtime.PlayHeldLandingCues();
+            Assert.AreEqual(GameData.Resources.Combat.SpellProjectileSound.ImpactCue, cues[cues.Count - 1],
+                "when it lands");
+        }
+
         [Test]
         public void DespairThyEyesTakesTwentyOffTheTargetsAccuracies() {
             // CostTimesDuration used to RETURN after registering its lingering effect, so the

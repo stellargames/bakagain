@@ -166,6 +166,12 @@ public sealed class Combatant {
     /// crosses the same resolve-then-redraw gap as <see cref="SwingPending"/> (TASK-1073).</remarks>
     public int? SwingCue { get; set; }
 
+    /// <summary>
+    /// A spell's impact cue held for the moment its bolt lands on this combatant: the original
+    /// plays 0x1d after the blocking flight (CSPELL.C:402-438; TASK-1107).
+    /// </summary>
+    public int? LandingCue { get; set; }
+
     /// <summary>The number to float over this combatant at the next redraw — the damage dealt, 0 for
     /// a blow that landed and did nothing ("miss"), a NEGATIVE value for a type-2 heal's gain
     /// (CSPELL.C:1217, drawn as its magnitude in pens <c>0xEF - frames</c>, CACTOR.C:992-995),

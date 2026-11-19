@@ -3021,7 +3021,12 @@ namespace BakAgain.Combat {
             // spell whose animation IS a projectile, which together are exactly the branch
             // Spell_ApplyHitWithProjectile plays it in.
             if (SpellProjectileSound.Flies(true, spell.AnimationEffectType)) {
-                _playSfx?.Invoke(SpellProjectileSound.ImpactCue);
+                // Held for the landing while an arena draws the bolt (TASK-1107).
+                if (HoldSwingCues && target != null) {
+                    target.LandingCue = SpellProjectileSound.ImpactCue;
+                } else {
+                    _playSfx?.Invoke(SpellProjectileSound.ImpactCue);
+                }
             }
 
             // *** THE MODIFIERS SCALE THE COST; THE MAGNITUDE IS COMPUTED FROM THE RESULT. ***
@@ -4712,6 +4717,19 @@ namespace BakAgain.Combat {
         /// which the port plays a redraw after the blow resolves (TASK-1073).
         /// </summary>
         public bool HoldSwingCues { get; set; }
+
+        /// <summary>Plays and clears every held landing cue; the arena calls it when a bolt lands.</summary>
+        public void PlayHeldLandingCues() {
+            if (Encounter == null) {
+                return;
+            }
+            foreach (Combatant c in Encounter.AllCombatants()) {
+                if (c.LandingCue is int cue) {
+                    c.LandingCue = null;
+                    _playSfx?.Invoke(cue);
+                }
+            }
+        }
 
         /// <summary>Plays and clears every held swing cue; the arena calls it once its swings end.</summary>
         public void PlayHeldSwingCues() {

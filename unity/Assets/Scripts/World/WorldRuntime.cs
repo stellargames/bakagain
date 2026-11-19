@@ -715,6 +715,10 @@ namespace BakAgain.World {
                 await UniTask.WaitWhile(() => Encounters.AttackSwing.Playing > 0);
                 // The cue, then the damage: COMBAT.C:525 sounds it just before apply_damage (TASK-1073).
                 _hotspots?.Combat?.PlayHeldSwingCues();
+                // A bolt that was never drawn (no flight in the air) still lands now (TASK-1107).
+                if (_landing.Count == 0) {
+                    _hotspots?.Combat?.PlayHeldLandingCues();
+                }
                 if (_arenaRoot != null && _arenaRoot == root) {
                     FloatDamageNumbers();
                 }
@@ -800,6 +804,8 @@ namespace BakAgain.World {
                 await FlyEffectInnerAsync(effectId, from, to, arcSteps, arcDelta, seconds);
             } finally {
                 if (landingOn is { } target && _landing.Remove(target) && _arenaRoot != null) {
+                    // The impact, then the number (CSPELL.C:402-438; TASK-1107).
+                    _hotspots?.Combat?.PlayHeldLandingCues();
                     FloatDamageNumbers();
                 }
                 _arenaWork--;
