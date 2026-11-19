@@ -49,6 +49,9 @@ namespace BakAgain.Audio {
         /// <summary>The track playing now, or <see cref="MusicPlayback.NoTrack"/>.</summary>
         public int CurrentTrack => _currentTrack;
 
+        /// <summary>The song id the song player was last given, and whether it is sounding (harness).</summary>
+        internal string SongPlaying => _songPlayer != null && _songPlayer.IsPlaying ? _currentSongId ?? "?" : null;
+
         private void Awake() {
             if (_instance && _instance != this) {
                 Destroy(gameObject);

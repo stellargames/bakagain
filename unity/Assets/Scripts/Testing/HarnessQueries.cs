@@ -87,6 +87,9 @@ namespace BakAgain.Testing {
                 case "options": return Options();
                 case "log": return Log();
                 case "travel": return Travel();
+                case "music": return Ok(new Dictionary<string, object> {
+                    ["track"] = BakAgain.Audio.MidiPlaybackManager.Instance ? BakAgain.Audio.MidiPlaybackManager.Instance.CurrentTrack : -1,
+                    ["sounding"] = BakAgain.Audio.MidiPlaybackManager.Instance ? BakAgain.Audio.MidiPlaybackManager.Instance.SongPlaying : null });
                 case "party": return Party();
                 case "visuals": return Visuals();
                 case "arena": return Arena();
