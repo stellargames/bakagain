@@ -1730,8 +1730,11 @@ namespace BakAgain.World {
                     _zoneSceneBuilder.RenderContext, corpse.Face, corpse.SetName,
                     corpse.CollapseLastFrame, corpse.Extent, standIn).Forget();
             }
+            // No body is drawn for it (a creature that vanishes, classes 49/56/57, or a stand-in
+            // nobody claimed). It still stands until the blow has landed, as the original draws it
+            // alive through the swing (COMBAT.C:226); it vanished as the swing began (TASK-1100 D2).
             foreach (GameObject unused in standIns.Values) {
-                Object.Destroy(unused);   // no body was drawn for it
+                DropAfterTheBlowAsync(unused).Forget();
             }
 
             // *** THE RECOIL'S CLOCK IS THIS REDRAW, AND THE TICK COMES AFTER THE DRAW. ***
@@ -1743,6 +1746,14 @@ namespace BakAgain.World {
 
             _logger?.LogInformation("Arena: {Placed} combatants placed, {Drawn} drawn.",
                 placed.Count, drawn);
+        }
+
+        private static async UniTaskVoid DropAfterTheBlowAsync(GameObject standIn) {
+            await UniTask.Yield();   // the swing starts on this same redraw
+            await UniTask.WaitWhile(() => Encounters.DeathCollapse.HeldBack);
+            if (standIn != null) {
+                Object.Destroy(standIn);
+            }
         }
 
         /// <summary>Shows a corpse's contents on the inventory screen.</summary>
