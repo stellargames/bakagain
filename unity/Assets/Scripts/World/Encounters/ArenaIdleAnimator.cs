@@ -61,7 +61,7 @@ namespace BakAgain.World.Encounters {
                 }
                 // A swing owns the picture until it ends; stepping the gait under it flashed a
                 // standing frame through the swing (TASK-1100).
-                if (marker.GetComponent<AttackSwing>() is { Running: true }) {
+                if (marker.GetComponent<AttackSwing>() is { Running: true } or { Holding: true }) {
                     continue;
                 }
                 for (var i = 0; i < ticks; i++) {

@@ -87,6 +87,13 @@ namespace BakAgain.World.Encounters {
         /// <summary>This swing is still playing: the idle gait leaves the combatant alone (TASK-1100).</summary>
         public bool Running { get; internal set; }
 
+        /// <summary>
+        /// The swing has ended on its last picture and holds it: a non-0 slot keeps its end frame
+        /// (CACTOR.C:862-864) until the next turn redraws the attacker (COMBAT.C:1434-1439), which
+        /// here is the arena redraw that replaces this sprite (TASK-1100).
+        /// </summary>
+        public bool Holding { get; internal set; }
+
         private async UniTask RunAsync(WorldEntityRenderContext ctx, SpriteBMeshFace face,
             string setName, int start, int extent) {
             Playing++;
@@ -132,8 +139,13 @@ namespace BakAgain.World.Encounters {
                 }
             }
 
-            CurrentFrame = -1;
-            if (filter != null) {
+            // The last picture stays: the redraw that hands the turn on rebuilds this sprite standing.
+            // A run that drew nothing has nothing to hold, so the standing picture is put back.
+            bool drew = CurrentFrame >= 0;
+            CurrentFrame = -1;   // the swing is over (the harness reads this); its picture holds
+            if (drew) {
+                Holding = true;
+            } else if (filter != null) {
                 filter.sharedMesh = had;
                 renderer.sharedMaterial = hadMaterial;
                 transform.localScale = hadScale;
