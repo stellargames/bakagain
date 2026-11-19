@@ -369,6 +369,28 @@ namespace BakAgain.World {
         /// Called from inside a hotspot pass to finish the step being turned back itself. Null when no
         /// step is in progress (a pass a dialog requested), where there is nothing to hold.
         /// </summary>
+        /// <summary>
+        /// The step being passed has started a fight: its time is charged when the fight is over,
+        /// not now. The world loop runs the pending pass, the fight included, and only then
+        /// advances the clock and its upkeep (WORLDLP.C:189-198; TASK-1112). Only meaningful
+        /// during a hotspot pass.
+        /// </summary>
+        public void DeferStepTime() {
+            if (_stepRollBack != null) {
+                _deferNextCharge = true;
+            }
+        }
+
+        /// <summary>Charges a step <see cref="DeferStepTime"/> kept back; nothing if none was.</summary>
+        public void ChargeDeferredStep() {
+            Action charge = _deferredCharge;
+            _deferredCharge = null;
+            charge?.Invoke();
+        }
+
+        private bool _deferNextCharge;
+        private Action _deferredCharge;
+
         public HeldStep HoldStep() {
             if (_stepRollBack == null) {
                 return null;
@@ -385,6 +407,7 @@ namespace BakAgain.World {
             if (_hotspotPass == null) {
                 return true;
             }
+            _deferNextCharge = false;
             _stepRollBack = rollBack;
             _stepHeld = false;
             bool keep;
@@ -567,6 +590,11 @@ namespace BakAgain.World {
         /// argument rather than a defaulted one: a new call site has to decide.
         /// </param>
         private void AdvanceClockForStep(bool stepStands, StepSize size) {
+            if (_deferNextCharge) {
+                _deferNextCharge = false;
+                _deferredCharge = () => AdvanceClockForStep(stepStands, size);
+                return;
+            }
             // *** Raised ABOVE the clock guard. *** This method is the one place every successful
             // move funnels through, which makes it the "a step happened" signal as much as a clock
             // advance — but it returns early without a clock, and a listener that only fires when

@@ -345,6 +345,30 @@ namespace BakAgain.Tests.Editor.World.Collision {
         // (WORLDMOV.C, the L_fail sweep arm), and the world loop then steps every roamer and advances the
         // clock (WORLDLP.C:157, 181-197) as for any step. Measured in the original on c11-graves: the
         // roamer moved 400 on the press that only turned the party.
+        /// <summary>
+        /// A step that starts a fight is charged after the fight, not before it: the world loop runs
+        /// the pending pass (the fight included) and only then advances the clock and its upkeep
+        /// (WORLDLP.C:189-198). Charged first, an hour's poison or exhaustion landed before the
+        /// arena copied the party's pools and was undone when the fight wrote them back (TASK-1112).
+        /// </summary>
+        [Test]
+        public void AStepThatStartsAFightIsChargedWhenTheFightIsOver() {
+            BakAgain.World.PartyMovement movement = null;
+            var rig = Build(WorldWith(0), hotspotPass: (_, _) => {
+                movement.DeferStepTime();   // what HotspotService.StartCombat does
+                return true;
+            });
+            movement = rig.Movement;
+            var parts = new System.Collections.Generic.List<int>();
+            rig.Movement.Stepped += n => parts.Add(n);
+
+            rig.Movement.MoveForward();
+            CollectionAssert.IsEmpty(parts, "no time while the fight is on");
+
+            rig.Movement.ChargeDeferredStep();
+            CollectionAssert.AreEqual(new[] { 1 }, parts, "the step is charged once it is over");
+        }
+
         [Test]
         public void MoveForward_APivotStillCountsAsTheStepForTheWorld() {
             var rig = Build(WallWithAnOpeningClockwise());

@@ -1209,6 +1209,8 @@ using GameData.Resources.Scene;
         /// </remarks>
         public bool StartCombat(TileEventTrigger trigger, int hotspotIndex = -1) {
             _fightUnderWay = false;
+            // The step that walked into this fight is charged after it (TASK-1112).
+            _movementAccessor?.Invoke()?.DeferStepTime();
             long? encounter = EncounterNumberOf(trigger);
             if (!encounter.HasValue || HotspotRules.EncounterIndexOutOfRange(encounter.Value)) {
                 return false;
@@ -3253,7 +3255,8 @@ using GameData.Resources.Scene;
                     await _dialogs.ShowById(record);
                 }
             } finally {
-                SwapArenaThroughFade(false, CloseCombatMenus);
+                SwapArenaThroughFade(false, CloseCombatMenus,
+                    afterFadeIn: () => _movementAccessor?.Invoke()?.ChargeDeferredStep());
             }
         }
 
@@ -5606,6 +5609,17 @@ using GameData.Resources.Scene;
         }
 
         private void ResumeThePassAfterTheFight(
+            (IReadOnlyList<TileEventTrigger> Triggers, IReadOnlyList<int> Pending)? rest) {
+            try {
+                ResumeThePass(rest);
+            } finally {
+                // The step's time comes after the whole pending pass, the fight and what followed it
+                // (WORLDLP.C:189-198; TASK-1112).
+                _movementAccessor?.Invoke()?.ChargeDeferredStep();
+            }
+        }
+
+        private void ResumeThePass(
             (IReadOnlyList<TileEventTrigger> Triggers, IReadOnlyList<int> Pending)? rest) {
             if (rest is not { } r) {
                 return;
