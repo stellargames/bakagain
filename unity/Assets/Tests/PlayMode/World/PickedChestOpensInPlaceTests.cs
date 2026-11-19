@@ -68,9 +68,7 @@ namespace BakAgain.Tests.PlayMode.World {
             if (_panelSettings != null) { UnityEngine.Object.DestroyImmediate(_panelSettings); }
         }
 
-        [UnityTest]
-        [RequiresShippedGameData]
-        public IEnumerator APickedChestBecomesItsLootWithNoFrameOfTheWorldBetween() => UniTask.ToCoroutine(async () => {
+        private async UniTask<(InventoryMenu Menu, GameSession Session, Hud Hud, ScreenNavigator Navigator, YesDialogs Dialogs)> OpenTheLockAsync() {
             var session = new GameSession();
             var chest = new SaveGameContainerData(
                 new SaveGameContainerLocationData(zone: 7, minChapter: 0, maxChapter: 10,
@@ -134,6 +132,52 @@ namespace BakAgain.Tests.PlayMode.World {
             }
             Assert.IsTrue(menu.IsLockMode && _menuGo.activeSelf, "control: the lock screen is up (faded in)");
             Assert.IsFalse(hud.Shown, "control: the lock covers the world");
+            return (menu, session, hud, navigator, dialogs);
+        }
+
+        /// <summary>
+        /// The verdict pause is modal: PICKLOCK.C:116-118 busy-waits 0xaf ticks and then shows the
+        /// verdict before any input is read again, so Exit during the pause does nothing. The port
+        /// let it close the screen and lose the attempt (TASK-1104 row 8).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ExitDuringTheVerdictPauseDoesNothing() => UniTask.ToCoroutine(async () => {
+            (InventoryMenu menu, GameSession _, Hud _, ScreenNavigator _, YesDialogs _) = await OpenTheLockAsync();
+            MethodInfo apply = typeof(InventoryMenu).GetMethod("ApplyLockOutcome",
+                BindingFlags.NonPublic | BindingFlags.Instance);
+            Type result = apply.GetParameters()[1].ParameterType;
+            apply.Invoke(menu, new object[] {
+                true, Enum.Parse(result, "Failed"),
+                GameData.Resources.Character.LockPicking.LockpickObjectId, 0,
+            });
+
+            await UniTask.Yield();
+            menu.PrimaryAction(1);   // Exit, inside the pause
+            float deadline = Time.realtimeSinceStartup + 0.3f;
+            while (Time.realtimeSinceStartup < deadline) {
+                await UniTask.Yield();
+            }
+            Assert.IsTrue(menu.IsLockMode && _menuGo.activeSelf, "Exit inside the pause is not read");
+
+            deadline = Time.realtimeSinceStartup
+                + (float)GameData.Resources.Character.PicklockDrop.VerdictDelaySeconds + 1f;
+            while (Time.realtimeSinceStartup < deadline) {
+                await UniTask.Yield();
+            }
+            menu.PrimaryAction(1);   // Exit, after the verdict
+            deadline = Time.realtimeSinceStartup + 2f;
+            while ((menu.IsLockMode || _menuGo.activeSelf) && Time.realtimeSinceStartup < deadline) {
+                await UniTask.Yield();
+            }
+            Assert.IsFalse(menu.IsLockMode, "control: after the verdict, Exit leaves");
+            for (int i = 0; i < 10; i++) { await UniTask.Yield(); }   // the close's fade ends before teardown
+        });
+
+        [UnityTest]
+        [RequiresShippedGameData]
+        public IEnumerator APickedChestBecomesItsLootWithNoFrameOfTheWorldBetween() => UniTask.ToCoroutine(async () => {
+            (InventoryMenu menu, GameSession session, Hud hud, ScreenNavigator navigator, YesDialogs dialogs) = await OpenTheLockAsync();
+            float deadline;
 
             // The drop's verdict, as InventoryMenu.DropOnLock hands it over.
             MethodInfo apply = typeof(InventoryMenu).GetMethod("ApplyLockOutcome",

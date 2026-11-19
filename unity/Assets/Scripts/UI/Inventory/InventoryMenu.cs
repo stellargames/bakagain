@@ -3309,7 +3309,7 @@ namespace BakAgain.UI.Inventory {
         public void PrimaryAction(int actionId) {
             // The picker owns input until it answers. Faithful, its stage scrim already covers the
             // chrome; the Enhanced chrome sits outside the stage, so the guard is stated here.
-            if (_pickerOpen) {
+            if (_pickerOpen || _lockAttemptInFlight) {
                 return;
             }
             switch (actionId) {
@@ -3687,6 +3687,9 @@ namespace BakAgain.UI.Inventory {
             if (!IsLockMode || slot < 0 || slot >= _displayed.Items.Count) {
                 return false;
             }
+            if (_lockAttemptInFlight) {
+                return true; // consumed: the tool snaps back, nothing is tried (PICKLOCK.C:116-118)
+            }
             if (!IsOverLock(stageLocal)) {
                 return false;
             }
@@ -3746,6 +3749,11 @@ namespace BakAgain.UI.Inventory {
         /// </remarks>
         private async UniTaskVoid ApplyLockOutcome(bool usedPicklocks,
             PicklockAttempt.AttemptResult result, int droppedObjectId, int skillAwarded) {
+            // *** THE PAUSE AND THE VERDICT ARE MODAL. *** PICKLOCK.C:116-118 busy-waits 0xaf ticks
+            // and shows the verdict before any input is read again: no second drop, no Exit
+            // (TASK-1104).
+            _lockAttemptInFlight = true;
+            try {
             await UniTask.Delay(System.TimeSpan.FromSeconds(PicklockDrop.VerdictDelaySeconds),
                 DelayType.DeltaTime);
             if (!IsLockMode) {
@@ -3772,11 +3780,18 @@ namespace BakAgain.UI.Inventory {
 
             if (opened) {
                 _lockOpened = true;
+                _lockAttemptInFlight = false;
                 if (!OpenOwnerInPlace()) {
                     await _navigator.Pop();
                 }
             }
+            } finally {
+                _lockAttemptInFlight = false;
+            }
         }
+
+        /// <summary>A tool's attempt is between its drop and its verdict; the screen reads no input.</summary>
+        private bool _lockAttemptInFlight;
 
         /// <summary>What <see cref="SetLock"/> was told opens in this screen's place; null for none.</summary>
         private Func<bool> _openInPlace;
