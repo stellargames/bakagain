@@ -4305,7 +4305,52 @@ namespace BakAgain.Combat {
             _playSfx?.Invoke(CannonLine.MuzzleCue);
             _playSfx?.Invoke(CannonLine.FireCue);
 
+            // *** CRYSTAL GROUND ON THE WAY SWALLOWS THE SHOT (forum p=60, TASK-1115). *** The flight
+            // runs each cell's entry effect as it is drawn there (CACTOR.C:1354-1357); on crystal
+            // ground that ends the projectile (CACTOR.C:1114-1130) and the flight returns a miss
+            // (WORLDHIT.C:714-718), so the walker behind it takes nothing. The launch has been heard
+            // by then; the cast's own landing never comes.
+            if (Puzzle != null) {
+                ProjectileInterception.Outcome flight = ProjectileInterception.Fly(Puzzle,
+                    ProjectileInterception.StraightPath((hazard.SourceX, hazard.SourceY), (hazard.X, hazard.Y)),
+                    ProjectileInterception.CollapsingShape);
+                if (flight.Fate != ProjectileInterception.Fate.Reaches) {
+                    _logger?.LogInformation(
+                        $"A cannon shot from {hazard.SourceX},{hazard.SourceY} at {hazard.X},{hazard.Y} "
+                        + $"ended on crystal ground at {flight.X},{flight.Y}: {flight.Fate}.");
+                    AnnounceInterception(flight, target, spell);
+                    return;
+                }
+            }
+
             ResolveCast(null, target, spell, CannonLine.SpellId, -CannonLine.Intensity, rnd);
+        }
+
+        /// <summary>
+        /// What a shot swallowed by crystal ground is heard and seen to do: its launch, then the run's
+        /// short cine (bare ground) or the collapse's tile burst (a Flamecast into a crystal).
+        /// </summary>
+        private void AnnounceInterception(ProjectileInterception.Outcome flight, Combatant floor,
+            GameData.Resources.Spells.Spell spell) {
+            if (SpellProjectileSound.Flies(true, spell.AnimationEffectType)) {
+                _playSfx?.Invoke(SpellProjectileSound.LaunchCue);
+            }
+            switch (flight.Fate) {
+                case ProjectileInterception.Fate.Zapped:
+                    // combat_actor_play_short_cine: the first of its ten zaps here, the rest with the
+                    // picture, as for a walker (ApplyWalkHazard).
+                    _playSfx?.Invoke(CombatWalk.CrystalGroundSoundId);
+                    PlaySpellVisual?.Invoke(new SpellVisual(SpellVisualKind.CrystalZap, Cells: flight.LitRun),
+                        null, floor);
+                    break;
+                case ProjectileInterception.Fate.Collapsed:
+                    // combatgrid_shove_until_unblocked opens with apply_tile_status_fx: cue and burst.
+                    PlaySpellVisual?.Invoke(
+                        new SpellVisual(SpellVisualKind.DiamondFired, TrapPuzzle.FiredBurstColour,
+                            TrapPuzzle.FiredBurstSpread, Cells: new[] { (flight.X, flight.Y) }),
+                        floor, null);
+                    break;
+            }
         }
 
 

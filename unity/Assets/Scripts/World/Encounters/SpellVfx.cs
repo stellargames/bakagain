@@ -155,7 +155,10 @@ namespace BakAgain.World.Encounters {
             // Nightfingers' stolen item: shape 5, target to caster, speed 0x78 (CSPELL.C:1104).
             SpellVisualKind.StolenItemFlight => FlyAsync(5, from, to, 0x78),
             // A walker's zap names the walker; a fired diamond's names its cells and the shover.
-            SpellVisualKind.CrystalZap => CrystalZapAsync(to, _crystalRun?.Invoke(to, null)),
+            // A shot swallowed by crystal ground names its run; the walker's own zap does not.
+            SpellVisualKind.CrystalZap => v.Cells != null
+                ? CrystalZapAsync(null, _crystalRun?.Invoke(to, v.Cells))
+                : CrystalZapAsync(to, _crystalRun?.Invoke(to, null)),
             SpellVisualKind.DiamondFired => DiamondFiredAsync(from, v.Cells, v.Shape, v.Colour, v.Spread),
             _ => UniTask.CompletedTask,
         };

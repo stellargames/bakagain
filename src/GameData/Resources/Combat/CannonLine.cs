@@ -98,23 +98,15 @@ public static class CannonLine {
     /// Which way a cannon shoots, derived from the scan that finds it.
     /// </summary>
     /// <remarks>
-    /// <b>Nothing in this build reads it, and that is the finding.</b> The wiki-level rules say
-    /// "the posts can be deactivated if hit by a cannon's fireball", so a first pass walked the
-    /// shot outward from the cannon and collapsed the post it reached. That mechanism is not in
-    /// V102CD: the cannon fires <see cref="SpellId"/> (Flamecast), whose <c>AnimationEffectType</c>
-    /// is <b>3</b>, and the only branch that collapses a run —
-    /// <c>combat_actor_tile_entry_effect</c> case 3's <c>else</c>, which calls
-    /// <c>combatgrid_shove_until_unblocked</c> — is reached only when the entity's
-    /// <c>shapeId</c> is <b>2</b>. <c>projectile.base.shapeId = action_id</c>
-    /// (WORLDHIT.C:627), so a Flamecast projectile never takes it. The one shipped spell with
-    /// animation 2 is Despair Thy Eyes; Black Nimbus reaches the collapse by a different route
-    /// (<c>combatgrid_push_back_actor(g_cursor_tile_x, g_cursor_tile_y)</c>, CSPELL.C:876).
+    /// <b>Nothing reads it: a shot flies from the cannon's tile to its victim's</b>
+    /// (<see cref="ProjectileInterception.StraightPath"/>), which gives the same line.
     ///
-    /// <para>Kept because the direction itself is measured and awkward to re-derive — the four
-    /// terrain names do not agree with the grid's y direction — and because the collapse question
-    /// will be asked again. The answer is here with its evidence rather than in a task note.</para>
-    ///
-    /// <para><b>Deliberately callerless.</b> The remark above is the finding: nothing in V102CD reads the direction.</para>
+    /// <para><b>This remark used to say a cannon's fireball cannot wreck a post, and that was wrong
+    /// (TASK-1115).</b> It took Flamecast's <c>AnimationEffectType</c> (3) for the projectile's shape.
+    /// The shape is set by <c>cspell_apply_hit_at</c>, which maps spell kind 4 to <c>animKind = 2</c>
+    /// (CSPELL.C:410-412), and shape 2 is exactly the one <c>combat_actor_tile_entry_effect</c>'s
+    /// crystal arm collapses a run for (CACTOR.C:1118-1123). So the wiki's "posts can be deactivated if
+    /// hit by a cannon's fireball" holds; see <see cref="ProjectileInterception"/>.</para>
     /// </remarks>
     public static (int Dx, int Dy) FiringDirection(CombatTerrain cannon) {
         foreach ((int dx, int dy, CombatTerrain wanted) in Scans) {

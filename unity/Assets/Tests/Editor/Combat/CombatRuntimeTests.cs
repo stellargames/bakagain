@@ -717,6 +717,34 @@ namespace BakAgain.Tests.Editor.Combat {
         }
 
         [Test]
+        public void ACannonShotAcrossARunOfCrystalGroundIsSwallowed() {
+            // Forum p=60 (TASK-1115): a blaster fired straight across the current between two poles
+            // and hit the party member behind it for 60. In the original the projectile's cell
+            // effect on crystal ground lights the run and writes -1 over the shot (CACTOR.C:1114-1130),
+            // and the flight returns a miss (WORLDHIT.C:714-718): no damage.
+            // The same fixture as above, plus two crystals whose run crosses both cannon columns at
+            // row 2, between the muzzles (row 0) and anywhere the monster can step.
+            var session = new GameSession();
+            session.SetActorStatsForTest(0, StatBlock(health: 40));
+            session.SetActiveParty(1, new byte[] { 0 });
+            session.SetRosterActorForTest(400, StatBlock(health: 40), gridX: 5, gridY: 5);
+            var runtime = new CombatRuntime(session, null, Entries(((byte)3, (byte)4))) {
+                Spells = Flamecast(),
+            };
+
+            CombatEncounter fight = runtime.EnterRoster(new short[] { 400 },
+                TrapPuzzleBuilder.Build(new[] { (-12, 4, 0), (-12, 5, 0), (7, 3, 2), (7, 6, 2) }));
+            Combatant monster = fight.Enemies[0];
+            int before = monster.Health + monster.Stamina;
+
+            runtime.ResolveEnemyTurn(monster, Melee(), _ => 0);
+
+            Assert.AreEqual(before, monster.Health + monster.Stamina,
+                "the shot died on the crystal ground between the muzzle and the walker");
+            Assert.AreEqual(CombatTerrain.Crystal, runtime.Puzzle.Grid.TerrainAt(4, 2), "and the run is still up");
+        }
+
+        [Test]
         public void ACannonIsHeardAtTheMuzzleAndAgainAtTheTileCast() {
             // The two cues cspell_apply_step_tile_spell's caller pair makes: audio_play(1) in
             // combatgrid_actor_step_to_tile, then audio_play(10) in the tile cast itself. The third
