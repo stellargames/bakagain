@@ -147,9 +147,8 @@ namespace BakAgain.UI.Character {
         /// party when nobody does (the merely-wounded case a generous temple still sees).
         /// </summary>
         private int FirstNeedySlot() {
-            int slot = TempleHealMenu.NextNeedy(-1, ActiveCount, NeedsHealing);
-
-            return slot < ActiveCount ? slot : 0;
+            return TempleHealMenu.OpeningSlot(ActiveCount, NeedsHealing,
+                slot => HealthDeficitOf(CharacterIndex(slot)) > 0, _mode);
         }
 
         private void OnEnable() {
@@ -427,9 +426,9 @@ namespace BakAgain.UI.Character {
             // *** THE EFFECTIVE POOL, NOT THE STORED PAIR. *** CHARSCRN.C:476-479 adds
             // `stat_actor_get(actor, 0x10, 1) - stat_actor_get(actor, 0x10, 0)` to the price --
             // mode 1 against mode ZERO -- so a member held below full by a modifier owes for that
-            // too. Reading the stored pair under-billed them, and since this bill is also the test
-            // at line 119 for "is there anything to cure", a member whose only shortfall was a
-            // modifier read as healthy and the priest skipped them entirely.
+            // too. Reading the stored pair under-billed them. (Who is "afflicted" is the condition
+            // price alone, NeedsHealing; this deficit is billed, and opens the screen only through
+            // mode 4's wounded fallback.)
             return _session.StatsOf(character) == null
                 ? 0
                 : StatEngine.HealthPoolDeficit(
@@ -438,10 +437,16 @@ namespace BakAgain.UI.Character {
 
         /// <summary>Whether a slot has anything the priest would charge for.</summary>
         /// <remarks>
-        /// <b>The price IS the test.</b> A zero bill means nothing to cure, which is what Next
-        /// skips on — so this must ask with the temple's own multiplier rather than a nominal one.
+        /// <b>The price IS the test.</b> A zero condition price means nothing to cure, which is
+        /// what Next skips on — so this must ask with the temple's own multiplier.
+        ///
+        /// The CONDITION price alone, never the wounds: charscreen_temple_heal_price is what opening,
+        /// Next and "anyone afflicted" test (CHARSCRN.C:437-441, 549-555); the pool deficit is added
+        /// only to the price shown and charged (:475-478). So in mode 4 a merely wounded member is
+        /// skipped, as in the original (TASK-1111).
         /// </remarks>
-        private bool NeedsHealing(int slot) => BillFor(slot) != 0;
+        private bool NeedsHealing(int slot) =>
+            TempleHeal.Price(_session.ConditionsOf(CharacterIndex(slot)), _priceMultiplier) != 0;
 
         private int ActiveCount => _session?.ActivePartyIndices?.Length ?? 0;
 

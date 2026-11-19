@@ -142,4 +142,21 @@ public class TempleHealMenuTests {
         Assert.Equal(-1, ActiveParty.SlotForAction(1, firstActionId: 2));
         Assert.Equal(-1, ActiveParty.SlotForAction(2 + ActiveParty.Slots, firstActionId: 2));
     }
+
+    // TASK-1111 row 5: CHARSCRN.C:437-451 opens on the first AFFLICTED member (condition price
+    // alone); only with nobody afflicted does mode 4 fall back to the first wounded one.
+    [Fact]
+    public void ItOpensOnTheFirstAfflictedEvenPastAWoundedOne() {
+        Assert.Equal(1, TempleHealMenu.OpeningSlot(3, afflicted: s => s == 1, wounded: s => s == 0, mode: 4));
+    }
+
+    [Fact]
+    public void WithNobodyAfflictedModeFourOpensOnTheFirstWounded() {
+        Assert.Equal(2, TempleHealMenu.OpeningSlot(3, afflicted: _ => false, wounded: s => s == 2, mode: 4));
+    }
+
+    [Fact]
+    public void OtherModesNeverOpenOnWounds() {
+        Assert.Equal(0, TempleHealMenu.OpeningSlot(3, afflicted: _ => false, wounded: s => s == 2, mode: 1));
+    }
 }

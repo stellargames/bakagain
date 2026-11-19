@@ -119,6 +119,27 @@ public static class TempleHealMenu {
     public static bool ClosesAfter(int slot, int partyCount) => slot >= partyCount;
 
     /// <summary>
+    /// The member the screen opens on (CHARSCRN.C:437-451): the first afflicted, by the condition
+    /// price alone; with nobody afflicted, mode 4's first wounded member; else the first.
+    /// </summary>
+    public static int OpeningSlot(int partyCount, System.Func<int, bool> afflicted,
+        System.Func<int, bool> wounded, int mode) {
+        for (var slot = 0; slot < partyCount; slot++) {
+            if (afflicted(slot)) {
+                return slot;
+            }
+        }
+        if (mode == TempleHealEntry.ModeThatTreatsWounds) {
+            for (var slot = 0; slot < partyCount; slot++) {
+                if (wounded(slot)) {
+                    return slot;
+                }
+            }
+        }
+        return 0;
+    }
+
+    /// <summary>
     /// The party slot an action id selects directly, or -1 when it selects none.
     /// </summary>
     /// <remarks>
