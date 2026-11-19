@@ -100,11 +100,11 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
         private static Rig Build(int roll = 99, GameData.Resources.Config.StartData start = null,
             TrapData traps = null, System.Func<BakAgain.UI.Combat.CombatMenu> combatMenu = null,
             System.Func<bool> arenaBusy = null, BakAgain.UI.IDialogManager dialogs = null,
-            long encounter = EncounterNumber) {
+            long encounter = EncounterNumber, int creature = 12) {
             var session = new GameSession();
             session.SetActorStatsForTest(0, StatBlock());
             session.SetActiveParty(1, new byte[] { 0 });
-            session.SetRosterActorForTest(RosterSlot, MonsterBlock(), 12, gridX: 5, gridY: 5);
+            session.SetRosterActorForTest(RosterSlot, MonsterBlock(), creature, gridX: 5, gridY: 5);
             session.SetEncounterRosterForTest((int)encounter, new short[] { RosterSlot });
 
             var rig = new Rig { Session = session };
@@ -1312,6 +1312,26 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
             Assert.AreNotEqual(0, parting, "control: 0x4a speaks");
             int at = dialogs.Shown.IndexOf(parting);
             Assert.GreaterOrEqual(at, 1, "after the fight's own line: " + string.Join(",", dialogs.Shown));
+        }
+
+        /// <summary>
+        /// A creature that vanishes (classes 49/56/57) still falls first: the original plays the
+        /// death run and only then takes it off the field (COMBAT.C:226-258). The arena drew no body
+        /// for it at all, so it was simply gone (TASK-1100 D2). It is placed until its run starts.
+        /// </summary>
+        [Test]
+        public void AVanishingCreatureIsDrawnUntilItsFallHasStarted() {
+            Rig rig = Build(start: new GameData.Resources.Config.StartData("START.DAT") { CombatGridCellSize = 300 },
+                creature: 49);
+            rig.Service.StartCombat(CombTrigger());
+            Combatant foe = rig.Service.Combat.Encounter.Enemies[0];
+            Assert.AreEqual(GameData.Resources.Combat.DeathOutcome.RemovedFromField,
+                rig.Service.Combat.KillForTest(foe), "control: class 49 vanishes");
+
+            bool Placed() => rig.Service.PlaceCombatants().Exists(p => !p.PartyMember && p.Downed);
+            Assert.IsTrue(Placed(), "drawn, so its fall can play");
+            foe.DeathShown = true;
+            Assert.IsFalse(Placed(), "and gone once it has");
         }
 
         [Test]

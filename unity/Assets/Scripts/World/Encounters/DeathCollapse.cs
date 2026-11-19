@@ -58,6 +58,7 @@ namespace BakAgain.World.Encounters {
         private SpriteBMeshFace _face;
         private string _setName;
         private int _lastFrame;
+        private bool _vanish;
         private int _extent;
 
         /// <summary>Start the collapse. Does nothing without a creature set to read frames from.</summary>
@@ -65,11 +66,15 @@ namespace BakAgain.World.Encounters {
         /// body until the swing that killed it has ended, then destroyed. Null when there is none.</param>
         public UniTask Play(WorldEntityRenderContext ctx,
             SpriteBMeshFace face,
-            string setName, int lastFrame, int extent, GameObject standIn = null) {
+            string setName, int lastFrame, int extent, GameObject standIn = null, bool vanish = false) {
             _standIn = standIn;
+            _vanish = vanish;
             if (ctx == null || face == null || string.IsNullOrEmpty(setName)
                 || lastFrame < Frames - 1) {
                 DropStandIn();
+                if (vanish) {
+                    Destroy(gameObject);   // no run to play: it is simply gone
+                }
                 return UniTask.CompletedTask;
             }
             _ctx = ctx;
@@ -102,6 +107,10 @@ namespace BakAgain.World.Encounters {
                 await RunCoreAsync();
             } finally {
                 Playing--;
+                // A creature that vanishes leaves the field once its run has played (COMBAT.C:238-258).
+                if (_vanish && this != null) {
+                    Destroy(gameObject);
+                }
             }
         }
 

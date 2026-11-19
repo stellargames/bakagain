@@ -1393,7 +1393,10 @@ using GameData.Resources.Scene;
                 // Skipping every dead one made a kill look like a disappearance and left the loot
                 // screen with nothing to open.
                 bool downed = c.IsDead;
-                if (downed && !Combat.LeavesCorpse(c)) {
+                // One that vanishes (classes 49/56/57) still falls first: the death run plays, then
+                // it leaves the field (COMBAT.C:226-258). So it is drawn until its run has started,
+                // and the run removes it (TASK-1100).
+                if (downed && !Combat.LeavesCorpse(c) && c.DeathShown) {
                     continue;
                 }
                 int creature = CreatureNumberFor(c);
