@@ -2652,34 +2652,59 @@ namespace BakAgain.Combat {
 
             // The flight crosses the same ground a spell's does (trap audit #4): a rock flies at
             // 0x5a with shape 0x14, any other shot at 300 with shape 1 (CBTAITRN.C:128-139), and
-            // neither collapses a pole. A stopped hit is a miss. A miss flies on in the original and
-            // can strike a bystander; the port does not fly weapon misses yet.
+            // neither collapses a pole. A stopped hit is a miss.
+            //
+            // *** A MISS FLIES ON, AND CAN STRIKE SOMEBODY ELSE. *** The same deflected flight as a
+            // spell's (WORLDHIT.C:614-731): the first living combatant it crosses, past the shooter
+            // and the one aimed at, takes the whole shot -- damage, knockback, armour wear
+            // (CBTAITRN.C:140-180). The shooter's skill only follows the roll, which came first.
             attacker.FlightMissEnd = null;
+            attacker.FlightInterceptedBy = null;
+            bool rolledHit = hit;
+            bool rock = quarrelKind == RangedShotSound.ThrownRockKind;
+            int shotSpeed = rock ? 0x5a : ProjectileInterception.ShotSpeed;
+            int shotShape = rock ? 0x14 : ProjectileInterception.ShotShape;
             if (hit) {
-                bool rock = quarrelKind == RangedShotSound.ThrownRockKind;
                 ProjectileInterception.Outcome flight = ProjectileInterception.Fly(Grid, Puzzle,
                     ProjectileInterception.FlightCells(attacker.X, attacker.Y, defender.X, defender.Y,
-                        rock ? 0x5a : ProjectileInterception.ShotSpeed, ArenaCellSize),
-                    rock ? 0x14 : ProjectileInterception.ShotShape);
+                        shotSpeed, ArenaCellSize), shotShape);
                 if (flight.Fate != ProjectileInterception.Fate.Reaches) {
                     hit = false;
                     attacker.FlightMissEnd = (flight.X + 0.5f, flight.Y + 0.5f);
                     ShowInterception(flight, defender);
                 }
+            } else if (Grid != null) {
+                Combatant aimed = defender;
+                ProjectileInterception.Outcome? grounded = null;
+                SpellProjectileMiss.Result miss = SpellProjectileMiss.Fly(
+                    attacker.X, attacker.Y, aimed.X, aimed.Y, ArenaCellSize, roll,
+                    (x, y) => LiveCombatantAt(x, y) is { } o && o != attacker && o != aimed,
+                    (x, y) => (grounded = ProjectileInterception.Enter(Grid, Puzzle, x, y, shotShape)) != null,
+                    shotSpeed);
+                if (miss.Intercepted is { } cell && LiveCombatantAt(cell.X, cell.Y) is { } struck) {
+                    defender = struck;
+                    attacker.FlightInterceptedBy = struck;
+                    hit = true;
+                } else {
+                    attacker.FlightMissEnd = miss.StoppedAt is { } end ? (end.X + 0.5f, end.Y + 0.5f) : (miss.EndX, miss.EndY);
+                    ShowInterception(grounded, aimed);
+                }
             }
 
-            // OUTSIDE the hit branch, deliberately: see remark 2.
             if (weapon.Info != null) {
                 WearEquipped(attacker, RangedExchange.ShooterWearCategory,
                     RangedExchange.ShooterWearSeverity, roll);
+            }
+            // The skill follows the roll, before the flight (CBTAITRN.C:112-114).
+            if (rolledHit) {
+                CombatAdvancement.OnShotHit(
+                    attacker.IsPartyMember ? StatOrNull(attackerStats, ActorAttribute.AccuracyCrossbow) : null,
+                    StudyOf(attacker), MarkOf(attacker));
             }
             if (!hit) {
                 return false;
             }
 
-            CombatAdvancement.OnShotHit(
-                attacker.IsPartyMember ? StatOrNull(attackerStats, ActorAttribute.AccuracyCrossbow) : null,
-                StudyOf(attacker), MarkOf(attacker));
 
             int rolled = CombatFormulas.RangedDamage(quarrelKind,
                 weapon.Info?.SwingBaseDamage ?? 0, QuarrelBaseDamage(quarrelKind), roll);

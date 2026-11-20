@@ -675,6 +675,28 @@ namespace BakAgain.Tests.Editor.Combat {
         }
 
         [Test]
+        public void AMissedBoltFliesOnAndStrikesTheFirstBystanderInItsWay() {
+            // CBTAITRN.C:100-180: the miss is a deflected flight (WORLDHIT.C:614-623) and the first
+            // living combatant it crosses takes the shot -- weapon damage, knockback and armour wear.
+            // The roll of 99 misses; the deflection draws (1, max) turn the heading by 0x6ff, still
+            // through (5,2) on the first step.
+            GameSession session = SessionWith((CrossbowId, 100), (QuarrelId, 10));
+            session.SetRosterActorForTest(400, StatBlock(), 12, gridX: 5, gridY: 5);
+            session.SetRosterActorForTest(401, StatBlock(), 12, gridX: 5, gridY: 2);
+            var runtime = new CombatRuntime(session, null, Entries(), Objects());
+            CombatEncounter fight = runtime.EnterRoster(new short[] { 400, 401 });
+            Combatant member = fight.Party[0], aimed = fight.Enemies[0], bystander = fight.Enemies[1];
+            member.X = 5;
+            member.Y = 1;
+            int aimedBefore = Pool(aimed), bystanderBefore = Pool(bystander);
+
+            Assert.IsTrue(runtime.ResolveShot(member, aimed, quarrelKind: 0, n => n - 1), "the bolt struck somebody");
+            Assert.AreEqual(aimedBefore, Pool(aimed), "not the one aimed at");
+            Assert.Less(Pool(bystander), bystanderBefore, "the one in the way");
+            Assert.AreSame(bystander, member.FlightInterceptedBy, "and the bolt is drawn to it");
+        }
+
+        [Test]
         public void AShotAcrossAnOpaqueDiamondIsStoppedThere() {
             // Trap audit #4: case 5 of the cell effect ends any flight at element 9 (CACTOR.C:1144-1153),
             // so the bolt that would have hit is a miss.

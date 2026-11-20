@@ -42,7 +42,7 @@ public static class SpellProjectileMiss {
     /// <param name="strikes">Whether a cell holds a combatant this shot would strike — alive, and not
     /// the caster or the aimed target (WORLDHIT.C:696-699).</param>
     public static Result Fly(int fromX, int fromY, int toX, int toY, int cellSize, Func<int, int> rnd,
-        Func<int, int, bool> strikes, Func<int, int, bool>? stops = null) {
+        Func<int, int, bool> strikes, Func<int, int, bool>? stops = null, int stepUnits = StepUnits) {
         if (cellSize <= 0) {
             return new Result(null, toX + 0.5f, toY + 0.5f, 0);
         }
@@ -51,7 +51,7 @@ public static class SpellProjectileMiss {
         double heading = Math.Atan2(toY - fromY, toX - fromX) + deflect * 2 * Math.PI / 0x10000;
         double x = fromX * cellSize + cellSize / 2.0;
         double y = fromY * cellSize + cellSize / 2.0;
-        double dx = StepUnits * Math.Cos(heading), dy = StepUnits * Math.Sin(heading);
+        double dx = stepUnits * Math.Cos(heading), dy = stepUnits * Math.Sin(heading);
         for (var step = 1; step <= MaxSteps; step++) {
             x += dx;
             y += dy;

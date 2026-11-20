@@ -3677,8 +3677,9 @@ using GameData.Resources.Scene;
                 // *** ARMED BEFORE THE REDRAW, PLAYED BY IT. *** The bolt is carried across the
                 // resolve-then-draw gap on the shooter, the same way SwingPending carries a melee
                 // blow — the model has no arena to fly anything through.
-                ArmFlight(fight, acting, target,
+                ArmFlight(fight, acting, acting.FlightInterceptedBy ?? target,
                     GameData.Resources.Combat.CombatEffectSprite.ForShot(_selectedQuarrelKind, acting.ClassId));
+                acting.FlightInterceptedBy = null;
                 // *** THE ARC IS DECIDED HERE BECAUSE A MISS ROLLS FOR IT. *** ThrownRockFlight's
                 // launch takes the combat RNG, and a miss's delta can be negative — which is what
                 // drops the rock early and starts it skipping. Resolving it in the draw would put
@@ -5495,7 +5496,8 @@ using GameData.Resources.Scene;
             if (monster != null && monster.FlightEffectId != 0) {
                 int shape = monster.FlightEffectId;
                 monster.FlightEffectId = 0;
-                ArmFlight(Combat?.Encounter, monster, decision.Target, shape);
+                ArmFlight(Combat?.Encounter, monster, monster.FlightInterceptedBy ?? decision.Target, shape);
+                monster.FlightInterceptedBy = null;
                 if (monster.FlightEffectId == 0) {
                     monster.FlightArcSteps = monster.FlightArcDelta = 0;   // nobody to fly at: no stale arc
                 }
