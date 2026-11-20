@@ -85,6 +85,36 @@ namespace BakAgain.Tests.Editor.Combat {
                 + "Incapacitated flag does not outlive the encounter");
         }
 
+        /// <summary>
+        /// The Near-death write ends in <c>stat_combatant_modify(actor, 0x10, 0x7fff, 100)</c>
+        /// (STAT.C:397), whose cap at rank 100 is <c>(100-100)*30/100+1</c> = 1 (STAT.C:210): the
+        /// downed member lies at 1 health and 0 stamina for the rest of the fight. Seen in the
+        /// original: Gorath downed by blaster shots read health 1, stamina 0, CAF_DEAD (TASK-1096 row 9).
+        /// </summary>
+        [Test]
+        public void ADownedPartyMemberLiesAtOneHealthForTheRestOfTheFight() {
+            (CombatRuntime runtime, GameSession _, CombatEncounter fight) = Fight();
+            Combatant member = PartyMember(fight, 0);
+
+            runtime.KillForTest(member);
+
+            Assert.AreEqual(1, member.Health);
+            Assert.AreEqual(0, member.Stamina);
+            Assert.IsTrue(member.IsDead, "still down: the flag, not the health, says so");
+        }
+
+        [Test]
+        public void ADownedPartyMemberWalksOutAliveAtOneHealth() {
+            (CombatRuntime runtime, GameSession _, CombatEncounter fight) = Fight(members: 2);
+            Combatant member = PartyMember(fight, 0);
+            runtime.KillForTest(member);
+
+            runtime.Leave();
+
+            Assert.IsFalse(member.IsDead);
+            Assert.AreEqual(1, member.Health);
+        }
+
         /// <summary>THE POINT: the last one down puts the party down.</summary>
         [Test]
         public void THELASTMemberDownSetsThePartyDownByte_AndTheFirstDoesNot() {

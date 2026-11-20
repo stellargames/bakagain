@@ -4750,6 +4750,11 @@ namespace BakAgain.Combat {
         /// :2444); the only sites passing 1 are self-damage and recoil.</para>
         /// </remarks>
         private void ApplySpellDamage(Combatant target, int magnitude, System.Func<int, int> rnd) {
+            // combat_arena_apply_damage skips a CAF_DEAD actor (COMBAT.C:329-331); a downed party
+            // member keeps 1 health, so its health cannot stand in for the flag.
+            if (target == null || target.IsDead) {
+                return;
+            }
             (bool weak, bool resists) = DamageAffinityOf(target, SpellDamageMask);
             DamageOutcome outcome = CombatFormulas.ApplyDamage(
                 magnitude, target.Stamina, target.Health,
@@ -6180,7 +6185,7 @@ namespace BakAgain.Combat {
                 if (!c.IsPartyMember) {
                     continue;
                 }
-                if (c.Health < CombatModeEntry.DownedPartyMemberHealth) {
+                if (c.IsDead || c.Health < CombatModeEntry.DownedPartyMemberHealth) {
                     c.Health = CombatModeEntry.DownedPartyMemberHealth;
                     c.Stamina = CombatModeEntry.DownedPartyMemberStamina;
                     c.Flags &= ~CombatantFlags.Dead;
@@ -6264,7 +6269,7 @@ namespace BakAgain.Combat {
         ///
         /// <para><c>inCombat</c> suppresses the Near-death announcement, matching
         /// <c>g_wInCombatMode</c>: the arena is no place for a condition popup. Health and stamina
-        /// are deliberately not passed — the death path has already zeroed them and
+        /// are set here to what the original's Near-death write leaves (1 and 0), and
         /// <see cref="WriteBack"/> carries them to the save.</para>
         /// </remarks>
         private void MarkPartyMemberNearDeath(Combatant victim) {
@@ -6277,6 +6282,11 @@ namespace BakAgain.Combat {
             }
             ConditionEngine.Apply(conditions, ActorCondition.NearDeath, ActorConditions.MaxRank,
                 inCombat: true);
+            // The write ends in stat_combatant_modify(actor, 0x10, 0x7fff, 100) (STAT.C:395-397),
+            // capped at (100 - rank) * 30 / 100 + 1 = 1 (STAT.C:210): the member lies at 1 health,
+            // 0 stamina, still flagged dead, for the rest of the fight (TASK-1096 row 9).
+            victim.Health = CombatModeEntry.DownedPartyMemberHealth;
+            victim.Stamina = CombatModeEntry.DownedPartyMemberStamina;
             _session.RecomputePartyDeathState();
         }
 
