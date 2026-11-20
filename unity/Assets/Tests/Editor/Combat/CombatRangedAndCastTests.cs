@@ -675,6 +675,48 @@ namespace BakAgain.Tests.Editor.Combat {
         }
 
         [Test]
+        public void AShotAcrossAnOpaqueDiamondIsStoppedThere() {
+            // Trap audit #4: case 5 of the cell effect ends any flight at element 9 (CACTOR.C:1144-1153),
+            // so the bolt that would have hit is a miss.
+            GameSession session = SessionWith((CrossbowId, 100), (QuarrelId, 10));
+            session.SetRosterActorForTest(400, StatBlock(), 12, gridX: 5, gridY: 5);
+            var runtime = new CombatRuntime(session, null, Entries(), Objects());
+            CombatEncounter fight = runtime.EnterRoster(new short[] { 400 },
+                TrapPuzzleBuilder.Build(new[] { (9, 5, 3) }));
+            Combatant member = fight.Party[0], monster = fight.Enemies[0];
+            member.X = 5;
+            member.Y = 1;
+            int before = Pool(monster);
+
+            Assert.IsFalse(runtime.ResolveShot(member, monster, quarrelKind: 0, AlwaysLow));
+            Assert.AreEqual(before, Pool(monster));
+            Assert.AreEqual((5.5f, 3.5f), member.FlightMissEnd, "the bolt is drawn to the diamond");
+        }
+
+        [Test]
+        public void AFlamecastAcrossTheCurrentIsSwallowedAndHurtsNobody() {
+            // Trap audit #4: the party's own Flamecast dies on the current between two poles exactly
+            // as a blaster's does (CACTOR.C:1114-1130, WORLDHIT.C:714-721).
+            GameSession session = SessionWith();
+            session.SetRosterActorForTest(400, StatBlock(), 12, gridX: 5, gridY: 5);
+            var runtime = new CombatRuntime(session, null, Entries(), Objects());
+            CombatEncounter fight = runtime.EnterRoster(new short[] { 400 },
+                TrapPuzzleBuilder.Build(new[] { (7, 3, 4), (7, 7, 4) }));
+            Combatant caster = fight.Party[0], monster = fight.Enemies[0];
+            caster.X = 5;
+            caster.Y = 1;
+            int before = Pool(monster);
+
+            runtime.ResolveCast(caster, monster, new Spell("4") {
+                TargetingType = 0, AnimationEffectType = 3, MinimumCost = 10, MaximumCost = 10,
+                Calculation = SpellCalculation.FixedAmount, Damage = 40,
+            }, SpellIds.Flamecast, 10, _ => 0);
+
+            Assert.AreEqual(before, Pool(monster));
+            Assert.AreEqual(CombatTerrain.Crystal, runtime.Grid.TerrainAt(5, 4), "the run is still up");
+        }
+
+        [Test]
         public void TheCrossbowWearsEVENOnAMiss() {
             // *** THE ASYMMETRY A COPY OF THE MELEE PATH LOSES. *** The original's
             // cbstat_damage_equipped_items(attacker, 2, 0x100) is the routine's LAST statement,

@@ -32,15 +32,17 @@ public static class SpellProjectileMiss {
     public const int MaxSteps = 10000;
 
     /// <param name="Intercepted">The cell of the bystander struck, or null when nobody was.</param>
+    /// <param name="StoppedAt">The cell whose ground ended the flight (<see cref="ProjectileInterception.Enter"/>), if one did.</param>
     /// <param name="EndX">Where the flight stopped, in cell units (fractional; may lie off the grid).</param>
-    public readonly record struct Result((int X, int Y)? Intercepted, float EndX, float EndY, int Steps);
+    public readonly record struct Result((int X, int Y)? Intercepted, float EndX, float EndY, int Steps,
+        (int X, int Y)? StoppedAt = null);
 
     /// <summary>Fly a missed shot from one cell towards another.</summary>
     /// <param name="rnd">The original's <c>RND(n)</c>: uniform in [0, n). Rolled twice — sign, then size.</param>
     /// <param name="strikes">Whether a cell holds a combatant this shot would strike — alive, and not
     /// the caster or the aimed target (WORLDHIT.C:696-699).</param>
     public static Result Fly(int fromX, int fromY, int toX, int toY, int cellSize, Func<int, int> rnd,
-        Func<int, int, bool> strikes) {
+        Func<int, int, bool> strikes, Func<int, int, bool>? stops = null) {
         if (cellSize <= 0) {
             return new Result(null, toX + 0.5f, toY + 0.5f, 0);
         }
@@ -56,6 +58,10 @@ public static class SpellProjectileMiss {
             int cx = (int)Math.Floor(x / cellSize), cy = (int)Math.Floor(y / cellSize);
             if (!CombatGrid.InBounds(cx, cy)) {
                 return new Result(null, (float)(x / cellSize), (float)(y / cellSize), step);
+            }
+            // The cell's own effect comes first: a shot it ends strikes nobody (WORLDHIT.C:697-716).
+            if (stops != null && stops(cx, cy)) {
+                return new Result(null, cx + 0.5f, cy + 0.5f, step, (cx, cy));
             }
             if (strikes(cx, cy)) {
                 return new Result((cx, cy), cx + 0.5f, cy + 0.5f, step);

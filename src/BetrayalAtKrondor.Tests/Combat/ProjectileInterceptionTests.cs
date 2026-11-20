@@ -65,4 +65,70 @@ public class ProjectileInterceptionTests {
         Assert.Equal(new[] { (1, 4), (2, 4), (3, 4) }, ProjectileInterception.StraightPath((0, 4), (3, 4)).ToArray());
         Assert.Equal(new[] { (2, 1), (2, 0) }, ProjectileInterception.StraightPath((2, 2), (2, 0)).ToArray());
     }
+
+    // ---- every flight, not only a blaster's (trap audit #4) ---------------------------------
+
+    [Fact]
+    public void AFlightSamplesEveryCellOnAStraightLineAndEndsOnTheTarget() {
+        // 250 units a step on 300-unit cells (WORLDHIT.C:663-699, START.DAT): no cell is skipped.
+        Assert.Equal(new[] { (1, 4), (2, 4), (3, 4), (4, 4), (5, 4), (6, 4) },
+            ProjectileInterception.FlightCells(0, 4, 6, 4, ProjectileInterception.SpellSpeed, 300).ToArray());
+    }
+
+    [Fact]
+    public void ADiagonalFlightStopsShortOfTheTargetsCell() {
+        // The step count is the OCTAGONAL distance over the speed (WORLDHIT.C:663-668): 900+337 =
+        // 1237 units, 4 steps of 250, against a true 1273. So the last step is drawn in (2,2) and
+        // the target's own cell is never sampled -- a target standing on the current diagonally
+        // away is not shielded by it.
+        int[][] cells = ProjectileInterception.FlightCells(0, 0, 3, 3, ProjectileInterception.SpellSpeed, 300)
+            .Select(c => new[] { c.X, c.Y }).ToArray();
+        Assert.Contains(new[] { 1, 1 }, cells);
+        Assert.Equal(new[] { 2, 2 }, cells[^1]);
+    }
+
+    [Fact]
+    public void AnOpaqueDiamondStopsAShotAndASeeThroughOneDoesNot() {
+        // CACTOR.C:1144-1153: element 9 or a wreck (0x28) on its tile ends the flight; 10 does not.
+        TrapPuzzle opaque = TrapPuzzleBuilder.Build(new List<(int, int, int)> { (9, 3, 4) });
+        TrapPuzzle clear = TrapPuzzleBuilder.Build(new List<(int, int, int)> { (10, 3, 4) });
+
+        Assert.Equal(ProjectileInterception.Fate.Stopped, ProjectileInterception.Fly(opaque,
+            ProjectileInterception.StraightPath((0, 4), (6, 4)), shape: 1).Fate);
+        Assert.Equal(ProjectileInterception.Fate.Reaches, ProjectileInterception.Fly(clear,
+            ProjectileInterception.StraightPath((0, 4), (6, 4)), shape: 1).Fate);
+    }
+
+    [Fact]
+    public void AWreckedPoleStopsAShot() {
+        TrapPuzzle puzzle = TwoPoles();
+        puzzle.CollapseUntilIsolated(3, 2);
+        Assert.Equal(CrystalChain.WreckElementId, puzzle.ElementAt(3, 2)?.ElementId);
+
+        Assert.Equal(ProjectileInterception.Fate.Stopped, ProjectileInterception.Fly(puzzle,
+            ProjectileInterception.StraightPath((0, 2), (6, 2)), shape: 1).Fate);
+    }
+
+    [Fact]
+    public void OutOfBoundsGroundStopsAShotInAnOrdinaryFightToo() {
+        // CACTOR.C:1155-1157, terrain 2: the walled corners and underground back rows.
+        var grid = new CombatGrid();
+        grid.SetTerrain(3, 4, CombatTerrain.OutOfBounds);
+
+        var outcome = ProjectileInterception.Fly(grid, null, ProjectileInterception.StraightPath((0, 4), (6, 4)), shape: 1);
+
+        Assert.Equal(ProjectileInterception.Fate.Stopped, outcome.Fate);
+        Assert.Equal((3, 4), (outcome.X, outcome.Y));
+    }
+
+    [Fact]
+    public void AMissThatFliesIntoTheCurrentDiesThereAndStrikesNobodyBeyondIt() {
+        // The cell effect runs before the bystander test each step, and a shape of -1 breaks the
+        // loop first (WORLDHIT.C:697-716).
+        var miss = SpellProjectileMiss.Fly(0, 4, 6, 4, 300, n => 0, strikes: (_, _) => true,
+            stops: (x, _) => x == 1);
+
+        Assert.Null(miss.Intercepted);
+        Assert.Equal((1, 4), miss.StoppedAt);
+    }
 }

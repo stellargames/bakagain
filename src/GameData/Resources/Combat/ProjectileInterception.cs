@@ -45,25 +45,105 @@ public static class ProjectileInterception {
     /// <summary>Where and how a flight ended.</summary>
     public readonly record struct Outcome(Fate Fate, int X, int Y, IReadOnlyList<(int X, int Y)> LitRun);
 
+    /// <summary>A spell's flight speed in world units a step (<c>cspell_apply_hit_at</c>, CSPELL.C:427).</summary>
+    public const int SpellSpeed = 0xfa;
+
+    /// <summary>A weapon shot's flight speed (CBTAITRN.C:139); a quarrel of kind 8 flies at 0x5a.</summary>
+    public const int ShotSpeed = 300;
+
+    /// <summary>The shape of an ordinary weapon shot (CBTAITRN.C:128): it never collapses a run.</summary>
+    public const int ShotShape = 1;
+
     /// <summary>
     /// Flies a shot cell by cell along <paramref name="path"/> (the cells entered, the target's last)
     /// and applies what the first crystal cell does to the grid.
     /// </summary>
-    public static Outcome Fly(TrapPuzzle puzzle, IEnumerable<(int X, int Y)> path, int shape) {
+    public static Outcome Fly(TrapPuzzle puzzle, IEnumerable<(int X, int Y)> path, int shape) =>
+        Fly(puzzle.Grid, puzzle, path, shape);
+
+    /// <summary>
+    /// The same flight on any grid; <paramref name="puzzle"/> is null outside a trap room.
+    /// </summary>
+    public static Outcome Fly(CombatGrid grid, TrapPuzzle? puzzle, IEnumerable<(int X, int Y)> path, int shape) {
         foreach ((int x, int y) in path) {
-            if (!CombatGrid.InBounds(x, y) || puzzle.Grid.TerrainAt(x, y) != CombatTerrain.Crystal) {
-                continue;
+            if (Enter(grid, puzzle, x, y, shape) is { } stopped) {
+                return stopped;
             }
-            if (puzzle.ElementAt(x, y) != null) {
-                if (shape != CollapsingShape) {
-                    return new Outcome(Fate.Stopped, x, y, Array.Empty<(int, int)>());
-                }
-                puzzle.CollapseUntilIsolated(x, y);
-                return new Outcome(Fate.Collapsed, x, y, Array.Empty<(int, int)>());
-            }
-            return new Outcome(Fate.Zapped, x, y, puzzle.TraceCrystalLine(x, y));
         }
         return new Outcome(Fate.Reaches, -1, -1, Array.Empty<(int, int)>());
+    }
+
+    /// <summary>
+    /// What one cell does to a projectile drawn into it (<c>combat_actor_tile_entry_effect</c> with
+    /// <c>do_apply = 1</c>, CACTOR.C:1110-1158), or null when it flies on.
+    /// </summary>
+    /// <remarks>
+    /// Crystal ground is handled as above. A diamond of element 9 or a wrecked pole (0x28) stops it
+    /// (terrain 5 and 14); the see-through diamond, 10, does not. Out-of-bounds ground (terrain 2)
+    /// stops it, in any fight. Terrain 7 (the reflecting wall) is <c>ReflectorOnPathTo</c>'s.
+    /// </remarks>
+    public static Outcome? Enter(CombatGrid grid, TrapPuzzle? puzzle, int x, int y, int shape) {
+        if (!CombatGrid.InBounds(x, y)) {
+            return null;
+        }
+        switch (grid.TerrainAt(x, y)) {
+            case CombatTerrain.Crystal:
+                if (puzzle?.ElementAt(x, y) != null) {
+                    if (shape != CollapsingShape) {
+                        return new Outcome(Fate.Stopped, x, y, Array.Empty<(int, int)>());
+                    }
+                    puzzle.CollapseUntilIsolated(x, y);
+                    return new Outcome(Fate.Collapsed, x, y, Array.Empty<(int, int)>());
+                }
+                return new Outcome(Fate.Zapped, x, y,
+                    puzzle?.TraceCrystalLine(x, y) ?? (IReadOnlyList<(int, int)>)new[] { (x, y) });
+            case CombatTerrain.Pushable:
+            case (CombatTerrain)CrystalChain.WreckTerrain:
+                // ponytail: the original also lets the shot pass when a combatant stands on the tile
+                // (CACTOR.C:1149); an element's tile never holds one here.
+                int id = puzzle?.ElementAt(x, y)?.ElementId ?? 0;
+                return id == 9 || id == CrystalChain.WreckElementId
+                    ? new Outcome(Fate.Stopped, x, y, Array.Empty<(int, int)>())
+                    : null;
+            case CombatTerrain.OutOfBounds:
+                return new Outcome(Fate.Stopped, x, y, Array.Empty<(int, int)>());
+            default:
+                return null;
+        }
+    }
+
+    /// <summary>
+    /// The cells a projectile that HITS is drawn in, from the shooter's cell to the target's
+    /// (<c>world_rndr_ranged_attack_anim</c>, WORLDHIT.C:633-699).
+    /// </summary>
+    /// <remarks>
+    /// Both ends are cell centres; the heading is shooter to target; each step moves
+    /// <paramref name="speed"/> units and the flight lasts the octagonal distance over the speed. The
+    /// shooter's own cell is left out.
+    /// ponytail: float trig stands in for the original's sine and arctangent tables, so a line that
+    /// clips a cell's corner by a few units can be read differently; use the tables if one matters.
+    /// </remarks>
+    public static IEnumerable<(int X, int Y)> FlightCells(int fromX, int fromY, int toX, int toY,
+        int speed, int cellSize) {
+        if (speed <= 0 || cellSize <= 0) {
+            yield break;
+        }
+        long dx = (long)(toX - fromX) * cellSize;
+        long dy = (long)(toY - fromY) * cellSize;
+        int steps = World.WorldDistance.Octagonal((int)dx, (int)dy) / speed;
+        double heading = Math.Atan2(dy, dx);
+        double x = fromX * cellSize + cellSize / 2.0;
+        double y = fromY * cellSize + cellSize / 2.0;
+        (int X, int Y) last = (fromX, fromY);
+        for (var i = 0; i < steps; i++) {
+            x += speed * Math.Cos(heading);
+            y += speed * Math.Sin(heading);
+            (int X, int Y) cell = ((int)Math.Floor(x / cellSize), (int)Math.Floor(y / cellSize));
+            if (cell != last) {
+                last = cell;
+                yield return cell;
+            }
+        }
     }
 
     /// <summary>

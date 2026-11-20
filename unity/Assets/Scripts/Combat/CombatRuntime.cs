@@ -2633,6 +2633,24 @@ namespace BakAgain.Combat {
                 _playSfx?.Invoke(shotCue.Value);
             }
 
+            // The flight crosses the same ground a spell's does (trap audit #4): a rock flies at
+            // 0x5a with shape 0x14, any other shot at 300 with shape 1 (CBTAITRN.C:128-139), and
+            // neither collapses a pole. A stopped hit is a miss. A miss flies on in the original and
+            // can strike a bystander; the port does not fly weapon misses yet.
+            attacker.FlightMissEnd = null;
+            if (hit) {
+                bool rock = quarrelKind == RangedShotSound.ThrownRockKind;
+                ProjectileInterception.Outcome flight = ProjectileInterception.Fly(Grid, Puzzle,
+                    ProjectileInterception.FlightCells(attacker.X, attacker.Y, defender.X, defender.Y,
+                        rock ? 0x5a : ProjectileInterception.ShotSpeed, ArenaCellSize),
+                    rock ? 0x14 : ProjectileInterception.ShotShape);
+                if (flight.Fate != ProjectileInterception.Fate.Reaches) {
+                    hit = false;
+                    attacker.FlightMissEnd = (flight.X + 0.5f, flight.Y + 0.5f);
+                    ShowInterception(flight, defender);
+                }
+            }
+
             // OUTSIDE the hit branch, deliberately: see remark 2.
             if (weapon.Info != null) {
                 WearEquipped(attacker, RangedExchange.ShooterWearCategory,
@@ -2875,19 +2893,40 @@ namespace BakAgain.Combat {
                 caster.FlightMissEnd = null;
                 caster.FlightInterceptedBy = null;
             }
+            // *** THE GROUND A PROJECTILE IS DRAWN OVER CAN END IT. *** Every flight runs each cell's
+            // effect as it enters it (CACTOR.C:1352-1357): the current swallows the shot, an opaque
+            // diamond, a wreck or out-of-bounds ground stops it, and Flamecast collapses a pole it
+            // reaches. A stopped hit is a miss with no bystander (WORLDHIT.C:714-721), and its
+            // damage is gated off (CSPELL.C:1520-1527). Trap audit #4.
+            ProjectileInterception.Outcome? grounded = null;
+            int castShape = spellId == 4 ? ProjectileInterception.CollapsingShape : spellId == 9 ? 3 : 0x32;
+            bool flies = caster != null && target != null
+                && CombatEffectSprite.FliesProjectile(spell.AnimationEffectType);
+            if (hit && flies) {
+                ProjectileInterception.Outcome flight = ProjectileInterception.Fly(Grid, Puzzle,
+                    ProjectileInterception.FlightCells(caster.X, caster.Y, target.X, target.Y,
+                        ProjectileInterception.SpellSpeed, ArenaCellSize), castShape);
+                if (flight.Fate != ProjectileInterception.Fate.Reaches) {
+                    grounded = flight;
+                    hit = false;
+                    caster.FlightMissEnd = (flight.X + 0.5f, flight.Y + 0.5f);   // the picture ends there too
+                }
+            }
             // *** A MISSED PROJECTILE FLIES ON, AND CAN STRIKE SOMEBODY ELSE. *** The original's miss
             // is a deflected flight, not a no-op: world_rndr_ranged_attack_anim turns the heading by
             // ±[0x400,0x6FF] and flies until the shot leaves the view, and the first living bystander
             // it crosses is struck — cspell_apply_hit_at writes it back as the target with the hit
             // flag set (WORLDHIT.C:614-729, CSPELL.C:430). So everything below runs as a hit on THAT
             // combatant: its resistance, its damage, Flamecast's splash around it.
-            if (!hit && caster != null && target != null
-                && CombatEffectSprite.FliesProjectile(spell.AnimationEffectType)) {
+            if (!hit && grounded == null && flies) {
                 Combatant aimed = target;
                 SpellProjectileMiss.Result miss = SpellProjectileMiss.Fly(
                     caster.X, caster.Y, aimed.X, aimed.Y, ArenaCellSize, roll,
-                    (x, y) => LiveCombatantAt(x, y) is { } o && o != caster && o != aimed);
-                if (miss.Intercepted is { } cell) {
+                    (x, y) => LiveCombatantAt(x, y) is { } o && o != caster && o != aimed,
+                    (x, y) => (grounded = ProjectileInterception.Enter(Grid, Puzzle, x, y, castShape)) != null);
+                if (miss.StoppedAt is { } end) {
+                    caster.FlightMissEnd = (end.X + 0.5f, end.Y + 0.5f);
+                } else if (miss.Intercepted is { } cell) {
                     target = LiveCombatantAt(cell.X, cell.Y);
                     caster.FlightInterceptedBy = target;
                     hit = true;
@@ -2909,6 +2948,7 @@ namespace BakAgain.Combat {
             if (SpellProjectileSound.Flies(target != null, spell.AnimationEffectType)) {
                 _playSfx?.Invoke(SpellProjectileSound.LaunchCue);
             }
+            ShowInterception(grounded, target);
             // One line per cast with its roll, beside the AI's per-turn line: a spell that "did
             // nothing" is a miss or it is a bug, and without this the two read the same.
             _logger?.LogDebug($"Cast {spellId} pw {power} by cls{caster?.ClassId} ({caster?.X},{caster?.Y}) "
@@ -4339,6 +4379,14 @@ namespace BakAgain.Combat {
             GameData.Resources.Spells.Spell spell) {
             if (SpellProjectileSound.Flies(true, spell.AnimationEffectType)) {
                 _playSfx?.Invoke(SpellProjectileSound.LaunchCue);
+            }
+            ShowInterception(flight, floor);
+        }
+
+        /// <summary>The run's short cine or the collapse's burst, for any flight the ground ended.</summary>
+        private void ShowInterception(ProjectileInterception.Outcome? stopped, Combatant floor) {
+            if (stopped is not { } flight) {
+                return;
             }
             switch (flight.Fate) {
                 case ProjectileInterception.Fate.Zapped:
