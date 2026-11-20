@@ -35,15 +35,25 @@ public class TrapPuzzleObjectiveTests {
     }
 
     [Fact]
-    public void ACorpsePastTheLineDoesNotWinIt() {
+    public void ACorpsePastTheLineEndsThePuzzleAsInTheOriginal() {
+        // combatgrid_actor_past_terr6_row tests `charSlot != 0 && gridY >= exitRow` with no dead check
+        // (CMBTGRID.C:1305-1306), and a dead party member keeps both: combat_arena_actor_die neither
+        // clears charSlot nor moves the corpse (COMBAT.C:213-283). So a member killed on the exit row
+        // (a blaster on the step that reached it) gets the party out.
         var encounter = new CombatEncounter { HasObjective = true, ObjectiveExitRow = 6 };
         encounter.Party.Add(new Combatant { PartySlot = 1, Y = 6, Flags = CombatantFlags.Dead });
         encounter.Party.Add(new Combatant { PartySlot = 2, Y = 0, Health = 10 });
-        Assert.False(encounter.ObjectiveIsMet());
+        Assert.True(encounter.ObjectiveIsMet());
+        Assert.True(encounter.IsOver());
+    }
 
-        // …and the grid's hazards drop you exactly there, which is why this is not hypothetical:
-        // one crystal step is 100 damage, so the first casualty falls mid-crossing.
-        Assert.False(encounter.IsOver());
+    [Fact]
+    public void AllDownIsALossEvenWithACorpsePastTheLine() {
+        // COMBAT.C:2588-2605: every member down plays the loss (0x6b) before any win is read.
+        var encounter = new CombatEncounter { HasObjective = true, ObjectiveExitRow = 6 };
+        encounter.Party.Add(new Combatant { PartySlot = 1, Y = 6, Flags = CombatantFlags.Dead });
+        Assert.True(encounter.IsOver());
+        Assert.Equal(0, encounter.PartyAlive());
     }
 
     [Fact]

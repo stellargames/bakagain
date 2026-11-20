@@ -139,12 +139,13 @@ public sealed class CombatEncounter {
         PartyAlive() == 0 || (EnemiesAlive() == 0 && (!HasObjective || ObjectiveIsMet()));
 
     /// <summary>
-    /// Whether a living party member has reached the objective's row.
+    /// Whether a party member, alive or dead, has reached the objective's row.
     /// </summary>
     /// <remarks>
-    /// <b>The dead do not count.</b> A corpse lying past the line is not the party getting out, and
-    /// counting it would end a puzzle the moment its first casualty fell in the right place — which
-    /// on this grid is exactly where the hazards drop you.
+    /// <b>The dead count.</b> <c>combatgrid_actor_past_terr6_row</c> tests only
+    /// <c>charSlot != 0 &amp;&amp; gridY &gt;= exitRow</c> (CMBTGRID.C:1305-1306), and a fallen member keeps
+    /// both (<c>combat_arena_actor_die</c>, COMBAT.C:213-283). The port skipped the dead until the
+    /// 2026-11-19 trap audit, on reasoning with no source line behind it.
     /// </remarks>
     public bool ObjectiveIsMet() {
         if (!HasObjective || !ObjectiveExitRow.HasValue) {
@@ -152,7 +153,7 @@ public sealed class CombatEncounter {
         }
         var rows = new List<int>();
         foreach (Combatant c in Party) {
-            if (!c.IsDead && c.IsPartyMember) {
+            if (c.IsPartyMember) {
                 rows.Add(c.Y);
             }
         }
