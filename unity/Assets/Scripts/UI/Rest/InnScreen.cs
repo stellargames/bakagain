@@ -78,7 +78,20 @@ namespace BakAgain.UI.Rest {
         /// Called once an hour by the stay, which is what the original's per-frame repaint of the
         /// panel amounts to — the only things that move are the hour marker and, once, the gold.
         /// </remarks>
-        public void Refresh() => RefreshAsync().Forget();
+        public void Refresh() {
+            _hand = null;
+            RefreshAsync().Forget();
+        }
+
+        /// <summary>The night's own hand: drawn at this tick of the day rather than the clock's
+        /// (MODALSCR.C:777-789 draws it on the hour and at half past). The next Refresh goes back
+        /// to the clock.</summary>
+        public void ShowHand(int ticksOfDay) {
+            _hand = ticksOfDay;
+            RefreshAsync().Forget();
+        }
+
+        private int? _hand;
 
         private void OnEnable() => Refresh();
 
@@ -216,7 +229,7 @@ namespace BakAgain.UI.Rest {
 
         /// <summary>Where the clock stands within the current day, for the sundial's shadow.</summary>
         private int TicksOfDay() =>
-            _clock == null ? -1 : (int)(_clock.Ticks % GameData.Resources.Character.InnStay.TicksPerDay);
+            _hand ?? (_clock == null ? -1 : (int)(_clock.Ticks % GameData.Resources.Character.InnStay.TicksPerDay));
 
         /// <summary>
         /// The party purse — the one screen in the game that shows it in words.

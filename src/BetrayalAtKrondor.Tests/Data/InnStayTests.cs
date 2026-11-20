@@ -105,4 +105,12 @@ public class InnStayTests {
         Assert.True(InnStay.CuresSickness(hourOfStay: 1, sinceArrival: thirteen));
         Assert.False(InnStay.CuresSickness(hourOfStay: 3, sinceArrival: thirteen - 1));
     }
+
+    [Fact]
+    public void TheNightDrawsTheHandTwiceAnHour_OnTheHourAndAtHalfPast() {
+        // MODALSCR.C:777-789: done = (time % day) / hour * hour + i * hour / 2, for i = 0 and 1.
+        long ticks = 3L * InnStay.TicksPerDay + 22 * InnStay.TicksPerHour + 700;
+        Assert.Equal(new[] { 22 * InnStay.TicksPerHour, 22 * InnStay.TicksPerHour + InnStay.TicksPerHour / 2 },
+            InnStay.HandPositions(ticks));
+    }
 }

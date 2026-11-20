@@ -77,6 +77,15 @@ public static class InnStay {
     /// <summary>Game-clock units in a day.</summary>
     public const int TicksPerDay = 24 * TicksPerHour;
 
+    /// <summary>
+    /// Where the night draws the dial's hand in one game hour: on the hour, then at half past
+    /// (MODALSCR.C:777-789, two presents per hour), in ticks of the day.
+    /// </summary>
+    public static int[] HandPositions(long ticks) {
+        int hour = (int)(ticks % TicksPerDay) / TicksPerHour * TicksPerHour;
+        return new[] { hour, hour + TicksPerHour / 2 };
+    }
+
     /// <summary>The hour of day (0–23) a clock reading falls in — what <see cref="StayComplete"/>
     /// tests.</summary>
     public static int HourOfDay(long ticks) =>

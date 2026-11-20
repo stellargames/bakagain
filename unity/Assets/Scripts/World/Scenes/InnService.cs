@@ -158,10 +158,12 @@ namespace BakAgain.World.Scenes {
                         CureSickness();
                     }
 
-                    // A frame per hour, so the dial's hour marker walks round the rim rather than
-                    // the whole night happening inside one frozen frame.
-                    _screen?.Refresh();
-                    await UniTask.Yield(PlayerLoopTiming.Update);
+                    // Two frames an hour, the hand on the hour and at half past (MODALSCR.C:777-789),
+                    // so it walks round the rim rather than the night happening in one frozen frame.
+                    foreach (int hand in InnStay.HandPositions(_clock.Ticks)) {
+                        _screen?.ShowHand(hand);
+                        await UniTask.Yield(PlayerLoopTiming.Update);
+                    }
                 }
             } finally {
                 _upkeep.RestQuality = previousQuality;
