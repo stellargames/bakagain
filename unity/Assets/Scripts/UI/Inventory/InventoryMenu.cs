@@ -3238,19 +3238,9 @@ namespace BakAgain.UI.Inventory {
             _blessing = null;
             // *** THE HOURS ARE PAID ON THE WAY OUT, ALL AT ONCE. *** The original advances the
             // clock in a loop after its screen loop ends, not per repair — so the visit costs the
-            // accumulated mask read as a number, and an event the advance raises lands after the
-            // player has left the mender rather than over him.
-            if (_menderTimeMask != 0) {
-                // One event dialog for the whole batch (MODALSCR.C:669): a twelve-hour repair nags once.
-                if (_upkeep != null) {
-                    _upkeep.OneEventDialogPerBatch = true;
-                }
-                _clock?.AdvanceHours(ShopRepair.HoursFor(_menderTimeMask));
-                if (_upkeep != null) {
-                    _upkeep.OneEventDialogPerBatch = false;
-                }
-            }
-            _menderTimeMask = 0;
+            // accumulated mask read as a number. The Exit button charges them before the screen
+            // goes (CloseAsync); this catches any other way out.
+            ChargeMenderHours();
             _mender = null;
             // Per-open, exactly like the three above: a fight's flag left standing would make the
             // next open from the world refuse the combat-only items it should now allow.
@@ -5201,6 +5191,40 @@ namespace BakAgain.UI.Inventory {
         }
 
         // Pop back to whatever pushed this screen (travel); the navigator re-shows it.
-        private void Close() => _navigator.Pop().Forget();
+        private void Close() => CloseAsync().Forget();
+
+        private async UniTaskVoid CloseAsync() {
+            // The mender's hours, and any event dialog they raise, come before the screen goes
+            // (MODALSCR.C:668-672 before the :674-680 teardown): a yawn lands over the mender
+            // (TASK-1111 row 3). OnClosing still charges them for any other way out.
+            await ChargeMenderHoursAsync();
+            await _navigator.Pop();
+        }
+
+        private async UniTask ChargeMenderHoursAsync() {
+            if (_menderTimeMask == 0) {
+                return;
+            }
+            ChargeMenderHours();
+            if (_upkeep != null) {
+                await _upkeep.PlayAnnouncementsAsync(_dialogs);
+            }
+        }
+
+        /// <summary>Advances the clock by the visit's mask, once; one event dialog for the batch
+        /// (MODALSCR.C:669).</summary>
+        private void ChargeMenderHours() {
+            if (_menderTimeMask == 0) {
+                return;
+            }
+            if (_upkeep != null) {
+                _upkeep.OneEventDialogPerBatch = true;
+            }
+            _clock?.AdvanceHours(ShopRepair.HoursFor(_menderTimeMask));
+            if (_upkeep != null) {
+                _upkeep.OneEventDialogPerBatch = false;
+            }
+            _menderTimeMask = 0;
+        }
     }
 }

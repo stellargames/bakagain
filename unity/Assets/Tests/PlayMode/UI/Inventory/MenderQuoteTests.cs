@@ -70,6 +70,51 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             Assert.AreEqual(InventoryQuery.PristineCondition, ItemUnderTest(menu).Variable);
         }
 
+        /// <summary>Records the clock when the screen is popped.</summary>
+        private sealed class ClockAtPop : BakAgain.UI.Navigation.IScreenNavigator {
+            private readonly BakAgain.Core.Services.GameClock _clock;
+            public long? TicksAtPop;
+            public ClockAtPop(BakAgain.Core.Services.GameClock clock) => _clock = clock;
+            public BakAgain.UI.Navigation.IScreen Current => null;
+            public UniTask ResetTo(BakAgain.UI.Navigation.IScreen root) => UniTask.CompletedTask;
+            public UniTask Push(BakAgain.UI.Navigation.IScreen screen) => UniTask.CompletedTask;
+            public UniTask PushAndWaitAsync(BakAgain.UI.Navigation.IScreen screen) => UniTask.CompletedTask;
+            public UniTask Pop() { TicksAtPop = _clock.Ticks; return UniTask.CompletedTask; }
+            public UniTask Replace(BakAgain.UI.Navigation.IScreen screen) => UniTask.CompletedTask;
+            public UniTask Clear() => UniTask.CompletedTask;
+        }
+
+        [UnityTest]
+        public IEnumerator LeavingTheMenderChargesItsHoursBeforeTheScreenCloses() {
+            // TASK-1111 row 3: MODALSCR.C:668-672 advances the clock (and plays whatever event
+            // dialog that raises) before the :674-680 teardown, so a yawn lands over the mender.
+            _go = new GameObject("MenderUnderTest");
+            var document = _go.AddComponent<UIDocument>();
+            _panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
+            document.panelSettings = _panelSettings;
+            var menu = _go.AddComponent<InventoryMenu>();
+            var session = new GameSession { PartyGold = 0 };
+            var clock = new BakAgain.Core.Services.GameClock(session);
+            var navigator = new ClockAtPop(clock);
+            menu.Construct(session, new NoOpResources(), navigator,
+                new BakAgain.Core.Services.DialogExecutor(
+                    new Microsoft.Extensions.Logging.Abstractions.NullLogger<BakAgain.Core.Services.DialogExecutor>(),
+                    session, clock),
+                new RecordingDialogs(),
+                upkeep: new BakAgain.Core.Services.PartyUpkeepService(session, clock,
+                    new Microsoft.Extensions.Logging.Abstractions.NullLogger<BakAgain.Core.Services.PartyUpkeepService>()),
+                clock: clock);
+            Field("_menderTimeMask").SetValue(menu, 3);
+            long before = clock.Ticks;
+
+            typeof(InventoryMenu).GetMethod("Close", BindingFlags.NonPublic | BindingFlags.Instance)
+                .Invoke(menu, null);
+            for (int frame = 0; frame < 5; frame++) { yield return null; }
+
+            Assert.AreEqual(before + 3 * GameData.Resources.Character.InnStay.TicksPerHour, navigator.TicksAtPop,
+                "the three hours are on the clock when the screen comes down");
+        }
+
         private static RuntimeItem ItemUnderTest(InventoryMenu menu) =>
             ((RuntimeContainer)Field("_displayed").GetValue(menu)).Items[0];
 
