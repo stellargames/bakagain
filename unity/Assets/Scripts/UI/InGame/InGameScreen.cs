@@ -1101,7 +1101,7 @@ namespace BakAgain.UI.InGame {
             // A world click's handler (a chest's explosion, a door's swing) holds the party, as the
             // original's single-threaded click does (TASK-1104).
             bool clickRunning = _interaction?.Busy ?? false;
-            _movementDriver?.Tick(travelling && !_lifting && !clickRunning);
+            _movementDriver?.Tick(PartyMayMove(travelling, _lifting, clickRunning, _gameSession?.DialogsPlaying ?? 0));
             TickMouseLook(travelling && !_lifting);
             TickSwing();
             if (travelling) {
@@ -1556,6 +1556,14 @@ namespace BakAgain.UI.InGame {
         /// dialog still up — the line that ended the fight is modal in the original, and the world
         /// loop's exit comes after it (COMBAT.C:2588-2604, WORLDLP.C:399-401; TASK-1096).
         /// </summary>
+        /// <summary>
+        /// Whether the movement keys walk the party this frame. A dialog that has started but not
+        /// yet raised its input layer holds them too: the original polls input only after the
+        /// hotspot pass returns (WORLDLP.C:206), and its dialogs block (HOTSPOT.C:89-215; TASK-1112).
+        /// </summary>
+        internal static bool PartyMayMove(bool travelling, bool lifting, bool clickRunning, int dialogsPlaying) =>
+            travelling && !lifting && !clickRunning && dialogsPlaying == 0;
+
         internal static bool PartyDownExitHolds(bool falling, bool fightRunning, int dialogsPlaying) =>
             falling || fightRunning || dialogsPlaying > 0;
 

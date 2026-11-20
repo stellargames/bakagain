@@ -49,6 +49,16 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
         /// port started the exit as soon as the fight was over, under the line (TASK-1096 row 8).
         /// </summary>
         [Test]
+        public void ThePartyDoesNotMoveWhileADialogPlays() {
+            // TASK-1112 row 4: the original polls input only after the hotspot pass returns
+            // (WORLDLP.C:206) and dialog_play_record blocks (HOTSPOT.C:89-215). A held forward key's
+            // repeat could step between a hotspot dialog starting and its input layer going up.
+            Assert.IsFalse(InGameScreen.PartyMayMove(travelling: true, lifting: false, clickRunning: false, dialogsPlaying: 1));
+            Assert.IsTrue(InGameScreen.PartyMayMove(travelling: true, lifting: false, clickRunning: false, dialogsPlaying: 0),
+                "control: nothing playing, it walks");
+        }
+
+        [Test]
         public void TheExitWaitsForADialogStillPlaying() {
             Assert.IsTrue(InGameScreen.PartyDownExitHolds(falling: false, fightRunning: false, dialogsPlaying: 1));
             Assert.IsFalse(InGameScreen.PartyDownExitHolds(falling: false, fightRunning: false, dialogsPlaying: 0),
