@@ -1690,6 +1690,24 @@ namespace BakAgain.World {
                 FlyEffectAsync(effect, marker.transform.localPosition, to.localPosition,
                     arcSteps, arcDelta, landingOn: landingOn).Forget();
             }
+            // A blaster's shot has no combatant to fly from: the model queued it by cell (trap
+            // audit #7). Flown at the original's speed, like a miss leaving the board above.
+            if (_hotspots?.Combat?.PendingCellFlights is { Count: > 0 } cellFlights) {
+                float height = 0f;
+                foreach (Encounters.ArenaCombatant m in _arenaRoot.GetComponentsInChildren<Encounters.ArenaCombatant>()) {
+                    height = m.transform.localPosition.y;
+                    break;
+                }
+                foreach (var f in cellFlights) {
+                    Vector3 from = ArenaCellLocal(f.FromX, f.FromY, height);
+                    Vector3 to = ArenaCellLocal(f.ToX, f.ToY, height);
+                    float seconds = Vector3.Distance(from, to) * BakCoordinateConverter.WorldScale
+                        / GameData.Resources.Combat.SpellProjectileMiss.StepUnits
+                        * (float)GameData.Resources.Combat.SpellVisuals.FrameSeconds;
+                    FlyEffectAsync(f.Effect, from, to, 0, 0, seconds).Forget();
+                }
+                cellFlights.Clear();
+            }
             FloatAfterTheSwingsAsync().Forget();
 
             // *** THE LIVE COMBATANTS BREATHE. *** The idle is the walk cycle played in place —

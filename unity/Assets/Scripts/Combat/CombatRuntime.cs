@@ -216,6 +216,15 @@ namespace BakAgain.Combat {
         /// </summary>
         public System.Action<SpellVisual, Combatant, Combatant> PlaySpellVisual { get; set; }
 
+        /// <summary>
+        /// Projectiles with no combatant to fly from — a trap blaster's — in cell units (.5 = a
+        /// centre), for the arena's next redraw to fly and clear (trap audit #7).
+        /// </summary>
+        public List<(int Effect, float FromX, float FromY, float ToX, float ToY)> PendingCellFlights { get; } = new();
+
+        private void QueueBlasterFlight(int fromX, int fromY, float toX, float toY) =>
+            PendingCellFlights.Add((CombatEffectSprite.ForSpell(CannonLine.SpellId), fromX + 0.5f, fromY + 0.5f, toX, toY));
+
         /// <summary>The arena's grid cell size in world units (<c>START.DAT</c>, 300) — what a missed
         /// projectile's flight is stepped against (<see cref="SpellProjectileMiss"/>).</summary>
         public int ArenaCellSize { get; set; } = 300;
@@ -4303,11 +4312,14 @@ namespace BakAgain.Combat {
             foreach (CannonLine.Shot shot in shove.CannonShots) {
                 _playSfx?.Invoke(CannonLine.MuzzleCue);
                 _playSfx?.Invoke(CannonLine.FireCue);
-                (ProjectileInterception.Outcome? grounded, (int X, int Y)? struck) =
-                    shove.ElementId == CannonLine.TransparentElementId && Grid != null
-                        ? ProjectileInterception.FlyOnPast(Grid, Puzzle, (shot.X, shot.Y), (shove.ToX, shove.ToY),
-                            (x, y) => LiveCombatantAt(x, y) != null)
-                        : (null, null);
+                bool fliesOn = shove.ElementId == CannonLine.TransparentElementId && Grid != null;
+                (ProjectileInterception.Outcome? grounded, (int X, int Y)? struck) = fliesOn
+                    ? ProjectileInterception.FlyOnPast(Grid, Puzzle, (shot.X, shot.Y), (shove.ToX, shove.ToY),
+                        (x, y) => LiveCombatantAt(x, y) != null)
+                    : (null, null);
+                (int X, int Y) end = struck ?? (grounded is { } g ? (g.X, g.Y)
+                    : fliesOn ? EdgeBeyond(shot.X, shot.Y, shove.ToX, shove.ToY) : (shove.ToX, shove.ToY));
+                QueueBlasterFlight(shot.X, shot.Y, end.X + 0.5f, end.Y + 0.5f);
                 if (struck is { } cell && LiveCombatantAt(cell.X, cell.Y) is { } victim
                     && Spells?.Spells != null
                     && Spells.Spells.TryGetValue(CannonLine.SpellId, out GameData.Resources.Spells.Spell spell)) {
@@ -4373,7 +4385,11 @@ namespace BakAgain.Combat {
                 ProjectileInterception.Outcome flight = ProjectileInterception.Fly(Puzzle,
                     ProjectileInterception.StraightPath((hazard.SourceX, hazard.SourceY), (hazard.X, hazard.Y)),
                     ProjectileInterception.CollapsingShape);
-                if (flight.Fate != ProjectileInterception.Fate.Reaches) {
+                // The shot is a real flight from the blaster's cell (CSPELL.C:1137-1145, WORLDHIT.C:585ff).
+                bool reaches = flight.Fate == ProjectileInterception.Fate.Reaches;
+                QueueBlasterFlight(hazard.SourceX, hazard.SourceY,
+                    (reaches ? hazard.X : flight.X) + 0.5f, (reaches ? hazard.Y : flight.Y) + 0.5f);
+                if (!reaches) {
                     _logger?.LogInformation(
                         $"A cannon shot from {hazard.SourceX},{hazard.SourceY} at {hazard.X},{hazard.Y} "
                         + $"ended on crystal ground at {flight.X},{flight.Y}: {flight.Fate}.");
@@ -4395,6 +4411,16 @@ namespace BakAgain.Combat {
                 _playSfx?.Invoke(SpellProjectileSound.LaunchCue);
             }
             ShowInterception(flight, floor);
+        }
+
+        /// <summary>The last cell on the grid along the line from a blaster through a cell.</summary>
+        private static (int X, int Y) EdgeBeyond(int fromX, int fromY, int throughX, int throughY) {
+            int dx = System.Math.Sign(throughX - fromX), dy = System.Math.Sign(throughY - fromY);
+            (int X, int Y) cell = (throughX, throughY);
+            while ((dx != 0 || dy != 0) && CombatGrid.InBounds(cell.X + dx, cell.Y + dy)) {
+                cell = (cell.X + dx, cell.Y + dy);
+            }
+            return cell;
         }
 
         /// <summary>The run's short cine or the collapse's burst, for any flight the ground ended.</summary>
