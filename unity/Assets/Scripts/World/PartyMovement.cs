@@ -469,7 +469,8 @@ namespace BakAgain.World {
                 // original refuses the press at heading 0, turns to the diagonal, and the next
                 // press steps +400/+400. At (670400, 1066800), off the road, it refuses all eight
                 // headings and stays engaged through every one until the button is clicked.
-                if (forward && TrySweepRoadHeading(heading, out ushort swept)) {
+                bool fork = false;
+                if (forward && TrySweepRoadHeading(heading, out ushort swept, out fork)) {
                     BeginSwing();
                     _session.Rotation = unchecked((short)swept);
                     // The turn is still the step for the world, as the free-walk pivot is: the move
@@ -483,7 +484,9 @@ namespace BakAgain.World {
 
                 // Enhanced (TASK-1050): no road to follow either way, so the mode is dropped and the
                 // press walks. Faithfully it stays lit and refuses every press with only the bump.
-                if (LeaveRoadWhenItEnds?.Invoke() == true) {
+                // A junction is not an end: the road goes on both ways and the party bumps, as in
+                // the original (forum p=34, TASK-1076).
+                if (!fork && LeaveRoadWhenItEnds?.Invoke() == true) {
                     DisengageTravel();
                     return Step(forward, size);
                 }
@@ -1274,8 +1277,10 @@ namespace BakAgain.World {
         /// where the party stands, which is what <see cref="TravelStep"/>'s own test does, so the
         /// two agree; a party off the cell centre is a case travel does not produce.</para>
         /// </remarks>
-        private bool TrySweepRoadHeading(ushort heading, out ushort target) {
+        /// <param name="fork">Set when the sweep stopped because the road went on both ways at once.</param>
+        private bool TrySweepRoadHeading(ushort heading, out ushort target, out bool fork) {
             target = heading;
+            fork = false;
             int stride = _movement.TurnAngleFor(_preferences.Current.TurnSize);
             if (stride <= 0 || _collision == null) {
                 return false;
@@ -1305,6 +1310,7 @@ namespace BakAgain.World {
                 bool ccwOpen = RoadHeadingOpen(unchecked((ushort)ccw));
 
                 if (cwOpen && ccwOpen) {
+                    fork = true;
                     return false;   // symmetric: no better side, so the party bumps
                 }
                 if (cwOpen) {

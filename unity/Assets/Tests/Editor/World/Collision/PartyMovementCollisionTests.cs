@@ -299,6 +299,29 @@ namespace BakAgain.Tests.Editor.World.Collision {
         }
 
         [Test]
+        public void InEnhancedAJunctionDoesNotDropTravel_TheRoadGoesOnBothWays() {
+            // Forum p=34 (TASK-1076): a track joining a main road from the south. North is not road,
+            // west and east both are, so the sweep cannot pick a side and the press bumps
+            // (WORLDMOV.C:589-622: two continuations return 0). The road has not ended, so the
+            // Enhanced leave-the-road rule must not fire; travel stays engaged as in the original.
+            var rig = Build(
+                WorldWith(groundElevation: 0,
+                    (Road, Centre, Centre, 700),
+                    (Road, WestCell, Centre, 700),
+                    (Road, Centre + RoadTravel.CellSize, Centre, 700)),
+                turn: TurnSize.Medium);
+            rig.Session.PositionX = Centre;
+            rig.Session.PositionY = Centre;
+            Assert.IsTrue(rig.Movement.TryEngageTravel(), "the rig must actually be on road");
+            rig.Movement.LeaveRoadWhenItEnds = () => true;
+
+            rig.Movement.MoveForward();
+
+            Assert.IsTrue(rig.Movement.IsTravelling, "the road goes on, so travel stays on");
+            Assert.AreEqual((Centre, Centre), (rig.Session.PositionX, rig.Session.PositionY), "and the press is refused");
+        }
+
+        [Test]
         public void TravelHeadingIsTheIdentityWithoutFreeHeading() {
             var rig = OnARoadBendingWest();
             for (int h = 0; h < 0x10000; h += 97)
