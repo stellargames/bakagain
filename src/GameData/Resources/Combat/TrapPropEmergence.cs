@@ -151,6 +151,15 @@ public sealed class TrapPropEmergence {
             grid.TickTileEffects();
         }
 
+        // Each prop whose timer has run out gets its own ground back on this frame, not when the
+        // last one is up (COMBAT.C:756-772, trap audit #10): until then its tile read as the
+        // timer's revert kind, so a risen blaster was not yet a blaster.
+        foreach ((int x, int y, CombatTerrain terrain) in _restore) {
+            if ((int)grid.TerrainAt(x, y) != RisingKind && grid.TerrainAt(x, y) != terrain) {
+                grid.SetTileEffect(x, y, terrain, CombatGrid.NoEffect);
+            }
+        }
+
         Running = false;
         for (var y = 0; y < CombatGrid.Height && !Running; y++) {
             for (var x = 0; x < CombatGrid.Width; x++) {

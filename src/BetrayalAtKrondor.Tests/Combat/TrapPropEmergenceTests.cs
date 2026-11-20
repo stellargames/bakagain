@@ -61,6 +61,23 @@ public class TrapPropEmergenceTests {
     }
 
     [Fact]
+    public void APropThatHasRisenGetsItsGroundBackAtOnce_NotWhenTheLastOneHas() {
+        // COMBAT.C:756-772: every frame, each prop tile no longer reading 9 gets its backup terrain
+        // back. The short roll's cannon at (2,2) is up and facing north while (6,2) still rises.
+        TrapPuzzle puzzle = Puzzle();
+        var emergence = new TrapPropEmergence();
+        emergence.Begin(puzzle, Rolls(0, 299));
+
+        while ((int)puzzle.Grid.TerrainAt(2, 2) == TrapPropEmergence.RisingKind) {
+            Assert.True(emergence.AdvanceFrame(puzzle.Grid));
+        }
+
+        Assert.True(emergence.Running);
+        Assert.Equal(CombatTerrain.CannonNorth, puzzle.Grid.TerrainAt(2, 2));
+        Assert.Equal(TrapPropEmergence.RisingKind, (int)puzzle.Grid.TerrainAt(6, 2));
+    }
+
+    [Fact]
     public void TheDurationIsInclusiveAtBothEnds() {
         // RNDR(lo,hi) is lo + rand()%(hi-lo+1), so hi is reachable. An exclusive port would make the
         // longest emergence one tick short and would never be noticed.
