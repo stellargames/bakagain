@@ -68,8 +68,10 @@ public static class CombatWalk {
     /// <summary>An element the walk shoved out of its way.</summary>
     public readonly struct Shove {
         internal Shove(PushResult result, int fromX, int fromY, int toX, int toY,
-            int cannonsFired = 0, IReadOnlyList<(int X, int Y)>? firedRun = null, int elementId = 0) {
+            int cannonsFired = 0, IReadOnlyList<(int X, int Y)>? firedRun = null, int elementId = 0,
+            IReadOnlyList<CannonLine.Shot>? cannonShots = null) {
             Result = result;
+            CannonShots = cannonShots ?? Array.Empty<CannonLine.Shot>();
             ElementId = elementId;
             FiredRun = firedRun ?? Array.Empty<(int, int)>();
             FromX = fromX;
@@ -83,14 +85,15 @@ public static class CombatWalk {
         /// How many cannons had line on the tile the crystal landed on, and so fired.
         /// </summary>
         /// <remarks>
-        /// <b>They hurt nobody, and that is the original's behaviour rather than a gap.</b>
         /// <c>combatgrid_pathfind_from_tile</c> (CMBTGRID.C:1465) stands a THROWAWAY combatant on
         /// the landed cell — <c>creatureType = -1</c>, built on the stack — runs the four-direction
         /// cannon scan against it, and takes it away again. Every cannon that sees the cell casts
-        /// Flamecast at that stub, so the whole observable effect is the shot's cue and animation.
-        /// A caller that wants the cue reads this; nothing else should.
+        /// Flamecast at that stub; see <see cref="CannonShots"/> for where each one flies.
         /// </remarks>
         public int CannonsFired { get; }
+
+        /// <summary>The blasters that fired at the landed diamond, by their cells (see <see cref="CannonsFired"/>).</summary>
+        public IReadOnlyList<CannonLine.Shot> CannonShots { get; }
 
         /// <summary>The crystal run a fired diamond lit, in order; empty unless
         /// <see cref="Result"/> is <see cref="PushResult.CrystalFired"/>.</summary>
@@ -643,7 +646,7 @@ public static class CombatWalk {
         int dy = step.Y - actor.Y;
         int elementId = puzzle.ElementAt(step.X, step.Y)?.ElementId ?? 0;
         PushResult result = puzzle.TryPush(step.X, step.Y, dx, dy, out IReadOnlyList<(int X, int Y)> firedRun);
-        var cannons = 0;
+        IReadOnlyList<CannonLine.Shot> cannons = Array.Empty<CannonLine.Shot>();
         // Occupancy is the caller's, exactly as it is for an ordinary step — CombatRuntime puts the
         // combatant back and re-applies through MoveTo. TryPush has already cleared the ELEMENT's
         // tile, which is the puzzle's to own.
@@ -666,11 +669,12 @@ public static class CombatWalk {
                 puzzle, step.X + dx, step.Y + dy, occupiedByLiveCombatant);
         }
 
-        return new Shove(result, step.X, step.Y, step.X + dx, step.Y + dy, cannons, firedRun, elementId);
+        return new Shove(result, step.X, step.Y, step.X + dx, step.Y + dy, cannons.Count, firedRun, elementId,
+            cannons);
     }
 
     /// <summary>
-    /// Every cannon that can now see the crystal fires. Returns how many did.
+    /// Every cannon that can now see the crystal fires. Returns the ones that did.
     /// </summary>
     /// <remarks>
     /// <b>This is <c>combatgrid_pathfind_from_tile(landedX, landedY, -1)</c></b> — CMBTAI.C:141,
@@ -679,24 +683,23 @@ public static class CombatWalk {
     /// on the cell the crystal landed on, scans all four cannon directions
     /// (<c>combatgrid_step_search</c> with <c>dest = -1</c>), and fires every cannon that sees it.
     ///
-    /// <para><b>Nobody is hurt, and no post goes out.</b> The shot is
-    /// <c>cspell_apply_step_tile_spell(stub, 4, 0x14, -2)</c> resolved against that throwaway, so
-    /// the whole observable effect is the cue and the animation. An earlier pass here collapsed a
-    /// gem-post in the shot's path, on the strength of "the posts can be deactivated if hit by a
-    /// cannon's fireball" — see <see cref="CannonLine.FiringDirection"/> for why that is not in
-    /// this build and what a cannon's projectile would have to be for it to happen.</para>
+    /// <para><b>The stub takes nothing, but the shot can go on.</b> The shot is
+    /// <c>cspell_apply_step_tile_spell(stub, 4, 0x14, -2)</c> resolved against that throwaway. At an
+    /// opaque diamond (9) it is a hit on the stub, which takes no damage. At the see-through one (10)
+    /// it is a miss that flies straight on and strikes the first combatant beyond, unless the ground
+    /// stops it (<see cref="ProjectileInterception.FlyOnPast"/>, trap audit #8). The runtime flies it.</para>
     ///
     /// <para><b>The crystal survives the shot</b> and can be pushed again. What destroys it is
     /// landing on crystal GROUND, where <c>combatgrid_place_actor_on_tile</c> sets its tile to
     /// 0xff — the "disintegrates any crystal pushed between them" rule, and a different one.</para>
     /// </remarks>
-    private static int FireCannonsAtPushedCrystal(TrapPuzzle? puzzle, int x, int y,
+    private static IReadOnlyList<CannonLine.Shot> FireCannonsAtPushedCrystal(TrapPuzzle? puzzle, int x, int y,
         Func<int, int, bool>? occupiedByLiveCombatant) {
         if (puzzle == null || !CombatGrid.InBounds(x, y)) {
-            return 0;
+            return Array.Empty<CannonLine.Shot>();
         }
 
-        return CannonLine.ShotsOn(puzzle, x, y, occupiedByLiveCombatant).Count;
+        return CannonLine.ShotsOn(puzzle, x, y, occupiedByLiveCombatant);
     }
 
     private static void FireTerrainHazard(CombatGrid grid, Combatant actor, List<Hazard> hazards,

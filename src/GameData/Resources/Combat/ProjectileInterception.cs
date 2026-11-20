@@ -113,6 +113,36 @@ public static class ProjectileInterception {
     }
 
     /// <summary>
+    /// A blaster's shot at a stub on a pushed see-through diamond: a miss that flies straight on
+    /// from the blaster, past the stub, until the ground stops it, it strikes a combatant, or it
+    /// leaves the grid (trap audit #8).
+    /// </summary>
+    /// <remarks>
+    /// <c>combatgrid_pathfind_from_tile</c> stands a class -1 stub on the landed cell (CMBTGRID.C:1465);
+    /// <c>cspell_resolve_cast</c> takes the hit from <c>combatgrid_tile_blockd_kind10</c>, 0 for element
+    /// 10 (CSPELL.C:1294, CMBTGRID.C:1483); a class -1 target gets no deflection, the flight runs
+    /// 10000 steps and the first living combatant other than the stub is struck (WORLDHIT.C:616-731).
+    /// ponytail: the flight ends at the grid's edge, where the original's ends at the view's edge.
+    /// </remarks>
+    /// <param name="strikes">Whether a living combatant stands on a cell.</param>
+    public static (Outcome? Grounded, (int X, int Y)? Struck) FlyOnPast(CombatGrid grid, TrapPuzzle? puzzle,
+        (int X, int Y) blaster, (int X, int Y) stub, Func<int, int, bool> strikes) {
+        int dx = Math.Sign(stub.X - blaster.X), dy = Math.Sign(stub.Y - blaster.Y);
+        if (dx == 0 && dy == 0) {
+            return (null, null);
+        }
+        for (int x = blaster.X + dx, y = blaster.Y + dy; CombatGrid.InBounds(x, y); x += dx, y += dy) {
+            if (Enter(grid, puzzle, x, y, CollapsingShape) is { } grounded) {
+                return (grounded, null);
+            }
+            if ((x, y) != stub && strikes(x, y)) {
+                return (null, (x, y));
+            }
+        }
+        return (null, null);
+    }
+
+    /// <summary>
     /// Whether a cell ends the line-of-fire trace (<c>combat_actor_trace_proj_path</c>, CACTOR.C:1161),
     /// which runs the same cell effect with <c>do_apply = 0</c>: the current's arm returns at once, so
     /// only an opaque diamond, a wreck and out-of-bounds ground block the line.

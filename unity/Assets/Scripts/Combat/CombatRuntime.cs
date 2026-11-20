@@ -4295,13 +4295,27 @@ namespace BakAgain.Combat {
                     shover, null);
             }
 
-            // *** A CANNON FIRED AT A CRYSTAL IS A CUE AND NOTHING ELSE. *** The original runs the
-            // four-direction cannon scan against a throwaway combatant standing on the cell the
-            // crystal landed on, so every cannon that sees it casts Flamecast at a stub that is
-            // discarded — no damage, no post switched off. Playing the muzzle cue is the whole of
-            // the observable behaviour; see CombatWalk.Shove.CannonsFired.
-            for (var i = 0; i < shove.CannonsFired; i++) {
+            // *** A BLASTER FIRES AT THE STUB ON THE LANDED DIAMOND. *** Each shot is the whole tile
+            // cast: muzzle (1), tile cast (10), launch (1) (CMBTGRID.C:1457-1461, CSPELL.C:1135, 426).
+            // At an opaque diamond it hits the stub, which takes nothing. At the see-through one it
+            // is a miss that flies straight on and strikes the first combatant beyond, unless the
+            // ground stops it (trap audit #8, ProjectileInterception.FlyOnPast).
+            foreach (CannonLine.Shot shot in shove.CannonShots) {
                 _playSfx?.Invoke(CannonLine.MuzzleCue);
+                _playSfx?.Invoke(CannonLine.FireCue);
+                (ProjectileInterception.Outcome? grounded, (int X, int Y)? struck) =
+                    shove.ElementId == CannonLine.TransparentElementId && Grid != null
+                        ? ProjectileInterception.FlyOnPast(Grid, Puzzle, (shot.X, shot.Y), (shove.ToX, shove.ToY),
+                            (x, y) => LiveCombatantAt(x, y) != null)
+                        : (null, null);
+                if (struck is { } cell && LiveCombatantAt(cell.X, cell.Y) is { } victim
+                    && Spells?.Spells != null
+                    && Spells.Spells.TryGetValue(CannonLine.SpellId, out GameData.Resources.Spells.Spell spell)) {
+                    ResolveCast(null, victim, spell, CannonLine.SpellId, -CannonLine.Intensity, null);
+                    continue;
+                }
+                _playSfx?.Invoke(SpellProjectileSound.LaunchCue);
+                ShowInterception(grounded, shover);
             }
         }
 

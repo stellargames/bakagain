@@ -145,4 +145,30 @@ public class ProjectileInterceptionTests {
         Assert.True(ProjectileInterception.BlocksSight(puzzle.Grid, puzzle, 5, 4));
         Assert.False(CombatLineOfFire.IsClear(0, 4, 3, 4, (x, y) => ProjectileInterception.BlocksSight(puzzle.Grid, puzzle, x, y)));
     }
+
+    [Fact]
+    public void ABlasterShotAtAClearDiamondFliesOnAndStrikesWhoeverIsBeyond() {
+        // Trap audit #8: the stub on the landed cell has class -1, so the shot is a miss
+        // (combatgrid_tile_blockd_kind10 is 0 for element 10) with no deflection, and the first
+        // living combatant it crosses past the stub is struck (WORLDHIT.C:616-623, 697-731).
+        TrapPuzzle puzzle = TrapPuzzleBuilder.Build(new List<(int, int, int)> { (10, 3, 5) });
+
+        var past = ProjectileInterception.FlyOnPast(puzzle.Grid, puzzle, (0, 5), (3, 5),
+            strikes: (x, y) => (x, y) == (6, 5) || (x, y) == (3, 5));
+
+        Assert.Null(past.Grounded);
+        Assert.Equal((6, 5), past.Struck);
+    }
+
+    [Fact]
+    public void TheCurrentBeyondAClearDiamondStillSwallowsThatShot() {
+        TrapPuzzle puzzle = TrapPuzzleBuilder.Build(new List<(int, int, int)> { (10, 3, 5) });
+        puzzle.Grid.SetTerrain(5, 5, CombatTerrain.Crystal);
+
+        var past = ProjectileInterception.FlyOnPast(puzzle.Grid, puzzle, (0, 5), (3, 5),
+            strikes: (x, y) => (x, y) == (6, 5));
+
+        Assert.Equal(ProjectileInterception.Fate.Zapped, past.Grounded?.Fate);
+        Assert.Null(past.Struck);
+    }
 }

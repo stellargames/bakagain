@@ -772,6 +772,33 @@ namespace BakAgain.Tests.Editor.Combat {
         }
 
         [Test]
+        public void ABlasterShotAtAPushedClearDiamondFliesOnIntoWhoeverStandsBeyond() {
+            // Trap audit #8: pushed into column 5, the see-through diamond draws the blaster at
+            // (5,0). The shot at its stub is a miss that flies straight on (WORLDHIT.C:616-731) and
+            // strikes the monster at (5,8).
+            var cues = new System.Collections.Generic.List<int>();
+            var session = new GameSession();
+            session.SetActorStatsForTest(0, StatBlock(health: 40));
+            session.SetActiveParty(1, new byte[] { 0 });
+            session.SetRosterActorForTest(400, StatBlock(health: 40), gridX: 5, gridY: 8);
+            var runtime = new CombatRuntime(session, null, Entries(((byte)3, (byte)5)), playSfx: cues.Add) {
+                Spells = Flamecast(),
+            };
+            CombatEncounter fight = runtime.EnterRoster(new short[] { 400 },
+                TrapPuzzleBuilder.Build(new[] { (10, 4, 5), (-12, 5, 0) }));
+            Combatant member = fight.Party[0], monster = fight.Enemies[0];
+            Assert.AreEqual((3, 5), (member.X, member.Y), "fixture");
+            Assert.AreEqual((5, 8), (monster.X, monster.Y), "fixture");
+            int before = monster.Health + monster.Stamina;
+
+            Assert.IsTrue(runtime.MoveToTile(member, 4, 5, _ => 0));
+
+            Assert.AreEqual(CombatTerrain.Pushable, runtime.Puzzle.Grid.TerrainAt(5, 5), "the diamond landed in the blaster's column");
+            Assert.Less(monster.Health + monster.Stamina, before, "the shot flew past it into the monster");
+            CollectionAssert.IsSubsetOf(new[] { 1, 10 }, cues);
+        }
+
+        [Test]
         public void ACannonIsHeardAtTheMuzzleAndAgainAtTheTileCast() {
             // The two cues cspell_apply_step_tile_spell's caller pair makes: audio_play(1) in
             // combatgrid_actor_step_to_tile, then audio_play(10) in the tile cast itself. The third
