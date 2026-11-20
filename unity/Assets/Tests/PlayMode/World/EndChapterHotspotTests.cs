@@ -106,7 +106,7 @@ namespace BakAgain.Tests.PlayMode.World {
         internal class ClearCountingDialogs : BakAgain.UI.IDialogManager {
             public int Cleared { get; private set; }
             public int ClickThrough { get; private set; }
-            public void ClearDialog() => Cleared++;
+            public virtual void ClearDialog() => Cleared++;
             public void LetClicksThroughPanel() => ClickThrough++;
             public Cysharp.Threading.Tasks.UniTask ShowEntry(GameData.Resources.Dialog.DialogEntry entry,
                 System.Action<UnityEngine.UIElements.VisualElement, GameData.Resources.Layout.LayoutHint> decorate,
@@ -129,7 +129,7 @@ namespace BakAgain.Tests.PlayMode.World {
                 => UniTask.FromResult<GameData.Resources.Dialog.DialogPlay>(null);
             public void SetActivePalette(Color[] palette) { }
             public System.Func<(string Image, string Palette)?> SceneSpeakerBackdrop { get; set; }
-            public UniTask<int> ShowById(int id,
+            public virtual UniTask<int> ShowById(int id,
                 System.Threading.CancellationToken cancellationToken = default) => UniTask.FromResult(-1);
             public UniTask<bool> ShowAcceptOrCancelById(int id, System.Threading.CancellationToken ct = default) =>
                 UniTask.FromResult(false);

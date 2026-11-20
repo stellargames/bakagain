@@ -712,6 +712,59 @@ namespace BakAgain.Tests.PlayMode.World {
                 }
             });
 
+        /// <summary>The innkeeper's line answers 0 (go on to the inn); every other dialog declines.</summary>
+        private sealed class InnkeeperSpeaks : EndChapterHotspotTests.ClearCountingDialogs {
+            private readonly RecordingFade _fade;
+            public readonly List<string> Clears = new();
+            public InnkeeperSpeaks(RecordingFade fade) => _fade = fade;
+            public override UniTask<int> ShowById(int id, CancellationToken cancellationToken = default) =>
+                UniTask.FromResult(id == InnkeeperLineId ? 0 : -1);
+            public override void ClearDialog() {
+                base.ClearDialog();
+                Clears.Add(_fade.Covered ? "covered" : "NOT covered");
+            }
+        }
+
+        private const int InnkeeperLineId = 4242;
+
+        [UnityTest]
+        public IEnumerator TheInnkeepersLineFadesOutWithTheTavern() =>
+            UniTask.ToCoroutine(async () => {
+                // TASK-1111 row 6: the hotspot line is left drawn (DIALOG.C:1492-1500) and the inn's
+                // fade-out takes the page and the picture together (TOWNSCN.C:550-557 ->
+                // MODALSCR.C:724). The port cleared the page before the fade began.
+                InGameScreen hud = TravelHud();
+                var fade = new RecordingFade();
+                var dialogs = new InnkeeperSpeaks(fade);
+                BakAgain.Core.GameSession session = LocationSession(
+                    new GameData.Resources.Data.SaveGameContainerShopData(
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, (GameData.ShopItemCategories)0));
+                var inn = new InnService(session, new BakAgain.Core.Services.GameClock(session), null,
+                    dialogs, null);
+                LocationScenePlayer player = Player(fade, dialogs, Resolver(hud, fade: fade),
+                    teleport: null, session: session, navigator: new FadingNavigator(hud, fade), inn: inn);
+                LocationScreen screen = _screenGo.GetComponent<LocationScreen>();
+
+                try {
+                    UniTask run = player.RunAsync(1, 1);
+                    await Until(() => fade.Events.Contains("in"), "the town never faded in");
+                    screen.Bind(new GdsScene(GdsSceneLoader.ResourceName(1, 1)) {
+                        SceneDialogId = DescriptionId,
+                        Hotspots = new[] { new GdsHotspot { ActionCode = 7, ActionDialogId = InnkeeperLineId } },
+                    }, 1, 1, letter => Choose(player, letter));
+                    dialogs.Clears.Clear();
+                    fade.Events.Clear();
+
+                    screen.PrimaryAction(GdsSceneRules.HotspotActionIdBase);
+                    await Until(() => fade.Events.Count >= 6, "the inn never came and went");
+
+                    Assert.IsNotEmpty(dialogs.Clears);
+                    Assert.AreEqual("covered", dialogs.Clears[0], "the innkeeper's page goes under the fade, not before it");
+                } finally {
+                    player.Hide();
+                }
+            });
+
         /// <summary>
         /// A full-screen page replacing one left drawn opens over it, not over the location beneath
         /// (TASK-923 item 3).

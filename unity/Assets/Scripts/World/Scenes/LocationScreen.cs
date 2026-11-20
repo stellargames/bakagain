@@ -575,7 +575,11 @@ namespace BakAgain.World.Scenes {
                 // Staying, the page goes now, as it always did: what follows repaints the location
                 // or opens a screen over it. Leaving, LocationScenePlayer takes it down under the
                 // cut or the fade.
-                if (!dialogQueuedATeleport && StaysInTheScene(GdsActionDispatch.KindOf(outcome))) {
+                // The inn is the exception: its fade-out takes the page and the picture together
+                // (TOWNSCN.C:550-557 -> MODALSCR.C:724), and RunInnAsync's Cover clears it under the
+                // black (TASK-1111 row 6).
+                if (!dialogQueuedATeleport && StaysInTheScene(GdsActionDispatch.KindOf(outcome))
+                    && GdsActionDispatch.KindOf(outcome) != GdsActionDispatch.ActionKind.Inn) {
                     _dialogs.ClearDialog();
                 }
 
