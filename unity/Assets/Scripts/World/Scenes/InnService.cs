@@ -86,8 +86,9 @@ namespace BakAgain.World.Scenes {
                 while (await OfferAsync(price, shop.InnRestHours, firstOffer) == AcceptedAndAffordable) {
                     await StayTheNightAsync(shop.InnRestHours, arrivedTicks);
                     // "In moments, they were all fast asleep…" ends the chain with SkipWait, so it is
-                    // still up: the original's night redraw only repaints the top of the screen.
-                    _dialogs.ClearDialog();
+                    // still up: the original's night redraws only the top of the screen
+                    // (MODALSCR.C:777-789). A whole party leaves with it drawn and the panel fades
+                    // with it (:815-816); another offer's full redraw removes it (:757-760).
 
                     // AFTER the night, and with no affordability check — see
                     // InnStay.ChargedAfterTheStay.
@@ -98,11 +99,13 @@ namespace BakAgain.World.Scenes {
                     if (!InnStay.OfferAnotherNight(PartyIsWhole())) {
                         return;
                     }
+                    _dialogs.ClearDialog();
                 }
             } finally {
                 if (closing != null) {
                     await closing();
                 }
+                _dialogs.ClearDialog();   // under the black, with the panel (TASK-1111 row 7)
                 _screen?.Close();
             }
         }
