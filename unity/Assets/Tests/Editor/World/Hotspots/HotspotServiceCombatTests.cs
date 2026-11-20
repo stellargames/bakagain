@@ -273,6 +273,25 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
         }
 
         [Test]
+        public void ATypeZeroSpellNeedsALineOfFire_GroundThatStopsAProjectileRefusesTheCellToo() {
+            // Trap audit #4: the same trace runs the cell effect with do_apply = 0 (CACTOR.C:1186), so
+            // out-of-bounds ground, an opaque diamond or a wreck on the way ends it as a living
+            // combatant does (CACTOR.C:1144-1157).
+            (Rig rig, CombatEncounter fight, Combatant acting) = ArmedFight(0);
+            Combatant enemy = fight.Enemies[0];
+            acting.X = 2; acting.Y = 2;
+            enemy.X = 5; enemy.Y = 2;
+            rig.Service.Combat.Grid.SetTerrain(4, 2, CombatTerrain.OutOfBounds);
+
+            rig.Service.CombatPanelContent(0, partyMember: false);
+            Assert.AreEqual(0, AimEdges(rig), "the wall between them refuses the enemy");
+
+            rig.Service.Combat.Grid.SetTerrain(4, 2, CombatTerrain.Open);
+            rig.Service.CombatPanelContent(0, partyMember: false);
+            Assert.AreEqual(4, AimEdges(rig), "the control: open ground lets the line through");
+        }
+
+        [Test]
         public void ATypeOneSpellIgnoresTheLineOfFire() {
             // The control for the above: types 1/4 ask only for a living encounter actor.
             (Rig rig, CombatEncounter fight, Combatant acting) = ArmedFight(1);

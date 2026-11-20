@@ -2958,7 +2958,14 @@ using GameData.Resources.Scene;
                 // *** THE ARENA'S OCCUPANCY, so the melee selector can skip a target it could not
                 // stand beside. *** The grid belongs to the fight and the resolver is documented as
                 // deciding only, so it gets the one TEST rather than the grid — TASK-438.
-                (x, y) => Combat?.Grid?.IsBlocked(x, y) ?? false);
+                (x, y) => Combat?.Grid?.IsBlocked(x, y) ?? false,
+                SightBlocked);
+
+        /// <summary>The ground's half of the line-of-fire trace: an opaque diamond, a wreck or a
+        /// wall ends it (CACTOR.C:1186, trap audit #4).</summary>
+        private bool SightBlocked(int x, int y) =>
+            Combat?.Grid != null && GameData.Resources.Combat.ProjectileInterception.BlocksSight(
+                Combat.Grid, Combat.Puzzle, x, y);
 
         /// <summary>
         /// Whether a creature can pay for a spell right now — the AI's <c>cspell_check_castable</c>.
@@ -5220,7 +5227,7 @@ using GameData.Resources.Scene;
         /// <c>combatenc_is_encounter_actor</c> (CBENC.C:908) asks the enemy array, and a summon is in
         /// the party's (CSPELL.C:712, CACTOR.C:184) with no character slot.</para>
         /// </remarks>
-        private static bool SpellTargetIsValid(GameData.Resources.Combat.CombatEncounter fight,
+        private bool SpellTargetIsValid(GameData.Resources.Combat.CombatEncounter fight,
             Combatant acting, int targetingType, Combatant target) {
             GameData.Resources.Spells.SpellTargetingRules.Aim aim =
                 GameData.Resources.Spells.SpellTargetingRules.AimOf(targetingType);
@@ -5379,11 +5386,11 @@ using GameData.Resources.Scene;
         /// <remarks><c>combatgrid_tile_has_terr_bit2</c> reads a per-turn map whose bit 1 is set by
         /// <c>combat_actor_trace_proj_path</c>, so the "terrain" flag IS line of fire. See
         /// <see cref="GameData.Resources.Combat.CombatTargetSelection.ShotIsValid"/>.</remarks>
-        private static bool LineOfFireTo(GameData.Resources.Combat.CombatEncounter fight,
+        private bool LineOfFireTo(GameData.Resources.Combat.CombatEncounter fight,
             Combatant shooter, Combatant target) =>
             GameData.Resources.Combat.CombatLineOfFire.IsClear(
                 shooter.X, shooter.Y, target.X, target.Y,
-                GameData.Resources.Combat.CombatLineOfFire.BlockedByLivingActor(
+                (bx, by) => SightBlocked(bx, by) || GameData.Resources.Combat.CombatLineOfFire.BlockedByLivingActor(
                     (x, y) => {
                         foreach (Combatant c in fight.AllCombatants()) {
                             if (c != null && c.X == x && c.Y == y) {
@@ -5392,7 +5399,7 @@ using GameData.Resources.Scene;
                         }
                         return null;
                     },
-                    shooter));
+                    shooter)(bx, by));
 
         /// <summary>
         /// Advance to the next party turn, letting every enemy in between actually take its turn.

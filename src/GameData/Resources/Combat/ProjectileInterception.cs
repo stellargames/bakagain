@@ -113,6 +113,19 @@ public static class ProjectileInterception {
     }
 
     /// <summary>
+    /// Whether a cell ends the line-of-fire trace (<c>combat_actor_trace_proj_path</c>, CACTOR.C:1161),
+    /// which runs the same cell effect with <c>do_apply = 0</c>: the current's arm returns at once, so
+    /// only an opaque diamond, a wreck and out-of-bounds ground block the line.
+    /// </summary>
+    /// <remarks>
+    /// ponytail: terrain 7 (the reflecting wall) blocks the trace only when its caller passes flag 0;
+    /// it is left out here. Add it with the flag if a Mirrorwall's effect on targeting matters.
+    /// </remarks>
+    public static bool BlocksSight(CombatGrid grid, TrapPuzzle? puzzle, int x, int y) =>
+        CombatGrid.InBounds(x, y) && grid.TerrainAt(x, y) != CombatTerrain.Crystal
+        && Enter(grid, puzzle, x, y, ShotShape) != null;
+
+    /// <summary>
     /// The cells a projectile that HITS is drawn in, from the shooter's cell to the target's
     /// (<c>world_rndr_ranged_attack_anim</c>, WORLDHIT.C:633-699).
     /// </summary>

@@ -217,7 +217,7 @@ namespace BakAgain.Combat {
             IReadOnlyList<int> fleeThresholds, bool isUnderground,
             Func<Combatant, int, bool> canCast = null,
             IReadOnlyDictionary<int, GameData.Resources.Spells.Spell> spells = null,
-            Func<int, int, bool> isBlocked = null) {
+            Func<int, int, bool> isBlocked = null, Func<int, int, bool> sightBlocked = null) {
             _profileOf = profileOf ?? (_ => default);
             _rnd = rnd ?? (n => 0);
             _fleeThresholds = fleeThresholds;
@@ -225,9 +225,20 @@ namespace BakAgain.Combat {
             _canCast = canCast;
             _spells = spells;
             _isBlocked = isBlocked;
+            _sightBlocked = sightBlocked;
         }
 
         private readonly Func<int, int, bool> _isBlocked;
+
+        /// <summary>The ground's half of the line-of-fire trace (ProjectileInterception.BlocksSight).</summary>
+        private readonly Func<int, int, bool> _sightBlocked;
+
+        /// <summary>What ends <c>combat_actor_trace_proj_path</c> from <paramref name="from"/>: a living
+        /// actor in the way, or the ground (CACTOR.C:1186-1196).</summary>
+        private Func<int, int, bool> LineBlockers(CombatEncounter encounter, Combatant from) {
+            Func<int, int, bool> actors = CombatLineOfFire.BlockedByLivingActor((x, y) => ActorAt(encounter, x, y), from);
+            return _sightBlocked == null ? actors : (x, y) => _sightBlocked(x, y) || actors(x, y);
+        }
 
         /// <summary>Decide this monster's turn and record the decision on it.</summary>
         public Decision Resolve(CombatEncounter encounter, Combatant monster) {
@@ -578,8 +589,7 @@ namespace BakAgain.Combat {
 
             int distance = CombatGrid.ChebyshevDistance(monster.X, monster.Y, nearest.X, nearest.Y);
             bool lineOfFire = CombatLineOfFire.IsClear(monster.X, monster.Y, nearest.X, nearest.Y,
-                CombatLineOfFire.BlockedByLivingActor(
-                    (x, y) => ActorAt(encounter, x, y), monster));
+                LineBlockers(encounter, monster));
 
             AiAction action = SpeciesAction(routine.Value, monster, distance, lineOfFire,
                 out MonsterTurnRoutines.RangedTurn ranged, out int spellId, out int? castPower,
@@ -939,8 +949,7 @@ namespace BakAgain.Combat {
 
         /// <summary>Whether a projectile path traces from one actor to another.</summary>
         private bool HasLineOfFire(CombatEncounter encounter, Combatant from, Combatant to) =>
-            CombatLineOfFire.IsClear(from.X, from.Y, to.X, to.Y,
-                CombatLineOfFire.BlockedByLivingActor((x, y) => ActorAt(encounter, x, y), from));
+            CombatLineOfFire.IsClear(from.X, from.Y, to.X, to.Y, LineBlockers(encounter, from));
 
         /// <summary>
         /// Action slot 1 — support an ally rather than attack. <see cref="MonsterHealTurn"/>.
@@ -1031,8 +1040,7 @@ namespace BakAgain.Combat {
                     // same bar SlayerRevival applies, and the reason Final Rest can reach a body.
                     IsOnGrid = c.X >= 0 && c.Y >= 0,
                     ProjectilePathIsClear = CombatLineOfFire.IsClear(actor.X, actor.Y, c.X, c.Y,
-                        CombatLineOfFire.BlockedByLivingActor(
-                            (x, y) => ActorAt(encounter, x, y), actor)),
+                        LineBlockers(encounter, actor)),
                 });
             }
             return list;

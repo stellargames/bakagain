@@ -4604,8 +4604,9 @@ namespace BakAgain.Combat {
             IReadOnlyList<Combatant> foes = Encounter.Enemies.Contains(caster)
                 ? (IReadOnlyList<Combatant>)Encounter.Party
                 : Encounter.Enemies;
-            System.Func<int, int, bool> blocks =
-                CombatLineOfFire.BlockedByLivingActor(LiveCombatantAt, caster);
+            System.Func<int, int, bool> actors = CombatLineOfFire.BlockedByLivingActor(LiveCombatantAt, caster);
+            System.Func<int, int, bool> blocks = (x, y) =>
+                (Grid != null && ProjectileInterception.BlocksSight(Grid, Puzzle, x, y)) || actors(x, y);
             foreach (Combatant foe in foes) {
                 if (foe == target || foe.IsDead
                     || !CombatLineOfFire.IsClear(caster.X, caster.Y, foe.X, foe.Y, blocks)) {

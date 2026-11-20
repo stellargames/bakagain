@@ -131,4 +131,18 @@ public class ProjectileInterceptionTests {
         Assert.Null(miss.Intercepted);
         Assert.Equal((1, 4), miss.StoppedAt);
     }
+
+    [Fact]
+    public void TheLineOfFireIsBlockedByAnOpaqueDiamondAWreckAndWalls_ButNotByTheCurrent() {
+        // combat_actor_trace_proj_path runs the cell effect with do_apply = 0 (CACTOR.C:1186), so the
+        // current's arm returns at once and only the diamond, wreck and out-of-bounds arms stop it.
+        TrapPuzzle puzzle = TrapPuzzleBuilder.Build(new List<(int, int, int)> { (9, 2, 4), (10, 4, 4), (Crystal, 3, 2), (Crystal, 3, 6) });
+        puzzle.Grid.SetTerrain(5, 4, CombatTerrain.OutOfBounds);
+
+        Assert.True(ProjectileInterception.BlocksSight(puzzle.Grid, puzzle, 2, 4));
+        Assert.False(ProjectileInterception.BlocksSight(puzzle.Grid, puzzle, 4, 4));
+        Assert.False(ProjectileInterception.BlocksSight(puzzle.Grid, puzzle, 3, 4));
+        Assert.True(ProjectileInterception.BlocksSight(puzzle.Grid, puzzle, 5, 4));
+        Assert.False(CombatLineOfFire.IsClear(0, 4, 3, 4, (x, y) => ProjectileInterception.BlocksSight(puzzle.Grid, puzzle, x, y)));
+    }
 }
