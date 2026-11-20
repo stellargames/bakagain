@@ -1281,9 +1281,10 @@ namespace BakAgain.Combat {
                     occupiedByLiveCombatant: TileHoldsLiveCombatant,
                     onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, roll));
             } else {
-                AnnounceShove(acting, CombatWalk.Walk(Grid, acting, x, y, acting.Speed, puzzle: Puzzle,
+                CombatWalk.Walk(Grid, acting, x, y, acting.Speed, puzzle: Puzzle,
                     occupiedByLiveCombatant: TileHoldsLiveCombatant,
-                    onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, roll)));
+                    onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, roll),
+                    onShove: shove => AnnounceShove(acting, shove));
             }
 
             // Walk moved the combatant itself; put it back and re-apply through MoveTo so the
@@ -1623,11 +1624,11 @@ namespace BakAgain.Combat {
             } else {
                 CombatWalk.WalkResult? walk = CombatWalk.MeleeApproach(Grid, mover, target.X, target.Y,
                     mover.Speed, puzzle: Puzzle, occupiedByLiveCombatant: TileHoldsLiveCombatant,
-                    onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, hazardRoll));
+                    onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, hazardRoll),
+                    onShove: shove => AnnounceShove(mover, shove));
                 if (walk == null) {
                     return false;
                 }
-                AnnounceShove(mover, walk.Value);
             }
             int endX = mover.X;
             int endY = mover.Y;
@@ -3671,9 +3672,10 @@ namespace BakAgain.Combat {
                 CombatGrid.ChebyshevDistance(caster.X, caster.Y, target.X, target.Y), power);
             int startX = target.X;
             int startY = target.Y;
-            AnnounceShove(target, CombatWalk.Walk(Grid, target, caster.X, caster.Y, steps,
+            CombatWalk.Walk(Grid, target, caster.X, caster.Y, steps,
                 puzzle: Puzzle, occupiedByLiveCombatant: TileHoldsLiveCombatant,
-                onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, roll)));
+                onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, roll),
+                onShove: shove => AnnounceShove(target, shove));
             int endX = target.X;
             int endY = target.Y;
             target.X = startX;
@@ -4238,9 +4240,12 @@ namespace BakAgain.Combat {
         /// the first of whose ten zaps sounds here, as a walker's does; the visual plays the other
         /// nine, then the tile burst's cue and sparks on the cell the diamond landed on, and keeps
         /// the diamond drawn there until the burst ends.</para>
+        ///
+        /// <para>It runs inside the walk, as the push happens: the diamond's run flash and its
+        /// blaster scan come before the scan on the pusher's new cell (CMBTAI.C:133-143, 217-233).</para>
         /// </remarks>
-        private void AnnounceShove(Combatant shover, CombatWalk.WalkResult walk) {
-            if (walk.Shove is { Result: PushResult.CrystalFired } fired) {
+        private void AnnounceShove(Combatant shover, CombatWalk.Shove shove) {
+            if (shove is { Result: PushResult.CrystalFired } fired) {
                 _playSfx?.Invoke(CombatWalk.CrystalGroundSoundId);
                 var cells = new List<(int X, int Y)> { (fired.ToX, fired.ToY) };
                 cells.AddRange(fired.FiredRun);
@@ -4255,7 +4260,7 @@ namespace BakAgain.Combat {
             // crystal landed on, so every cannon that sees it casts Flamecast at a stub that is
             // discarded — no damage, no post switched off. Playing the muzzle cue is the whole of
             // the observable behaviour; see CombatWalk.Shove.CannonsFired.
-            for (var i = 0; i < (walk.Shove?.CannonsFired ?? 0); i++) {
+            for (var i = 0; i < shove.CannonsFired; i++) {
                 _playSfx?.Invoke(CannonLine.MuzzleCue);
             }
         }
@@ -5053,8 +5058,8 @@ namespace BakAgain.Combat {
             int startY = monster.Y;
             CombatWalk.WalkResult walk = CombatWalk.Walk(Grid, monster, destX, destY, monster.Speed,
                 puzzle: Puzzle, occupiedByLiveCombatant: TileHoldsLiveCombatant,
-                onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, pick));
-            AnnounceShove(monster, walk);
+                onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, pick),
+                onShove: shove => AnnounceShove(monster, shove));
 
             // Walk moved the combatant itself; put it back and re-apply through MoveTo so the
             // grid's occupancy follows it — the same two-step the approach walk below uses.
@@ -5160,8 +5165,8 @@ namespace BakAgain.Combat {
             CombatWalk.WalkResult walk = CombatWalk.Walk(Grid, monster, destX, destY,
                 decision.MaxSteps ?? monster.Speed, puzzle: Puzzle,
                 occupiedByLiveCombatant: TileHoldsLiveCombatant,
-                onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, hazardRoll));
-            AnnounceShove(monster, walk);
+                onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, hazardRoll),
+                onShove: shove => AnnounceShove(monster, shove));
 
             // Walk moved the combatant itself; put it back and re-apply through MoveTo so the grid's
             // occupancy follows it.
@@ -5501,9 +5506,10 @@ namespace BakAgain.Combat {
             int steps = monster.Speed > 0 ? monster.Speed : 1;
 
             System.Func<int, int> hazardRoll = rnd ?? (n => UnityEngine.Random.Range(0, n));
-            AnnounceShove(monster, CombatWalk.Walk(Grid, monster, destination.X, destination.Y, steps,
+            CombatWalk.Walk(Grid, monster, destination.X, destination.Y, steps,
                 puzzle: Puzzle, occupiedByLiveCombatant: TileHoldsLiveCombatant,
-                onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, hazardRoll)));
+                onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, hazardRoll),
+                onShove: shove => AnnounceShove(monster, shove));
 
             // Walk moves the combatant directly; put it back and re-apply through MoveTo so the
             // grid's occupancy follows it, exactly as the melee path does.
@@ -5598,9 +5604,10 @@ namespace BakAgain.Combat {
             int startX = monster.X;
             int startY = monster.Y;
             System.Func<int, int> hazardRoll = rnd ?? (n => UnityEngine.Random.Range(0, n));
-            AnnounceShove(monster, CombatWalk.Walk(Grid, monster, bestX, bestY, budget,
+            CombatWalk.Walk(Grid, monster, bestX, bestY, budget,
                 puzzle: Puzzle, occupiedByLiveCombatant: TileHoldsLiveCombatant,
-                onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, hazardRoll)));
+                onHazard: (hurt, hazard) => ApplyWalkHazard(hurt, hazard, hazardRoll),
+                onShove: shove => AnnounceShove(monster, shove));
 
             // Walk moves the combatant directly; put it back and re-apply through MoveTo so the
             // grid's occupancy follows it, exactly as the flee and melee paths do.

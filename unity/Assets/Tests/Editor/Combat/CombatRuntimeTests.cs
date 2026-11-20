@@ -745,6 +745,33 @@ namespace BakAgain.Tests.Editor.Combat {
         }
 
         [Test]
+        public void PushingADiamondOutOfABlastersLineExposesThePusher() {
+            // Trap audit row #5: the push step returns 1 and walk_path still runs the blaster scan on
+            // the pusher's new cell (CMBTAI.C:133-143, 217-233). The diamond at (4,4) shielded that
+            // cell from the blaster at the top of column 4.
+            var cues = new System.Collections.Generic.List<int>();
+            var session = new GameSession();
+            session.SetActorStatsForTest(0, StatBlock(health: 40));
+            session.SetActiveParty(1, new byte[] { 0 });
+            session.SetRosterActorForTest(400, StatBlock(health: 40), gridX: 9, gridY: 9);
+            var runtime = new CombatRuntime(session, null, Entries(((byte)3, (byte)4)), playSfx: cues.Add) {
+                Spells = Flamecast(),
+            };
+            CombatEncounter fight = runtime.EnterRoster(new short[] { 400 },
+                TrapPuzzleBuilder.Build(new[] { (9, 4, 4), (-12, 4, 0) }));
+            Combatant member = fight.Party[0];
+            Assert.AreEqual((3, 4), (member.X, member.Y), "fixture: the member stands west of the diamond");
+            int before = member.Health + member.Stamina;
+
+            Assert.IsTrue(runtime.MoveToTile(member, 4, 4, _ => 0));
+
+            Assert.AreEqual((4, 4), (member.X, member.Y), "the push took the diamond's cell");
+            Assert.AreEqual(CombatTerrain.Pushable, runtime.Puzzle.Grid.TerrainAt(5, 4), "and the diamond moved on");
+            Assert.Less(member.Health + member.Stamina, before, "the blaster shot the pusher");
+            CollectionAssert.IsSubsetOf(new[] { 1, 10 }, cues);
+        }
+
+        [Test]
         public void ACannonIsHeardAtTheMuzzleAndAgainAtTheTileCast() {
             // The two cues cspell_apply_step_tile_spell's caller pair makes: audio_play(1) in
             // combatgrid_actor_step_to_tile, then audio_play(10) in the tile cast itself. The third

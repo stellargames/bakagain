@@ -2,6 +2,7 @@ namespace BetrayalAtKrondor.Tests.Combat;
 
 using GameData.Resources.Combat;
 using System.Collections.Generic;
+using System.Linq;
 using Xunit;
 
 /// <summary>
@@ -244,6 +245,38 @@ public class CombatWalkTests {
         Assert.Equal(PushResult.Moved, result.Shove.Value.Result);
         Assert.Equal((4, 5), (actor.X, actor.Y));
         Assert.Equal(CombatTerrain.Pushable, puzzle.Grid.TerrainAt(5, 5));
+    }
+
+    [Fact]
+    public void APusherSteppingIntoTheDiamondsCellIsShotByABlasterThatSeesIt() {
+        // The push returns through LAB_0408 and walk_path still runs the terrain switch and
+        // combatgrid_step_search on the pusher's new cell (CMBTAI.C:133-143, 217-233). The diamond at
+        // (4,5) shielded that cell from the blaster at the top of column 4; pushing it away exposes
+        // the pusher.
+        TrapPuzzle puzzle = TrapPuzzleBuilder.Build(new[] { (9, 4, 5), (-12, 4, 0) });
+        var actor = new Combatant { PartySlot = 1, X = 3, Y = 5, Speed = 1, Health = 200 };
+        var order = new List<string>();
+
+        CombatWalk.WalkResult result = CombatWalk.Walk(puzzle.Grid, actor, 4, 5, actor.Speed, puzzle: puzzle,
+            onHazard: (_, h) => order.Add(h.Kind.ToString()), onShove: s => order.Add("shove " + s.Result));
+
+        Assert.Equal(PushResult.Moved, result.Shove!.Value.Result);
+        Assert.Contains(result.Hazards, h => h.Kind == CombatWalk.HazardKind.CannonShot && (h.X, h.Y) == (4, 5));
+        Assert.Equal(new[] { "shove Moved", "CannonShot" }, order);   // the diamond's own scan comes first (CMBTAI.C:141)
+    }
+
+    [Fact]
+    public void AFailedPushStillRunsTheBlasterScanOnTheCellThePusherStandsOn() {
+        // A refused push puts the actor back and returns 1 (CMBTAI.C:133-137, LAB_038e), so the walk
+        // goes on and step_search runs on the start cell every remaining step.
+        TrapPuzzle puzzle = TrapPuzzleBuilder.Build(new[] { (9, 4, 5), (9, 5, 5), (-12, 3, 0) });
+        var actor = new Combatant { PartySlot = 1, X = 3, Y = 5, Speed = 2, Health = 200 };
+
+        CombatWalk.WalkResult result = CombatWalk.Walk(puzzle.Grid, actor, 4, 5, actor.Speed, puzzle: puzzle);
+
+        Assert.Equal(PushResult.Blocked, result.Shove!.Value.Result);
+        Assert.Equal((3, 5), (actor.X, actor.Y));
+        Assert.Equal(2, result.Hazards.Count(h => h.Kind == CombatWalk.HazardKind.CannonShot));
     }
 
     [Fact]

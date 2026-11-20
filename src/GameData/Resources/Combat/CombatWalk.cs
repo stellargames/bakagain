@@ -241,7 +241,7 @@ public static class CombatWalk {
         Func<int, int, int>? tileTrapDamage = null,
         Action<Combatant, Hazard>? onHazard = null,
         Func<int, int, bool>? occupiedByLiveCombatant = null,
-        List<(int X, int Y)>? trace = null) {
+        List<(int X, int Y)>? trace = null, Action<Shove>? onShove = null) {
         if (grid == null) {
             throw new ArgumentNullException(nameof(grid));
         }
@@ -280,9 +280,24 @@ public static class CombatWalk {
                 grid, actor.X, actor.Y, destX, destY, adjacentToTarget, probe);
             pathClear = step.Succeeded;
 
+            // *** A PUSH IS A STEP, AND THE WALK GOES ON AFTER IT. *** The original's step returns 1
+            // whether the push moved the diamond (LAB_0408) or was refused and put the actor back
+            // (LAB_038e), and walk_path then runs the terrain switch and the blaster scan on wherever
+            // the pusher stands (CMBTAI.C:133-143, 217-233). So a pusher that steps into the cell the
+            // diamond was shielding is shot, and a refused push is scanned on every remaining step.
+            // The diamond's own scan (CMBTAI.C:141) runs inside the step, so it is announced first.
             if (step.Status == StepStatus.BlockedByPushable) {
-                shove = Shoves(actor, step, puzzle, probe, occupiedByLiveCombatant);
-                break;
+                Shove? pushed = Shoves(actor, step, puzzle, probe, occupiedByLiveCombatant);
+                if (pushed == null) {
+                    break;
+                }
+                if (shove == null) {
+                    shove = pushed;
+                    onShove?.Invoke(pushed.Value);
+                }
+                step = pushed.Value.Result is PushResult.Moved or PushResult.CrystalFired
+                    ? new StepResult(StepStatus.Moved, step.X, step.Y)
+                    : new StepResult(StepStatus.Blocked, actor.X, actor.Y);
             }
 
             actor.X = step.X;
@@ -545,7 +560,7 @@ public static class CombatWalk {
         int targetY, int speed, TrapPuzzle? puzzle = null,
         Action<Combatant, Hazard>? onHazard = null,
         Func<int, int, bool>? occupiedByLiveCombatant = null, bool probe = false,
-        List<(int X, int Y)>? trace = null) {
+        List<(int X, int Y)>? trace = null, Action<Shove>? onShove = null) {
         if (grid == null) {
             throw new ArgumentNullException(nameof(grid));
         }
@@ -577,7 +592,8 @@ public static class CombatWalk {
                 continue;
             }
             return Walk(grid, attacker, x, y, speed + 1, probe: probe, puzzle: puzzle,
-                onHazard: onHazard, occupiedByLiveCombatant: occupiedByLiveCombatant, trace: trace);
+                onHazard: onHazard, occupiedByLiveCombatant: occupiedByLiveCombatant, trace: trace,
+                onShove: onShove);
         }
         return null;
     }
