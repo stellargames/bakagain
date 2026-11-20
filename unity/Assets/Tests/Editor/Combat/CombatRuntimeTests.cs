@@ -803,6 +803,21 @@ namespace BakAgain.Tests.Editor.Combat {
         }
 
         [Test]
+        public void EnteringAFightOnAGridWithAnExitSetsEvent0x27() {
+            // COMBAT.C:1404-1406: gstate_event_write(0x27, 1) when the grid has an exit (trap audit S1).
+            foreach (bool exit in new[] { false, true }) {
+                var session = new GameSession();
+                session.SetActorStatsForTest(0, StatBlock(health: 40));
+                session.SetActiveParty(1, new byte[] { 0 });
+                session.SetRosterActorForTest(400, StatBlock(health: 40), gridX: 5, gridY: 8);
+                var runtime = new CombatRuntime(session, null, Entries(((byte)3, (byte)5)));
+                runtime.EnterRoster(new short[] { 400 },
+                    TrapPuzzleBuilder.Build(exit ? new[] { (-6, 0, 7) } : new[] { (9, 4, 4) }));
+                Assert.AreEqual(exit ? 1 : 0, session.GetGlobalValue(0x27) ?? 0, exit ? "a trap room sets it" : "a grid with no exit does not");
+            }
+        }
+
+        [Test]
         public void ACannonIsHeardAtTheMuzzleAndAgainAtTheTileCast() {
             // The two cues cspell_apply_step_tile_spell's caller pair makes: audio_play(1) in
             // combatgrid_actor_step_to_tile, then audio_play(10) in the tile cast itself. The third

@@ -278,6 +278,9 @@ namespace BakAgain.Combat {
 
         private bool _partyHasTheDrop;
 
+        /// <summary>The event a trap fight sets on entry (<c>gstate_event_write(0x27, 1)</c>).</summary>
+        public const int TrapFightEventId = 0x27;
+
         public CombatEncounter Enter(IReadOnlyList<Combatant> enemies, TrapPuzzle puzzle = null) {
             if (InCombat) {
                 _logger?.LogWarning("CombatRuntime.Enter called while already in combat; ignoring.");
@@ -297,6 +300,11 @@ namespace BakAgain.Combat {
                     : (int?)null,
                 EscapeAllowed = puzzle?.AllowsRetreat ?? true,
             };
+            // COMBAT.C:1404-1406: a grid with an exit writes event 0x27 on entry. No shipped dialog
+            // or routine reads it; it is kept so a save made after a trap fight matches (trap audit S1).
+            if (encounter.HasObjective) {
+                _session?.SetGlobalFlag(TrapFightEventId, true);
+            }
 
             byte[] active = _session?.ActivePartyIndices ?? System.Array.Empty<byte>();
             for (var slot = 0; slot < active.Length && slot < CombatModeEntry.SideSlots; slot++) {
