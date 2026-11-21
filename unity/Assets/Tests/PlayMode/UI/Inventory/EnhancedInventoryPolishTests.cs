@@ -331,6 +331,17 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         }
 
         /// <summary>
+        /// The hover ring steps once per 9 timer ticks, about 38 ms: invui_portrait_refresh_animated
+        /// busy-waits g_nFrameTickCountdown and re-arms it to 9 (INVENTOR.C:152-154). The port stepped
+        /// every 0.11 s, about three times slower (TASK-1129 row 6).
+        /// </summary>
+        [Test]
+        public void TheHoverRingStepsEveryNineTicks() {
+            long ms = (long)typeof(InventoryMenu).GetField("PulseStepMs", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null);
+            Assert.That(ms, Is.InRange(37, 39));
+        }
+
+        /// <summary>
         /// The inspect fly-in takes no input either: the original flies the icon in a blocking loop and
         /// reads nothing until the description is up (INVINSP.C:347-348, input from :402). Exit during
         /// the port's fly-in closed the screen and the description then showed over travel

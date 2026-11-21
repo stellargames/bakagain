@@ -110,7 +110,10 @@ namespace BakAgain.UI.Inventory {
         private const int CircleFrameCount = 5;                        // #7..#11
         private const int ActiveCircleFrame = 7;
         private static readonly int[] HoverCirclePulse = { 8, 9, 10, 11, 10, 9 };
-        private const float HoverCircleFrameSeconds = 0.11f;           // per-frame cadence (autoDecreasingTimer approx)
+        // One pulse step per 9 timer ticks (~38 ms): the ring draw busy-waits g_nFrameTickCountdown
+        // and re-arms it to 9 (INVENTOR.C:152-154) — the same wait as a drop-flight step (TASK-1129 row 6).
+        private static readonly long PulseStepMs =
+            (long)System.Math.Round(GameData.Resources.Inventory.ItemDropFlight.StepSeconds * 1000);
         private Sprite[] _circleSprites;                               // [i] = HEADS.BMX #(7+i)
         private readonly object _hoverCircleOwner = new object();
         private VisualElement _hoverCircle;
@@ -1598,7 +1601,7 @@ namespace BakAgain.UI.Inventory {
             if (_pulseTick == null) {
                 _pulseTick = _stage.schedule
                     .Execute(AdvancePulse)
-                    .Every((long)(HoverCircleFrameSeconds * 1000f));
+                    .Every(PulseStepMs);
             }
         }
 
@@ -1632,7 +1635,7 @@ namespace BakAgain.UI.Inventory {
         }
 
         // Advance the red-circle / container-border pulse. Mirrors the original's frame timer
-        // (autoDecreasingTimer): step the 6-entry pulse (8→9→10→11→10→9) at HoverCircleFrameSeconds.
+        // (autoDecreasingTimer): step the 6-entry pulse (8→9→10→11→10→9) every PulseStepMs.
         private void AdvancePulse() {
             if (_hoverCircle == null && _discardBorder == null && _paperdollBorder == null) {
                 return; // nothing pulsing
