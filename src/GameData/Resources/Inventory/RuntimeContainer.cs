@@ -13,29 +13,11 @@ public sealed class RuntimeContainer {
     public SaveGameContainerType ContainerType;
     public short OwnerActorNumber;
 
-    /// <summary>
-    /// The party has opened this container's lock this session.
-    /// </summary>
-    /// <remarks>
-    /// <b>Runtime only — this does NOT survive a save.</b> Lock state lives on the immutable
-    /// <c>SaveGameContainerData</c> snapshot, and the save writer re-emits only a container's ITEM
-    /// bytes (see <c>ContainerGeometry</c>, which computes the lock subrecord's offset but never
-    /// rewrites it). So a chest picked open reads as locked again after a reload.
-    ///
-    /// <para>Kept here rather than faked on the snapshot because the snapshot is deliberately
-    /// immutable — it is what the writer diffs against — and because a runtime flag states the
-    /// limitation instead of hiding it. Persisting it is writer work, not a flag rename.</para>
-    /// </remarks>
-    public bool Unlocked;
 
     /// <summary>
     /// The party has disarmed this chest's trap this session.
     /// </summary>
     /// <remarks>
-    /// <b>Distinct from <see cref="Unlocked"/> on purpose.</b> A disarmed chest is safe but still
-    /// asks before opening (its own prompt), so folding the two together would skip that line and
-    /// open a box the player never confirmed.
-    ///
     /// <para>Set by <see cref="SpendTrap"/>, which also zeroes the trap damage in <see cref="Params"/>
     /// so the save writer keeps it spent across a reload, as the original does (TASK-1102).</para>
     /// </remarks>

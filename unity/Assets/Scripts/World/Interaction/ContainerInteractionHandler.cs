@@ -177,19 +177,13 @@ namespace BakAgain.World.Interaction {
             RuntimeContainer container = _session.GetLiveContainerAt(zone, bakX, bakY);
 
             if (profile.HasLock) {
-                // Lock state is authored data a runtime bag can never carry, so the chest branch
-                // still reads it off the snapshot record — EXCEPT for a lock the party has already
-                // picked this session, which only the runtime layer knows about. Without that
-                // check a chest opened a moment ago offers its lock again.
+                // *** NO PICK OR SOLVE IS REMEMBERED. *** The original stores nothing on the chest when
+                // its lock is picked (PICKLOCK.C writes only its own screen state) or its riddle solved
+                // (CIPHER.C), so every click takes the lock arm again (WCURSOR.C:603-608). Seen in
+                // the original: a solved wordlock chest, clicked again, describes its wordlock and opens
+                // the riddle with its tumblers reset (TASK-1103 row 4). The port remembered a pick for
+                // the session and opened the loot with the 'box' line (ddx 194/195).
                 SaveGameContainerData snapshot = _session.GetContainerAt(zone, bakX, bakY);
-                if (container?.Unlocked == true) {
-                    await _dialog.ShowById(isPrimary ? DdxOpenPrimary : DdxExamineOpen);
-                    if (isPrimary && _inventoryMenu != null) {
-                        TryOpenLoot(zone, bakX, bakY, entity.EntityType, chestMessage: true);
-                    }
-
-                    return;
-                }
                 ChestDecision d = Decide(profile, snapshot, isPrimary);
                 if (d.DialogId != NoDialog) {
                     await _dialog.ShowById(d.DialogId);
@@ -402,10 +396,8 @@ namespace BakAgain.World.Interaction {
             // inventory loop swaps its actor for the chest and redraws, still inside the same screen
             // (CMBINV.C:289-295). Popping the lock and pushing the loot showed the world for half a
             // second between them.
-            System.Func<bool> openInPlace = container == null ? null : () => {
-                container.Unlocked = true;
-                return PrepareLoot(zone, bakX, bakY, entityType, robberyRoll: false);
-            };
+            System.Func<bool> openInPlace = container == null ? null : () =>
+                PrepareLoot(zone, bakX, bakY, entityType, robberyRoll: false);
             if (!_inventoryMenu.SetLock(difficulty, openInPlace)) {
                 await _dialog.ShowById(PicklockWorkingSet.NothingToTryDialog);
 
@@ -464,7 +456,6 @@ namespace BakAgain.World.Interaction {
             bool endsTheChapter = false;
             try {
                 if (container != null) {
-                    container.Unlocked = true;
                     // *** THE CHAPTER-END CHEST OPENS NO LOOT. *** Its open event is 30017, the
                     // world-loop exit: handle_Container 0x774d1 sets it and 0x774e5 then skips the
                     // inventory, so the message plays and the chapter ends (WCURSOR.C:618-625).

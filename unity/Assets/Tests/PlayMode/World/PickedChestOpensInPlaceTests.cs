@@ -211,7 +211,6 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.AreSame(menu, navigator.Current, "the loot screen is the one still on the stack");
             Assert.AreEqual(SaveGameContainerType.Chest, menu.DisplayedContainer?.ContainerType,
                 "the screen now shows the chest");
-            Assert.IsTrue(session.GetLiveContainerAt(7, ChestX, ChestY).Unlocked, "the chest is unlocked");
 
             await navigator.Pop();
             Assert.IsFalse(_menuGo.activeSelf, "Exit closes the loot as usual");
@@ -221,6 +220,22 @@ namespace BakAgain.Tests.PlayMode.World {
             // :706-707) happens: a picked chest's message is not played.
             for (int i = 0; i < 10; i++) { await UniTask.Yield(); }
             Assert.IsFalse(dialogs.Shown.Contains(ChestMessage), "a picked chest plays no message after its loot");
+
+            // *** AND IT IS LOCKED AGAIN ON THE NEXT CLICK (TASK-1103 row 4). *** Nothing in the
+            // original records a pick (PICKLOCK.C writes only its own screen state), so the click
+            // takes the lock arm again (WCURSOR.C:603-608): the prompt and the lock screen. Seen in
+            // the original on a solved riddle chest, which asks its wordlock again. The port opened
+            // the loot with the 'box' line (ddx 194).
+            var again = new YesDialogs();
+            var handler = new ContainerInteractionHandler(session, again, menu, navigator,
+                puzzles: null, clock: null, explode: null);
+            handler.HandleAsync(_entityGo.GetComponent<WorldEntity>(), isPrimary: true).Forget();
+            deadline = Time.realtimeSinceStartup + 5f;
+            while (!menu.IsLockMode && Time.realtimeSinceStartup < deadline) {
+                await UniTask.Yield();
+            }
+            Assert.IsTrue(menu.IsLockMode, "the second click offers the lock again");
+            Assert.IsFalse(again.Shown.Contains(194), "not the picked-box line");
         });
     }
 }
