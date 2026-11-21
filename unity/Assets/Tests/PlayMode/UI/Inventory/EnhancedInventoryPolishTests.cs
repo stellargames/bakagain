@@ -286,6 +286,25 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             Assert.IsFalse((bool)blocked.GetValue(_menu), "landed: input again");
         }
 
+        /// <summary>
+        /// The inspect fly-in takes no input either: the original flies the icon in a blocking loop and
+        /// reads nothing until the description is up (INVINSP.C:347-348, input from :402). Exit during
+        /// the port's fly-in closed the screen and the description then showed over travel
+        /// (TASK-1129 row 9).
+        /// </summary>
+        [Test]
+        public void NoInputIsTakenWhileTheInspectViewOpens() {
+            PropertyInfo blocked = typeof(InventoryMenu).GetProperty("InputHeldByAFlight", Any);
+            Assert.IsFalse((bool)blocked.GetValue(_menu), "control: nothing opening");
+            Set("_descriptionOpen", true);
+            Set("_inspectOpen", false);
+            Assert.IsTrue((bool)blocked.GetValue(_menu), "resolving or flying in: no input");
+            Set("_inspectOpen", true);
+            Assert.IsFalse((bool)blocked.GetValue(_menu), "the description is up: its click is read again");
+            Set("_descriptionOpen", false);
+            Set("_inspectOpen", false);
+        }
+
         /// <summary>TASK-944 (owner): the loot shows its item count against the container's capacity,
         /// which binds long before its 28 squares (a body holds 2-8 items).</summary>
         [Test]

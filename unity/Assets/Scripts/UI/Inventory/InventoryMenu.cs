@@ -1652,7 +1652,12 @@ namespace BakAgain.UI.Inventory {
         /// An item is flying to a portrait or a window. The original flies it in a blocking loop
         /// (INVENTOR.C:565-604), so no click is read until it lands (TASK-1097 row 18).
         /// </summary>
-        internal bool InputHeldByAFlight => _stage?.Q("drop_flight") != null;
+        internal bool InputHeldByAFlight => _stage?.Q("drop_flight") != null
+            // ...and while the inspect view resolves and its icon flies in: the original flies it in a
+            // blocking loop and reads nothing until the description is up (INVINSP.C:347-348, input
+            // from :402). Exit there closed the screen and the description showed over travel
+            // (TASK-1129 row 9).
+            || (_descriptionOpen && !_inspectOpen);
 
         internal void OnPrimaryPressed(Vector2 stageLocal, int clickCount) {
             if (_stage == null || _pickerOpen || InputHeldByAFlight) {
@@ -1888,6 +1893,9 @@ namespace BakAgain.UI.Inventory {
                 // The original flies the icon across BEFORE showing the description (@0x5A7D8, then
                 // the ddx at @0x5A9BC), so this is awaited rather than left running underneath.
                 await _inspect.WaitForIconFlightAsync();
+                if (this == null || !isActiveAndEnabled) {
+                    return;   // the screen went while the icon flew: nothing to describe it over
+                }
 
                 // DisplayEntry, not ShowEntry: the original's dialog_play_record DRAWS the
                 // description and returns — it does not wait for dismissal. What follows it is
