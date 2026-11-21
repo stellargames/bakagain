@@ -5079,7 +5079,7 @@ using GameData.Resources.Scene;
                     // measured 2026-09-26), where the unpaced advance settled it in a third of a
                     // second with nothing on screen.
                     Combatant acting = await Combat.AdvanceToPartyTurnAsync(
-                        monster => RunEnemyTurnPacedAsync(monster, ai));
+                        monster => RunEnemyTurnPacedAsync(monster, ai), drawOutgoingTurn: RedrawArena);
                     if (acting == null || _autoResolveBail) {
                         break;
                     }
@@ -5425,7 +5425,8 @@ using GameData.Resources.Scene;
         /// <summary>The same advance, with each monster's turn drawn and given time to be seen.</summary>
         private Cysharp.Threading.Tasks.UniTask<Combatant> AdvanceToPartyTurnPacedAsync() {
             BakAgain.Combat.MonsterTurnResolver ai = EnemyAi();
-            return Combat.AdvanceToPartyTurnAsync(monster => RunEnemyTurnPacedAsync(monster, ai));
+            return Combat.AdvanceToPartyTurnAsync(monster => RunEnemyTurnPacedAsync(monster, ai),
+                drawOutgoingTurn: RedrawArena);
         }
 
         /// <summary>

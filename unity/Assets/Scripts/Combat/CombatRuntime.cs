@@ -6085,7 +6085,8 @@ namespace BakAgain.Combat {
         /// copy of the turn order, the round boundary, the poison tick and the speed re-read.</para>
         /// </remarks>
         public async UniTask<Combatant> AdvanceToPartyTurnAsync(
-            System.Func<Combatant, UniTask> resolveEnemyTurn = null, int maxTurns = 256) {
+            System.Func<Combatant, UniTask> resolveEnemyTurn = null, int maxTurns = 256,
+            System.Action drawOutgoingTurn = null) {
             if (!InCombat) {
                 return null;
             }
@@ -6097,6 +6098,9 @@ namespace BakAgain.Combat {
             if (outgoing != null && outgoing.IsPartyMember
                 && (outgoing.Flags & CombatantFlags.Ready) == 0) {
                 Encounter.FaceTarget(outgoing);
+                // ...and the arena is drawn before anyone else goes (combat_arena_redraw_hud_bufs,
+                // :1438), so the turn is its own beat rather than part of the next actor's move.
+                drawOutgoingTurn?.Invoke();
             }
 
             for (var guard = 0; guard < maxTurns; guard++) {

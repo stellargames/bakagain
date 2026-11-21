@@ -1264,6 +1264,29 @@ namespace BakAgain.Tests.Editor.Combat {
         }
 
         /// <summary>A party member and one monster, both with real stat blocks.</summary>
+        /// <summary>
+        /// combat_arena_advance_turn (COMBAT.C:1434-1439): the party member who just acted turns to
+        /// their target, then the arena is drawn, and only then does the next actor go. The port
+        /// turned them in the model and drew it with the first monster's move (TASK-1100 D10).
+        /// </summary>
+        [Test]
+        public void TheOutgoingMembersTurnIsDrawnBeforeTheNextActorGoes() {
+            (CombatRuntime runtime, Combatant member, Combatant monster) = MeleeFight();
+            Assert.AreSame(member, runtime.AdvanceToPartyTurn(), "control: the member's turn");
+            member.Flags &= ~CombatantFlags.Ready;
+            member.FacingOctant = (ArenaFacing.OctantToward(monster.X - member.X, monster.Y - member.Y) + 4) % 8;
+            var events = new List<string>();
+
+            runtime.AdvanceToPartyTurnAsync(
+                resolveEnemyTurn: m => { events.Add("enemy"); return Cysharp.Threading.Tasks.UniTask.CompletedTask; },
+                drawOutgoingTurn: () => events.Add("draw facing "
+                    + (member.FacingOctant == ArenaFacing.OctantToward(monster.X - member.X, monster.Y - member.Y))))
+                .GetAwaiter().GetResult();
+
+            Assert.AreEqual("draw facing True", events[0]);
+            CollectionAssert.Contains(events, "enemy");
+        }
+
         private static (CombatRuntime Runtime, Combatant Member, Combatant Monster) MeleeFight(
             byte memberHealth = 40, byte monsterHealth = 40) {
             var session = new GameSession();
