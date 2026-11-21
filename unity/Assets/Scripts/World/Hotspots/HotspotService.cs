@@ -6767,6 +6767,15 @@ using GameData.Resources.Scene;
                     return;
                 }
                 if (next == null) {
+                    // *** A DEATH THE ARENA HAS NOT DRAWN FALLS BEFORE THE LINE. *** A poison tick in
+                    // the advance can make the last kill after the turn's redraw; the original plays
+                    // that fall, blocking, before the defeat test (COMBAT.C:205-210 -> 226). TASK-1125 #4.
+                    if (Combat?.Encounter is { } over
+                        && System.Linq.Enumerable.Any(over.AllCombatants(), c => c.IsDead && !c.DeathShown)) {
+                        RedrawArena();
+                        await Cysharp.Threading.Tasks.UniTask.Yield();
+                        await Cysharp.Threading.Tasks.UniTask.WaitWhile(() => _arenaBusy?.Invoke() ?? false);
+                    }
                     if (!EndCombat()) {
                         CloseCombatMenus();
                     }

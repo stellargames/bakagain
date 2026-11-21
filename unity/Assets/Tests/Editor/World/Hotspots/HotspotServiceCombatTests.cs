@@ -1293,6 +1293,39 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
         /// (TASK-1124 #10, measured: pose 336-470 ms of ~865). The original renders once per loop
         /// pass (COMBAT.C:2524-2560).
         /// </summary>
+        /// <summary>
+        /// A death the arena has not drawn yet is drawn before the fight's outcome line. A poison tick
+        /// in the advance can make the last kill after the turn's redraw (COMBAT.C:205-210 -> 226, the
+        /// blocking fall); the port ended the fight over a combatant still standing (TASK-1125 #4).
+        /// </summary>
+        [UnityEngine.TestTools.UnityTest]
+        public System.Collections.IEnumerator AnUndrawnDeathIsDrawnBeforeTheFightEnds() {
+            var menuObject = new UnityEngine.GameObject("CombatMenuUnderTest");
+            try {
+                BakAgain.UI.Combat.CombatMenu menu = menuObject.AddComponent<BakAgain.UI.Combat.CombatMenu>();
+                var events = new List<string>();
+                Rig rig = Build(combatMenu: () => menu, redrawArena: () => events.Add("redraw"));
+                Assert.IsTrue(rig.Service.StartCombat(CombTrigger()));
+                CombatEncounter fight = rig.Service.Combat.Encounter;
+                foreach (Combatant enemy in fight.Enemies) {
+                    fight.Kill(enemy);   // as a poison tick in the advance does, after the last redraw
+                }
+                events.Clear();
+
+                typeof(HotspotService).GetMethod("SettleTurnAsync",
+                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                    .Invoke(rig.Service, new object[] { false });
+                for (int i = 0; i < 30 && rig.Service.Combat.InCombat; i++) {
+                    yield return null;
+                }
+
+                Assert.IsFalse(rig.Service.Combat.InCombat, "the control: the fight ended");
+                CollectionAssert.AreEqual(new[] { "redraw" }, events, "the body was drawn first");
+            } finally {
+                UnityEngine.Object.DestroyImmediate(menuObject);
+            }
+        }
+
         [Test]
         public void ACastOnATargetRedrawsTheArenaOnce() {
             int redraws = 0;
