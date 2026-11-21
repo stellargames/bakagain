@@ -9,7 +9,9 @@ using System.Collections.Generic;
 using System.IO;
 
 public abstract class ExtractorBase<T> where T : IResource {
-    internal const bool Debug = true;
+    /// <summary>The field-by-field read trace, written to the console. Opt-in (BAK_EXTRACT_TRACE=1):
+    /// Unity sends the console into Player.log, which it grew to 7 MB in a few days (TASK-1127).</summary>
+    internal static readonly bool Debug = Environment.GetEnvironmentVariable("BAK_EXTRACT_TRACE") == "1";
     protected static string Indent = string.Empty;
 
     protected static void Log(string message) {

@@ -200,7 +200,7 @@ namespace BakAgain.Audio {
                 // Reset/apply the per-sound loop flag (pool players are reused, so set it every time).
                 availablePlayer.Play(loop: audioResource.IsLooping);
                 _activeSfxPlayers[audioResource.Id] = availablePlayer;
-                _logger.LogInformation("Playing SFX: {SfxName} (ID: {SfxId}) on {PlayerName}", audioResource.Name, audioResource.Id, availablePlayer.name);
+                _logger.LogDebug("Playing SFX: {SfxName} (ID: {SfxId}) on {PlayerName}", audioResource.Name, audioResource.Id, availablePlayer.name);
             } else {
                 _logger.LogWarning("No available SFX MIDI player for {SfxName} (ID: {SfxId}). Pool size {PoolSize} might be too small.", audioResource.Name, audioResource.Id, _sfxPlayers.Count);
             }
