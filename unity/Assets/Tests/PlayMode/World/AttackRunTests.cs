@@ -78,6 +78,22 @@ namespace BakAgain.Tests.PlayMode.World {
         public void ARunPastFourFacingsIsMirrored(int slot, int octant, bool flipped) =>
             Assert.AreEqual(flipped, AttackSwing.FlipsFor(slot, octant));
 
+        /// <summary>
+        /// Each slot draws from one of the creature's three bitmaps: 0-1 the first, 3-6 the second,
+        /// 7-9 the third (combat_actor_rsrc_load_3values, CACTOR.C:577-596). The port drew every run
+        /// from the second, so Owyn's wind-up showed OWN2's pictures, not OWN3's raised staff
+        /// (TASK-1107 D3, compared with the original).
+        /// </summary>
+        [TestCase(0, 0)]
+        [TestCase(3, 1)]
+        [TestCase(4, 1)]
+        [TestCase(6, 1)]
+        [TestCase(7, 2)]
+        [TestCase(8, 2)]
+        [TestCase(9, 2)]
+        public void EachSlotDrawsFromItsOwnBitmap(int slot, int bitmap) =>
+            Assert.AreEqual(bitmap, GameData.Resources.Combat.CombatAnimSlot.BitmapOf(slot));
+
         private static GameData.Resources.World.MeshRecord Mesh(byte slot, int first, int count) {
             var m = new GameData.Resources.World.MeshRecord { RuntimeFlagsIndex = slot };
             for (int i = 0; i < count; i++) {

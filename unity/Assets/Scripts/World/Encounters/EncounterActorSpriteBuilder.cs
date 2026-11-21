@@ -488,13 +488,17 @@ namespace BakAgain.World.Encounters {
         /// <para>Null when a creature has no second key, which leaves the swing unplayed rather than
         /// drawing the wrong art.</para>
         /// </remarks>
-        public string AttackSetFor(int creatureNumber) {
+        public string AttackSetFor(int creatureNumber,
+            int slot = GameData.Resources.Combat.CombatAnimSlot.Swing) {
             if (_bitmaps?.Creatures == null) {
                 return null;
             }
+            // The slot picks the bitmap: 3-6 the second, 7-9 (the wind-up, the cast swing) the third
+            // (CombatAnimSlot.BitmapOf; CACTOR.C:577-596).
+            int bitmap = GameData.Resources.Combat.CombatAnimSlot.BitmapOf(slot);
             foreach (CreatureSprite c in _bitmaps.Creatures) {
-                if (c.CreatureId == creatureNumber && c.SpriteKeys.Count > 1) {
-                    return c.SpriteKeys[1];
+                if (c.CreatureId == creatureNumber && c.SpriteKeys.Count > bitmap) {
+                    return c.SpriteKeys[bitmap];
                 }
             }
             return null;

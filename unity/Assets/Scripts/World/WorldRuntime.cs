@@ -679,7 +679,7 @@ namespace BakAgain.World {
                 return;
             }
             int creature = _hotspots.CreatureNumberOf(caster);
-            string set = _encounterSprites.AttackSetFor(creature);
+            string set = _encounterSprites.AttackSetFor(creature, GameData.Resources.Combat.CombatAnimSlot.Windup);
             IReadOnlyList<GameData.Resources.World.MeshRecord> meshes = _encounterSprites.AttackMeshesFor(creature);
             if (set == null || meshes == null) {
                 return;
@@ -1718,7 +1718,7 @@ namespace BakAgain.World {
                 IReadOnlyList<GameData.Resources.World.MeshRecord> attackMeshes = null;
                 foreach (GameData.Resources.World.EncounterActorPlacement.Placed p in placed) {
                     if (p.RosterSlot == marker.RosterSlot && p.PartyMember == marker.PartyMember) {
-                        attackSet = _encounterSprites.AttackSetFor(p.CreatureNumber);
+                        attackSet = _encounterSprites.AttackSetFor(p.CreatureNumber, swinging.PendingAttackSlot);
                         attackMeshes = _encounterSprites.AttackMeshesFor(p.CreatureNumber);
                         break;
                     }

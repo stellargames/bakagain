@@ -17,4 +17,11 @@ public static class CombatAnimSlot {
 
     /// <summary>A cast's swing — combat_actor_play_melee_swing, CACTOR.C:1973-1977.</summary>
     public const int CastSwing = 9;
+
+    /// <summary>
+    /// Which of the creature's three bitmaps a slot draws from (COMBAT.TBL's SpriteKeys index):
+    /// slots 0-1 the first, 3-6 the second, 7-9 the third (combat_actor_rsrc_load_3values,
+    /// CACTOR.C:577-596).
+    /// </summary>
+    public static int BitmapOf(int slot) => slot >= 7 ? 2 : slot >= 3 ? 1 : 0;
 }
