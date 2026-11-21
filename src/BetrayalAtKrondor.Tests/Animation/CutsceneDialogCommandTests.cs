@@ -25,11 +25,10 @@ public class CutsceneDialogCommandTests {
 
     [Fact]
     public void MINUSONEIsADrawCommand_NotDialog1599999() {
-        // It blits from image slot 2 and is deliberately unimplemented. Falling through to the
-        // display arm would ask for a dialog id below the base — a lookup that cannot succeed and
-        // would log a missing-entry warning on every frame that carries one.
-        Assert.Equal(CutsceneDialogCommand.Kind.None, CutsceneDialogCommand.KindOf(-1, 0));
-        Assert.Equal(CutsceneDialogCommand.Kind.None, CutsceneDialogCommand.KindOf(-1, 255));
+        // It blits image slot 1 in every mode (TTMDLG.C:28-33). Falling through to the display arm
+        // would ask for a dialog id below the base, a lookup that cannot succeed.
+        Assert.Equal(CutsceneDialogCommand.Kind.DrawActor, CutsceneDialogCommand.KindOf(-1, 0));
+        Assert.Equal(CutsceneDialogCommand.Kind.DrawActor, CutsceneDialogCommand.KindOf(-1, 255));
     }
 
     [Fact]
@@ -166,5 +165,19 @@ public class CutsceneDialogCommandTests {
         };
         Assert.Equal((GameData.Resources.Dialog.DialogEntryFlags)0,
             CutsceneDialogCommand.WaitingEntry(0, record).Flags);
+    }
+
+    [Fact]
+    public void MinusOneDrawsTheActorInSlotOne() {
+        // ttmscript_show_dialog_action(-1, _) blits image slot 1 (TTMDLG.C:22-33): the person a
+        // location's scene loads, Katala in the palace (TASK-1126). It was treated as nothing.
+        Assert.Equal(CutsceneDialogCommand.Kind.DrawActor, CutsceneDialogCommand.KindOf(-1, 6));
+    }
+
+    [Fact]
+    public void TheActorStandsCentredOnTheFloorLine() {
+        // 0xa0 - width/2, 0x70 - height in 320x200; x5 and x6 in canonical 1600x1200. Katala's
+        // 400x588 lands at (600, 84), over the palace hotspot at (615, 90).
+        Assert.Equal((600, 84), CutsceneDialogCommand.ActorOrigin(400, 588));
     }
 }

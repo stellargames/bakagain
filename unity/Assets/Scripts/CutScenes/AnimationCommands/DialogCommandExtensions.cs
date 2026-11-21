@@ -43,13 +43,28 @@ namespace BakAgain.CutScenes.AnimationCommands {
                             Book = GameData.Resources.Animation.CutsceneDialogCommand.BookFor(args.Dialog16Id),
                         });
                         break;
+                    case GameData.Resources.Animation.CutsceneDialogCommand.Kind.DrawActor:
+                        HandleDrawActor(cutsceneState);
+                        break;
                     default:
-                        // Kind.None — including Dialog16Id -1, which draws from image slot 2 and is
-                        // deliberately unimplemented rather than falling through to a dialog lookup.
                         break;
                 }
                 return AwaitableUtility.Completed;
             };
+        }
+
+        // *** THE PERSON IN A LOCATION IS DRAWN BY THIS COMMAND. *** ttmscript_show_dialog_action(-1, _)
+        // blits image slot 1, centred, standing on the floor line (TTMDLG.C:28-33). The palace's
+        // g_misc 'Display' tag ends on it, so Katala was loaded and never drawn (TASK-1126).
+        private static void HandleDrawActor(CutsceneState cutsceneState) {
+            IndexedTexture actor = cutsceneState.GetImage(
+                GameData.Resources.Animation.CutsceneDialogCommand.ActorImageSlot, 0);
+            if (actor == null) {
+                return;
+            }
+            (int x, int y) = GameData.Resources.Animation.CutsceneDialogCommand.ActorOrigin(
+                Mathf.RoundToInt(actor.CanonicalWidth), Mathf.RoundToInt(actor.CanonicalHeight));
+            Drawing.DrawImage(actor, x, y, Orientation.Normal, Vector2.one, cutsceneState);
         }
 
         private static void HandleDialogClear(CutsceneState cutsceneState) {

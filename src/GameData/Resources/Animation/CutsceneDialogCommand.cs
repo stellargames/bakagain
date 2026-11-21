@@ -32,7 +32,22 @@ public static class CutsceneDialogCommand {
 
         /// <summary>Open a chapter book — see <see cref="BookFor"/>.</summary>
         OpenBook,
+
+        /// <summary>Draw the image in slot 1, the person a location's scene loads, standing centred on
+        /// the floor line — see <see cref="ActorOrigin"/> (TTMDLG.C:28-33).</summary>
+        DrawActor,
     }
+
+    /// <summary>The image slot <see cref="Kind.DrawActor"/> draws from (<c>pAhPagedImage[1]</c>).</summary>
+    public const int ActorImageSlot = 1;
+
+    /// <summary>
+    /// Where <see cref="Kind.DrawActor"/> puts an image of <paramref name="width"/> x
+    /// <paramref name="height"/> canonical pixels: <c>0xa0 - w/2</c>, <c>0x70 - h</c> in 320x200
+    /// (TTMDLG.C:30-31), scaled x5 / x6.
+    /// </summary>
+    public static (int X, int Y) ActorOrigin(int width, int height) =>
+        (0xa0 * 5 - width / 2, 0x70 * 6 - height);
 
     /// <summary>Added to <c>Dialog16Id</c> to reach the global DDX dialog-id catalog.</summary>
     public const int DialogIdBase = 1600000;
@@ -70,7 +85,7 @@ public static class CutsceneDialogCommand {
             return Kind.Clear;
         }
         if (dialog16Id == -1) {
-            return Kind.None;
+            return Kind.DrawActor;
         }
         if (dialog16Id == 0 && arg2 >= 0 && arg2 <= MaxBookStep) {
             return Kind.BookAnimation;
