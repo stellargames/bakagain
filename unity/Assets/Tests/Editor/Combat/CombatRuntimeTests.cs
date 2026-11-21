@@ -851,6 +851,35 @@ namespace BakAgain.Tests.Editor.Combat {
         }
 
         /// <summary>
+        /// A cast is drawn: the kind switch plays the caster's wind-up (ranged kinds, anim slot 8)
+        /// or swing (slot 9) toward the target, on a miss too, and a negated cast plays none
+        /// (CSPELL.C:1303-1322). The port played no casting pose (TASK-1107 D3).
+        /// </summary>
+        [TestCase(2, 8, TestName = "ACastArmsTheCastersWindupTowardItsTarget")]
+        [TestCase(-2, 0, TestName = "ANegatedCastArmsNoPose")]
+        public void ACastArmsTheCastersPose(int power, int slot) {
+            var session = new GameSession();
+            session.SetActorStatsForTest(0, StatBlock(health: 40));
+            session.SetActiveParty(1, new byte[] { 0 });
+            session.SetRosterActorForTest(400, StatBlock(health: 40), gridX: 5, gridY: 5);
+            var runtime = new CombatRuntime(session, null, Entries(((byte)3, (byte)4))) {
+                Spells = Flamecast(),
+            };
+            CombatEncounter fight = runtime.EnterRoster(new short[] { 400 });
+            Combatant caster = fight.Party[0];
+
+            runtime.ResolveCast(caster, fight.Enemies[0], Flamecast().Spells[CannonLine.SpellId],
+                CannonLine.SpellId, power, _ => 99);
+
+            Assert.AreEqual(slot != 0, caster.SwingPending, "a pose to draw");
+            if (slot != 0) {
+                Assert.AreEqual(slot, caster.PendingAttackSlot);
+                Assert.AreEqual(ArenaFacing.OctantToward(5 - caster.X, 5 - caster.Y), caster.FacingOctant,
+                    "turned toward the target");
+            }
+        }
+
+        /// <summary>
         /// The kind switch's cue (0x12 for a ranged kind) comes first, before the projectile's
         /// launch, and a miss plays it too: CSPELL.C:1303-1317 runs on <c>isNeg == 0</c> alone and
         /// sits above the flight (TASK-1107 D2 order, D4).

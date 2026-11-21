@@ -157,9 +157,9 @@ public sealed class Combatant {
     /// </remarks>
     public bool SwingPending { get; set; }
 
-    /// <summary>Whether the pending attack is a thrust (anim slot 4, two frames) rather than a swing
-    /// (slot 3, four) — CACTOR.C:1947-1955, TASK-1095.</summary>
-    public bool PendingThrust { get; set; }
+    /// <summary>The anim slot the pending run plays: 3 the swing (four frames), 4 the thrust (two),
+    /// 8 a cast's wind-up, 9 a cast's swing — CACTOR.C:1947-1977 (TASK-1095, TASK-1107 D3).</summary>
+    public int PendingAttackSlot { get; set; } = CombatAnimSlot.Swing;
 
     /// <summary>The swing's sound, held until the arena has drawn the swing; null for none.</summary>
     /// <remarks>The original sounds it after the blocking swing animation (COMBAT.C:487-525), so it

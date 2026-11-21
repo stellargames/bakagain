@@ -55,7 +55,37 @@ namespace BakAgain.World.Encounters {
             thrust ? (RunStartFor(octant) / 2, ThrustFrames) : (RunStartFor(octant), Frames);
 
         /// <summary>Anim slot of the swing and of the thrust (combat_actor_play_anim_sprite3/4).</summary>
-        public const int SwingSlot = 3, ThrustSlot = 4;
+        public const int SwingSlot = GameData.Resources.Combat.CombatAnimSlot.Swing,
+            ThrustSlot = GameData.Resources.Combat.CombatAnimSlot.Thrust;
+
+        /// <summary>
+        /// The run of a slot: its first frame and length, by <c>combat_actor_anim_play</c>'s frame base
+        /// (CACTOR.C:1856-1883) with each slot's frames-per-facing and direction mode
+        /// (CACTOR.C:1947-1977). Mode 3 forces the facing even; above 4 it mirrors to 8 - facing.
+        /// </summary>
+        public static (int Start, int Frames) RunFor(int slot, int octant) {
+            (int perFacing, int mode) = slot switch {
+                GameData.Resources.Combat.CombatAnimSlot.Swing => (4, 3),
+                GameData.Resources.Combat.CombatAnimSlot.Thrust => (2, 3),
+                GameData.Resources.Combat.CombatAnimSlot.Windup => (2, 5),
+                GameData.Resources.Combat.CombatAnimSlot.CastSwing => (2, 3),
+                _ => (0, 0),
+            };
+            if (perFacing == 0) {
+                return (0, 0);
+            }
+            int facing = System.Math.Max(0, octant);
+            if (mode == 3) {
+                facing -= facing % 2;
+            }
+            if (facing > 4) {
+                facing = 8 - facing;
+            }
+            int start = perFacing > 1
+                ? (mode == 3 ? facing * (perFacing >> 1) : facing * perFacing)
+                : facing >> 1;
+            return (start, perFacing);
+        }
 
         /// <summary>
         /// The run's pictures: faces of the mesh COMBAT.TBL gives the anim slot
@@ -64,9 +94,13 @@ namespace BakAgain.World.Encounters {
         /// starts at picture 12, after the swing's twelve (TASK-1095).
         /// </summary>
         public static System.Collections.Generic.IReadOnlyList<SpriteBMeshFace> RunFaces(
-            System.Collections.Generic.IReadOnlyList<MeshRecord> meshes, int octant, bool thrust) {
+            System.Collections.Generic.IReadOnlyList<MeshRecord> meshes, int octant, bool thrust) =>
+            RunFaces(meshes, octant, thrust ? ThrustSlot : SwingSlot);
+
+        /// <summary>The faces of <paramref name="slot"/>'s mesh that its run shows.</summary>
+        public static System.Collections.Generic.IReadOnlyList<SpriteBMeshFace> RunFaces(
+            System.Collections.Generic.IReadOnlyList<MeshRecord> meshes, int octant, int slot) {
             var run = new System.Collections.Generic.List<SpriteBMeshFace>();
-            int slot = thrust ? ThrustSlot : SwingSlot;
             MeshRecord mesh = null;
             for (int i = 0; meshes != null && i < meshes.Count; i++) {
                 if (meshes[i]?.RuntimeFlagsIndex == slot) {
@@ -77,7 +111,7 @@ namespace BakAgain.World.Encounters {
             if (mesh?.MeshFaces == null) {
                 return run;
             }
-            (int start, int frames) = RunFor(octant, thrust);
+            (int start, int frames) = RunFor(slot, octant);
             for (int i = start; i < start + frames && i < mesh.MeshFaces.Count; i++) {
                 if (mesh.MeshFaces[i] is SpriteBMeshFace f) {
                     run.Add(f);
@@ -101,8 +135,8 @@ namespace BakAgain.World.Encounters {
         /// <c>combat_actor_anim_play(..., wait 1, ...)</c>, CACTOR.C:1828-1898).</summary>
         public UniTask Play(WorldEntityRenderContext ctx,
             System.Collections.Generic.IReadOnlyList<MeshRecord> meshes, string setName,
-            int octant, int extent, bool thrust = false) {
-            System.Collections.Generic.IReadOnlyList<SpriteBMeshFace> run = RunFaces(meshes, octant, thrust);
+            int octant, int extent, int slot = GameData.Resources.Combat.CombatAnimSlot.Swing) {
+            System.Collections.Generic.IReadOnlyList<SpriteBMeshFace> run = RunFaces(meshes, octant, slot);
             if (ctx == null || run.Count == 0 || string.IsNullOrEmpty(setName)) {
                 return UniTask.CompletedTask;
             }

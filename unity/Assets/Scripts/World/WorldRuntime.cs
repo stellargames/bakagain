@@ -787,6 +787,23 @@ namespace BakAgain.World {
             }
         }
 
+        /// <summary>The pose each marker started on the last redraw (swing, thrust, a cast's wind-up).</summary>
+        private readonly Dictionary<Encounters.ArenaCombatant, UniTask> _posing = new();
+
+        /// <summary>Fly a shot once its shooter's pose has played (TASK-1107 D3); busy throughout.</summary>
+        private async UniTaskVoid FlyAfterPoseAsync(Encounters.ArenaCombatant shooter, int effectId,
+            Vector3 from, Vector3 to, int arcSteps, int arcDelta, (int Slot, bool Party) landingOn) {
+            _arenaWork++;
+            try {
+                if (_posing.TryGetValue(shooter, out UniTask pose)) {
+                    await pose;
+                }
+            } finally {
+                _arenaWork--;
+            }
+            FlyEffectAsync(effectId, from, to, arcSteps, arcDelta, landingOn: landingOn).Forget();
+        }
+
         /// <summary>Build one effect sprite and fly it between two arena positions.</summary>
         /// <remarks>
         /// Fire-and-forget for the same reason the collapse and the swing are: the arena has already
@@ -1614,6 +1631,7 @@ namespace BakAgain.World {
             // and the arena catches up on the next redraw, so the flag is what carries the event
             // across. Slot 3 is bitmap 1 — SpriteKeys[1] — which nothing else loads, so the swing
             // is the only reason that set is fetched at all.
+            _posing.Clear();
             foreach (Encounters.ArenaCombatant marker in
                      _arenaRoot.GetComponentsInChildren<Encounters.ArenaCombatant>()) {
                 GameData.Resources.Combat.Combatant swinging =
@@ -1635,9 +1653,9 @@ namespace BakAgain.World {
                 if (sprite == null || attackSet == null || attackMeshes == null) {
                     continue;
                 }
-                marker.gameObject.AddComponent<Encounters.AttackSwing>().Play(
+                _posing[marker] = marker.gameObject.AddComponent<Encounters.AttackSwing>().Play(
                     _zoneSceneBuilder.RenderContext, attackMeshes, attackSet,
-                    sprite.CurrentOctant, marker.Extent, swinging.PendingThrust).Forget();
+                    sprite.CurrentOctant, marker.Extent, swinging.PendingAttackSlot).Preserve();
             }
 
             // *** A SHOT ARMED BY THE MODEL FLIES HERE. *** Same carry-across as the swing above:
@@ -1689,8 +1707,10 @@ namespace BakAgain.World {
                 // after the flight (TASK-1008).
                 var landingOn = (shooter.FlightToSlot, shooter.FlightToParty);
                 _landing.Add(landingOn);
-                FlyEffectAsync(effect, marker.transform.localPosition, to.localPosition,
-                    arcSteps, arcDelta, landingOn: landingOn).Forget();
+                // The shot leaves once the caster's pose has played: the original's wind-up blocks
+                // before world_rndr_ranged_attack_anim (CSPELL.C:1316, CBTAIACT.C:117; TASK-1107 D3).
+                FlyAfterPoseAsync(marker, effect, marker.transform.localPosition, to.localPosition,
+                    arcSteps, arcDelta, landingOn).Forget();
             }
             // A blaster's shot has no combatant to fly from: the model queued it by cell (trap
             // audit #7). Flown at the original's speed, like a miss leaving the board above.

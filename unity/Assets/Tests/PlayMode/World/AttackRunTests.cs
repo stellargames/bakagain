@@ -25,6 +25,22 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.AreEqual((start, frames), AttackSwing.RunFor(octant, thrust: true));
 
         /// <summary>
+        /// A cast's pose is anim slot 8 (ranged kinds: two frames from twice the facing, mode 5, so an
+        /// odd octant keeps its own run) or slot 9 (the rest: two frames from the even facing, mode 3):
+        /// combat_actor_play_ranged_windup / play_melee_swing, CACTOR.C:1967-1977, frame base
+        /// :1856-1883 (TASK-1107 D3).
+        /// </summary>
+        [TestCase(8, 3, 6, 2)]
+        [TestCase(8, 6, 4, 2)]
+        [TestCase(8, 0, 0, 2)]
+        [TestCase(9, 3, 2, 2)]
+        [TestCase(9, 4, 4, 2)]
+        [TestCase(3, 2, 4, 4)]
+        [TestCase(4, 3, 2, 2)]
+        public void EachSlotRunsFromTheOriginalsFrameBase(int slot, int octant, int start, int frames) =>
+            Assert.AreEqual((start, frames), AttackSwing.RunFor(slot, octant));
+
+        /// <summary>
         /// The frame is a face of the slot's own mesh, not a bitmap index: COMBAT.TBL gives each anim
         /// slot a mesh (RuntimeFlagsIndex = the slot) whose faces name the pictures, and the thrust's
         /// mesh starts at picture 12, after the swing's twelve (CACTOR.C:828/873). Seen in the

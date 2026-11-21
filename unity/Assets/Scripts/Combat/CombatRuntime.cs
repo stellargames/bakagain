@@ -2486,7 +2486,8 @@ namespace BakAgain.Combat {
             // before it knows whether the blow lands — a miss still swings. The renderer picks this
             // up on the next redraw, which is the gap the flag exists to cross.
             attacker.SwingPending = true;
-            attacker.PendingThrust = attack == CombatActionDispatch.MeleeAttack.Thrust;
+            attacker.PendingAttackSlot = attack == CombatActionDispatch.MeleeAttack.Thrust
+                ? CombatAnimSlot.Thrust : CombatAnimSlot.Swing;
             if (result.Hit) {
                 MarkHit(defender, result.Landed, result.Dealt);
                 PoisonOnHitFrom(defender, swingMask, result.Damage, rnd);
@@ -2986,6 +2987,15 @@ namespace BakAgain.Combat {
             if (SpellCastSound.ForCombatCast(spell.TargetingType, costWasNegated)
                 is { } castCue) {
                 _playSfx?.Invoke(castCue);
+                // *** AND THE CASTER POSES. *** The same arm plays the wind-up (ranged kinds, anim
+                // slot 8, any octant) or the swing (slot 9, even octants) toward the target
+                // (CSPELL.C:1303-1322); the arena draws it on the next redraw, before the bolt flies.
+                if (caster != null && !caster.IsDead) {
+                    bool windup = castCue == SpellCastSound.RangedWindupCue;
+                    CombatEncounter.FaceToward(caster, target, evenOnly: !windup);
+                    caster.PendingAttackSlot = windup ? CombatAnimSlot.Windup : CombatAnimSlot.CastSwing;
+                    caster.SwingPending = true;
+                }
             }
             if (SpellProjectileSound.Flies(target != null, spell.AnimationEffectType)) {
                 _playSfx?.Invoke(SpellProjectileSound.LaunchCue);
