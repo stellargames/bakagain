@@ -83,6 +83,23 @@ public sealed class CombatEncounter {
     /// <summary>Whoever is acting, or null once the encounter is over.</summary>
     public Combatant? Current { get; private set; }
 
+    /// <summary>
+    /// The party lost with members still alive: a turn advance found nobody on its side who could act
+    /// (COMBAT.C:1434-1460), and the defeat test counts a held member as down (2576-2587). It makes
+    /// <see cref="PartyAlive"/> read 0, which every end-of-fight reader takes as the loss.
+    /// </summary>
+    public bool PartyOutOfAction { get; set; }
+
+    /// <summary>Whether any living party member can act, held or not (<c>combatenc_actor_can_act(a, 0)</c>).</summary>
+    public bool PartyCanAct() {
+        foreach (Combatant c in Party) {
+            if (c.IsPartyMember && !c.IsDead && c.CanAct(strict: false)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /// <summary>The party member who fell last this fight, or null.</summary>
     public Combatant? LastFallenMember { get; private set; }
 
@@ -95,6 +112,9 @@ public sealed class CombatEncounter {
     /// that side, which would keep a fight running on a summon alone.
     /// </summary>
     public int PartyAlive() {
+        if (PartyOutOfAction) {
+            return 0;
+        }
         var n = 0;
         foreach (Combatant c in Party) {
             if (!c.IsDead && c.IsPartyMember) {

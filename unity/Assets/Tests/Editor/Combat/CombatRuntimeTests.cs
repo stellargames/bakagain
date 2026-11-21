@@ -1271,6 +1271,27 @@ namespace BakAgain.Tests.Editor.Combat {
         /// their target, then the arena is drawn, and only then does the next actor go. The port
         /// turned them in the model and drew it with the first monster's move (TASK-1100 D10).
         /// </summary>
+        /// <summary>
+        /// A party whose every survivor is held loses: the advance runs the monsters, one round
+        /// boundary and the monsters again, finds no party member to pick, and the defeat test counts
+        /// a member who cannot act as down (COMBAT.C:1434-1460, 2576-2587). The port only counted the
+        /// dead, so the monsters went on hitting the held party (TASK-1125 #3).
+        /// </summary>
+        [Test]
+        public void APartyHeldWholeLosesTheFight() {
+            (CombatRuntime runtime, Combatant member, Combatant monster) = MeleeFight();
+            monster.X = member.X + 4;
+            runtime.Encounter.Effects.Register(member, GameData.Resources.Spells.SpellIds.DespairThyEyes, 2, 50);
+            Assert.IsTrue(member.Incapacitated, "the control: held");
+            Assert.IsFalse(runtime.Encounter.IsOver(), "and the fight is on");
+
+            Assert.IsNull(runtime.AdvanceToPartyTurn(resolveEnemyTurn: _ => { }));
+
+            Assert.IsFalse(member.IsDead);
+            Assert.IsTrue(runtime.Encounter.IsOver(), "nobody can act: the fight is lost");
+            Assert.AreEqual(0x21, GameData.Resources.Combat.CombatOutcomeDialog.For(runtime.Encounter, 2, false));
+        }
+
         [Test]
         public void TheOutgoingMembersTurnIsDrawnBeforeTheNextActorGoes() {
             (CombatRuntime runtime, Combatant member, Combatant monster) = MeleeFight();

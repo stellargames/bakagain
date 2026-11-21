@@ -6122,12 +6122,21 @@ namespace BakAgain.Combat {
                 drawOutgoingTurn?.Invoke();
             }
 
+            int boundaries = 0;
             for (var guard = 0; guard < maxTurns; guard++) {
                 if (Encounter.IsOver()) {
                     return null;
                 }
 
                 if (Encounter.RoundComplete()) {
+                    // *** ONE ROUND BOUNDARY PER ADVANCE. *** combat_arena_advance_turn runs the
+                    // monsters, refreshes once and runs them again; with no party member picked it
+                    // returns, and the defeat test counts a held member as down (COMBAT.C:1434-1460,
+                    // 2576-2587). A party held whole has lost (TASK-1125 #3).
+                    if (++boundaries > 1 && !Encounter.PartyCanAct()) {
+                        Encounter.PartyOutOfAction = true;
+                        return null;
+                    }
                     // The floor burns once per round, before the round is handed out — so a field
                     // that lapses this round takes its last bite first. See TickTerrainEffects.
                     TickTerrainEffects();
