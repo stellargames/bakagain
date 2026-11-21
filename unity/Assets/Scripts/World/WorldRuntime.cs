@@ -850,7 +850,8 @@ namespace BakAgain.World {
 
         /// <summary>Fly a shot once its shooter's pose has played (TASK-1107 D3); busy throughout.</summary>
         private async UniTaskVoid FlyAfterPoseAsync(Encounters.ArenaCombatant shooter, int effectId,
-            Vector3 from, Vector3 to, int arcSteps, int arcDelta, (int Slot, bool Party) landingOn) {
+            Vector3 from, Vector3 to, int arcSteps, int arcDelta, (int Slot, bool Party)? landingOn,
+            float seconds = Encounters.ProjectileFlight.Seconds) {
             _arenaWork++;
             try {
                 if (_posing.TryGetValue(shooter, out UniTask pose)) {
@@ -859,7 +860,7 @@ namespace BakAgain.World {
             } finally {
                 _arenaWork--;
             }
-            FlyEffectAsync(effectId, from, to, arcSteps, arcDelta, landingOn: landingOn).Forget();
+            FlyEffectAsync(effectId, from, to, arcSteps, arcDelta, seconds, landingOn).Forget();
         }
 
         /// <summary>Build one effect sprite and fly it between two arena positions.</summary>
@@ -1760,7 +1761,8 @@ namespace BakAgain.World {
                     float worldUnits = Vector3.Distance(from, away) * BakCoordinateConverter.WorldScale;
                     float seconds = worldUnits / GameData.Resources.Combat.SpellProjectileMiss.StepUnits
                         * (float)GameData.Resources.Combat.SpellVisuals.FrameSeconds;
-                    FlyEffectAsync(effect, from, away, 0, 0, seconds).Forget();
+                    // After the shooter's pose, like a shot that reaches (TASK-1124 #1).
+                    FlyAfterPoseAsync(marker, effect, from, away, 0, 0, null, seconds).Forget();
                     continue;
                 }
 

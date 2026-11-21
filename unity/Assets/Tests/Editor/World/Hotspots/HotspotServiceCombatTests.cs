@@ -102,7 +102,7 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
             TrapData traps = null, System.Func<BakAgain.UI.Combat.CombatMenu> combatMenu = null,
             System.Func<bool> arenaBusy = null, BakAgain.UI.IDialogManager dialogs = null,
             long encounter = EncounterNumber, int creature = 12, uint entryDialog = 0,
-            List<string> order = null) {
+            List<string> order = null, System.Action redrawArena = null) {
             var session = new GameSession();
             session.SetActorStatsForTest(0, StatBlock());
             session.SetActiveParty(1, new byte[] { 0 });
@@ -115,7 +115,8 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
                 setCombatMusic: on => { rig.Music.Add(on); order?.Add(on ? "music on" : "music off"); },
                 resyncCamera: () => rig.CameraResyncs++,
                 combatMenuAccessor: combatMenu,
-                arenaBusy: arenaBusy);
+                arenaBusy: arenaBusy,
+                redrawArena: redrawArena);
             rig.Service.SetZoneForTest(Zone,
                 byChunk: new Dictionary<(int x, int y), List<TileEventTrigger>> {
                     [(0, 0)] = new List<TileEventTrigger> { CombTrigger() },
@@ -1283,6 +1284,37 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
 
             Assert.AreEqual(CombatCommandOutcome.PendingMode.None, rig.Service.PendingModeForTest,
                 $"{command} spends the turn, so it must leave nothing armed");
+        }
+
+        /// <summary>
+        /// A cast or a shot on a target is drawn by ONE redraw. The arm redrew the arena and then the
+        /// turn's own refresh redrew it again; the second rebuilt the sprites while the first had just
+        /// started the shooter's pose, so the pose was cut after a frame and the bolt left early
+        /// (TASK-1124 #10, measured: pose 336-470 ms of ~865). The original renders once per loop
+        /// pass (COMBAT.C:2524-2560).
+        /// </summary>
+        [Test]
+        public void ACastOnATargetRedrawsTheArenaOnce() {
+            int redraws = 0;
+            Rig rig = Build(redrawArena: () => redraws++);
+            Assert.IsTrue(rig.Service.StartCombat(CombTrigger()));
+            CombatEncounter fight = rig.Service.Combat.Encounter;
+            for (int i = 0; i < 4 && (fight.Current == null || !fight.Current.IsPartyMember); i++) {
+                fight.EndTurn();
+                fight.PickNext();
+            }
+            Assert.IsTrue(fight.Current?.IsPartyMember ?? false, "the fixture needs a party member's turn");
+            int livingActorAim = System.Linq.Enumerable.First(System.Linq.Enumerable.Range(0, 9),
+                t => GameData.Resources.Spells.SpellTargetingRules.AimOf(t)
+                    == GameData.Resources.Spells.SpellTargetingRules.Aim.LivingActor);
+            rig.Service.ArmSpellForTest(
+                new GameData.Resources.Spells.Spell("S") { TargetingType = livingActorAim }, 0, 5);
+            redraws = 0;
+
+            rig.Service.ResolveCombatTargetClick(0, partyMember: false, isPrimary: true);
+
+            Assert.IsFalse(fight.Party[0].CanAct(strict: true), "the control: the cast spent the turn");
+            Assert.AreEqual(1, redraws);
         }
 
         [Test]

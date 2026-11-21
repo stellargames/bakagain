@@ -688,6 +688,32 @@ namespace BakAgain.Tests.Editor.Combat {
             Assert.AreEqual(RangedShotSound.ImpactCue, cues[cues.Count - 1], "when it lands");
         }
 
+        /// <summary>
+        /// The shooter plays its crossbow pose, anim slot 7 toward the target, before the bolt leaves,
+        /// and the discharge 0x44 sounds after that pose (CBTAITRN.C:121, 135-136; CACTOR.C:1903).
+        /// The port drew no pose and played 0x44 at the click (TASK-1124 #1, #2).
+        /// </summary>
+        [Test]
+        public void TheShooterPosesBeforeTheBoltAndTheTwangFollowsThePose() {
+            GameSession session = SessionWith((CrossbowId, 100), (QuarrelId, 10));
+            session.SetRosterActorForTest(400, StatBlock(), 12, gridX: 5, gridY: 5);
+            var cues = new List<int>();
+            var runtime = new CombatRuntime(session, null, Entries(), Objects(), playSfx: cues.Add) {
+                HoldSwingCues = true,
+            };
+            CombatEncounter fight = runtime.EnterRoster(new short[] { 400 });
+            Combatant shooter = fight.Party[0];
+
+            runtime.ResolveShot(shooter, fight.Enemies[0], quarrelKind: 0, AlwaysHigh);
+
+            Assert.IsTrue(shooter.SwingPending, "a pose is armed, on a miss too");
+            Assert.AreEqual(CombatAnimSlot.Crossbow, shooter.PendingAttackSlot);
+            CollectionAssert.DoesNotContain(cues, RangedShotSound.CrossbowFiringCue,
+                "not before the pose: " + string.Join(",", cues));
+            runtime.PlayHeldSwingCues();
+            CollectionAssert.Contains(cues, RangedShotSound.CrossbowFiringCue, "once the pose has played");
+        }
+
         [Test]
         public void AShotThatLandsTakesFromTheTargetsPool() {
             var (runtime, _, member, monster) = Fight((CrossbowId, 100), (QuarrelId, 10));

@@ -67,6 +67,7 @@ namespace BakAgain.World.Encounters {
             (int perFacing, int mode) = slot switch {
                 GameData.Resources.Combat.CombatAnimSlot.Swing => (4, 3),
                 GameData.Resources.Combat.CombatAnimSlot.Thrust => (2, 3),
+                GameData.Resources.Combat.CombatAnimSlot.Crossbow => (4, 5),
                 GameData.Resources.Combat.CombatAnimSlot.Windup => (2, 5),
                 GameData.Resources.Combat.CombatAnimSlot.CastSwing => (2, 3),
                 _ => (0, 0),
@@ -104,7 +105,8 @@ namespace BakAgain.World.Encounters {
         /// </summary>
         public static bool FlipsFor(int slot, int octant) {
             int facing = System.Math.Max(0, octant);
-            bool mode3 = slot != GameData.Resources.Combat.CombatAnimSlot.Windup;
+            bool mode3 = slot != GameData.Resources.Combat.CombatAnimSlot.Windup
+                && slot != GameData.Resources.Combat.CombatAnimSlot.Crossbow;
             if (mode3) {
                 facing -= facing % 2;
             }

@@ -13,6 +13,9 @@ public static class CombatAnimSlot {
     public const int Thrust = 4;
 
     /// <summary>A ranged kind's wind-up — combat_actor_play_ranged_windup, CACTOR.C:1967-1971.</summary>
+    /// <summary>The crossbow pose before a shot (combat_actor_anim7_field2_var, CACTOR.C:1903-1910).</summary>
+    public const int Crossbow = 7;
+
     public const int Windup = 8;
 
     /// <summary>A cast's swing — combat_actor_play_melee_swing, CACTOR.C:1973-1977.</summary>

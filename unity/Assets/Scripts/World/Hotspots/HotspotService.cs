@@ -3700,7 +3700,8 @@ using GameData.Resources.Scene;
                 // drops the rock early and starts it skipping. Resolving it in the draw would put
                 // a roll on the wrong side of the model seam and re-roll it on every redraw.
                 ArmRockArc(acting, target, shotHit);
-                _redrawArena?.Invoke();
+                // No redraw here: the turn's refresh below draws the shot. A second redraw rebuilt
+                // the sprites under the shooter's pose and cut it short (TASK-1124 #10).
             } else if (outcome
                     == GameData.Resources.Combat.CombatTargetSelection.Resolution.CastAtTarget
                 || outcome
@@ -3747,7 +3748,11 @@ using GameData.Resources.Scene;
                     acting.FlightInterceptedBy = null;
                 }
                 _pendingSpell = null;
-                _redrawArena?.Invoke();
+                // Drawn once, by the turn's refresh below; only a decoy, which keeps the turn for
+                // its placement click, has no refresh to draw it (TASK-1124 #10).
+                if (_pendingDecoyOf != null) {
+                    _redrawArena?.Invoke();
+                }
             }
 
             EndTargetSelection();

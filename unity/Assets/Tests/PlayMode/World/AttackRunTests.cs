@@ -37,6 +37,8 @@ namespace BakAgain.Tests.PlayMode.World {
         [TestCase(9, 4, 4, 2)]
         [TestCase(3, 2, 4, 4)]
         [TestCase(4, 3, 2, 2)]
+        [TestCase(7, 3, 12, 4)]
+        [TestCase(7, 6, 8, 4)]
         public void EachSlotRunsFromTheOriginalsFrameBase(int slot, int octant, int start, int frames) =>
             Assert.AreEqual((start, frames), AttackSwing.RunFor(slot, octant));
 
@@ -75,6 +77,7 @@ namespace BakAgain.Tests.PlayMode.World {
         [TestCase(8, 5, true)]
         [TestCase(3, 7, true)]
         [TestCase(4, 4, false)]
+        [TestCase(7, 5, true)]
         public void ARunPastFourFacingsIsMirrored(int slot, int octant, bool flipped) =>
             Assert.AreEqual(flipped, AttackSwing.FlipsFor(slot, octant));
 

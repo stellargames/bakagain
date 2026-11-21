@@ -2648,9 +2648,20 @@ namespace BakAgain.Combat {
             // miss, which makes a cue behind a hit test wrong in the common case. A thrown rock
             // plays an IMPACT after its flight; a crossbow plays a DISCHARGE before one; a thrown
             // weapon with no crossbow equipped is silent. See RangedShotSound.
+            // *** THE SHOOTER POSES FIRST. *** Every shooter plays anim slot 7 toward the target,
+            // blocking, before the cue and the flight (CBTAITRN.C:121; CACTOR.C:1903-1910); the
+            // arena draws it on the next redraw and flies the bolt once it ends. The cue waits for
+            // the pose with it, as a swing's does (TASK-1124 #1, #2).
+            CombatEncounter.FaceToward(attacker, defender, evenOnly: false);
+            attacker.PendingAttackSlot = CombatAnimSlot.Crossbow;
+            attacker.SwingPending = true;
             int? shotCue = RangedShotSound.Cue(quarrelKind, weapon.Info != null);
             if (shotCue.HasValue) {
-                _playSfx?.Invoke(shotCue.Value);
+                if (HoldSwingCues) {
+                    attacker.SwingCue = shotCue.Value;
+                } else {
+                    _playSfx?.Invoke(shotCue.Value);
+                }
             }
 
             // The flight crosses the same ground a spell's does (trap audit #4): a rock flies at
