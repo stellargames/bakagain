@@ -3191,6 +3191,20 @@ namespace BakAgain.UI.Inventory {
                 return;
             }
 
+            // *** REFUSED BEFORE ANY BAG IS TOUCHED. *** dropItemToGround refuses a worn sword or
+            // staff, a lit torch and an active Ring of Prandur before it looks for a bag
+            // (CMBINV.C:1052-1063). Claiming first could recycle and empty another pile for a drop
+            // that is then refused (TASK-1129 row 1).
+            InventoryTransfer.Result? refusal = InventoryTransfer.GroundRefusal(
+                item, rec?.ObjectType ?? GameData.ObjectType.Misc, _displayed.ContainerType);
+            if (refusal.HasValue) {
+                _dialogs?.ShowById(refusal == InventoryTransfer.Result.LitTorchRefused
+                    ? LitTorchDialogId : MustKeepEquippedDialogId).Forget();
+                DeselectItem();
+                RenderCurrent();
+                return;
+            }
+
             (int bakX, int bakY) = PartyGroundPosition();
             GroundDropTarget target = _gameSession.ResolveGroundDropTarget(
                 _gameSession.CurrentZone, bakX, bakY);

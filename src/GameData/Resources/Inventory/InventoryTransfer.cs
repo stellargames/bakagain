@@ -497,6 +497,26 @@ public static class InventoryTransfer {
     /// and until 2026-09-07 it did not ask at all, and would sell the sword off a member's back.
     /// Verified against the original at Fletcher's Post the same day.</para>
     /// </remarks>
+    /// <summary>
+    /// The refusal a discard to the ground meets before any bag is looked for, or null: a worn sword
+    /// or staff, a lit torch, an active Ring of Prandur (dropItemToGround@0x55eb8, CMBINV.C:1052-1063;
+    /// the same tests <see cref="Plan"/> makes). Asked first so a refused drop claims no bag (TASK-1129).
+    /// </summary>
+    public static Result? GroundRefusal(RuntimeItem item, ObjectType category, SaveGameContainerType sourceType) {
+        if (NeverUnequips(item, category, sourceType)) {
+            return Result.MustKeepEquipped;
+        }
+        if ((item.ItemFlags & ActivatedFlag) != 0) {
+            if (item.ObjectId == TorchId) {
+                return Result.LitTorchRefused;
+            }
+            if (item.ObjectId == RingOfPrandurId) {
+                return Result.MustKeepEquipped;
+            }
+        }
+        return null;
+    }
+
     public static bool NeverUnequips(RuntimeItem item, ObjectType category,
         SaveGameContainerType sourceType) =>
         (item.ItemFlags & ItemEquippedFlag) != 0
