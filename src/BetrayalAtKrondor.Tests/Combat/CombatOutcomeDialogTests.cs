@@ -83,4 +83,19 @@ public class CombatOutcomeDialogTests {
         Assert.Same(party[1], CombatOutcomeDialog.NamedActor(fight));
     }
 
+
+    [Fact]
+    public void DeathsAreNumberedInTheOrderTheyHappen() {
+        // Each fall blocks until it has played, so a spell that kills several plays them one after
+        // another in the order apply_damage reaches them (COMBAT.C:226, 417-455; TASK-1125 #2).
+        Combatant[] party = { Member(1), Member(2) };
+        Combatant foe = Enemy(false);
+        CombatEncounter fight = Fight(party, foe);
+        fight.Kill(foe);
+        fight.Kill(party[1]);
+        fight.Kill(party[0]);
+
+        Assert.True(foe.DeathOrder < party[1].DeathOrder);
+        Assert.True(party[1].DeathOrder < party[0].DeathOrder);
+    }
 }

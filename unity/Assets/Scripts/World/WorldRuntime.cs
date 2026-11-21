@@ -1857,13 +1857,16 @@ namespace BakAgain.World {
             // *** THE COLLAPSE PLAYS ONCE, ON THE BODY THAT HAS JUST APPEARED. *** A corpse is
             // rebuilt on every redraw, so the "already shown" flag lives on the combatant; without
             // it the body would fall over again on each turn.
-            foreach (Encounters.ArenaCorpse corpse in
-                     _arenaRoot.GetComponentsInChildren<Encounters.ArenaCorpse>()) {
-                GameData.Resources.Combat.Combatant dead =
-                    _hotspots.CombatantFor(corpse.RosterSlot, corpse.PartyMember);
-                if (dead == null || dead.DeathShown) {
-                    continue;
+            // In the order they died: each fall waits for the one before it (TASK-1125 #2).
+            var falling = new List<(Encounters.ArenaCorpse Corpse, GameData.Resources.Combat.Combatant Dead)>();
+            foreach (Encounters.ArenaCorpse c in _arenaRoot.GetComponentsInChildren<Encounters.ArenaCorpse>()) {
+                GameData.Resources.Combat.Combatant d = _hotspots.CombatantFor(c.RosterSlot, c.PartyMember);
+                if (d != null && !d.DeathShown) {
+                    falling.Add((c, d));
                 }
+            }
+            falling.Sort((x, y) => x.Dead.DeathOrder.CompareTo(y.Dead.DeathOrder));
+            foreach ((Encounters.ArenaCorpse corpse, GameData.Resources.Combat.Combatant dead) in falling) {
                 dead.DeathShown = true;
                 standIns.TryGetValue((corpse.RosterSlot, corpse.PartyMember), out GameObject standIn);
                 standIns.Remove((corpse.RosterSlot, corpse.PartyMember));

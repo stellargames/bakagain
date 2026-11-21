@@ -90,6 +90,8 @@ public sealed class CombatEncounter {
     /// </summary>
     public bool PartyOutOfAction { get; set; }
 
+    private int _deaths;
+
     /// <summary>Whether any living party member can act, held or not (<c>combatenc_actor_can_act(a, 0)</c>).</summary>
     public bool PartyCanAct() {
         foreach (Combatant c in Party) {
@@ -334,6 +336,9 @@ public sealed class CombatEncounter {
         combatant.Incapacitated = false;
         combatant.Health = 0;
         combatant.Stamina = 0;
+        if (!combatant.IsDead) {
+            combatant.DeathOrder = ++_deaths;
+        }
         combatant.Flags |= CombatantFlags.Dead;
         // A falling party member becomes the acting actor the defeat line names
         // (handleActorDeath@0x5f5f6, COMBAT.C:229-235; TASK-1125 #1).

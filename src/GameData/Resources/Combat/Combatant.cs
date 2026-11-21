@@ -120,6 +120,10 @@ public sealed class Combatant {
     /// (<c>selectedMenuCmd</c>, read fresh from P1.DAT, which ships 0, at each fight).</summary>
     public int RememberedQuarrelKind { get; set; }
 
+    /// <summary>When this combatant died in the fight, counting from 1; 0 while alive. Falls play in
+    /// this order, each after the last (COMBAT.C:226; TASK-1125 #2).</summary>
+    public int DeathOrder { get; set; }
+
     /// <summary>Which spell school this combatant's cast screen opens on — <c>spellSchool</c>.</summary>
     /// <remarks>
     /// <b>The combatant remembers, not the party.</b> <c>cspell_cast_menu_loop</c> reads it on open

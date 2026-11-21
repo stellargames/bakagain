@@ -108,11 +108,27 @@ namespace BakAgain.World.Encounters {
         /// <c>combat_actor_play_anim_sprite1</c>, COMBAT.C:226 / CACTOR.C:1895).</summary>
         public static int Playing { get; private set; }
 
+        // *** ONE FALL AT A TIME. *** Each death blocks until its run has played (COMBAT.C:226,
+        // CACTOR.C:1896-1897), so one spell that kills several plays them in the order they died;
+        // the arena starts them on one redraw, so they queue here (TASK-1125 #2).
+        private static readonly System.Collections.Generic.List<DeathCollapse> Line = new();
+
+        internal static void EnterLine(DeathCollapse fall) => Line.Add(fall);
+
+        internal static void LeaveLine(DeathCollapse fall) => Line.Remove(fall);
+
+        internal static bool IsFirstInLine(DeathCollapse fall) {
+            Line.RemoveAll(f => f == null);   // a redraw that cleared the arena
+            return Line.Count > 0 && Line[0] == fall;
+        }
+
         private async UniTask RunAsync() {
             Playing++;
+            EnterLine(this);
             try {
                 await RunCoreAsync();
             } finally {
+                LeaveLine(this);
                 Playing--;
                 // A creature that vanishes leaves the field once its run has played (COMBAT.C:238-258).
                 if (_vanish && this != null) {
@@ -146,7 +162,7 @@ namespace BakAgain.World.Encounters {
             // redraw, so give it a frame to register before asking.
             renderer.enabled = false;
             await UniTask.Yield();
-            await UniTask.WaitWhile(() => HeldBack);
+            await UniTask.WaitWhile(() => HeldBack || (this != null && !IsFirstInLine(this)));
             if (this == null) {
                 return;
             }
