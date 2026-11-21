@@ -162,6 +162,15 @@ namespace BakAgain.UI {
             ShowById(id, cancellationToken);
 
         /// <summary>
+        /// <see cref="ShowEntry(DialogPlay, CancellationToken)"/>, leaving the last page drawn as
+        /// <see cref="ShowByIdLeavingLastPage"/> does; <see cref="ClearDialog"/> takes it down. For a
+        /// page the original leaves up while something after it plays, like an item's sound
+        /// (ITEMUSE.C:485-492: the text, then the blocking sound, then the redraw).
+        /// </summary>
+        UniTask ShowEntryLeavingLastPage(DialogPlay play, CancellationToken cancellationToken = default) =>
+            ShowEntry(play, cancellationToken);
+
+        /// <summary>
         /// Confirm/choice path: load the entry, render one button per branch
         /// (labelled from <c>KEYWORD.DAT</c> via the branch's keyword index),
         /// await selection, and return <c>true</c> when the first branch (Yes)

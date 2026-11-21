@@ -2794,20 +2794,30 @@ namespace BakAgain.UI.Inventory {
 
         private async UniTaskVoid ShowVar0MessageThenCueAsync(int dialogId, int var0,
             ItemUseOutcome outcome, ObjectInfo used) {
+            bool shown = false;
             try {
-                await ShowVar0MessageAsync(dialogId, var0);
+                shown = await ShowVar0MessageAsync(dialogId, var0, leaveThePageDrawn: true);
             } finally {
-                PlayItemUseCue(outcome, used);
+                // The text stays up while the sound plays to its end, then goes (ITEMUSE.C:485-492:
+                // the blocking sound, then Use_Item returns and the screen is redrawn, CMBINV.C:272-274).
+                if (ItemUseSound.Sounds(outcome) && used != null && used.SoundId != 0) {
+                    await Audio.MenuSoundService.CueAndWaitAsync(used.SoundId, used.SoundRepeat);
+                }
+                if (shown) {
+                    _dialogs.ClearDialog();
+                }
             }
         }
 
-        private async UniTask ShowVar0MessageAsync(int dialogId, int var0) {
+        private async UniTask<bool> ShowVar0MessageAsync(int dialogId, int var0, bool leaveThePageDrawn = false) {
             _gameSession.SetGlobalValue(ItemInspectText.DescriptionGlobalKey, var0);
             GameData.Resources.Dialog.DialogPlay play =
                 await _dialogExecutor.ResolvePlayAsync(dialogId);
-            if (play?.Entry != null && !string.IsNullOrEmpty(play.Entry.Text)) {
-                await _dialogs.ShowEntry(play);
+            if (play?.Entry == null || string.IsNullOrEmpty(play.Entry.Text)) {
+                return false;
             }
+            await (leaveThePageDrawn ? _dialogs.ShowEntryLeavingLastPage(play) : _dialogs.ShowEntry(play));
+            return true;
         }
 
         /// <summary>

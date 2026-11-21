@@ -2106,6 +2106,12 @@ namespace BakAgain.UI {
 
         public UniTask ShowEntry(DialogPlay play, CancellationToken cancellationToken = default) => Playing(() => ShowEntryOnce(play, cancellationToken), "ShowEntry " + play?.Entry?.Id);
 
+        public UniTask ShowEntryLeavingLastPage(DialogPlay play, CancellationToken cancellationToken = default) =>
+            Playing(() => LeavingPagesDrawn(async () => {
+                await ShowEntryOnce(play, cancellationToken);
+                return 0;
+            }), "ShowEntryLeavingLastPage " + play?.Entry?.Id);
+
         private async UniTask ShowEntryOnce(DialogPlay play, CancellationToken cancellationToken = default) {
             if (!TryEnsureReady()) {
                 return;
