@@ -11,7 +11,7 @@ namespace BakAgain.Tests.Editor.World {
     /// </summary>
     public class CoplanarCutTests {
         private const byte Base = 10, Overlay = 12;
-        private const byte SingleSided = 1, DoubleSided = 0;
+        private const byte SingleSided = 0x81, DoubleSided = 0x80;
         private static readonly Color BaseColour = Color.red, OverlayColour = Color.green;
 
         private struct Rect { public int X0, Y0, X1, Y1; public int CornerZ; public bool Reverse; public byte Flags; }

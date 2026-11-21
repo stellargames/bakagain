@@ -16,7 +16,7 @@ namespace BakAgain.Tests.Editor.World {
     /// the rank bias alone, which is ~10x smaller and invisible at travel distance.
     /// </summary>
     public class PaintOrderAbsorptionTests {
-        private const byte SingleSided = 1;
+        private const byte SingleSided = 0x81;
 
         /// <summary>Base quad on Z=0 plus a second quad at <paramref name="cornerZ"/> on one corner.</summary>
         private static TableDatInfo TwoQuads(int secondZ, int secondCornerZ) {

@@ -68,7 +68,7 @@ namespace BakAgain.Tests.Editor.World {
                 new List<PolygonFace> {
                     new() {
                         VgaColor = 10,
-                        Flags = 1,
+                        Flags = 0x81,
                         VertexIndices = new List<int> { 0, 1, 2 }
                     }
                 });
@@ -86,6 +86,34 @@ namespace BakAgain.Tests.Editor.World {
             Assert.AreEqual(new Color(1f, 0f, 0f, 1f), result.Colors[0]);
         }
 
+        /// <summary>
+        /// A face without flag 0x80 is drawn as its OUTLINE, not filled: r3d_polygon_resolve_shade_color
+        /// sets bGfx_fill_enabled = (flags &amp; 0x80) (R3D.ASM:2825) and draw_polygon draws only the
+        /// edges when it is 0 (POLYGON.ASM). COMBAT.TBL's see-through diamond 'wirecrys' is all such
+        /// faces and the original draws it as a wireframe (TASK-1120).
+        /// </summary>
+        [Test]
+        public void ConvertTerrainEntity_AFaceWithoutTheFillFlag_IsDrawnAsItsEdges() {
+            var verts = new List<Position3DInt> {
+                new() { X = 0, Y = 0, Z = 0 },
+                new() { X = 1000, Y = 0, Z = 0 },
+                new() { X = 0, Y = 1000, Z = 0 }
+            };
+            var palette = new Color[256];
+            TblMeshConverter.TerrainMeshData filled = TblMeshConverter.ConvertTerrainEntity(BuildEntity(verts,
+                new List<PolygonFace> { new() { VgaColor = 10, Flags = 0x81, VertexIndices = new List<int> { 0, 1, 2 } } }), palette);
+            TblMeshConverter.TerrainMeshData outline = TblMeshConverter.ConvertTerrainEntity(BuildEntity(verts,
+                new List<PolygonFace> { new() { VgaColor = 10, Flags = 0x01, VertexIndices = new List<int> { 0, 1, 2 } } }), palette);
+
+            Assert.AreEqual(3, filled.Vertices.Length, "control: a filled triangle is its three corners");
+            Vector3 centroid = (filled.Vertices[0] + filled.Vertices[1] + filled.Vertices[2]) / 3f;
+            Assert.Greater(outline.Vertices.Length, 3, "three edge ribbons");
+            foreach (Vector3 v in outline.Vertices) {
+                Assert.Greater((v - centroid).magnitude, 0.25f * (filled.Vertices[1] - filled.Vertices[0]).magnitude,
+                    "nothing is drawn across the middle of the face");
+            }
+        }
+
         [Test]
         public void ConvertTerrainEntity_Quad_TriangulatedIntoTwoTriangles() {
             var dat = BuildEntity(
@@ -98,7 +126,7 @@ namespace BakAgain.Tests.Editor.World {
                 new List<PolygonFace> {
                     new() {
                         VgaColor = 5,
-                        Flags = 1,
+                        Flags = 0x81,
                         VertexIndices = new List<int> { 0, 1, 2, 3 }
                     }
                 });
@@ -120,7 +148,7 @@ namespace BakAgain.Tests.Editor.World {
                     new() { X = 100, Y = 200, Z = 300 }
                 },
                 new List<PolygonFace> {
-                    new() { VgaColor = 0, Flags = 1, VertexIndices = new List<int> { 0, 0, 0 } }
+                    new() { VgaColor = 0, Flags = 0x81, VertexIndices = new List<int> { 0, 0, 0 } }
                 });
 
             var result = TblMeshConverter.ConvertTerrainEntity(dat, new Color[256]);
@@ -144,7 +172,7 @@ namespace BakAgain.Tests.Editor.World {
                     new() { X = 0, Y = 100, Z = 0 }
                 },
                 new List<PolygonFace> {
-                    new() { VgaColor = 5, Flags = 0x00, VertexIndices = new List<int> { 0, 1, 2 } }
+                    new() { VgaColor = 5, Flags = 0x80, VertexIndices = new List<int> { 0, 1, 2 } }
                 });
 
             var result = TblMeshConverter.ConvertTerrainEntity(dat, new Color[256]);
@@ -170,7 +198,7 @@ namespace BakAgain.Tests.Editor.World {
                     new() { X = 0, Y = 100, Z = 0 }
                 },
                 new List<PolygonFace> {
-                    new() { VgaColor = 5, Flags = 0x02, VertexIndices = new List<int> { 0, 1, 2 } }
+                    new() { VgaColor = 5, Flags = 0x82, VertexIndices = new List<int> { 0, 1, 2 } }
                 });
 
             var result = TblMeshConverter.ConvertTerrainEntity(dat, new Color[256]);
@@ -202,7 +230,7 @@ namespace BakAgain.Tests.Editor.World {
                                     new PolygonMeshFace {
                                         RenderType = 0,
                                         Faces = new List<PolygonFace> {
-                                            new() { VgaColor = 1, Flags = 1, VertexIndices = new List<int> { 0, 1, 2 } }
+                                            new() { VgaColor = 1, Flags = 0x81, VertexIndices = new List<int> { 0, 1, 2 } }
                                         }
                                     }
                                 }
@@ -214,7 +242,7 @@ namespace BakAgain.Tests.Editor.World {
                                     new PolygonMeshFace {
                                         RenderType = 0,
                                         Faces = new List<PolygonFace> {
-                                            new() { VgaColor = 2, Flags = 1, VertexIndices = new List<int> { 1, 3, 2 } }
+                                            new() { VgaColor = 2, Flags = 0x81, VertexIndices = new List<int> { 1, 3, 2 } }
                                         }
                                     }
                                 }
@@ -244,7 +272,7 @@ namespace BakAgain.Tests.Editor.World {
                     new() { X = 0, Y = 100, Z = 0 }
                 },
                 new List<PolygonFace> {
-                    new() { VgaColor = 0x02, Flags = 1, VertexIndices = new List<int> { 0, 1, 2 } }
+                    new() { VgaColor = 0x02, Flags = 0x81, VertexIndices = new List<int> { 0, 1, 2 } }
                 },
                 drawPriority: 8); // intentionally unrelated — should be ignored
 
@@ -266,7 +294,7 @@ namespace BakAgain.Tests.Editor.World {
                     new() { X = 0, Y = 100, Z = 0 }
                 },
                 new List<PolygonFace> {
-                    new() { VgaColor = 0xA0, Flags = 1, VertexIndices = new List<int> { 0, 1, 2 } }
+                    new() { VgaColor = 0xA0, Flags = 0x81, VertexIndices = new List<int> { 0, 1, 2 } }
                 });
 
             var result = TblMeshConverter.ConvertTerrainEntity(dat, new Color[256]);
@@ -285,7 +313,7 @@ namespace BakAgain.Tests.Editor.World {
                     new() { X = 0, Y = 100, Z = 0 }
                 },
                 new List<PolygonFace> {
-                    new() { VgaColor = 0x00, Flags = 1, VertexIndices = new List<int> { 0, 1, 2 } }
+                    new() { VgaColor = 0x00, Flags = 0x81, VertexIndices = new List<int> { 0, 1, 2 } }
                 });
 
             var result = TblMeshConverter.ConvertTerrainEntity(dat, new Color[256]);
@@ -306,8 +334,8 @@ namespace BakAgain.Tests.Editor.World {
                     new() { X = 100, Y = 100, Z = 0 }
                 },
                 new List<PolygonFace> {
-                    new() { VgaColor = 0x00, Flags = 1, VertexIndices = new List<int> { 0, 1, 2 } },
-                    new() { VgaColor = 0x03, Flags = 1, VertexIndices = new List<int> { 1, 3, 2 } }
+                    new() { VgaColor = 0x00, Flags = 0x81, VertexIndices = new List<int> { 0, 1, 2 } },
+                    new() { VgaColor = 0x03, Flags = 0x81, VertexIndices = new List<int> { 1, 3, 2 } }
                 });
 
             var result = TblMeshConverter.ConvertTerrainEntity(dat, new Color[256]);
@@ -340,7 +368,7 @@ namespace BakAgain.Tests.Editor.World {
                     new() { X = 0, Y = 0, Z = 100 } // horizontal ground face (constant Y)
                 },
                 new List<PolygonFace> {
-                    new() { VgaColor = 0xFF, Flags = 1, VertexIndices = new List<int> { 0, 1, 2 } }
+                    new() { VgaColor = 0xFF, Flags = 0x81, VertexIndices = new List<int> { 0, 1, 2 } }
                 },
                 entityFlags: 0x40);
 
@@ -361,7 +389,7 @@ namespace BakAgain.Tests.Editor.World {
                     new() { X = 0, Y = 100, Z = 0 }
                 },
                 new List<PolygonFace> {
-                    new() { VgaColor = 0xA0, Flags = 1, VertexIndices = new List<int> { 0, 1, 2 } }
+                    new() { VgaColor = 0xA0, Flags = 0x81, VertexIndices = new List<int> { 0, 1, 2 } }
                 },
                 entityFlags: 0x40);
 
@@ -383,8 +411,8 @@ namespace BakAgain.Tests.Editor.World {
                     new() { X = 0, Y = 100, Z = 0 }
                 },
                 new List<PolygonFace> {
-                    new() { VgaColor = 0xFF, Flags = 1, VertexIndices = new List<int> { 0, 1, 2 } }, // ground → GroundLod
-                    new() { VgaColor = 0xA0, Flags = 1, VertexIndices = new List<int> { 0, 1, 3 } }  // wall → FlatFill
+                    new() { VgaColor = 0xFF, Flags = 0x81, VertexIndices = new List<int> { 0, 1, 2 } }, // ground → GroundLod
+                    new() { VgaColor = 0xA0, Flags = 0x81, VertexIndices = new List<int> { 0, 1, 3 } }  // wall → FlatFill
                 },
                 entityFlags: 0x40);
 
@@ -406,7 +434,7 @@ namespace BakAgain.Tests.Editor.World {
                     new() { X = 0, Y = 100, Z = 0 }
                 },
                 new List<PolygonFace> {
-                    new() { VgaColor = 0x08, Flags = 1, VertexIndices = new List<int> { 0, 1, 2 } }
+                    new() { VgaColor = 0x08, Flags = 0x81, VertexIndices = new List<int> { 0, 1, 2 } }
                 });
 
             var result = TblMeshConverter.ConvertTerrainEntity(dat, new Color[256]);
@@ -426,8 +454,8 @@ namespace BakAgain.Tests.Editor.World {
                     new() { X = 0, Y = 100, Z = 0 }, new() { X = 100, Y = 100, Z = 0 }
                 },
                 new List<PolygonFace> {
-                    new() { VgaColor = 10, Flags = 1, VertexIndices = new List<int> { 0, 1, 2 } },
-                    new() { VgaColor = 10, Flags = 1, VertexIndices = new List<int> { 1, 3, 2 } }
+                    new() { VgaColor = 10, Flags = 0x81, VertexIndices = new List<int> { 0, 1, 2 } },
+                    new() { VgaColor = 10, Flags = 0x81, VertexIndices = new List<int> { 1, 3, 2 } }
                 },
                 entityFlags: 0x40);
 
@@ -446,7 +474,7 @@ namespace BakAgain.Tests.Editor.World {
                     new() { X = 0, Y = 100, Z = 0 }
                 },
                 new List<PolygonFace> {
-                    new() { VgaColor = 10, Flags = 1, VertexIndices = new List<int> { 0, 1, 2 } }
+                    new() { VgaColor = 10, Flags = 0x81, VertexIndices = new List<int> { 0, 1, 2 } }
                 });
 
             var result = TblMeshConverter.ConvertTerrainEntity(dat, new Color[256]);
@@ -468,8 +496,8 @@ namespace BakAgain.Tests.Editor.World {
                     new() { X = 0, Y = 100, Z = 0 }, new() { X = 100, Y = 100, Z = 0 }
                 },
                 new List<PolygonFace> {
-                    new() { VgaColor = 10, Flags = 1, VertexIndices = new List<int> { 0, 1, 2 } },
-                    new() { VgaColor = 10, Flags = 0, VertexIndices = new List<int> { 1, 3, 2 } }
+                    new() { VgaColor = 10, Flags = 0x81, VertexIndices = new List<int> { 0, 1, 2 } },
+                    new() { VgaColor = 10, Flags = 0x80, VertexIndices = new List<int> { 1, 3, 2 } }
                 },
                 entityFlags: 0x40);
 
@@ -492,8 +520,8 @@ namespace BakAgain.Tests.Editor.World {
                     new() { X = 0, Y = 100, Z = 0 }, new() { X = 0, Y = 0, Z = 100 }
                 },
                 new List<PolygonFace> {
-                    new() { VgaColor = 10, Flags = 1, VertexIndices = new List<int> { 0, 1, 2 } },
-                    new() { VgaColor = 10, Flags = 1, VertexIndices = new List<int> { 0, 1, 3 } }
+                    new() { VgaColor = 10, Flags = 0x81, VertexIndices = new List<int> { 0, 1, 2 } },
+                    new() { VgaColor = 10, Flags = 0x81, VertexIndices = new List<int> { 0, 1, 3 } }
                 },
                 entityFlags: 0x40);
 
@@ -515,8 +543,8 @@ namespace BakAgain.Tests.Editor.World {
                     new() { X = 0, Y = 100, Z = 0 }
                 },
                 new List<PolygonFace> {
-                    new() { VgaColor = 10, Flags = 1, VertexIndices = new List<int> { 0, 1, 2 } },
-                    new() { VgaColor = 12, Flags = 1, VertexIndices = new List<int> { 2, 1, 0 } }
+                    new() { VgaColor = 10, Flags = 0x81, VertexIndices = new List<int> { 0, 1, 2 } },
+                    new() { VgaColor = 12, Flags = 0x81, VertexIndices = new List<int> { 2, 1, 0 } }
                 },
                 entityFlags: 0x40);
 
@@ -541,8 +569,8 @@ namespace BakAgain.Tests.Editor.World {
                     new() { X = 90, Y = 90, Z = 2 }, new() { X = 10, Y = 90, Z = -2 }
                 },
                 new List<PolygonFace> {
-                    new() { VgaColor = 10, Flags = 1, VertexIndices = new List<int> { 0, 1, 2, 3 } },
-                    new() { VgaColor = 12, Flags = 1, VertexIndices = new List<int> { 4, 5, 6, 7 } }
+                    new() { VgaColor = 10, Flags = 0x81, VertexIndices = new List<int> { 0, 1, 2, 3 } },
+                    new() { VgaColor = 12, Flags = 0x81, VertexIndices = new List<int> { 4, 5, 6, 7 } }
                 },
                 entityFlags: 0x40);
 
@@ -568,8 +596,8 @@ namespace BakAgain.Tests.Editor.World {
                     new() { X = 0, Y = 0, Z = 5 } // fin apex, 5 BaK units above the plane
                 },
                 new List<PolygonFace> {
-                    new() { VgaColor = 10, Flags = 1, VertexIndices = new List<int> { 0, 1, 2 } },
-                    new() { VgaColor = 12, Flags = 1, VertexIndices = new List<int> { 0, 1, 3 } }
+                    new() { VgaColor = 10, Flags = 0x81, VertexIndices = new List<int> { 0, 1, 2 } },
+                    new() { VgaColor = 12, Flags = 0x81, VertexIndices = new List<int> { 0, 1, 3 } }
                 },
                 entityFlags: 0x40);
 
@@ -591,7 +619,7 @@ namespace BakAgain.Tests.Editor.World {
                     new() { X = 100, Y = 100, Z = 2 }, new() { X = 0, Y = 100, Z = -2 }
                 },
                 new List<PolygonFace> {
-                    new() { VgaColor = 10, Flags = 1, VertexIndices = new List<int> { 0, 1, 2, 3 } }
+                    new() { VgaColor = 10, Flags = 0x81, VertexIndices = new List<int> { 0, 1, 2, 3 } }
                 },
                 entityFlags: 0x40);
 
@@ -618,9 +646,9 @@ namespace BakAgain.Tests.Editor.World {
                     new() { X = 200, Y = 0, Z = -5 }, new() { X = 0, Y = 200, Z = -5 }
                 },
                 new List<PolygonFace> {
-                    new() { VgaColor = 10, Flags = 1, VertexIndices = new List<int> { 0, 1, 2 } },
-                    new() { VgaColor = 12, Flags = 1, VertexIndices = new List<int> { 6, 7, 3 } },
-                    new() { VgaColor = 14, Flags = 1, VertexIndices = new List<int> { 3, 4, 5 } }
+                    new() { VgaColor = 10, Flags = 0x81, VertexIndices = new List<int> { 0, 1, 2 } },
+                    new() { VgaColor = 12, Flags = 0x81, VertexIndices = new List<int> { 6, 7, 3 } },
+                    new() { VgaColor = 14, Flags = 0x81, VertexIndices = new List<int> { 3, 4, 5 } }
                 },
                 entityFlags: 0x40);
 
@@ -646,8 +674,8 @@ namespace BakAgain.Tests.Editor.World {
                     new() { X = 0, Y = 100, Z = 20 }
                 },
                 new List<PolygonFace> {
-                    new() { VgaColor = 10, Flags = 1, VertexIndices = new List<int> { 0, 1, 2 } },
-                    new() { VgaColor = 12, Flags = 1, VertexIndices = new List<int> { 3, 4, 5 } }
+                    new() { VgaColor = 10, Flags = 0x81, VertexIndices = new List<int> { 0, 1, 2 } },
+                    new() { VgaColor = 12, Flags = 0x81, VertexIndices = new List<int> { 3, 4, 5 } }
                 },
                 entityFlags: 0x40);
 
@@ -671,7 +699,7 @@ namespace BakAgain.Tests.Editor.World {
                     new() { X = 0, Y = 1000, Z = 0 }
                 },
                 new List<PolygonFace> {
-                    new() { VgaColor = 10, Flags = 1, VertexIndices = new List<int> { 0, 1 } }
+                    new() { VgaColor = 10, Flags = 0x81, VertexIndices = new List<int> { 0, 1 } }
                 });
 
             var palette = new Color[256];
@@ -708,7 +736,7 @@ namespace BakAgain.Tests.Editor.World {
                 },
                 new List<PolygonFace> {
                     // cull bits 2 = Skip, which a line must honour like any other face
-                    new() { VgaColor = 10, Flags = 2, VertexIndices = new List<int> { 0, 1 } }
+                    new() { VgaColor = 10, Flags = 0x82, VertexIndices = new List<int> { 0, 1 } }
                 });
 
             var result = TblMeshConverter.ConvertTerrainEntity(dat, new Color[256]);
@@ -738,7 +766,7 @@ namespace BakAgain.Tests.Editor.World {
                 },
                 new List<PolygonFace> {
                     new() {
-                        VgaColor = 10, Flags = 1,
+                        VgaColor = 10, Flags = 0x81,
                         VertexIndices = new List<int> { 0, 1, 2, 3, 4, 5, 6, 7 }
                     }
                 });
@@ -776,7 +804,7 @@ namespace BakAgain.Tests.Editor.World {
                     new() { X = 0,   Y = 200, Z = 0 }
                 },
                 new List<PolygonFace> {
-                    new() { VgaColor = 10, Flags = 1, VertexIndices = new List<int> { 0, 1, 2, 3 } }
+                    new() { VgaColor = 10, Flags = 0x81, VertexIndices = new List<int> { 0, 1, 2, 3 } }
                 });
 
             var result = TblMeshConverter.ConvertTerrainEntity(dat, new Color[256]);
@@ -804,7 +832,7 @@ namespace BakAgain.Tests.Editor.World {
             var dat = BuildEntity(
                 new List<Position3DInt> { new() { X = 0, Y = 0, Z = 0 } },
                 new List<PolygonFace> {
-                    new() { VgaColor = 10, Flags = 1, VertexIndices = new List<int> { 0 } }
+                    new() { VgaColor = 10, Flags = 0x81, VertexIndices = new List<int> { 0 } }
                 });
 
             var result = TblMeshConverter.ConvertTerrainEntity(dat, new Color[256]);

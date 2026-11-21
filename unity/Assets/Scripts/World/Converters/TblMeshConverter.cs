@@ -492,6 +492,9 @@ namespace BakAgain.World.Converters {
         /// polygons' <c>129</c>, which looks like a bit-0 test, but <c>Flags=128</c> also appears on 359
         /// three-vertex and 325 four-vertex faces. The vertex count is the only reliable test.</para>
         /// </remarks>
+        /// <summary>Face flag 0x80: the polygon is filled; without it only its edges are drawn.</summary>
+        public const byte FillFlag = 0x80;
+
         private static bool IsRenderableLine(PolygonFace face, Vector3[] meshVerts) {
             if (face.VertexIndices.Count != 2) return false;
             foreach (int vi in face.VertexIndices)
@@ -532,6 +535,25 @@ namespace BakAgain.World.Converters {
                 return;
             }
             if (!IsRenderable(face, meshVerts)) return;
+
+            // *** NO FILL FLAG, NO FILL: THE FACE IS ITS OUTLINE. *** r3d_polygon_resolve_shade_color
+            // sets bGfx_fill_enabled = (flags & 0x80) (R3D.ASM:2825), and draw_polygon draws only the
+            // edges, in the outline pen, when it is 0 (POLYGON.ASM). Shipped: COMBAT.TBL's 'wirecrys'
+            // (the see-through diamond) and 'square', Z07 'gate2', the mines' m_1way/m_pit (TASK-1120).
+            if ((face.Flags & FillFlag) == 0) {
+                int n = face.VertexIndices.Count;
+                for (int e = 0; e < n; e++) {
+                    var edge = new PolygonFace {
+                        Flags = face.Flags, VgaColor = face.VgaColor, VgaShade = face.VgaShade,
+                        EgaColor = face.EgaColor, EgaShade = face.EgaShade,
+                        NormalVertexIndex = face.NormalVertexIndex,
+                        VertexIndices = new List<int> { face.VertexIndices[e], face.VertexIndices[(e + 1) % n] },
+                    };
+                    AppendLine(edge, meshVerts, palette, mapPalette, dupVertices, dupColors,
+                        dupMapColors, dupUvs, dupPaintOrder, rank, runtimeFlags, frame, keyTriangles);
+                }
+                return;
+            }
 
             bool doubleSided = face.CullMode == FaceCullMode.DoubleSided;
 
