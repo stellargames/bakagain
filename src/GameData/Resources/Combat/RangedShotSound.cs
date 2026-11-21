@@ -80,11 +80,10 @@ public static class RangedShotSound {
 
     /// <summary>The quarrel kind that is a magic bolt.</summary>
     /// <remarks>
-    /// Kind 3 does more than damage: the original applies <b>Flamecast</b> to the target
-    /// (<c>ApplySpellToActor(target, SpellNumber 4, cost 0)</c>) and tints the particles before
-    /// playing <see cref="MagicBoltCue"/>. <b>The port plays the cue and does NOT apply the
-    /// spell</b> — that half wants the spell-effect dispatcher, so the sound is faithful and the
-    /// effect is a known gap rather than a silent one.
+    /// Kind 3 bursts into fire on the target it hits: the original adds status effect 4 and removes
+    /// it again straight after a colour-200 particle burst (CBTAITRN.C:163-172), so the effect is a
+    /// transient around the burst, not a lasting Flamecast. The port plays the burst
+    /// (<c>CombatRuntime.FlamingQuarrelBurstColour</c>) with <see cref="MagicBoltCue"/> on landing.
     /// </remarks>
     public const int MagicBoltKind = 3;
 

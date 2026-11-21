@@ -649,6 +649,52 @@ namespace BakAgain.Tests.Editor.Combat {
         }
 
         /// <summary>
+        /// The heavy shot's impact 0x15 and its sparks come after the flight (CBTAIACT.C:115-131); the
+        /// launch 0x12 comes before it. The port played all three at the decision (TASK-1124 #5).
+        /// </summary>
+        [Test]
+        public void AHeavyShotsImpactAndSparksWaitForTheLanding() {
+            var (runtime, _, member, monster, cues) = MonsterShooterFight(
+                creatureType: MonsterTurnRoutines.AlwaysHeavyCreature, quarrels: 0, crossbow: false);
+            runtime.HoldSwingCues = true;
+            var visuals = new List<SpellVisualKind>();
+            runtime.PlaySpellVisual = (v, _, _) => visuals.Add(v.Kind);
+
+            runtime.ResolveEnemyTurn(monster, Shooter(n => n - 1), AlwaysLow);
+            CollectionAssert.AreEqual(new[] { MonsterTurnRoutines.HeavyShotLaunchCue }, cues, "the launch only");
+            CollectionAssert.IsEmpty(visuals, "no sparks while it flies");
+
+            runtime.PlayHeldLandingCues();
+            CollectionAssert.AreEqual(
+                new[] { MonsterTurnRoutines.HeavyShotLaunchCue, MonsterTurnRoutines.HeavyShotImpactCue }, cues);
+            CollectionAssert.AreEqual(new[] { SpellVisualKind.SparkBurst }, visuals, "the sparks on landing");
+        }
+
+        /// <summary>
+        /// A flaming quarrel bursts into fire on the target it hits: colour 200, spread 10, after the
+        /// flight (CBTAITRN.C:163-172). The port had only the cue (TASK-1124 #8).
+        /// </summary>
+        [Test]
+        public void AFlamingQuarrelBurstsOnTheTargetWhenItLands() {
+            GameSession session = SessionWith((CrossbowId, 100), (0x2a, 10));
+            session.SetRosterActorForTest(400, StatBlock(), 12, gridX: 5, gridY: 5);
+            var runtime = new CombatRuntime(session, null, Entries(), Objects()) { HoldSwingCues = true };
+            var visuals = new List<(SpellVisual Visual, Combatant To)>();
+            runtime.PlaySpellVisual = (v, _, to) => visuals.Add((v, to));
+            CombatEncounter fight = runtime.EnterRoster(new short[] { 400 });
+
+            Assert.IsTrue(runtime.ResolveShot(fight.Party[0], fight.Enemies[0], quarrelKind: 3, AlwaysLow));
+            CollectionAssert.IsEmpty(visuals, "not while it flies");
+
+            runtime.PlayHeldLandingCues();
+            Assert.AreEqual(1, visuals.Count);
+            Assert.AreEqual(SpellVisualKind.SparkBurst, visuals[0].Visual.Kind);
+            Assert.AreEqual(200, visuals[0].Visual.Colour);
+            Assert.AreEqual(10, visuals[0].Visual.Spread);
+            Assert.AreSame(fight.Enemies[0], visuals[0].To);
+        }
+
+        /// <summary>
         /// A thrown rock's impact 0x49 sounds after its flight (CBTAITRN.C:130-132); the port played it
         /// at the throw (TASK-1124 #4).
         /// </summary>

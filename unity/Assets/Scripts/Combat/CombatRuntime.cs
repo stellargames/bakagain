@@ -2739,6 +2739,17 @@ namespace BakAgain.Combat {
             // *** THE ARRIVAL, WHICH IS A DIFFERENT EVENT FROM THE DEPARTURE. *** The cue above is
             // the shot leaving and plays on a miss too; these are the shot landing and play only
             // here. A magic bolt makes both of them. See RangedShotSound.HitCues.
+            // *** A FLAMING QUARREL BURSTS INTO FIRE ON ITS TARGET. *** Colour 200, spread 10, after the
+            // flight and with the hit (CBTAITRN.C:163-172; TASK-1124 #8).
+            if (quarrelKind == RangedShotSound.MagicBoltKind) {
+                var fire = new SpellVisual(SpellVisualKind.SparkBurst, FlamingQuarrelBurstColour,
+                    FlamingQuarrelBurstSpread, Tint: 1, TintFrames: SpellVisuals.TintThroughBurst);
+                if (HoldSwingCues) {
+                    defender.LandingVisuals.Add(fire);
+                } else {
+                    PlaySpellVisual?.Invoke(fire, attacker, defender);
+                }
+            }
             // Held for the landing while an arena draws the bolt: 0x42 follows the blocking
             // flight (CBTAITRN.C:139 then :162; TASK-1124 #3).
             foreach (int cue in RangedShotSound.HitCues(quarrelKind)) {
@@ -4938,6 +4949,9 @@ namespace BakAgain.Combat {
         /// </summary>
         public bool HoldSwingCues { get; set; }
 
+        /// <summary>A flaming quarrel's fire burst: <c>g_nVfxParticleColor = 200</c>, spread 10 (CBTAITRN.C:166, 171).</summary>
+        public const int FlamingQuarrelBurstColour = 200, FlamingQuarrelBurstSpread = 10;
+
         /// <summary>Plays and clears every held landing cue; the arena calls it when a bolt lands.</summary>
         public void PlayHeldLandingCues() {
             if (Encounter == null) {
@@ -4948,6 +4962,10 @@ namespace BakAgain.Combat {
                     _playSfx?.Invoke(cue);
                 }
                 c.LandingCues.Clear();
+                foreach (SpellVisual v in c.LandingVisuals) {
+                    PlaySpellVisual?.Invoke(v, null, c);
+                }
+                c.LandingVisuals.Clear();
             }
         }
 
@@ -5441,10 +5459,17 @@ namespace BakAgain.Combat {
                     monster.FlightEffectId = shot.ActionId;
                     if (shot.Choice == MonsterTurnRoutines.RangedChoice.HeavyShot) {
                         _playSfx?.Invoke(MonsterTurnRoutines.HeavyShotLaunchCue);
-                        _playSfx?.Invoke(MonsterTurnRoutines.HeavyShotImpactCue);
-                        PlaySpellVisual?.Invoke(new SpellVisual(SpellVisualKind.SparkBurst,
+                        // The impact and the sparks follow the flight (CBTAIACT.C:115-131; TASK-1124 #5).
+                        var sparks = new SpellVisual(SpellVisualKind.SparkBurst,
                             MonsterTurnRoutines.HeavyShotBurstColour, MonsterTurnRoutines.HeavyShotBurstSpread,
-                            Tint: shot.KnockbackFrames, TintFrames: SpellVisuals.TintThroughBurst), monster, target);
+                            Tint: shot.KnockbackFrames, TintFrames: SpellVisuals.TintThroughBurst);
+                        if (HoldSwingCues && target != null) {
+                            target.LandingCues.Add(MonsterTurnRoutines.HeavyShotImpactCue);
+                            target.LandingVisuals.Add(sparks);
+                        } else {
+                            _playSfx?.Invoke(MonsterTurnRoutines.HeavyShotImpactCue);
+                            PlaySpellVisual?.Invoke(sparks, monster, target);
+                        }
                     }
                     StrikeFromRange(target, Between(shot.MinDamage, shot.MaxDamage, roll),
                         MonsterTurnRoutines.RangedTurnDamageFlags, shot.KnockbackFrames, roll);

@@ -180,6 +180,10 @@ public sealed class Combatant {
     /// </summary>
     public System.Collections.Generic.List<int> LandingCues { get; } = new();
 
+    /// <summary>Visuals held for the moment a shot lands on this combatant: a flaming quarrel's fire,
+    /// a heavy shot's sparks (CBTAITRN.C:163-172, CBTAIACT.C:115-131; TASK-1124 #5, #8).</summary>
+    public System.Collections.Generic.List<SpellVisual> LandingVisuals { get; } = new();
+
     /// <summary>The number to float over this combatant at the next redraw — the damage dealt, 0 for
     /// a blow that landed and did nothing ("miss"), a NEGATIVE value for a type-2 heal's gain
     /// (CSPELL.C:1217, drawn as its magnitude in pens <c>0xEF - frames</c>, CACTOR.C:992-995),
