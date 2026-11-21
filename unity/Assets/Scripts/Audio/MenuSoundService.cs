@@ -44,6 +44,15 @@ namespace BakAgain.Audio {
             Instance?.Play(soundId, extraRepeats);
         }
 
+        /// <summary>
+        /// <see cref="Cue(int, int)"/>, finishing when the last repeat has stopped: the blocking
+        /// <c>audio_sfx_play_n_times(sfx, repeats, 1)</c>. Done at once with no <see cref="Instance"/>.
+        /// </summary>
+        public static UniTask CueAndWaitAsync(int soundId, int extraRepeats) {
+            CueRequested?.Invoke(soundId);
+            return Instance?.PlayAsync(soundId, extraRepeats, waitForTheLast: true) ?? UniTask.CompletedTask;
+        }
+
         /// <summary>Stops a held cue through <see cref="Instance"/>, telling <see cref="CueStopped"/> first.</summary>
         public static void StopCue(int soundId) {
             CueStopped?.Invoke(soundId);
@@ -95,7 +104,7 @@ namespace BakAgain.Audio {
             LoadAsync(PoundSoundId).Forget();
         }
 
-        private async UniTaskVoid PlayAsync(int soundId, int extraRepeats) {
+        private async UniTask PlayAsync(int soundId, int extraRepeats, bool waitForTheLast = false) {
 #if UNITY_EDITOR || ENABLE_PROFILER
             BakAgain.Testing.HarnessQueries.NoteSound(soundId);
 #endif
@@ -110,6 +119,9 @@ namespace BakAgain.Audio {
                     return;
                 }
                 _midi.PlaySfx(resource);
+            }
+            if (waitForTheLast) {
+                await WaitForQuietAsync(resource.Id);
             }
         }
 

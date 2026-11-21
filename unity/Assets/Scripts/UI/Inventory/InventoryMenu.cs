@@ -4611,9 +4611,13 @@ namespace BakAgain.UI.Inventory {
 
             // The record's sound with its repeats — Ale and the brandy: 64, two more, three gulps
             // (SHOP.C:147-149, audio_sfx_play_n_times(sfx & 0xff, sfx >> 8, 1); TASK-1097).
+            // Played to the end before the transfer: audio_sfx_play_n_times(..., 1) blocks.
             if (info.SoundId != 0) {
-                Audio.MenuSoundService.Cue(info.SoundId, info.SoundRepeat);
+                await Audio.MenuSoundService.CueAndWaitAsync(info.SoundId, info.SoundRepeat);
             }
+            // Then purchased = 1 takes it through the transfer like any buy: BUY 0x3c with the
+            // flight into the drinker's portrait (SHOP.C:153 -> INVENTOR.C:752-755, :565).
+            FinishShopTransfer(sale: false);
         }
 
         /// <summary>

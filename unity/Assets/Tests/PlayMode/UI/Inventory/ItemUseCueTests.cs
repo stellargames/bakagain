@@ -93,7 +93,9 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
 
             Assert.AreEqual(Cysharp.Threading.Tasks.UniTaskStatus.Succeeded, drink.Status, "control: the drink ends at once");
             Assert.AreEqual(995, session.PartyGold, "control: it was paid for and drunk");
-            Assert.That(_cues, Is.EqualTo(new[] { 64 }));
+            // ...and then, as any purchase, BUY 0x3c with the item's flight (purchased = 1 ->
+            // transfer, INVENTOR.C:752-755, :565). The port stopped at the gulps.
+            Assert.That(_cues, Is.EqualTo(new[] { 64, ShopCue }));
         }
 
         private sealed class RecordingDialogs : NoOpDialogs {
