@@ -2433,8 +2433,25 @@ namespace BakAgain.UI.Inventory {
         }
 
         private void UseSelectedItem() {
+            // *** THE SELECTION GOES WHEN THE USE IS OVER, NOT AT THE CLICK. *** The original clears
+            // it after Use_Item returns (CMBINV.C:357-373), so the detail window keeps the item's bag
+            // under the 'used' text and its sound (TASK-1097 row 16). A use that shows that message
+            // hands the deselect to the message (ShowVar0MessageThenCueAsync).
+            _deselectAfterMessage = false;
+            try {
+                UseSelectedItemCore();
+            } finally {
+                if (!_deselectAfterMessage) {
+                    DeselectItem();
+                }
+            }
+        }
+
+        /// <summary>Set when the use's message took over the deselect; see <see cref="UseSelectedItem"/>.</summary>
+        private bool _deselectAfterMessage;
+
+        private void UseSelectedItemCore() {
             int slot = _selectedSlot;
-            DeselectItem();
             if (slot < 0) {
                 return;
             }
@@ -2793,8 +2810,9 @@ namespace BakAgain.UI.Inventory {
         }
 
         private async UniTaskVoid ShowVar0MessageThenCueAsync(int dialogId, int var0,
-            ItemUseOutcome outcome, ObjectInfo used) {
+            ItemUseOutcome outcome, ObjectInfo used, bool redraw = false) {
             bool shown = false;
+            _deselectAfterMessage = true;
             try {
                 shown = await ShowVar0MessageAsync(dialogId, var0, leaveThePageDrawn: true);
             } finally {
@@ -2805,6 +2823,10 @@ namespace BakAgain.UI.Inventory {
                 }
                 if (shown) {
                     _dialogs.ClearDialog();
+                }
+                DeselectItem();
+                if (redraw) {
+                    RenderCurrent();
                 }
             }
         }
@@ -4239,7 +4261,12 @@ namespace BakAgain.UI.Inventory {
                     ShowVar0MessageOverTrackAsync(result.DialogId, result.DialogVar0,
                         result.MusicTrack).Forget();
                 } else {
-                    ShowVar0MessageThenCueAsync(result.DialogId, result.DialogVar0, result.Outcome, used).Forget();
+                    // The message redraws once it and the sound are done (Use_Item returns, then
+                    // the redraw, CMBINV.C:272-274), so it takes the redraw below with it.
+                    bool redraw = redrawAnyway || (result.Outcome != ItemUseOutcome.NoEffect
+                        && result.Outcome != ItemUseOutcome.NotPorted);
+                    ShowVar0MessageThenCueAsync(result.DialogId, result.DialogVar0, result.Outcome, used, redraw).Forget();
+                    return;
                 }
             }
             if (redrawAnyway || (result.Outcome != ItemUseOutcome.NoEffect
