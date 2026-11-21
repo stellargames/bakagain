@@ -636,6 +636,33 @@ namespace BakAgain.Tests.Editor.Combat {
                 "it walked toward the member");
         }
 
+        /// <summary>
+        /// A species shooter poses toward its target before the flight: 0x39 its ranged wind-up
+        /// (slot 8), the other heavy shooters the crossbow pose (slot 7), a light shot the thrust
+        /// (slot 4) (CBTAIACT.C:115-119, 133). The port drew no pose (TASK-1124 #1).
+        /// </summary>
+        [TestCase(MonsterTurnRoutines.AlwaysHeavyCreature, CombatAnimSlot.Windup)]
+        public void ASpeciesHeavyShooterPosesBeforeItsShot(int creature, int slot) {
+            var (runtime, _, _, monster, _) = MonsterShooterFight(creatureType: creature, quarrels: 0, crossbow: false);
+
+            MonsterTurnResolver.Decision decision = runtime.ResolveEnemyTurn(monster, Shooter(n => n - 1), AlwaysLow);
+
+            Assert.AreEqual(MonsterTurnRoutines.RangedChoice.HeavyShot, decision.Ranged.Choice, "the control: a heavy shot");
+            Assert.IsTrue(monster.SwingPending);
+            Assert.AreEqual(slot, monster.PendingAttackSlot);
+        }
+
+        [Test]
+        public void ASpeciesLightShotThrustsBeforeItsShot() {
+            var (runtime, _, _, monster, _) = MonsterShooterFight(creatureType: 0x2b, quarrels: 0, crossbow: false);
+
+            MonsterTurnResolver.Decision decision = runtime.ResolveEnemyTurn(monster, Shooter(n => n - 1), AlwaysLow);
+
+            Assert.AreEqual(MonsterTurnRoutines.RangedChoice.LightShot, decision.Ranged.Choice, "the control: a light shot");
+            Assert.IsTrue(monster.SwingPending);
+            Assert.AreEqual(CombatAnimSlot.Thrust, monster.PendingAttackSlot);
+        }
+
         [Test]
         public void ASpeciesHeavyShotHitsWholeWithItsLaunchAndImpactCues() {
             // combataiact_ranged_attack_turn: no to-hit roll, no armour, RNDR(0x14, 0x1d), cue 0x12

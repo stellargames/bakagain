@@ -5467,6 +5467,15 @@ namespace BakAgain.Combat {
                 case CombatAi.SpeciesRoutine.RangedAttackTurn: {
                     MonsterTurnRoutines.RangedTurn shot = decision.Ranged;
                     monster.FlightEffectId = shot.ActionId;
+                    // *** THE SHOOTER POSES FIRST. *** 0x39 winds up (slot 8), the other heavy shooters
+                    // take the crossbow pose (slot 7), a light shot thrusts (slot 4), each toward the
+                    // target, before the flight (CBTAIACT.C:115-119, 133; TASK-1124 #1).
+                    int pose = shot.Choice == MonsterTurnRoutines.RangedChoice.LightShot ? CombatAnimSlot.Thrust
+                        : monster.ClassId == MonsterTurnRoutines.AlwaysHeavyCreature ? CombatAnimSlot.Windup
+                        : CombatAnimSlot.Crossbow;
+                    CombatEncounter.FaceToward(monster, target, evenOnly: pose == CombatAnimSlot.Thrust);
+                    monster.PendingAttackSlot = pose;
+                    monster.SwingPending = true;
                     if (shot.Choice == MonsterTurnRoutines.RangedChoice.HeavyShot) {
                         _playSfx?.Invoke(MonsterTurnRoutines.HeavyShotLaunchCue);
                         // The impact and the sparks follow the flight (CBTAIACT.C:115-131; TASK-1124 #5).
