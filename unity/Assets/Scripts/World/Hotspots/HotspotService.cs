@@ -5737,9 +5737,7 @@ using GameData.Resources.Scene;
 
             // nEvtArgActor0 is whoever acted last on the party's side (charSlot - 1); the fallen-
             // member line names the downed one instead, and the first still standing as actor 1.
-            Combatant acting = fight.Current is { IsPartyMember: true } current
-                ? current
-                : GameData.Resources.Combat.CombatOutcomeDialog.StandingMember(fight);
+            Combatant acting = GameData.Resources.Combat.CombatOutcomeDialog.NamedActor(fight);
             if (line == GameData.Resources.Combat.CombatOutcomeDialog.PartyMemberDown) {
                 acting = GameData.Resources.Combat.CombatOutcomeDialog.DownedMember(fight);
                 Combatant standing = GameData.Resources.Combat.CombatOutcomeDialog.StandingMember(fight);

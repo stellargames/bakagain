@@ -65,6 +65,15 @@ public static class CombatOutcomeDialog {
     public static Combatant DownedMember(CombatEncounter fight) =>
         fight.Party.LastOrDefault(c => c.IsPartyMember && IsDown(c));
 
+    /// <summary>
+    /// Who <c>nEvtArgActor0</c> names as the fight ends: the party member acting, else the first
+    /// still standing, else the last one to fall — handleActorDeath@0x5f5f6 makes each falling
+    /// member the acting actor (COMBAT.C:229-235, read at 2588-2599).
+    /// </summary>
+    public static Combatant? NamedActor(CombatEncounter fight) =>
+        fight.Current is { IsPartyMember: true } current ? current
+            : StandingMember(fight) ?? fight.LastFallenMember;
+
     /// <summary>The first member still standing (<c>nEvtArgActor1</c> for the 0x83 line).</summary>
     public static Combatant StandingMember(CombatEncounter fight) =>
         fight.Party.FirstOrDefault(c => c.IsPartyMember && !c.IsDead);

@@ -68,4 +68,19 @@ public class CombatOutcomeDialogTests {
         Assert.Null(CombatOutcomeDialog.For(Fight(Standing, Enemy(false)), 2, false, fled: true));
         Assert.Equal(0x150, CombatOutcomeDialog.For(Fight(Standing, Enemy(true)), CombatOutcomeDialog.MakalaEncounter, false));
     }
+
+    [Fact]
+    public void AWipeNamesTheLastMemberToFall() {
+        // handleActorDeath@0x5f5f6 makes each falling party member the acting actor (COMBAT.C:229-235),
+        // and the defeat line names it (COMBAT.C:2588-2599); a monster's blow leaves no party member
+        // acting or standing, which left the port's name stale (TASK-1125 #1).
+        Combatant[] party = { Member(1), Member(2), Member(3) };
+        CombatEncounter fight = Fight(party, Enemy(false));
+        fight.Kill(party[2]);
+        fight.Kill(party[0]);
+        fight.Kill(party[1]);
+
+        Assert.Same(party[1], CombatOutcomeDialog.NamedActor(fight));
+    }
+
 }

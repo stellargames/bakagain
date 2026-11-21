@@ -83,6 +83,9 @@ public sealed class CombatEncounter {
     /// <summary>Whoever is acting, or null once the encounter is over.</summary>
     public Combatant? Current { get; private set; }
 
+    /// <summary>The party member who fell last this fight, or null.</summary>
+    public Combatant? LastFallenMember { get; private set; }
+
     /// <summary>The acting combatant's speed, floored the way the picker floors it.</summary>
     public int ActingSpeed { get; private set; }
 
@@ -312,6 +315,11 @@ public sealed class CombatEncounter {
         combatant.Health = 0;
         combatant.Stamina = 0;
         combatant.Flags |= CombatantFlags.Dead;
+        // A falling party member becomes the acting actor the defeat line names
+        // (handleActorDeath@0x5f5f6, COMBAT.C:229-235; TASK-1125 #1).
+        if (combatant.IsPartyMember) {
+            LastFallenMember = combatant;
+        }
         // The target is left as it stands: combat_arena_actor_die never writes inner->target
         // (COMBAT.C:212-288). A corpse cannot act on it, and the attacker count skips it on
         // CAF_DEAD (CMBTAI.C:351-352). TASK-962.
