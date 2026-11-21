@@ -88,4 +88,14 @@ public class FieldSpellNarrativeTests {
 
         Assert.Equal(Enumerable.Range(FieldSpells.FirstTimedDialog, 6), records);
     }
+
+    [Theory]
+    [InlineData(FieldSpells.EyesOfIshap, 0xd1)]
+    [InlineData(FieldSpells.TheUnseen, 0xd4)]
+    [InlineData(FieldSpells.NacreCicatrix, 0xd7)]
+    public void EachLocatorFailsWithItsOwnLine(int spell, int dialog) {
+        // SPELLFX.C:168-191: Cast_Eyes_of_Ishap -> 0xd1, Cast_The_Unseen -> 0xd4,
+        // Cast_Nacre_Cicatrix -> 0xd7 (TASK-1128 row 8; the three records read the same today).
+        Assert.Equal(dialog, FieldSpells.LocatorFailureDialogFor(spell));
+    }
 }

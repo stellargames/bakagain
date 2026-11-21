@@ -211,6 +211,16 @@ public static class FieldSpells {
     public static bool IsLocatorRoll(int spellId) => IsInstantaneous(spellId);
 
     /// <summary>
+    /// The line a failed locator shows: each has its own record (SPELLFX.C:168-191 — Eyes of
+    /// Ishap 0xd1, The Unseen 0xd4, Nacre Cicatrix 0xd7), though the shipped three read the same.
+    /// </summary>
+    public static int LocatorFailureDialogFor(int spellId) => spellId switch {
+        TheUnseen => 0xd4,
+        NacreCicatrix => 0xd7,
+        _ => 0xd1,
+    };
+
+    /// <summary>
     /// The power a locator subtracts before scaling — <b>zero for two of them and four for Nacre
     /// Cicatrix</b>.
     /// </summary>

@@ -117,7 +117,7 @@ namespace BakAgain.UI.Spells {
             // RND(100) is 0-99 (SPELLFX.C:165-191), so power p succeeds on 10p+1 rolls of 100.
             int roll = UnityEngine.Random.Range(0, 100);
             if (!FieldSpells.LocatorSucceeds(spellNumber, roll, power)) {
-                await ShowDialogAsync(LocatorFailureDialog);
+                await ShowDialogAsync(FieldSpells.LocatorFailureDialogFor(spellNumber));
 
                 return;
             }
@@ -134,9 +134,6 @@ namespace BakAgain.UI.Spells {
                 Audio.MenuSoundService.Cue(castCue);
             }
         }
-
-        /// <summary>"A complete waste of time" — what a failed locator says.</summary>
-        private const int LocatorFailureDialog = 0xd1;
 
         private void ApplyCost(int casterId, int power) {
             ActorStat[] stats = _session?.StatsOf(casterId);
