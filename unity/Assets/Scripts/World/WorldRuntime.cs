@@ -1799,7 +1799,18 @@ namespace BakAgain.World {
                     float seconds = Vector3.Distance(from, to) * BakCoordinateConverter.WorldScale
                         / GameData.Resources.Combat.SpellProjectileMiss.StepUnits
                         * (float)GameData.Resources.Combat.SpellVisuals.FrameSeconds;
-                    FlyEffectAsync(f.Effect, from, to, 0, 0, seconds).Forget();
+                    // The victim's number waits for the landing, as a combatant's shot's does.
+                    (int Slot, bool Party)? landingOn = null;
+                    if (f.Victim != null) {
+                        foreach (Encounters.ArenaCombatant m in _arenaRoot.GetComponentsInChildren<Encounters.ArenaCombatant>()) {
+                            if (_hotspots.CombatantFor(m.RosterSlot, m.PartyMember) == f.Victim) {
+                                landingOn = (m.RosterSlot, m.PartyMember);
+                                _landing.Add(landingOn.Value);
+                                break;
+                            }
+                        }
+                    }
+                    FlyEffectAsync(f.Effect, from, to, 0, 0, seconds, landingOn).Forget();
                 }
                 cellFlights.Clear();
             }

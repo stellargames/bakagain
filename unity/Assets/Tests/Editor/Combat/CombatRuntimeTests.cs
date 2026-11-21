@@ -768,8 +768,9 @@ namespace BakAgain.Tests.Editor.Combat {
             Assert.AreEqual((4, 4), (member.X, member.Y), "the push took the diamond's cell");
             Assert.AreEqual(CombatTerrain.Pushable, runtime.Puzzle.Grid.TerrainAt(5, 4), "and the diamond moved on");
             Assert.Less(member.Health + member.Stamina, before, "the blaster shot the pusher");
-            Assert.IsTrue(runtime.PendingCellFlights.Exists(f => (f.FromX, f.FromY, f.ToX, f.ToY) == (4.5f, 0.5f, 4.5f, 4.5f)),
-                "and a fireball is queued from the blaster to the pusher (trap audit #7)");
+            Assert.IsTrue(runtime.PendingCellFlights.Exists(f => (f.FromX, f.FromY, f.ToX, f.ToY) == (4.5f, 0.5f, 4.5f, 4.5f)
+                    && f.Victim == member),
+                "and a fireball is queued from the blaster to the pusher (trap audit #7), whose number waits for it");
             CollectionAssert.IsSubsetOf(new[] { 1, 10 }, cues);
         }
 
@@ -797,8 +798,9 @@ namespace BakAgain.Tests.Editor.Combat {
 
             Assert.AreEqual(CombatTerrain.Pushable, runtime.Puzzle.Grid.TerrainAt(5, 5), "the diamond landed in the blaster's column");
             Assert.Less(monster.Health + monster.Stamina, before, "the shot flew past it into the monster");
-            Assert.IsTrue(runtime.PendingCellFlights.Exists(f => (f.FromX, f.FromY, f.ToX, f.ToY) == (5.5f, 0.5f, 5.5f, 8.5f)),
-                "drawn from the blaster to the monster it struck");
+            Assert.IsTrue(runtime.PendingCellFlights.Exists(f => (f.FromX, f.FromY, f.ToX, f.ToY) == (5.5f, 0.5f, 5.5f, 8.5f)
+                    && f.Victim == monster),
+                "drawn from the blaster to the monster it struck, whose number waits for it");
             CollectionAssert.IsSubsetOf(new[] { 1, 10 }, cues);
         }
 

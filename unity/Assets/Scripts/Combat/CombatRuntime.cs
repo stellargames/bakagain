@@ -220,10 +220,12 @@ namespace BakAgain.Combat {
         /// Projectiles with no combatant to fly from — a trap blaster's — in cell units (.5 = a
         /// centre), for the arena's next redraw to fly and clear (trap audit #7).
         /// </summary>
-        public List<(int Effect, float FromX, float FromY, float ToX, float ToY)> PendingCellFlights { get; } = new();
+        /// <remarks>Victim: whoever the shot strikes, whose damage number waits for the landing as
+        /// any shot's does (the damage is applied after the flight); null when it strikes nobody.</remarks>
+        public List<(int Effect, float FromX, float FromY, float ToX, float ToY, Combatant Victim)> PendingCellFlights { get; } = new();
 
-        private void QueueBlasterFlight(int fromX, int fromY, float toX, float toY) =>
-            PendingCellFlights.Add((CombatEffectSprite.ForSpell(CannonLine.SpellId), fromX + 0.5f, fromY + 0.5f, toX, toY));
+        private void QueueBlasterFlight(int fromX, int fromY, float toX, float toY, Combatant victim = null) =>
+            PendingCellFlights.Add((CombatEffectSprite.ForSpell(CannonLine.SpellId), fromX + 0.5f, fromY + 0.5f, toX, toY, victim));
 
         /// <summary>The arena's grid cell size in world units (<c>START.DAT</c>, 300) — what a missed
         /// projectile's flight is stepped against (<see cref="SpellProjectileMiss"/>).</summary>
@@ -4362,8 +4364,9 @@ namespace BakAgain.Combat {
                     : (null, null);
                 (int X, int Y) end = struck ?? (grounded is { } g ? (g.X, g.Y)
                     : fliesOn ? EdgeBeyond(shot.X, shot.Y, shove.ToX, shove.ToY) : (shove.ToX, shove.ToY));
-                QueueBlasterFlight(shot.X, shot.Y, end.X + 0.5f, end.Y + 0.5f);
-                if (struck is { } cell && LiveCombatantAt(cell.X, cell.Y) is { } victim
+                Combatant hit = struck is { } at ? LiveCombatantAt(at.X, at.Y) : null;
+                QueueBlasterFlight(shot.X, shot.Y, end.X + 0.5f, end.Y + 0.5f, hit);
+                if (hit is { } victim
                     && Spells?.Spells != null
                     && Spells.Spells.TryGetValue(CannonLine.SpellId, out GameData.Resources.Spells.Spell spell)) {
                     ResolveCast(null, victim, spell, CannonLine.SpellId, -CannonLine.Intensity, null);
@@ -4431,7 +4434,8 @@ namespace BakAgain.Combat {
                 // The shot is a real flight from the blaster's cell (CSPELL.C:1137-1145, WORLDHIT.C:585ff).
                 bool reaches = flight.Fate == ProjectileInterception.Fate.Reaches;
                 QueueBlasterFlight(hazard.SourceX, hazard.SourceY,
-                    (reaches ? hazard.X : flight.X) + 0.5f, (reaches ? hazard.Y : flight.Y) + 0.5f);
+                    (reaches ? hazard.X : flight.X) + 0.5f, (reaches ? hazard.Y : flight.Y) + 0.5f,
+                    reaches ? target : null);
                 if (!reaches) {
                     _logger?.LogInformation(
                         $"A cannon shot from {hazard.SourceX},{hazard.SourceY} at {hazard.X},{hazard.Y} "
