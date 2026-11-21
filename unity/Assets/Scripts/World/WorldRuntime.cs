@@ -1807,7 +1807,8 @@ namespace BakAgain.World {
                 corpse.gameObject.AddComponent<Encounters.DeathCollapse>().Play(
                     _zoneSceneBuilder.RenderContext, corpse.Face, corpse.SetName,
                     corpse.CollapseLastFrame, corpse.Extent, standIn,
-                    vanish: !(_hotspots.Combat?.LeavesCorpse(dead) ?? true)).Forget();
+                    vanish: !(_hotspots.Combat?.LeavesCorpse(dead) ?? true),
+                    hitRung: dead.HitReactionTimer > 0 ? dead.HitReactionRemap : 0).Forget();
             }
             // No body is drawn for it (a creature that vanishes, classes 49/56/57, or a stand-in
             // nobody claimed). It still stands until the blow has landed, as the original draws it

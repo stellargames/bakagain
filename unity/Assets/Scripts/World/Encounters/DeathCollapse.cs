@@ -60,14 +60,21 @@ namespace BakAgain.World.Encounters {
         private int _lastFrame;
         private bool _vanish;
         private int _extent;
+        private int _hitRung;
+
+        /// <summary>The fade rung the picture on screen is drawn through: the killing blow's recoil on
+        /// the run's first picture, 0 after (TASK-1100 D5).</summary>
+        public int CurrentRung { get; private set; }
 
         /// <summary>Start the collapse. Does nothing without a creature set to read frames from.</summary>
         /// <param name="standIn">The victim's living sprite, kept from the previous redraw: shown instead of the
         /// body until the swing that killed it has ended, then destroyed. Null when there is none.</param>
         public UniTask Play(WorldEntityRenderContext ctx,
             SpriteBMeshFace face,
-            string setName, int lastFrame, int extent, GameObject standIn = null, bool vanish = false) {
+            string setName, int lastFrame, int extent, GameObject standIn = null, bool vanish = false,
+            int hitRung = 0) {
             _standIn = standIn;
+            _hitRung = hitRung;
             _vanish = vanish;
             if (ctx == null || face == null || string.IsNullOrEmpty(setName)
                 || lastFrame < Frames - 1) {
@@ -146,8 +153,14 @@ namespace BakAgain.World.Encounters {
 
             // All four, ending on the last picture: the body is hidden until the run starts (above), so
             // the corpse the rebuild left is not on screen to finish it (TASK-1100).
+            // *** THE KILLING BLOW FLASHES TOO. *** The recoil lasts two render steps from the hit
+            // (HitReaction.Ticks) and the victim is drawn through it while it is still the tile's
+            // occupant (CACTOR.C:1367-1369), so the run's first picture carries it (TASK-1100 D5).
+            bool first = true;
             foreach (int index in FramesFor(_lastFrame)) {
-                Texture2D tex = await _ctx.LoadSpriteTextureAsync($"{_setName}#{index}", gameObject);
+                int rung = first ? _hitRung : 0;
+                first = false;
+                Texture2D tex = await _ctx.LoadSpriteTextureAsync($"{_setName}#{index}", gameObject, rung);
                 if (this == null) {
                     return;
                 }
@@ -162,6 +175,7 @@ namespace BakAgain.World.Encounters {
                 _ctx.TrackMesh(mesh);
                 filter.sharedMesh = mesh;
                 CurrentFrame = index;
+                CurrentRung = rung;
                 renderer.sharedMaterial = _ctx.GetSpriteMaterial(tex);
                 if (!renderer.enabled) {
                     renderer.enabled = true;   // the run's first picture replaces the stand-in, no gap between

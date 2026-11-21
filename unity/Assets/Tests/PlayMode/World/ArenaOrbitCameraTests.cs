@@ -471,6 +471,46 @@ namespace BakAgain.Tests.PlayMode.World {
             }
         }
 
+        /// <summary>
+        /// The killing blow flashes: the death run's first picture is drawn through the hit's fade
+        /// rung, the rest plain (the recoil lasts two render steps from the hit, CACTOR.C:1367-1369;
+        /// TASK-1100 D5). A kill got no flash at all.
+        /// </summary>
+        [UnityEngine.TestTools.UnityTest]
+        public System.Collections.IEnumerator AKillsFirstFallingPictureCarriesTheHitsTint() {
+            var provider = new BakAgain.Tests.Editor.Core.Fixtures.FakeResourceProviderService();
+            var set = new GameData.Resources.Image.ImageSet("BODY.BMX");
+            for (int i = 0; i < 4; i++) {
+                set.Images.Add(new GameData.Resources.Image.BmImage("BODY.BMX#" + i) {
+                    Width = 1, Height = 1, BitMapData = new byte[] { 1 } });
+            }
+            provider.Register("BODY.BMX", set);
+            var palette = new Color[256];
+            for (int i = 0; i < palette.Length; i++) {
+                palette[i] = Color.white;
+            }
+            var ctx = BakAgain.World.WorldEntityRenderContext.Create(palette, new BakAgain.World.Rendering.WorldRenderProfile());
+            ctx.ResourceProvider = provider;
+            var body = new GameObject("body", typeof(MeshFilter), typeof(MeshRenderer));
+            try {
+                var fall = body.AddComponent<BakAgain.World.Encounters.DeathCollapse>();
+                var run = fall.Play(ctx, new GameData.Resources.World.SpriteBMeshFace(), "BODY", 3, 100, hitRung: 2);
+                var seen = new System.Collections.Generic.List<(int Frame, int Rung)>();
+                float until = Time.realtimeSinceStartup + 5f;
+                while (run.Status == Cysharp.Threading.Tasks.UniTaskStatus.Pending && Time.realtimeSinceStartup < until) {
+                    if (fall != null && fall.CurrentFrame >= 0
+                        && (seen.Count == 0 || seen[seen.Count - 1].Frame != fall.CurrentFrame)) {
+                        seen.Add((fall.CurrentFrame, fall.CurrentRung));
+                    }
+                    yield return null;
+                }
+                CollectionAssert.AreEqual(new[] { (0, 2), (1, 0), (2, 0), (3, 0) }, seen);
+            } finally {
+                Object.Destroy(body);
+                ctx.Dispose();
+            }
+        }
+
         private static GameData.Resources.World.MeshRecord SwingMesh() {
             var m = new GameData.Resources.World.MeshRecord { RuntimeFlagsIndex = BakAgain.World.Encounters.AttackSwing.SwingSlot };
             for (int i = 0; i < 12; i++) {
