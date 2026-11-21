@@ -58,6 +58,19 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
                 "control: nothing playing, it walks");
         }
 
+        /// <summary>
+        /// TASK-1110 row 9: after Yes to a town, the original walks in and runs GDS_RunScene inside
+        /// the dispatch pass (HOTSPOT.C:636-652), so no travel input is read until the town returns.
+        /// The port's travel layer stayed live between the prompt closing and the location's fade.
+        /// </summary>
+        [Test]
+        public void ThePartyDoesNotMoveWhileALocationIsOpening() {
+            Assert.IsFalse(InGameScreen.PartyMayMove(travelling: true, lifting: false, clickRunning: false,
+                dialogsPlaying: 0, locationOpen: true));
+            Assert.IsTrue(InGameScreen.PartyMayMove(travelling: true, lifting: false, clickRunning: false,
+                dialogsPlaying: 0, locationOpen: false), "control: no location, it walks");
+        }
+
         [Test]
         public void TheExitWaitsForADialogStillPlaying() {
             Assert.IsTrue(InGameScreen.PartyDownExitHolds(falling: false, fightRunning: false, dialogsPlaying: 1));

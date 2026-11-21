@@ -1102,7 +1102,8 @@ namespace BakAgain.UI.InGame {
             // A world click's handler (a chest's explosion, a door's swing) holds the party, as the
             // original's single-threaded click does (TASK-1104).
             bool clickRunning = _interaction?.Busy ?? false;
-            _movementDriver?.Tick(PartyMayMove(travelling, _lifting, clickRunning, _gameSession?.DialogsPlaying ?? 0));
+            _movementDriver?.Tick(PartyMayMove(travelling, _lifting, clickRunning, _gameSession?.DialogsPlaying ?? 0,
+                _locations?.IsOpen ?? false));
             TickMouseLook(travelling && !_lifting);
             TickSwing();
             if (travelling) {
@@ -1562,8 +1563,12 @@ namespace BakAgain.UI.InGame {
         /// yet raised its input layer holds them too: the original polls input only after the
         /// hotspot pass returns (WORLDLP.C:206), and its dialogs block (HOTSPOT.C:89-215; TASK-1112).
         /// </summary>
-        internal static bool PartyMayMove(bool travelling, bool lifting, bool clickRunning, int dialogsPlaying) =>
-            travelling && !lifting && !clickRunning && dialogsPlaying == 0;
+        internal static bool PartyMayMove(bool travelling, bool lifting, bool clickRunning, int dialogsPlaying,
+            bool locationOpen = false) =>
+            travelling && !lifting && !clickRunning && dialogsPlaying == 0
+            // A location runs inside the dispatch pass in the original (HOTSPOT.C:636-652): from the
+            // moment its loop starts, before its fade covers the world, no step is read (TASK-1110).
+            && !locationOpen;
 
         internal static bool PartyDownExitHolds(bool falling, bool fightRunning, int dialogsPlaying) =>
             falling || fightRunning || dialogsPlaying > 0;
