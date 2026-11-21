@@ -5,6 +5,24 @@ namespace BakAgain.Tests.Editor.UI {
     using UnityEngine;
 
     public class DialogOpenWipeTests {
+        /// <summary>
+        /// A world-click message grows out of the clicked object: the mask's corner lerps from the
+        /// origin to the box's corner while its size grows from 0 (DIALOG.C:762-767; TASK-1113 row 2).
+        /// </summary>
+        [Test]
+        public void WithAnOriginTheMaskGrowsOutOfThatPoint() {
+            var box = new Rect(600, 300, 400, 180);
+            var origin = new Vector2(1400, 900);
+            Rect start = DialogOpenWipe.StepGeometry(box, 0f, origin).mask;
+            Rect half = DialogOpenWipe.StepGeometry(box, 0.5f, origin).mask;
+            Rect end = DialogOpenWipe.StepGeometry(box, 1f, origin).mask;
+            Assert.AreEqual(new Rect(1400, 900, 0, 0), start, "a point at the object");
+            Assert.AreEqual(new Rect(1000, 600, 200, 90), half);
+            Assert.AreEqual(box, end, "the whole box");
+            Assert.AreEqual(DialogOpenWipe.StepGeometry(box, 0.5f).mask,
+                DialogOpenWipe.StepGeometry(box, 0.5f, box.center).mask, "the centre is the plain wipe");
+        }
+
         [Test]
         public void ShouldPlay_TrueWhenFlagClear_FalseWhenSet() {
             Assert.IsTrue(DialogOpenWipe.ShouldPlay(DialogEntryFlags.None));

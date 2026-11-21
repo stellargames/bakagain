@@ -41,7 +41,9 @@ namespace BakAgain.UI.InGame {
                 combatantAtPoint = null,
             System.Func<UnityEngine.Vector2?> hoverPointOverride = null,
             System.Action<BakAgain.World.Encounters.EncounterGroupMember, bool> hintEncounter = null,
-            System.Func<bool> underground = null) {
+            System.Func<bool> underground = null,
+            System.Action<UnityEngine.Vector2?> anchorDialog = null) {
+            _anchorDialog = anchorDialog;
             _underground = underground;
             _hintEncounter = hintEncounter;
             _camera = camera;
@@ -233,7 +235,46 @@ namespace BakAgain.UI.InGame {
             if (!InProximity(entity)) {
                 return; // profile-driven GlobalKey depth gate
             }
+            // The message the handler raises opens on the object (WCURSOR.C:196 and siblings:
+            // dialog_viewport_clip_point(hotspot rect centre), clamped into the world view;
+            // TASK-1113 row 2). The object's screen-rect centre is its bounds' centre, projected.
+            _anchorDialog?.Invoke(ScreenCentreOf(entity, stageScreenRect));
             await DispatchAsync(entity, isPrimary);
+        }
+
+        private readonly System.Action<UnityEngine.Vector2?> _anchorDialog;
+
+        private UnityEngine.Vector2? ScreenCentreOf(WorldEntity entity, Rect stageScreenRect) {
+            Renderer[] renderers = entity.GetComponentsInChildren<Renderer>();
+            if (renderers.Length == 0 || _viewport == null) {
+                return null;
+            }
+            Bounds b = renderers[0].bounds;
+            foreach (Renderer r in renderers) {
+                b.Encapsulate(r.bounds);
+            }
+            // The hotspot rect is the object's drawn box on screen, clipped to the view, so the
+            // anchor is the middle of what is visible: project the bounds' corners, clip, centre.
+            Rect view = _viewport.ToScreenRect(stageScreenRect);
+            float xMin = float.MaxValue, yMin = float.MaxValue, xMax = float.MinValue, yMax = float.MinValue;
+            for (int i = 0; i < 8; i++) {
+                var corner = new Vector3((i & 1) == 0 ? b.min.x : b.max.x,
+                    (i & 2) == 0 ? b.min.y : b.max.y, (i & 4) == 0 ? b.min.z : b.max.z);
+                if (WorldPicker.ScreenPointOfGround(_camera, _viewport, corner, stageScreenRect)
+                    is UnityEngine.Vector2 p) {
+                    xMin = Mathf.Min(xMin, p.x); xMax = Mathf.Max(xMax, p.x);
+                    yMin = Mathf.Min(yMin, p.y); yMax = Mathf.Max(yMax, p.y);
+                }
+            }
+            if (xMin > xMax) {
+                return null;
+            }
+            xMin = Mathf.Max(xMin, view.xMin); xMax = Mathf.Min(xMax, view.xMax);
+            yMin = Mathf.Max(yMin, view.yMin); yMax = Mathf.Min(yMax, view.yMax);
+            if (xMin > xMax || yMin > yMax) {
+                return null;
+            }
+            return new UnityEngine.Vector2((xMin + xMax) / 2f, (yMin + yMax) / 2f);
         }
 
         /// <summary>

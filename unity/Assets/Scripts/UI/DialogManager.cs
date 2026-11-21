@@ -1098,6 +1098,12 @@ namespace BakAgain.UI {
         /// FIRST page, so his trap fight opened there and the rest of the confrontation ("Now it's
         /// time to see if you can match a true Nighthawk in combat") played after he was dead.
         /// </remarks>
+        /// <summary>Screen point of the world object a click raised the next dialog from.</summary>
+        private Vector2? _worldAnchorScreen;
+
+        /// <inheritdoc />
+        public void SetWorldAnchor(Vector2? screenPoint) => _worldAnchorScreen = screenPoint;
+
         private async UniTask<T> Playing<T>(System.Func<UniTask<T>> play, string label) {
             if (_gameSession != null) {
                 _gameSession.DialogsPlaying++;
@@ -1109,6 +1115,7 @@ namespace BakAgain.UI {
             } finally {
                 _openPlays.Remove(token);
                 _executor?.RestoreMusic(music);
+                _worldAnchorScreen = null;   // DIALOG.C:1482
                 // Clamped: a load resets the count (GameSession), and a play that ends after it
                 // must not take it below 0 -- a negative count reads as "nothing playing" to the
                 // world loop's `> 0` test for the rest of the session.
@@ -1129,6 +1136,7 @@ namespace BakAgain.UI {
             } finally {
                 _openPlays.Remove(token);
                 _executor?.RestoreMusic(music);
+                _worldAnchorScreen = null;   // DIALOG.C:1482
                 // Clamped: a load resets the count (GameSession), and a play that ends after it
                 // must not take it below 0 -- a negative count reads as "nothing playing" to the
                 // world loop's `> 0` test for the rest of the session.
@@ -2405,6 +2413,24 @@ namespace BakAgain.UI {
                 //      holds 1470×725.6 throughout while the mask grows), so no shipped dialog moves.
                 VisualElement stage = CanonicalStage.GetOrCreate(root, styleTable.Frame);
                 EnsureOverlayIsClickThrough(root, stage);
+                // *** A WORLD CLICK'S MESSAGE OPENS ON THE THING CLICKED. *** The first record of
+                // the play takes the anchor (DIALOG.C:1068-1069, bFirstOpen); a speakerless one is
+                // centred on it inside the original's margins and grows out of it (DIALOG.C:731-775;
+                // TASK-1113 row 2). Converted through THIS stage, so an Enhanced full-screen world
+                // view still lands the box on the object.
+                Vector2? wipeOrigin = null;
+                if (_worldAnchorScreen is Vector2 anchorScreen) {
+                    _worldAnchorScreen = null;
+                    if (entry.ActorNumber == 0) {
+                        Vector2 anchor = BakAgain.Graphics.CanonicalConversion.ScreenToCanonical(
+                            anchorScreen, new Vector2(Screen.width, Screen.height), stage);
+                        if (GameData.Resources.Dialog.DialogWorldAnchor.Place(area, anchor.x, anchor.y)
+                            is LayoutHint placed) {
+                            area = placed;
+                            wipeOrigin = anchor;
+                        }
+                    }
+                }
                 // *** BEFORE THE FACE AND THE PANEL. *** The parchment is a screen-filling blit in
                 // the original (ExecuteDialog @0x499dc-0x49a08 reads Dialog.scr and copies the whole
                 // 320x200), so everything the dialog draws goes on top of it. Added first so the
@@ -2572,7 +2598,8 @@ namespace BakAgain.UI {
                                 }
                             }
                             await DialogOpenWipe.PlayAsync(stage, wipePanel, _activeArea, resolvedRect,
-                                OpenWipeDurationSeconds, cancellationToken, whole, alsoReveal);
+                                OpenWipeDurationSeconds, cancellationToken, whole, alsoReveal,
+                                whole == null ? wipeOrigin : null);
                         }
                     } finally {
                         // The panel must never be left hidden by a path that skipped the wipe: the

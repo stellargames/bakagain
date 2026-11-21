@@ -39,7 +39,11 @@ namespace BakAgain.UI {
 
         // Centre-out step: the clip-mask rect at progress t (a centred sub-rect of `canonicalRect`),
         // plus the panel's offset INSIDE that mask so it stays pinned at `canonicalRect` on screen.
-        public static (Rect mask, Vector2 panelOffset) StepGeometry(Rect canonicalRect, float t) {
+        // With an origin the mask grows from that point instead of the centre: a world-click
+        // message grows out of the clicked object (dialog_animate_open, DIALOG.C:762-767: the corner
+        // lerps from the anchor, the size from 0; TASK-1113 row 2). The centre is the same formula.
+        public static (Rect mask, Vector2 panelOffset) StepGeometry(Rect canonicalRect, float t,
+            Vector2? origin = null) {
             t = Mathf.Clamp01(t);
             float cx = canonicalRect.x + canonicalRect.width / 2f;
             float cy = canonicalRect.y + canonicalRect.height / 2f;
@@ -47,6 +51,10 @@ namespace BakAgain.UI {
             float h = canonicalRect.height * t;
             float mx = cx - w / 2f;
             float my = cy - h / 2f;
+            if (origin is Vector2 o) {
+                mx = o.x + (canonicalRect.x - o.x) * t;
+                my = o.y + (canonicalRect.y - o.y) * t;
+            }
             return (new Rect(mx, my, w, h), new Vector2(canonicalRect.x - mx, canonicalRect.y - my));
         }
 
@@ -112,7 +120,8 @@ namespace BakAgain.UI {
         public static async UniTask PlayAsync(VisualElement stage, VisualElement panel, LayoutHint area,
             Rect resolvedRect, float duration, CancellationToken cancellationToken,
             Rect? wholeScreenRect = null,
-            System.Collections.Generic.IReadOnlyList<VisualElement> alsoReveal = null) {
+            System.Collections.Generic.IReadOnlyList<VisualElement> alsoReveal = null,
+            Vector2? origin = null) {
 
             // *** A WIPE WITH NOTHING TO REVEAL IS A NO-OP, NOT A CRASH -- AND IT SAYS SO. ***
             // The caller reads _activePanel, a field RemovePanel nulls, and awaits twice before
@@ -193,7 +202,7 @@ namespace BakAgain.UI {
             panel.style.bottom = StyleKeyword.Null;
 
             void SetStep(float t) {
-                Rect m = StepGeometry(wipeRect, t).mask;
+                Rect m = StepGeometry(wipeRect, t, origin).mask;
                 mask.style.left = m.x;
                 mask.style.top = m.y;
                 mask.style.width = m.width;

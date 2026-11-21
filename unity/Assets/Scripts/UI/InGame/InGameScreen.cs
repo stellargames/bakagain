@@ -798,6 +798,7 @@ namespace BakAgain.UI.InGame {
                     ?.HintEncounter(member.EncounterNumber, member.CreatureNumber, isPrimary),
                 // The corpse reach shrinks underground (WCURSOR.C:225-229).
                 underground: () => _resolver?.Resolve<BakAgain.World.WorldRuntime>()?.Underground ?? false,
+                anchorDialog: p => _dialogManager?.SetWorldAnchor(p),
                 lootCorpse: (corpse, isPrimary) => {
                     if (corpse == null || _pendingCamera == null) {
                         return;
