@@ -94,6 +94,18 @@ namespace BakAgain.World.Encounters {
         /// <summary>Shots still in flight: a body hit by one waits for it to land (TASK-1107).</summary>
         public static int Flying { get; private set; }
 
+        /// <summary>Shots armed but not yet flying: the shooter is still posing or the sprite is being
+        /// built. A body they will hit waits for them as for one in flight (TASK-1124 #9).</summary>
+        public static int Armed { get; private set; }
+
+        public static void Arm() => Armed++;
+
+        public static void Release() {
+            if (Armed > 0) {
+                Armed--;
+            }
+        }
+
         private async UniTaskVoid RunAsync(Vector3 from, Vector3 to, System.Action<Vector3> passedOver,
             IReadOnlyList<ThrownRockFlight.Step> arc, System.Action onSkip) {
             Flying++;

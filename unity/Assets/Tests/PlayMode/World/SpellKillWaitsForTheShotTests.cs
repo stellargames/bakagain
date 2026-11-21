@@ -30,5 +30,22 @@ namespace BakAgain.Tests.PlayMode.World {
                 Object.DestroyImmediate(shot);
             }
         }
+
+        /// <summary>
+        /// A shot armed but not yet flying (its shooter is still posing, or its sprite is building)
+        /// holds the fall too: a killing crossbow shot dropped its target in the gap between the pose
+        /// and the bolt (TASK-1124 #9, seen live 2026-11-21).
+        /// </summary>
+        [Test]
+        public void AShotArmedButNotYetFlyingHoldsTheFallBack() {
+            Assert.IsFalse(DeathCollapse.HeldBack, "control");
+            ProjectileFlight.Arm();
+            try {
+                Assert.IsTrue(DeathCollapse.HeldBack);
+            } finally {
+                ProjectileFlight.Release();
+            }
+            Assert.IsFalse(DeathCollapse.HeldBack);
+        }
     }
 }

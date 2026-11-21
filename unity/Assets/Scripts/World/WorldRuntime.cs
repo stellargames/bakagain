@@ -852,15 +852,19 @@ namespace BakAgain.World {
         private async UniTaskVoid FlyAfterPoseAsync(Encounters.ArenaCombatant shooter, int effectId,
             Vector3 from, Vector3 to, int arcSteps, int arcDelta, (int Slot, bool Party)? landingOn,
             float seconds = Encounters.ProjectileFlight.Seconds) {
+            // Armed from here until it lands: a body this shot kills must not fall in the gap between
+            // the pose and the bolt (TASK-1124 #9).
+            Encounters.ProjectileFlight.Arm();
             _arenaWork++;
             try {
                 if (_posing.TryGetValue(shooter, out UniTask pose)) {
                     await pose;
                 }
+                await FlyEffectCoreAsync(effectId, from, to, arcSteps, arcDelta, seconds, landingOn);
             } finally {
                 _arenaWork--;
+                Encounters.ProjectileFlight.Release();
             }
-            FlyEffectAsync(effectId, from, to, arcSteps, arcDelta, seconds, landingOn).Forget();
         }
 
         /// <summary>Build one effect sprite and fly it between two arena positions.</summary>
@@ -869,7 +873,14 @@ namespace BakAgain.World {
         /// been drawn and the model has already resolved, so nothing downstream is waiting on the
         /// picture. A failed build is silent — a missing bitmap must not cost the player their shot.
         /// </remarks>
-        private async UniTaskVoid FlyEffectAsync(int effectId, Vector3 from, Vector3 to,
+        private UniTaskVoid FlyEffectAsync(int effectId, Vector3 from, Vector3 to,
+            int arcSteps, int arcDelta, float seconds = Encounters.ProjectileFlight.Seconds,
+            (int Slot, bool Party)? landingOn = null) {
+            FlyEffectCoreAsync(effectId, from, to, arcSteps, arcDelta, seconds, landingOn).Forget();
+            return default;
+        }
+
+        private async UniTask FlyEffectCoreAsync(int effectId, Vector3 from, Vector3 to,
             int arcSteps, int arcDelta, float seconds = Encounters.ProjectileFlight.Seconds,
             (int Slot, bool Party)? landingOn = null) {
             if (_arenaRoot == null || _zoneSceneBuilder?.RenderContext == null) {
@@ -1773,6 +1784,18 @@ namespace BakAgain.World {
                         && other.PartyMember == shooter.FlightToParty) {
                         to = other.transform;
                         break;
+                    }
+                }
+                // *** A KILLING SHOT FLIES AT THE BODY. *** The shot resolved first, so its victim is
+                // already drawn as a corpse; the bolt never flew and the body fell at the pose's end
+                // (TASK-1124 #9).
+                if (to == null) {
+                    foreach (Encounters.ArenaCorpse body in
+                             _arenaRoot.GetComponentsInChildren<Encounters.ArenaCorpse>()) {
+                        if (body.RosterSlot == shooter.FlightToSlot && body.PartyMember == shooter.FlightToParty) {
+                            to = body.transform;
+                            break;
+                        }
                     }
                 }
                 if (to == null) {

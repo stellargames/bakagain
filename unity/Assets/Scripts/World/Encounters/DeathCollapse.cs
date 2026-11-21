@@ -34,7 +34,8 @@ namespace BakAgain.World.Encounters {
         /// a projectile in flight, or a spell's effect still playing (TASK-1073, TASK-1107).
         /// </summary>
         public static bool HeldBack =>
-            AttackSwing.Playing > 0 || ProjectileFlight.Flying > 0 || SpellVfx.Draining > 0;
+            AttackSwing.Playing > 0 || ProjectileFlight.Flying > 0 || ProjectileFlight.Armed > 0
+            || SpellVfx.Draining > 0;
 
         /// <summary>Frames in the run — <c>framesPerDir</c>.</summary>
         public const int Frames = 4;
