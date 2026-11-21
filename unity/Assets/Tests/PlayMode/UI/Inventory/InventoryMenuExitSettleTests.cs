@@ -293,6 +293,44 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
                 await UniTask.Yield();
             });
 
+        /// <summary>After a discard the dropped bag is the screen's other inventory: the window shows the
+        /// bag and opens it, and the next drop on the window goes straight into that bag
+        /// (g_other_inventory_actor, CMBINV.C:1064-1072, 385-392). The port kept the keyring
+        /// (TASK-1129 row 2).</summary>
+        [UnityTest]
+        [Timeout(15000)]
+        public IEnumerator ADiscardMakesTheBagTheWindowsInventory() =>
+            UniTask.ToCoroutine(async () => {
+                const byte A = 48, B = 49;
+                GameSession session = SessionWith(FreeSlot());
+                session.SetObjectInfo(new ObjectInfoSet("O", new List<ObjectInfo> {
+                    new ObjectInfo("a") { Number = A, Name = "A", InventorySlots = 1, ObjectType = GameData.ObjectType.Misc },
+                    new ObjectInfo("b") { Number = B, Name = "B", InventorySlots = 1, ObjectType = GameData.ObjectType.Misc },
+                }));
+                session.PositionX = BagX;
+                session.PositionY = BagY;
+                InventoryMenu menu = BuildMenu(session, new RecordingBagSpawner(), new InputLayerStack());
+                var pack = new RuntimeContainer { Capacity = 24, ContainerType = SaveGameContainerType.Inventory };
+                pack.Items.Add(new RuntimeItem(A, 1, 0));
+                pack.Items.Add(new RuntimeItem(B, 1, 0));
+                const System.Reflection.BindingFlags Private =
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+                typeof(InventoryMenu).GetField("_displayed", Private).SetValue(menu, pack);
+                typeof(InventoryMenu).GetField("_stage", Private).SetValue(menu, _go.GetComponent<UIDocument>().rootVisualElement);
+
+                typeof(InventoryMenu).GetMethod("DiscardToGround", Private).Invoke(menu, new object[] { 0 });
+                await UniTask.Yield();
+                await UniTask.Yield();
+                RuntimeContainer bag = session.GetLiveContainerAt(1, BagX, BagY);
+                Assert.IsNotNull(bag, "the control: the bag stands");
+
+                Assert.AreSame(bag, typeof(InventoryMenu).GetField("_container", Private).GetValue(menu),
+                    "the window's inventory is now the bag");
+                Assert.AreEqual(ContainerImage.IndexForWorldEntityType(WorldEntityType.Bag),
+                    typeof(InventoryMenu).GetProperty("EffectiveContainerImageIndex", Private).GetValue(menu),
+                    "and the window shows it");
+            });
+
         private sealed class HeldLineDialogs : NoOpDialogs {
             private readonly UniTaskCompletionSource<int> _held = new();
             public bool Shown;

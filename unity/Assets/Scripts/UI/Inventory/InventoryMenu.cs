@@ -3258,6 +3258,15 @@ namespace BakAgain.UI.Inventory {
                 return;
             }
             _groundBags?.SpawnAsync(bag).Forget();
+            // *** THE BAG IS NOW THE SCREEN'S OTHER INVENTORY. *** dropItemToGround stores it in
+            // g_other_inventory_actor (CMBINV.C:1064-1072): the window shows the bag and opens it,
+            // and the next drop on the window is a plain transfer into it (385-392), until the
+            // screen closes (:457). The port kept the keyring (TASK-1129 row 2).
+            if (_container == null) {
+                _container = bag;
+                _containerImageIndex = ContainerImage.IndexForWorldEntityType(WorldEntityType.Bag);
+                RenderCurrent();
+            }
         }
 
         protected override void OnBeforeHide() {
