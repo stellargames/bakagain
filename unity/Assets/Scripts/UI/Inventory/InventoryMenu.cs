@@ -1034,7 +1034,7 @@ namespace BakAgain.UI.Inventory {
         // covered, and two Enters landing on a stale focused cell could equip an item the player
         // cannot see.
         private void ActivateSlot(int slot) {
-            if (_descriptionOpen || _inspectOpen || _pickerOpen) {
+            if (_descriptionOpen || _inspectOpen || _pickerOpen || InputHeldByAFlight) {
                 return;
             }
             VisualElement cell = _stage?.Q($"item_slot_{slot}");
@@ -3592,6 +3592,9 @@ namespace BakAgain.UI.Inventory {
         /// the sprite the button wears. Nothing answered a right-click here before.
         /// </remarks>
         public Awaitable SecondaryAction(int actionId) {
+            if (InputHeldByAFlight) {
+                return default;   // the flight is a blocking loop in the original (TASK-1129 row 12)
+            }
             // A right-click keeps the portraits and the purse (CMBINV.C:313-326 zeroes every other
             // action on it), so they reach the same arms a left click does: the sheet for a portrait
             // (:336-341) and the purse line for the gold (:352-355) — TASK-799.

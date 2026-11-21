@@ -313,6 +313,24 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         }
 
         /// <summary>
+        /// Keyboard/gamepad activation and the right-click are held during a drop flight too: the
+        /// original's flight is a blocking loop (INVENTOR.C:565-604). Only the pointer and the
+        /// buttons were gated (TASK-1129 row 12).
+        /// </summary>
+        [Test]
+        public void KeyboardActivationWaitsForTheFlightToLand() {
+            var flyer = new VisualElement { name = "drop_flight" };
+            _root.Add(flyer);
+            Call("ActivateSlot", 0);
+            Assert.AreEqual(-1, (int)typeof(InventoryMenu).GetField("_selectedSlot", Any).GetValue(_menu),
+                "the item is in the air: Enter selects nothing");
+            flyer.RemoveFromHierarchy();
+            Call("ActivateSlot", 0);
+            Assert.AreEqual(0, (int)typeof(InventoryMenu).GetField("_selectedSlot", Any).GetValue(_menu),
+                "control: landed, Enter selects");
+        }
+
+        /// <summary>
         /// The inspect fly-in takes no input either: the original flies the icon in a blocking loop and
         /// reads nothing until the description is up (INVINSP.C:347-348, input from :402). Exit during
         /// the port's fly-in closed the screen and the description then showed over travel
