@@ -6185,6 +6185,18 @@ namespace BakAgain.Combat {
                     return null;
                 }
 
+                // *** The OUTGOING actor's poison ticks as the picker runs. *** That is the
+                // original's step 1 (combat_actor_pick_next): tick, then pick. Ticking the incoming
+                // actor instead poisons whoever is about to act rather than whoever just did, which
+                // shifts the damage by a turn and hides it from anyone who dies before acting again.
+                // *** AND BEFORE A ROUND BOUNDARY AGES THE EFFECTS. *** pick_next ticks first and
+                // only finding nobody leads to refresh_all_stats (CACTOR.C:1451-1453, COMBAT.C:
+                // 1449-1452), so a shield in its last round still covers the tick (TASK-1125 #5).
+                TickPoison(Encounter.Current);
+                if (Encounter.IsOver()) {
+                    return null;
+                }
+
                 if (Encounter.RoundComplete()) {
                     // *** ONE ROUND BOUNDARY PER ADVANCE. *** combat_arena_advance_turn runs the
                     // monsters, refreshes once and runs them again; with no party member picked it
@@ -6201,12 +6213,6 @@ namespace BakAgain.Combat {
                     Encounter.BeginRound(Grid);
                     Log.Round++;
                 }
-
-                // *** The OUTGOING actor's poison ticks as the picker runs. *** That is the
-                // original's step 1 (combat_actor_pick_next): tick, then pick. Ticking the incoming
-                // actor instead poisons whoever is about to act rather than whoever just did, which
-                // shifts the damage by a turn and hides it from anyone who dies before acting again.
-                TickPoison(Encounter.Current);
 
                 // *** SPEED IS RE-READ AT PICK TIME, NOT SNAPSHOTTED AT ENTRY. ***
                 // combatenc_pick_next (CBENC.C:726-738) compares `stat_actor_get(cand, 2, 0)` for

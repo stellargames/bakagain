@@ -1292,6 +1292,28 @@ namespace BakAgain.Tests.Editor.Combat {
             Assert.AreEqual(0x21, GameData.Resources.Combat.CombatOutcomeDialog.For(runtime.Encounter, 2, false));
         }
 
+        /// <summary>
+        /// At a round boundary the outgoing actor's poison ticks BEFORE the effects age: pick_next
+        /// ticks it, finds nobody, and only then does refresh_all_stats age the effects
+        /// (CACTOR.C:1451-1453, COMBAT.C:1449-1452). So a Skin of the Dragon in its last round still
+        /// negates that tick; the port aged it away first (TASK-1125 #5).
+        /// </summary>
+        [Test]
+        public void TheLastActorsPoisonTicksBeforeTheRoundsEffectsAge() {
+            (CombatRuntime runtime, Combatant member, Combatant monster) = MeleeFight();
+            monster.X = member.X + 4;
+            Assert.AreSame(member, runtime.AdvanceToPartyTurn(resolveEnemyTurn: _ => { }), "control: the member's turn");
+            member.Flags |= CombatantFlags.Poisoned;
+            runtime.Encounter.Effects.Register(member, GameData.Resources.Spells.SpellIds.SkinOfTheDragon, 2, 1);
+            member.Flags &= ~CombatantFlags.Ready;
+            monster.Flags &= ~CombatantFlags.Ready;
+            int before = member.Health + member.Stamina;
+
+            runtime.AdvanceToPartyTurn(resolveEnemyTurn: _ => { });
+
+            Assert.AreEqual(before, member.Health + member.Stamina, "the skin still held when the poison ticked");
+        }
+
         [Test]
         public void TheOutgoingMembersTurnIsDrawnBeforeTheNextActorGoes() {
             (CombatRuntime runtime, Combatant member, Combatant monster) = MeleeFight();
