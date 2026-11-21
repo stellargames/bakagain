@@ -158,6 +158,45 @@ namespace BakAgain.Tests.PlayMode.Inventory {
         // Mechanism — synthetic geometry only.
         // ======================================================================================
 
+        private sealed class IconStillLoading : IResourceProviderService {
+            public UniTask<T> LoadAssetAsync<T>(object key, object owner) where T : class =>
+                new UniTaskCompletionSource<T>().Task;
+            public void ReleaseAssets(object owner) { }
+        }
+
+        /// <summary>
+        /// The name, type and status lines come after the icon has flown in: UI_showItem animates the
+        /// icon first and draws the text after it (INVINSP.C:347-391; TASK-1129 row 7).
+        /// </summary>
+        [Test]
+        public void TheTextWaitsForTheIconToLand() {
+            var root = new VisualElement();
+            var panel = new ItemInspectPanel();
+            panel.Render(root, Item(), Obj(wordWrap: 0), affecting: true,
+                resources: new IconStillLoading(), layout: SyntheticLayout(), from: Vector2.zero);
+            List<Label> labels = Labels(root);
+            Assert.IsNotEmpty(labels, "control: the lines are built");
+            foreach (Label l in labels) {
+                Assert.AreEqual(Visibility.Hidden, l.style.visibility.value, $"'{l.text}' is up before the icon lands");
+            }
+            panel.Clear();
+        }
+
+        /// <summary>
+        /// Closing clears the text before the icon flies home: the fly-back erases the content area
+        /// on every step (INVINSP.C:430 -> 187; TASK-1129 row 8).
+        /// </summary>
+        [Test]
+        public void HidingTheTextLeavesNoLines() {
+            var root = new VisualElement();
+            var panel = new ItemInspectPanel();
+            panel.Render(root, Item(), Obj(wordWrap: 0), affecting: true,
+                resources: null, layout: SyntheticLayout(), from: Vector2.zero);
+            Assert.IsNotEmpty(Labels(root), "control: the lines are up");
+            panel.HideText();
+            Assert.IsEmpty(Labels(root), "no text during the fly-back");
+        }
+
         [Test]
         public void TextLines_TakeTheirPositionsFromTheLayout() {
             var root = new VisualElement();

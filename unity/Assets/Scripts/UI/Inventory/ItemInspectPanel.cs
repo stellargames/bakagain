@@ -36,6 +36,7 @@ namespace BakAgain.UI.Inventory {
         private static readonly Color ShadowColor = InventoryTextStyle.ShadowColor;
 
         private readonly List<VisualElement> _elements = new();
+        private readonly List<VisualElement> _text = new(); // the lines, a subset of _elements
         private IResourceProviderService _resources;
         private GameData.Resources.Palette.PaletteResource _palette;
         private VisualElement _icon;
@@ -60,6 +61,7 @@ namespace BakAgain.UI.Inventory {
                 e.RemoveFromHierarchy();
             }
             _elements.Clear();
+            _text.Clear();
             _icon = null;
             _iconPositionKnown = false;
             // Release any awaiter — a cleared panel has no flight to finish, and leaving the source
@@ -234,8 +236,36 @@ namespace BakAgain.UI.Inventory {
             }
 
             _resources = resources;
+            // The lines wait for the icon: UI_showItem flies it in first and draws the text after
+            // (INVINSP.C:347-391; TASK-1129 row 7).
+            foreach (VisualElement line in _text) {
+                line.style.visibility = Visibility.Hidden;
+            }
             AddIconAsync(root, obj, item.ItemFlags, _generation).Forget();
             LoadPaletteAsync(_generation).Forget();
+            ShowTextWhenLandedAsync(_generation).Forget();
+        }
+
+        /// <summary>
+        /// Take the text lines down, leaving the icon: the fly-back erases the content area on every
+        /// step (INVINSP.C:430 -> 187), so no line survives into it (TASK-1129 row 8).
+        /// </summary>
+        private async UniTaskVoid ShowTextWhenLandedAsync(int generation) {
+            await _flightDone.Task;
+            if (generation != _generation) {
+                return;   // cleared or re-rendered meanwhile
+            }
+            foreach (VisualElement line in _text) {
+                line.style.visibility = StyleKeyword.Null;
+            }
+        }
+
+        internal void HideText() {
+            foreach (VisualElement e in _text) {
+                e.RemoveFromHierarchy();
+                _elements.Remove(e);
+            }
+            _text.Clear();
         }
 
         /// <summary>
@@ -341,6 +371,7 @@ namespace BakAgain.UI.Inventory {
             GameFontText.Apply(label);
             root.Add(label);
             _elements.Add(label);
+            _text.Add(label);
         }
 
         // INVENTOR.PAL backs the pens the panel draws with. Loaded lazily alongside the icon so the

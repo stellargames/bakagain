@@ -2011,6 +2011,7 @@ namespace BakAgain.UI.Inventory {
                 // frame of that animation (draw_rect_filled 13,11,294,121 in
                 // invinspect_animate_item_move), so by the time the icon starts moving the
                 // description text is already gone — which is why the clears above come first.
+                _inspect.HideText();              // name, type and status too (TASK-1129 row 8)
                 if (_inspectSlot >= 0) {
                     await _inspect.FlyIconBackAsync(_inspectFrom);
                 }
