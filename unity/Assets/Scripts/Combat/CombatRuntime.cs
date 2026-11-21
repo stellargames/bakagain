@@ -2656,6 +2656,11 @@ namespace BakAgain.Combat {
             attacker.PendingAttackSlot = CombatAnimSlot.Crossbow;
             attacker.SwingPending = true;
             int? shotCue = RangedShotSound.Cue(quarrelKind, weapon.Info != null);
+            // A rock's cue is its IMPACT, after the flight (CBTAITRN.C:130-132): held below.
+            int? rockImpact = quarrelKind == RangedShotSound.ThrownRockKind ? shotCue : null;
+            if (rockImpact.HasValue) {
+                shotCue = null;
+            }
             if (shotCue.HasValue) {
                 if (HoldSwingCues) {
                     attacker.SwingCue = shotCue.Value;
@@ -2714,6 +2719,14 @@ namespace BakAgain.Combat {
                 CombatAdvancement.OnShotHit(
                     attacker.IsPartyMember ? StatOrNull(attackerStats, ActorAttribute.AccuracyCrossbow) : null,
                     StudyOf(attacker), MarkOf(attacker));
+            }
+            if (rockImpact is int impact) {
+                // On whoever the rock reached; a clean miss holds it on the thrower (TASK-1124 #4).
+                if (HoldSwingCues) {
+                    (hit ? defender : attacker).LandingCues.Add(impact);
+                } else {
+                    _playSfx?.Invoke(impact);
+                }
             }
             if (!hit) {
                 return false;

@@ -648,6 +648,29 @@ namespace BakAgain.Tests.Editor.Combat {
             Assert.AreEqual(before - 0x14, Pool(member), "the floor of the band, taken whole");
         }
 
+        /// <summary>
+        /// A thrown rock's impact 0x49 sounds after its flight (CBTAITRN.C:130-132); the port played it
+        /// at the throw (TASK-1124 #4).
+        /// </summary>
+        [Test]
+        public void AThrownRocksImpactWaitsForTheLanding() {
+            var (runtime, _, member, monster, cues) = MonsterShooterFight(
+                creatureType: 0x1f, quarrels: 0, crossbow: false);
+            runtime.HoldSwingCues = true;
+            int before = Pool(member);
+
+            runtime.ResolveEnemyTurn(monster, Shooter(n => n - 1), AlwaysLow);
+            Assert.Less(Pool(member), before, "the control: the rock hit");
+            CollectionAssert.DoesNotContain(cues, RangedShotSound.RockImpactCue,
+                "not while it flies: " + string.Join(",", cues));
+
+            runtime.PlayHeldSwingCues();
+            CollectionAssert.DoesNotContain(cues, RangedShotSound.RockImpactCue,
+                "nor as the throw leaves the hand");
+            runtime.PlayHeldLandingCues();
+            CollectionAssert.Contains(cues, RangedShotSound.RockImpactCue, "when it lands");
+        }
+
         [Test]
         public void AThrownRockNeedsNoQuarrel() {
             // CBTAIACT.C:188 calls combataiturn_ranged_attack(actor, target, 8) with no selection in
