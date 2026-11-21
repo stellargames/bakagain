@@ -97,6 +97,20 @@ namespace BakAgain.World.Encounters {
             System.Collections.Generic.IReadOnlyList<MeshRecord> meshes, int octant, bool thrust) =>
             RunFaces(meshes, octant, thrust ? ThrustSlot : SwingSlot);
 
+        /// <summary>
+        /// Whether the run draws mirrored: the facing it stores (forced even in mode 3) is past 4
+        /// (CACTOR.C:1865-1867 store it, 891-894 set g_nActorSpriteFlip from it), whatever the
+        /// standing sprite was.
+        /// </summary>
+        public static bool FlipsFor(int slot, int octant) {
+            int facing = System.Math.Max(0, octant);
+            bool mode3 = slot != GameData.Resources.Combat.CombatAnimSlot.Windup;
+            if (mode3) {
+                facing -= facing % 2;
+            }
+            return facing > 4;
+        }
+
         /// <summary>The faces of <paramref name="slot"/>'s mesh that its run shows.</summary>
         public static System.Collections.Generic.IReadOnlyList<SpriteBMeshFace> RunFaces(
             System.Collections.Generic.IReadOnlyList<MeshRecord> meshes, int octant, int slot) {
@@ -146,7 +160,7 @@ namespace BakAgain.World.Encounters {
             if (ctx == null || run.Count == 0 || string.IsNullOrEmpty(setName)) {
                 return UniTask.CompletedTask;
             }
-            return RunAsync(ctx, run, setName, extent);
+            return RunAsync(ctx, run, setName, extent, FlipsFor(slot, octant));
         }
 
         /// <summary>Swings still playing. The arena counts them as busy, so the turn waits for them as the
@@ -165,11 +179,11 @@ namespace BakAgain.World.Encounters {
         public bool Holding { get; internal set; }
 
         private async UniTask RunAsync(WorldEntityRenderContext ctx,
-            System.Collections.Generic.IReadOnlyList<SpriteBMeshFace> run, string setName, int extent) {
+            System.Collections.Generic.IReadOnlyList<SpriteBMeshFace> run, string setName, int extent, bool flip) {
             Playing++;
             Running = true;
             try {
-                await RunCoreAsync(ctx, run, setName, extent);
+                await RunCoreAsync(ctx, run, setName, extent, flip);
             } finally {
                 Playing--;
                 Running = false;
@@ -177,7 +191,7 @@ namespace BakAgain.World.Encounters {
         }
 
         private async UniTask RunCoreAsync(WorldEntityRenderContext ctx,
-            System.Collections.Generic.IReadOnlyList<SpriteBMeshFace> run, string setName, int extent) {
+            System.Collections.Generic.IReadOnlyList<SpriteBMeshFace> run, string setName, int extent, bool flip) {
             var filter = GetComponent<MeshFilter>();
             var renderer = GetComponent<MeshRenderer>();
             if (filter == null || renderer == null) {
@@ -199,8 +213,9 @@ namespace BakAgain.World.Encounters {
                 ctx.TrackMesh(mesh);
                 filter.sharedMesh = mesh;
                 renderer.sharedMaterial = ctx.GetSpriteMaterial(tex);
+                // Mirrored by the run's own facing, not the standing sprite's (FlipsFor).
                 transform.localScale = new Vector3(
-                    hadScale.x < 0 ? -scale.x : scale.x, scale.y, scale.z);
+                    flip ? -Mathf.Abs(scale.x) : Mathf.Abs(scale.x), scale.y, scale.z);
                 CurrentFrame = face.BitmapIndex;
 
                 await UniTask.Delay(System.TimeSpan.FromSeconds(FrameSeconds));

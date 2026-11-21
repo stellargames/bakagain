@@ -63,6 +63,21 @@ namespace BakAgain.Tests.PlayMode.World {
             CollectionAssert.AreEqual(pictures, drawn);
         }
 
+        /// <summary>
+        /// A run facing past south-west draws a lower facing's pictures MIRRORED: the stored facing
+        /// (mode 3 forced even) above 4 sets g_nActorSpriteFlip (CACTOR.C:1865-1867, 891-894). The port
+        /// took the flip from the standing sprite, so Owyn casting west at James from an unflipped
+        /// stance showed west's pictures facing east (TASK-1107 D3, compared with the original).
+        /// </summary>
+        [TestCase(9, 6, true)]
+        [TestCase(9, 2, false)]
+        [TestCase(9, 5, false)]
+        [TestCase(8, 5, true)]
+        [TestCase(3, 7, true)]
+        [TestCase(4, 4, false)]
+        public void ARunPastFourFacingsIsMirrored(int slot, int octant, bool flipped) =>
+            Assert.AreEqual(flipped, AttackSwing.FlipsFor(slot, octant));
+
         private static GameData.Resources.World.MeshRecord Mesh(byte slot, int first, int count) {
             var m = new GameData.Resources.World.MeshRecord { RuntimeFlagsIndex = slot };
             for (int i = 0; i < count; i++) {
