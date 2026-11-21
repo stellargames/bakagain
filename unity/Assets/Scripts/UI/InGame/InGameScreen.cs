@@ -1491,7 +1491,7 @@ namespace BakAgain.UI.InGame {
         }
 
         private void RefreshShootPanel() {
-            if (_combatPanel == null || HoldsTheLastStatsPanel) {
+            if (_combatPanel == null || HoldsTheStatsPanel) {
                 return;
             }
             if (_combatPanelContent == null) {
@@ -1726,6 +1726,11 @@ namespace BakAgain.UI.InGame {
         // Under the outcome line the original redraws the last actor's stat panel
         // (combat_arena_redraw_hud_bufs(0, 1), COMBAT.C:2672, 1374) until the arena is left.
         internal bool HoldsTheLastStatsPanel => !AFightIsRunning() && ArenaOnScreen();
+
+        // Also held while the arena plays an attack or a spell: the original draws the panel only
+        // between them, so a cast's cost shows after its effect, with the damage (TASK-1107 D1;
+        // CSPELL.C:1459 the effect, :1520/:1536 the bill). The Enhanced HUD holds the same way.
+        internal bool HoldsTheStatsPanel => HoldsTheLastStatsPanel || (_arenaBusy?.Invoke() ?? false);
 
         /// <summary>A fight is running and the Enhanced combat interface is on (TASK-972).</summary>
         /// <remarks>Latched per turn once the fight's turn seam is set: turning the switch off mid-fight

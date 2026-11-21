@@ -208,6 +208,22 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             Assert.That(_hud.HoldsTheLastStatsPanel, Is.False, "control: a running fight redraws its panel");
         }
 
+        /// <summary>
+        /// TASK-1107 D1: a cast bills the caster before its visual plays, and the Classic panel read
+        /// the pools live, so the cost showed at the click. The original redraws the panel only after
+        /// the effect, with the target's damage (CSPELL.C:1459 effect, :1520/:1536 the bill).
+        /// </summary>
+        [Test]
+        public void TheStatsPanelHoldsWhileTheArenaPlays() {
+            bool busy = true;
+            _hud.SetArenaShownPredicate(() => true);
+            _hud.SetArenaBusyPredicate(() => busy);
+            Assert.That(_hud.HoldsTheStatsPanel, Is.True, "a spell is playing");
+
+            busy = false;
+            Assert.That(_hud.HoldsTheStatsPanel, Is.False, "control: redrawn once it has played");
+        }
+
         [Test]
         public void WithoutAFight_EnhancedCombatIsNotActive() {
             GameOptions.SetFeature(EnhancedFeature.Combat, true);
