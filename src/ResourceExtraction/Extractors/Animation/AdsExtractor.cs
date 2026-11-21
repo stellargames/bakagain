@@ -51,9 +51,9 @@ public class AdsExtractor : ExtractorBase<AnimatorResource> {
         byte[] scriptBytes = DecompressToByteArray(resourceReader, scrSize);
         // File.WriteAllBytes($"{id}.bytes", scriptBytes);
         Dictionary<int, string> scripts = AdsScriptBuilder.CreateFrom(scriptBytes);
-        if (Debug) {
-            Dictionary<int, List<AdsScriptCall>> commandsDebug = AdsScriptBuilder.CreateDebug(scriptBytes);
-        }
+        // Always, not only under the trace: it records the opcodes the data ships
+        // (AdsScriptBuilder.SeenCommands), which the opcode inventory test reads.
+        AdsScriptBuilder.CreateDebug(scriptBytes);
 
         tag = resourceReader.ReadTag();
         if (tag != "TAG") {
