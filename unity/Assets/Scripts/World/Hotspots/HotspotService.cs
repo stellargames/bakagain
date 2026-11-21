@@ -5137,9 +5137,21 @@ using GameData.Resources.Scene;
             _pendingCombatMode = GameData.Resources.Combat.CombatCommandOutcome.PendingMode.None;
             BakAgain.UI.Combat.ShootMenu shoot = _shootMenuAccessor?.Invoke();
             if (shoot != null && shoot.IsOpen) {
-                shoot.Close();
-                _combatMenuAccessor?.Invoke()?.Open();
+                SwapBackToTheCombatMenuAsync(shoot).Forget();
             }
+        }
+
+        // The original fires (COMBAT.C:2416, blocking through the whole shot) and only then puts the
+        // combat menu back (:2435), so the shoot menu stays up while the arena plays (TASK-1124 #11).
+        private async Cysharp.Threading.Tasks.UniTaskVoid SwapBackToTheCombatMenuAsync(
+            BakAgain.UI.Combat.ShootMenu shoot) {
+            await Cysharp.Threading.Tasks.UniTask.Yield();   // the shot's arena work starts after the resolve
+            await Cysharp.Threading.Tasks.UniTask.WaitWhile(() => _arenaBusy?.Invoke() ?? false);
+            if (shoot == null || !shoot.IsOpen) {
+                return;   // closed meanwhile (the fight ended, or another path took it down)
+            }
+            shoot.Close();
+            _combatMenuAccessor?.Invoke()?.Open();
         }
 
         /// <summary>
