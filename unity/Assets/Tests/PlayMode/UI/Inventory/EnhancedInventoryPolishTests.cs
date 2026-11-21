@@ -342,6 +342,31 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         }
 
         /// <summary>
+        /// While an item is examined, any button only ends the examine: the original waits in
+        /// dialog_poll_arrow_or_button (DIALOG.C:155-175, INVINSP.C:424-426). A portrait click
+        /// switched packs, a right-click on one opened the sheet (TASK-1129 row 10).
+        /// </summary>
+        [Test]
+        public void APortraitClickDuringAnExamineOnlyEndsIt() {
+            Set("_inspectOpen", true);
+            _menu.PrimaryAction(3);
+            Assert.AreSame(_chest, typeof(InventoryMenu).GetField("_displayed", Any).GetValue(_menu),
+                "the pack shown is unchanged");
+            Assert.IsFalse((bool)typeof(InventoryMenu).GetField("_inspectOpen", Any).GetValue(_menu),
+                "the click ended the examine");
+
+            Set("_inspectOpen", true);
+            _menu.SecondaryAction(3);
+            Assert.IsFalse((bool)typeof(InventoryMenu).GetField("_inspectOpen", Any).GetValue(_menu),
+                "a right-click on a portrait ends it too, rather than opening the sheet");
+
+            Set("_inspectOpen", true);
+            Call("OnSecondaryPressed", Vector2.zero);
+            Assert.IsFalse((bool)typeof(InventoryMenu).GetField("_inspectOpen", Any).GetValue(_menu),
+                "and so does a right-click anywhere");
+        }
+
+        /// <summary>
         /// The inspect fly-in takes no input either: the original flies the icon in a blocking loop and
         /// reads nothing until the description is up (INVINSP.C:347-348, input from :402). Exit during
         /// the port's fly-in closed the screen and the description then showed over travel

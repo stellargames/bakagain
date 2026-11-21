@@ -1718,7 +1718,11 @@ namespace BakAgain.UI.Inventory {
             // so the primary press it grew out of ends now: left set, the next press -- the one that
             // closes the examine view -- dragged this item out of it (TASK-971).
             _pressSlot = -1;
-            if (_descriptionOpen || _inspectOpen || _stage == null || _pickerOpen) {
+            if (_inspectOpen && !_pickerOpen) {
+                CloseInspect();   // any button ends an examine (DIALOG.C:155-175; TASK-1129 row 10)
+                return;
+            }
+            if (_descriptionOpen || _stage == null || _pickerOpen) {
                 return;
             }
             // Never interrupt an in-flight drag (the right-drag gate, canassa CMBINV.C:303) — the
@@ -3451,6 +3455,13 @@ namespace BakAgain.UI.Inventory {
             if (_pickerOpen || _lockAttemptInFlight || InputHeldByAFlight) {
                 return;
             }
+            // While an item is examined any button only ends the examine: the original waits in
+            // dialog_poll_arrow_or_button (DIALOG.C:155-175, INVINSP.C:424-426). More Info keeps
+            // its own arm (INVINSP.C:403-417), and Exit ends the examine below (TASK-1129 row 10).
+            if (_inspectOpen && actionId != ButtonMoreInfo && actionId != ButtonExit) {
+                CloseInspect();
+                return;
+            }
             switch (actionId) {
                 case ButtonExit:
                     // Esc while an item is examined ends the examine only: the original waits in
@@ -3614,6 +3625,10 @@ namespace BakAgain.UI.Inventory {
         public Awaitable SecondaryAction(int actionId) {
             if (InputHeldByAFlight) {
                 return default;   // the flight is a blocking loop in the original (TASK-1129 row 12)
+            }
+            if (_inspectOpen) {
+                CloseInspect();   // any button ends an examine (TASK-1129 row 10)
+                return default;
             }
             // A right-click keeps the portraits and the purse (CMBINV.C:313-326 zeroes every other
             // action on it), so they reach the same arms a left click does: the sheet for a portrait
