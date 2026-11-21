@@ -2710,9 +2710,12 @@ namespace BakAgain.Combat {
                 }
             }
 
-            if (weapon.Info != null) {
-                WearEquipped(attacker, RangedExchange.ShooterWearCategory,
-                    RangedExchange.ShooterWearSeverity, roll);
+            // The shooter's weapon wears LAST, hit or miss (CBTAITRN.C:177; TASK-1124 #6).
+            void WearTheCrossbow(Combatant landedOn) {
+                if (weapon.Info != null) {
+                    WearEquipped(attacker, RangedExchange.ShooterWearCategory,
+                        RangedExchange.ShooterWearSeverity, roll, landedOn);
+                }
             }
             // The skill follows the roll, before the flight (CBTAITRN.C:112-114).
             if (rolledHit) {
@@ -2729,6 +2732,7 @@ namespace BakAgain.Combat {
                 }
             }
             if (!hit) {
+                WearTheCrossbow(attacker);
                 return false;
             }
 
@@ -2782,17 +2786,18 @@ namespace BakAgain.Combat {
             // fromDirectAttack, the same as a swing: a landed shot flinches its target.
             MarkHit(defender, outcome.Landed, outcome.DamageDealt);
 
-            WearEquipped(defender, RangedExchange.TargetWearCategory,
-                RangedExchange.TargetWearSeverity, roll);
-
             // Same three obligations the melee path has once someone goes down, for the same reason:
             // nothing else clears the flag, frees the tile or writes a party member back.
+            // The death runs inside apply_damage, before the target's armour wears (CBTAITRN.C:174-176).
             if (defender.Health <= 0) {
                 KillAndSettle(defender);
             }
+            WearEquipped(defender, RangedExchange.TargetWearCategory,
+                RangedExchange.TargetWearSeverity, roll, defender);
             if (defender.IsPartyMember) {
                 WriteBack(defender);
             }
+            WearTheCrossbow(defender);
             return true;
         }
 
@@ -4883,7 +4888,7 @@ namespace BakAgain.Combat {
         /// passes every degrade roll does not make a save rewrite the container.</para>
         /// </remarks>
         private void WearEquipped(Combatant combatant, int category, int severity,
-            System.Func<int, int> rnd) {
+            System.Func<int, int> rnd, Combatant holdSnapOn = null) {
             if (_objects == null) {
                 return;
             }
@@ -4910,8 +4915,13 @@ namespace BakAgain.Combat {
                 pack.Dirty = true;
 
                 if (worn.Snapped) {
-                    // The one item failure the game gives a sound to.
-                    _playSfx?.Invoke(ItemDegradation.SnapSoundId);
+                    // The one item failure the game gives a sound to. A shot's wear comes after its
+                    // landing, so the snap waits for it while an arena draws the bolt (TASK-1124 #6).
+                    if (HoldSwingCues && holdSnapOn != null) {
+                        holdSnapOn.LandingCues.Add(ItemDegradation.SnapSoundId);
+                    } else {
+                        _playSfx?.Invoke(ItemDegradation.SnapSoundId);
+                    }
                 }
             }
         }

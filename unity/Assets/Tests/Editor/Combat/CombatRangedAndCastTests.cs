@@ -788,6 +788,31 @@ namespace BakAgain.Tests.Editor.Combat {
             CollectionAssert.Contains(cues, RangedShotSound.CrossbowFiringCue, "once the pose has played");
         }
 
+        /// <summary>
+        /// The shooter's crossbow wears LAST, after the hit sound and the damage, so a snap sounds
+        /// after the bolt has landed (CBTAITRN.C:162, 174-177). The port wore it before the flight and
+        /// snapped at the click (TASK-1124 #6).
+        /// </summary>
+        [Test]
+        public void ASnappingCrossbowSoundsAfterTheBoltLands() {
+            GameSession session = SessionWith((CrossbowId, 1), (QuarrelId, 10));
+            session.SetRosterActorForTest(400, StatBlock(), 12, gridX: 5, gridY: 5);
+            var cues = new List<int>();
+            var runtime = new CombatRuntime(session, null, Entries(), Objects(), playSfx: cues.Add) {
+                HoldSwingCues = true,
+            };
+            CombatEncounter fight = runtime.EnterRoster(new short[] { 400 });
+
+            Assert.IsTrue(runtime.ResolveShot(fight.Party[0], fight.Enemies[0], quarrelKind: 0, AlwaysLow));
+            CollectionAssert.DoesNotContain(cues, ItemDegradation.SnapSoundId, "not at the click: " + string.Join(",", cues));
+
+            runtime.PlayHeldSwingCues();
+            runtime.PlayHeldLandingCues();
+            int hit = cues.IndexOf(RangedShotSound.ImpactCue), snap = cues.IndexOf(ItemDegradation.SnapSoundId);
+            Assert.GreaterOrEqual(snap, 0, "the control: it snapped: " + string.Join(",", cues));
+            Assert.Greater(snap, hit, "after the hit");
+        }
+
         [Test]
         public void AFlamingQuarrelTakesFromTheTargetsPool() {
             var (runtime, _, member, monster) = Fight((CrossbowId, 100), (0x2a, 10));
