@@ -24,6 +24,28 @@ namespace BakAgain.Tests.PlayMode.Audio {
 
         private static double OneTick => GameTick.SecondsPerTick;
 
+        /// <summary>
+        /// Opening the cast screen unloads the world's sounds, and the unload stops a voice still
+        /// sounding (CSPELL.C:80-82 -> AUDIO.C:295-320, 403; AUDSTOP.C:8). The port only stopped
+        /// ticking, so a voice already playing ran on under the ring (TASK-1128 row 4).
+        /// </summary>
+        [Test]
+        public void UnloadingStopsWhatTheDriverPlayed() {
+            AmbientSoundDriver d = AlwaysFires();
+            d.Chapter = 1;
+            d.Zone = 3;
+            var stopped = new List<int>();
+            d.StopSound = stopped.Add;
+            d.Tick(OneTick);
+            Assert.AreEqual(1, _played.Count, "control: a voice is playing");
+
+            d.StopPlaying();
+
+            Assert.That(stopped, Is.EqualTo(new[] { _played[0].Sound }));
+            d.StopPlaying();
+            Assert.AreEqual(1, stopped.Count, "and only once");
+        }
+
         [Test]
         public void NoSoundBeforeAWholeGameTickHasPassed() {
             // *** The point of the driver. *** Rolling per Update would make a 144Hz machine more

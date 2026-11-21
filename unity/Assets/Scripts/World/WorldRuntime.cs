@@ -3057,6 +3057,7 @@ namespace BakAgain.World {
                 Chapter = _gameSession.Chapter,
                 Zone = _gameSession.CurrentZone,
                 MoodFlagSet = (_gameSession.GetGlobalValue(AmbientSound.MoodFlag) ?? 0) != 0,
+                StopSound = id => MenuSoundService.Instance?.Stop(id),
             };
 
             // The lighting has to know the zone kind before its first refresh: underground ignores

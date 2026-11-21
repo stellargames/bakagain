@@ -35,6 +35,23 @@ namespace BakAgain.Audio {
             _play = play ?? throw new ArgumentNullException(nameof(play));
         }
 
+        /// <summary>Stops a sound by id; set by the world. Used by <see cref="StopPlaying"/>.</summary>
+        public Action<int> StopSound { get; set; }
+
+        private readonly System.Collections.Generic.HashSet<int> _played = new();
+
+        /// <summary>
+        /// Stop every voice this driver started: the original's world-sound unload, which the cast
+        /// screen runs on opening (CSPELL.C:80-82 -> AUDIO.C:295-320, 403), stops a voice still
+        /// sounding (TASK-1128 row 4). A finished one is a no-op to stop.
+        /// </summary>
+        public void StopPlaying() {
+            foreach (int id in _played) {
+                StopSound?.Invoke(id);
+            }
+            _played.Clear();
+        }
+
         /// <summary>Whether the party is underground — a different rate and a different sound.</summary>
         public bool Underground { get; set; }
 
@@ -101,6 +118,7 @@ namespace BakAgain.Audio {
                         + _rnd(AmbientSound.PostFlagLastSfx - AmbientSound.PostFlagFirstSfx + 1));
 
             (int min, int max) = AmbientSound.IntensityRange(Underground);
+            _played.Add(sound);
             _play(sound, min + _rnd(max - min + 1));
             return sound;
         }

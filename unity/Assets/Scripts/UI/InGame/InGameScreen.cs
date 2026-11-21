@@ -2160,6 +2160,9 @@ namespace BakAgain.UI.InGame {
                     // The button is already greyed out when nobody can cast (see the enable pass
                     // above), so reaching here means the party has a caster.
                     if (_castScreen != null) {
+                        // Opening the cast screen unloads the world's sounds, which stops a voice
+                        // still sounding (CSPELL.C:80-82; TASK-1128 row 4).
+                        BakAgain.Audio.AmbientSoundDriver.Instance?.StopPlaying();
                         _castScreen.PushAsync(_navigator).Forget();
                     }
 
