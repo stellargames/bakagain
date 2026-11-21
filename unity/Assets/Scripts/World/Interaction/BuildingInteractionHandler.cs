@@ -190,9 +190,11 @@ namespace BakAgain.World.Interaction {
         /// The global the gate argument is published through.
         /// </summary>
         /// <remarks>
-        /// The original writes <c>nEvtArgCount</c>, the same dialog-argument slot the encounter
-        /// opening uses — so it is state the message reads, not a local.
+        /// The original writes <c>nEvtArgCount</c> (WCURSOR.C:327-329 for the gate, :379 for the
+        /// describe), GameState field +0 = global 30000 = the dialogs' Var 0, which is what 0x60's
+        /// arms and the entry messages test. This was 30011, a global nothing reads, so every
+        /// building was described by arm 0, "Private residence" (TASK-1123).
         /// </remarks>
-        private const int GdsDialogArgument = 30011;
+        private const int GdsDialogArgument = GameData.Resources.GameState.GameStateEventFields.FieldBase;
     }
 }

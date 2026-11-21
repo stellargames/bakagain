@@ -110,13 +110,50 @@ namespace BakAgain.Tests.PlayMode.World {
             }
         });
 
+        /// <summary>
+        /// A right-click describes the building by its examine index, handed to dialog 0x60 in
+        /// nEvtArgCount (WCURSOR.C:378-380) - Var 0, global 30000, which is what 0x60's arms test.
+        /// The port wrote 30011, so every building was described by arm 0, "Private residence"
+        /// (TASK-1123: the Crossroads Shop).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ADescribeHandsTheExamineIndexToVarZero() => UniTask.ToCoroutine(async () => {
+            var session = new GameSession();
+            session.SetZoneContainersForTest(new SaveGameZoneContainerStateData(new[] {
+                new SaveGameZoneContainerEntryData(1, 0, new[] { Inn() }),
+            }), chapter: 1);
+            session.CurrentZone = 1;
+            session.PositionX = InnX;
+            session.PositionY = InnY;
+            var entity = new GameObject("inn").AddComponent<WorldEntity>();
+            try {
+                entity.Behavior = "building";
+                entity.EntityType = GameData.Resources.World.WorldEntityType.Building;
+                entity.Interaction = new InteractionProfile();
+                entity.transform.position = BakCoordinateConverter.ConvertPosition(InnX, InnY, 0);
+                var dialogs = new RecordingDialogs();
+                int? argAtShow = null;
+                dialogs.OnShow = () => argAtShow = session.GetGlobalValue(30000);
+                var handler = new BuildingInteractionHandler(session, dialogs, null, new RecordingNavigator());
+
+                await handler.HandleAsync(entity, isPrimary: false);
+
+                CollectionAssert.Contains(dialogs.Shown, GameData.Resources.World.FixedObjectClick.DescribeDialog);
+                Assert.AreEqual(3, argAtShow, "the Inn's examine index, in Var 0");
+            } finally {
+                Object.DestroyImmediate(entity.gameObject);
+            }
+        });
+
         private const int DwellingX = 991176;
         private const int DwellingY = 677660;
         private const int DwellingMessage = 3100267;   // "...assured that they were alone, went inside"
 
         private sealed class RecordingDialogs : Stubs.NoOpDialogs {
             public readonly System.Collections.Generic.List<int> Shown = new();
+            public System.Action OnShow;
             public override UniTask<int> ShowById(int id, System.Threading.CancellationToken ct = default) {
+                OnShow?.Invoke();
                 Shown.Add(id);
                 return UniTask.FromResult(0);
             }
