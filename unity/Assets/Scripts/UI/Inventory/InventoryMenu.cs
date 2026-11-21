@@ -5139,9 +5139,9 @@ namespace BakAgain.UI.Inventory {
         /// The number of steps the dropped sprite takes on its way into the portrait.
         /// </summary>
         /// <remarks>
-        /// <b>The original's loop is <c>for (i = 14; i >= 0; i--)</c> with no frame wait in it</b> —
-        /// one <c>screen_frame_present()</c> per step, so at mode 13h's ~70 Hz the whole flight is
-        /// about 0.21 s. Faithful, and fast.
+        /// <b>The original's loop is <c>for (i = 14; i >= 0; i--)</c>, and each step waits 9 timer
+        /// ticks</b> inside the ring draw it calls (INVENTOR.C:152-154), so the flight is about
+        /// 0.57 s (<see cref="GameData.Resources.Inventory.ItemDropFlight.StepSeconds"/>).
         ///
         /// <para>Kept as a named constant precisely because it is the one free parameter here: JvE
         /// has said the existing item-inspect fly is too quick for him, and this is the same kind of
@@ -5149,6 +5149,8 @@ namespace BakAgain.UI.Inventory {
         /// expressed in terms of it.</para>
         /// </remarks>
         private const int DropFlightSteps = GameData.Resources.Inventory.ItemDropFlight.Steps;
+        private static readonly long DropFlightStepMs =
+            (long)System.Math.Round(GameData.Resources.Inventory.ItemDropFlight.StepSeconds * 1000);
 
         /// <summary>Cue for an item flying into a portrait; the shop has its own.</summary>
         /// <remarks><c>audio_sfx_play_n_times(is_shop != 0 ? 0x3c : 0x3d, 0, 0)</c>.</remarks>
@@ -5204,12 +5206,21 @@ namespace BakAgain.UI.Inventory {
                 style = { position = Position.Absolute },
             };
             _stage.Add(flyer);
-            LoadFlightIconAsync(flyer, obj, _dropItemFlags, from, to).Forget();
+            // The target head carries the red ring (HEADS frame 8) for the whole flight
+            // (INVENTOR.C:144-151, from the loop at :573). The window's "head" is off-screen.
+            VisualElement ring = null;
+            VisualElement head = chromeAction == WindowContainerImage ? null : Root?.Q($"hotspot_{chromeAction}");
+            if (head != null) {
+                ring = CreateCircleOverlay("flight_ring");
+                head.Add(ring);
+                PaintCircle(ring, HoverCirclePulse[0]);
+            }
+            LoadFlightIconAsync(flyer, ring, obj, _dropItemFlags, from, to).Forget();
         }
 
         // Load the icon, then run the flight. Split out so the element is sized to the real sprite
         // before the first step: scaling from a placeholder size makes the first frame jump.
-        private async UniTask LoadFlightIconAsync(VisualElement flyer, ObjectInfo obj,
+        private async UniTask LoadFlightIconAsync(VisualElement flyer, VisualElement ring, ObjectInfo obj,
             ushort itemFlags, Vector2 from, Vector2 to) {
             string key = ItemIconResolver.ResolveBmxSubResource(obj, itemFlags);
             Sprite sprite = null;
@@ -5218,12 +5229,13 @@ namespace BakAgain.UI.Inventory {
             }
             if (sprite == null || flyer.panel == null) {
                 flyer.RemoveFromHierarchy(); // the screen closed under us, or the icon is missing
+                ring?.RemoveFromHierarchy();
                 return;
             }
             flyer.SetBackgroundSpriteNativeSizeTopLeft(sprite);
             float fullW = sprite.rect.width;
             float fullH = sprite.rect.height;
-            // The flight is ~0.25 s, which is far too short to observe by polling from outside the
+            // The flight is ~0.57 s, which is far too short to observe by polling from outside the
             // Editor — this line is how it gets verified at all.
             _logger?.LogDebug("Drop flight: {0} from {1} to {2}, {3} steps at {4}x{5}.",
                 key, from, to, DropFlightSteps, fullW, fullH);
@@ -5244,8 +5256,9 @@ namespace BakAgain.UI.Inventory {
                 if (--i < 0) {
                     flight?.Pause();
                     flyer.RemoveFromHierarchy();
+                    ring?.RemoveFromHierarchy();
                 }
-            }).Every(0); // every panel update — the original steps once per presented frame
+            }).Every(DropFlightStepMs); // each step waits 9 timer ticks in the ring draw (TASK-1129 row 5)
         }
 
         // Resolve the RuntimeContainer for the active-party member behind portrait 0/1/2.

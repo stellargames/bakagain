@@ -28,6 +28,15 @@ public static class ItemDropFlight {
     /// </remarks>
     public const int Steps = 15;
 
+    /// <summary>
+    /// Timer ticks each step waits: invui_portrait_refresh_animated busy-waits g_nFrameTickCountdown
+    /// and re-arms it to 9 (INVENTOR.C:152-154), called once per step from the loop (:573).
+    /// </summary>
+    public const int StepWaitTicks = 9;
+
+    /// <summary>One step in seconds, about 38 ms: the flight takes about 0.57 s.</summary>
+    public static double StepSeconds => StepWaitTicks / Config.DialogTextSpeed.TicksPerSecond;
+
     /// <summary>Cue for an item handed to a party member.</summary>
     /// <remarks><c>audio_sfx_play_n_times(is_shop != 0 ? 0x3c : 0x3d, 0, 0)</c>.</remarks>
     public const int SoundId = 0x3d;

@@ -80,4 +80,13 @@ public class ItemDropFlightTests {
         (double w, _) = ItemDropFlight.SizeAt(FullW, FullH, ItemDropFlight.Steps);
         Assert.Equal(FullW, w, 6);
     }
+
+    [Fact]
+    public void EachStepWaitsNineTimerTicks() {
+        // invui_portrait_refresh_animated busy-waits g_nFrameTickCountdown and re-arms it to 9 on
+        // every step (INVENTOR.C:152-154, called from the flight loop at :573): 15 steps of ~38 ms,
+        // about 0.57 s. The port stepped once per frame, about 0.25 s (TASK-1129 row 5).
+        Assert.Equal(9, ItemDropFlight.StepWaitTicks);
+        Assert.InRange(ItemDropFlight.StepSeconds, 0.037, 0.039);
+    }
 }

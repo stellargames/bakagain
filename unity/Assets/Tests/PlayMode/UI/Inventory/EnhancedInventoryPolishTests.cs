@@ -287,6 +287,32 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         }
 
         /// <summary>
+        /// A give draws the red ring (HEADS frame 8) on the target head for the whole flight
+        /// (INVENTOR.C:144-151 from the loop at :573) and takes it away with the icon (TASK-1129 row 5).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AGiveRingsTheTargetHeadWhileTheItemFlies() {
+            const int target = 3; // portrait 1
+            VisualElement head = _root.Q($"hotspot_{target}") ?? new VisualElement { name = $"hotspot_{target}" };
+            _root.Add(head);
+            head.style.position = Position.Absolute;
+            head.style.left = 400; head.style.top = 900; head.style.width = 100; head.style.height = 100;
+            yield return null;
+            _root.panel.GetType().GetMethod("ValidateLayout", BindingFlags.Public | Any)?.Invoke(_root.panel, null);
+            Set("_resources", new IconStillLoading());
+
+            Set("_dropPortraitSlot", 1);
+            Set("_dropObject", new ObjectInfo("dagger") { Number = Dagger, Name = "Rusty Dagger", InventorySlots = 1 });
+            Set("_dropStagePos", Vector2.zero);
+            Set("_dropOnContainerWindow", false);
+            Call("FlyDroppedItemTo", target, null);
+
+            Assert.IsNotNull(head.Q("flight_ring"), "the target head is ringed while the item flies");
+            _root.Q("drop_flight")?.RemoveFromHierarchy();
+            head.Q("flight_ring")?.RemoveFromHierarchy();
+        }
+
+        /// <summary>
         /// The inspect fly-in takes no input either: the original flies the icon in a blocking loop and
         /// reads nothing until the description is up (INVINSP.C:347-348, input from :402). Exit during
         /// the port's fly-in closed the screen and the description then showed over travel
