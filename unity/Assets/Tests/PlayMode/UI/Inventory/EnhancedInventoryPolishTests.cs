@@ -201,6 +201,36 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         }
 
         /// <summary>
+        /// A purchase flies the item into the buyer's portrait and a sale flies it into the shop's
+        /// window: in the original both are the ordinary drop, whose flight plays 0x3c when the other
+        /// side is a shop (INVENTOR.C:752-755, 779-786). The port only played the sound (TASK-1099).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ABuyFliesToThePortrait_ASaleFliesToTheShopWindow([Values(true, false)] bool sale) {
+            const int window = 32;
+            VisualElement head = _root.Q("hotspot_3");
+            _root.Add(head);
+            head.style.position = Position.Absolute;
+            head.style.left = 1300; head.style.top = 900; head.style.width = 100; head.style.height = 100;
+            VisualElement shop = _root.Q($"hotspot_{window}") ?? new VisualElement { name = $"hotspot_{window}" };
+            _root.Add(shop);
+            shop.style.position = Position.Absolute;
+            shop.style.left = 200; shop.style.top = 900; shop.style.width = 100; shop.style.height = 100;
+            yield return null;
+            _root.panel.GetType().GetMethod("ValidateLayout", BindingFlags.Public | Any)?.Invoke(_root.panel, null);
+            Set("_resources", new IconStillLoading());
+
+            Set("_dropPortraitSlot", sale ? -1 : 1);
+            Set("_dropObject", new ObjectInfo("dagger") { Number = Dagger, Name = "Rusty Dagger", InventorySlots = 1 });
+            Set("_dropStagePos", Vector2.zero);
+            Set("_dropOnContainerWindow", sale);
+            Call("FinishShopTransfer", sale);
+
+            Assert.IsNotNull(_root.Q("drop_flight"), sale ? "the sale flies to the shop's window" : "the purchase flies to the portrait");
+            _root.Q("drop_flight")?.RemoveFromHierarchy();
+        }
+
+        /// <summary>
         /// A put-back into the chest's window flies there, with the drop's sound: INVENTOR.C:779-786
         /// flies the icon to the window on every transfer that moved. The port flew only to a
         /// portrait, so a put-back was silent and nothing moved (TASK-1099).

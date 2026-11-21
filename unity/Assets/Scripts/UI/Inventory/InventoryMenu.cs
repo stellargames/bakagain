@@ -4541,7 +4541,7 @@ namespace BakAgain.UI.Inventory {
                     return;
                 }
                 _gameSession.PartyGold = gold;
-                PlayShopTransferSound();
+                FinishShopTransfer(sale: false);
                 InventoryTransfer.Distribute(holder, 0, ActiveMemberContainers(),
                     _gameSession.ObjectInfo, MemberConditionsOf);
 
@@ -4553,7 +4553,7 @@ namespace BakAgain.UI.Inventory {
                 return;
             }
             _gameSession.PartyGold = gold;
-            PlayShopTransferSound();
+            FinishShopTransfer(sale: false);
 
             FeedIfStarving(target, delivered);
         }
@@ -4564,6 +4564,20 @@ namespace BakAgain.UI.Inventory {
         /// (INVENTOR.C:565, :754, :781); ours settles them in dialogs and never reached the flight.
         /// </summary>
         private static void PlayShopTransferSound() => Audio.MenuSoundService.Cue(DropFlightShopSoundId);
+
+        /// <summary>
+        /// A buy or a sale went through: the item flies into the buyer's portrait or the shop's
+        /// window with the shop cue, the ordinary drop's flight (INVENTOR.C:752-755, 779-786;
+        /// TASK-1099). With no drop to fly from, the cue alone.
+        /// </summary>
+        private void FinishShopTransfer(bool sale) {
+            int target = sale ? WindowContainerImage : _dropPortraitSlot + PortraitSlot1;
+            if (_dropObject == null || (!sale && _dropPortraitSlot < 0) || !TryGetChromeRect(target, out _)) {
+                PlayShopTransferSound();
+                return;
+            }
+            FlyDroppedItemTo(target, DropFlightShopSoundId);
+        }
 
         /// <summary>
         /// A drink bought and drunk where it stands.
@@ -4827,7 +4841,7 @@ namespace BakAgain.UI.Inventory {
                         _shop, seller, item, _gameSession.ObjectInfo, categories, price, ref gold)
                     == GameData.Resources.Shop.ShopStock.SellResult.Sold) {
                     _gameSession.PartyGold = gold;
-                    PlayShopTransferSound();
+                    FinishShopTransfer(sale: true);
                 }
             }
 
@@ -5072,12 +5086,16 @@ namespace BakAgain.UI.Inventory {
         /// Fly the dropped icon to a chrome element (a portrait, or the container's window) with the
         /// drop's sound — invui_animate_item_fly on every transfer that moved (INVENTOR.C:779-786).
         /// </summary>
-        private void FlyDroppedItemTo(int chromeAction) {
+        private void FlyDroppedItemTo(int chromeAction, int? soundId = null) {
             ObjectInfo obj = _dropObject;
             if (_stage == null || obj == null || !TryGetChromeRect(chromeAction, out Rect target)) {
                 return;
             }
-            PlayDropSound();
+            if (soundId is int cue) {
+                Audio.MenuSoundService.Cue(cue);
+            } else {
+                PlayDropSound();
+            }
 
             Vector2 from = _dropStagePos;
             var to = new Vector2(target.center.x, target.center.y);
