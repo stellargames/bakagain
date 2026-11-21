@@ -1443,6 +1443,28 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
             CollectionAssert.AreEqual(new[] { "line 1234", "music on" }, order);
         }
 
+        /// <summary>
+        /// The fight's music plays on under its outcome line; the world's comes back once the line is
+        /// done: dialog_play_record, then combat_arena_mode_exit's audio_music_play (COMBAT.C:2601-2605,
+        /// 2674-2675, 169). The port swapped the music before the line (TASK-1125 #6).
+        /// </summary>
+        [Test]
+        public void TheMusicGoesBackAfterTheOutcomeLine() {
+            var order = new List<string>();
+            Rig rig = Build(dialogs: new OrderLoggingDialogs(order), order: order);
+            rig.Service.StartCombat(CombTrigger());
+            foreach (Combatant enemy in rig.Service.Combat.Encounter.Enemies) {
+                rig.Service.Combat.Encounter.Kill(enemy);
+            }
+            order.Clear();
+
+            rig.Service.EndCombatForTest();
+
+            Assert.AreEqual(2, order.Count, string.Join(", ", order));
+            StringAssert.StartsWith("line ", order[0], "the line first: " + string.Join(", ", order));
+            Assert.AreEqual("music off", order[1]);
+        }
+
         [Test]
         public void AWIPEMarksNothing() {
             // Ending the fight is not winning it: IsOver() is true either way, and marking it here

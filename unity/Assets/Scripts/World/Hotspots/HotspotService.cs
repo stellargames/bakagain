@@ -5698,11 +5698,13 @@ using GameData.Resources.Scene;
             SettleEncounter(Combat.Encounter);
             StageCombatantEdits();
             Combat.Leave();
-            _setCombatMusic?.Invoke(false);
             if (outcomeLine.HasValue && _dialogs != null) {
+                // The fight's music plays on under the line; the world's comes back after it
+                // (COMBAT.C:2601-2605, then 2674-2675 -> 169; TASK-1125 #6).
                 ShowOutcomeThenLeaveArenaAsync(outcomeLine.Value,
                     AfterTheCompletionLine(() => ResumeThePassAfterTheFight(rest))).Forget();
             } else {
+                _setCombatMusic?.Invoke(false);
                 SwapArenaThroughFade(false, CloseCombatMenus,
                     afterFadeIn: AfterTheCompletionLine(() => ResumeThePassAfterTheFight(rest)));
             }
@@ -5756,6 +5758,7 @@ using GameData.Resources.Scene;
             try {
                 await _dialogs.ShowById(line);
             } finally {
+                _setCombatMusic?.Invoke(false);
                 // A wipe goes straight to the game-over exit: the original reaches it from the world
                 // loop with no redraw of the world between (COMBAT.C:2588-2604, HOTSPOT.C:577,
                 // WORLDLP.C:399-401). Fading back first showed the travel view under a lost game
