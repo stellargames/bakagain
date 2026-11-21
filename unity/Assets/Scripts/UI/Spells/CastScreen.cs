@@ -29,6 +29,9 @@ namespace BakAgain.UI.Spells {
             if (scancode != 0x32) {
                 return false;
             }
+            if (_sliderSpell >= 0 && !EnhancedApplied) {
+                return true;   // the power loop reads only the ring and Escape (CSPELL.C:2010-2079)
+            }
             if (_sliderSpell >= 0) {
                 CancelPowerSelection();
             }
@@ -1995,6 +1998,15 @@ namespace BakAgain.UI.Spells {
                 return;
             }
 
+            // *** WHILE A POWER IS BEING CHOSEN, A CLICK ON EXIT DOES NOTHING. *** The original's
+            // power loop reads only the ring, the click and Escape (UI_SelectSpellCost,
+            // CSPELL.C:2010-2079, no menupage_run), so only Escape closes there. Escape and the Exit
+            // widget arrive here as the same action; the button edge tells the click apart
+            // (TASK-1128 row 5).
+            if (_sliderSpell >= 0 && !EnhancedApplied && _pointer != null
+                && (_pointer.Primary.PressedThisFrame || _pointer.Primary.ReleasedThisFrame)) {
+                return;
+            }
             if (_sliderSpell >= 0) {
                 CancelPowerSelection();
             }
