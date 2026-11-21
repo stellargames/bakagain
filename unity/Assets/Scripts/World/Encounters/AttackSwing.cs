@@ -136,6 +136,12 @@ namespace BakAgain.World.Encounters {
         public UniTask Play(WorldEntityRenderContext ctx,
             System.Collections.Generic.IReadOnlyList<MeshRecord> meshes, string setName,
             int octant, int extent, int slot = GameData.Resources.Combat.CombatAnimSlot.Swing) {
+            // A later run on a sprite still holding an earlier one replaces it.
+            foreach (AttackSwing earlier in GetComponents<AttackSwing>()) {
+                if (earlier != this) {
+                    Destroy(earlier);
+                }
+            }
             System.Collections.Generic.IReadOnlyList<SpriteBMeshFace> run = RunFaces(meshes, octant, slot);
             if (ctx == null || run.Count == 0 || string.IsNullOrEmpty(setName)) {
                 return UniTask.CompletedTask;
@@ -207,9 +213,13 @@ namespace BakAgain.World.Encounters {
             // A run that drew nothing has nothing to hold, so the standing picture is put back.
             bool drew = CurrentFrame >= 0;
             CurrentFrame = -1;   // the swing is over (the harness reads this); its picture holds
+            // A held run stays on the sprite: the idle gait looks for it (ArenaIdleAnimator), and the
+            // redraw that hands the turn on replaces the whole sprite (TASK-1107 D3).
             if (drew) {
                 Holding = true;
-            } else if (filter != null) {
+                return;
+            }
+            if (filter != null) {
                 filter.sharedMesh = had;
                 renderer.sharedMaterial = hadMaterial;
                 transform.localScale = hadScale;

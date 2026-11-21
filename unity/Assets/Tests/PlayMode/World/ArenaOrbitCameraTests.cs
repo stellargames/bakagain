@@ -459,6 +459,12 @@ namespace BakAgain.Tests.PlayMode.World {
                 }
                 Assert.AreEqual(Cysharp.Threading.Tasks.UniTaskStatus.Succeeded, swing.Status);
                 Assert.IsFalse(world.ArenaBusyForTest, "idle once it has played");
+                // The last picture holds until the next redraw replaces the sprite (CACTOR.C:862-864):
+                // the held run stays on it so the idle gait leaves it alone (TASK-1107 D3, TASK-1100 D4).
+                yield return null;
+                yield return null;
+                Assert.IsTrue(sprite.GetComponent<BakAgain.World.Encounters.AttackSwing>() is { Holding: true },
+                    "the held run is still on the sprite");
             } finally {
                 Object.Destroy(sprite);
                 ctx.Dispose();
