@@ -98,5 +98,17 @@ namespace BakAgain.Tests.PlayMode.UI.Spells {
             screen.PrimaryAction(1);
             Assert.AreEqual(1, nav.Pops, "settled: Exit closes");
         }
+    
+        /// <summary>
+        /// A right-click (or keypad +) picks a symbol or a power too: getMouseClick passes either
+        /// button (COMBAT.C:191-202), read at CSPELL.C:2063 and 2311 (TASK-1128 row 6).
+        /// </summary>
+        [Test]
+        public void TheRightButtonPicksAsTheLeftDoes() {
+            var pointer = new FakePointer();
+            Assert.IsFalse(CastScreen.Picks(pointer), "control: no button, no pick");
+            pointer.Secondary.SetDown(true, pressedThisFrame: true);
+            Assert.IsTrue(CastScreen.Picks(pointer), "the right button picks");
+        }
     }
 }

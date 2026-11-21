@@ -1387,8 +1387,12 @@ namespace BakAgain.UI.Spells {
         /// is the preview and lifting is the pick (owner, 2026-10-05, TASK-816): sliding over the
         /// ring shows each power's cost before anything is cast.
         /// </summary>
+        // Either button picks: getMouseClick passes both (COMBAT.C:191-202; CSPELL.C:2063, 2311).
+        // Keypad + arrives as the secondary button (TASK-1128 row 6).
         public static bool Picks(UI.InputCore.IPointer pointer) =>
-            pointer.IsPresent ? pointer.Primary.PressedThisFrame : pointer.Primary.ReleasedThisFrame;
+            pointer.IsPresent
+                ? pointer.Primary.PressedThisFrame || pointer.Secondary.PressedThisFrame
+                : pointer.Primary.ReleasedThisFrame;
 
         /// <summary>
         /// Follows the pointer over the spell symbols, and picks one on a click.
