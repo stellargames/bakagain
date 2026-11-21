@@ -34,6 +34,7 @@ namespace BakAgain.World.Encounters {
         private readonly Func<int, Transform, UniTask<GameObject>> _buildEffect;
         private readonly Func<Quaternion> _arenaRotation;
         private readonly Func<Combatant, IReadOnlyList<(int X, int Y)>, IReadOnlyList<Vector3>> _crystalRun;
+        private readonly Func<Combatant, Combatant, UniTask> _pose;
         private readonly Queue<(SpellVisual Visual, Combatant From, Combatant To)> _queue = new();
         private bool _draining;
 
@@ -48,7 +49,9 @@ namespace BakAgain.World.Encounters {
         public SpellVfx(Func<Combatant, Transform> anchorOf, Func<Transform> root, Func<Color[]> palette,
             Func<Camera> camera, Func<int, Transform, UniTask<GameObject>> buildEffect,
             Func<Quaternion> arenaRotation,
-            Func<Combatant, IReadOnlyList<(int X, int Y)>, IReadOnlyList<Vector3>> crystalRun) {
+            Func<Combatant, IReadOnlyList<(int X, int Y)>, IReadOnlyList<Vector3>> crystalRun,
+            Func<Combatant, Combatant, UniTask> pose = null) {
+            _pose = pose;
             _arenaRotation = arenaRotation;
             _crystalRun = crystalRun;
             _anchorOf = anchorOf;
@@ -141,6 +144,7 @@ namespace BakAgain.World.Encounters {
             UniTask.Delay(TimeSpan.FromSeconds(SpellVisuals.IrqSeconds * n));
 
         private UniTask PlayAsync(SpellVisual v, Combatant from, Combatant to) => v.Kind switch {
+            SpellVisualKind.CasterPose => _pose?.Invoke(from, to) ?? UniTask.CompletedTask,
             SpellVisualKind.PaletteFlash => PaletteFlashAsync(to, v.Colour),
             SpellVisualKind.StormFlash => StormAsync(to),
             SpellVisualKind.SparkBurst => SparkBurstAsync(to, v.Colour, v.Spread, v.Tint, v.TintFrames),

@@ -102,6 +102,11 @@ namespace BakAgain.World.Encounters {
                 return;
             }
 
+            // An attack run owns the picture while it plays and while it holds its last frame
+            // (CACTOR.C:1828-1898, 862-864); a facing change must not draw the standing column over it.
+            if (GetComponent<AttackSwing>() is { Running: true } or { Holding: true }) {
+                return;
+            }
             int column = ColumnFacing(cam, out bool mirrored);
             if (column < 0 || (column == _currentColumn && mirrored == _currentMirrored)) {
                 return;
@@ -133,6 +138,18 @@ namespace BakAgain.World.Encounters {
         /// scaling it back up is only correct while that root sits at the origin). Keeping the
         /// fields is right; leaving them frozen was not.</para>
         /// </remarks>
+        /// <summary>Whether the picture on screen is the column the recorded pose asks for now.</summary>
+        public bool ShowsCurrentFacing {
+            get {
+                Camera cam = _camera != null ? _camera : Camera.main;
+                if (cam == null) {
+                    return true;
+                }
+                int column = ColumnFacing(cam, out bool mirrored);
+                return column < 0 || (column == _currentColumn && mirrored == _currentMirrored);
+            }
+        }
+
         /// <summary>The pose the frame choice is computed against — what <see cref="SetPose"/> sets.</summary>
         public (long X, long Y, short Facing) RecordedPose => (_worldX, _worldY, _facing);
 

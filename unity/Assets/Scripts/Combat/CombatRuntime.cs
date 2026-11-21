@@ -4696,6 +4696,7 @@ namespace BakAgain.Combat {
                     continue;
                 }
                 _playSfx?.Invoke(SpellCastSound.RangedWindupCue);
+                PlaySpellVisual?.Invoke(new SpellVisual(SpellVisualKind.CasterPose), caster, foe);
                 PlaySpellVisual?.Invoke(new SpellVisual(SpellVisualKind.SparkBurst), caster, foe);
                 if (CastHits(caster, target, roll) && !foe.IsDead) {
                     ApplySpellDamage(foe, magnitude, roll);

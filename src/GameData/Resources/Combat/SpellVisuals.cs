@@ -49,6 +49,10 @@ public enum SpellVisualKind {
     /// <summary>Nightfingers took something: shape 5 flies from the target back to the caster at
     /// speed 0x78, after the pack screen closes (CSPELL.C:1102-1105).</summary>
     StolenItemFlight,
+    /// <summary>The caster turns toward a foe and plays its wind-up (anim slot 8) — each foe a
+    /// Firestorm chains to (CSPELL.C:536-541; TASK-1118). Not a spell picture: the arena plays it on
+    /// the caster's own sprite.</summary>
+    CasterPose,
 }
 
 /// <summary>What a combat actor shows every frame while a lingering spell sits on it — the per-frame

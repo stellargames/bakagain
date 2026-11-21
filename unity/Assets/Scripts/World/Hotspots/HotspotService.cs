@@ -1282,6 +1282,9 @@ using GameData.Resources.Scene;
         /// <para>-1 rather than a fallback: creature 0 exists, and a party member with no record is
         /// better left undrawn than drawn as whatever sits at zero.</para>
         /// </remarks>
+        /// <summary>The creature number a combatant is drawn as (its COMBAT.TBL entry).</summary>
+        public int CreatureNumberOf(GameData.Resources.Combat.Combatant c) => CreatureNumberFor(c);
+
         private int CreatureNumberFor(GameData.Resources.Combat.Combatant c) {
             if (!c.IsPartyMember) {
                 return c.ClassId;

@@ -1020,6 +1020,37 @@ namespace BakAgain.Tests.Editor.Combat {
             Assert.Less(Pool(other), otherBefore, "and so does the other foe in the line of fire");
         }
 
+        /// <summary>
+        /// Each foe the chain reaches is preceded by the caster turning and winding up toward it
+        /// (cspell_chain_damage_targets: audio 0x12, then combat_actor_play_ranged_windup toward that
+        /// foe, CSPELL.C:536-541). The port played only the cue and the burst (TASK-1118).
+        /// </summary>
+        [Test]
+        public void FirestormWindsUpTowardEachFoeItChainsTo() {
+            GameSession session = SessionWith((CrossbowId, 100));
+            session.SetRosterActorForTest(400, StatBlock(), 12, gridX: 5, gridY: 5);
+            session.SetRosterActorForTest(401, StatBlock(), 12, gridX: 5, gridY: 2);
+            var runtime = new CombatRuntime(session, null, Entries(), Objects());
+            CombatEncounter fight = runtime.EnterRoster(new short[] { 400, 401 });
+            Combatant caster = fight.Party[0], aimed = fight.Enemies[0], other = fight.Enemies[1];
+            var seen = new List<(SpellVisualKind Kind, Combatant From, Combatant To)>();
+            runtime.PlaySpellVisual = (v, from, to) => seen.Add((v.Kind, from, to));
+            var firestorm = new Spell("F") {
+                TargetingType = 0, AnimationEffectType = 19,
+                Calculation = SpellCalculation.CostTimesDamage, Damage = 4,
+            };
+
+            runtime.ResolveCast(caster, aimed, firestorm, spellId: SpellIds.Firestorm, power: 5, AlwaysLow);
+
+            int pose = seen.FindIndex(e => e.Kind == SpellVisualKind.CasterPose && e.To == other);
+            int burst = seen.FindIndex(e => e.Kind == SpellVisualKind.SparkBurst && e.To == other);
+            Assert.GreaterOrEqual(pose, 0, "a wind-up toward the chained foe: " + string.Join(",", seen.ConvertAll(e => e.Kind)));
+            Assert.AreSame(caster, seen[pose].From);
+            Assert.Less(pose, burst, "before its burst");
+            Assert.IsFalse(seen.Exists(e => e.Kind == SpellVisualKind.CasterPose && e.To == aimed),
+                "the aimed foe's wind-up is the cast's own pose");
+        }
+
         [Test]
         public void TheDrainIsCLAMPEDToWhatTheTargetStillHas() {
             // Read back against CURRENT Strength before either write, so draining a nearly-spent

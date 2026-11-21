@@ -638,7 +638,56 @@ namespace BakAgain.World {
                     points.Add(p);
                 }
                 return points;
-            });
+            },
+            PoseTowardAsync);
+
+        /// <summary>
+        /// The caster turns toward <paramref name="foe"/> and plays its wind-up, holding the last
+        /// picture: one step of Firestorm's chain (combat_actor_play_ranged_windup toward each foe,
+        /// CSPELL.C:536-541; TASK-1118).
+        /// </summary>
+        private async UniTask PoseTowardAsync(GameData.Resources.Combat.Combatant caster,
+            GameData.Resources.Combat.Combatant foe) {
+            Transform at = SpriteOf(caster);
+            Encounters.ArenaCombatant marker = at != null ? at.GetComponent<Encounters.ArenaCombatant>() : null;
+            Encounters.DirectionalSprite sprite = at != null ? at.GetComponent<Encounters.DirectionalSprite>() : null;
+            if (marker == null || sprite == null || _hotspots == null || _encounterSprites == null) {
+                return;
+            }
+            // The cast's own pose plays first (CSPELL.C:1316 before the delivery); then the previous
+            // pose's hold gives way, the sprite turns, and the wind-up plays from the new facing.
+            float busyUntil = Time.realtimeSinceStartup + 3f;
+            while (marker != null && System.Array.Exists(marker.GetComponents<Encounters.AttackSwing>(), a => a.Running)
+                   && Time.realtimeSinceStartup < busyUntil) {
+                await UniTask.Yield();
+            }
+            if (marker == null) {
+                return;
+            }
+            foreach (Encounters.AttackSwing held in marker.GetComponents<Encounters.AttackSwing>()) {
+                Object.Destroy(held);
+            }
+            await UniTask.Yield();
+            GameData.Resources.Combat.CombatEncounter.FaceToward(caster, foe);
+            (long x, long y, short _) = sprite.RecordedPose;
+            sprite.SetPose(x, y, _hotspots.ArenaSpriteYawFor(caster));
+            float until = Time.realtimeSinceStartup + 0.5f;
+            while (sprite != null && !sprite.ShowsCurrentFacing && Time.realtimeSinceStartup < until) {
+                await UniTask.Yield();
+            }
+            if (sprite == null || marker == null) {
+                return;
+            }
+            int creature = _hotspots.CreatureNumberOf(caster);
+            string set = _encounterSprites.AttackSetFor(creature);
+            IReadOnlyList<GameData.Resources.World.MeshRecord> meshes = _encounterSprites.AttackMeshesFor(creature);
+            if (set == null || meshes == null) {
+                return;
+            }
+            await marker.gameObject.AddComponent<Encounters.AttackSwing>().Play(
+                _zoneSceneBuilder.RenderContext, meshes, set, sprite.CurrentOctant, marker.Extent,
+                GameData.Resources.Combat.CombatAnimSlot.Windup);
+        }
 
         /// <summary>The live sprite drawn for a combatant — its standing sprite, else its body.</summary>
         /// <remarks>Looked up every time rather than cached: a redraw replaces every sprite, and an
