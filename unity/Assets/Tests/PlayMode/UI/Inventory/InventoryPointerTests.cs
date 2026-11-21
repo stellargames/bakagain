@@ -391,6 +391,18 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         /// through the price quote: INVENTOR.C:741-743 paints both before cmbinv_actor_transfer_item
         /// runs the offer. Measured buying Ale at the Black Sheep (TASK-736).
         /// </summary>
+        /// <summary>
+        /// A sale holds it too: a drop on the container window paints the dragged sprite before the
+        /// transfer (INVENTOR.C:768-771), and in a shop that transfer asks the sale price, so the
+        /// item hangs where it was dropped through the offer. The port dropped it (TASK-1099 row 15).
+        /// </summary>
+        [Test]
+        public void AShopSaleOntoTheWindowHoldsItsDragArtThroughTheOffer() {
+            Assert.IsTrue(InventoryMenu.HoldsDropArt(portrait: -1, lockMode: false, shopShelf: false, saleOnShopWindow: true));
+            Assert.IsFalse(InventoryMenu.HoldsDropArt(portrait: -1, lockMode: false, shopShelf: false, saleOnShopWindow: false),
+                "control: a put-back into a chest asks nothing");
+        }
+
         [Test]
         public void AShopDropOntoAPortraitHoldsItsDragArtThroughTheOffer() {
             Assert.IsTrue(InventoryMenu.HoldsDropArt(portrait: 0, lockMode: false, shopShelf: true));

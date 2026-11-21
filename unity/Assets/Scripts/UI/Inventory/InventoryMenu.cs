@@ -1750,8 +1750,9 @@ namespace BakAgain.UI.Inventory {
         /// them when the transaction ends.
         /// </summary>
         // ponytail: the ring keeps pulsing while held; the original freezes it at phase 0.
-        internal static bool HoldsDropArt(int portrait, bool lockMode, bool shopShelf) =>
-            portrait >= 0 && !lockMode && shopShelf;
+        internal static bool HoldsDropArt(int portrait, bool lockMode, bool shopShelf,
+            bool saleOnShopWindow = false) =>
+            !lockMode && ((portrait >= 0 && shopShelf) || saleOnShopWindow);
 
         private void ClearDropArt() {
             SetHoverPortrait(-1);
@@ -1786,7 +1787,9 @@ namespace BakAgain.UI.Inventory {
             bool overWindow = IsOverContainerWindow(stageLocal);
             UpdateDiscardBorder(dragging: false, overWindow: false);
             UpdatePaperdollBorder(dragging: false, dragged, stageLocal);
-            if (!HoldsDropArt(portrait, IsLockMode, ShowingShopShelf)) {
+            // A sale onto the shop's window holds it through the price, as a buy does (TASK-1099).
+            if (!HoldsDropArt(portrait, IsLockMode, ShowingShopShelf,
+                    saleOnShopWindow: portrait < 0 && overWindow && IsShopMode && !ShowingShopShelf)) {
                 ClearDropArt();
             }
             // Drop resolution order is the original's chain of `if (dragging && …)` blocks: party
@@ -4786,6 +4789,14 @@ namespace BakAgain.UI.Inventory {
         /// shop overwrites its DEAREST stock and loses it.</para>
         /// </remarks>
         private async Cysharp.Threading.Tasks.UniTaskVoid SellToShopAsync(int slot) {
+            try {
+                await SellTransactionAsync(slot);
+            } finally {
+                ClearDropArt();   // the held sprite, once the price has been answered
+            }
+        }
+
+        private async Cysharp.Threading.Tasks.UniTask SellTransactionAsync(int slot) {
             RuntimeContainer seller = _displayed;
             if (slot < 0 || slot >= seller.Items.Count) {
                 RenderCurrent();
