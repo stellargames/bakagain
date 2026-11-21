@@ -116,6 +116,38 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             }
         }
 
+        /// <summary>
+        /// The fight's outcome line is shown over the arena after the fight is left, and the original
+        /// keeps its combat panel drawn under it (COMBAT.C:2674-2677). The port hid the Enhanced HUD
+        /// and put the Classic menu's stones up in its place (TASK-1125 #7, seen 2026-11-21).
+        /// </summary>
+        [Test]
+        public void TheHudStaysUpUnderTheOutcomeLineUntilTheArenaGoes() {
+            GameOptions.SetFeature(EnhancedFeature.Combat, true);
+            var classic = new UnityEngine.UIElements.VisualElement { name = "classic-combat-menu" };
+            var host = new BakAgain.UI.Combat.Enhanced.EnhancedCombatHudHost(new UnityEngine.UIElements.VisualElement(),
+                new GameData.Resources.Layout.EnhancedCombatLayout(), () => true);
+            _hud.CombatHudHost = host;
+            _hud.SetEnhancedCombatSeams(_ => null, () => "Owyn, round 1", () => classic, _ => null);
+            bool fighting = true, arena = true;
+            _hud.SetInCombatPredicate(() => fighting);
+            _hud.SetArenaShownPredicate(() => arena);
+            _hud.SetFightUnderWayPredicate(() => fighting);
+            _hud.SyncCombatHudForTest();
+            Assert.IsTrue(host.Hud.Shown, "the control: up in the fight");
+
+            fighting = false;   // left; the outcome line is up over the arena
+            _hud.SyncCombatHudForTest();
+            Assert.IsTrue(host.Hud.Shown, "still up under the outcome line");
+            Assert.AreEqual(UnityEngine.UIElements.DisplayStyle.None, classic.style.display.value,
+                "and the Classic menu stays hidden");
+
+            arena = false;
+            _hud.SyncCombatHudForTest();
+            Assert.IsFalse(host.Hud.Shown, "gone with the arena");
+            Assert.AreEqual(UnityEngine.UIElements.StyleKeyword.Null, classic.style.display.keyword);
+        }
+
         [UnityTest]
         public System.Collections.IEnumerator AFightIsUnderWayOnceItsMenuOpens_NotWhenItStarts() {
             var menuObject = new GameObject("CombatMenuUnderTest");

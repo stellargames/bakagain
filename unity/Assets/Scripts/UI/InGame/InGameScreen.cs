@@ -1288,12 +1288,17 @@ namespace BakAgain.UI.InGame {
             int lines = phone ? PhonePeekLogLines : DesktopLedgerLogLines;
             // Not the travel layer's state: in a fight the combat menu's layer is on top of it. A screen
             // pushed over the fight deactivates this one, so only a dialog page has to be checked.
-            _combatHud.Sync(GameOptions.IsOn(EnhancedFeature.Combat), AFightIsRunning(), _combatTurn?.Invoke(),
+            // *** LEFT, BUT THE ARENA IS STILL UP. *** The outcome line is shown over it, and the
+            // original keeps its combat panel drawn under the line (COMBAT.C:2674-2677): the HUD holds
+            // its last picture and the Classic menu stays hidden until the arena goes (TASK-1125 #7).
+            bool fighting = AFightIsRunning();
+            bool outcome = !fighting && ArenaOnScreen();
+            _combatHud.Sync(GameOptions.IsOn(EnhancedFeature.Combat), fighting || outcome, _combatTurn?.Invoke(),
                 () => _combatController?.Model(lines) ?? _combatHudModel?.Invoke(lines), _classicCombatMenu?.Invoke(),
                 // Not before the fight is under way: the entry line and the opening enemy turns show no
                 // combat HUD in the Classic game either.
-                !DialogManager.PageOverTheWorld && FightUnderWay(),
-                hold: _arenaBusy?.Invoke() ?? false);
+                outcome ? _combatHud.Hud?.Shown ?? false : !DialogManager.PageOverTheWorld && FightUnderWay(),
+                hold: outcome || (_arenaBusy?.Invoke() ?? false));
             // The controller owns the forecast in the model; the world hands back the one for this
             // fight's service (the same instance until the zone's service changes).
             var controller = _combatHud.Hud != null ? _combatControllerFor?.Invoke(_combatHud.Hud, phone) : null;
