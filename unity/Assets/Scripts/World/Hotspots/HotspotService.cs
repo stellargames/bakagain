@@ -1515,8 +1515,10 @@ using GameData.Resources.Scene;
         /// <para>Placement is <see cref="PlaceCombatants"/>'s, deliberately: props and combatants
         /// share an arena, so a second copy of the cell-to-world math is a thing that can drift.</para>
         /// </remarks>
+        /// <param name="kindOf">The kind a cell is drawn as, while the props rise
+        /// (<see cref="GameData.Resources.Combat.TrapPropEmergence.TerrainUnder"/>); null reads the grid.</param>
         public List<(int ElementId, long WorldX, long WorldY, ushort Facing, int GridX, int GridY)>
-            PlaceTrapProps() {
+            PlaceTrapProps(System.Func<int, int, GameData.Resources.Combat.CombatTerrain> kindOf = null) {
             var props = new List<(int, long, long, ushort, int, int)>();
             GameData.Resources.Combat.TrapPuzzle puzzle = Combat?.Puzzle;
             if (puzzle?.Elements == null || _session == null || _start == null) {
@@ -1541,7 +1543,7 @@ using GameData.Resources.Scene;
                     e.ElementId,
                     _session.PositionX + dx,
                     _session.PositionY + dy,
-                    CannonFacing(puzzle, e),
+                    CannonFacing(puzzle, e, kindOf),
                     // The CELL as well as the world point: the emergence animation is per-tile
                     // state (TrapPropEmergence), and recomputing the cell from world coordinates
                     // would invert the rotation this method just applied.
@@ -2252,11 +2254,13 @@ using GameData.Resources.Scene;
         /// every other quarter- and eighth-turn missed both.</para>
         /// </remarks>
         private ushort CannonFacing(GameData.Resources.Combat.TrapPuzzle puzzle,
-            GameData.Resources.Combat.TrapGridElement e) {
+            GameData.Resources.Combat.TrapGridElement e,
+            System.Func<int, int, GameData.Resources.Combat.CombatTerrain> kindOf = null) {
             if (e.ElementId != GameData.Resources.Combat.TrapPuzzleBuilder.CannonElementId) {
                 return (ushort)_session.Rotation;
             }
-            ushort quarterTurn = (int)puzzle.Grid.TerrainAt(e.X, e.Y) switch {
+            // A rising cannon's cell reads the rising kind; it is drawn by its saved kind (TASK-1120).
+            ushort quarterTurn = (int)(kindOf?.Invoke(e.X, e.Y) ?? puzzle.Grid.TerrainAt(e.X, e.Y)) switch {
                 10 => (ushort)0x4000,
                 11 => (ushort)0xC000,
                 13 => (ushort)0x8000,

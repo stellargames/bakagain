@@ -177,6 +177,22 @@ public sealed class TrapPropEmergence {
     }
 
     /// <summary>
+    /// The kind a cell is drawn as: while its prop rises, the saved kind it will get back (the
+    /// original's combat_arena_anim_tbl_lookup_2d, CACTOR.C:1283-1286), so a rising cannon already
+    /// points its way; otherwise the cell's own kind.
+    /// </summary>
+    public CombatTerrain TerrainUnder(CombatGrid grid, int x, int y) {
+        if (Running && (int)grid.TerrainAt(x, y) == RisingKind) {
+            foreach ((int rx, int ry, CombatTerrain terrain) in _restore) {
+                if (rx == x && ry == y) {
+                    return terrain;
+                }
+            }
+        }
+        return grid.TerrainAt(x, y);
+    }
+
+    /// <summary>
     /// How far a prop on this cell is still buried, in world Z units — the original draws it at
     /// <c>Z = -nEffectTimer</c>. Zero once it has surfaced, so a settled arena needs no special case.
     /// </summary>

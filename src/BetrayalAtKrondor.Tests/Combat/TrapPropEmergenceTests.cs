@@ -60,6 +60,23 @@ public class TrapPropEmergenceTests {
         Assert.Contains(TrapPropEmergence.MaximumDuration, timers);
     }
 
+    /// <summary>
+    /// A rising cannon keeps its facing: the original draws a rising prop through
+    /// combat_arena_anim_tbl_lookup_2d, the saved kind, not the cell's rising kind (CACTOR.C:1283-1286),
+    /// and the facing is a function of that kind (:1229-1240). The port read the live terrain, so a
+    /// trap's cannons all pointed north until the next redraw (TASK-1120).
+    /// </summary>
+    [Fact]
+    public void ARisingCannonsCellStillAnswersItsCannonKind() {
+        TrapPuzzle puzzle = Puzzle();
+        var emergence = new TrapPropEmergence();
+        emergence.Begin(puzzle, Rolls(0, 299));
+        Assert.Equal(TrapPropEmergence.RisingKind, (int)puzzle.Grid.TerrainAt(2, 2));   // control: buried
+
+        Assert.Equal(CombatTerrain.CannonNorth, emergence.TerrainUnder(puzzle.Grid, 2, 2));
+        Assert.Equal(puzzle.Grid.TerrainAt(3, 3), emergence.TerrainUnder(puzzle.Grid, 3, 3));   // not a prop: the live cell
+    }
+
     [Fact]
     public void APropThatHasRisenGetsItsGroundBackAtOnce_NotWhenTheLastOneHas() {
         // COMBAT.C:756-772: every frame, each prop tile no longer reading 9 gets its backup terrain

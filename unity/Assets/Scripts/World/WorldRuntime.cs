@@ -1049,7 +1049,7 @@ namespace BakAgain.World {
 
             var rising = new List<(Transform Prop, int GridX, int GridY)>();
             foreach ((int elementId, long worldX, long worldY, ushort facing, int gridX, int gridY)
-                     in _hotspots.PlaceTrapProps()) {
+                     in _hotspots.PlaceTrapProps(grid == null ? null : (x, y) => _propEmergence.TerrainUnder(grid, x, y))) {
                 GameObject prop = await _encounterSprites.BuildEffectSpriteAsync(
                     elementId, _gameSession.CurrentZone, _arenaRoot.transform,
                     _zoneSceneBuilder.RenderContext, this);
