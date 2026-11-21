@@ -734,19 +734,22 @@ namespace BakAgain.UI.Inventory {
         }
 
         /// <summary>
-        /// With the Enhanced layout, the screen fades in only once the REQ has built and the layout is
-        /// applied — or after a second at most; shown earlier, the faithful chrome would fade in and
-        /// then jump.
+        /// The screen fades in only once the REQ has built and the page is drawn — or after a second
+        /// at most. The original builds the page and draws the inventory, then fades in
+        /// (CMBINV.C:273-279); shown earlier, the chrome faded in ~110 ms before the grid and icons
+        /// (TASK-1129 row 11), and the Enhanced layout would also jump.
         /// </summary>
         protected override async UniTask BuildWhileHiddenAsync() {
             // Here, not in OnBeforeShowAsync: the document has no root until the screen is active.
-            if (!GameOptions.IsOn(EnhancedFeature.Inventory) || Root == null) {
+            if (Root == null) {
                 return;
             }
-            _enhanced = new EnhancedInventoryLayout(Root, _gameSession);
-            _enhanced.GetAllPressed += TakeAll;
-            _enhanced.ShareAllPressed += ShareAll;
-            LoadBlankStoneAsync(_enhanced).Forget();
+            if (GameOptions.IsOn(EnhancedFeature.Inventory)) {
+                _enhanced = new EnhancedInventoryLayout(Root, _gameSession);
+                _enhanced.GetAllPressed += TakeAll;
+                _enhanced.ShareAllPressed += ShareAll;
+                LoadBlankStoneAsync(_enhanced).Forget();
+            }
             if (_ui == null) {
                 return;
             }
@@ -851,8 +854,8 @@ namespace BakAgain.UI.Inventory {
         private static Rect HintRect(LayoutHint hint) => MemberEquip.TryPxRect(hint, out Rect r) ? r : Rect.zero;
 
         private void RenderCurrent() {
-            if (_document == null || _document.rootVisualElement == null) {
-                return;
+            if (_document == null || _document.rootVisualElement == null || _displayed == null) {
+                return;   // nothing chosen to show yet (the hidden build can run before it is)
             }
             PublishDisplayedActor();
             // _ui?.Frame is null (-> CanonicalStage's own fallback) only when this screen has no

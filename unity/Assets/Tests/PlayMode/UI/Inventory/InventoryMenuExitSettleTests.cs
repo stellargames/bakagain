@@ -361,6 +361,33 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             Assert.AreEqual(UniTaskStatus.Succeeded, task.Status, "and ends when it is dismissed");
         }
 
+        /// <summary>
+        /// The Classic screen fades in only once its page is built and drawn: the original builds
+        /// the page and draws the inventory, then fades the palette in (CMBINV.C:273-279). The port
+        /// faded the chrome in ~110 ms before the grid and icons appeared (TASK-1129 row 11).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheClassicScreenWaitsForItsPageBeforeFadingIn() => UniTask.ToCoroutine(async () => {
+            var stash = BakAgain.Tests.EnhancedPrefsStash.Take();
+            try {
+                InventoryMenu menu = BuildMenu(SessionWith(FreeSlot()), new RecordingBagSpawner());
+                var loader = _go.AddComponent<BakAgain.ResourceManagement.Loaders.UserInterfaceLoader>();
+                loader.enabled = false;
+                var any = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+                typeof(InventoryMenu).GetField("_ui", any).SetValue(menu, loader);
+                var build = (UniTask)typeof(InventoryMenu).GetMethod("BuildWhileHiddenAsync", any).Invoke(menu, null);
+                await UniTask.Yield();
+                Assert.AreEqual(UniTaskStatus.Pending, build.Status, "no fade while the page is still building");
+                typeof(BakAgain.ResourceManagement.Loaders.UserInterfaceLoader).GetProperty("IsBuilt")
+                    .SetValue(loader, true);
+                await UniTask.Yield();
+                await UniTask.Yield();
+                Assert.AreEqual(UniTaskStatus.Succeeded, build.Status, "built: the fade may start");
+            } finally {
+                stash.Restore();
+            }
+        });
+
         /// <summary>Opening a member's own inventory settles nothing — there is no container to
         /// settle, and a party inventory must never be handed to the pool.</summary>
         [UnityTest]
