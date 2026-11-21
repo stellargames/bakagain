@@ -257,13 +257,32 @@ namespace BakAgain.UI.InGame {
             // anchor is the middle of what is visible: project the bounds' corners, clip, centre.
             Rect view = _viewport.ToScreenRect(stageScreenRect);
             float xMin = float.MaxValue, yMin = float.MaxValue, xMax = float.MinValue, yMax = float.MinValue;
-            for (int i = 0; i < 8; i++) {
-                var corner = new Vector3((i & 1) == 0 ? b.min.x : b.max.x,
-                    (i & 2) == 0 ? b.min.y : b.max.y, (i & 4) == 0 ? b.min.z : b.max.z);
-                if (WorldPicker.ScreenPointOfGround(_camera, _viewport, corner, stageScreenRect)
+            void Take(Vector3 world) {
+                if (WorldPicker.ScreenPointOfGround(_camera, _viewport, world, stageScreenRect)
                     is UnityEngine.Vector2 p) {
                     xMin = Mathf.Min(xMin, p.x); xMax = Mathf.Max(xMax, p.x);
                     yMin = Mathf.Min(yMin, p.y); yMax = Mathf.Max(yMax, p.y);
+                }
+            }
+            // The drawn box is the extent of the object's own vertices on screen; an axis-aligned
+            // bounds box overstates a turned building (measured on the Crossroads Shop: ~18 VGA
+            // right, ~14 up of the original's box). Bounds corners only for a renderer with no mesh.
+            bool tookVertices = false;
+            foreach (MeshFilter mf in entity.GetComponentsInChildren<MeshFilter>()) {
+                Mesh mesh = mf.sharedMesh;
+                if (mesh == null || !mesh.isReadable) {
+                    continue;
+                }
+                Matrix4x4 toWorld = mf.transform.localToWorldMatrix;
+                foreach (Vector3 v in mesh.vertices) {
+                    Take(toWorld.MultiplyPoint3x4(v));
+                }
+                tookVertices = true;
+            }
+            if (!tookVertices) {
+                for (int i = 0; i < 8; i++) {
+                    Take(new Vector3((i & 1) == 0 ? b.min.x : b.max.x,
+                        (i & 2) == 0 ? b.min.y : b.max.y, (i & 4) == 0 ? b.min.z : b.max.z));
                 }
             }
             if (xMin > xMax) {
@@ -274,7 +293,11 @@ namespace BakAgain.UI.InGame {
             if (xMin > xMax || yMin > yMax) {
                 return null;
             }
-            return new UnityEngine.Vector2((xMin + xMax) / 2f, (yMin + yMax) / 2f);
+            // In canonical units through the stage the object was projected through: the dialog's
+            // own stage is laid out differently, and converting there put the box ~50 VGA right.
+            return Graphics.CanonicalConversion.ScreenToCanonical(
+                new UnityEngine.Vector2((xMin + xMax) / 2f, (yMin + yMax) / 2f),
+                new UnityEngine.Vector2(Screen.width, Screen.height), ResolveStage());
         }
 
         /// <summary>

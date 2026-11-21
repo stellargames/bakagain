@@ -18,11 +18,11 @@ namespace BakAgain.UI {
     /// </summary>
     public interface IDialogManager {
         /// <summary>
-        /// The screen point of the world object a click is about to raise a message from: the next
+        /// The canonical (1600x1200 stage) point of the world object a click is about to raise a message from: the next
         /// dialog's first speakerless record opens centred on it and grows out of it
         /// (dialog_viewport_clip_point, DIALOG.C:708-728; TASK-1113 row 2). Null clears it.
         /// </summary>
-        void SetWorldAnchor(UnityEngine.Vector2? screenPoint) { }
+        void SetWorldAnchor(UnityEngine.Vector2? canonicalPoint) { }
 
         /// <summary>
         /// Render <paramref name="entry"/> and await dismissal on mouse / key.

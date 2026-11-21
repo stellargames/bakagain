@@ -1098,11 +1098,11 @@ namespace BakAgain.UI {
         /// FIRST page, so his trap fight opened there and the rest of the confrontation ("Now it's
         /// time to see if you can match a true Nighthawk in combat") played after he was dead.
         /// </remarks>
-        /// <summary>Screen point of the world object a click raised the next dialog from.</summary>
+        /// <summary>Canonical point of the world object a click raised the next dialog from.</summary>
         private Vector2? _worldAnchorScreen;
 
         /// <inheritdoc />
-        public void SetWorldAnchor(Vector2? screenPoint) => _worldAnchorScreen = screenPoint;
+        public void SetWorldAnchor(Vector2? canonicalPoint) => _worldAnchorScreen = canonicalPoint;
 
         private async UniTask<T> Playing<T>(System.Func<UniTask<T>> play, string label) {
             if (_gameSession != null) {
@@ -2419,11 +2419,11 @@ namespace BakAgain.UI {
                 // TASK-1113 row 2). Converted through THIS stage, so an Enhanced full-screen world
                 // view still lands the box on the object.
                 Vector2? wipeOrigin = null;
-                if (_worldAnchorScreen is Vector2 anchorScreen) {
+                if (_worldAnchorScreen is Vector2 anchor) {
                     _worldAnchorScreen = null;
                     if (entry.ActorNumber == 0) {
-                        Vector2 anchor = BakAgain.Graphics.CanonicalConversion.ScreenToCanonical(
-                            anchorScreen, new Vector2(Screen.width, Screen.height), stage);
+                        _logger.LogDebug("Dialog world anchor: canonical {Anchor}, area {L},{T} {W}x{H}",
+                            anchor, area.Left, area.Top, area.Width, area.Height);
                         if (GameData.Resources.Dialog.DialogWorldAnchor.Place(area, anchor.x, anchor.y)
                             is LayoutHint placed) {
                             area = placed;
