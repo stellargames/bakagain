@@ -344,7 +344,7 @@ namespace BakAgain.UI.Inventory {
             if (cell != null) {
                 _dropStagePos = _stage.WorldToLocal(cell.worldBound.center); // where the flight starts
             }
-            TransferItemTo(slot, receiver);
+            TransferItemTo(slot, receiver).Forget();
             return true;
         }
 

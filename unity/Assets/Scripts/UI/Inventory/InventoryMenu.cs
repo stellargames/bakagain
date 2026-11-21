@@ -1777,6 +1777,14 @@ namespace BakAgain.UI.Inventory {
             DestroyGhost();
         }
 
+        private async UniTaskVoid ClearDropArtAfterAsync(UniTask give) {
+            try {
+                await give;
+            } finally {
+                ClearDropArt();
+            }
+        }
+
         internal void OnReleased(Vector2 stageLocal, bool wasDrag) {
             if (_shelfDrag) {
                 _shelfDrag = false;
@@ -1806,7 +1814,10 @@ namespace BakAgain.UI.Inventory {
             UpdateDiscardBorder(dragging: false, overWindow: false);
             UpdatePaperdollBorder(dragging: false, dragged, stageLocal);
             // A sale onto the shop's window holds it through the price, as a buy does (TASK-1099).
-            if (!HoldsDropArt(portrait, IsLockMode, ShowingShopShelf,
+            // A portrait drop keeps the sprite and ring up until it resolves, so a refusal is read
+            // with the item still lifted (INVENTOR.C:741-751; TASK-1129 row 4).
+            bool holdThroughGive = portrait >= 0 && !IsLockMode && !ShowingShopShelf;
+            if (!holdThroughGive && !HoldsDropArt(portrait, IsLockMode, ShowingShopShelf,
                     saleOnShopWindow: portrait < 0 && overWindow && IsShopMode && !ShowingShopShelf)) {
                 ClearDropArt();
             }
@@ -1818,7 +1829,12 @@ namespace BakAgain.UI.Inventory {
                 // lock is the only meaningful target — the portraits and the container window
                 // belong to screens that are not showing one.
             } else if (portrait >= 0) {
-                TransferItemTo(dragged, portrait);
+                UniTask give = TransferItemTo(dragged, portrait);
+                if (holdThroughGive) {
+                    ClearDropArtAfterAsync(give).Forget();
+                } else {
+                    give.Forget();
+                }
             } else if (overWindow && DropOnContainerWindow(dragged)) {
                 // handled: put back into the loot container
             } else if (EquipOnPaperdollDrop(dragged, stageLocal)) {
@@ -4391,11 +4407,11 @@ namespace BakAgain.UI.Inventory {
             _paperdollBorder.style.borderBottomColor = c;
         }
 
-        private void TransferItemTo(int slot, int portraitSlot) {
+        private UniTask TransferItemTo(int slot, int portraitSlot) {
             RuntimeContainer target = ResolveMemberContainer(portraitSlot);
             if (target == null || target == _displayed || slot < 0 || slot >= _displayed.Items.Count) {
                 RenderCurrent(); // invalid drop → just restore the grid
-                return;
+                return UniTask.CompletedTask;
             }
             // *** THE REFUSALS NAME BOTH THE ITEM AND THE MEMBER, SO STAMP THEM ON THE DROP. ***
             // The original does it while the item is still being dragged: nEvtArgItemId is the
@@ -4430,7 +4446,7 @@ namespace BakAgain.UI.Inventory {
             if (ShowingShopShelf) {
                 BuyForAsync(slot, target, portraitSlot).Forget();
 
-                return;
+                return UniTask.CompletedTask;
             }
 
             // *** MID-FIGHT, ONLY A NEIGHBOUR CAN TAKE IT. *** INVENTOR.C:735-738 refuses a give to
@@ -4444,7 +4460,7 @@ namespace BakAgain.UI.Inventory {
                     _dialogs?.ShowById(TooFarInCombatDialogId).Forget();
                 }
                 RenderCurrent();
-                return;
+                return UniTask.CompletedTask;
             }
             // *** A HELD ITEM CANNOT BE STOLEN. *** INVENTOR.C:739-740: mid-fight, from a pack that is
             // not a member's, an equipped item is refused. The only such pack in a fight is the one
@@ -4454,12 +4470,12 @@ namespace BakAgain.UI.Inventory {
                 && (_displayed.Items[slot].ItemFlags & (ushort)GameData.ItemFlags.Equipped) != 0) {
                 _dialogs?.ShowById(CannotStealHeldItemDialogId).Forget();
                 RenderCurrent();
-                return;
+                return UniTask.CompletedTask;
             }
 
             // Share is offered when the destination is a party member and not in combat
             // (pickupItem's picker argument).
-            RunTransfer(slot, target, allowShare: true, portraitDrop: true).Forget();
+            return RunTransfer(slot, target, allowShare: true, portraitDrop: true);
         }
 
         /// <summary>
@@ -4991,10 +5007,7 @@ namespace BakAgain.UI.Inventory {
                 if (immediate == InventoryTransfer.Result.Moved) {
                     FeedIfStarving(target, moving);
                 }
-                ShowTransferResult(immediate, noRoomVar0);
-                DeselectItem();
-                RenderCurrent();
-                return UniTask.CompletedTask;
+                return FinishTransferAsync(immediate, noRoomVar0);
             }
             return RunPickerTransferAsync(plan, target, moving, noRoomVar0);
         }
@@ -5038,6 +5051,15 @@ namespace BakAgain.UI.Inventory {
         /// <summary>Cancelled by <see cref="OnBeforeHide"/> to end an unanswered picker.</summary>
         private System.Threading.CancellationTokenSource _pickerAbandoned;
 
+        private async UniTask FinishTransferAsync(InventoryTransfer.Result result, int noRoomVar0) {
+            try {
+                await ShowTransferResult(result, noRoomVar0);
+            } finally {
+                DeselectItem();
+                RenderCurrent();
+            }
+        }
+
         // The plan knows its own target, but TransferPlan.Target is internal to GameData, so the
         // destination rides along rather than widening that library's surface for a message.
         private async UniTask RunPickerTransferAsync(InventoryTransfer.TransferPlan plan,
@@ -5050,7 +5072,7 @@ namespace BakAgain.UI.Inventory {
                 if (qty > 0 && result == InventoryTransfer.Result.Moved) {
                     FeedIfStarving(target, moving);
                 }
-                ShowTransferResult(result, noRoomVar0);
+                await ShowTransferResult(result, noRoomVar0);
             } finally {
                 DeselectItem();
                 RenderCurrent();
@@ -5095,7 +5117,7 @@ namespace BakAgain.UI.Inventory {
             return members;
         }
 
-        private void ShowTransferResult(InventoryTransfer.Result result, int noRoomVar0) {
+        private async UniTask ShowTransferResult(InventoryTransfer.Result result, int noRoomVar0) {
             // *** THE ORIGINAL ANIMATES ONLY ON A TRANSFER THAT HAPPENED. *** invui_dropOnPortrait
             // guards the whole blit loop on `xfer_result > 0`, so a refusal shows its dialog and
             // nothing flies. These three are our "it moved"; every other leaf below is a refusal,
@@ -5121,10 +5143,14 @@ namespace BakAgain.UI.Inventory {
                     // transferItem @0x5555e: no same-category swap partner — the equipped melee
                     // weapon/staff stays put ("strip himself of his defenses"). Also the active
                     // Ring of Prandur guard, which plays the same record.
-                    _dialogs?.ShowById(MustKeepEquippedDialogId).Forget();
+                    if (_dialogs != null) {
+                        await _dialogs.ShowById(MustKeepEquippedDialogId);
+                    }
                     break;
                 case InventoryTransfer.Result.LitTorchRefused:
-                    _dialogs?.ShowById(LitTorchDialogId).Forget();
+                    if (_dialogs != null) {
+                        await _dialogs.ShowById(LitTorchDialogId);
+                    }
                     break;
                 case InventoryTransfer.Result.DoesNotFit:
                     // Var 0 is decided by the drop (see RunTransfer). On the container window it is
@@ -5134,7 +5160,8 @@ namespace BakAgain.UI.Inventory {
                     // the ..."), 2/3 Bag ("canvas sack"), 4 Chest ("wooden chest"), 5/7 Corpse and
                     // NpcInventory ("pawed the dead body"), 10 shop ("room ... on my shelves"). On a
                     // portrait it is 0 or 1, whether the source is a member's pack (TASK-944).
-                    ShowVar0Message(NoRoomDialogId, noRoomVar0);
+                    // Awaited: the line is read before the grid comes back (TASK-1129 row 4).
+                    await ShowVar0MessageAsync(NoRoomDialogId, noRoomVar0);
                     break;
                 case InventoryTransfer.Result.Blocked:
                     _logger.LogInformation("Transfer blocked.");

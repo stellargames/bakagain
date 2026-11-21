@@ -341,6 +341,26 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             public void Dismiss() => _held.TrySetResult(0);
         }
 
+        /// <summary>
+        /// A refused drop is read before the grid comes back: the original shows the line blocking
+        /// with the item still lifted and returns after it (INVENTOR.C:741-751; TASK-1129 row 4). The
+        /// result is therefore awaitable and does not finish while the line is up.
+        /// </summary>
+        [Test]
+        public void ARefusalIsReadBeforeTheDropFinishes() {
+            var dialogs = new HeldLineDialogs();
+            InventoryMenu menu = BuildMenu(SessionWith(FreeSlot()), new RecordingBagSpawner(), dialogs: dialogs);
+            object shown = typeof(InventoryMenu).GetMethod("ShowTransferResult",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                .Invoke(menu, new object[] { GameData.Resources.Inventory.InventoryTransfer.Result.MustKeepEquipped, 0 });
+            Assert.IsInstanceOf<UniTask>(shown, "the result can be waited on");
+            var task = (UniTask)shown;
+            Assert.IsTrue(dialogs.Shown, "control: the line is up");
+            Assert.AreEqual(UniTaskStatus.Pending, task.Status, "the drop is not over while it is read");
+            dialogs.Dismiss();
+            Assert.AreEqual(UniTaskStatus.Succeeded, task.Status, "and ends when it is dismissed");
+        }
+
         /// <summary>Opening a member's own inventory settles nothing — there is no container to
         /// settle, and a party inventory must never be handed to the pool.</summary>
         [UnityTest]
