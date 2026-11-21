@@ -207,8 +207,17 @@ namespace BakAgain.UI {
                 mask.style.top = m.y;
                 mask.style.width = m.width;
                 mask.style.height = m.height;
-                panel.style.left = resolvedRect.x - m.x;
-                panel.style.top = resolvedRect.y - m.y;
+                if (origin != null) {
+                    // A grow from a world click draws the empty frame at the step's own size
+                    // (dialog_animate_open -> dialog_frame_draw(lerped rect), DIALOG.C:761-767).
+                    panel.style.left = 0;
+                    panel.style.top = 0;
+                    panel.style.width = m.width;
+                    panel.style.height = m.height;
+                } else {
+                    panel.style.left = resolvedRect.x - m.x;
+                    panel.style.top = resolvedRect.y - m.y;
+                }
                 // Each extra holds still at its own screen rect while the window opens over it —
                 // the same pinning as the panel, just against a different origin.
                 foreach ((VisualElement layer, Rect rect) in extras) {
@@ -224,6 +233,19 @@ namespace BakAgain.UI {
                 // so the reveal and the mask geometry are one indivisible step: there is no ordering
                 // in which the panel is showing and the mask has not been sized.
                 panel.style.visibility = StyleKeyword.Null;
+            }
+
+            // ...and its text only once the frame is full size.
+            var hiddenContent = new System.Collections.Generic.List<VisualElement>();
+            if (origin != null) {
+                // The panel layers that hold text; the shadow and chrome layers ARE the frame.
+                // Hidden as whole layers: a text block rebuilds its lines as the frame resizes.
+                foreach (VisualElement child in panel.Children()) {
+                    if (child is TextElement || child.Q<TextElement>() != null) {
+                        child.style.visibility = Visibility.Hidden;
+                        hiddenContent.Add(child);
+                    }
+                }
             }
 
             try {
@@ -249,6 +271,9 @@ namespace BakAgain.UI {
                     layer.style.width = StyleKeyword.Null;
                     layer.style.height = StyleKeyword.Null;
                     stage.Insert(i, layer);
+                }
+                foreach (VisualElement child in hiddenContent) {
+                    child.style.visibility = StyleKeyword.Null;
                 }
                 RestorePanel(stage, panel, area, panelIndex);
                 mask.RemoveFromHierarchy();

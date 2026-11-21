@@ -143,6 +143,38 @@ namespace BakAgain.Tests.PlayMode.UI {
         }
 
         /// <summary>
+        /// A world-click grow draws the empty FRAME at each step's size, the text only once it is
+        /// full size: dialog_animate_open calls dialog_frame_draw with the lerped rect
+        /// (DIALOG.C:761-767), and the text is drawn after it returns. The port revealed the
+        /// finished box, text and all, through a growing mask (TASK-1113 row 2).
+        /// </summary>
+        [UnityTest]
+        public System.Collections.IEnumerator AGrowFromAPointDrawsTheEmptyFrameAtTheStepsSize() {
+            var stage = new VisualElement { style = { width = 1000f, height = 800f } };
+            var panel = new VisualElement();
+            var text = new Label("Shop of some kind");
+            panel.Add(text);
+            stage.Add(panel);
+            LayoutHint area = PercentArea();
+            BakAgain.UI.Layout.LayoutApplier.Apply(panel, area);
+            var resolved = new Rect(100f, 160f, 600f, 240f);
+
+            UniTask play = DialogOpenWipe.PlayAsync(stage, panel, area, resolved, duration: 5f,
+                CancellationToken.None, origin: new Vector2(400f, 280f));
+
+            Assert.AreEqual(Visibility.Hidden, text.style.visibility.value, "no text while it grows");
+            Assert.Less(panel.style.width.value.value, resolved.width, "the frame itself is the step's size");
+            Assert.AreEqual(0f, panel.style.left.value.value, 0.001f, "and fills the step's rect");
+
+            float until = Time.realtimeSinceStartup + 10f;
+            while (!play.Status.IsCompleted() && Time.realtimeSinceStartup < until) {
+                yield return null;
+            }
+
+            Assert.AreEqual(StyleKeyword.Null, text.style.visibility.keyword, "the text once it is full size");
+        }
+
+        /// <summary>
         /// The other door onto the same failure: a hint that sizes itself with percentage INSETS
         /// rather than an explicit width. LayoutApplier.Apply only writes lengths the hint states,
         /// so without an explicit clear the wipe's px width would survive and freeze the panel.
