@@ -3808,6 +3808,9 @@ namespace BakAgain.UI.Inventory {
                 return true;
             }
             InventoryEquip.Equip(_displayed, slot, _gameSession.ObjectInfo); // idempotent re-equip
+            // Use_Item's equip arm falls through to the use sound (ITEMUSE.C:158-165 -> 490-492);
+            // no shipped weapon or armour has one, so only modded data hears it (TASK-1129 row 15).
+            PlayItemUseCue(ItemUseOutcome.Silent, dropped);
             RenderCurrent();
             return true;
         }

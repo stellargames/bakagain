@@ -98,6 +98,27 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             Assert.That(_cues, Is.EqualTo(new[] { 64, ShopCue }));
         }
 
+        /// <summary>
+        /// Equipping by a drop on the paperdoll goes through Use_Item, whose equip arm falls through
+        /// to the use sound (ITEMUSE.C:158-165 -> 490-492). No shipped weapon or armour carries one,
+        /// so only modded data hears it (TASK-1129 row 15).
+        /// </summary>
+        [Test]
+        public void EquippingOnThePaperdollPlaysTheItemsUseSound() {
+            InventoryMenu menu = Build(out GameSession session, out RuntimeContainer pack);
+            session.ObjectInfo.GetById(LightCrossbowId).SoundId = 99;
+            pack.Items.Add(new RuntimeItem(LightCrossbowId, 100, 0));
+            const BindingFlags any = BindingFlags.NonPublic | BindingFlags.Instance;
+            var layout = (InventoryLayout)typeof(InventoryMenu).GetProperty("Layout", any).GetValue(menu);
+            Rect zone = MemberEquip.PaperdollDropZone(layout.PaperdollBox);
+
+            bool consumed = (bool)typeof(InventoryMenu).GetMethod("EquipOnPaperdollDrop", any)
+                .Invoke(menu, new object[] { pack.Items.Count - 1, zone.center });
+
+            Assert.IsTrue(consumed, "control: the drop equipped it");
+            Assert.That(_cues, Is.EqualTo(new[] { 99 }));
+        }
+
         private sealed class RecordingDialogs : NoOpDialogs {
             public readonly List<int> Shown = new();
             public override Cysharp.Threading.Tasks.UniTask<int> ShowById(int id,
