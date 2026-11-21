@@ -191,6 +191,23 @@ namespace BakAgain.Tests.PlayMode.UI.InGame {
             Assert.That(_hud.CombatChromeShown, Is.False);
         }
 
+        /// <summary>
+        /// TASK-1096 row 3: under the outcome line the original redraws the last actor's stat panel
+        /// (COMBAT.C:2672, combat_arena_redraw_hud_bufs(0, 1)); the port put the travel portraits there.
+        /// </summary>
+        [Test]
+        public void TheArenaOnScreenHoldsTheLastStatsPanel() {
+            _hud.SetInCombatPredicate(() => false);
+            _hud.SetArenaShownPredicate(() => true);
+            Assert.That(_hud.HoldsTheLastStatsPanel, Is.True, "the fight is over, the arena still shows");
+
+            _hud.SetArenaShownPredicate(() => false);
+            Assert.That(_hud.HoldsTheLastStatsPanel, Is.False, "control: the travel heads once it is left");
+
+            _hud.SetInCombatPredicate(() => true);
+            Assert.That(_hud.HoldsTheLastStatsPanel, Is.False, "control: a running fight redraws its panel");
+        }
+
         [Test]
         public void WithoutAFight_EnhancedCombatIsNotActive() {
             GameOptions.SetFeature(EnhancedFeature.Combat, true);

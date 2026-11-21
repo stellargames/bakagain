@@ -1490,7 +1490,7 @@ namespace BakAgain.UI.InGame {
         }
 
         private void RefreshShootPanel() {
-            if (_combatPanel == null) {
+            if (_combatPanel == null || HoldsTheLastStatsPanel) {
                 return;
             }
             if (_combatPanelContent == null) {
@@ -1721,6 +1721,10 @@ namespace BakAgain.UI.InGame {
         internal bool TravelBlockedByTheArena => ArenaOnScreen();
 
         internal bool CombatChromeShown => _combatChromeShown;
+
+        // Under the outcome line the original redraws the last actor's stat panel
+        // (combat_arena_redraw_hud_bufs(0, 1), COMBAT.C:2672, 1374) until the arena is left.
+        internal bool HoldsTheLastStatsPanel => !AFightIsRunning() && ArenaOnScreen();
 
         /// <summary>A fight is running and the Enhanced combat interface is on (TASK-972).</summary>
         /// <remarks>Latched per turn once the fight's turn seam is set: turning the switch off mid-fight
