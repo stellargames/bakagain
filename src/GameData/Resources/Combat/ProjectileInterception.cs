@@ -148,8 +148,9 @@ public static class ProjectileInterception {
     /// only an opaque diamond, a wreck and out-of-bounds ground block the line.
     /// </summary>
     /// <remarks>
-    /// ponytail: terrain 7 (the reflecting wall) blocks the trace only when its caller passes flag 0;
-    /// it is left out here. Add it with the flag if a Mirrorwall's effect on targeting matters.
+    /// Terrain 7 (the reflecting wall) is not in it, as in the original: the trace passes
+    /// do_apply = 0 and case 7 returns before anything else when that is 0 (CACTOR.C:1131-1134), so a
+    /// Mirrorwall never blocks the line of fire; it only acts on a real flight.
     /// </remarks>
     public static bool BlocksSight(CombatGrid grid, TrapPuzzle? puzzle, int x, int y) =>
         CombatGrid.InBounds(x, y) && grid.TerrainAt(x, y) != CombatTerrain.Crystal
