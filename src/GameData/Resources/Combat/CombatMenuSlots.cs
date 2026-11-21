@@ -199,6 +199,36 @@ public static class CombatMenuSlots {
         return cells;
     }
 
+    /// <summary>
+    /// The quarrel kind Shoot opens on: the actor's remembered kind while it is still carried, else
+    /// the highest kind carried, else -1 (COMBAT.C:952-964 over CBTAITRN.C:180-229).
+    /// </summary>
+    /// <param name="remembered">The kind the actor last picked this fight; P1.DAT starts every
+    /// member on 0.</param>
+    public static int InitialQuarrelKind(int remembered, IReadOnlyList<int>? quarrelsOfKind) {
+        bool Carries(int kind) => quarrelsOfKind != null && kind >= 0 && kind < quarrelsOfKind.Count
+            && quarrelsOfKind[kind] != 0;
+        if (Carries(remembered)) {
+            return remembered;
+        }
+        for (var kind = ActionIdByQuarrelKind.Length - 1; kind >= 0; kind--) {
+            if (Carries(kind)) {
+                return kind;
+            }
+        }
+        return -1;
+    }
+
+    /// <summary>The page whose cell holds <paramref name="kind"/> after the repack
+    /// (<c>combat_arena_menu_find_item_page</c>); the first page when it is not carried.</summary>
+    public static int PageOfKind(int kind, IReadOnlyList<int>? quarrelsOfKind) {
+        if (kind < 0 || kind >= ActionIdByQuarrelKind.Length) {
+            return FirstPage;
+        }
+        int slot = System.Array.IndexOf(PackCells(quarrelsOfKind), ActionIdByQuarrelKind[kind]);
+        return slot < 0 ? FirstPage : PageOfSlot(slot);
+    }
+
     // ---------------------------------------------------------------- per-turn entry flags
 
     /// <summary>

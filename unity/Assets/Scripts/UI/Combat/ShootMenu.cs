@@ -94,7 +94,7 @@ namespace BakAgain.UI.Combat {
         /// acting, so a page the previous character had flipped to does not carry over — and with
         /// the cells repacked it would not mean the same thing if it did.
         /// </remarks>
-        public void Open(IReadOnlyList<int> quarrelsOfKind) {
+        public void Open(IReadOnlyList<int> quarrelsOfKind, int page = CombatMenuSlots.FirstPage) {
             _quarrelsOfKind = new int[CombatMenuSlots.ActionIdByQuarrelKind.Length];
             if (quarrelsOfKind != null) {
                 for (var kind = 0; kind < _quarrelsOfKind.Length && kind < quarrelsOfKind.Count; kind++) {
@@ -103,7 +103,7 @@ namespace BakAgain.UI.Combat {
             }
 
             _cells = CombatMenuSlots.PackCells(_quarrelsOfKind);
-            _page = CombatMenuSlots.FirstPage;
+            _page = page;
             _autoResolveFace = false;
             HoveredActionId = -1;
             gameObject.SetActive(true);

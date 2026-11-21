@@ -116,6 +116,10 @@ public sealed class Combatant {
     /// <summary>State flags.</summary>
     public CombatantFlags Flags { get; set; } = CombatantFlags.Ready;
 
+    /// <summary>The quarrel kind this member last picked on the shoot menu this fight
+    /// (<c>selectedMenuCmd</c>, read fresh from P1.DAT, which ships 0, at each fight).</summary>
+    public int RememberedQuarrelKind { get; set; }
+
     /// <summary>Which spell school this combatant's cast screen opens on — <c>spellSchool</c>.</summary>
     /// <remarks>
     /// <b>The combatant remembers, not the party.</b> <c>cspell_cast_menu_loop</c> reads it on open

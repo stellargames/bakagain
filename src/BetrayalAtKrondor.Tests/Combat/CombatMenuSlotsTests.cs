@@ -149,4 +149,30 @@ public class CombatMenuSlotsTests {
         Assert.False(CombatMenuSlots.EmptyCellShowsBlankStone(4, CombatMenuSlots.FirstPage));
         Assert.True(CombatMenuSlots.EmptyCellShowsBlankStone(4, CombatMenuSlots.SecondPage));
     }
+
+    [Fact]
+    public void ShootOpensOnTheRememberedKindWhenItIsStillCarried() {
+        // COMBAT.C:952-964: selectedMenuCmd (P1.DAT ships 0) if carried, else the highest kind carried.
+        int[] carried = { 3, 0, 5, 0, 0, 0, 0, 0 };
+        Assert.Equal(2, CombatMenuSlots.InitialQuarrelKind(2, carried));
+        Assert.Equal(0, CombatMenuSlots.InitialQuarrelKind(0, carried));
+    }
+
+    [Fact]
+    public void ShootFallsBackToTheHighestKindCarried() {
+        // CBTAITRN.C:190-196: the scan runs 7 down to 0.
+        int[] specialsOnly = { 0, 0, 4, 0, 0, 2, 0, 0 };
+        Assert.Equal(5, CombatMenuSlots.InitialQuarrelKind(0, specialsOnly));
+        Assert.Equal(-1, CombatMenuSlots.InitialQuarrelKind(0, new int[8]));
+    }
+
+    [Fact]
+    public void TheMenuOpensOnThePageHoldingThatKind() {
+        // combat_arena_menu_find_item_page: the kind's cell after the repack, four to a page.
+        int[] all = { 1, 1, 1, 1, 1, 1, 1, 1 };
+        Assert.Equal(CombatMenuSlots.FirstPage, CombatMenuSlots.PageOfKind(3, all));
+        Assert.Equal(CombatMenuSlots.SecondPage, CombatMenuSlots.PageOfKind(5, all));
+        int[] two = { 0, 0, 0, 0, 0, 1, 1, 0 };
+        Assert.Equal(CombatMenuSlots.FirstPage, CombatMenuSlots.PageOfKind(6, two));
+    }
 }

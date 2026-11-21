@@ -3145,7 +3145,10 @@ using GameData.Resources.Scene;
                     // all along. So the field is live for a click from this moment, with kind 0 --
                     // the turn's default -- already selected.
                     _pendingCombatMode = GameData.Resources.Combat.CombatCommandOutcome.ModeFor(command);
-                    _selectedQuarrelKind = 0;
+                    // COMBAT.C:2029 -> 952-964: the member's remembered kind if still carried,
+                    // else the highest kind carried, on the page that holds it.
+                    _selectedQuarrelKind = GameData.Resources.Combat.CombatMenuSlots.InitialQuarrelKind(
+                        acting.RememberedQuarrelKind, Combat.QuarrelsFor(acting));
                     OpenShootMenu(acting);
                     return;   // choosing a quarrel is not yet the shot, so no turn is spent
                 case GameData.Resources.Combat.CombatCommands.Command.Inspect:
@@ -3318,7 +3321,9 @@ using GameData.Resources.Scene;
             shoot.HelpRequested += OnCombatHelpRequested;
 
             _combatMenuAccessor?.Invoke()?.Close();
-            shoot.Open(Combat.QuarrelsFor(acting));
+            int[] quarrels = Combat.QuarrelsFor(acting);
+            shoot.Open(quarrels,
+                GameData.Resources.Combat.CombatMenuSlots.PageOfKind(_selectedQuarrelKind, quarrels));
         }
 
         /// <summary>
@@ -3359,6 +3364,9 @@ using GameData.Resources.Scene;
         /// </remarks>
         private void OnQuarrelChosen(int quarrelKind, int actionId) {
             _selectedQuarrelKind = quarrelKind;
+            if (Combat?.Encounter?.Current is { } chooser) {
+                chooser.RememberedQuarrelKind = quarrelKind;   // COMBAT.C:1953-2002
+            }
             _pendingCombatMode = GameData.Resources.Combat.CombatCommandOutcome.PendingMode.TargetSelection;
             _logger?.LogDebug($"Shoot menu: quarrel kind {quarrelKind} (id {actionId}) selected; "
                 + "click a target on the field to fire.");
