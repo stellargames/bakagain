@@ -256,6 +256,36 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             _root.Q("drop_flight")?.RemoveFromHierarchy();
         }
 
+        /// <summary>
+        /// The flight takes no input: the original runs its 15 steps in a blocking loop
+        /// (INVENTOR.C:565-604, invUi_animateItemFlight @0x56e7f), so a click during it is not read.
+        /// The port's flight ran on the panel scheduler and every press was taken (TASK-1097 row 18).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator NoInputIsTakenWhileAnItemIsInFlight() {
+            const int window = 32;
+            VisualElement chest = _root.Q($"hotspot_{window}") ?? new VisualElement { name = $"hotspot_{window}" };
+            _root.Add(chest);
+            chest.style.position = Position.Absolute;
+            chest.style.left = 200; chest.style.top = 900; chest.style.width = 100; chest.style.height = 100;
+            yield return null;
+            _root.panel.GetType().GetMethod("ValidateLayout", BindingFlags.Public | Any)?.Invoke(_root.panel, null);
+            Set("_resources", new IconStillLoading());
+            PropertyInfo blocked = typeof(InventoryMenu).GetProperty("InputHeldByAFlight", Any);
+            Assert.IsNotNull(blocked, "the menu says when a flight holds its input");
+            Assert.IsFalse((bool)blocked.GetValue(_menu), "control: nothing in the air");
+
+            Set("_dropPortraitSlot", -1);
+            Set("_dropObject", new ObjectInfo("dagger") { Number = Dagger, Name = "Rusty Dagger", InventorySlots = 1 });
+            Set("_dropStagePos", Vector2.zero);
+            Set("_dropOnContainerWindow", true);
+            Call("ShowTransferResult", GameData.Resources.Inventory.InventoryTransfer.Result.Moved, 0);
+
+            Assert.IsTrue((bool)blocked.GetValue(_menu), "the item is in the air: no input");
+            _root.Q("drop_flight")?.RemoveFromHierarchy();
+            Assert.IsFalse((bool)blocked.GetValue(_menu), "landed: input again");
+        }
+
         /// <summary>TASK-944 (owner): the loot shows its item count against the container's capacity,
         /// which binds long before its 28 squares (a body holds 2-8 items).</summary>
         [Test]

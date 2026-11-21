@@ -1648,8 +1648,15 @@ namespace BakAgain.UI.Inventory {
         /// Info button, which gets the click instead. Otherwise the press either arms an item
         /// gesture or, on dead space, clears the selection.
         /// </summary>
+        /// <summary>
+        /// An item is flying to a portrait or a window. The original flies it in a blocking loop
+        /// (INVENTOR.C:565-604), so no click is read until it lands (TASK-1097 row 18).
+        /// </summary>
+        internal bool InputHeldByAFlight => _stage?.Q("drop_flight") != null;
+
         internal void OnPrimaryPressed(Vector2 stageLocal, int clickCount) {
-            if (_stage == null || _pickerOpen) {
+            if (_stage == null || _pickerOpen || InputHeldByAFlight) {
+                _pressSlot = -1;
                 return;
             }
             if (_inspectOpen) {
@@ -1696,6 +1703,9 @@ namespace BakAgain.UI.Inventory {
         /// item-inspect view via <c>UI_showItem</c> @0x5A778.
         /// </summary>
         internal void OnSecondaryPressed(Vector2 stageLocal) {
+            if (InputHeldByAFlight) {
+                return;
+            }
             // A finger's hold arrives HERE in place of a release (DragGestureManipulator.FireLongPress),
             // so the primary press it grew out of ends now: left set, the next press -- the one that
             // closes the examine view -- dragged this item out of it (TASK-971).
@@ -3381,7 +3391,7 @@ namespace BakAgain.UI.Inventory {
         public void PrimaryAction(int actionId) {
             // The picker owns input until it answers. Faithful, its stage scrim already covers the
             // chrome; the Enhanced chrome sits outside the stage, so the guard is stated here.
-            if (_pickerOpen || _lockAttemptInFlight) {
+            if (_pickerOpen || _lockAttemptInFlight || InputHeldByAFlight) {
                 return;
             }
             switch (actionId) {
