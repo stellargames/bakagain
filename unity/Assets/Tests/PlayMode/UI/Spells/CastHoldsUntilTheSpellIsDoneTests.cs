@@ -53,6 +53,35 @@ namespace BakAgain.Tests.PlayMode.UI.Spells {
             Assert.AreEqual(1, nav.Pops, "and goes once the spell is done");
         });
 
+        /// <summary>
+        /// The caster's ring is gone while the spell runs: closing, the original pastes back the
+        /// portrait strip it saved before the ring was drawn (CSPELL.C:2396-2406), then the handler
+        /// runs. Seen in the original's Scent of Sarig: no ring on Owyn under the text (TASK-1128).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator TheCastersRingIsGoneWhileTheSpellRuns() => UniTask.ToCoroutine(async () => {
+            _go = new GameObject("CastScreenUnderTest");
+            var document = _go.AddComponent<UnityEngine.UIElements.UIDocument>();
+            var panel = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
+            document.panelSettings = panel;
+            var screen = _go.AddComponent<CastScreen>();
+            var nav = new CountingNavigator();
+            screen.Construct(null, null, nav, null, new BakAgain.Core.GameSession(), null);
+            var ring = new UnityEngine.UIElements.VisualElement();
+            ring.AddToClassList("cast-caster-highlight");
+            document.rootVisualElement.Add(ring);
+            var spell = new UniTaskCompletionSource();
+            screen.Committed += (_, _, _) => screen.HoldUntil(spell.Task);
+
+            screen.CommitPowerSelection();
+            await UniTask.Yield();
+
+            Assert.IsNull(ring.parent, "no caster ring under the spell's text");
+            Assert.AreEqual(0, nav.Pops, "control: the screen is still up");
+            spell.TrySetResult();
+            Object.DestroyImmediate(panel);
+        });
+
         [UnityTest]
         public IEnumerator WithNothingToWaitForItPopsAtOnce() => UniTask.ToCoroutine(async () => {
             _go = new GameObject("CastScreenUnderTest");

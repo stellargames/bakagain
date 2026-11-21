@@ -1719,6 +1719,18 @@ namespace BakAgain.UI.Spells {
         private async UniTaskVoid PopAfterTheSpellAsync(UniTask? spell) {
             if (spell is { } work) {
                 _holding = true;
+                // Closing, the original pastes back the portrait strip saved before the caster's
+                // ring was drawn, then runs the spell (CSPELL.C:2396-2406): no ring under the text.
+                VisualElement docRoot = GetComponent<UIDocument>()?.rootVisualElement;
+                if (docRoot != null) {
+                    foreach (VisualElement ring in
+                             docRoot.Query<VisualElement>(className: CasterHighlightClass).ToList()) {
+                        ring.RemoveFromHierarchy();
+                    }
+                }
+                if (EnhancedApplied) {
+                    _enhanced?.ShowCaster(-1);
+                }
                 try {
                     await work;
                 } catch (System.Exception e) {
