@@ -87,7 +87,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         // with the inert collaborators from InventoryMenuStubs.cs. The fade is zeroed so HideAsync
         // completes inside the test's own frame.
         private InventoryMenu BuildMenu(GameSession session, BakAgain.World.IGroundBagSpawner bags,
-            InputLayerStack inputStack = null) {
+            InputLayerStack inputStack = null, NoOpDialogs dialogs = null) {
             _go = new GameObject("InventoryMenuUnderTest");
             var document = _go.AddComponent<UIDocument>();
             _panelSettings = BakAgain.Tests.TestSupport.TestPanelSettings.Create();
@@ -98,7 +98,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
                 new BakAgain.Core.Services.DialogExecutor(
                     new Microsoft.Extensions.Logging.Abstractions.NullLogger<BakAgain.Core.Services.DialogExecutor>(),
                     session, new BakAgain.Core.Services.GameClock(session)),
-                new NoOpDialogs(), inputStack, bags);
+                dialogs ?? new NoOpDialogs(), inputStack, bags);
             typeof(BakAgain.UI.Navigation.ScreenBase)
                 .GetField("_fadeSeconds", System.Reflection.BindingFlags.NonPublic
                     | System.Reflection.BindingFlags.Instance)
@@ -252,6 +252,56 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
                 CollectionAssert.IsEmpty(pack.Items, "the stack left the pack");
                 CollectionAssert.Contains(bags.Spawned, bag, "and appeared in the world");
             });
+
+        /// <summary>The spare-bag line is read before the item moves: dialog_play_record blocks, and
+        /// only then does the pickup (and a stack's quantity picker) run (CMBINV.C:1064-1072). The
+        /// port fired the line and opened the picker under it (TASK-1129 row 3).</summary>
+        [UnityTest]
+        [Timeout(15000)]
+        public IEnumerator TheSpareBagLineIsReadBeforeTheQuantityPicker() =>
+            UniTask.ToCoroutine(async () => {
+                const byte RationsId = 72;
+                GameSession session = SessionWith(FreeSlot());
+                session.SetObjectInfo(new ObjectInfoSet("O", new List<ObjectInfo> {
+                    new ObjectInfo("r") {
+                        Number = RationsId, Name = "Rations", InventorySlots = 1,
+                        ObjectType = GameData.ObjectType.Food, Flags = ObjectFlags.B8000,
+                    },
+                }));
+                session.PositionX = BagX;
+                session.PositionY = BagY;
+                var line = new HeldLineDialogs();
+                var stack = new InputLayerStack();
+                InventoryMenu menu = BuildMenu(session, new RecordingBagSpawner(), stack, line);
+                var pack = new RuntimeContainer { Capacity = 24, ContainerType = SaveGameContainerType.Inventory };
+                pack.Items.Add(new RuntimeItem(RationsId, 6, 0));
+                const System.Reflection.BindingFlags Private =
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+                typeof(InventoryMenu).GetField("_displayed", Private).SetValue(menu, pack);
+                typeof(InventoryMenu).GetField("_stage", Private).SetValue(menu, _go.GetComponent<UIDocument>().rootVisualElement);
+
+                typeof(InventoryMenu).GetMethod("DiscardToGround", Private).Invoke(menu, new object[] { 0 });
+                await UniTask.Yield();
+                Assert.IsTrue(line.Shown, "the control: the spare-bag line is up");
+                Assert.IsNull(stack.Top, "no picker while the line is read");
+
+                line.Dismiss();
+                await UniTask.Yield();
+                await UniTask.Yield();
+                Assert.IsNotNull(stack.Top, "the picker after it");
+                stack.DispatchIntent(UiIntent.Activate());
+                await UniTask.Yield();
+            });
+
+        private sealed class HeldLineDialogs : NoOpDialogs {
+            private readonly UniTaskCompletionSource<int> _held = new();
+            public bool Shown;
+            public override UniTask<int> ShowById(int id, System.Threading.CancellationToken ct = default) {
+                Shown = true;
+                return _held.Task;
+            }
+            public void Dismiss() => _held.TrySetResult(0);
+        }
 
         /// <summary>Opening a member's own inventory settles nothing — there is no container to
         /// settle, and a party inventory must never be handed to the pool.</summary>

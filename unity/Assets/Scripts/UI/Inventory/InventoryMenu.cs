@@ -3225,18 +3225,24 @@ namespace BakAgain.UI.Inventory {
                     "Ground-bag pool exhausted in zone {Zone}: recycled the least-recently-touched bag.",
                     _gameSession.CurrentZone);
             }
-            if (target.IsNewBag) {
+            DropIntoBagAsync(slot, target).Forget();
+        }
+
+        private async UniTaskVoid DropIntoBagAsync(int slot, GroundDropTarget target) {
+            if (target.IsNewBag && _dialogs != null) {
                 // "@ shoved the @1 into a spare bag." Played at spawn time, before the move — so it
-                // narrates the bag appearing, not the transfer succeeding.
-                _dialogs?.ShowById(SpareBagDialogId).Forget();
+                // narrates the bag appearing, not the transfer succeeding. *** READ BEFORE THE MOVE. ***
+                // dialog_play_record blocks; the pickup (and a stack's picker) runs after it
+                // (CMBINV.C:1064-1072; TASK-1129 row 3).
+                await _dialogs.ShowById(SpareBagDialogId);
             }
 
             // *** SETTLE AFTER THE PICKER, NOT AFTER STARTING IT. *** A stack's transfer waits on
             // the quantity picker; settling straight away saw the bag still empty, freed it, and the
             // stack then moved into a Free record nothing indexes (TASK-507). The original runs the
             // picker inside cmbinv_actor_pickup_item and recomputes only after it returns.
-            RunTransfer(slot, target.Container, allowShare: false)
-                .ContinueWith(() => FinishGroundDrop(target.Container)).Forget();
+            await RunTransfer(slot, target.Container, allowShare: false);
+            FinishGroundDrop(target.Container);
         }
 
         /// <summary>
