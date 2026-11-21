@@ -128,14 +128,15 @@ namespace BakAgain.Tests.Editor.World.Collision {
             public readonly List<int> Dialogs = new();
         }
 
-        private static Rig Build(ProximityWorld world, bool underground = true) {
+        private static Rig Build(ProximityWorld world, bool underground = true, bool withClock = false) {
             var rig = new Rig { Session = new GameSession { PositionX = 0, PositionY = 0, Rotation = 0 } };
+            BakAgain.Core.Services.GameClock clock = withClock ? new BakAgain.Core.Services.GameClock(rig.Session) : null;
             var prefs = new FakePreferencesService();
             prefs.Current.StepSize = StepSize.Medium;
             prefs.Current.TurnSize = TurnSize.Large;
             rig.Movement = new PartyMovement(rig.Session, Table(), prefs, camera: null,
                 cameraHeightZ: ZoneCameraZ, cameraPitch: 0, collision: world,
-                playSfx: id => rig.Sounds.Add(id), underground: underground,
+                playSfx: id => rig.Sounds.Add(id), underground: underground, clock: clock,
                 showDialog: id => rig.Dialogs.Add(id));
             return rig;
         }
@@ -152,6 +153,27 @@ namespace BakAgain.Tests.Editor.World.Collision {
             Assert.AreEqual(ForwardStep, rig.Session.PositionY, "the step landed on the pit");
             CollectionAssert.IsEmpty(rig.Dialogs);
             Assert.AreEqual(0, rig.Session.PartyDeathState);
+        }
+
+        /// <summary>
+        /// The step onto a pit costs no time: the descent sets bCombatExitRequest, and the world
+        /// loop then skips phase 2 and gstate_advance_time for that step (WORLDLP.C:181-201,
+        /// WORLDCRS.C:34-83). The port charged the quarter step (TASK-1112 row 8).
+        /// </summary>
+        [Test]
+        public void TheStepOntoAPitCostsNoTime() {
+            Rig control = Build(World(), withClock: true);
+            control.Session.PositionY = -2000;   // a plain step on the ground, well short of the pit
+            long before = control.Session.GameTimeIn2Seconds;
+            control.Movement.MoveForward();
+            Assert.Greater(control.Session.GameTimeIn2Seconds, before, "control: a step costs time");
+
+            Rig rig = Build(World((Pit, 4000, 4000, 400)), withClock: true);
+            long atTheLip = rig.Session.GameTimeIn2Seconds;
+            rig.Movement.MoveForward();
+
+            Assert.AreEqual(ForwardStep, rig.Session.PositionY, "fixture: the step landed on the pit");
+            Assert.AreEqual(atTheLip, rig.Session.GameTimeIn2Seconds, "the step onto the pit is not charged");
         }
 
         [Test]

@@ -641,7 +641,7 @@ namespace BakAgain.World {
                 }
             }
 
-            if (_clock == null) {
+            if (_clock == null || _uncharged) {
                 return;
             }
             long ticks = _movement.SecondsPerStepFor(preference) / 2;
@@ -650,6 +650,9 @@ namespace BakAgain.World {
             }
             _clock.Advance(ticks * (part + 1) / parts - ticks * part / parts);
         }
+
+        // Set for the step onto a pit, which the world loop never charges (see Step).
+        private bool _uncharged;
 
         // Standing glide steps taken towards the current preference step (0 in Classic).
         private int _glideParts;
@@ -739,7 +742,11 @@ namespace BakAgain.World {
                     // happened, so the crossing it probed must not drop the party from a tile they
                     // were pushed off.
                     _pendingCrossingKind = crossingKind;
+                    // A step onto a pit costs no time: the descent sets bCombatExitRequest and the
+                    // world loop then skips gstate_advance_time for it (WORLDLP.C:181-201; TASK-1112).
+                    _uncharged = PitDescent.Triggers(crossingKind, ZoneKind);
                     AdvanceClockForStep(stepStands: true, size);
+                    _uncharged = false;
                     SyncCamera();
                     return true;
                 }
