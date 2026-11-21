@@ -48,6 +48,11 @@ namespace BakAgain.Tests.Editor.Combat {
                     InventorySlots = 1, MaxAmount = 25,
                 },
                 new ObjectInfo("O") {
+                    Number = 0x2a, Name = "Flaming Quarrels", ObjectType = ObjectType.Misc,
+                    SwingBaseDamage = 25, SwingAccuracy_ArmorMod_BowAccuracy = -10,
+                    InventorySlots = 1, MaxAmount = 25,
+                },
+                new ObjectInfo("O") {
                     Number = ArmorId, Name = "armour", ObjectType = ObjectType.Armor,
                     Flags = ObjectFlags.Degradable, DegradeChancePercent = 100,
                     MaxWearPerDegrade = 1, SwingAccuracy_ArmorMod_BowAccuracy = 40,
@@ -781,6 +786,15 @@ namespace BakAgain.Tests.Editor.Combat {
                 "not before the pose: " + string.Join(",", cues));
             runtime.PlayHeldSwingCues();
             CollectionAssert.Contains(cues, RangedShotSound.CrossbowFiringCue, "once the pose has played");
+        }
+
+        [Test]
+        public void AFlamingQuarrelTakesFromTheTargetsPool() {
+            var (runtime, _, member, monster) = Fight((CrossbowId, 100), (0x2a, 10));
+            int before = Pool(monster);
+
+            Assert.IsTrue(runtime.ResolveShot(member, monster, quarrelKind: 3, AlwaysLow));
+            Assert.Less(Pool(monster), before);
         }
 
         [Test]
