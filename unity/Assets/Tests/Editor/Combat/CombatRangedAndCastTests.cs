@@ -665,6 +665,29 @@ namespace BakAgain.Tests.Editor.Combat {
 
         // ------------------------------------------------------------------ shooting
 
+        /// <summary>
+        /// While an arena draws the fight, a shot's hit cue waits for the bolt to land: the original
+        /// plays 0x42 after its blocking flight (CBTAITRN.C:139 then :162). The port played it at the
+        /// click (TASK-1124 #3).
+        /// </summary>
+        [Test]
+        public void AShotsHitCueWaitsForTheLanding() {
+            GameSession session = SessionWith((CrossbowId, 100), (QuarrelId, 10));
+            session.SetRosterActorForTest(400, StatBlock(), 12, gridX: 5, gridY: 5);
+            var cues = new List<int>();
+            var runtime = new CombatRuntime(session, null, Entries(), Objects(), playSfx: cues.Add) {
+                HoldSwingCues = true,
+            };
+            CombatEncounter fight = runtime.EnterRoster(new short[] { 400 });
+
+            Assert.IsTrue(runtime.ResolveShot(fight.Party[0], fight.Enemies[0], quarrelKind: 0, AlwaysLow));
+            CollectionAssert.DoesNotContain(cues, RangedShotSound.ImpactCue,
+                "not while the bolt flies: " + string.Join(",", cues));
+
+            runtime.PlayHeldLandingCues();
+            Assert.AreEqual(RangedShotSound.ImpactCue, cues[cues.Count - 1], "when it lands");
+        }
+
         [Test]
         public void AShotThatLandsTakesFromTheTargetsPool() {
             var (runtime, _, member, monster) = Fight((CrossbowId, 100), (QuarrelId, 10));

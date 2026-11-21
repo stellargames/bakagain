@@ -174,7 +174,7 @@ public sealed class Combatant {
     /// A spell's impact cue held for the moment its bolt lands on this combatant: the original
     /// plays 0x1d after the blocking flight (CSPELL.C:402-438; TASK-1107).
     /// </summary>
-    public int? LandingCue { get; set; }
+    public System.Collections.Generic.List<int> LandingCues { get; } = new();
 
     /// <summary>The number to float over this combatant at the next redraw — the damage dealt, 0 for
     /// a blow that landed and did nothing ("miss"), a NEGATIVE value for a type-2 heal's gain

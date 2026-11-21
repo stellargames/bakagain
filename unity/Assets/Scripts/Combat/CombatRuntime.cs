@@ -2715,9 +2715,13 @@ namespace BakAgain.Combat {
             // *** THE ARRIVAL, WHICH IS A DIFFERENT EVENT FROM THE DEPARTURE. *** The cue above is
             // the shot leaving and plays on a miss too; these are the shot landing and play only
             // here. A magic bolt makes both of them. See RangedShotSound.HitCues.
-            if (_playSfx != null) {
-                foreach (int cue in RangedShotSound.HitCues(quarrelKind)) {
-                    _playSfx(cue);
+            // Held for the landing while an arena draws the bolt: 0x42 follows the blocking
+            // flight (CBTAITRN.C:139 then :162; TASK-1124 #3).
+            foreach (int cue in RangedShotSound.HitCues(quarrelKind)) {
+                if (HoldSwingCues) {
+                    defender.LandingCues.Add(cue);
+                } else {
+                    _playSfx?.Invoke(cue);
                 }
             }
             if (rolled < 0) {
@@ -3118,7 +3122,7 @@ namespace BakAgain.Combat {
             if (SpellProjectileSound.Flies(true, spell.AnimationEffectType)) {
                 // Held for the landing while an arena draws the bolt (TASK-1107).
                 if (HoldSwingCues && target != null) {
-                    target.LandingCue = SpellProjectileSound.ImpactCue;
+                    target.LandingCues.Add(SpellProjectileSound.ImpactCue);
                 } else {
                     _playSfx?.Invoke(SpellProjectileSound.ImpactCue);
                 }
@@ -4916,10 +4920,10 @@ namespace BakAgain.Combat {
                 return;
             }
             foreach (Combatant c in Encounter.AllCombatants()) {
-                if (c.LandingCue is int cue) {
-                    c.LandingCue = null;
+                foreach (int cue in c.LandingCues) {
                     _playSfx?.Invoke(cue);
                 }
+                c.LandingCues.Clear();
             }
         }
 
