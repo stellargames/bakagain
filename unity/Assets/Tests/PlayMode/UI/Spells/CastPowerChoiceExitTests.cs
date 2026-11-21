@@ -73,5 +73,30 @@ namespace BakAgain.Tests.PlayMode.UI.Spells {
             screen.PrimaryAction(1);
             Assert.AreEqual(1, nav.Pops);
         }
+    
+        /// <summary>
+        /// The opening wipe and a school switch block in the original (Spell_ShowWindowWithWipe,
+        /// CSPELL.C:2081-2132; the hold, load, cue and morph at 2332-2348), so a click made while
+        /// either runs is not read. The port's were asynchronous and Exit closed the screen mid-wipe
+        /// (TASK-1128 rows 7 and 9).
+        /// </summary>
+        [Test]
+        public void ExitIsNotReadWhileTheScreenSettles() {
+            var nav = new CountingNavigator();
+            _go = new GameObject("CastScreenUnderTest");
+            _go.SetActive(false);
+            var screen = _go.AddComponent<CastScreen>();
+            screen.Construct(null, new FakePointer(), nav, null, new BakAgain.Core.GameSession(), null);
+            FieldInfo settling = typeof(CastScreen).GetField("_settling", Any);
+            Assert.IsNotNull(settling, "the screen counts what is still settling");
+
+            settling.SetValue(screen, 1);
+            screen.PrimaryAction(1);
+            Assert.AreEqual(0, nav.Pops, "mid-wipe or mid-morph: not read");
+
+            settling.SetValue(screen, 0);
+            screen.PrimaryAction(1);
+            Assert.AreEqual(1, nav.Pops, "settled: Exit closes");
+        }
     }
 }

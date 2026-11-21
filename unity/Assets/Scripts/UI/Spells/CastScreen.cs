@@ -370,9 +370,23 @@ namespace BakAgain.UI.Spells {
         }
 
         private async UniTask OpenThenWipeAsync() {
-            await OpenAsync();
-            await PlayOpenWipeAsync();
+            _settling++;
+            try {
+                await OpenAsync();
+                await PlayOpenWipeAsync();
+            } finally {
+                _settling--;
+            }
         }
+
+        /// <summary>
+        /// The opening wipe and a school switch are blocking in the original
+        /// (Spell_ShowWindowWithWipe, CSPELL.C:2081-2132; the hold, load, cue and morph at
+        /// 2332-2348), so no click is read while either runs (TASK-1128 rows 7 and 9). Classic only.
+        /// </summary>
+        private int _settling;
+
+        private bool InputHeld => _holding || (_settling > 0 && !EnhancedApplied);
 
         // ------------------------------------------------------------ the opening wipe (TASK-815)
 
@@ -1310,8 +1324,9 @@ namespace BakAgain.UI.Spells {
             }
             _effectStrip?.Refresh();
 
-            if (_pointer == null || _ring?.Positions == null || !Tracks(_pointer) || _fillFrame >= 0) {
-                return;
+            if (_pointer == null || _ring?.Positions == null || !Tracks(_pointer) || _fillFrame >= 0
+                || InputHeld) {
+                return;   // no pick while the wipe or a school switch runs (TASK-1128 rows 7, 9)
             }
 
             Vector2 canonical = CanonicalConversion.ScreenToCanonical(
@@ -1975,7 +1990,7 @@ namespace BakAgain.UI.Spells {
         /// happen. Recorded because the absence of that wait is deliberate, not an oversight.</para>
         /// </remarks>
         public void PrimaryAction(int menuEntryActionId) {
-            if (_holding) {
+            if (InputHeld) {
                 return;
             }
             int school = CastMenuSelection.SchoolForAction(menuEntryActionId);
@@ -2162,6 +2177,15 @@ namespace BakAgain.UI.Spells {
         private const int MorphCue = 27;
 
         private async UniTask LoadSchoolAsync(int school, bool isASwitch) {
+            _settling++;
+            try {
+                await LoadSchoolCoreAsync(school, isASwitch);
+            } finally {
+                _settling--;
+            }
+        }
+
+        private async UniTask LoadSchoolCoreAsync(int school, bool isASwitch) {
             // The old school's symbols stay on the ring for one symbol pass before anything changes:
             // cspell_menu_animate_hilite(0x85, 1) runs over them BEFORE the free/load and the morph
             // (CSPELL.C:2341-2348). Its pen never reaches SPELL.FNT's glyphs, so it reads as a hold.
