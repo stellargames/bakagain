@@ -1810,6 +1810,7 @@ namespace BakAgain.World {
                             }
                         }
                     }
+                    _logger?.LogDebug($"Blaster flight {f.FromX},{f.FromY} -> {f.ToX},{f.ToY}, victim {(f.Victim != null ? f.Victim.ClassId.ToString() : "none")}.");
                     FlyEffectAsync(f.Effect, from, to, 0, 0, seconds, landingOn).Forget();
                 }
                 cellFlights.Clear();
