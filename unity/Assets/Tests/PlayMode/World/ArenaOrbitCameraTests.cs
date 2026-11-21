@@ -450,7 +450,7 @@ namespace BakAgain.Tests.PlayMode.World {
             try {
                 Assert.IsFalse(world.ArenaBusyForTest, "the control: an idle arena");
                 var swing = sprite.AddComponent<BakAgain.World.Encounters.AttackSwing>()
-                    .Play(ctx, new GameData.Resources.World.SpriteBMeshFace(), "SWING", 0, 100);
+                    .Play(ctx, new[] { SwingMesh() }, "SWING", 0, 100);
                 Assert.IsTrue(world.ArenaBusyForTest, "busy from the first frame of the swing");
                 float until = Time.realtimeSinceStartup + 5f;
                 while (swing.Status == Cysharp.Threading.Tasks.UniTaskStatus.Pending && Time.realtimeSinceStartup < until) {
@@ -463,6 +463,14 @@ namespace BakAgain.Tests.PlayMode.World {
                 Object.Destroy(sprite);
                 ctx.Dispose();
             }
+        }
+
+        private static GameData.Resources.World.MeshRecord SwingMesh() {
+            var m = new GameData.Resources.World.MeshRecord { RuntimeFlagsIndex = BakAgain.World.Encounters.AttackSwing.SwingSlot };
+            for (int i = 0; i < 12; i++) {
+                m.MeshFaces.Add(new GameData.Resources.World.SpriteBMeshFace { BitmapIndex = (ushort)i });
+            }
+            return m;
         }
     }
 }

@@ -500,6 +500,11 @@ namespace BakAgain.World.Encounters {
             return null;
         }
 
+        /// <summary>The creature's COMBAT.TBL meshes, one per anim slot (by RuntimeFlagsIndex); the
+        /// swing and the thrust pick their pictures from them (<see cref="AttackSwing.RunFaces"/>).</summary>
+        public IReadOnlyList<MeshRecord> AttackMeshesFor(int creatureNumber) =>
+            EntryFor(creatureNumber)?.Dat?.Lods is { Count: > 0 } lods ? lods[0].Meshes : null;
+
         private string SetNameFor(int creatureNumber) {
             foreach (CreatureSprite c in _bitmaps.Creatures) {
                 if (c.CreatureId != creatureNumber || c.SpriteKeys.Count == 0) {

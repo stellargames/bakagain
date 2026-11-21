@@ -37,8 +37,6 @@ namespace BakAgain.World.Encounters {
         /// <summary>The bitmap index currently on screen, or -1 outside a run.</summary>
         public int CurrentFrame { get; private set; } = -1;
 
-        private int _frames = Frames;
-
         /// <summary>
         /// The first frame of the run for an octant — mode 3's even-and-mirrored rule.
         /// </summary>
@@ -56,6 +54,38 @@ namespace BakAgain.World.Encounters {
         public static (int Start, int Frames) RunFor(int octant, bool thrust) =>
             thrust ? (RunStartFor(octant) / 2, ThrustFrames) : (RunStartFor(octant), Frames);
 
+        /// <summary>Anim slot of the swing and of the thrust (combat_actor_play_anim_sprite3/4).</summary>
+        public const int SwingSlot = 3, ThrustSlot = 4;
+
+        /// <summary>
+        /// The run's pictures: faces of the mesh COMBAT.TBL gives the anim slot
+        /// (<see cref="MeshRecord.RuntimeFlagsIndex"/> = slot), from the run's first frame. The frame
+        /// is an index into that mesh, not into the bitmap (CACTOR.C:828, 873): the thrust's mesh
+        /// starts at picture 12, after the swing's twelve (TASK-1095).
+        /// </summary>
+        public static System.Collections.Generic.IReadOnlyList<SpriteBMeshFace> RunFaces(
+            System.Collections.Generic.IReadOnlyList<MeshRecord> meshes, int octant, bool thrust) {
+            var run = new System.Collections.Generic.List<SpriteBMeshFace>();
+            int slot = thrust ? ThrustSlot : SwingSlot;
+            MeshRecord mesh = null;
+            for (int i = 0; meshes != null && i < meshes.Count; i++) {
+                if (meshes[i]?.RuntimeFlagsIndex == slot) {
+                    mesh = meshes[i];
+                    break;
+                }
+            }
+            if (mesh?.MeshFaces == null) {
+                return run;
+            }
+            (int start, int frames) = RunFor(octant, thrust);
+            for (int i = start; i < start + frames && i < mesh.MeshFaces.Count; i++) {
+                if (mesh.MeshFaces[i] is SpriteBMeshFace f) {
+                    run.Add(f);
+                }
+            }
+            return run;
+        }
+
         public static int RunStartFor(int octant) {
             if (octant < 0) {
                 return 0;
@@ -69,14 +99,14 @@ namespace BakAgain.World.Encounters {
 
         /// <summary>Plays the run; the task ends when the walking sprite is back (the original waits for it:
         /// <c>combat_actor_anim_play(..., wait 1, ...)</c>, CACTOR.C:1828-1898).</summary>
-        public UniTask Play(WorldEntityRenderContext ctx, SpriteBMeshFace face, string setName,
+        public UniTask Play(WorldEntityRenderContext ctx,
+            System.Collections.Generic.IReadOnlyList<MeshRecord> meshes, string setName,
             int octant, int extent, bool thrust = false) {
-            if (ctx == null || face == null || string.IsNullOrEmpty(setName)) {
+            System.Collections.Generic.IReadOnlyList<SpriteBMeshFace> run = RunFaces(meshes, octant, thrust);
+            if (ctx == null || run.Count == 0 || string.IsNullOrEmpty(setName)) {
                 return UniTask.CompletedTask;
             }
-            (int start, int frames) = RunFor(octant, thrust);
-            _frames = frames;
-            return RunAsync(ctx, face, setName, start, extent);
+            return RunAsync(ctx, run, setName, extent);
         }
 
         /// <summary>Swings still playing. The arena counts them as busy, so the turn waits for them as the
@@ -94,20 +124,20 @@ namespace BakAgain.World.Encounters {
         /// </summary>
         public bool Holding { get; internal set; }
 
-        private async UniTask RunAsync(WorldEntityRenderContext ctx, SpriteBMeshFace face,
-            string setName, int start, int extent) {
+        private async UniTask RunAsync(WorldEntityRenderContext ctx,
+            System.Collections.Generic.IReadOnlyList<SpriteBMeshFace> run, string setName, int extent) {
             Playing++;
             Running = true;
             try {
-                await RunCoreAsync(ctx, face, setName, start, extent);
+                await RunCoreAsync(ctx, run, setName, extent);
             } finally {
                 Playing--;
                 Running = false;
             }
         }
 
-        private async UniTask RunCoreAsync(WorldEntityRenderContext ctx, SpriteBMeshFace face,
-            string setName, int start, int extent) {
+        private async UniTask RunCoreAsync(WorldEntityRenderContext ctx,
+            System.Collections.Generic.IReadOnlyList<SpriteBMeshFace> run, string setName, int extent) {
             var filter = GetComponent<MeshFilter>();
             var renderer = GetComponent<MeshRenderer>();
             if (filter == null || renderer == null) {
@@ -118,8 +148,8 @@ namespace BakAgain.World.Encounters {
             Material hadMaterial = renderer.sharedMaterial;
             Vector3 hadScale = transform.localScale;
 
-            for (var i = 0; i < _frames; i++) {
-                Texture2D tex = await ctx.LoadSpriteTextureAsync($"{setName}#{start + i}", gameObject);
+            foreach (SpriteBMeshFace face in run) {
+                Texture2D tex = await ctx.LoadSpriteTextureAsync($"{setName}#{face.BitmapIndex}", gameObject);
                 if (tex == null || this == null) {
                     break;
                 }
@@ -131,7 +161,7 @@ namespace BakAgain.World.Encounters {
                 renderer.sharedMaterial = ctx.GetSpriteMaterial(tex);
                 transform.localScale = new Vector3(
                     hadScale.x < 0 ? -scale.x : scale.x, scale.y, scale.z);
-                CurrentFrame = start + i;
+                CurrentFrame = face.BitmapIndex;
 
                 await UniTask.Delay(System.TimeSpan.FromSeconds(FrameSeconds));
                 if (this == null) {

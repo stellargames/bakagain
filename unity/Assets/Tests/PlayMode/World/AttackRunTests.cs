@@ -23,5 +23,36 @@ namespace BakAgain.Tests.PlayMode.World {
         [TestCase(6, 2, 2)]
         public void TheThrustRunsTwoFramesFromTheFacing(int octant, int start, int frames) =>
             Assert.AreEqual((start, frames), AttackSwing.RunFor(octant, thrust: true));
+
+        /// <summary>
+        /// The frame is a face of the slot's own mesh, not a bitmap index: COMBAT.TBL gives each anim
+        /// slot a mesh (RuntimeFlagsIndex = the slot) whose faces name the pictures, and the thrust's
+        /// mesh starts at picture 12, after the swing's twelve (CACTOR.C:828/873). Seen in the
+        /// original: Owyn's thrust east is OWN2 pictures 14 then 15 (wind-back, lunge); the port drew
+        /// the swing's 2 and 3 (TASK-1095, 2026-11-21).
+        /// </summary>
+        [TestCase(2, true, new[] { 14, 15 })]
+        [TestCase(0, true, new[] { 12, 13 })]
+        [TestCase(2, false, new[] { 4, 5, 6, 7 })]
+        public void TheRunDrawsTheFacesOfItsSlotsMesh(int octant, bool thrust, int[] pictures) {
+            var meshes = new System.Collections.Generic.List<GameData.Resources.World.MeshRecord> {
+                Mesh(0, 0, 15), Mesh(1, 15, 12), Mesh(3, 0, 12), Mesh(4, 12, 6), Mesh(5, 18, 3),
+            };
+
+            var drawn = new System.Collections.Generic.List<int>();
+            foreach (GameData.Resources.World.SpriteBMeshFace f in AttackSwing.RunFaces(meshes, octant, thrust)) {
+                drawn.Add(f.BitmapIndex);
+            }
+
+            CollectionAssert.AreEqual(pictures, drawn);
+        }
+
+        private static GameData.Resources.World.MeshRecord Mesh(byte slot, int first, int count) {
+            var m = new GameData.Resources.World.MeshRecord { RuntimeFlagsIndex = slot };
+            for (int i = 0; i < count; i++) {
+                m.MeshFaces.Add(new GameData.Resources.World.SpriteBMeshFace { BitmapIndex = (ushort)(first + i) });
+            }
+            return m;
+        }
     }
 }

@@ -1624,17 +1624,19 @@ namespace BakAgain.World {
                 swinging.SwingPending = false;
                 var sprite = marker.GetComponent<Encounters.DirectionalSprite>();
                 string attackSet = null;
+                IReadOnlyList<GameData.Resources.World.MeshRecord> attackMeshes = null;
                 foreach (GameData.Resources.World.EncounterActorPlacement.Placed p in placed) {
                     if (p.RosterSlot == marker.RosterSlot && p.PartyMember == marker.PartyMember) {
                         attackSet = _encounterSprites.AttackSetFor(p.CreatureNumber);
+                        attackMeshes = _encounterSprites.AttackMeshesFor(p.CreatureNumber);
                         break;
                     }
                 }
-                if (sprite == null || attackSet == null || marker.Face == null) {
+                if (sprite == null || attackSet == null || attackMeshes == null) {
                     continue;
                 }
                 marker.gameObject.AddComponent<Encounters.AttackSwing>().Play(
-                    _zoneSceneBuilder.RenderContext, marker.Face, attackSet,
+                    _zoneSceneBuilder.RenderContext, attackMeshes, attackSet,
                     sprite.CurrentOctant, marker.Extent, swinging.PendingThrust).Forget();
             }
 
