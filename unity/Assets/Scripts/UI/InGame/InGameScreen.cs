@@ -897,7 +897,8 @@ namespace BakAgain.UI.InGame {
             if (_inCombat?.Invoke() == true) {
                 return;
             }
-            _fieldSpells.CastAsync(_castScreen.CasterId, spellNumber, power, duration).Forget();
+            // The screen stays up behind the spell's text and pops when it is done (TASK-1128 row 1).
+            _castScreen.HoldUntil(_fieldSpells.CastAsync(_castScreen.CasterId, spellNumber, power, duration));
         }
 
         /// <summary>

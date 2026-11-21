@@ -1298,6 +1298,9 @@ namespace BakAgain.UI.Spells {
         /// doing that every frame for a cursor that has not moved between ring slots is pure churn.
         /// </remarks>
         private void Update() {
+            if (_holding) {
+                return;   // the spell is running over this panel: nothing here is live
+            }
             _compass?.Refresh();
             if (EnhancedApplied && !_navApplied) {
                 RefreshEnhancedNav();
@@ -1671,7 +1674,37 @@ namespace BakAgain.UI.Spells {
         /// the pointer reaches it through the click, and a test or an agent through the call.</para>
         /// </remarks>
         public void CommitPowerSelection() {
+            if (_holding) {
+                return;
+            }
+            _hold = null;
             RaiseCommitted(CommitPower());
+            PopAfterTheSpellAsync(_hold).Forget();
+            _hold = null;
+        }
+
+        /// <summary>
+        /// Called from a <see cref="Committed"/> handler with the spell's own run: the screen stays up,
+        /// taking no input, until it completes, then pops. A field spell's text is drawn over the empty
+        /// cast panel and the world comes back only after the handler returns (CSPELL.C:2394-2414,
+        /// WORLDLP.C:312-314; TASK-1128 row 1). With no hold it pops at once, as a combat cast does.
+        /// </summary>
+        public void HoldUntil(UniTask spell) => _hold = spell;
+
+        private UniTask? _hold;
+        private bool _holding;
+
+        private async UniTaskVoid PopAfterTheSpellAsync(UniTask? spell) {
+            if (spell is { } work) {
+                _holding = true;
+                try {
+                    await work;
+                } catch (System.Exception e) {
+                    UnityEngine.Debug.LogException(e);
+                } finally {
+                    _holding = false;
+                }
+            }
             _navigator?.PopUnfaded().Forget();
         }
 
@@ -1939,6 +1972,9 @@ namespace BakAgain.UI.Spells {
         /// happen. Recorded because the absence of that wait is deliberate, not an oversight.</para>
         /// </remarks>
         public void PrimaryAction(int menuEntryActionId) {
+            if (_holding) {
+                return;
+            }
             int school = CastMenuSelection.SchoolForAction(menuEntryActionId);
             if (school >= 0) {
                 SelectSchool(school);
