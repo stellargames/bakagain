@@ -731,7 +731,16 @@ namespace BakAgain.World {
             }
         }
 
+        /// <summary>Recoil rungs held back until the blow lands (TASK-1100 D5).</summary>
+        private readonly List<(Encounters.DirectionalSprite Sprite, int Rung)> _deferredTints = new();
+
         private void FloatDamageNumbers() {
+            foreach ((Encounters.DirectionalSprite sprite, int rung) in _deferredTints) {
+                if (sprite != null) {
+                    sprite.SetTintRung(rung);
+                }
+            }
+            _deferredTints.Clear();
             Color[] palette = _zoneSceneBuilder?.RenderContext?.Palette;
             BakAgain.UI.InGame.InGameScreen screen =
                 Object.FindAnyObjectByType<BakAgain.UI.InGame.InGameScreen>();
@@ -1607,6 +1616,17 @@ namespace BakAgain.World {
             // frame 0, which is what the first version of the slide did and it read as a twitch at
             // the end of every move. The frame lives on the combatant precisely because it has to
             // outlive the GameObject; see Combatant.GaitFrame.
+            // *** THE RECOIL SHOWS AFTER THE BLOW. *** The original sets it in apply_damage, after
+            // the blocking swing or flight (TASK-1100 D5); with a blow to play this redraw, the rungs
+            // wait for FloatDamageNumbers, which runs when the blow lands.
+            bool blowToPlay = false;
+            foreach (Encounters.ArenaCombatant marker in
+                     _arenaRoot.GetComponentsInChildren<Encounters.ArenaCombatant>()) {
+                GameData.Resources.Combat.Combatant c =
+                    _hotspots.CombatantFor(marker.RosterSlot, marker.PartyMember);
+                blowToPlay |= c != null && (c.SwingPending || c.FlightEffectId != 0);
+            }
+            _deferredTints.Clear();
             foreach (Encounters.ArenaCombatant marker in
                      _arenaRoot.GetComponentsInChildren<Encounters.ArenaCombatant>()) {
                 GameData.Resources.Combat.Combatant c =
@@ -1615,12 +1635,16 @@ namespace BakAgain.World {
                     Encounters.DirectionalSprite sprite =
                         marker.GetComponent<Encounters.DirectionalSprite>();
                     sprite?.SeedGait(c.GaitFrame, c.GaitAdvancing);
+                    int rung = c.HitReactionTimer > 0 ? c.HitReactionRemap : 0;
+                    if (blowToPlay && rung != 0 && sprite != null) {
+                        _deferredTints.Add((sprite, rung));
+                        continue;
+                    }
                     // *** THE RECOIL, DRAWN. *** A struck combatant is redrawn through its zone's
                     // own fade ramp for the two redraws the timer lasts — the creature steps a rung
                     // deeper into the fog rather than moving. HitReactionRemap is the block index
                     // the original puts in spriteHitDir.
-                    sprite?.SetTintRung(
-                        c.HitReactionTimer > 0 ? c.HitReactionRemap : 0);
+                    sprite?.SetTintRung(rung);
                 }
             }
 
