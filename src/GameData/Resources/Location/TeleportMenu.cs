@@ -153,8 +153,74 @@ public static class TeleportMenu {
 
     // ---- artwork --------------------------------------------------------------------------
 
-    /// <summary>The screen's backdrop; the map picture is part of it.</summary>
-    public const string Backdrop = "C42.SCX";
+    /// <summary>
+    /// The screen's backdrop: the parchment the priest's intro was drawn on, left on screen under the
+    /// panel (MODALSCR.C:177, the dialog before the map).
+    /// </summary>
+    public const string Backdrop = "DIALOG.SCX";
+
+    /// <summary>The map picture, of which the screen shows only a window (<see cref="MapSource"/>).</summary>
+    public const string MapPicture = "C42.SCX";
+
+    /// <summary>
+    /// The part of <see cref="MapPicture"/> the screen shows, in VGA pixels: columns 100..271, rows
+    /// 10..169 (MODALSCR.C:204-207).
+    /// </summary>
+    public static readonly (int X, int Y, int Width, int Height) MapSource = (100, 10, 172, 160);
+
+    /// <summary>
+    /// Where <see cref="MapSource"/> lands on screen, in VGA pixels. REQ_TELE's pins are in screen
+    /// space, so the picture must be shifted by exactly this much for them to sit on their temples.
+    /// </summary>
+    public static readonly (int X, int Y) MapOnScreen = (126, 14);
+
+    /// <summary>Top-left of <see cref="FramePens"/> on screen, in VGA pixels.</summary>
+    public static readonly (int X, int Y) FrameOrigin = (124, 12);
+
+    /// <summary>
+    /// The bevel around the map window, pixel by pixel: <c>[x, y]</c> from <see cref="FrameOrigin"/>,
+    /// the palette pen, or -1 where nothing is drawn.
+    /// </summary>
+    /// <remarks>
+    /// MODALSCR.C:196-206 with filling disabled: four outlined rects, each over the last, then a
+    /// diagonal line corner to corner. The map is pasted over all of it afterwards, so only the rim
+    /// and the line's two ends survive; the window's area is left to the caller to cover.
+    /// </remarks>
+    public static int[,] FramePens() {
+        (int left, int top) = FrameOrigin;
+        var pens = new int[177, 165];
+        for (var x = 0; x < 177; x++) {
+            for (var y = 0; y < 165; y++) {
+                pens[x, y] = -1;
+            }
+        }
+
+        void Outline(int x, int y, int w, int h, int pen) {
+            for (int i = x; i < x + w; i++) {
+                pens[i - left, y - top] = pen;
+                pens[i - left, y + h - 1 - top] = pen;
+            }
+
+            for (int j = y; j < y + h; j++) {
+                pens[x - left, j - top] = pen;
+                pens[x + w - 1 - left, j - top] = pen;
+            }
+        }
+
+        Outline(0x7c, 0x0c, 0xb0, 0xa4, 0x49);
+        Outline(0x7d, 0x0c, 0xaf, 0xa3, 0x36);
+        Outline(0x7d, 0x0d, 0xae, 0xa2, 0x3d);
+        Outline(0x7e, 0x0d, 0xad, 0xa1, 0xd8);
+
+        // draw_line(0x7c, 0xc, 300, 0xb0): x is the long axis, y rounded to the nearest row.
+        const int x0 = 0x7c, y0 = 0x0c, x1 = 300, y1 = 0xb0;
+        for (int x = x0; x <= x1; x++) {
+            int y = y0 + (((x - x0) * (y1 - y0)) + ((x1 - x0) / 2)) / (x1 - x0);
+            pens[x - left, y - top] = 0x0f;
+        }
+
+        return pens;
+    }
 
     /// <summary>Every piece of art the screen draws itself, temple portraits included.</summary>
     public const string IconSet = "TELEPORT.BMX";
@@ -274,9 +340,6 @@ public static class TeleportMenu {
     // Canonical 1600x1200 (VGA x5 across, x6 down). The screen's left column is a fixed panel:
     // heading, "From:" over the source, "To:" over the destination, and the fare at the foot.
     // Everything but the fare is centred on the column.
-    //
-    // Not modelled: the four nested bevel rectangles the original draws around the map at
-    // 0x4ef41-0x4ef8c. They are chrome over C42.SCX and carry no information.
 
     /// <summary>Centre of the left-hand panel, which every line but the fare is centred on.</summary>
     public const int PanelCentreX = 300;

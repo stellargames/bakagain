@@ -194,4 +194,39 @@ public class TeleportMenuTests {
         Assert.Equal(0, TeleportMenu.HelpTopicFor(TeleportMenu.CancelActionId));
         Assert.Equal(1, TeleportMenu.HelpTopicFor(TeleportMenu.ActionIdForTemple(3)));
     }
+
+    // ---- the map window (TASK-1130) ------------------------------------------------------------
+
+    [Fact]
+    public void TheMapIsAWindowOntoC42ShiftedTwentySixRightAndFourDown() {
+        // MODALSCR.C:204-207: rows 10..169 of C42.SCX, columns 100..271, pasted at x 126, y+4. The
+        // pins are in SCREEN space, so showing C42 at 0,0 put every pin 26 px east of its temple.
+        Assert.Equal("C42.SCX", TeleportMenu.MapPicture);
+        Assert.Equal("DIALOG.SCX", TeleportMenu.Backdrop);
+        Assert.Equal((100, 10, 172, 160), TeleportMenu.MapSource);
+        Assert.Equal((126, 14), TeleportMenu.MapOnScreen);
+    }
+
+    [Theory]
+    [InlineData(124, 100, 0x49)]   // left edge: the outer rect's pen
+    [InlineData(125, 100, 0x3d)]   // ...and the third rect's left column inside it
+    [InlineData(299, 100, 0x36)]   // right edge: the second rect over the first
+    [InlineData(298, 100, 0xd8)]   // ...and the fourth inside that
+    [InlineData(200, 12, 0x36)]
+    [InlineData(200, 13, 0xd8)]
+    [InlineData(200, 174, 0x3d)]
+    [InlineData(200, 175, 0x49)]
+    [InlineData(124, 12, 0x0f)]    // the diagonal draw_line, left showing only at its two ends
+    [InlineData(125, 13, 0x0f)]
+    [InlineData(298, 174, 0x0f)]
+    [InlineData(299, 175, 0x0f)]
+    [InlineData(300, 176, 0x0f)]
+    [InlineData(300, 100, -1)]     // outside every rect
+    public void TheFrameIsTheOriginalsFourRectsAndItsLine(int x, int y, int pen) {
+        // MODALSCR.C:196-206, outlines only (fill disabled), drawn in order; pens sampled off the
+        // original's screen match (left/bottom light, top/right dark).
+        int[,] frame = TeleportMenu.FramePens();
+        (int left, int top) = TeleportMenu.FrameOrigin;
+        Assert.Equal(pen, frame[x - left, y - top]);
+    }
 }

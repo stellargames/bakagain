@@ -265,10 +265,115 @@ namespace BakAgain.UI.Teleport {
             _palette ??= await _resources.GetOrLoadAsync<GameData.Resources.Palette.PaletteResource>(
                 TeleportMenu.Palette);
 
+            await DrawMapWindowAsync(stage);
             Clear(stage, MarkerClass);
             Clear(stage, PanelClass);
             await DrawPinsAsync(stage);
             await DrawPanelAsync(stage);
+        }
+
+        // ---- the map window (TASK-1130) ---------------------------------------------------
+
+        private const string MapClass = "teleport-map";
+
+        /// <summary>
+        /// The bevelled window onto the map, drawn once behind the pins and the panel.
+        /// </summary>
+        /// <remarks>
+        /// The original pastes only a window of C42.SCX, shifted, over the intro's parchment
+        /// (MODALSCR.C:193-207), and REQ_TELE's pins are placed against that window. Shown whole at
+        /// 0,0 the map sat 26 VGA px west of every pin.
+        /// </remarks>
+        private async UniTask DrawMapWindowAsync(VisualElement stage) {
+            if (stage.Q(className: MapClass) != null) {
+                return;
+            }
+
+            Sprite map = await _resources.GetOrLoadAsync<Sprite>(TeleportMenu.MapPicture);
+            if (map == null || stage.Q(className: MapClass) != null) {
+                return;
+            }
+
+            VisualElement frame = FrameElement(FrameTexture(
+                pen => PaletteColors.ResolvePen(_palette, pen, Color.clear)));
+            frame.AddToClassList(MapClass);
+            VisualElement window = MapWindow(map);
+            window.AddToClassList(MapClass);
+            stage.Insert(0, window);
+            stage.Insert(0, frame);
+        }
+
+        private const int VgaToCanonicalX = 5;
+        private const int VgaToCanonicalY = 6;
+
+        /// <summary>The map picture, clipped to the window the original shows of it.</summary>
+        internal static VisualElement MapWindow(Sprite map) {
+            (int sourceX, int sourceY, int width, int height) = TeleportMenu.MapSource;
+            (int screenX, int screenY) = TeleportMenu.MapOnScreen;
+            var window = new VisualElement {
+                pickingMode = PickingMode.Ignore,
+                style = {
+                    position = Position.Absolute,
+                    left = screenX * VgaToCanonicalX,
+                    top = screenY * VgaToCanonicalY,
+                    width = width * VgaToCanonicalX,
+                    height = height * VgaToCanonicalY,
+                    overflow = Overflow.Hidden,
+                },
+            };
+            window.Add(new VisualElement {
+                pickingMode = PickingMode.Ignore,
+                style = {
+                    position = Position.Absolute,
+                    left = -sourceX * VgaToCanonicalX,
+                    top = -sourceY * VgaToCanonicalY,
+                    width = Canonical.Width,
+                    height = Canonical.Height,
+                    backgroundImage = new StyleBackground(map),
+                    backgroundSize = new BackgroundSize(Length.Percent(100), Length.Percent(100)),
+                },
+            });
+            return window;
+        }
+
+        /// <summary>The window's bevel, one texel per original pixel; clear where nothing is drawn.</summary>
+        internal static Texture2D FrameTexture(System.Func<int, Color> penColor) {
+            int[,] pens = TeleportMenu.FramePens();
+            int width = pens.GetLength(0);
+            int height = pens.GetLength(1);
+            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false) {
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp,
+            };
+            var pixels = new Color[width * height];
+            for (var y = 0; y < height; y++) {
+                for (var x = 0; x < width; x++) {
+                    int pen = pens[x, y];
+                    // Texture rows run bottom-up.
+                    pixels[((height - 1 - y) * width) + x] = pen < 0 ? Color.clear : penColor(pen);
+                }
+            }
+
+            texture.SetPixels(pixels);
+            texture.Apply();
+            return texture;
+        }
+
+        /// <summary>Places the bevel texture at its original position, scaled to canonical space.</summary>
+        internal static VisualElement FrameElement(Texture2D frame) {
+            (int left, int top) = TeleportMenu.FrameOrigin;
+            return new VisualElement {
+                pickingMode = PickingMode.Ignore,
+                style = {
+                    position = Position.Absolute,
+                    left = left * VgaToCanonicalX,
+                    top = top * VgaToCanonicalY,
+                    width = frame.width * VgaToCanonicalX,
+                    height = frame.height * VgaToCanonicalY,
+                    backgroundImage = Background.FromTexture2D(frame),
+                    backgroundSize = new BackgroundSize(Length.Percent(100), Length.Percent(100)),
+                },
+            };
         }
 
         private async UniTask DrawPinsAsync(VisualElement stage) {
