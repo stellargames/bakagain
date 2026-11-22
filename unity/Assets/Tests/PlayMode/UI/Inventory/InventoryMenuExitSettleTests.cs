@@ -369,10 +369,14 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         [UnityTest]
         public IEnumerator TheClassicScreenWaitsForItsPageBeforeFadingIn() => UniTask.ToCoroutine(async () => {
             var stash = BakAgain.Tests.EnhancedPrefsStash.Take();
+            GameObject holder = null;
             try {
                 InventoryMenu menu = BuildMenu(SessionWith(FreeSlot()), new RecordingBagSpawner());
-                var loader = _go.AddComponent<BakAgain.ResourceManagement.Loaders.UserInterfaceLoader>();
-                loader.enabled = false;
+                // Added to an inactive holder: on an active one its OnEnable loads REQ_OPT0.DAT, an
+                // error where no game data is installed (CI).
+                holder = new GameObject("ui-loader");
+                holder.SetActive(false);
+                var loader = holder.AddComponent<BakAgain.ResourceManagement.Loaders.UserInterfaceLoader>();
                 var any = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
                 typeof(InventoryMenu).GetField("_ui", any).SetValue(menu, loader);
                 var build = (UniTask)typeof(InventoryMenu).GetMethod("BuildWhileHiddenAsync", any).Invoke(menu, null);
@@ -384,6 +388,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
                 await UniTask.Yield();
                 Assert.AreEqual(UniTaskStatus.Succeeded, build.Status, "built: the fade may start");
             } finally {
+                if (holder != null) UnityEngine.Object.Destroy(holder);
                 stash.Restore();
             }
         });
