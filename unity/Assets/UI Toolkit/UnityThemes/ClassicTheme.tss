@@ -405,10 +405,14 @@
 .enhanced-inv .enhanced-inv__hint { flex-grow: 1; flex-shrink: 1; overflow: hidden; font-size: 44px; white-space: normal; color: rgb(205, 185, 143); }
 .enhanced-inv__loot-count { position: absolute; top: 8px; right: 16px; font-size: 40px; color: rgb(205, 185, 143); -unity-text-align: upper-right; }
 .enhanced-inv .enhanced-inv__button { position: relative; flex-shrink: 0; margin-left: 6px; }
-.enhanced-inv .enhanced-inv__tablet { width: 220px; height: 96px; flex-shrink: 0; margin-left: 18px; margin-right: 12px; justify-content: center; align-items: center; border-radius: 6px; border-width: 4px; border-color: rgb(181, 112, 74); background-color: rgb(201, 176, 131); background-size: cover; }
-.enhanced-inv .enhanced-inv__tablet:hover { border-color: rgb(255, 196, 140); }
-.enhanced-inv .enhanced-inv__tablet:focus { border-color: rgb(255, 214, 160); }
-.enhanced-inv .enhanced-inv__tablet-word { font-size: 46px; color: rgb(42, 29, 14); -unity-text-align: middle-center; }
+.enhanced-inv .enhanced-inv__loot-stone { position: relative; flex-shrink: 0; margin-left: 6px; border-radius: 50%; }
+.enhanced-inv .enhanced-inv__loot-stone:hover { -unity-background-image-tint-color: rgb(255, 236, 200); }
+.enhanced-inv .enhanced-inv__loot-stone:focus { border-width: 3px; border-color: rgb(255, 214, 160); }
+.enhanced-inv .enhanced-inv__loot-bag { position: absolute; background-size: contain; }
+.enhanced-inv .enhanced-inv__loot-bag--one { left: 19%; top: 19%; width: 62%; height: 62%; }
+.enhanced-inv .enhanced-inv__loot-bag--top { left: 32%; top: 14%; width: 36%; height: 36%; }
+.enhanced-inv .enhanced-inv__loot-bag--left { left: 12%; top: 48%; width: 36%; height: 36%; }
+.enhanced-inv .enhanced-inv__loot-bag--right { left: 52%; top: 48%; width: 36%; height: 36%; }
 .enhanced-inv .enhanced-inv__examine { position: absolute; left: 5%; right: 4%; top: 7%; bottom: 7%; flex-direction: row; }
 .enhanced-inv .enhanced-inv__description { flex-grow: 3; flex-basis: 0; align-self: flex-start; font-size: 44px; white-space: normal; color: var(--ui-ink); }
 .enhanced-inv .enhanced-inv__stats { flex-grow: 2; flex-basis: 0; align-self: stretch; overflow: hidden; margin-left: 24px; padding-left: 24px; border-left-width: 2px; border-color: rgba(58, 36, 16, 0.4); }

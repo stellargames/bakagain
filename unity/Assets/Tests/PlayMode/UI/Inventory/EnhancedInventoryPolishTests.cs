@@ -456,7 +456,7 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             int rations = 0;
             foreach (RuntimeContainer p in _packs) rations += p.Items.Find(i => i.ObjectId == Rations)?.Variable ?? 0;
             Assert.AreEqual(6, rations, "the stack shared");
-            Assert.AreEqual(DisplayStyle.Flex, _layout.GetAll.style.display.value, "the tablet shows on the loot screen");
+            Assert.AreEqual(DisplayStyle.Flex, _layout.GetAll.style.display.value, "the stone shows on the loot screen");
         }
 
         /// <summary>TASK-1075 (owner): "Get all" fills the member whose pack is shown, as far as they have

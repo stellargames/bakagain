@@ -294,7 +294,7 @@ namespace BakAgain.UI.Inventory {
             RenderCurrent();
         }
 
-        /// <summary>The grid's widgets and, while it shows, the Get all tablet, so the keyboard reaches it.</summary>
+        /// <summary>The grid's widgets and, while it shows, the Get all / Share all stones, so the keyboard reaches it.</summary>
         private System.Collections.Generic.IReadOnlyList<BakAgain.UI.InputCore.NavWidget> WithGetAll(
             System.Collections.Generic.List<BakAgain.UI.InputCore.NavWidget> grid) {
             VisualElement tablet = _enhanced?.GetAll, share = _enhanced?.ShareAll;

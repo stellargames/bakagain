@@ -127,13 +127,13 @@ namespace BakAgain.UI.Inventory {
             _purse = new Label { pickingMode = PickingMode.Ignore };
             _purse.AddToClassList("enhanced-inv__purse-text");
             purse.Add(_purse);
-            _hint = new Label { pickingMode = PickingMode.Ignore };
+            _hint = new Label { name = "enhanced_inv_hint", pickingMode = PickingMode.Ignore };
             _hint.AddToClassList("enhanced-inv__hint");
             bar.Add(_hint);
-            GetAll = Tablet(GameData.Resources.Text.UiTemplates.EnhancedInvGetAll, () => GetAllPressed?.Invoke());
+            GetAll = LootStone(GameData.Resources.Text.UiTemplates.EnhancedInvGetAll, () => GetAllPressed?.Invoke(), party: false);
             GetAll.style.display = DisplayStyle.None; // side-by-side loot only: ShowGetAll
             GetAll.name = "get_all";
-            ShareAll = Tablet(GameData.Resources.Text.UiTemplates.EnhancedInvShareAll, () => ShareAllPressed?.Invoke());
+            ShareAll = LootStone(GameData.Resources.Text.UiTemplates.EnhancedInvShareAll, () => ShareAllPressed?.Invoke(), party: true);
             ShareAll.name = "share_all";
             ShareAll.style.display = DisplayStyle.None;
             bar.Add(ShareAll);
@@ -271,7 +271,7 @@ namespace BakAgain.UI.Inventory {
         /// <summary>The menu's name for a black item panel (InventoryMenu draws them on the sheet).</summary>
         private const string PanelName = "panel_bg";
 
-        /// <summary>The loot screen's "Get all" tablet (TASK-1019): everything into the member whose pack
+        /// <summary>The loot screen's "Get all" stone (TASK-1019): everything into the member whose pack
         /// is shown (TASK-1075). Hidden until <see cref="ShowGetAll"/>.</summary>
         public VisualElement GetAll { get; private set; }
 
@@ -287,16 +287,42 @@ namespace BakAgain.UI.Inventory {
             if (ShareAll != null) ShareAll.style.display = shown;
         }
 
-        /// <summary>The casting screen's parchment tablet, in the bar.</summary>
-        private static VisualElement Tablet(string key, Action pressed) {
-            var tablet = new VisualElement { pickingMode = PickingMode.Position, focusable = true };
-            tablet.AddToClassList("enhanced-inv__tablet");
-            tablet.style.backgroundImage = EnhancedArt.Load("parchment");
-            var word = new Label(GameData.Resources.Text.UiTemplates.Format(key)) { pickingMode = PickingMode.Ignore };
-            word.AddToClassList("enhanced-inv__tablet-word");
-            tablet.Add(word);
-            tablet.AddManipulator(new Clickable(pressed));
-            return tablet;
+        /// <summary>
+        /// A Get all / Share all button as a round stone like Use and Exit (owner, 2026-11-23): the
+        /// original's blank stone (the disabled-button face) with the inventory bag on it — one bag
+        /// for Get all (into the member shown), three for Share all (across the party). Port-only art
+        /// composed at runtime from the player's own BICONS1/INVMISC, so none ships. The word shows in
+        /// the bar's hint on hover, as an item's name does.
+        /// </summary>
+        private VisualElement LootStone(string key, Action pressed, bool party) {
+            var stone = new BakAgain.UI.ArchiveImage(GameData.Resources.Menu.UiElement.IconKeyForCombined(
+                BakAgain.ResourceManagement.Loaders.UserInterfaceLoader.DisabledButtonIcon)) {
+                pickingMode = PickingMode.Position, focusable = true,
+            };
+            stone.AddToClassList("enhanced-inv__loot-stone");
+            if (party) {
+                stone.Add(Bag("enhanced-inv__loot-bag--top"));
+                stone.Add(Bag("enhanced-inv__loot-bag--left"));
+                stone.Add(Bag("enhanced-inv__loot-bag--right"));
+            } else {
+                stone.Add(Bag("enhanced-inv__loot-bag--one"));
+            }
+            string word = GameData.Resources.Text.UiTemplates.Format(key);
+            // Stopped here so the stage's own hover (which names the item under the pointer, and
+            // nothing over the bar) does not clear the word straight after.
+            stone.RegisterCallback<PointerMoveEvent>(evt => { SetHint(word); evt.StopPropagation(); });
+            stone.RegisterCallback<PointerLeaveEvent>(_ => SetHint(null));
+            stone.AddManipulator(new Clickable(pressed));
+            return stone;
+        }
+
+        private static VisualElement Bag(string cls) {
+            var bag = new BakAgain.UI.ArchiveImage(BakAgain.UI.Combat.Enhanced.DesktopCombatHud.PackBagImage) {
+                sizeToImage = false, pickingMode = PickingMode.Ignore,
+            };
+            bag.AddToClassList("enhanced-inv__loot-bag");
+            bag.AddToClassList(cls);
+            return bag;
         }
 
         /// <summary>An element's box in the REQ's canonical frame, where the layout has put it: what
