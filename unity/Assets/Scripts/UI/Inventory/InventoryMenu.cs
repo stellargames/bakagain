@@ -915,15 +915,12 @@ namespace BakAgain.UI.Inventory {
             // it at the end of every UI_DrawInventory, so it is on the loot screen and the shop as
             // much as on a member's own pack. Redrawn here rather than only on a purse change,
             // because every path that spends or collects money ends in a RenderCurrent anyway.
+            // Enhanced draws the same readout into its purse, which shows the original's strip.
+            _money.Render(EnhancedApplied ? _enhanced.PurseCanvas : _stage, _gameSession.PartyGold, Layout);
             if (EnhancedApplied) {
-                _money.Clear();
-                _enhanced.SetPurse(GameData.Money.MoneyFormatter.Format(_gameSession.PartyGold,
-                    GameData.Money.CurrencyStyle.Abbreviated));
                 _enhanced.RefreshNames();
                 _enhanced.RefreshRings();
                 _enhanced.RefreshFrame();
-            } else {
-                _money.Render(_stage, _gameSession.PartyGold, Layout);
             }
             // The grid's geometry comes from the REQ resource (_ui.Inventory/_ui.Frame), not from
             // the renderer — same source as the stage's own frame above. Handed over as `Layout`,

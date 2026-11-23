@@ -43,7 +43,8 @@ namespace BakAgain.UI.Inventory {
         private readonly Label[] _names = new Label[3];
         private readonly string[] _nameOverrides = new string[3];
         private PortraitRingSet _rings;
-        private Label _purse, _hint;
+        private Label _hint;
+        private VisualElement _purseCanvas;
         private bool _warned;
 
         public EnhancedInventoryLayout(VisualElement root, GameSession session) {
@@ -121,12 +122,21 @@ namespace BakAgain.UI.Inventory {
                 wrap.Add(_names[i]);
             }
             _moved.Move(_root.Q(WindowName), bar, "enhanced-inv__window", clearSize: false);
+            // The purse looks as the original's does (owner, 2026-11-23): a window onto the screen's own
+            // backdrop (INVENTOR.SCX's black strip with the coin pile) at the purse's REQ place, clipped
+            // to the purse, so the classic readout draws into it at its own layout position.
             VisualElement purse = _root.Q(PurseName);
+            float purseLeft = purse.style.left.value.value, purseTop = purse.style.top.value.value;
             _moved.Move(purse, bar, "enhanced-inv__purse", clearSize: false);
-            purse.style.backgroundImage = EnhancedArt.Load("parchment");
-            _purse = new Label { pickingMode = PickingMode.Ignore };
-            _purse.AddToClassList("enhanced-inv__purse-text");
-            purse.Add(_purse);
+            _purseCanvas = new VisualElement { name = "enhanced-inv-purse-canvas", pickingMode = PickingMode.Ignore };
+            _purseCanvas.AddToClassList("enhanced-inv__purse-canvas");
+            _purseCanvas.style.left = -purseLeft;
+            _purseCanvas.style.top = -purseTop;
+            if (CanonicalStage.TryGetFrame(reqStage, out GameData.Resources.Layout.DesignFrame stageFrame, out _)) {
+                _purseCanvas.style.width = stageFrame.Width;
+                _purseCanvas.style.height = stageFrame.Height;
+            }
+            purse.Add(_purseCanvas);
             _hint = new Label { name = "enhanced_inv_hint", pickingMode = PickingMode.Ignore };
             _hint.AddToClassList("enhanced-inv__hint");
             bar.Add(_hint);
@@ -167,13 +177,14 @@ namespace BakAgain.UI.Inventory {
             _frame = null;
             _frameBox = null;
             _moved.RestoreAll();
-            _purse?.RemoveFromHierarchy();
+            _purseCanvas?.RemoveFromHierarchy();
             if (_reqStage != null) {
                 _reqStage.style.display = StyleKeyword.Null;
             }
             _layout.RemoveFromHierarchy();
             _layout = _field = Sheet = _reqStage = GetAll = ShareAll = null;
-            _purse = _hint = null;
+            _purseCanvas = null;
+            _hint = null;
             Array.Clear(_portraits, 0, 3);
             Array.Clear(_names, 0, 3);
             Array.Clear(_nameOverrides, 0, 3);
@@ -336,8 +347,15 @@ namespace BakAgain.UI.Inventory {
             return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
         }
 
-        public void SetPurse(string text) {
-            if (_purse != null) _purse.text = text;
+        /// <summary>Where the money readout draws: the stage's own coordinates, seen through the purse.
+        /// Copies the stage's backdrop each time, since that loads on its own.</summary>
+        public VisualElement PurseCanvas {
+            get {
+                if (_purseCanvas != null && _reqStage != null) {
+                    _purseCanvas.style.backgroundImage = _reqStage.style.backgroundImage;
+                }
+                return _purseCanvas;
+            }
         }
 
         public void SetHint(string text) {
