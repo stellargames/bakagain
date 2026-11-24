@@ -4628,7 +4628,10 @@ namespace BakAgain.UI.Inventory {
             // *** THE PRICE IS FOR THE STACK, NOT PER UNIT. *** Also measured: sharing the same
             // stack still cost the full 14 sovereigns 4 royals (152 -> 8 royals), so the quantity
             // decides delivery and not the bill.
-            int chosen = delivered.Variable;
+            // *** NO PICKER, NO QUANTITY. *** A bowstring sits on the shelf with variable 0, a single
+            // item rather than a count; reading 0 as "picked none" cancelled every bowstring sale
+            // after "It's yours" (forum p85, TASK-1138). The count is the picker's answer only.
+            int chosen = int.MaxValue;
             // *** THE PICKER IS GATED ON THE RECORD'S 0x8000, NOT ON THE COUNT. *** CMBINV.C:911
             // raises it for `rec->wFlags & 0x8000`, or for 0x800 when BOTH ends are party slots —
             // which a shop is not. `InventoryTransfer.Plan` already applies exactly that test on
