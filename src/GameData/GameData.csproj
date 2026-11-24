@@ -29,6 +29,7 @@
 
     <ItemGroup>
         <EmbeddedResource Include="Content\uistrings.json" />
+        <EmbeddedResource Include="Content\combat-affinity.json" />
     </ItemGroup>
 
 </Project>

@@ -1,6 +1,10 @@
 namespace GameData.Resources.Combat;
 
+using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
+using System.Text.Json;
 
 /// <summary>
 /// The three combat modifier tables that live in <c>KRONDOR.EXE</c>'s resident data rather than in
@@ -21,8 +25,53 @@ public class CombatAffinityTables : IResource {
     /// <summary>Columns in <see cref="ClassGroupModifier"/> — the item's race/group field.</summary>
     public const int ItemGroups = 4;
 
+    /// <summary>
+    /// The resource key the game loads the tables by, and a mod overrides them with
+    /// (<c>Overrides/DAT/AFFINITY.json</c>, the whole document).
+    /// </summary>
+    /// <remarks>
+    /// <b>Not <c>KRONDOR.EXE</c> any more (TASK-1143).</b> The tables were read out of the player's
+    /// executable at runtime, and any build but the 1.02 CD one failed the reader's placement check,
+    /// so fights ran without them (forum p89); the Android and installer imports never copy the EXE
+    /// at all. They ship with the game now, as the extractor's output embedded in GameData
+    /// (<c>Content/combat-affinity.json</c>, kept equal to <c>generated/EXE/combat-affinity.json</c>
+    /// by <c>EmbeddedAffinityMatchesGeneratedTests</c>).
+    /// </remarks>
+    public const string ResourceId = "AFFINITY.DAT";
+
+    private const string EmbeddedName = "combat-affinity.json";
+
     public CombatAffinityTables(string id) {
         Id = id;
+    }
+
+    /// <summary>The tables as the 1.02 CD build has them, under <paramref name="id"/>.</summary>
+    public static CombatAffinityTables CreateShipped(string id = ResourceId) {
+        CombatAffinityTables shipped = FromJson(ReadEmbedded());
+        return new CombatAffinityTables(id) {
+            ClassGroupModifier = shipped.ClassGroupModifier,
+            ClassCombatGroup = shipped.ClassCombatGroup,
+            Creatures = shipped.Creatures,
+            StatCheckThresholds = shipped.StatCheckThresholds,
+            AiFleeThresholds = shipped.AiFleeThresholds,
+        };
+    }
+
+    /// <summary>Reads a tables document (the extractor's JSON shape).</summary>
+    public static CombatAffinityTables FromJson(string json) =>
+        JsonSerializer.Deserialize<CombatAffinityTables>(json)
+        ?? throw new InvalidDataException("Empty combat affinity document.");
+
+    internal static string ReadEmbedded() {
+        Assembly asm = typeof(CombatAffinityTables).Assembly;
+        foreach (string name in asm.GetManifestResourceNames()) {
+            if (name.EndsWith(EmbeddedName, StringComparison.Ordinal)) {
+                using Stream s = asm.GetManifestResourceStream(name)!;
+                using var r = new StreamReader(s);
+                return r.ReadToEnd();
+            }
+        }
+        throw new InvalidOperationException($"{EmbeddedName} is not embedded in GameData.");
     }
 
     public string Id { get; }

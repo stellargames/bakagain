@@ -288,8 +288,9 @@ using GameData.Resources.Scene;
             // Extracted since the format was reversed and never loaded until now.
             _gridPens ??= await LoadOrNull<GameData.Resources.Combat.GridData>("GRID.DAT", owner);
             await LoadMonsterStatsAsync(owner);
+            // Shipped with the game, not read from the player's EXE (TASK-1143, forum p89).
             _affinity ??= await LoadOrNull<GameData.Resources.Combat.CombatAffinityTables>(
-                "KRONDOR.EXE", owner);
+                GameData.Resources.Combat.CombatAffinityTables.ResourceId, owner);
             // The AI's own copy. CastScreen loads the same file for the party; the provider hands
             // back the one parsed instance, so this is a second consumer rather than a second load.
             _spells ??= await LoadOrNull<GameData.Resources.Spells.SpellList>("SPELLS.DAT", owner);

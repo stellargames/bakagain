@@ -63,6 +63,10 @@ public class GeneralResourceProvider : IResourceProvider {
         if (string.Equals(resourceId, DialogStyleTable.ResourceId, System.StringComparison.OrdinalIgnoreCase)) {
             return true;
         }
+        // The combat affinity tables ship with the game (TASK-1143): no archive member, no EXE.
+        if (string.Equals(resourceId, GameData.Resources.Combat.CombatAffinityTables.ResourceId, System.StringComparison.OrdinalIgnoreCase)) {
+            return true;
+        }
         // Derived book-parchment variants (BOOK_EVEN.SCX / BOOK_ODD.SCX) are synthesized from
         // BOOK.SCX, so we can provide them whenever the source is available.
         if (BookParchment.IsVariant(resourceId)) {
@@ -107,6 +111,13 @@ public class GeneralResourceProvider : IResourceProvider {
             // same way every extractor stamps the frame on the screen resource it returns.
             ResourceExtraction.Imaging.CanonicalSpace.Apply(styleTable);
             return (T)(IResource)styleTable;
+        }
+
+        // The shipped combat affinity tables, embedded in GameData rather than read from the
+        // player's KRONDOR.EXE, which differs between releases (TASK-1143).
+        if (typeof(T) == typeof(GameData.Resources.Combat.CombatAffinityTables)
+            && string.Equals(resourceId, GameData.Resources.Combat.CombatAffinityTables.ResourceId, System.StringComparison.OrdinalIgnoreCase)) {
+            return (T)(IResource)GameData.Resources.Combat.CombatAffinityTables.CreateShipped(resourceId);
         }
 
         // Derived book-parchment variants: even = BOOK.SCX as-is, odd = vertically flipped

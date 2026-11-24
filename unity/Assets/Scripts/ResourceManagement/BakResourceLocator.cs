@@ -51,13 +51,16 @@ namespace BakAgain.ResourceManagement {
             // faithful default would be unreachable.
             bool isDialogStyleTable = string.Equals(keyName,
                 GameData.Resources.Dialog.DialogStyleTable.ResourceId, StringComparison.OrdinalIgnoreCase);
+            // The combat affinity tables likewise ship with the game (TASK-1143).
+            bool isAffinity = string.Equals(keyName,
+                GameData.Resources.Combat.CombatAffinityTables.ResourceId, StringComparison.OrdinalIgnoreCase);
             // NOTE: uistrings.json deliberately has NO clause here, unlike the dialog style table.
             // Its default is not a resource at all — UiStringLoader reads UiStringCatalog.Embedded
             // directly and only asks the resource layer for a mod's override, which resolves through
             // OverrideResourceLocator (registered first). BakResourceProvider cannot serve a
             // TextAsset in any case, so a clause here would only make this locator claim a key it
             // then fails to load.
-            if (!isChapterCatalog && !isDialogStyleTable && !isBookVariant && !_dictionary.ContainsKey(keyName)) {
+            if (!isChapterCatalog && !isDialogStyleTable && !isAffinity && !isBookVariant && !_dictionary.ContainsKey(keyName)) {
                 // Check for standalone files in the game directory (e.g., STARTUP.GAM, save files)
                 if (GameData.Setup.GameFolder.Find(BakResourceSettings.GamePath, keyName) == null) {
                     _logger.LogDebug("keyName '{KeyName}' not found in BaK resource dictionary or game directory", keyName);

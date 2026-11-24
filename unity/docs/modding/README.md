@@ -53,6 +53,10 @@ exactly this layout.
 - **Data documents** (`<EXT>/<NAME>.json`) are merged onto the game's own data where the type
   supports it: objects key by key, `null` leaves a value alone, item records (`ObjectInfo`) by their
   `Number`. Any other type is replaced whole.
+- **Combat tables** (`DAT/AFFINITY.json`): the class-against-weapon modifiers, each creature's
+  weaknesses and resistances, and the monsters' flee thresholds. The game ships its own copy
+  (`src/GameData/Content/combat-affinity.json` in the source); copy that and edit it. It is replaced
+  whole.
 - **3D models** (`Models/<zone>/<name>.glb`) are not supported yet: the current build loads them
   from nowhere (not from a mod, not from the dev folder), and a mod zip cannot carry them. See
   [replacing models](replacing-models.md) for the intended layout.

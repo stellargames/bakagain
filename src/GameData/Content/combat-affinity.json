@@ -1,0 +1,494 @@
+{
+  "Id": "KRONDOR.EXE",
+  "Type": "DAT",
+  "ClassGroupModifier": [
+    [
+      0,
+      -1,
+      -1,
+      -2
+    ],
+    [
+      -1,
+      0,
+      -1,
+      -2
+    ],
+    [
+      -1,
+      -1,
+      0,
+      -2
+    ]
+  ],
+  "ClassCombatGroup": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    2,
+    0,
+    0,
+    2,
+    0,
+    0,
+    2,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "Creatures": [
+    {
+      "ClassId": 0,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 1,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 2,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 3,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 4,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 5,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 6,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 7,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 8,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 9,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 10,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 11,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 12,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 13,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 14,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 15,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 1,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 16,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 512,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 17,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 18,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 1,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 19,
+      "WeaknessFlags": 1,
+      "ResistanceFlags": 0,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 20,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 21,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 1,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 22,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 192,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 23,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 1,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 24,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 25,
+      "WeaknessFlags": 16,
+      "ResistanceFlags": 0,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 26,
+      "WeaknessFlags": 512,
+      "ResistanceFlags": 192,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 27,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 512,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 28,
+      "WeaknessFlags": 2,
+      "ResistanceFlags": 12,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 29,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 30,
+      "WeaknessFlags": 256,
+      "ResistanceFlags": 0,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 31,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 32,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 33,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 2,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 34,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 35,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 36,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 37,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 38,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 39,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 1,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 40,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 41,
+      "WeaknessFlags": 2,
+      "ResistanceFlags": 12,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 42,
+      "WeaknessFlags": 12,
+      "ResistanceFlags": 2,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 43,
+      "WeaknessFlags": 32,
+      "ResistanceFlags": 0,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 44,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 1,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 45,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 512,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 46,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 47,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 512,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 48,
+      "WeaknessFlags": 512,
+      "ResistanceFlags": 256,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 49,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 768,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 50,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 1,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 51,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 1,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 52,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 53,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 54,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 55,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 56,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 192,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 57,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 192,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 58,
+      "WeaknessFlags": 64,
+      "ResistanceFlags": 0,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 59,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 60,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 61,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 768,
+      "IsPlain": false
+    },
+    {
+      "ClassId": 62,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    },
+    {
+      "ClassId": 63,
+      "WeaknessFlags": 0,
+      "ResistanceFlags": 0,
+      "IsPlain": true
+    }
+  ],
+  "StatCheckThresholds": [
+    10,
+    10,
+    10,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "AiFleeThresholds": [
+    85,
+    55,
+    45,
+    35,
+    25,
+    20,
+    10,
+    5,
+    5,
+    0
+  ]
+}
