@@ -17,12 +17,30 @@ namespace BakAgain.World {
             }
             Vector2 vp = (pointerPx - r.min) / r.size; // 0..1 within the viewport
             Ray ray = ViewportRay(camera, vp);
-            int mask = 1 << LayerMask.NameToLayer(WorldInteractionLayers.WorldInteractableLayerName);
-            if (Physics.Raycast(ray, out RaycastHit hit, camera.farClipPlane, mask)) {
-                return hit.collider.GetComponentInParent<WorldEntity>();
-            }
-            return null;
+            Collider hit = FirstInteractable(ray, camera.farClipPlane);
+            return hit != null ? hit.GetComponentInParent<WorldEntity>() : null;
         }
+
+        /// <summary>
+        /// The nearest interaction-layer collider along the pointer ray, counting one the ray starts in.
+        /// </summary>
+        /// <remarks>
+        /// <b>A ray never hits the collider it starts inside.</b> A shut door stops the party on the
+        /// face of its own pick box (m_door is a whole corridor segment, the panel in its middle), so
+        /// the camera stands in it and the click on the door went nowhere (TASK-1134); the original,
+        /// which picks by the drawn rect, opens it from there. Distance 0 is the nearest there is.
+        /// </remarks>
+        private static Collider FirstInteractable(Ray ray, float far) {
+            int mask = 1 << LayerMask.NameToLayer(WorldInteractionLayers.WorldInteractableLayerName);
+            Collider[] around = Physics.OverlapSphere(ray.origin, InsideTolerance, mask);
+            if (around.Length > 0) {
+                return around[0];
+            }
+            return Physics.Raycast(ray, out RaycastHit hit, far, mask) ? hit.collider : null;
+        }
+
+        // One BaK unit: the camera stands exactly on the box face, where an exact test can go either way.
+        private const float InsideTolerance = 0.01f;
 
         /// <summary>
         /// The pointer ray, built in camera space and turned into the world by the camera's own
@@ -142,10 +160,8 @@ namespace BakAgain.World {
             }
             Vector2 vp = (pointerPx - r.min) / r.size;
             Ray ray = ViewportRay(camera, vp);
-            int mask = 1 << LayerMask.NameToLayer(WorldInteractionLayers.WorldInteractableLayerName);
-            return Physics.Raycast(ray, out RaycastHit hit, camera.farClipPlane, mask)
-                ? hit.collider.GetComponentInParent<T>()
-                : null;
+            Collider hit = FirstInteractable(ray, camera.farClipPlane);
+            return hit != null ? hit.GetComponentInParent<T>() : null;
         }
     }
 }

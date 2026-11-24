@@ -76,6 +76,35 @@ namespace BakAgain.Tests.PlayMode.World {
             Object.DestroyImmediate(cam.gameObject);
         }
 
+        /// <summary>
+        /// A shut door stops the party on the face of its own pick box: m_door is a whole 1600-unit
+        /// corridor segment with the panel in the middle, and the party halts 800 short of its centre
+        /// (TASK-1134, zone 11 door 26, X=675200 in both games). A ray that starts inside a collider
+        /// never hits it, so the click on the door picked nothing; the original opens it from there.
+        /// </summary>
+        [Test]
+        public void Pick_FindsTheEntityWhoseBoxTheCameraStandsIn() {
+            var cam = new GameObject("cam").AddComponent<Camera>();
+            cam.transform.position = new Vector3(0, 0, -8);   // on the box's near face
+            cam.transform.rotation = Quaternion.identity;
+            int layer = LayerMask.NameToLayer(WorldInteractionLayers.WorldInteractableLayerName);
+
+            var door = new GameObject("m_door");
+            door.layer = layer;
+            door.AddComponent<BoxCollider>().size = new Vector3(8, 5.4f, 16);
+            door.AddComponent<WorldEntity>().EntityType = WorldEntityType.Door;
+            Physics.SyncTransforms();
+            try {
+                WorldEntity hit = WorldPicker.Pick(cam, new FullViewport(), new Vector2(400, 300),
+                    new Rect(0, 0, 800, 600));
+                Assert.IsNotNull(hit, "the door the party is stopped at");
+                Assert.AreEqual(WorldEntityType.Door, hit.EntityType);
+            } finally {
+                Object.DestroyImmediate(door);
+                Object.DestroyImmediate(cam.gameObject);
+            }
+        }
+
         [Test]
         public void Pick_ReturnsNullOutsideViewport() {
             var cam = new GameObject("cam").AddComponent<Camera>();
