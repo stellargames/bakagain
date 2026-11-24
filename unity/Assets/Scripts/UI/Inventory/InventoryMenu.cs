@@ -4884,23 +4884,6 @@ namespace BakAgain.UI.Inventory {
         private const int MessageSelectorGlobal = 30000;
 
         /// <summary>
-        /// Whether a price can be quoted for this item at all.
-        /// </summary>
-        /// <remarks>
-        /// <b>Sell side only.</b> A Magical Scroll is worth the price of the SPELL it carries, and
-        /// that table now reaches the buy path through <see cref="ObjectInfoSet.SpellPriceFor"/>,
-        /// so a scroll is quoted and sold like anything else.
-        ///
-        /// <para>Selling one to a shop is a separate rule this does not yet implement:
-        /// <c>shop_sell_item</c> refuses when <c>nBase_price == 0</c> AND the shop does not already
-        /// stock that item id, and object 133's base price is 0 — so a shop that deals in scrolls
-        /// takes them and one that does not refuses. Until that gate is ported, the sell path keeps
-        /// this blanket refusal rather than paying out the spell price everywhere.</para>
-        /// </remarks>
-        private static bool Priceable(RuntimeItem item) =>
-            item.ObjectId != GameData.Resources.Shop.ShopPricing.MagicalScrollObjectId;
-
-        /// <summary>
         /// Offering an item to the shop — <c>SellItem</c> @0x5b991.
         /// </summary>
         /// <remarks>
@@ -4935,7 +4918,10 @@ namespace BakAgain.UI.Inventory {
 
             RuntimeItem item = seller.Items[slot];
             ObjectInfo info = _gameSession.ObjectInfo?.GetById(item.ObjectId);
-            if (info == null || !Priceable(item)) {
+            // A Magical Scroll goes through the same gate as anything else (shop_sell_item, SHOP.C:192):
+            // its base price is 0, so only a shop that already stocks scrolls buys one, and any other
+            // says it has no use for it (TASK-1135; the port refused it silently everywhere).
+            if (info == null) {
                 DeselectItem();
                 RenderCurrent();
 
