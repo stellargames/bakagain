@@ -157,18 +157,35 @@ public class ShopStockTests {
         Assert.Equal(ShopStock.SellResult.Sold, result);
     }
 
+    // SHOP.C:156-157 clears the flag on the shelf slot, then the pickup's removal memcmps the copy
+    // taken before that (flag set) and finds no match: a sold item becomes permanent stock once bought
+    // back (forum p85, TASK-1139).
     [Fact]
-    public void BuyingBoughtInStockConsumesTheShopsSlot() {
+    public void BuyingBoughtInStockLeavesItOnTheShelfAsPermanentStock() {
         RuntimeContainer shop = Shop(4, Stocked(OtherId));
         var buyer = new RuntimeContainer { Capacity = 10, ContainerType = SaveGameContainerType.Inventory };
         var gold = 100;
 
         Assert.True(ShopStock.Buy(shop, buyer, shop.Items[0], Objects(), 40, ref gold));
 
-        Assert.Empty(shop.Items);
+        Assert.Single(shop.Items);
+        Assert.Equal(0, shop.Items[0].ItemFlags & ShopStock.ForSaleFlag);
         Assert.Single(buyer.Items);
         Assert.Equal(60, gold);
         Assert.Equal(0, buyer.Items[0].ItemFlags & ShopStock.ForSaleFlag);
+    }
+
+    // ...and the removal does find a SECOND byte-identical bought-in copy, which is the one that goes.
+    [Fact]
+    public void BuyingOneOfTwoIdenticalBoughtInCopiesRemovesTheOther() {
+        RuntimeContainer shop = Shop(4, Stocked(OtherId), Stocked(OtherId));
+        var buyer = new RuntimeContainer { Capacity = 10, ContainerType = SaveGameContainerType.Inventory };
+        var gold = 100;
+
+        Assert.True(ShopStock.Buy(shop, buyer, shop.Items[0], Objects(), 40, ref gold));
+
+        Assert.Single(shop.Items);
+        Assert.Equal(0, shop.Items[0].ItemFlags & ShopStock.ForSaleFlag);
     }
 
     [Fact]

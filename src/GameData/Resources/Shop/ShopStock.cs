@@ -147,10 +147,15 @@ public static class ShopStock {
     /// <summary>
     /// Hands a bought item to the player and takes the money.
     ///
-    /// <para><b>Infinite stock is copied, not moved.</b> A shop slot without
-    /// <see cref="ForSaleFlag"/> is a bottomless supply — the original leaves it in place and gives
-    /// the buyer a copy, which is how a shop can sell the same rations forever. Only a slot the shop
-    /// bought in is actually consumed.</para>
+    /// <para><b>Nothing on a shelf runs out.</b> A slot without <see cref="ForSaleFlag"/> is a
+    /// bottomless supply: the original zeroes the shop's item count around the pickup so its removal
+    /// finds nothing (SHOP.C:159-162). A slot the shop bought in (the flag set) has the flag CLEARED
+    /// first (SHOP.C:156-157) and then the pickup's removal looks for a slot byte-equal to the copy
+    /// taken BEFORE that, flag and all (<c>cmbinv_actor_inv_remove_item</c>, a 4-byte memcmp) — which
+    /// the cleared slot no longer is. So a sold item becomes permanent stock once bought back, as
+    /// players know it ("sell one and it is in stock for good"), and only a SECOND identical
+    /// bought-in copy, if the shelf has one, is what disappears (forum p85, TASK-1139; this said
+    /// "only a slot the shop bought in is consumed" until then).</para>
     /// </summary>
     /// <returns>False when the party cannot afford it or the item is not for sale.</returns>
     /// <param name="delivered">
@@ -175,12 +180,20 @@ public static class ShopStock {
             return false;
         }
 
-        bool shopOwned = (item.ItemFlags & ForSaleFlag) != 0;
+        bool boughtIn = (item.ItemFlags & ForSaleFlag) != 0;
         RuntimeItem given = handedOver.Clone();
         given.ItemFlags &= unchecked((ushort)~ForSaleFlag);
 
-        if (shopOwned) {
-            shop.Items.Remove(item);
+        if (boughtIn) {
+            RuntimeItem before = item.Clone();
+            item.ItemFlags &= unchecked((ushort)~ForSaleFlag);   // now permanent stock
+            // The pickup clears the equipped bit on its copy before it removes (CMBINV.C pickup).
+            ushort match = (ushort)(before.ItemFlags & 0xffbf);
+            int twin = shop.Items.FindIndex(o => !ReferenceEquals(o, item)
+                && o.ObjectId == before.ObjectId && o.Variable == before.Variable && o.ItemFlags == match);
+            if (twin >= 0) {
+                shop.Items.RemoveAt(twin);
+            }
             shop.Dirty = true;
         }
 
