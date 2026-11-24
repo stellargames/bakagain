@@ -190,6 +190,7 @@ public static class UiTemplates {
     /// <summary>The update notice (TASK-1017): the Enhanced settings' switch, and the main menu's line
     /// "Update <c>{version}</c> available. Click to download.", a link to the download page.</summary>
     public const string EnhancedCheckForUpdates = "port:template:enhanced_check_for_updates";
+    public const string RestoreShopBuybackBug = "port:template:restore_shop_buyback_bug";
     public const string UpdateAvailable = "port:template:update_available";
 
     /// <summary>The Controls page of the Enhanced settings (TASK-1080): a row per remappable key,
@@ -507,6 +508,7 @@ public static class UiTemplates {
         (EnhancedBadGameFolder, _ => "That folder does not hold the game's files."),
         (EnhancedSave, _ => "Save"),
         (EnhancedCheckForUpdates, _ => "Check for updates"),
+        (RestoreShopBuybackBug, _ => "Restore shop buyback bug"),
         (UpdateAvailable, _ => "Update {version} available. Click to download."),
         (ControlsTitle, _ => "Controls"),
         (ControlsRow, _ => "{action}: {key}"),

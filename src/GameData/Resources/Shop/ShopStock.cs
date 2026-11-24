@@ -154,8 +154,12 @@ public static class ShopStock {
     /// taken BEFORE that, flag and all (<c>cmbinv_actor_inv_remove_item</c>, a 4-byte memcmp) — which
     /// the cleared slot no longer is. So a sold item becomes permanent stock once bought back, as
     /// players know it ("sell one and it is in stock for good"), and only a SECOND identical
-    /// bought-in copy, if the shelf has one, is what disappears (forum p85, TASK-1139; this said
-    /// "only a slot the shop bought in is consumed" until then).</para>
+    /// bought-in copy, if the shelf has one, is what disappears (forum p85, TASK-1139).</para>
+    ///
+    /// <para><b>That is a bug, and the port fixes it unless asked not to</b> (owner, 2026-11-24): it
+    /// turns any item, rare or unique, into an endless supply. With
+    /// <paramref name="restoreBuybackBug"/> false the bought-in slot is taken off the shelf; true is
+    /// the original's behaviour, the player's "Restore shop buyback bug" preference.</para>
     /// </summary>
     /// <returns>False when the party cannot afford it or the item is not for sale.</returns>
     /// <param name="delivered">
@@ -164,8 +168,10 @@ public static class ShopStock {
     /// The substitution happens before the room check, as it does in the original, so it is the
     /// DELIVERED item that has to fit.
     /// </param>
+    /// <param name="restoreBuybackBug">The original's buy-back: a bought-in item stays as stock.</param>
     public static bool Buy(RuntimeContainer shop, RuntimeContainer buyer, RuntimeItem item,
-        ObjectInfoSet? objects, long price, ref int partyGold, RuntimeItem? delivered = null) {
+        ObjectInfoSet? objects, long price, ref int partyGold, RuntimeItem? delivered = null,
+        bool restoreBuybackBug = false) {
         if (shop == null || buyer == null || item == null || price < 0 || partyGold < price) {
             return false;
         }
@@ -184,7 +190,10 @@ public static class ShopStock {
         RuntimeItem given = handedOver.Clone();
         given.ItemFlags &= unchecked((ushort)~ForSaleFlag);
 
-        if (boughtIn) {
+        if (boughtIn && !restoreBuybackBug) {
+            shop.Items.Remove(item);
+            shop.Dirty = true;
+        } else if (boughtIn) {
             RuntimeItem before = item.Clone();
             item.ItemFlags &= unchecked((ushort)~ForSaleFlag);   // now permanent stock
             // The pickup clears the equipped bit on its copy before it removes (CMBINV.C pickup).

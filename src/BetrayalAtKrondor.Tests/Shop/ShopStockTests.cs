@@ -157,16 +157,32 @@ public class ShopStockTests {
         Assert.Equal(ShopStock.SellResult.Sold, result);
     }
 
-    // SHOP.C:156-157 clears the flag on the shelf slot, then the pickup's removal memcmps the copy
-    // taken before that (flag set) and finds no match: a sold item becomes permanent stock once bought
-    // back (forum p85, TASK-1139).
+    // The port's default (owner, 2026-11-24): the original's buy-back quirk is a bug, so a bought-in
+    // item leaves the shelf when it is bought.
     [Fact]
-    public void BuyingBoughtInStockLeavesItOnTheShelfAsPermanentStock() {
+    public void BuyingBoughtInStockTakesItOffTheShelf() {
         RuntimeContainer shop = Shop(4, Stocked(OtherId));
         var buyer = new RuntimeContainer { Capacity = 10, ContainerType = SaveGameContainerType.Inventory };
         var gold = 100;
 
         Assert.True(ShopStock.Buy(shop, buyer, shop.Items[0], Objects(), 40, ref gold));
+
+        Assert.Empty(shop.Items);
+        Assert.Single(buyer.Items);
+        Assert.Equal(60, gold);
+        Assert.Equal(0, buyer.Items[0].ItemFlags & ShopStock.ForSaleFlag);
+    }
+
+    // With the bug restored: SHOP.C:156-157 clears the flag on the shelf slot, then the pickup's
+    // removal memcmps the copy taken before that (flag set) and finds no match, so a sold item becomes
+    // permanent stock once bought back (forum p85, TASK-1139).
+    [Fact]
+    public void WithTheBuybackBugRestored_BoughtInStockStaysAsPermanentStock() {
+        RuntimeContainer shop = Shop(4, Stocked(OtherId));
+        var buyer = new RuntimeContainer { Capacity = 10, ContainerType = SaveGameContainerType.Inventory };
+        var gold = 100;
+
+        Assert.True(ShopStock.Buy(shop, buyer, shop.Items[0], Objects(), 40, ref gold, restoreBuybackBug: true));
 
         Assert.Single(shop.Items);
         Assert.Equal(0, shop.Items[0].ItemFlags & ShopStock.ForSaleFlag);
@@ -177,12 +193,12 @@ public class ShopStockTests {
 
     // ...and the removal does find a SECOND byte-identical bought-in copy, which is the one that goes.
     [Fact]
-    public void BuyingOneOfTwoIdenticalBoughtInCopiesRemovesTheOther() {
+    public void WithTheBuybackBugRestored_BuyingOneOfTwoIdenticalCopiesRemovesTheOther() {
         RuntimeContainer shop = Shop(4, Stocked(OtherId), Stocked(OtherId));
         var buyer = new RuntimeContainer { Capacity = 10, ContainerType = SaveGameContainerType.Inventory };
         var gold = 100;
 
-        Assert.True(ShopStock.Buy(shop, buyer, shop.Items[0], Objects(), 40, ref gold));
+        Assert.True(ShopStock.Buy(shop, buyer, shop.Items[0], Objects(), 40, ref gold, restoreBuybackBug: true));
 
         Assert.Single(shop.Items);
         Assert.Equal(0, shop.Items[0].ItemFlags & ShopStock.ForSaleFlag);

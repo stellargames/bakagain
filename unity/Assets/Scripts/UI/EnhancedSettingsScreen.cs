@@ -207,6 +207,8 @@ namespace BakAgain.UI {
             if (_slots != null && !Application.isMobilePlatform) Row(folders, () => Templates.Format(Templates.ControlsTitle), () => true, () => ShowPage(controls: true)).name = "controls";
             Row(folders, () => BoxText(Templates.EnhancedCheckForUpdates, _draft.CheckForUpdates), () => true,
                 () => _draft.CheckForUpdates = !_draft.CheckForUpdates);
+            Row(folders, () => BoxText(Templates.RestoreShopBuybackBug, _draft.RestoreShopBuybackBug), () => true,
+                () => _draft.RestoreShopBuybackBug = !_draft.RestoreShopBuybackBug).name = "restore_shop_buyback_bug";
 
             VisualElement buttons = MovedElements.Box("enhanced-settings__buttons");
             Row(buttons, () => Templates.Format(Templates.EnhancedSave), () => true, Save);

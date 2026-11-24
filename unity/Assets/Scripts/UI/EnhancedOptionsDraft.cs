@@ -12,6 +12,8 @@ namespace BakAgain.UI {
 
         public bool CheckForUpdates { get; set; }
 
+        public bool RestoreShopBuybackBug { get; set; }
+
         public bool this[EnhancedFeature feature] {
             get => _features[feature];
             set => _features[feature] = value;
@@ -19,7 +21,8 @@ namespace BakAgain.UI {
 
         public static EnhancedOptionsDraft Load() {
             var draft = new EnhancedOptionsDraft { Master = GameOptions.Enhanced, Shadows = GameOptions.Shadows,
-                CheckForUpdates = GameOptions.CheckForUpdates };
+                CheckForUpdates = GameOptions.CheckForUpdates,
+                RestoreShopBuybackBug = GameOptions.RestoreShopBuybackBug };
             foreach (EnhancedFeature f in System.Enum.GetValues(typeof(EnhancedFeature)))
                 draft._features[f] = GameOptions.GetFeature(f);
             return draft;
@@ -29,6 +32,7 @@ namespace BakAgain.UI {
             GameOptions.Enhanced = Master;
             GameOptions.Shadows = Shadows;
             GameOptions.CheckForUpdates = CheckForUpdates;
+            GameOptions.RestoreShopBuybackBug = RestoreShopBuybackBug;
             foreach (KeyValuePair<EnhancedFeature, bool> kv in _features)
                 GameOptions.SetFeature(kv.Key, kv.Value);
         }

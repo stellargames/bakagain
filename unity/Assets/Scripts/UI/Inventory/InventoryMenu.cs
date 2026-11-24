@@ -4668,7 +4668,8 @@ namespace BakAgain.UI.Inventory {
                     ContainerType = GameData.Resources.Data.SaveGameContainerType.Inventory,
                 };
                 if (!GameData.Resources.Shop.ShopStock.Buy(
-                        _displayed, holder, item, _gameSession.ObjectInfo, price, ref gold, delivered)) {
+                        _displayed, holder, item, _gameSession.ObjectInfo, price, ref gold, delivered,
+                        Core.GameOptions.RestoreShopBuybackBug)) {
                     return;
                 }
                 _gameSession.PartyGold = gold;
@@ -4680,7 +4681,8 @@ namespace BakAgain.UI.Inventory {
             }
 
             if (!GameData.Resources.Shop.ShopStock.Buy(
-                    _displayed, target, item, _gameSession.ObjectInfo, price, ref gold, delivered)) {
+                    _displayed, target, item, _gameSession.ObjectInfo, price, ref gold, delivered,
+                        Core.GameOptions.RestoreShopBuybackBug)) {
                 return;
             }
             _gameSession.PartyGold = gold;

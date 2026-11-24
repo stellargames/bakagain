@@ -83,6 +83,19 @@ namespace BakAgain.Core {
         /// <summary>The shadows to draw: the choice under the master switch, Off in the faithful game.</summary>
         public static ShadowMode ShadowsShown => Enhanced ? Shadows : ShadowMode.Off;
 
+        private const string RestoreShopBuybackBugKey = "restore shop buyback bug";
+
+        /// <summary>
+        /// The original's shop buy-back quirk (TASK-1139): an item sold to a shop and bought back stays
+        /// on the shelf as permanent, unlimited stock, so a rare or unique item can be bought again and
+        /// again. Off by default (owner, 2026-11-24): the bought-back item leaves the shelf. On, the
+        /// shop behaves exactly as the 1993 game does.
+        /// </summary>
+        public static bool RestoreShopBuybackBug {
+            get => PlayerPrefs.GetInt(RestoreShopBuybackBugKey, 0) == 1;
+            set => Store(RestoreShopBuybackBugKey, value);
+        }
+
         private const string CheckForUpdatesKey = "check for updates";
 
         /// <summary>Whether the main menu asks bakagain.org for a newer release (TASK-1017). On by default.</summary>
