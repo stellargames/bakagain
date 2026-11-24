@@ -505,7 +505,7 @@ namespace BakAgain.Core.Services {
         /// <summary>
         /// Apply a dialog effect to live game state as ExecuteDialog would. Handles SetFlagEffect
         /// (including its <c>ForTicks</c> auto-clear timer) and SetFlagsEffect (masked multi-flag
-        /// write). Other kinds are ignored until a consumer needs them (work-todo #10).
+        /// write), SetVarEffect, RawGlobalWriteEffect and SetFlagBitsEffect: every Effect kind there is.
         /// </summary>
         public void ApplyEffect(Effect effect) {
             switch (effect) {

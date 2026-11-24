@@ -559,11 +559,11 @@ namespace BakAgain.Combat {
         /// the outside, like a creature whose AI had been "decided correctly and not acted on".
         ///
         /// <para><b>Which branch a class takes is transcribed, not guessed</b> — see
-        /// <see cref="CombatAi.SpeciesRoutineOf"/>. What remains unported is the detail INSIDE each
-        /// routine (TASK-97): <c>combataiact_melee_random_attack</c> picks its victim at random where
-        /// this picks the nearest, and the charge and wander routines have movement of their own.
-        /// Those differences change who gets bitten; the difference this fixes is whether anything
-        /// happens at all.</para>
+        /// <see cref="CombatAi.SpeciesRoutineOf"/>. The routines' own detail came later: the ranged
+        /// kinds of <c>combataiact_melee_random_attack</c> (CBTAIACT.C:194, which targets the NEAREST
+        /// actor despite its name; the random part is which of three attacks, TASK-1008) and the
+        /// Dread's wander (TASK-615). The radius-6 species sweeps still use the default radius; see
+        /// <see cref="CombatAi.SearchRadiusFor"/>.</para>
         ///
         /// <para><b>Only class 0x13 depends on distance</b>, and its far branch may CAST rather than
         /// shoot — the original rolls <c>RND(10) &gt;= distance</c> for it (CBTAIACT.C:31). Both

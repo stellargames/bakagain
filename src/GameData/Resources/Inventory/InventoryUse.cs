@@ -205,11 +205,13 @@ public readonly struct ItemUseResult {
 /// minus the equip branch, which is <see cref="InventoryEquip.Equip"/>. Spec:
 /// docs/specs/inventory-item-handling.md §17.
 ///
-/// <para>This is the <b>item-on-item</b> half of the dispatch: the categories whose effect is to
-/// rewrite another item in the same inventory — poisons and coatings, repair kits, bowstrings, and
-/// two of the scripted specials. Everything else the original dispatches (potions, food, torches,
-/// maps, combat items) needs a stat, timer or combat runtime the remake does not have; those
-/// return <see cref="ItemUseOutcome.NotPorted"/> and are listed in spec §17.2.</para>
+/// <para>Every category the original dispatches is ported: the item-on-item ones (poisons and
+/// coatings, repair kits, bowstrings), the ones that act on the user (scrolls, restoratives,
+/// potions, books, notes, light sources) and the six scripted specials of category 25. Combat items
+/// are used through <see cref="Combat.CombatItemUse"/>. <see cref="ItemUseOutcome.NotPorted"/> is
+/// left for a call without the character context a branch needs, and for the categories the
+/// original has no branch for (keys, drinks, misc): those fall to its outcome-0 tail, dialog
+/// 1800003, which has no line for them, so the player sees nothing in either game.</para>
 ///
 /// <para><b>On <c>wEffect_arg_a</c> / <c>wEffect_arg_b</c></b> (<see cref="ObjectInfo.EffectArgA"/>
 /// and <see cref="ObjectInfo.EffectArgB"/>): both are polymorphic, read differently per category —
