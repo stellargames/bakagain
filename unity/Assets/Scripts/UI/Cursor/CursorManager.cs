@@ -53,6 +53,19 @@ namespace BakAgain.UI.Cursor {
         /// </summary>
         internal static bool UseSystemCursor = !Application.isMobilePlatform && !Application.isEditor;
 
+        /// <summary>
+        /// Whether the shown image is a POINTERG word label ("Buy", "Shop", a name), which stays DRAWN
+        /// even where <see cref="UseSystemCursor"/> holds (TASK-1133): at up to 320 canonical units wide
+        /// it is far past what Windows shows as a hardware cursor, which drew it at the wrong size.
+        /// Words only show over GDS scene hotspots, where a frame of lag costs no aim. 4-18 and 20-26
+        /// are the labels; 0-3 and 19 are the pointer shapes (generated/POINTER/cursor-map.json).
+        /// </summary>
+        internal static bool IsWordLabel(string setFile, int index) =>
+            setFile == "POINTERG.BMX" && index >= 4 && index != 19;
+
+        // Whether the system cursor shows the current image (false: the drawn one does).
+        private bool _systemShows;
+
         // What the pointer shows now, kept to rebuild the system cursor when the window is resized.
         private Sprite _shownSprite;
         private Texture2D _shownHiRes;
@@ -98,7 +111,7 @@ namespace BakAgain.UI.Cursor {
 
         public void Show() {
             _hidden = false;
-            if (UseSystemCursor) UnityEngine.Cursor.visible = true;
+            if (_systemShows) UnityEngine.Cursor.visible = true;
             if (_cursorElement != null) _cursorElement.style.display = DisplayStyle.Flex;
         }
 
@@ -145,7 +158,8 @@ namespace BakAgain.UI.Cursor {
             _shownSprite = entry.sprite;
             _shownHiRes = hiRes;
             _hotspot = entry.hotspot;
-            if (UseSystemCursor) {
+            _systemShows = UseSystemCursor && !IsWordLabel(setFile, index);
+            if (_systemShows) {
                 _cursorElement.style.display = DisplayStyle.None;
                 ApplySystemCursor();
                 return;
@@ -363,7 +377,7 @@ namespace BakAgain.UI.Cursor {
         private void LateUpdate() {
             if (_hidden || _cursorElement == null || _pointer == null) return;
             PumpPointer(_pointer);
-            if (UseSystemCursor) {
+            if (_systemShows) {
                 _cursorElement.style.display = DisplayStyle.None;
                 // A resize changes the pointer's on-screen size, as it does the drawn one's.
                 if (_shownSprite != null && !Mathf.Approximately(ScreenPixelsPerPanelUnit(), _systemCursorScale)) {
