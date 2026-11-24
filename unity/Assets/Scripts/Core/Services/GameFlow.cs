@@ -30,6 +30,9 @@ namespace BakAgain.Core.Services {
         /// <summary>Land on the main menu (tearing down the world if one is built).</summary>
         UniTask ShowMainMenu();
 
+        /// <summary>A flow is running, so a new one would be ignored.</summary>
+        bool Busy { get; }
+
         /// <summary>New game: chapter scenes → hydrate STARTUP.GAM + CHAPx.DAT → chapter-setup
         /// dialog (party order) → full map + chapter-description dialog → the world.
         /// <paramref name="playChapterScenes"/> false skips the scenes (debug fast path).</summary>
@@ -245,6 +248,8 @@ namespace BakAgain.Core.Services {
 
             return !interrupted;
         }
+
+        public bool Busy => _busy;
 
         public UniTask ShowMainMenu() => RunExclusive(nameof(ShowMainMenu), ShowMainMenuCore);
 

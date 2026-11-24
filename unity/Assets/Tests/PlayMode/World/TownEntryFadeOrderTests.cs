@@ -1204,6 +1204,7 @@ namespace BakAgain.Tests.PlayMode.World {
             public UniTask<bool> LoadSave(string path) => UniTask.FromResult(false);
             public UniTask Boot() => UniTask.CompletedTask;
             public UniTask ShowMainMenu() => UniTask.CompletedTask;
+            public bool Busy => false;
             public UniTask StartNewGame(bool playChapterScenes = true) => UniTask.CompletedTask;
             public UniTask GoToChapter(int chapter) => UniTask.CompletedTask;
             public UniTask EnterWorld() => UniTask.CompletedTask;

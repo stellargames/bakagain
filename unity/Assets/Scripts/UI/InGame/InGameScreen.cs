@@ -1651,7 +1651,16 @@ namespace BakAgain.UI.InGame {
                     _partyDownExitStarted = false;
                     return;
                 }
+                // *** WAIT FOR A FLOW THAT IS ALREADY RUNNING; NEVER LET IT SWALLOW THE GAME-OVER. ***
+                // GameFlow ignores a second flow while one runs, and returns as if it had done it. A
+                // zone change the party walked onto as it went down (forum p89: a Zone hotspot's
+                // dialog, then dialog 0x145) took the flow first, the main menu was dropped, and the
+                // dead party walked on with every hotspot silenced, saved, and kept playing.
+                await UniTask.WaitUntil(() => !flow.Busy, cancellationToken: destroyCancellationToken);
                 await flow.ShowMainMenu();
+                // The exit is done; the latch only means "an exit is in flight". A down state seen
+                // again later (a down save loaded) has to end the loop again, not be ignored.
+                _partyDownExitStarted = false;
             } catch (System.Exception failure) {
                 // *** A FAULT HERE MUST NOT COST THE GAME-OVER PERMANENTLY. *** This is
                 // fire-and-forget behind a one-shot latch, and the latch only clears when the state
