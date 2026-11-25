@@ -29,8 +29,9 @@ public static class HitReaction {
     /// <b>Read off the call, not chosen.</b> <c>resolveSwingAttack</c> @0x5fc69 calls
     /// <c>applyDamageToActor</c> twice: once to bill the ATTACKER for swinging
     /// (<c>hitDir = 0, shieldFlag = 1</c>) and once to damage the TARGET
-    /// (<c>hitDir = 1, applyArmor = 1</c>). Only the second flinches, so a blow is rung <b>1</b> of
-    /// the zone's fade ramp — the second-lightest step, 82 entries in <c>Z01.RMP</c>.
+    /// (<c>hitDir = 1, applyArmor = 1</c>). Only the second flinches, so a blow is remap <b>1</b>:
+    /// <c>RED.RMP</c>, the first of the four colour tables combat loads (COMBAT.C:174-187: red, green,
+    /// white, blue; drawn through at WORLDRND.C:208-211).
     ///
     /// <para><b>Most spell effects use 1 as well</b>, swept 2026-09-01:
     /// <c>Spell_PlayHitPaletteFlash</c> @0x66d33, <c>Spell_TouchSlayActor</c> @0x677d2 and
@@ -41,7 +42,7 @@ public static class HitReaction {
     /// </remarks>
     public const int BlowRemap = 1;
 
-    /// <summary>The remap a storm effect flashes through — <c>markActorHit(actor, 3)</c>.</summary>
+    /// <summary>The remap a storm effect flashes through — <c>markActorHit(actor, 3)</c>, WHITE.RMP.</summary>
     /// <remarks><c>Spell_PlayStormSequence</c> @0x6741b, before its lightning loop.
     /// <para><b>Deliberately callerless.</b> Presentation: nothing draws the remap tint yet (TASK-103), and spells are left to BlowRemap until each is read.</para></remarks>
     public const int StormRemap = 3;
@@ -49,7 +50,7 @@ public static class HitReaction {
     /// <summary>The remap a HEAL flashes through — <c>markActorHit(target, 4)</c>.</summary>
     /// <remarks>
     /// <b>Proof that the index is per-effect rather than "struck".</b> <c>Spell_HealTarget</c>
-    /// @0x682f3 passes 4, deeper into the fade ramp than a blow's 1 — so the same mechanism marks a
+    /// @0x682f3 passes 4, BLUE.RMP where a blow's 1 is red — so the same mechanism marks a
     /// mending as well as a wounding, and a port that hard-coded one value would tint them alike.
     /// <para><b>Deliberately callerless.</b> Presentation: nothing draws the remap tint yet (TASK-103).</para>
     /// </remarks>

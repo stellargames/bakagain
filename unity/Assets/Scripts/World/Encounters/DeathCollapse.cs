@@ -63,7 +63,7 @@ namespace BakAgain.World.Encounters {
         private int _extent;
         private int _hitRung;
 
-        /// <summary>The fade rung the picture on screen is drawn through: the killing blow's recoil on
+        /// <summary>The hit colour the picture on screen is drawn through: the killing blow's recoil on
         /// the run's first picture, 0 after (TASK-1100 D5).</summary>
         public int CurrentRung { get; private set; }
 

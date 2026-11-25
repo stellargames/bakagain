@@ -150,8 +150,8 @@ public sealed class Combatant {
     /// <summary>Which remap table the recoil redraws this combatant through — <c>hitReactionDir</c>.</summary>
     /// <remarks>
     /// <b>Not a direction, despite the original's parameter name.</b> It selects a 256-byte remap
-    /// table, <c>(value &lt;&lt; 8) + 0xA66</c> into the zone's RMP — so the flash is the creature
-    /// briefly redrawn one rung further along its zone's own fade ramp. An ordinary blow passes
+    /// table, <c>(value &lt;&lt; 8) + 0xA66</c>: 1..4 are RED, GREEN, WHITE and BLUE.RMP (COMBAT.C:174-187),
+    /// so the flash is the creature briefly redrawn in that colour. An ordinary blow passes
     /// <see cref="HitReaction.BlowRemap"/>; a self-billed cost passes 0 and does not flinch at all.
     /// </remarks>
     public int HitReactionRemap { get; set; }

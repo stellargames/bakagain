@@ -71,8 +71,8 @@ namespace BakAgain.World {
         public ZoneTable Table { get; private set; }
         public bool Underground { get; private set; }
 
-        /// <summary>The zone's ordered RMP blocks, kept from the fog load for the render context.</summary>
-        private List<Dictionary<byte, byte>> _fadeRamp;
+        /// <summary>The combat hit colours, index 1..4 = RED, GREEN, WHITE, BLUE.RMP (0: none).</summary>
+        private List<Dictionary<byte, byte>> _hitRemaps;
 
         /// <summary>Chunk names (<c>Tzzxxyy</c>) the last build loaded, in zone-map order.</summary>
         public IReadOnlyList<string> LoadedChunks { get; private set; } = System.Array.Empty<string>();
@@ -147,6 +147,7 @@ namespace BakAgain.World {
 
                 // Build fog data from RMP
                 var fogData = await LoadAndBuildFogAsync(zoneId, unityPalette, root);
+                _hitRemaps ??= await LoadHitRemapsAsync(root);
 
                 // Build scene hierarchy
                 var terrainParent = CreateChild(root, "Terrain");
@@ -177,7 +178,7 @@ namespace BakAgain.World {
                 // key via ResourceProvider (WorldEntityRenderContext.LoadSpriteTextureAsync).
                 renderCtx.SlotLoader = new SlotBitmapTextureLoader(_resourceCache);
                 renderCtx.ResourceProvider = _resourceProvider;
-                renderCtx.FadeRamp = _fadeRamp;
+                renderCtx.HitRemaps = _hitRemaps;
                 RenderContext = renderCtx;
                 Table = tbl;
                 Underground = underground;
@@ -666,6 +667,23 @@ namespace BakAgain.World {
             return wldFiles;
         }
 
+        /// <summary>
+        /// The colours a struck combatant flashes: combat loads RED, GREEN, WHITE and BLUE.RMP behind the
+        /// cursor table (COMBAT.C:174-187) and a hit draws through table <c>knockbackFrame % 5</c> of them
+        /// (WORLDRND.C:208-211, CACTOR.C:1368-1369), not through the zone's fog blocks (TASK-1136).
+        /// </summary>
+        private async UniTask<List<Dictionary<byte, byte>>> LoadHitRemapsAsync(GameObject owner) {
+            var remaps = new List<Dictionary<byte, byte>> { null };
+            foreach (string name in new[] { "RED", "GREEN", "WHITE", "BLUE" }) {
+                var rmp = await _resourceProvider.LoadAssetAsync<RemapResource>($"{name}.RMP", owner);
+                remaps.Add(rmp?.Mappings?.Values.FirstOrDefault());
+                if (rmp == null) {
+                    _logger.LogWarning("No {Name}.RMP: a hit in that colour is drawn untinted", name);
+                }
+            }
+            return remaps;
+        }
+
         private async UniTask<(Color fogColor, float maxDist)> LoadAndBuildFogAsync(
             string zoneId, Color[] palette, GameObject owner) {
             try {
@@ -680,14 +698,6 @@ namespace BakAgain.World {
                 var blocks = new List<Dictionary<byte, byte>>();
                 foreach (var kvp in rmp.Mappings.OrderBy(k => k.Key))
                     blocks.Add(kvp.Value);
-
-                // *** THE SAME BLOCKS SERVE THE HIT FLASH. *** The original selects one with
-                // (index << 8) + 0xA66 for both distance and spriteHitDir, so keeping the list is
-                // what lets a struck combatant be redrawn one rung further into the fog instead of
-                // being moved. Held in a field rather than assigned to RenderContext here: the fog
-                // is loaded BEFORE the context is created, so assigning it here would silently do
-                // nothing. See HitReaction.
-                _fadeRamp = blocks;
 
                 var rampData = FogRampBuilder.BuildFogRamp(blocks, palette);
                 return (rampData.FogColor, DefaultFogMaxDistance);

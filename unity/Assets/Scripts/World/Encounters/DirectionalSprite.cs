@@ -265,12 +265,12 @@ namespace BakAgain.World.Encounters {
         private int _tintRung;
 
         /// <summary>
-        /// Redraw this sprite through fade rung <paramref name="rung"/> of the zone's RMP.
+        /// Redraw this sprite through hit colour <paramref name="rung"/> (RED/GREEN/WHITE/BLUE.RMP).
         /// </summary>
         /// <remarks>
         /// <b>This is what a hit reaction looks like.</b> The original re-tints a struck actor for
-        /// two redraws by selecting a remap block with <c>spriteHitDir</c>, so the creature is drawn
-        /// one step further into its own zone's fog rather than being moved — see <c>HitReaction</c>
+        /// two redraws through a colour remap picked by <c>knockbackFrame</c> (red for a blow), rather
+        /// than being moved — see <c>HitReaction</c>
         /// for why a displacement would be inventing the effect.
         ///
         /// <para>The built-column cache is keyed by rung as well as column, so switching back costs

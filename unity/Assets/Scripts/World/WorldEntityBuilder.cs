@@ -195,16 +195,15 @@ namespace BakAgain.World {
         /// and its recoloured twin do not share one texture.</para>
         /// </remarks>
         /// <summary>
-        /// The zone's remap blocks, ordered — <c>Z##.RMP</c>, the same list the fog ramp is built
-        /// from.
+        /// The hit colours, by a combatant's recoil index: 1..4 = RED, GREEN, WHITE, BLUE.RMP, 0 = none.
         /// </summary>
         /// <remarks>
-        /// <b>It is the fade ramp AND the hit flash.</b> The original selects a block with
-        /// <c>(index &lt;&lt; 8) + 0xA66</c> and uses it for both: distance for the world, and
-        /// <c>spriteHitDir</c> for a struck combatant. So a recoil is a creature briefly redrawn one
-        /// rung further into its own zone's fog — see <c>HitReaction</c>.
+        /// The original draws a struck combatant through table <c>index % 5</c> behind the cursor table
+        /// (<c>CURSOR_REMAP_TAB_OFF</c>, WORLDRND.C:208-211), which combat fills from those four files
+        /// (COMBAT.C:174-187). The zone's fog blocks sit elsewhere (<c>FOG_REMAP_TAB_OFF</c>); using them
+        /// made a melee hit a barely visible fade instead of the red flash (TASK-1136).
         /// </remarks>
-        public IReadOnlyList<Dictionary<byte, byte>> FadeRamp;
+        public IReadOnlyList<Dictionary<byte, byte>> HitRemaps;
 
         public async UniTask<Texture2D> LoadSpriteTextureAsync(string resourceKey, GameObject owner,
             int fadeRung = 0) {
@@ -229,18 +228,17 @@ namespace BakAgain.World {
             return tex;
         }
 
-        /// <summary>The palette seen through fade rung <paramref name="rung"/> of the zone's RMP.</summary>
+        /// <summary>The palette seen through hit colour <paramref name="rung"/> (see <see cref="HitRemaps"/>).</summary>
         /// <remarks>
         /// <b>An index-to-index substitution, not a colour transform.</b> The block says which pen
-        /// each pen becomes; everything it does not name keeps its own colour, which is why the low
-        /// rungs barely change anything (30 entries in Z01's block 0) and the high ones remap almost
-        /// the whole palette (141).
+        /// each pen becomes; everything it does not name keeps its own colour (RED.RMP names 138).
         /// </remarks>
         private Color[] Faded(Color[] palette, int rung) {
-            if (rung <= 0 || palette == null || FadeRamp == null || rung >= FadeRamp.Count) {
+            rung %= 5;   // WORLDRND.C:209
+            if (rung <= 0 || palette == null || HitRemaps == null || rung >= HitRemaps.Count) {
                 return palette;
             }
-            Dictionary<byte, byte> block = FadeRamp[rung];
+            Dictionary<byte, byte> block = HitRemaps[rung];
             if (block == null || block.Count == 0) {
                 return palette;
             }
