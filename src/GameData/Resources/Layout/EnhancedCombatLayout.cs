@@ -168,8 +168,8 @@ public sealed class EnhancedCombatLayout
     /// <summary>
     /// Seconds held after a monster's action has finished playing, before the next turn (owner, 2026-10-30:
     /// "I can't follow what's going on"). The original moves on at once (COMBAT.C:1588's loop has no wait);
-    /// this is presentation only. 0.6 s: the struck combatant's number floats for 8 arena frames, 0.43 s
-    /// (dmgFloatFrames = 8, COMBAT.C:383, at 18.5 frames a second), so it has finished and the log line
+    /// this is presentation only. 0.6 s: the struck combatant's number floats for 8 arena frames, 0.48 s
+    /// (dmgFloatFrames = 8, COMBAT.C:383, at 50/3 frames a second), so it has finished and the log line
     /// has been on screen a moment before anything else moves.
     /// </summary>
     public float EnemyActionBeatSeconds { get; set; } = 0.6f;

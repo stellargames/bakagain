@@ -23,8 +23,13 @@ namespace GameData.Resources.Combat;
 /// frames per second. An enemy thrust in that fight changed picture every 3 ticks or less (4 frames
 /// at 18.5/s is 3.9 ticks). The rate is the emulated machine's drawing speed (the loop has no timer
 /// wait), so it is a property of Spice86's configured CPU as much as of the game.</para>
+///
+/// <para><b>Set to 50/3 (owner, 2026-11-25, TASK-1136).</b> A player's DOSBox clip at 15,000 cycles
+/// (forum p88) took 0.71 s from a moredhel's first fall picture to lying; 18.5 gave 0.65 s, and the
+/// owner found combat "a bit nervous". At 50/3 the same run takes 0.72 s (3 x 4 frames). A pace
+/// choice within the range real machines draw at, not a measurement.</para>
 /// </remarks>
 public static class ArenaFrame {
-    /// <summary>Arena frames per second, measured in the original (see the remarks).</summary>
-    public const double PerSecond = 18.5;
+    /// <summary>Arena frames per second (see the remarks: chosen near the original's measured pace).</summary>
+    public const double PerSecond = 50.0 / 3;
 }
