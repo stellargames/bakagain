@@ -156,11 +156,7 @@ namespace BakAgain.Audio {
                 _logger.LogInformation("PlaySfx suppressed: sound disabled in preferences ({Sfx}).", audioResource.Name);
                 return;
             }
-            if (!audioResource.Variants.ContainsKey((byte)soundDriver)) {
-                _logger.LogWarning("Audio resource {AudioResourceName} (ID: {AudioId}) does not contain variant for sound driver {SoundDriver}.", audioResource.Name, audioResource.Id, soundDriver);
-
-                return;
-            }
+            (byte[] wavData, byte[] midiData) = SfxPayload(audioResource, (byte)soundDriver);
             // *** A DIGITISED SAMPLE IS PLAYED AS A SAMPLE, AND IT WINS. *** A variant can carry
             // BOTH payloads -- the sentinel channel 0xFE and the real MIDI channels are read in the
             // same loop -- and AudioDataResource's own remark says which one sounds: the WAV. Until
@@ -172,14 +168,14 @@ namespace BakAgain.Audio {
             // every sample id is below it. The arm spent one session in PlaySong, where nothing it
             // tests can ever be true -- and the warning below kept firing, which read as "the fix
             // does not work" rather than "the fix is in the other method".
-            if (audioResource.Variants[(byte)soundDriver].WavData is { } wavData) {
+            if (wavData != null) {
                 PlaySample(audioResource, wavData);
 
                 return;
             }
 
-            if (audioResource.Variants[(byte)soundDriver].MidiData is not { } midiData) {
-                _logger.LogWarning("Audio resource {AudioResourceName} (ID: {AudioId}) does not contain MIDI data for sound driver {SoundDriver}.", audioResource.Name, audioResource.Id, soundDriver);
+            if (midiData == null) {
+                _logger.LogWarning("Audio resource {AudioResourceName} (ID: {AudioId}) has no sample and no MIDI data to play.", audioResource.Name, audioResource.Id);
 
                 return;
             }
@@ -204,6 +200,26 @@ namespace BakAgain.Audio {
             } else {
                 _logger.LogWarning("No available SFX MIDI player for {SfxName} (ID: {SfxId}). Pool size {PoolSize} might be too small.", audioResource.Name, audioResource.Id, _sfxPlayers.Count);
             }
+        }
+
+        /// <summary>
+        /// What a sound effect plays: the driver variant's digitised sample if it has one (only the
+        /// Sound Blaster variant carries samples), else the General MIDI variant's MIDI, else the
+        /// driver variant's.
+        /// </summary>
+        /// <remarks>
+        /// <b>General MIDI for effects, whatever the music driver</b> (owner's call, TASK-1089): the game
+        /// plays MIDI through a General MIDI soundfont, and 8 of 117 Sound Blaster effects come out of it
+        /// near-silent (the Herbal Pack's swoosh renders at 0.007 against 0.383 on the GM variant).
+        /// Every effect in the shipped data has a GM variant.
+        /// </remarks>
+        public static (byte[] Wav, byte[] Midi) SfxPayload(AudioResource audioResource, byte driver) {
+            audioResource.Variants.TryGetValue(driver, out AudioDataResource own);
+            if (own?.WavData is { } wav) {
+                return (wav, null);
+            }
+            audioResource.Variants.TryGetValue((byte)SoundDriver.GeneralMidi, out AudioDataResource gm);
+            return (null, gm?.MidiData ?? own?.MidiData);
         }
 
         /// <summary>
