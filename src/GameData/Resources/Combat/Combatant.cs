@@ -169,6 +169,10 @@ public sealed class Combatant {
     /// 8 a cast's wind-up, 9 a cast's swing — CACTOR.C:1947-1977 (TASK-1095, TASK-1107 D3).</summary>
     public int PendingAttackSlot { get; set; } = CombatAnimSlot.Swing;
 
+    /// <summary>How many times the pending run plays back to back: 2 for creature 0x1a's shot, which
+    /// poses twice and then stands for the flight (CBTAITRN.C:121-126), else 1.</summary>
+    public int PendingAttackRuns { get; set; } = 1;
+
     /// <summary>The swing's sound, held until the arena has drawn the swing; null for none.</summary>
     /// <remarks>The original sounds it after the blocking swing animation (COMBAT.C:487-525), so it
     /// crosses the same resolve-then-redraw gap as <see cref="SwingPending"/> (TASK-1073).</remarks>

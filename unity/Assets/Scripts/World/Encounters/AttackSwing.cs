@@ -151,7 +151,7 @@ namespace BakAgain.World.Encounters {
         /// <c>combat_actor_anim_play(..., wait 1, ...)</c>, CACTOR.C:1828-1898).</summary>
         public UniTask Play(WorldEntityRenderContext ctx,
             System.Collections.Generic.IReadOnlyList<MeshRecord> meshes, string setName,
-            int octant, int extent, int slot = GameData.Resources.Combat.CombatAnimSlot.Swing) {
+            int octant, int extent, int slot = GameData.Resources.Combat.CombatAnimSlot.Swing, int runs = 1) {
             // A later run on a sprite still holding an earlier one replaces it.
             foreach (AttackSwing earlier in GetComponents<AttackSwing>()) {
                 if (earlier != this) {
@@ -162,7 +162,7 @@ namespace BakAgain.World.Encounters {
             if (ctx == null || run.Count == 0 || string.IsNullOrEmpty(setName)) {
                 return UniTask.CompletedTask;
             }
-            return RunAsync(ctx, run, setName, extent, FlipsFor(slot, octant));
+            return RunAsync(ctx, run, setName, extent, FlipsFor(slot, octant), runs);
         }
 
         /// <summary>Swings still playing. The arena counts them as busy, so the turn waits for them as the
@@ -181,11 +181,12 @@ namespace BakAgain.World.Encounters {
         public bool Holding { get; internal set; }
 
         private async UniTask RunAsync(WorldEntityRenderContext ctx,
-            System.Collections.Generic.IReadOnlyList<SpriteBMeshFace> run, string setName, int extent, bool flip) {
+            System.Collections.Generic.IReadOnlyList<SpriteBMeshFace> run, string setName, int extent, bool flip,
+            int runs) {
             Playing++;
             Running = true;
             try {
-                await RunCoreAsync(ctx, run, setName, extent, flip);
+                await RunCoreAsync(ctx, run, setName, extent, flip, runs);
             } finally {
                 Playing--;
                 Running = false;
@@ -193,7 +194,8 @@ namespace BakAgain.World.Encounters {
         }
 
         private async UniTask RunCoreAsync(WorldEntityRenderContext ctx,
-            System.Collections.Generic.IReadOnlyList<SpriteBMeshFace> run, string setName, int extent, bool flip) {
+            System.Collections.Generic.IReadOnlyList<SpriteBMeshFace> run, string setName, int extent, bool flip,
+            int runs) {
             var filter = GetComponent<MeshFilter>();
             var renderer = GetComponent<MeshRenderer>();
             if (filter == null || renderer == null) {
@@ -204,25 +206,31 @@ namespace BakAgain.World.Encounters {
             Material hadMaterial = renderer.sharedMaterial;
             Vector3 hadScale = transform.localScale;
 
-            foreach (SpriteBMeshFace face in run) {
-                Texture2D tex = await ctx.LoadSpriteTextureAsync($"{setName}#{face.BitmapIndex}", gameObject);
-                if (tex == null || this == null) {
-                    break;
-                }
+            // *** RUNS > 1: THE SLING THROWER POSES TWICE AND THEN STANDS. *** Creature 0x1a plays its slot-7
+            // pose, slot 0 (not blocking, so never drawn), the pose again, then slot 0 before its flight
+            // (CBTAITRN.C:121-126; CACTOR.C:1912-1918), where every other shooter holds the pose's last
+            // picture through the flight (TASK-1124).
+            for (var pass = 0; pass < runs; pass++) {
+                foreach (SpriteBMeshFace face in run) {
+                    Texture2D tex = await ctx.LoadSpriteTextureAsync($"{setName}#{face.BitmapIndex}", gameObject);
+                    if (tex == null || this == null) {
+                        break;
+                    }
 
-                (Mesh mesh, Vector3 scale) = TblSpriteConverter.BuildBillboard(
-                    face, Mathf.Abs(extent), tex.width, tex.height);
-                ctx.TrackMesh(mesh);
-                filter.sharedMesh = mesh;
-                renderer.sharedMaterial = ctx.GetSpriteMaterial(tex);
-                // Mirrored by the run's own facing, not the standing sprite's (FlipsFor).
-                transform.localScale = new Vector3(
-                    flip ? -Mathf.Abs(scale.x) : Mathf.Abs(scale.x), scale.y, scale.z);
-                CurrentFrame = face.BitmapIndex;
+                    (Mesh mesh, Vector3 scale) = TblSpriteConverter.BuildBillboard(
+                        face, Mathf.Abs(extent), tex.width, tex.height);
+                    ctx.TrackMesh(mesh);
+                    filter.sharedMesh = mesh;
+                    renderer.sharedMaterial = ctx.GetSpriteMaterial(tex);
+                    // Mirrored by the run's own facing, not the standing sprite's (FlipsFor).
+                    transform.localScale = new Vector3(
+                        flip ? -Mathf.Abs(scale.x) : Mathf.Abs(scale.x), scale.y, scale.z);
+                    CurrentFrame = face.BitmapIndex;
 
-                await UniTask.Delay(System.TimeSpan.FromSeconds(FrameSeconds));
-                if (this == null) {
-                    return;
+                    await UniTask.Delay(System.TimeSpan.FromSeconds(FrameSeconds));
+                    if (this == null) {
+                        return;
+                    }
                 }
             }
 
@@ -232,7 +240,7 @@ namespace BakAgain.World.Encounters {
             CurrentFrame = -1;   // the swing is over (the harness reads this); its picture holds
             // A held run stays on the sprite: the idle gait looks for it (ArenaIdleAnimator), and the
             // redraw that hands the turn on replaces the whole sprite (TASK-1107 D3).
-            if (drew) {
+            if (drew && runs <= 1) {
                 Holding = true;
                 return;
             }

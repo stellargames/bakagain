@@ -2654,6 +2654,8 @@ namespace BakAgain.Combat {
             // the pose with it, as a swing's does (TASK-1124 #1, #2).
             CombatEncounter.FaceToward(attacker, defender, evenOnly: false);
             attacker.PendingAttackSlot = CombatAnimSlot.Crossbow;
+            attacker.PendingAttackRuns =
+                CreatureClassOf(attacker) == CombatCapability.InnatelyMissileCreature ? 2 : 1;
             attacker.SwingPending = true;
             int? shotCue = RangedShotSound.Cue(quarrelKind, weapon.Info != null);
             // A rock's cue is its IMPACT, after the flight (CBTAITRN.C:130-132): held below.

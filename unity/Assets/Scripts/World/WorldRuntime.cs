@@ -1725,6 +1725,8 @@ namespace BakAgain.World {
                     continue;
                 }
                 swinging.SwingPending = false;
+                int runs = swinging.PendingAttackRuns;
+                swinging.PendingAttackRuns = 1;
                 var sprite = marker.GetComponent<Encounters.DirectionalSprite>();
                 string attackSet = null;
                 IReadOnlyList<GameData.Resources.World.MeshRecord> attackMeshes = null;
@@ -1740,7 +1742,8 @@ namespace BakAgain.World {
                 }
                 _posing[marker] = marker.gameObject.AddComponent<Encounters.AttackSwing>().Play(
                     _zoneSceneBuilder.RenderContext, attackMeshes, attackSet,
-                    sprite.CurrentOctant, marker.Extent, swinging.PendingAttackSlot).Preserve();
+                    sprite.CurrentOctant, marker.Extent, swinging.PendingAttackSlot,
+                    runs).Preserve();
             }
 
             // *** A SHOT ARMED BY THE MODEL FLIES HERE. *** Same carry-across as the swing above:

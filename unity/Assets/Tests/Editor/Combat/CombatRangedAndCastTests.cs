@@ -816,6 +816,24 @@ namespace BakAgain.Tests.Editor.Combat {
         }
 
         /// <summary>
+        /// Creature 0x1a (the sling thrower) poses twice before its stone flies, and every other shooter
+        /// once (CBTAITRN.C:121-126; TASK-1124).
+        /// </summary>
+        [Test]
+        public void TheSlingThrowerPosesTwice() {
+            GameSession session = SessionWith((CrossbowId, 100), (QuarrelId, 10));
+            session.SetRosterActorForTest(400, StatBlock(), CombatCapability.InnatelyMissileCreature, gridX: 5, gridY: 5);
+            var runtime = new CombatRuntime(session, null, Entries(), Objects()) { HoldSwingCues = true };
+            CombatEncounter fight = runtime.EnterRoster(new short[] { 400 });
+
+            runtime.ResolveShot(fight.Enemies[0], fight.Party[0], quarrelKind: 9, AlwaysHigh);
+            runtime.ResolveShot(fight.Party[0], fight.Enemies[0], quarrelKind: 0, AlwaysHigh);
+
+            Assert.AreEqual(2, fight.Enemies[0].PendingAttackRuns, "the sling thrower");
+            Assert.AreEqual(1, fight.Party[0].PendingAttackRuns, "a crossbow");
+        }
+
+        /// <summary>
         /// The shooter's crossbow wears LAST, after the hit sound and the damage, so a snap sounds
         /// after the bolt has landed (CBTAITRN.C:162, 174-177). The port wore it before the flight and
         /// snapped at the click (TASK-1124 #6).
