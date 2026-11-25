@@ -32,7 +32,7 @@ namespace BakAgain.World.Encounters {
 
         /// <summary>How long one picture is shown: <see cref="FrameDelayTicks"/> ARENA frames
         /// (<see cref="GameData.Resources.Combat.ArenaFrame"/>), not timer ticks (TASK-768).</summary>
-        public static float FrameSeconds => (float)(FrameDelayTicks / GameData.Resources.Combat.ArenaFrame.PerSecond);
+        public static float FrameSeconds => (float)(FrameDelayTicks / Core.GameOptions.ArenaFramesPerSecond);
 
         /// <summary>The bitmap index currently on screen, or -1 outside a run.</summary>
         public int CurrentFrame { get; private set; } = -1;

@@ -96,6 +96,18 @@ namespace BakAgain.UI {
 
         internal static ShadowMode NextShadows(ShadowMode mode) => (ShadowMode)(((int)mode + 1) % 3);
 
+        /// <summary>The combat speed row: "Combat speed: Normal". A click steps Slow, Normal, Fast, Ultra and round.</summary>
+        internal static string CombatSpeedText(GameData.Resources.Combat.CombatSpeed speed) =>
+            Templates.Format(Templates.CombatSpeedKey, ("state", Templates.Format(speed switch {
+                GameData.Resources.Combat.CombatSpeed.Slow => Templates.CombatSpeedSlow,
+                GameData.Resources.Combat.CombatSpeed.Fast => Templates.CombatSpeedFast,
+                GameData.Resources.Combat.CombatSpeed.Ultra => Templates.CombatSpeedUltra,
+                _ => Templates.CombatSpeedNormal,
+            })));
+
+        internal static GameData.Resources.Combat.CombatSpeed NextCombatSpeed(GameData.Resources.Combat.CombatSpeed speed) =>
+            (GameData.Resources.Combat.CombatSpeed)(((int)speed + 1) % 4);
+
         // Here, not in OnBeforeShowAsync: the document has no root until the screen is active.
         protected override UniTask BuildWhileHiddenAsync() {
             VisualElement root = GetComponent<UIDocument>()?.rootVisualElement;
@@ -191,6 +203,8 @@ namespace BakAgain.UI {
                     () => EnhancedRowEnabled(_draft, feature), () => _draft[feature] = !_draft[feature]);
             }
             Row(features, () => ShadowsText(_draft.Shadows), () => _draft.Master, () => _draft.Shadows = NextShadows(_draft.Shadows));
+            Row(features, () => CombatSpeedText(_draft.CombatSpeed), () => true,
+                () => _draft.CombatSpeed = NextCombatSpeed(_draft.CombatSpeed)).name = "combat_speed";
 
             folders.Add(Text(Templates.Format(Templates.EnhancedFoldersHeading), "enhanced-settings__heading"));
             folders.Add(Text(Templates.Format(Templates.EnhancedGameFolder), "enhanced-settings__label"));

@@ -32,4 +32,15 @@ namespace GameData.Resources.Combat;
 public static class ArenaFrame {
     /// <summary>Arena frames per second (see the remarks: chosen near the original's measured pace).</summary>
     public const double PerSecond = 50.0 / 3;
+
+    /// <summary>The player's combat speed (a port setting): <see cref="PerSecond"/> times 0.75, 1, 1.5 or 2.</summary>
+    public static double Rate(CombatSpeed speed) => PerSecond * speed switch {
+        CombatSpeed.Slow => 0.75,
+        CombatSpeed.Fast => 1.5,
+        CombatSpeed.Ultra => 2.0,
+        _ => 1.0,
+    };
 }
+
+/// <summary>How fast combat animates (TASK-1136, owner 2026-11-25). Normal is <see cref="ArenaFrame.PerSecond"/>.</summary>
+public enum CombatSpeed { Slow, Normal, Fast, Ultra }

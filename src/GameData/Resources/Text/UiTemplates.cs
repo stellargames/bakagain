@@ -191,6 +191,11 @@ public static class UiTemplates {
     /// "Update <c>{version}</c> available. Click to download.", a link to the download page.</summary>
     public const string EnhancedCheckForUpdates = "port:template:enhanced_check_for_updates";
     public const string RestoreShopBuybackBug = "port:template:restore_shop_buyback_bug";
+    public const string CombatSpeedKey = "port:template:combat_speed";
+    public const string CombatSpeedSlow = "port:template:combat_speed_slow";
+    public const string CombatSpeedNormal = "port:template:combat_speed_normal";
+    public const string CombatSpeedFast = "port:template:combat_speed_fast";
+    public const string CombatSpeedUltra = "port:template:combat_speed_ultra";
     public const string UpdateAvailable = "port:template:update_available";
 
     /// <summary>The Controls page of the Enhanced settings (TASK-1080): a row per remappable key,
@@ -509,6 +514,11 @@ public static class UiTemplates {
         (EnhancedSave, _ => "Save"),
         (EnhancedCheckForUpdates, _ => "Check for updates"),
         (RestoreShopBuybackBug, _ => "Restore shop buyback bug"),
+        (CombatSpeedKey, _ => "Combat speed: {state}"),
+        (CombatSpeedSlow, _ => "Slow"),
+        (CombatSpeedNormal, _ => "Normal"),
+        (CombatSpeedFast, _ => "Fast"),
+        (CombatSpeedUltra, _ => "Ultra"),
         (UpdateAvailable, _ => "Update {version} available. Click to download."),
         (ControlsTitle, _ => "Controls"),
         (ControlsRow, _ => "{action}: {key}"),

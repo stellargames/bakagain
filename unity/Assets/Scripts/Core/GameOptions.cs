@@ -83,6 +83,24 @@ namespace BakAgain.Core {
         /// <summary>The shadows to draw: the choice under the master switch, Off in the faithful game.</summary>
         public static ShadowMode ShadowsShown => Enhanced ? Shadows : ShadowMode.Off;
 
+        private const string CombatSpeedKey = "combat speed";
+
+        /// <summary>How fast combat animates, in Classic and Enhanced alike (TASK-1136); Normal until chosen.</summary>
+        public static GameData.Resources.Combat.CombatSpeed CombatSpeed {
+            get {
+                int v = PlayerPrefs.GetInt(CombatSpeedKey, (int)GameData.Resources.Combat.CombatSpeed.Normal);
+                return v is >= 0 and <= (int)GameData.Resources.Combat.CombatSpeed.Ultra
+                    ? (GameData.Resources.Combat.CombatSpeed)v : GameData.Resources.Combat.CombatSpeed.Normal;
+            }
+            set {
+                PlayerPrefs.SetInt(CombatSpeedKey, (int)value);
+                PlayerPrefs.Save();
+            }
+        }
+
+        /// <summary>Arena frames a second at the chosen combat speed: the clock every arena animation steps on.</summary>
+        public static double ArenaFramesPerSecond => GameData.Resources.Combat.ArenaFrame.Rate(CombatSpeed);
+
         private const string RestoreShopBuybackBugKey = "restore shop buyback bug";
 
         /// <summary>

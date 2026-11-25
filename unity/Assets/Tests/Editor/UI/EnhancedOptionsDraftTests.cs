@@ -47,6 +47,23 @@ namespace BakAgain.Tests.Editor.UI {
         }
 
         [Test]
+        public void CombatSpeedStepsRoundAndSetsTheArenaClockOnCommit() {
+            Assert.AreEqual(GameData.Resources.Combat.CombatSpeed.Normal, GameOptions.CombatSpeed);
+            Assert.AreEqual(50.0 / 3, GameOptions.ArenaFramesPerSecond, 1e-9);
+
+            EnhancedOptionsDraft draft = EnhancedOptionsDraft.Load();
+            draft.CombatSpeed = EnhancedSettingsScreen.NextCombatSpeed(draft.CombatSpeed);
+            Assert.AreEqual(GameData.Resources.Combat.CombatSpeed.Fast, draft.CombatSpeed);
+            Assert.AreEqual(50.0 / 3, GameOptions.ArenaFramesPerSecond, 1e-9, "not before Save");
+            draft.Commit();
+
+            Assert.AreEqual(25.0, GameOptions.ArenaFramesPerSecond, 1e-9);
+            Assert.AreEqual("Combat speed: Fast", EnhancedSettingsScreen.CombatSpeedText(draft.CombatSpeed));
+            Assert.AreEqual(GameData.Resources.Combat.CombatSpeed.Slow,
+                EnhancedSettingsScreen.NextCombatSpeed(GameData.Resources.Combat.CombatSpeed.Ultra), "Ultra steps round to Slow");
+        }
+
+        [Test]
         public void TheHealthRingsRowNeedsFullScreenTravel() {
             var draft = new EnhancedOptionsDraft { Master = true };
             foreach (EnhancedFeature f in System.Enum.GetValues(typeof(EnhancedFeature))) draft[f] = true;
