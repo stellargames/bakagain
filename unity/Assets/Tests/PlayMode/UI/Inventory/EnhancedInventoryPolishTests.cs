@@ -342,28 +342,35 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         }
 
         /// <summary>
-        /// While an item is examined, any button only ends the examine: the original waits in
-        /// dialog_poll_arrow_or_button (DIALOG.C:155-175, INVINSP.C:424-426). A portrait click
-        /// switched packs, a right-click on one opened the sheet (TASK-1129 row 10).
+        /// A portrait clicked during an examine ends it and opens that member's sheet, with either
+        /// button: measured in the original 2026-11-25 (t1008:1:3, rations examined, left click on Owyn
+        /// and Gorath, right click on Owyn). Anything else only ends the examine (DIALOG.C:155-175).
+        /// The pack never switches (TASK-1129 row 10).
         /// </summary>
         [Test]
-        public void APortraitClickDuringAnExamineOnlyEndsIt() {
+        public void APortraitClickDuringAnExamineEndsItAndOpensTheSheet() {
+            var opened = new System.Collections.Generic.List<int>();
+            _menu.CharacterSheetOpening += opened.Add;
             Set("_inspectOpen", true);
             _menu.PrimaryAction(3);
             Assert.AreSame(_chest, typeof(InventoryMenu).GetField("_displayed", Any).GetValue(_menu),
                 "the pack shown is unchanged");
             Assert.IsFalse((bool)typeof(InventoryMenu).GetField("_inspectOpen", Any).GetValue(_menu),
                 "the click ended the examine");
+            CollectionAssert.AreEqual(new[] { 1 }, opened, "a left click opens the sheet");
 
             Set("_inspectOpen", true);
             _menu.SecondaryAction(3);
             Assert.IsFalse((bool)typeof(InventoryMenu).GetField("_inspectOpen", Any).GetValue(_menu),
-                "a right-click on a portrait ends it too, rather than opening the sheet");
+                "a right-click on a portrait ends it too");
+            CollectionAssert.AreEqual(new[] { 1, 1 }, opened, "and opens the sheet");
 
             Set("_inspectOpen", true);
             Call("OnSecondaryPressed", Vector2.zero);
             Assert.IsFalse((bool)typeof(InventoryMenu).GetField("_inspectOpen", Any).GetValue(_menu),
-                "and so does a right-click anywhere");
+                "a right-click anywhere ends it");
+            CollectionAssert.AreEqual(new[] { 1, 1 }, opened, "and opens nothing");
+            _menu.CharacterSheetOpening -= opened.Add;
         }
 
         /// <summary>

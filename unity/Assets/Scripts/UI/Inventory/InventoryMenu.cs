@@ -2017,9 +2017,9 @@ namespace BakAgain.UI.Inventory {
         /// <c>_inspectClosing</c> guard is what keeps the half-torn-down state from being re-entered
         /// (the original is a blocking call chain and can't be re-entered at all).</para>
         /// </summary>
-        private void CloseInspect() => CloseInspectAsync().Forget();
+        private void CloseInspect(System.Action then = null) => CloseInspectAsync(then).Forget();
 
-        private async UniTaskVoid CloseInspectAsync() {
+        private async UniTaskVoid CloseInspectAsync(System.Action then = null) {
             if (_inspectClosing) {
                 return;
             }
@@ -2055,7 +2055,16 @@ namespace BakAgain.UI.Inventory {
             } finally {
                 _inspectClosing = false;
             }
+            then?.Invoke();
         }
+
+        // A portrait clicked during an examine ends it and then opens that member's sheet, with
+        // either button: measured in the original 2026-11-25 (t1008:1:3, Locklear's rations examined,
+        // a left click on Owyn and on Gorath, a right click on Owyn). The right button is
+        // CMBINV.C:331-336 handling the click once the examine returns; why a left click takes the
+        // same arm is not tied to a line (TASK-1129 row 10).
+        private void CloseInspectThenOpenSheet(int portraitSlot) =>
+            CloseInspect(() => OpenCharacterSheet(portraitSlot));
 
         /// <summary>
         /// Swap the inspect view for the "More Info" stat panel (<c>UI_showItemStats</c> @0x5A1DA).
@@ -3459,7 +3468,11 @@ namespace BakAgain.UI.Inventory {
             // dialog_poll_arrow_or_button (DIALOG.C:155-175, INVINSP.C:424-426). More Info keeps
             // its own arm (INVINSP.C:403-417), and Exit ends the examine below (TASK-1129 row 10).
             if (_inspectOpen && actionId != ButtonMoreInfo && actionId != ButtonExit) {
-                CloseInspect();
+                if (actionId is >= PortraitSlot1 and <= PortraitSlot1 + 2) {
+                    CloseInspectThenOpenSheet(actionId - PortraitSlot1);
+                } else {
+                    CloseInspect();
+                }
                 return;
             }
             switch (actionId) {
@@ -3627,7 +3640,11 @@ namespace BakAgain.UI.Inventory {
                 return default;   // the flight is a blocking loop in the original (TASK-1129 row 12)
             }
             if (_inspectOpen) {
-                CloseInspect();   // any button ends an examine (TASK-1129 row 10)
+                if (actionId is >= 2 and <= 4) {
+                    CloseInspectThenOpenSheet(actionId - 2);
+                } else {
+                    CloseInspect();   // any button ends an examine (TASK-1129 row 10)
+                }
                 return default;
             }
             // A right-click keeps the portraits and the purse (CMBINV.C:313-326 zeroes every other
@@ -3666,10 +3683,13 @@ namespace BakAgain.UI.Inventory {
         /// A member's character sheet from the inventory — right-click or Shift on a portrait. The
         /// picklock arm plays no cue (CMBINV.C:414-419); the party arm does (:338).
         /// </summary>
+        internal event System.Action<int> CharacterSheetOpening;
+
         private void OpenCharacterSheet(int portraitSlot) {
             if (CharacterIndexOf(portraitSlot) < 0) {   // `target <= partySize`
                 return;
             }
+            CharacterSheetOpening?.Invoke(portraitSlot);
             if (!IsLockMode) {
                 Audio.MenuSoundService.Instance?.Play(MemberSwitchSoundId);
             }
