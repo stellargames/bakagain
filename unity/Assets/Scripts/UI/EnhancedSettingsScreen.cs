@@ -164,6 +164,11 @@ namespace BakAgain.UI {
 
         internal SettingsPage CurrentPage => _page;
 
+        /// <summary>Lays the book out for fingers (taller lines and bookmarks) whatever the platform; tests.</summary>
+        internal static bool? TouchOverride;
+
+        private static bool Touch => TouchOverride ?? Application.isMobilePlatform;
+
         /// <summary>A page's name in element names: <c>bookmark-combat</c>, <c>bookmark-game-files</c>.</summary>
         internal static string NameOf(SettingsPage page) =>
             page == SettingsPage.GameFiles ? "game-files" : page.ToString().ToLowerInvariant();
@@ -198,7 +203,7 @@ namespace BakAgain.UI {
             if (_page == SettingsPage.Audio) Audio.MidiPlaybackManager.Instance?.StartPreviewSongAsync(_resources).Forget();
             else Audio.MidiPlaybackManager.Instance?.StopPreviewSong();
             _panel = MovedElements.Box("enhanced-book");
-            _panel.EnableInClassList("enhanced-book--touch", Application.isMobilePlatform);
+            _panel.EnableInClassList("enhanced-book--touch", Touch);
             _panel.Add(Text(Templates.Format(EnhancedSettingsPages.TitleKey(_page)), "enhanced-book__title"));
 
             VisualElement content = MovedElements.Box("enhanced-book__content");
@@ -207,7 +212,7 @@ namespace BakAgain.UI {
             }
             _panel.Add(content);
 
-            _hint = Text(Templates.Format(Templates.SettingsHintIdle), "enhanced-book__hint");
+            _hint = Text(Templates.Format(Touch ? Templates.SettingsHintIdleTouch : Templates.SettingsHintIdle), "enhanced-book__hint");
             _hint.name = "hint";
             _panel.Add(_hint);
 

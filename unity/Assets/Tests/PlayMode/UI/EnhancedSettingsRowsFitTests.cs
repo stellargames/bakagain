@@ -23,10 +23,12 @@ namespace BakAgain.Tests.PlayMode.UI {
             UniTask.ToCoroutine(async () => {
                 uint height = width == 1600u ? 1200u : 1080u;
                 GameViewResolutionScope view = GameViewResolutionScope.Force(width, height);
+                EnhancedSettingsScreen.TouchOverride = width == 2400u; // the phone lays out for fingers
                 await Frames(2);
                 try {
                     await OpenAsync();
                     var problems = new List<string>();
+                    float finger = 0;
                     foreach (SettingsPage page in EnhancedSettingsPages.Order) {
                         await ClickAsync("bookmark-" + EnhancedSettingsScreen.NameOf(page));
                         await Frames(2);
@@ -35,6 +37,8 @@ namespace BakAgain.Tests.PlayMode.UI {
                             if (item.Kind == SettingKind.KeyList) continue;
                             VisualElement line = Named(item.Id);
                             if (line.worldBound.yMax > top + 0.5f) problems.Add($"{page}/{item.Id} bottom {line.worldBound.yMax:0} > OK top {top:0}");
+                            if (line.worldBound.xMax > Root.Q(className: "enhanced-book__content").worldBound.xMax + 0.5f) problems.Add($"{page}/{item.Id} runs off the page's right");
+                            if (item.Kind == SettingKind.Check) finger = line.worldBound.height;
                         }
                         Rect window = Root.worldBound;
                         foreach (SettingsPage p in EnhancedSettingsPages.Order) {
@@ -43,8 +47,16 @@ namespace BakAgain.Tests.PlayMode.UI {
                                 problems.Add($"{page}: bookmark {p} {b.xMin:0}..{b.xMax:0} outside the window {window.xMin:0}..{window.xMax:0}");
                         }
                     }
+                    if (width == 2400u) {
+                        // 7 mm on a 6.7" 1080x2400 phone (~400 dpi): 7 / 25.4 * 400 px of 1080.
+                        float sevenMm = 7f / 25.4f * 400f / 1080f * Root.worldBound.height;
+                        if (finger < sevenMm) problems.Add($"a line is {finger:0} high, under a finger's 7 mm ({sevenMm:0})");
+                        float mark = Named("bookmark-general").worldBound.height;
+                        if (mark < sevenMm) problems.Add($"a bookmark is {mark:0} high, under 7 mm ({sevenMm:0})");
+                    }
                     Assert.IsEmpty(problems, $"{width}x{height}:\n  " + string.Join("\n  ", problems));
                 } finally {
+                    EnhancedSettingsScreen.TouchOverride = null;
                     await CloseAsync();
                     view.Restore();
                 }
