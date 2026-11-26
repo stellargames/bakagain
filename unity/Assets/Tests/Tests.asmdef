@@ -25,7 +25,8 @@
         "GameData.dll",
         "ResourceExtraction.dll",
         "Microsoft.Extensions.Logging.Abstractions.dll",
-        "Newtonsoft.Json.dll"
+        "Newtonsoft.Json.dll",
+        "MeltySynth.dll"
     ],
     "autoReferenced": false,
     "defineConstraints": [
