@@ -37,10 +37,13 @@ namespace BakAgain.UI {
         private readonly List<(Button Row, Func<string> Caption, Func<bool> Enabled)> _rows = new();
 
         private IReadOnlyList<RebindSlot> _slots;
+        private IResourceProviderService _resources;
+        private readonly List<Slider> _sliders = new();
 
         [Inject]
         public void Construct(Navigation.IScreenNavigator navigator, InputLayerStack stack, ICursorManager cursor, ModsScreen modsScreen,
-            SystemInputSource input) {
+            SystemInputSource input, IResourceProviderService resources) {
+            _resources = resources;
             _slots = input?.RebindSlots;
             _navigator = navigator;
             _modsScreen = modsScreen;
@@ -101,12 +104,19 @@ namespace BakAgain.UI {
                 widgets.Add(new NavWidget(b, b.Q<Label>("caption")?.text ?? string.Empty, () => RowRect(b),
                     () => { if (b.enabledSelf && !FileBrowser.IsOpen && !Rebinding) ClickOf(b)?.Invoke(); }, null));
             }
+            foreach (Slider slider in _sliders) {
+                Slider sl = slider;
+                string id = sl.name[..^"-slider".Length];
+                widgets.Add(new NavWidget(sl, id, () => RowRect(sl), () => StepSlider(sl, id), null));
+            }
             _layer = new NavigableLayer("enhanced-settings", CaptureMode.Exclusive, widgets, CancelOrClosePicker, _cursor);
             _stack?.Push(_layer);
         }
 
         protected override void OnBeforeHide() {
             _rebind?.Cancel();
+            Audio.MidiPlaybackManager.Instance?.StopPreviewSong();
+            Audio.AudioLevels.ResetToSaved(); // after Save these are the new levels; otherwise the old ones come back
             if (_layer != null) {
                 _stack?.Remove(_layer);
                 _layer = null;
@@ -121,7 +131,7 @@ namespace BakAgain.UI {
         private Action ClickOf(Button b) => _clicks.TryGetValue(b, out Action a) ? a : null;
 
         // A row on the Controls page is cut to the list's viewport, as on the Mods screen.
-        private Rect RowRect(Button row) {
+        private Rect RowRect(VisualElement row) {
             UIDocument document = GetComponent<UIDocument>();
             Rect rect = CanonicalRect(document, row);
             return _scroll != null && _scroll.Contains(row)
@@ -175,7 +185,11 @@ namespace BakAgain.UI {
             _clicks.Clear();
             _paths.Clear();
             _icons.Clear();
+            _sliders.Clear();
             _scroll = null;
+            // The Audio page plays a song to listen to when none is sounding; leaving the page ends it.
+            if (_page == SettingsPage.Audio) Audio.MidiPlaybackManager.Instance?.StartPreviewSongAsync(_resources).Forget();
+            else Audio.MidiPlaybackManager.Instance?.StopPreviewSong();
             _panel = MovedElements.Box("enhanced-book");
             _panel.EnableInClassList("enhanced-book--touch", Application.isMobilePlatform);
             _panel.Add(Text(Templates.Format(EnhancedSettingsPages.TitleKey(_page)), "enhanced-book__title"));
@@ -257,6 +271,11 @@ namespace BakAgain.UI {
                     var slider = new Slider(0f, 1f) { value = LevelOf(item.Id), name = item.Id + "-slider" };
                     slider.AddToClassList("enhanced-book__slider");
                     slider.RegisterValueChangedCallback(e => SetLevel(item.Id, e.newValue));
+                    if (item.Id == "sound_volume") {
+                        // Heard when let go, not on every step of a drag.
+                        slider.RegisterCallback<PointerCaptureOutEvent>(_ => Audio.MenuSoundService.Cue(Audio.MenuSoundService.PoundSoundId));
+                    }
+                    _sliders.Add(slider);
                     group.Add(slider);
                     parent.Add(group);
                     break;
@@ -341,9 +360,18 @@ namespace BakAgain.UI {
 
         private float LevelOf(string id) => id == "music_volume" ? _draft.MusicVolume : _draft.SoundVolume;
 
+        /// <summary>A slider moved: into the draft, and heard at once (Cancel puts the saved level back).</summary>
         private void SetLevel(string id, float level) {
-            if (id == "music_volume") _draft.MusicVolume = level;
-            else _draft.SoundVolume = level;
+            if (id == "music_volume") _draft.MusicVolume = Audio.AudioLevels.Music = level;
+            else _draft.SoundVolume = Audio.AudioLevels.Sound = level;
+        }
+
+        /// <summary>A slider has no left and right of its own under the page's arrow keys, which move between
+        /// lines: Enter steps it a quarter up, round from full to silent.</summary>
+        private static void StepSlider(Slider slider, string id) {
+            float next = slider.value >= 0.999f ? 0f : Mathf.Min(1f, Mathf.Round(slider.value * 4f + 1f) / 4f);
+            slider.value = next;
+            if (id == "sound_volume") Audio.MenuSoundService.Cue(Audio.MenuSoundService.PoundSoundId);
         }
 
         /// <summary>One line of a page: the original's check box or radio button and its words, the whole

@@ -147,6 +147,12 @@ namespace BakAgain.Audio {
                 return;
             }
 
+            _previewing = false; // a real song takes over from a listening one
+            StartSong(audioResource, midiData);
+        }
+
+        /// <summary>Loads and starts <paramref name="audioResource"/> on the song player (its MIDI already found).</summary>
+        private void StartSong(AudioResource audioResource, byte[] midiData) {
             if (_songPlayer.IsPlaying) {
                 _logger.LogInformation("Stopping currently playing song ID {PreviousSongId} (Name: {PreviousSongName}) before playing new song ID {NewSongId} (Name: {NewSongName}).", _currentSongId,
                     _songPlayer.MidiName, audioResource.Id, audioResource.Name);
@@ -159,6 +165,34 @@ namespace BakAgain.Audio {
             _songPlayer.Play(loop: audioResource.IsLooping);
             _currentSongId = audioResource.Id;
             _logger.LogInformation("Playing song: {SongName} (ID: {SongId})", audioResource.Name, _currentSongId);
+        }
+
+        private bool _previewing;
+
+        /// <summary>
+        /// Plays the main menu's song for the settings screen's music slider, so the level can be heard,
+        /// when no song is sounding — even with Game Music switched off, as the player is choosing how loud
+        /// it should be. It is not the current track: <see cref="StopPreviewSong"/> ends it, and a real
+        /// song played meanwhile takes over (TASK-1145).
+        /// </summary>
+        public async UniTask StartPreviewSongAsync(IResourceProviderService resources) {
+            if (_songPlayer == null || _songPlayer.IsPlaying) return;
+            AudioResource song = await resources.LoadAssetAsync<AudioResource>(
+                MusicSelection.MainMenuTrack.ToString(), this);
+            if (song == null || _songPlayer.IsPlaying
+                || !song.Variants.TryGetValue((byte)soundDriver, out AudioDataResource data) || data.MidiData == null) {
+                return;
+            }
+            StartSong(song, data.MidiData);
+            _previewing = true;
+        }
+
+        /// <summary>Stops the song <see cref="StartPreviewSongAsync"/> started, if it still plays; any other
+        /// song is left alone.</summary>
+        public void StopPreviewSong() {
+            if (!_previewing) return;
+            _previewing = false;
+            _songPlayer.Stop();
         }
 
         public void PlaySfx(AudioResource audioResource) {

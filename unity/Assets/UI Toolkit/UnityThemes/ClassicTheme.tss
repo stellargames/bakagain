@@ -368,6 +368,14 @@
 .enhanced-book__heading { height: 84px; flex-shrink: 0; -unity-text-align: middle-left; color: rgb(18, 11, 4); }
 .enhanced-book--touch .enhanced-book__line, .enhanced-book--touch .enhanced-book__heading { height: 104px; }
 .enhanced-book__slider { height: 84px; flex-shrink: 0; margin: 0 4% 0 0; }
+/* The original has no slider: a groove cut like its bevelled buttons (dark top-left, light bottom-right,
+   the reverse of a raised button) and a raised button for the knob. */
+.enhanced-book__slider .unity-base-slider__tracker { height: 18px; margin-top: -9px; background-color: rgb(120, 84, 42);
+    border-width: 3px; border-color: rgb(62, 43, 20) rgb(166, 146, 63) rgb(166, 146, 63) rgb(62, 43, 20); border-radius: 0; }
+.enhanced-book__slider .unity-base-slider__dragger { width: 36px; height: 56px; margin-top: -28px; background-color: rgb(154, 109, 56);
+    border-width: 3px; border-color: rgb(166, 146, 63) rgb(62, 43, 20) rgb(62, 43, 20) rgb(166, 146, 63); border-radius: 0; }
+.enhanced-book__slider .unity-base-slider__dragger-border { display: none; }
+.enhanced-book__slider:focus .unity-base-slider__dragger { background-color: rgb(186, 136, 70); }
 .enhanced-book__keys { width: 100%; flex-grow: 1; flex-shrink: 1; flex-basis: 0; }
 .enhanced-book__keys .enhanced-book__line { width: 100%; }
 .enhanced-book__button { height: 72px; width: 300px; margin: 0 0 0 24px; flex-shrink: 0; }
