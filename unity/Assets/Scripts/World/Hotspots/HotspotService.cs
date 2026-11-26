@@ -6890,15 +6890,21 @@ using GameData.Resources.Scene;
             }
 
             // Stamped when the player picks the group out in the world (HintEncounter, TASK-795).
-            if (!GameData.Resources.World.CombatEncounterOpening.WasRecentlyVisited(
-                    _session.GameTimeIn2Seconds, _session.EncounterVisitedTimes.VisitedAt(encounter))) {
-                return false;
-            }
+            bool recent = GameData.Resources.World.CombatEncounterOpening.WasRecentlyVisited(
+                _session.GameTimeIn2Seconds, _session.EncounterVisitedTimes.VisitedAt(encounter));
+            int member = 0;
+            GameData.Resources.World.CombatEncounterOpening.Opening opening = recent
+                ? GameData.Resources.World.CombatEncounterOpening.Resolve(recentlyVisited: true,
+                    _random(100), _session.PartyExtreme(ActorAttribute.Stealth, out member))
+                : GameData.Resources.World.CombatEncounterOpening.Opening.NotRecent;
 
-            int best = _session.PartyExtreme(ActorAttribute.Stealth, out int member);
-            GameData.Resources.World.CombatEncounterOpening.Opening opening =
-                GameData.Resources.World.CombatEncounterOpening.Resolve(
-                    recentlyVisited: true, _random(100), best);
+            // *** THE ENTRY LINE IS TOLD HOW THE FIGHT OPENS. *** HOTSPOT.C:516-523 (and :767-774
+            // for a trap) write nEvtArgCount = 0/1/2 before dialog_play_record, and the entry records
+            // branch on it as Var 0 (dialog 21: 0 "caught off guard", 1 "sensed their approach",
+            // else level terms). Never written here, the line read whatever an earlier dialog left,
+            // so it promised the drop on fights the enemy opened and the reverse (forum p99).
+            _session.SetGlobalValue(GameData.Resources.GameState.GameStateEventFields.FieldBase,
+                (int)opening);
 
             if (!GameData.Resources.World.CombatEncounterOpening.PartyHasTheDrop(opening)) {
                 return false;

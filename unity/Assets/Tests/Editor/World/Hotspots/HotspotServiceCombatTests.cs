@@ -128,6 +128,28 @@ namespace BakAgain.Tests.Editor.World.Hotspots {
         private static int FoughtFlag(Rig rig) =>
             rig.Session.GetGlobalValue(HotspotRules.EncounterFoughtKey(EncounterNumber)) ?? 0;
 
+        /// <summary>
+        /// The entry line's wording follows the surprise roll: dialog Var 0 (<c>nEvtArgCount</c>) is 0
+        /// when the party got the drop, 1 when the roll failed and 2 when they were not here recently,
+        /// written before the record plays (HOTSPOT.C:513-523, :764-774). Dialog 21 branches on it, so
+        /// left stale it told the player they had the drop on fights where the enemy moved first.
+        /// </summary>
+        [TestCase(0, 0L, 0, true)]      // a roll at or under Stealth 20: the drop
+        [TestCase(99, 0L, 1, false)]    // the roll failed
+        [TestCase(0, 100000L, 2, false)] // last seen long ago: no roll at all
+        public void TheEntryLineIsToldHowTheFightOpens(int roll, long gameTime, int expectedVar0,
+            bool expectedDrop) {
+            Rig rig = Build(roll: roll);
+            rig.Session.GameTimeIn2Seconds = gameTime;
+            // A stale value an earlier dialog left behind: 0 reads as "the party has the drop".
+            rig.Session.SetGlobalValue(GameStateEventFields.FieldBase, expectedVar0 == 0 ? 3 : 0);
+
+            Assert.IsTrue(rig.Service.StartCombat(CombTrigger()));
+
+            Assert.AreEqual(expectedVar0, rig.Session.GetGlobalValue(GameStateEventFields.FieldBase));
+            Assert.AreEqual(expectedDrop, rig.Service.Combat.PartyHasTheDrop);
+        }
+
         [Test]
         public void StartCombatOpensTheFightAndTurnsTheMusicOn() {
             Rig rig = Build();
