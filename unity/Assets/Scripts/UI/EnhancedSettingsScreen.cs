@@ -231,7 +231,12 @@ namespace BakAgain.UI {
                 mark.AddToClassList("enhanced-book__bookmark--" + NameOf(p));
                 mark.EnableInClassList("enhanced-book__bookmark--open", p == _page);
                 if (cloth != null) mark.style.backgroundImage = Background.FromTexture2D(cloth);
+                // One text size for every bookmark on every page (owner): out of the screen-wide fit,
+                // which the Controls page's long key names shrink, and fitted among themselves.
+                mark.Q<Label>("caption")?.RemoveFromClassList(GameFontText.CaptionClass);
             }
+            marks.RegisterCallback<GeometryChangedEvent>(_ =>
+                GameFontText.FitTogether(marks.Query<Label>("caption").ToList()));
             _panel.Add(marks);
 
             stage.Add(_panel);
@@ -310,20 +315,29 @@ namespace BakAgain.UI {
                     VisualElement group = MovedElements.Box("enhanced-book__group");
                     group.name = item.Id;
                     group.Add(Text(Templates.Format(item.LabelKey), "enhanced-book__heading"));
+                    VisualElement row = MovedElements.Box("enhanced-book__slider-row");
                     var slider = new Slider(0f, 1f) { value = LevelOf(item.Id), name = item.Id + "-slider" };
                     slider.AddToClassList("enhanced-book__slider");
-                    slider.RegisterValueChangedCallback(e => SetLevel(item.Id, e.newValue));
+                    Label percent = Text(PercentOf(slider.value), "enhanced-book__percent");
+                    percent.name = item.Id + "-percent";
+                    slider.RegisterValueChangedCallback(e => {
+                        SetLevel(item.Id, e.newValue);
+                        percent.text = PercentOf(e.newValue);
+                    });
                     if (item.Id == "sound_volume") {
                         // Heard when let go, not on every step of a drag.
                         slider.RegisterCallback<PointerCaptureOutEvent>(_ => Audio.MenuSoundService.Cue(Audio.MenuSoundService.PoundSoundId));
                     }
                     _sliders.Add(slider);
-                    group.Add(slider);
+                    row.Add(slider);
+                    row.Add(percent);
+                    group.Add(row);
                     parent.Add(group);
                     break;
                 }
                 case SettingKind.Path: {
                     VisualElement group = MovedElements.Box("enhanced-book__group");
+                    group.AddToClassList("enhanced-book__group--path");
                     group.name = item.Id;
                     group.Add(Text(Templates.Format(item.LabelKey), "enhanced-book__heading"));
                     bool game = item.Id == "game_folder";
@@ -399,6 +413,8 @@ namespace BakAgain.UI {
             if (id == "shadows") _draft.Shadows = (ShadowMode)choice;
             else _draft.CombatSpeed = (GameData.Resources.Combat.CombatSpeed)choice;
         }
+
+        private static string PercentOf(float level) => Templates.Percent(Mathf.RoundToInt(level * 100f));
 
         private float LevelOf(string id) => id == "music_volume" ? _draft.MusicVolume : _draft.SoundVolume;
 

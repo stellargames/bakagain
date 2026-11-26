@@ -107,5 +107,23 @@ namespace BakAgain.Tests.PlayMode.UI {
                     prefs.Apply(saved);
                 }
             });
+
+        /// <summary>Owner, 2026-11-26: each volume slider shows its level as a percentage beside it.</summary>
+        [UnityTest]
+        [RequiresShippedGameData]
+        public IEnumerator ASliderShowsItsPercentage() => UniTask.ToCoroutine(async () => {
+            try {
+                await OpenAsync();
+                await ClickAsync("bookmark-audio");
+                SliderOf("music_volume").value = 0.3f;
+                await Frames(1);
+                Assert.AreEqual("30%", Root.Q<Label>("music_volume-percent")?.text);
+                SliderOf("sound_volume").value = 1f;
+                await Frames(1);
+                Assert.AreEqual("100%", Root.Q<Label>("sound_volume-percent")?.text);
+            } finally {
+                await CloseAsync();
+            }
+        });
     }
 }

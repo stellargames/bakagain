@@ -6,6 +6,7 @@ namespace BakAgain.Tests.PlayMode.UI {
     using BakAgain.UI.InputCore;
     using Cysharp.Threading.Tasks;
     using NUnit.Framework;
+    using UnityEngine;
     using UnityEngine.TestTools;
     using UnityEngine.UIElements;
 
@@ -99,6 +100,67 @@ namespace BakAgain.Tests.PlayMode.UI {
                 await CloseAsync();
                 await OpenAsync();
                 Assert.AreEqual("Audio", Title);
+            } finally {
+                await CloseAsync();
+            }
+        });
+
+        /// <summary>Owner, 2026-11-26: the bookmarks keep one text size on every page, one that fits them all
+        /// (the Controls page's long key names used to shrink them).</summary>
+        [UnityTest]
+        [RequiresShippedGameData]
+        public IEnumerator TheBookmarksKeepOneTextSizeOnEveryPage() => UniTask.ToCoroutine(async () => {
+            try {
+                await OpenAsync();
+                var sizes = new System.Collections.Generic.HashSet<float>();
+                foreach (SettingsPage page in EnhancedSettingsPages.Order) {
+                    await ClickAsync("bookmark-" + EnhancedSettingsScreen.NameOf(page));
+                    await Frames(3);
+                    foreach (SettingsPage p in EnhancedSettingsPages.Order) {
+                        Label caption = Named("bookmark-" + EnhancedSettingsScreen.NameOf(p)).Q<Label>("caption");
+                        sizes.Add(Mathf.Round(caption.resolvedStyle.fontSize * 10) / 10);
+                        Assert.LessOrEqual(caption.MeasureTextSize(caption.text, 0, VisualElement.MeasureMode.Undefined, 0,
+                            VisualElement.MeasureMode.Undefined).x, caption.parent.contentRect.width + 0.5f, $"{p} fits its bookmark");
+                    }
+                }
+                Assert.AreEqual(1, sizes.Count, "one size: " + string.Join(", ", sizes));
+            } finally {
+                await CloseAsync();
+            }
+        });
+
+        /// <summary>Owner, 2026-11-26: the check boxes and radio buttons were cut off at the bottom; they are
+        /// drawn at their native size, so their box must be as tall as the sprite.</summary>
+        [UnityTest]
+        [RequiresShippedGameData]
+        public IEnumerator TheCheckBoxesAndRadioButtonsAreWhole() => UniTask.ToCoroutine(async () => {
+            try {
+                await OpenAsync();
+                await ClickAsync("bookmark-display");
+                foreach (string id in new[] { "sky", "shadows-0" }) {
+                    VisualElement icon = Named(id).Q(className: "enhanced-book__icon");
+                    for (int i = 0; i < 120 && icon.resolvedStyle.backgroundImage.sprite == null; i++) await Frames(1);
+                    Sprite sprite = icon.resolvedStyle.backgroundImage.sprite;
+                    Assert.NotNull(sprite, id);
+                    Assert.GreaterOrEqual(icon.layout.height + 0.5f, sprite.rect.height, $"{id}: the box is as tall as the art");
+                    Assert.GreaterOrEqual(icon.layout.width + 0.5f, sprite.rect.width, $"{id}: and as wide");
+                }
+            } finally {
+                await CloseAsync();
+            }
+        });
+
+        /// <summary>Owner, 2026-11-26: the folder paths get the page's width, not half of it.</summary>
+        [UnityTest]
+        [RequiresShippedGameData]
+        public IEnumerator TheFolderPathsUseThePagesWidth() => UniTask.ToCoroutine(async () => {
+            try {
+                await OpenAsync();
+                await ClickAsync("bookmark-game-files");
+                float page = Root.Q(className: "enhanced-book__content").contentRect.width;
+                foreach (string id in new[] { "game_folder", "dev_folder" }) {
+                    Assert.Greater(Named(id).layout.width, page * 0.9f, id);
+                }
             } finally {
                 await CloseAsync();
             }
