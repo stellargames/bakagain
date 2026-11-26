@@ -19,9 +19,9 @@ namespace BakAgain.Tests.PlayMode.UI {
     public class EnhancedSettingsRowsFitTests : EnhancedSettingsBookFixture {
         [UnityTest]
         [RequiresShippedGameData]
-        public IEnumerator EveryLineOfEveryPageFitsAboveOkAndCancel([Values(1600u, 1920u, 2400u)] uint width) =>
+        public IEnumerator EveryLineOfEveryPageFitsAboveOkAndCancel([Values(1200u, 1600u, 1920u, 2400u)] uint width) =>
             UniTask.ToCoroutine(async () => {
-                uint height = width == 1600u ? 1200u : 1080u;
+                uint height = width <= 1600u ? 1200u : 1080u; // 1200x1200: a square window, narrower than the page (review I2)
                 GameViewResolutionScope view = GameViewResolutionScope.Force(width, height);
                 EnhancedSettingsScreen.TouchOverride = width == 2400u; // the phone lays out for fingers
                 await Frames(2);

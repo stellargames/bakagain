@@ -168,6 +168,7 @@ namespace BakAgain.Audio {
         }
 
         private bool _previewing;
+        private int _previewAsk; // each start and stop moves it on; a load that finds it moved was cancelled
 
         /// <summary>
         /// Plays the main menu's song for the settings screen's music slider, so the level can be heard,
@@ -177,9 +178,10 @@ namespace BakAgain.Audio {
         /// </summary>
         public async UniTask StartPreviewSongAsync(IResourceProviderService resources) {
             if (_songPlayer == null || _songPlayer.IsPlaying) return;
+            int ask = ++_previewAsk;
             AudioResource song = await resources.LoadAssetAsync<AudioResource>(
                 MusicSelection.MainMenuTrack.ToString(), this);
-            if (song == null || _songPlayer.IsPlaying
+            if (ask != _previewAsk || song == null || _songPlayer.IsPlaying
                 || !song.Variants.TryGetValue((byte)soundDriver, out AudioDataResource data) || data.MidiData == null) {
                 return;
             }
@@ -190,6 +192,7 @@ namespace BakAgain.Audio {
         /// <summary>Stops the song <see cref="StartPreviewSongAsync"/> started, if it still plays; any other
         /// song is left alone.</summary>
         public void StopPreviewSong() {
+            _previewAsk++; // a song still loading for the page must not start after it
             if (!_previewing) return;
             _previewing = false;
             _songPlayer.Stop();

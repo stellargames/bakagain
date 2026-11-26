@@ -176,5 +176,37 @@ namespace BakAgain.Tests.PlayMode.UI {
                 await CloseAsync();
             }
         });
+
+        /// <summary>Review C1: a bookmark clicked while the question is up must not turn the page under it,
+        /// and no layer of the book may outlive it (a stranded Exclusive layer kills the keys).</summary>
+        [UnityTest]
+        [RequiresShippedGameData]
+        public IEnumerator TheQuestionHoldsTheBookmarksAndLeavesNoLayerBehind() => UniTask.ToCoroutine(async () => {
+            GameViewResolutionScope view = GameViewResolutionScope.Force(1920, 1080); // bookmarks out on the table
+            await Frames(2);
+            try {
+                await OpenAsync();
+                await ClickAsync("bookmark-display");
+                await ClickAsync("sky");
+                await UiDriver.CancelAsync(2);
+                // What a real pointer at the bookmark hits: whatever the panel picks there.
+                VisualElement mark = Named("bookmark-combat");
+                VisualElement hit = Root.panel.Pick(mark.worldBound.center);
+                Assert.IsFalse(hit == mark || (hit != null && mark.Contains(hit)),
+                    $"the question's layer leaves the bookmark unpickable (picked {hit?.name})");
+                if (hit != null) Click(hit);
+                await Frames(2);
+                Assert.AreEqual("Display", Title, "the page does not turn under the question");
+                Assert.NotNull(Root.Q("keep-changes"), "the question stays");
+                await ClickAsync("keep-no");
+                await Frames(2);
+                Assert.IsFalse(IsUp);
+                Assert.IsFalse(UiDriver.Stack.Layers.Any(l => l.Id.StartsWith("enhanced-settings")),
+                    "no layer of the book is left: " + string.Join(", ", UiDriver.Stack.Layers.Select(l => l.Id)));
+            } finally {
+                await CloseAsync();
+                view.Restore();
+            }
+        });
     }
 }

@@ -77,6 +77,45 @@ namespace BakAgain.Tests.PlayMode.Audio {
             foreach (float v in _midi.SfxPlayerVolumes) Assert.AreEqual(0.3f, v, 0.001f, "every MIDI effect player");
         }
 
+        /// <summary>The game's own songs, each a few frames late, as a slow disk would be.</summary>
+        private sealed class SlowSongs : BakAgain.ResourceManagement.IResourceProviderService {
+            private readonly BakAgain.ResourceManagement.IResourceProviderService _real;
+
+            public SlowSongs(BakAgain.ResourceManagement.IResourceProviderService real) => _real = real;
+
+            public async UniTask<T> LoadAssetAsync<T>(object key, object owner) where T : class {
+                T asset = await _real.LoadAssetAsync<T>(key, owner);
+                for (int i = 0; i < 5; i++) await UniTask.Yield();
+                return asset;
+            }
+
+            public void ReleaseAssets(object owner) => _real.ReleaseAssets(owner);
+        }
+
+        /// <summary>Review I1: the settings page that asked for the listening song is left while the song
+        /// still loads; it must not start afterwards.</summary>
+        [UnityTest]
+        [RequiresShippedGameData]
+        public IEnumerator AListeningSongStoppedWhileLoadingNeverStarts() => UniTask.ToCoroutine(async () => {
+            var scope = Object.FindAnyObjectByType<VContainer.Unity.LifetimeScope>();
+            if (scope == null) Assert.Ignore("no LifetimeScope");
+            var real = (BakAgain.ResourceManagement.IResourceProviderService)scope.Container.Resolve(typeof(BakAgain.ResourceManagement.IResourceProviderService));
+            MidiPlaybackManager midi = MidiPlaybackManager.Instance;
+            midi.StopMusic();
+            await UniTask.Yield();
+            Assert.IsNull(midi.SongPlaying, "control: silence first");
+
+            UniTask load = midi.StartPreviewSongAsync(new SlowSongs(real));
+            midi.StopPreviewSong();
+            await load;
+            await UniTask.Yield();
+            Assert.IsNull(midi.SongPlaying, "stopped before it loaded: it stays silent");
+
+            await midi.StartPreviewSongAsync(new SlowSongs(real)); // control: left alone, it does play
+            Assert.IsNotNull(midi.SongPlaying, "control: the listening song plays when not stopped");
+            midi.StopPreviewSong();
+        });
+
         private static byte[] Riff(int rate, int samples) {
             using var s = new MemoryStream();
             using var w = new BinaryWriter(s);

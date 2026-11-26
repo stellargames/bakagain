@@ -256,6 +256,12 @@ namespace BakAgain.UI {
             need += marks.resolvedStyle.marginLeft; // they start over the page's torn edge (a negative margin)
             if (float.IsNaN(room) || need <= 0) return;
             _panel.EnableInClassList("enhanced-book--narrow", room < need);
+            // Narrower than the page (a square window), the stage is cropped both sides: bring the bookmarks
+            // in by the crop so they stay in the window.
+            float crop = Mathf.Max(0f, -room);
+            if (Mathf.Abs(marks.resolvedStyle.right - crop) > 0.5f || crop == 0f) {
+                marks.style.right = crop > 0f ? new StyleLength(crop) : new StyleLength(StyleKeyword.Null);
+            }
         }
 
         private void AddItem(VisualElement parent, SettingItem item) {
