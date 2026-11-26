@@ -52,6 +52,39 @@ namespace BakAgain.Tests.Editor.UI.InputCore {
             Assert.AreEqual("<Keyboard>/w", PlayerPrefs.GetString(InputBindings.PrefsPrefix + "back"));
         }
 
+        /// <summary>The settings screen's Cancel puts a swap back: both slots and both saved prefs.</summary>
+        [Test]
+        public void RestorePutsBothSwappedSlotsBack() {
+            InputSystem.AddDevice<Keyboard>();
+            _source = new SystemInputSource();
+            InputBindings.Set(_source.RebindSlots, Slot("turn_left"), "<Keyboard>/j"); // a saved, non-default binding
+            var snapshot = InputBindings.Snapshot(_source.RebindSlots);
+
+            InputBindings.Set(_source.RebindSlots, Slot("forward"), "<Keyboard>/s"); // the swap with back
+
+            InputBindings.Restore(_source.RebindSlots, snapshot);
+
+            Assert.AreEqual("<Keyboard>/w", Slot("forward").Path);
+            Assert.AreEqual("<Keyboard>/s", Slot("back").Path);
+            Assert.IsNull(InputBindings.Saved("forward"), "a default again: nothing saved");
+            Assert.IsNull(InputBindings.Saved("back"));
+            Assert.AreEqual("<Keyboard>/j", InputBindings.Saved("turn_left"), "a binding saved before the screen opened stays");
+        }
+
+        [Test]
+        public void DiffersOnlyAfterAChange() {
+            InputSystem.AddDevice<Keyboard>();
+            _source = new SystemInputSource();
+            var snapshot = InputBindings.Snapshot(_source.RebindSlots);
+            Assert.IsFalse(InputBindings.Differs(_source.RebindSlots, snapshot));
+
+            InputBindings.Set(_source.RebindSlots, Slot("forward"), "<Keyboard>/i");
+            Assert.IsTrue(InputBindings.Differs(_source.RebindSlots, snapshot));
+
+            InputBindings.Restore(_source.RebindSlots, snapshot);
+            Assert.IsFalse(InputBindings.Differs(_source.RebindSlots, snapshot));
+        }
+
         [Test]
         public void SwingIsTheMiddleButton_UntilItIsMovedToAKey() {
             Keyboard keyboard = InputSystem.AddDevice<Keyboard>();

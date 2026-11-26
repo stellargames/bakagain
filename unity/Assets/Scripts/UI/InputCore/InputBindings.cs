@@ -1,5 +1,6 @@
 namespace BakAgain.UI.InputCore {
     using System.Collections.Generic;
+    using System.Linq;
     using UnityEngine;
     using UnityEngine.InputSystem;
 
@@ -103,6 +104,26 @@ namespace BakAgain.UI.InputCore {
             PlayerPrefs.Save();
             Changed?.Invoke();
         }
+
+        /// <summary>Every slot's binding now, by slot id: what <see cref="Restore"/> puts back (the Enhanced
+        /// settings screen's Cancel).</summary>
+        public static IReadOnlyDictionary<string, string> Snapshot(IEnumerable<RebindSlot> slots) =>
+            slots.ToDictionary(s => s.Id, s => s.Path);
+
+        /// <summary>Puts every slot in <paramref name="snapshot"/> back on its binding, prefs included.</summary>
+        public static void Restore(IReadOnlyList<RebindSlot> slots, IReadOnlyDictionary<string, string> snapshot) {
+            foreach (RebindSlot slot in slots) {
+                if (snapshot.TryGetValue(slot.Id, out string path)) {
+                    Apply(slot, path);
+                }
+            }
+            PlayerPrefs.Save();
+            Changed?.Invoke();
+        }
+
+        /// <summary>Whether any slot is bound otherwise than in <paramref name="snapshot"/>.</summary>
+        public static bool Differs(IEnumerable<RebindSlot> slots, IReadOnlyDictionary<string, string> snapshot) =>
+            slots.Any(s => snapshot.TryGetValue(s.Id, out string path) && path != s.Path);
 
         private static void Apply(RebindSlot slot, string path) {
             if (path == slot.DefaultPath) {
