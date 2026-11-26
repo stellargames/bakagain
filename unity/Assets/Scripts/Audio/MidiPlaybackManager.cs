@@ -50,6 +50,9 @@ namespace BakAgain.Audio {
         public int CurrentTrack => _currentTrack;
 
         /// <summary>The song id the song player was last given, and whether it is sounding (harness).</summary>
+        /// <summary>The game's song (not a listening one), playing or not.</summary>
+        internal string CurrentSongId => _currentSongId;
+
         internal string SongPlaying => _songPlayer != null && _songPlayer.IsPlaying ? _currentSongId ?? "?" : null;
 
         private void Awake() {
@@ -185,9 +188,13 @@ namespace BakAgain.Audio {
                 || !song.Variants.TryGetValue((byte)soundDriver, out AudioDataResource data) || data.MidiData == null) {
                 return;
             }
+            _songIdBeforePreview = _currentSongId;
             StartSong(song, data.MidiData);
             _previewing = true;
         }
+
+        // StartSong names the listening song as current; the game's own id comes back when it stops.
+        private string _songIdBeforePreview;
 
         /// <summary>Stops the song <see cref="StartPreviewSongAsync"/> started, if it still plays; any other
         /// song is left alone.</summary>
@@ -196,6 +203,7 @@ namespace BakAgain.Audio {
             if (!_previewing) return;
             _previewing = false;
             _songPlayer.Stop();
+            _currentSongId = _songIdBeforePreview;
         }
 
         public void PlaySfx(AudioResource audioResource) {

@@ -143,6 +143,25 @@ namespace BakAgain.Tests.PlayMode.Audio {
             midi.StopPreviewSong();
         });
 
+        /// <summary>Review: the listening song took over the current-song id and left it behind when it
+        /// stopped, so the manager went on naming the menu track as the game's song.</summary>
+        [UnityTest]
+        [RequiresShippedGameData]
+        public IEnumerator AListeningSongLeavesNoCurrentSongBehind() => UniTask.ToCoroutine(async () => {
+            var scope = Object.FindAnyObjectByType<VContainer.Unity.LifetimeScope>();
+            if (scope == null) Assert.Ignore("no LifetimeScope");
+            var real = (BakAgain.ResourceManagement.IResourceProviderService)scope.Container.Resolve(typeof(BakAgain.ResourceManagement.IResourceProviderService));
+            MidiPlaybackManager midi = MidiPlaybackManager.Instance;
+            midi.StopMusic();
+            Assert.IsNull(midi.CurrentSongId, "control: no song");
+
+            await midi.StartPreviewSongAsync(real);
+            Assert.IsNotNull(midi.SongPlaying, "control: the listening song plays");
+            midi.StopPreviewSong();
+
+            Assert.IsNull(midi.CurrentSongId, "the game's song is still none");
+        });
+
         private static byte[] Riff(int rate, int samples) {
             using var s = new MemoryStream();
             using var w = new BinaryWriter(s);

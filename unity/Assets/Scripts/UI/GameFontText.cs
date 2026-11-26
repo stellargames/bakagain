@@ -173,13 +173,8 @@ namespace BakAgain.UI {
         // ponytail: every caption's geometry change remeasures all N captions on its screen (N² text
         // measures per layout pass); fine for menus of a few dozen buttons, cache per-caption fits
         // and refit once per frame if a screen with hundreds of captions ever appears.
-        internal static void FitScreen(VisualElement screen) =>
-            FitTogether(screen.Query<Label>(className: CaptionClass).ToList());
-
-        /// <summary>Gives <paramref name="captions"/> one size, the largest at which every one of them fits
-        /// its box (<see cref="FitScreen"/> for a whole screen; a group of its own, such as the settings
-        /// book's bookmarks, is taken out of <see cref="CaptionClass"/> and fitted with this).</summary>
-        internal static void FitTogether(List<Label> captions) {
+        internal static void FitScreen(VisualElement screen) {
+            List<Label> captions = screen.Query<Label>(className: CaptionClass).ToList();
             float scale = 1f;
             foreach (Label c in captions) {
                 // A button that is not drawn does not get a say in the screen's size.

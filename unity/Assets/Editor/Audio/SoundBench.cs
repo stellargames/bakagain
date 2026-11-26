@@ -47,7 +47,9 @@ namespace BakAgain.Editor.Audio {
         private void OnEnable() => Load();
 
         private void OnDisable() {
-            if (_source != null) DestroyImmediate(_source.gameObject);
+            if (_source == null) return;
+            if (_source.clip != null) DestroyImmediate(_source.clip);
+            DestroyImmediate(_source.gameObject);
         }
 
         private void Load() {
@@ -119,6 +121,7 @@ namespace BakAgain.Editor.Audio {
                 _source.playOnAwake = false;
             }
             _source.Stop();
+            if (_source.clip != null) DestroyImmediate(_source.clip); // a rendered song is tens of MB
             var clip = AudioClip.Create($"{id} {_sounds[id].Name}", pcm.Length / 2, 2, AudioSettings.outputSampleRate, false);
             clip.SetData(pcm, 0);
             _source.clip = clip;

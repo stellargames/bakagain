@@ -274,6 +274,69 @@ namespace BakAgain.Tests.PlayMode.UI {
         /// <summary>Owner, 2026-11-26: the book's buttons press like the ones outside it. A bevelled button
         /// wears the original's pressed pens while held (TASK-1000), and a check or radio line shows the
         /// toggle's +1 frame, as Preferences does (menu_type_3_4's highlight).</summary>
+        /// <summary>Review: the book opened on the RUNNING language, so a language saved for the next start
+        /// showed as unchosen and could not be taken back.</summary>
+        [UnityTest]
+        [RequiresShippedGameData]
+        public IEnumerator ALanguageSavedForTheNextStartCanBeTakenBack() => UniTask.ToCoroutine(async () => {
+            string saved = BakAgain.ResourceManagement.BakResourceSettings.Language;
+            try {
+                await OpenAsync();
+                await ClickAsync("bookmark-general");
+                var choices = Named("language").Query<Button>(className: "enhanced-book__line").ToList();
+                if (choices.Count < 2) Assert.Ignore("one language installed: no choice to show");
+                string running = choices.First(b => Screen.Shows(b.name)).name;
+                string other = choices.First(b => !Screen.Shows(b.name)).name;
+                await ClickAsync(other);
+                await ClickAsync("ok");
+                await Frames(2);
+                string chosenForNextStart = BakAgain.ResourceManagement.BakResourceSettings.Language;
+
+                await OpenAsync();
+                await ClickAsync("bookmark-general");
+                Assert.IsTrue(Screen.Shows(other), "the language saved for the next start is the one chosen");
+                await ClickAsync(running);
+                await ClickAsync("ok");
+                await Frames(2);
+                Assert.AreNotEqual(chosenForNextStart, BakAgain.ResourceManagement.BakResourceSettings.Language,
+                    "taking it back is saved too");
+                Assert.AreEqual(BakAgain.ResourceManagement.LanguagePacks.Current.Locale,
+                    BakAgain.ResourceManagement.BakResourceSettings.Language);
+            } finally {
+                BakAgain.ResourceManagement.BakResourceSettings.Language = saved;
+                await CloseAsync();
+            }
+        });
+
+        /// <summary>Review: a rebind is written at once, so leaving the book any way but Cancel kept it while
+        /// the rest of the draft was dropped. Only OK keeps the keys.</summary>
+        [UnityTest]
+        [RequiresShippedGameData]
+        public IEnumerator KeysChangedInTheBookAreKeptOnlyByOK() => UniTask.ToCoroutine(async () => {
+            var scope = Object.FindAnyObjectByType<VContainer.Unity.LifetimeScope>();
+            if (scope == null) Assert.Ignore("no LifetimeScope");
+            var input = (BakAgain.UI.InputCore.SystemInputSource)scope.Container.Resolve(typeof(BakAgain.UI.InputCore.SystemInputSource));
+            RebindSlot forward = input.RebindSlots.Single(s => s.Id == "forward");
+            string before = forward.Path;
+            string other = before == "<Keyboard>/q" ? "<Keyboard>/z" : "<Keyboard>/q";
+            try {
+                await OpenAsync();
+                InputBindings.Set(input.RebindSlots, forward, other);
+                await Navigator.PopUnfaded(); // neither OK nor Cancel
+                await Frames(2);
+                Assert.AreEqual(before, forward.Path, "a book left without OK keeps its old keys");
+
+                await OpenAsync();
+                InputBindings.Set(input.RebindSlots, forward, other);
+                await ClickAsync("ok");
+                await Frames(2);
+                Assert.AreEqual(other, forward.Path, "control: OK keeps the new key");
+            } finally {
+                InputBindings.Set(input.RebindSlots, forward, before);
+                await CloseAsync();
+            }
+        });
+
         [UnityTest]
         [RequiresShippedGameData]
         public IEnumerator HeldButtonsAndLinesShowTheirPressedLook() => UniTask.ToCoroutine(async () => {

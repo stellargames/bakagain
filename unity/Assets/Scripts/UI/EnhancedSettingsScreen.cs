@@ -93,9 +93,13 @@ namespace BakAgain.UI {
                 if (string.IsNullOrWhiteSpace(_modsPath)) _modsPath = MetaMenu.DefaultOverridePath;
                 _page = _lastPage;
                 _openedFolders = (_gamePath, _modsOn, _modsPath);
-                // The language actually running, not the raw setting: a setting naming a pack that is not
-                // installed runs English, and starting from it would show "(restart)" for good.
-                _language = LanguagePacks.Current.Locale;
+                _languages = null; // read once a visit: listing the packs scans the disk
+                // The language saved for the next start when its pack is installed, so a choice made on an
+                // earlier visit shows and can be taken back; else the one running (a setting naming a pack
+                // that is not installed runs English, and starting from it would show "(restart)" for good).
+                _openedLanguage = _language = IndexOf(Languages, BakResourceSettings.Language) >= 0
+                    ? BakResourceSettings.Language : LanguagePacks.Current.Locale;
+                _keysKept = false;
                 _bindings = _slots != null ? InputBindings.Snapshot(_slots) : null;
             }
             Build(CanonicalStage.GetOrCreate(root, null));
@@ -129,7 +133,10 @@ namespace BakAgain.UI {
             Audio.MidiPlaybackManager.Instance?.StopPreviewSong();
             // After Save these are the new levels; otherwise the old ones come back. Not on the way to
             // the Mods screen: the visit keeps its draft, and the level heard is the draft's.
-            if (!_visitingMods) Audio.AudioLevels.ResetToSaved();
+            if (!_visitingMods) {
+                Audio.AudioLevels.ResetToSaved();
+                RestoreKeysUnlessKept();
+            }
             if (_layer != null) {
                 _stack?.Remove(_layer);
                 _layer = null;
@@ -354,7 +361,7 @@ namespace BakAgain.UI {
 
         /// <summary>Every page's line and heading words, each in its longest form ("(restart)" added
         /// where it can be).</summary>
-        private static IEnumerable<(string Text, bool Heading)> BookTexts() {
+        private IEnumerable<(string Text, bool Heading)> BookTexts() {
             string Restart(string t) => Templates.Format(Templates.EnhancedPendingKey, ("text", t));
             foreach (SettingsPage page in EnhancedSettingsPages.Order) {
                 foreach (SettingItem item in EnhancedSettingsPages.ItemsOn(page)) {
@@ -525,11 +532,13 @@ namespace BakAgain.UI {
             _ => false,
         };
 
-        private static IReadOnlyList<string> Languages =>
+        private IReadOnlyList<string> _languages;
+
+        private IReadOnlyList<string> Languages => _languages ??=
             GameData.Resources.Text.LanguageChoice.Available(LanguagePacks.Installed(), Debug.isDebugBuild);
 
         /// <summary>A choice's options: the table's, or for Language the installed packs (locales).</summary>
-        private static IReadOnlyList<string> ChoicesOf(SettingItem item) =>
+        private IReadOnlyList<string> ChoicesOf(SettingItem item) =>
             item.Id == "language" ? Languages : item.ChoiceKeys;
 
         private string ChoiceCaption(SettingItem item, IReadOnlyList<string> options, int choice) {
@@ -547,7 +556,7 @@ namespace BakAgain.UI {
         }
 
         /// <summary>The language chosen on this visit (a locale); saved with OK for the next start.</summary>
-        private string _language;
+        private string _language, _openedLanguage;
 
         private int ChoiceOf(string id) => id switch {
             "shadows" => (int)_draft.Shadows,
@@ -636,7 +645,7 @@ namespace BakAgain.UI {
             }
             row.AddToClassList(cls);
             Label label = GameFontText.Caption(row, string.Empty);
-            // Lines and bookmarks are sized by the book itself (FitBookText, the bookmarks' FitTogether),
+            // Lines and bookmarks are sized by the book itself (FitBookText, FitBookmarks),
             // not by the screen-wide fit, which one long line would let shrink a whole page.
             if (cls is "enhanced-book__line" or "enhanced-book__bookmark" or "enhanced-book__button") {
                 label.RemoveFromClassList(GameFontText.CaptionClass);
@@ -693,22 +702,34 @@ namespace BakAgain.UI {
         private void Save() {
             _draft.Commit();
             BakResourceSettings.SetForNextStart(_gamePath, _modsOn, _modsPath);
-            if (!string.IsNullOrEmpty(_language) && _language != LanguagePacks.Current.Locale) {
+            if (!string.IsNullOrEmpty(_language) && _language != BakResourceSettings.Language) {
                 BakResourceSettings.Language = _language;
             }
+            _keysKept = true;
             _navigator.Pop().Forget();
         }
 
-        private void Cancel() {
-            if (_bindings != null) InputBindings.Restore(_slots, _bindings);
-            _navigator.Pop().Forget();
+        private void Cancel() => _navigator.Pop().Forget(); // the hide puts the keys back
+
+        /// <summary>OK was pressed: the keys rebound on this visit stay. A rebind is written at once, so any
+        /// other way out of the book (Cancel, a navigator reset, quitting) puts the old ones back.</summary>
+        private bool _keysKept;
+
+        private void RestoreKeysUnlessKept() {
+            if (!_keysKept && _bindings != null && InputBindings.Differs(_slots, _bindings)) {
+                InputBindings.Restore(_slots, _bindings);
+            }
+        }
+
+        private void OnApplicationQuit() {
+            if (_panel != null) RestoreKeysUnlessKept();
         }
 
         /// <summary>Whether anything differs from what the book opened with: a setting, a folder, a key.</summary>
         internal bool HasChanges =>
             _draft != null && (!_draft.SameAs(EnhancedOptionsDraft.Load())
                 || (_gamePath, _modsOn, _modsPath) != _openedFolders
-                || _language != LanguagePacks.Current.Locale
+                || _language != _openedLanguage
                 || (_bindings != null && InputBindings.Differs(_slots, _bindings)));
 
         /// <summary>"Keep your changes?" over the page: Yes is OK, No is Cancel, Escape goes back to the book.</summary>
