@@ -60,6 +60,7 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
 
         [TestCase("Enhanced/Sky/moon_large", typeof(Texture2D))]
         [TestCase("Enhanced/Stone/marble", typeof(Texture2D))]
+        [TestCase("Enhanced/Book/bookmark", typeof(Texture2D))]
         [TestCase("Fonts/Alegreya/Alegreya-Medium", typeof(Font))]
         [TestCase("BookSpread/table", typeof(Texture2D))]
         [TestCase("Audio/GeneralUser-GS", typeof(TextAsset))]
@@ -115,7 +116,7 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
             UnityEditor.TextureImporter[] importers = UnityEditor.AssetDatabase.FindAssets("t:Texture2D", new[] { "Assets/BuiltIn" })
                 .Select(guid => UnityEditor.AssetImporter.GetAtPath(UnityEditor.AssetDatabase.GUIDToAssetPath(guid)) as UnityEditor.TextureImporter)
                 .Where(importer => importer != null).ToArray();
-            Assert.AreEqual(23, importers.Length, "the built-in textures");
+            Assert.AreEqual(24, importers.Length, "the built-in textures");
             foreach (UnityEditor.TextureImporter importer in importers) {
                 string path = importer.assetPath;
                 string address = Path.ChangeExtension(path["Assets/BuiltIn/".Length..], null);
