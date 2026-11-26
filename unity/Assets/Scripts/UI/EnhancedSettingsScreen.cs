@@ -589,7 +589,14 @@ namespace BakAgain.UI {
             var box = new VisualElement { pickingMode = PickingMode.Ignore };
             box.AddToClassList("enhanced-book__icon");
             line.Insert(0, box);
-            _icons.Add((box, icon));
+            // Held, the toggle shows its +1 frame, as Preferences' toggles do (menu_type_3_4's highlight).
+            bool held = false;
+            Func<int> face = () => icon() + (held ? 1 : 0);
+            ResourceManagement.Loaders.UserInterfaceLoader.RegisterPressFace(line, pressed => {
+                held = pressed && enabled();
+                _iconLoader.LoadAndApplyIcon(box, face());
+            });
+            _icons.Add((box, face));
             return line;
         }
 
@@ -620,7 +627,11 @@ namespace BakAgain.UI {
 
         private Button Row(VisualElement parent, Func<string> caption, Func<bool> enabled, Action toggle, string cls) {
             var row = new Button();
-            if (cls != "enhanced-book__line" && cls != "enhanced-book__bookmark") row.AddToClassList("text-button");
+            if (cls != "enhanced-book__line" && cls != "enhanced-book__bookmark") {
+                row.AddToClassList("text-button");
+                // Held, it wears the original's pressed pens, like every TextButton outside the book.
+                ResourceManagement.Loaders.UserInterfaceLoader.RegisterTextPressFace(row, () => !enabled());
+            }
             row.AddToClassList(cls);
             Label label = GameFontText.Caption(row, string.Empty);
             // Lines and bookmarks are sized by the book itself (FitBookText, the bookmarks' FitTogether),

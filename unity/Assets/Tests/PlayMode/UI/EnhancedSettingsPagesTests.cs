@@ -247,5 +247,42 @@ namespace BakAgain.Tests.PlayMode.UI {
                 await CloseAsync();
             }
         });
-    }
+    
+        /// <summary>Owner, 2026-11-26: the book's buttons press like the ones outside it. A bevelled button
+        /// wears the original's pressed pens while held (TASK-1000), and a check or radio line shows the
+        /// toggle's +1 frame, as Preferences does (menu_type_3_4's highlight).</summary>
+        [UnityTest]
+        [RequiresShippedGameData]
+        public IEnumerator HeldButtonsAndLinesShowTheirPressedLook() => UniTask.ToCoroutine(async () => {
+            try {
+                await OpenAsync();
+                await ClickAsync("bookmark-general");
+                VisualElement ok = Named("ok");
+                Send<PointerDownEvent>(ok);
+                Assert.IsTrue(ok.ClassListContains("text-button--pressed"), "OK held: pressed");
+                Send<PointerLeaveEvent>(ok);
+                Assert.IsFalse(ok.ClassListContains("text-button--pressed"), "let go elsewhere: plain");
+
+                VisualElement line = Named("check_updates");
+                VisualElement icon = line.Q(className: "enhanced-book__icon");
+                await Frames(5);
+                Background plain = icon.resolvedStyle.backgroundImage;
+                Send<PointerDownEvent>(line);
+                await Frames(5);
+                Assert.AreNotEqual(plain, icon.resolvedStyle.backgroundImage, "line held: the pressed frame");
+                Send<PointerLeaveEvent>(line);
+                await Frames(5);
+                Assert.AreEqual(plain, icon.resolvedStyle.backgroundImage, "let go elsewhere: the plain frame");
+            } finally {
+                await CloseAsync();
+            }
+        });
+
+        private static void Send<T>(VisualElement target) where T : EventBase<T>, new() {
+            using (T e = EventBase<T>.GetPooled()) {
+                e.target = target;
+                target.SendEvent(e);
+            }
+        }
+}
 }
