@@ -7,6 +7,7 @@ namespace BakAgain.UI {
     using BakAgain.UI.InputCore;
     using Cysharp.Threading.Tasks;
     using GameData.Mods;
+    using Microsoft.Extensions.Logging;
     using SimpleFileBrowser;
     using UnityEngine;
     using UnityEngine.InputSystem;
@@ -47,21 +48,6 @@ namespace BakAgain.UI {
             _cursor = cursor;
         }
 
-        /// <summary>The feature rows, top to bottom: every <see cref="EnhancedFeature"/> once.</summary>
-        internal static readonly (string Key, EnhancedFeature Feature)[] FeatureRows = {
-            (Templates.EnhancedFeatureFullScreen, EnhancedFeature.FullScreenTravel),
-            (Templates.EnhancedFeatureMouseLook, EnhancedFeature.MouseLook),
-            (Templates.EnhancedFeatureRings, EnhancedFeature.PortraitRings),
-            (Templates.EnhancedFeatureBookFont, EnhancedFeature.BookFont),
-            (Templates.EnhancedFeaturePageTurn, EnhancedFeature.PageTurn),
-            (Templates.EnhancedFeatureInventory, EnhancedFeature.Inventory),
-            (Templates.EnhancedFeatureSky, EnhancedFeature.Sky),
-            (Templates.EnhancedFeatureLighting, EnhancedFeature.Lighting),
-            (Templates.EnhancedFeatureCasting, EnhancedFeature.Casting),
-            (Templates.EnhancedFeatureContinuousMovement, EnhancedFeature.ContinuousMovement),
-            (Templates.EnhancedFeatureCombat, EnhancedFeature.Combat),
-        };
-
         /// <summary>Whether a feature row can be toggled: every feature needs the master, and the health
         /// rings only draw on the full-screen HUD.</summary>
         internal static bool EnhancedRowEnabled(EnhancedOptionsDraft draft, EnhancedFeature feature) =>
@@ -86,28 +72,6 @@ namespace BakAgain.UI {
             return pending ? Templates.Format(Templates.EnhancedPendingKey, ("text", text)) : text;
         }
 
-        /// <summary>The shadows row: "Shadows: Sun". A click steps Off, Blobs, Sun and round.</summary>
-        internal static string ShadowsText(ShadowMode mode) =>
-            Templates.Format(Templates.EnhancedShadowsKey, ("state", Templates.Format(mode switch {
-                ShadowMode.Blobs => Templates.EnhancedShadowsBlobs,
-                ShadowMode.Sun => Templates.EnhancedShadowsSun,
-                _ => Templates.EnhancedStateOff,
-            })));
-
-        internal static ShadowMode NextShadows(ShadowMode mode) => (ShadowMode)(((int)mode + 1) % 3);
-
-        /// <summary>The combat speed row: "Combat speed: Normal". A click steps Slow, Normal, Fast, Ultra and round.</summary>
-        internal static string CombatSpeedText(GameData.Resources.Combat.CombatSpeed speed) =>
-            Templates.Format(Templates.CombatSpeedKey, ("state", Templates.Format(speed switch {
-                GameData.Resources.Combat.CombatSpeed.Slow => Templates.CombatSpeedSlow,
-                GameData.Resources.Combat.CombatSpeed.Fast => Templates.CombatSpeedFast,
-                GameData.Resources.Combat.CombatSpeed.Ultra => Templates.CombatSpeedUltra,
-                _ => Templates.CombatSpeedNormal,
-            })));
-
-        internal static GameData.Resources.Combat.CombatSpeed NextCombatSpeed(GameData.Resources.Combat.CombatSpeed speed) =>
-            (GameData.Resources.Combat.CombatSpeed)(((int)speed + 1) % 4);
-
         // Here, not in OnBeforeShowAsync: the document has no root until the screen is active.
         protected override UniTask BuildWhileHiddenAsync() {
             VisualElement root = GetComponent<UIDocument>()?.rootVisualElement;
@@ -119,6 +83,7 @@ namespace BakAgain.UI {
                 _draft = EnhancedOptionsDraft.Load();
                 (_gamePath, _modsOn, _modsPath) = BakResourceSettings.NextStart;
                 if (string.IsNullOrWhiteSpace(_modsPath)) _modsPath = MetaMenu.DefaultOverridePath;
+                _page = _lastPage;
             }
             Build(CanonicalStage.GetOrCreate(root, null));
             return UniTask.CompletedTask;
@@ -142,7 +107,6 @@ namespace BakAgain.UI {
 
         protected override void OnBeforeHide() {
             _rebind?.Cancel();
-            _controlsPage = false;
             if (_layer != null) {
                 _stack?.Remove(_layer);
                 _layer = null;
@@ -174,65 +138,232 @@ namespace BakAgain.UI {
             return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
         }
 
+        // ---- The book (spec 2026-11-26-enhanced-settings-bookmarks) ----
+
+        private SettingsPage _page;
+
+        /// <summary>The page the book opens on: the last one turned to this session, General the first time.</summary>
+        private static SettingsPage _lastPage = SettingsPage.General;
+
+        internal SettingsPage CurrentPage => _page;
+
+        /// <summary>A page's name in element names: <c>bookmark-combat</c>, <c>bookmark-game-files</c>.</summary>
+        internal static string NameOf(SettingsPage page) =>
+            page == SettingsPage.GameFiles ? "game-files" : page.ToString().ToLowerInvariant();
+
+        /// <summary>Turns to <paramref name="page"/>; the draft is kept.</summary>
+        internal void TurnTo(SettingsPage page) {
+            _page = _lastPage = page;
+            VisualElement stage = CanonicalStage.Find(GetComponent<UIDocument>()?.rootVisualElement);
+            if (stage == null) return;
+            Build(stage);
+            PushLayer();
+            _panel.Q("bookmark-" + NameOf(page))?.Focus();
+        }
+
+        // BICONS (the player's own art, as the Preferences screen draws it): a check box at 123 (on) / 125
+        // (off), a radio button at 127 / 129 (REQ_PREF's toggles; MenuIconLoader's index scheme).
+        private const int CheckOnIcon = 123, CheckOffIcon = 125, RadioOnIcon = 127, RadioOffIcon = 129;
+
+        private readonly List<(VisualElement Icon, Func<int> Index)> _icons = new();
+        private readonly ResourceManagement.Loaders.MenuIconLoader _iconLoader =
+            new(null, LogManager.LoggerFactory.CreateLogger(nameof(EnhancedSettingsScreen)));
+
         private void Build(VisualElement stage) {
             _panel?.RemoveFromHierarchy();
             _rows.Clear();
             _clicks.Clear();
             _paths.Clear();
+            _icons.Clear();
             _scroll = null;
-            _panel = MovedElements.Box("enhanced-settings");
-            if (_controlsPage) {
-                BuildControls(stage);
-                return;
+            _panel = MovedElements.Box("enhanced-book");
+            _panel.EnableInClassList("enhanced-book--touch", Application.isMobilePlatform);
+            _panel.Add(Text(Templates.Format(EnhancedSettingsPages.TitleKey(_page)), "enhanced-book__title"));
+
+            VisualElement content = MovedElements.Box("enhanced-book__content");
+            foreach (SettingItem item in EnhancedSettingsPages.ItemsOn(_page)) {
+                AddItem(content, item);
             }
-            _panel.Add(Text(Templates.Format(Templates.EnhancedSettingsTitle), "enhanced-settings__title"));
+            _panel.Add(content);
 
-            VisualElement columns = MovedElements.Box("enhanced-settings__columns");
-            VisualElement features = MovedElements.Box("enhanced-settings__column");
-            VisualElement folders = MovedElements.Box("enhanced-settings__column");
-            columns.Add(features);
-            columns.Add(folders);
-            _panel.Add(columns);
-
-            features.Add(Text(Templates.Format(Templates.EnhancedFeaturesHeading), "enhanced-settings__heading"));
-            Row(features, () => BoxText(Templates.EnhancedButtonKey, _draft.Master, state: true,
-                    pending: FontChangePending(_draft) || ModeChangePending(_draft)),
-                () => true, () => _draft.Master = !_draft.Master);
-            foreach ((string key, EnhancedFeature feature) in FeatureRows) {
-                Row(features, () => BoxText(key, _draft[feature], pending: feature == EnhancedFeature.BookFont && FontChangePending(_draft)),
-                    () => EnhancedRowEnabled(_draft, feature), () => _draft[feature] = !_draft[feature]);
-            }
-            Row(features, () => ShadowsText(_draft.Shadows), () => _draft.Master, () => _draft.Shadows = NextShadows(_draft.Shadows));
-
-            folders.Add(Text(Templates.Format(Templates.EnhancedFoldersHeading), "enhanced-settings__heading"));
-            folders.Add(Text(Templates.Format(Templates.EnhancedGameFolder), "enhanced-settings__label"));
-            folders.Add(PathLine(() => Shown(_gamePath), () => _gamePath != BakResourceSettings.GamePath));
-            if (FoldersPickable) Row(folders, () => Templates.Format(Templates.EnhancedBrowse), () => true, BrowseGameFolder);
-            _folderError = Text(string.Empty, "enhanced-settings__error");
-            folders.Add(_folderError);
-            Row(folders, () => Templates.Format(Templates.ModsInstalled), () => true, () => VisitModsAsync().Forget());
-            Row(folders, () => BoxText(Templates.EnhancedMods, _modsOn, pending: _modsOn != BakResourceSettings.OverrideEnabled),
-                () => true, () => _modsOn = !_modsOn);
-            folders.Add(Text(Templates.Format(Templates.EnhancedModsFolder), "enhanced-settings__label"));
-            folders.Add(PathLine(() => Shown(_modsPath), () => _modsOn && _modsPath != BakResourceSettings.OverridePath));
-            if (FoldersPickable) Row(folders, () => Templates.Format(Templates.EnhancedBrowse), () => _modsOn, BrowseModsFolder);
-            if (_slots != null && !Application.isMobilePlatform) Row(folders, () => Templates.Format(Templates.ControlsTitle), () => true, () => ShowPage(controls: true)).name = "controls";
-            // In this column: the Features column is full at 13 rows; a 14th ran under Save (forum p=96).
-            Row(folders, () => CombatSpeedText(_draft.CombatSpeed), () => true,
-                () => _draft.CombatSpeed = NextCombatSpeed(_draft.CombatSpeed)).name = "combat_speed";
-            Row(folders, () => BoxText(Templates.EnhancedCheckForUpdates, _draft.CheckForUpdates), () => true,
-                () => _draft.CheckForUpdates = !_draft.CheckForUpdates);
-            Row(folders, () => BoxText(Templates.RestoreShopBuybackBug, _draft.RestoreShopBuybackBug), () => true,
-                () => _draft.RestoreShopBuybackBug = !_draft.RestoreShopBuybackBug).name = "restore_shop_buyback_bug";
-
-            VisualElement buttons = MovedElements.Box("enhanced-settings__buttons");
-            Row(buttons, () => Templates.Format(Templates.EnhancedSave), () => true, Save);
-            Row(buttons, () => Templates.Format(Templates.EnhancedCancel), () => true, Cancel);
+            VisualElement buttons = MovedElements.Box("enhanced-book__buttons");
+            Row(buttons, () => Templates.Format(Templates.SettingsOk), () => true, Save, "enhanced-book__button").name = "ok";
+            Row(buttons, () => Templates.Format(Templates.EnhancedCancel), () => true, Cancel, "enhanced-book__button").name = "cancel";
             _panel.Add(buttons);
 
+            VisualElement marks = MovedElements.Box("enhanced-book__bookmarks");
+            Texture2D cloth = EnhancedArt.Texture("bookmark");
+            foreach (SettingsPage page in EnhancedSettingsPages.Order) {
+                SettingsPage p = page;
+                Button mark = Row(marks, () => Templates.Format(EnhancedSettingsPages.TitleKey(p)), () => true, () => TurnTo(p),
+                    "enhanced-book__bookmark");
+                mark.name = "bookmark-" + NameOf(p);
+                mark.AddToClassList("enhanced-book__bookmark--" + NameOf(p));
+                mark.EnableInClassList("enhanced-book__bookmark--open", p == _page);
+                if (cloth != null) mark.style.backgroundImage = Background.FromTexture2D(cloth);
+            }
+            _panel.Add(marks);
+
             stage.Add(_panel);
+            VisualElement root = stage.panel?.visualTree ?? stage.parent ?? stage;
+            root.UnregisterCallback<GeometryChangedEvent>(OnWindowLaidOut);
+            root.RegisterCallback<GeometryChangedEvent>(OnWindowLaidOut);
+            _panel.RegisterCallback<GeometryChangedEvent>(OnWindowLaidOut);
             Refresh();
         }
+
+        // Where the window has no table to the right of the page (4:3), the bookmarks lie over the page's
+        // right margin instead of off the window. Measured, not a constant: the room either side of the
+        // page against the bookmarks' own width from the theme.
+        private void OnWindowLaidOut(GeometryChangedEvent _) {
+            if (_panel?.panel == null) return;
+            VisualElement stage = _panel.parent;
+            VisualElement marks = _panel.Q(className: "enhanced-book__bookmarks");
+            float window = _panel.panel.visualTree.layout.width;
+            float room = (window - stage.layout.width) / 2;
+            float need = 0;
+            foreach (VisualElement m in marks.Children()) need = Mathf.Max(need, m.resolvedStyle.width);
+            need += marks.resolvedStyle.marginLeft; // they start over the page's torn edge (a negative margin)
+            if (float.IsNaN(room) || need <= 0) return;
+            _panel.EnableInClassList("enhanced-book--narrow", room < need);
+        }
+
+        private void AddItem(VisualElement parent, SettingItem item) {
+            switch (item.Kind) {
+                case SettingKind.Check: {
+                    Button line = Line(parent, () => Caption(item), () => CheckOn(item.Id) ? CheckOnIcon : CheckOffIcon,
+                        () => Enabled(item), () => Toggle(item.Id));
+                    line.name = item.Id;
+                    break;
+                }
+                case SettingKind.Choice: {
+                    VisualElement group = MovedElements.Box("enhanced-book__group");
+                    group.name = item.Id;
+                    group.Add(Text(Templates.Format(item.LabelKey), "enhanced-book__heading"));
+                    for (int i = 0; i < item.ChoiceKeys.Length; i++) {
+                        int choice = i;
+                        Button line = Line(group, () => Templates.Format(item.ChoiceKeys[choice]),
+                            () => ChoiceOf(item.Id) == choice ? RadioOnIcon : RadioOffIcon,
+                            () => Enabled(item), () => SetChoice(item.Id, choice));
+                        line.name = item.Id + "-" + choice;
+                    }
+                    parent.Add(group);
+                    break;
+                }
+                case SettingKind.Slider: {
+                    VisualElement group = MovedElements.Box("enhanced-book__group");
+                    group.name = item.Id;
+                    group.Add(Text(Templates.Format(item.LabelKey), "enhanced-book__heading"));
+                    var slider = new Slider(0f, 1f) { value = LevelOf(item.Id), name = item.Id + "-slider" };
+                    slider.AddToClassList("enhanced-book__slider");
+                    slider.RegisterValueChangedCallback(e => SetLevel(item.Id, e.newValue));
+                    group.Add(slider);
+                    parent.Add(group);
+                    break;
+                }
+                case SettingKind.Path: {
+                    VisualElement group = MovedElements.Box("enhanced-book__group");
+                    group.name = item.Id;
+                    group.Add(Text(Templates.Format(item.LabelKey), "enhanced-book__heading"));
+                    bool game = item.Id == "game_folder";
+                    group.Add(PathLine(() => Shown(game ? _gamePath : _modsPath),
+                        () => game ? _gamePath != BakResourceSettings.GamePath : _modsOn && _modsPath != BakResourceSettings.OverridePath));
+                    if (FoldersPickable) {
+                        Row(group, () => Templates.Format(Templates.EnhancedBrowse), () => game || _modsOn,
+                            game ? BrowseGameFolder : BrowseModsFolder, "enhanced-book__button").name = item.Id + "-browse";
+                    }
+                    if (game) {
+                        _folderError = Text(string.Empty, "enhanced-settings__error");
+                        group.Add(_folderError);
+                    }
+                    parent.Add(group);
+                    break;
+                }
+                case SettingKind.Action:
+                    Row(parent, () => Templates.Format(item.LabelKey), () => true, () => VisitModsAsync().Forget(),
+                        "enhanced-book__button").name = item.Id;
+                    break;
+                case SettingKind.KeyList:
+                    if (_slots != null && !Application.isMobilePlatform) AddKeyList(parent, item.Id);
+                    break;
+            }
+        }
+
+        private string Caption(SettingItem item) {
+            string text = Templates.Format(item.LabelKey);
+            return Pending(item.Id) ? Templates.Format(Templates.EnhancedPendingKey, ("text", text)) : text;
+        }
+
+        /// <summary>Whether a check line shows ticked in the draft (tests read it).</summary>
+        internal bool Shows(string id) => CheckOn(id);
+
+        private bool CheckOn(string id) => id switch {
+            "enhanced" => _draft.Master,
+            "check_updates" => _draft.CheckForUpdates,
+            "restore_shop_buyback_bug" => _draft.RestoreShopBuybackBug,
+            "dev_overrides" => _modsOn,
+            _ => _draft[EnhancedSettingsPages.FeatureOf(id).Value],
+        };
+
+        private void Toggle(string id) {
+            switch (id) {
+                case "enhanced": _draft.Master = !_draft.Master; break;
+                case "check_updates": _draft.CheckForUpdates = !_draft.CheckForUpdates; break;
+                case "restore_shop_buyback_bug": _draft.RestoreShopBuybackBug = !_draft.RestoreShopBuybackBug; break;
+                case "dev_overrides": _modsOn = !_modsOn; break;
+                default: {
+                    EnhancedFeature f = EnhancedSettingsPages.FeatureOf(id).Value;
+                    _draft[f] = !_draft[f];
+                    break;
+                }
+            }
+        }
+
+        /// <summary>A feature needs the master (and the rings full-screen travel); Shadows too. The rest are
+        /// Classic's as well.</summary>
+        private bool Enabled(SettingItem item) =>
+            EnhancedSettingsPages.FeatureOf(item.Id) is { } f ? EnhancedRowEnabled(_draft, f)
+            : item.UsableInClassic || _draft.Master;
+
+        private bool Pending(string id) => id switch {
+            "enhanced" => FontChangePending(_draft) || ModeChangePending(_draft),
+            "book_font" => FontChangePending(_draft),
+            "dev_overrides" => _modsOn != BakResourceSettings.OverrideEnabled,
+            _ => false,
+        };
+
+        private int ChoiceOf(string id) => id == "shadows" ? (int)_draft.Shadows : (int)_draft.CombatSpeed;
+
+        private void SetChoice(string id, int choice) {
+            if (id == "shadows") _draft.Shadows = (ShadowMode)choice;
+            else _draft.CombatSpeed = (GameData.Resources.Combat.CombatSpeed)choice;
+        }
+
+        private float LevelOf(string id) => id == "music_volume" ? _draft.MusicVolume : _draft.SoundVolume;
+
+        private void SetLevel(string id, float level) {
+            if (id == "music_volume") _draft.MusicVolume = level;
+            else _draft.SoundVolume = level;
+        }
+
+        /// <summary>One line of a page: the original's check box or radio button and its words, the whole
+        /// line the target.</summary>
+        private Button Line(VisualElement parent, Func<string> caption, Func<int> icon, Func<bool> enabled, Action click) {
+            Button line = Row(parent, caption, enabled, click, "enhanced-book__line");
+            var box = new VisualElement { pickingMode = PickingMode.Ignore };
+            box.AddToClassList("enhanced-book__icon");
+            line.Insert(0, box);
+            _icons.Add((box, icon));
+            return line;
+        }
+
+        private void ApplyIcons() {
+            foreach ((VisualElement box, Func<int> index) in _icons) {
+                _iconLoader.LoadAndApplyIcon(box, index());
+            }
+        }
+
+        private void OnDestroy() => _iconLoader.ReleaseHandles();
 
         private static string Shown(string path) =>
             string.IsNullOrWhiteSpace(path) ? Templates.Format(Templates.EnhancedNotSet) : path;
@@ -251,10 +382,10 @@ namespace BakAgain.UI {
             return line;
         }
 
-        private Button Row(VisualElement parent, Func<string> caption, Func<bool> enabled, Action toggle) {
+        private Button Row(VisualElement parent, Func<string> caption, Func<bool> enabled, Action toggle, string cls) {
             var row = new Button();
-            row.AddToClassList("text-button");
-            row.AddToClassList("enhanced-settings__row");
+            if (cls != "enhanced-book__line" && cls != "enhanced-book__bookmark") row.AddToClassList("text-button");
+            row.AddToClassList(cls);
             GameFontText.Caption(row, string.Empty);
             Action click = () => {
                 if (Rebinding) return;
@@ -278,6 +409,7 @@ namespace BakAgain.UI {
                 string t = text();
                 line.text = pending() ? Templates.Format(Templates.EnhancedPendingKey, ("text", t)) : t;
             }
+            ApplyIcons();
         }
 
         /// <summary>
@@ -329,10 +461,6 @@ namespace BakAgain.UI {
             if (Rebinding) {
                 return;
             }
-            if (_controlsPage) {
-                ShowPage(controls: false);
-                return;
-            }
             if (FileBrowser.IsOpen) {
                 FileBrowser.HideDialog(invokeCancelCallback: true);
                 return;
@@ -342,7 +470,6 @@ namespace BakAgain.UI {
 
         // ---- The Controls page (TASK-1080) ----
 
-        private bool _controlsPage;
         private InputActionRebindingExtensions.RebindingOperation _rebind;
         private RebindSlot _waiting;
         private int _rebindEndedFrame = -1;
@@ -371,14 +498,6 @@ namespace BakAgain.UI {
             return false;
         }
 
-        private void ShowPage(bool controls) {
-            _controlsPage = controls;
-            VisualElement stage = CanonicalStage.Find(GetComponent<UIDocument>()?.rootVisualElement);
-            if (stage == null) return;
-            Build(stage);
-            PushLayer();
-        }
-
         /// <summary>"Walk forward: W", "Walk forward (2nd key): Up Arrow", "Hotkey M: M", or the prompt
         /// while that row waits for a key.</summary>
         internal static string ControlText(RebindSlot slot, bool waiting) {
@@ -404,38 +523,34 @@ namespace BakAgain.UI {
             InputSystem.FindControl(path)?.displayName
             ?? InputControlPath.ToHumanReadableString(path, InputControlPath.HumanReadableStringOptions.OmitDevice);
 
-        private void BuildControls(VisualElement stage) {
-            _panel.Add(Text(Templates.Format(Templates.ControlsTitle), "enhanced-settings__title"));
-            // Some seventy keys: they scroll, as the Mods list does, and Done stays in view.
+        private void AddKeyList(VisualElement parent, string id) {
+            // Some seventy keys: they scroll, as the Mods list does.
             _scroll = new ScrollView(ScrollViewMode.Vertical) {
                 horizontalScrollerVisibility = ScrollerVisibility.Hidden,
                 verticalScrollerVisibility = ScrollerVisibility.Auto,
+                name = id,
             };
             _scroll.AddToClassList("enhanced-settings__scroll");
+            _scroll.AddToClassList("enhanced-book__keys");
             _scroll.contentViewport.style.overflow = Overflow.Hidden;
             VisualElement column = new VisualElement(); // not __column: its zero basis collapses inside a scroll
             column.AddToClassList("enhanced-settings__list");
             _scroll.Add(column);
-            _panel.Add(_scroll);
+            parent.Add(_scroll);
             string heading = null;
             foreach (RebindSlot slot in _slots) {
                 RebindSlot s = slot;
                 if (HeadingOf(s) != heading) {
                     heading = HeadingOf(s);
-                    column.Add(Text(Templates.Format(heading), "enhanced-settings__heading"));
+                    column.Add(Text(Templates.Format(heading), "enhanced-book__heading"));
                 }
-                Button row = Row(column, () => ControlText(s, _waiting == s), () => true, () => StartRebind(s));
+                Button row = Row(column, () => ControlText(s, _waiting == s), () => true, () => StartRebind(s), "enhanced-book__line");
                 row.name = "control-" + s.Id;
                 ScrollIntoView(row);
             }
-            Label note = Text(Templates.Format(Templates.ControlsSkipNote), "enhanced-settings__label");
-            column.Add(note);
-            ScrollIntoView(Row(column, () => Templates.Format(Templates.ControlsReset), () => true, () => InputBindings.Reset(_slots)));
-            VisualElement buttons = MovedElements.Box("enhanced-settings__buttons");
-            Row(buttons, () => Templates.Format(Templates.ControlsDone), () => true, () => ShowPage(controls: false)).name = "controls-done";
-            _panel.Add(buttons);
-            stage.Add(_panel);
-            Refresh();
+            column.Add(Text(Templates.Format(Templates.ControlsSkipNote), "enhanced-settings__label"));
+            ScrollIntoView(Row(column, () => Templates.Format(Templates.ControlsReset), () => true, () => InputBindings.Reset(_slots),
+                "enhanced-book__button"));
         }
 
         // A row reached with the keys scrolls into view; the cursor follows it there (RowRect).

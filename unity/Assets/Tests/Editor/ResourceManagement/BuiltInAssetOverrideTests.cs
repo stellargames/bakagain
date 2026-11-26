@@ -60,7 +60,7 @@ namespace BakAgain.Tests.Editor.ResourceManagement {
 
         [TestCase("Enhanced/Sky/moon_large", typeof(Texture2D))]
         [TestCase("Enhanced/Stone/marble", typeof(Texture2D))]
-        [TestCase("Enhanced/Book/bookmark", typeof(Texture2D))]
+        [TestCase("Enhanced/Stone/bookmark", typeof(Texture2D))]
         [TestCase("Fonts/Alegreya/Alegreya-Medium", typeof(Font))]
         [TestCase("BookSpread/table", typeof(Texture2D))]
         [TestCase("Audio/GeneralUser-GS", typeof(TextAsset))]
