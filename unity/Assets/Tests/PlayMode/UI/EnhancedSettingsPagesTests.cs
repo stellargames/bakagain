@@ -37,6 +37,29 @@ namespace BakAgain.Tests.PlayMode.UI {
 
         [UnityTest]
         [RequiresShippedGameData]
+        public IEnumerator AVisitToTheModsKeepsTheLevelYouHear() => UniTask.ToCoroutine(async () => {
+            try {
+                await OpenAsync();
+                await ClickAsync("bookmark-audio");
+                float level = Mathf.Approximately(BakAgain.Audio.AudioLevels.Music, 0.2f) ? 0.4f : 0.2f;
+                ((Slider)Named("music_volume-slider")).value = level;
+                Assert.AreEqual(level, BakAgain.Audio.AudioLevels.Music, 0.001f, "heard at once");
+
+                await ClickAsync("bookmark-game-files");
+                await ClickAsync("installed_mods");
+                await Frames(5);
+                Assert.AreNotSame(Screen, Navigator.Current, "the Mods screen is up");
+                await Navigator.PopUnfaded();
+                await Frames(5);
+
+                Assert.AreEqual(level, BakAgain.Audio.AudioLevels.Music, 0.001f, "the draft's level is still the one heard");
+            } finally {
+                await CloseAsync();
+            }
+        });
+
+        [UnityTest]
+        [RequiresShippedGameData]
         public IEnumerator EnhancedOffGreysOnlyTheFeatures() => UniTask.ToCoroutine(async () => {
             try {
                 await OpenAsync();

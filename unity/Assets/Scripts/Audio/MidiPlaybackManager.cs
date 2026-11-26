@@ -427,6 +427,14 @@ namespace BakAgain.Audio {
                     break;
             }
 
+            // The newest change is over, however it ended. One that never faded (a song that would not
+            // load, a stop with nothing to fade) leaves a cut-short fade's marker behind, and while it
+            // is set the music level never reaches the song.
+            if (serial == _changeSerial && _fadeFrom != null) {
+                _fadeFrom = null;
+                ApplyLevels();
+            }
+
             return change.PreviousTrack;
         }
 

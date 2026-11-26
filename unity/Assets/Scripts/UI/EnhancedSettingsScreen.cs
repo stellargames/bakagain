@@ -127,7 +127,9 @@ namespace BakAgain.UI {
             _rebind?.Cancel();
             CloseQuestion();
             Audio.MidiPlaybackManager.Instance?.StopPreviewSong();
-            Audio.AudioLevels.ResetToSaved(); // after Save these are the new levels; otherwise the old ones come back
+            // After Save these are the new levels; otherwise the old ones come back. Not on the way to
+            // the Mods screen: the visit keeps its draft, and the level heard is the draft's.
+            if (!_visitingMods) Audio.AudioLevels.ResetToSaved();
             if (_layer != null) {
                 _stack?.Remove(_layer);
                 _layer = null;

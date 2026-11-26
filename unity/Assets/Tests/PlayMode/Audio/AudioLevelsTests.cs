@@ -64,6 +64,33 @@ namespace BakAgain.Tests.PlayMode.Audio {
             await _midi.PlayTrackAsync(MusicPlayback.NoTrack, songs);
         });
 
+        /// <summary>Songs that exist except <see cref="Missing"/>, whose load comes back empty.</summary>
+        private sealed class SongsWithAGap : BakAgain.ResourceManagement.IResourceProviderService {
+            public const int Missing = 1009;
+
+            public UniTask<T> LoadAssetAsync<T>(object key, object owner) where T : class =>
+                UniTask.FromResult(key.ToString() == Missing.ToString() ? null : new AudioResource(key.ToString()) as T);
+
+            public void ReleaseAssets(object owner) { }
+        }
+
+        /// <summary>Review: a fade cut short by a change that never fades (here a song that will not load)
+        /// left the manager believing a fade was running, so the music level stopped reaching the song.</summary>
+        [UnityTest]
+        public IEnumerator ACutShortFadeLeavesTheMusicLevelWorking() => UniTask.ToCoroutine(async () => {
+            using var notes = ExpectedLog.CaptureAll(new System.Text.RegularExpressions.Regex("does not contain variant|No audio resource"));
+            var songs = new SongsWithAGap();
+            await _midi.PlayTrackAsync(1005, songs);
+            UniTask fade = _midi.PlayTrackAsync(1007, songs);
+            await UniTask.Yield();
+            await _midi.PlayTrackAsync(SongsWithAGap.Missing, songs); // takes over mid-fade, never fades
+            await fade;
+
+            AudioLevels.Music = 0.3f;
+            Assert.AreEqual(0.3f, _midi.SongVolume, 0.001f, "the slider still reaches the song");
+            await _midi.PlayTrackAsync(MusicPlayback.NoTrack, songs);
+        });
+
         [Test]
         public void SoundEffectsPlayAtTheSoundLevel() {
             AudioLevels.Sound = 0.3f;
