@@ -35,6 +35,14 @@ namespace BakAgain.UI {
             return draft;
         }
 
+        /// <summary>Whether <paramref name="other"/> holds the same choices (volumes to within 0.001).</summary>
+        public bool SameAs(EnhancedOptionsDraft other) =>
+            Master == other.Master && Shadows == other.Shadows && CheckForUpdates == other.CheckForUpdates
+            && RestoreShopBuybackBug == other.RestoreShopBuybackBug && CombatSpeed == other.CombatSpeed
+            && System.Math.Abs(MusicVolume - other.MusicVolume) < 0.001f
+            && System.Math.Abs(SoundVolume - other.SoundVolume) < 0.001f
+            && System.Linq.Enumerable.All(_features, kv => other._features.TryGetValue(kv.Key, out bool v) && v == kv.Value);
+
         public void Commit() {
             GameOptions.Enhanced = Master;
             GameOptions.Shadows = Shadows;

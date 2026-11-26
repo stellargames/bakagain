@@ -398,6 +398,13 @@
 .enhanced-book__hint { position: absolute; left: 13%; right: 13%; top: 73%; height: 100px; padding-top: 6px;
     border-top-width: 3px; border-color: rgb(90, 62, 30); white-space: normal; color: rgb(18, 11, 4); }
 .enhanced-book--narrow .enhanced-book__hint { right: 20%; }
+/* "Keep your changes?": a small parchment box over the page; the scrim takes every click around it. */
+.enhanced-book__scrim { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background-color: rgba(20, 12, 4, 0.35);
+    align-items: center; justify-content: center; }
+.enhanced-book__question { width: 760px; padding: 40px; background-color: rgb(150, 105, 56); border-width: 4px;
+    border-color: rgb(166, 146, 63) rgb(62, 43, 20) rgb(62, 43, 20) rgb(166, 146, 63); align-items: center; }
+.enhanced-book__question-text { height: 90px; -unity-text-align: middle-center; color: rgb(18, 11, 4); }
+.enhanced-book__question-buttons { flex-direction: row; margin-top: 20px; }
 
 /* Enhanced full-screen travel HUD (spec 2026-10-08 §3, EnhancedHudLayout). The REQ_MAIN elements
    are moved in here; the panel is 1200 units high at every aspect, so vertical percentages are of

@@ -101,5 +101,26 @@ namespace BakAgain.Tests.Editor.UI {
             Assert.AreEqual(0.25f, EnhancedOptionsDraft.Load().MusicVolume, 0.001f);
             Assert.AreEqual(0.6f, EnhancedOptionsDraft.Load().SoundVolume, 0.001f);
         }
+
+        [Test]
+        public void SameAsSeesEveryField() {
+            System.Action<EnhancedOptionsDraft>[] changes = {
+                d => d.Master = !d.Master,
+                d => d.Shadows = d.Shadows == ShadowMode.Off ? ShadowMode.Sun : ShadowMode.Off,
+                d => d.CheckForUpdates = !d.CheckForUpdates,
+                d => d.RestoreShopBuybackBug = !d.RestoreShopBuybackBug,
+                d => d.CombatSpeed = d.CombatSpeed == GameData.Resources.Combat.CombatSpeed.Fast
+                    ? GameData.Resources.Combat.CombatSpeed.Slow : GameData.Resources.Combat.CombatSpeed.Fast,
+                d => d.MusicVolume = 0.5f,
+                d => d.SoundVolume = 0.5f,
+                d => d[EnhancedFeature.Sky] = !d[EnhancedFeature.Sky],
+            };
+            Assert.IsTrue(EnhancedOptionsDraft.Load().SameAs(EnhancedOptionsDraft.Load()));
+            foreach (System.Action<EnhancedOptionsDraft> change in changes) {
+                EnhancedOptionsDraft d = EnhancedOptionsDraft.Load();
+                change(d);
+                Assert.IsFalse(d.SameAs(EnhancedOptionsDraft.Load()), change.Method.Name);
+            }
+        }
     }
 }

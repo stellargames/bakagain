@@ -39,6 +39,10 @@ namespace BakAgain.UI {
         private IReadOnlyList<RebindSlot> _slots;
         private IResourceProviderService _resources;
         private readonly List<Slider> _sliders = new();
+        private (string Game, bool ModsOn, string Mods) _openedFolders;
+        private IReadOnlyDictionary<string, string> _bindings;
+        private Label _hint;
+        private NavigableLayer _questionLayer;
 
         [Inject]
         public void Construct(Navigation.IScreenNavigator navigator, InputLayerStack stack, ICursorManager cursor, ModsScreen modsScreen,
@@ -87,6 +91,8 @@ namespace BakAgain.UI {
                 (_gamePath, _modsOn, _modsPath) = BakResourceSettings.NextStart;
                 if (string.IsNullOrWhiteSpace(_modsPath)) _modsPath = MetaMenu.DefaultOverridePath;
                 _page = _lastPage;
+                _openedFolders = (_gamePath, _modsOn, _modsPath);
+                _bindings = _slots != null ? InputBindings.Snapshot(_slots) : null;
             }
             Build(CanonicalStage.GetOrCreate(root, null));
             return UniTask.CompletedTask;
@@ -115,6 +121,7 @@ namespace BakAgain.UI {
 
         protected override void OnBeforeHide() {
             _rebind?.Cancel();
+            CloseQuestion();
             Audio.MidiPlaybackManager.Instance?.StopPreviewSong();
             Audio.AudioLevels.ResetToSaved(); // after Save these are the new levels; otherwise the old ones come back
             if (_layer != null) {
@@ -200,6 +207,10 @@ namespace BakAgain.UI {
             }
             _panel.Add(content);
 
+            _hint = Text(Templates.Format(Templates.SettingsHintIdle), "enhanced-book__hint");
+            _hint.name = "hint";
+            _panel.Add(_hint);
+
             VisualElement buttons = MovedElements.Box("enhanced-book__buttons");
             Row(buttons, () => Templates.Format(Templates.SettingsOk), () => true, Save, "enhanced-book__button").name = "ok";
             Row(buttons, () => Templates.Format(Templates.EnhancedCancel), () => true, Cancel, "enhanced-book__button").name = "cancel";
@@ -243,6 +254,26 @@ namespace BakAgain.UI {
         }
 
         private void AddItem(VisualElement parent, SettingItem item) {
+            int before = parent.childCount;
+            AddItemCore(parent, item);
+            if (parent.childCount > before) Explains(parent[parent.childCount - 1], item.HintKey);
+        }
+
+        /// <summary>The hint line explains the setting under the mouse or the keyboard focus; on a touch
+        /// screen, which has no hover, the one last tapped stays explained.</summary>
+        private void Explains(VisualElement element, string hintKey) {
+            void Show() { if (_hint != null) _hint.text = Templates.Format(hintKey); }
+            element.RegisterCallback<PointerEnterEvent>(_ => Show());
+            element.RegisterCallback<PointerDownEvent>(_ => Show(), TrickleDown.TrickleDown);
+            element.RegisterCallback<FocusInEvent>(_ => Show());
+            element.RegisterCallback<PointerLeaveEvent>(e => {
+                if (e.pointerType == UnityEngine.UIElements.PointerType.mouse && _hint != null) {
+                    _hint.text = Templates.Format(Templates.SettingsHintIdle);
+                }
+            });
+        }
+
+        private void AddItemCore(VisualElement parent, SettingItem item) {
             switch (item.Kind) {
                 case SettingKind.Check: {
                     Button line = Line(parent, () => Caption(item), () => CheckOn(item.Id) ? CheckOnIcon : CheckOffIcon,
@@ -469,7 +500,50 @@ namespace BakAgain.UI {
             _navigator.Pop().Forget();
         }
 
-        private void Cancel() => _navigator.Pop().Forget();
+        private void Cancel() {
+            if (_bindings != null) InputBindings.Restore(_slots, _bindings);
+            _navigator.Pop().Forget();
+        }
+
+        /// <summary>Whether anything differs from what the book opened with: a setting, a folder, a key.</summary>
+        internal bool HasChanges =>
+            _draft != null && (!_draft.SameAs(EnhancedOptionsDraft.Load())
+                || (_gamePath, _modsOn, _modsPath) != _openedFolders
+                || (_bindings != null && InputBindings.Differs(_slots, _bindings)));
+
+        /// <summary>"Keep your changes?" over the page: Yes is OK, No is Cancel, Escape goes back to the book.</summary>
+        private void AskToKeep() {
+            var scrim = new VisualElement { name = "keep-changes", pickingMode = PickingMode.Position };
+            scrim.AddToClassList("enhanced-book__scrim");
+            VisualElement box = MovedElements.Box("enhanced-book__question");
+            box.Add(Text(Templates.Format(Templates.SettingsKeepChanges), "enhanced-book__question-text"));
+            VisualElement buttons = MovedElements.Box("enhanced-book__question-buttons");
+            box.Add(buttons);
+            scrim.Add(box);
+            _panel.Add(scrim);
+            Button yes = Row(buttons, () => Templates.Format(Templates.SettingsYes), () => true, () => { CloseQuestion(); Save(); }, "enhanced-book__button");
+            yes.name = "keep-yes";
+            Button no = Row(buttons, () => Templates.Format(Templates.SettingsNo), () => true, () => { CloseQuestion(); Cancel(); }, "enhanced-book__button");
+            no.name = "keep-no";
+            Refresh();
+            var widgets = new List<NavWidget>();
+            foreach (Button b in new[] { yes, no }) {
+                Button button = b;
+                widgets.Add(new NavWidget(button, button.Q<Label>("caption")?.text ?? string.Empty, () => RowRect(button),
+                    () => ClickOf(button)?.Invoke(), null));
+            }
+            _questionLayer = new NavigableLayer("enhanced-settings-question", CaptureMode.Exclusive, widgets, CloseQuestion, _cursor);
+            _stack?.Push(_questionLayer);
+        }
+
+        private void CloseQuestion() {
+            if (_questionLayer != null) {
+                _stack?.Remove(_questionLayer);
+                _questionLayer = null;
+            }
+            _panel?.Q("keep-changes")?.RemoveFromHierarchy();
+            _rows.RemoveAll(r => r.Row.name is "keep-yes" or "keep-no");
+        }
 
         /// <summary>True while the Mods screen is open over this screen.</summary>
         private bool _visitingMods;
@@ -491,6 +565,10 @@ namespace BakAgain.UI {
             }
             if (FileBrowser.IsOpen) {
                 FileBrowser.HideDialog(invokeCancelCallback: true);
+                return;
+            }
+            if (HasChanges) {
+                AskToKeep();
                 return;
             }
             Cancel();
