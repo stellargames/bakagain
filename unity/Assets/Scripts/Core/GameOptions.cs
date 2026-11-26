@@ -101,6 +101,27 @@ namespace BakAgain.Core {
         /// <summary>Arena frames a second at the chosen combat speed: the clock every arena animation steps on.</summary>
         public static double ArenaFramesPerSecond => GameData.Resources.Combat.ArenaFrame.Rate(CombatSpeed);
 
+        private const string MusicVolumeKey = "music volume", SoundVolumeKey = "sound volume";
+
+        /// <summary>How loud the music plays, 0..1, in Classic and Enhanced alike (TASK-1145); full until
+        /// chosen. A level only: the Preferences' music switches still turn it on and off.</summary>
+        public static float MusicVolume {
+            get => Mathf.Clamp01(PlayerPrefs.GetFloat(MusicVolumeKey, 1f));
+            set {
+                PlayerPrefs.SetFloat(MusicVolumeKey, Mathf.Clamp01(value));
+                PlayerPrefs.Save();
+            }
+        }
+
+        /// <summary>How loud the sound effects play, 0..1 (TASK-1145); full until chosen.</summary>
+        public static float SoundVolume {
+            get => Mathf.Clamp01(PlayerPrefs.GetFloat(SoundVolumeKey, 1f));
+            set {
+                PlayerPrefs.SetFloat(SoundVolumeKey, Mathf.Clamp01(value));
+                PlayerPrefs.Save();
+            }
+        }
+
         private const string RestoreShopBuybackBugKey = "restore shop buyback bug";
 
         /// <summary>

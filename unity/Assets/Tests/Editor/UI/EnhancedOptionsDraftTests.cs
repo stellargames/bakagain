@@ -93,5 +93,21 @@ namespace BakAgain.Tests.Editor.UI {
             draft[EnhancedFeature.BookFont] = false;
             Assert.IsFalse(EnhancedSettingsScreen.FontChangePending(draft));
         }
+
+        [Test]
+        public void VolumesRoundTripThroughTheDraft() {
+            Assert.AreEqual(1f, GameOptions.MusicVolume, "full until the player chooses");
+            EnhancedOptionsDraft draft = EnhancedOptionsDraft.Load();
+            draft.MusicVolume = 0.25f;
+            draft.SoundVolume = 0.6f;
+            Assert.AreEqual(1f, GameOptions.MusicVolume, "not saved before Save");
+
+            draft.Commit();
+
+            Assert.AreEqual(0.25f, GameOptions.MusicVolume, 0.001f);
+            Assert.AreEqual(0.6f, GameOptions.SoundVolume, 0.001f);
+            Assert.AreEqual(0.25f, EnhancedOptionsDraft.Load().MusicVolume, 0.001f);
+            Assert.AreEqual(0.6f, EnhancedOptionsDraft.Load().SoundVolume, 0.001f);
+        }
     }
 }

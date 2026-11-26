@@ -82,7 +82,23 @@ namespace BakAgain.Audio {
             for (int i = 0; i < sfxPoolSize; i++) {
                 _sfxPlayers.Add(CreatePlayer("SFXPlayer_" + i));
             }
+            AudioLevels.Changed += ApplyLevels;
+            ApplyLevels();
         }
+
+        /// <summary>Puts the live levels on every player (TASK-1145). A song mid-fade keeps its ramp; the
+        /// fade ends at the music level.</summary>
+        private void ApplyLevels() {
+            if (_songPlayer != null && _fadeFrom == null) _songPlayer.Volume = AudioLevels.Music;
+            foreach (MidiSynthPlayer p in _sfxPlayers) p.Volume = AudioLevels.Sound;
+            if (_sampleSource != null) _sampleSource.volume = AudioLevels.Sound;
+        }
+
+        internal float SongVolume => _songPlayer != null ? _songPlayer.Volume : -1f;
+
+        internal float SampleVolume => _sampleSource != null ? _sampleSource.volume : -1f;
+
+        internal IEnumerable<float> SfxPlayerVolumes => _sfxPlayers.Select(p => p.Volume);
 
         private MidiSynthPlayer CreatePlayer(string playerName) {
             var go = new GameObject(playerName);
@@ -92,6 +108,7 @@ namespace BakAgain.Audio {
         }
 
         private void OnDestroy() {
+            AudioLevels.Changed -= ApplyLevels;
             if (_preferences != null) {
                 _preferences.Changed -= OnPreferencesChanged;
             }
@@ -192,6 +209,7 @@ namespace BakAgain.Audio {
 
             if (availablePlayer) {
                 availablePlayer.MidiName = audioResource.Name;
+                availablePlayer.Volume = AudioLevels.Sound;
                 availablePlayer.Load(midiData);
                 // Reset/apply the per-sound loop flag (pool players are reused, so set it every time).
                 availablePlayer.Play(loop: audioResource.IsLooping);
@@ -248,6 +266,7 @@ namespace BakAgain.Audio {
                 _sampleSource = gameObject.AddComponent<AudioSource>();
                 _sampleSource.playOnAwake = false;
             }
+            _sampleSource.volume = AudioLevels.Sound;
 
             AudioClip clip = AudioClip.Create(audioResource.Name ?? audioResource.Id.ToString(),
                 pcm.Samples.Length / pcm.Channels, pcm.Channels, pcm.SampleRate, stream: false);
@@ -392,13 +411,13 @@ namespace BakAgain.Audio {
                 return;
             }
 
-            float startVolume = _fadeFrom ??= _songPlayer.Volume;
+            float startVolume = _fadeFrom ??= AudioLevels.Music;
             double elapsed = 0;
             double total = MusicPlayback.FadeSeconds;
 
             while (elapsed < total) {
                 if (serial != _changeSerial) {
-                    return;   // a newer change fades from here, from the same full volume
+                    return;   // a newer change fades from here, from the same starting level
                 }
                 elapsed += Time.unscaledDeltaTime;
                 _songPlayer.Volume =
@@ -406,8 +425,8 @@ namespace BakAgain.Audio {
                 await UniTask.Yield();
             }
 
-            _songPlayer.Volume = startVolume;   // the next song starts at full volume
             _fadeFrom = null;
+            _songPlayer.Volume = AudioLevels.Music;   // the next song starts at the player's level, which may have moved meanwhile
         }
 
         /// <summary>Stop the currently-playing background song (SFX are left alone). Mirrors the

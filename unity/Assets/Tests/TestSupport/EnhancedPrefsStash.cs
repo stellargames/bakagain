@@ -15,6 +15,8 @@ namespace BakAgain.Tests {
                 yield return "enhanced";
                 yield return "enhanced shadows";
                 yield return "combat speed";
+                yield return "music volume";
+                yield return "sound volume";
                 foreach (EnhancedFeature f in System.Enum.GetValues(typeof(EnhancedFeature)))
                     yield return $"enhanced {f}";
             }

@@ -16,6 +16,10 @@ namespace BakAgain.UI {
 
         public GameData.Resources.Combat.CombatSpeed CombatSpeed { get; set; }
 
+        public float MusicVolume { get; set; }
+
+        public float SoundVolume { get; set; }
+
         public bool this[EnhancedFeature feature] {
             get => _features[feature];
             set => _features[feature] = value;
@@ -24,7 +28,8 @@ namespace BakAgain.UI {
         public static EnhancedOptionsDraft Load() {
             var draft = new EnhancedOptionsDraft { Master = GameOptions.Enhanced, Shadows = GameOptions.Shadows,
                 CheckForUpdates = GameOptions.CheckForUpdates,
-                RestoreShopBuybackBug = GameOptions.RestoreShopBuybackBug, CombatSpeed = GameOptions.CombatSpeed };
+                RestoreShopBuybackBug = GameOptions.RestoreShopBuybackBug, CombatSpeed = GameOptions.CombatSpeed,
+                MusicVolume = GameOptions.MusicVolume, SoundVolume = GameOptions.SoundVolume };
             foreach (EnhancedFeature f in System.Enum.GetValues(typeof(EnhancedFeature)))
                 draft._features[f] = GameOptions.GetFeature(f);
             return draft;
@@ -36,6 +41,8 @@ namespace BakAgain.UI {
             GameOptions.CheckForUpdates = CheckForUpdates;
             GameOptions.RestoreShopBuybackBug = RestoreShopBuybackBug;
             GameOptions.CombatSpeed = CombatSpeed;
+            GameOptions.MusicVolume = MusicVolume;
+            GameOptions.SoundVolume = SoundVolume;
             foreach (KeyValuePair<EnhancedFeature, bool> kv in _features)
                 GameOptions.SetFeature(kv.Key, kv.Value);
         }
