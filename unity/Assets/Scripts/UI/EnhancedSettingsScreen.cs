@@ -203,8 +203,6 @@ namespace BakAgain.UI {
                     () => EnhancedRowEnabled(_draft, feature), () => _draft[feature] = !_draft[feature]);
             }
             Row(features, () => ShadowsText(_draft.Shadows), () => _draft.Master, () => _draft.Shadows = NextShadows(_draft.Shadows));
-            Row(features, () => CombatSpeedText(_draft.CombatSpeed), () => true,
-                () => _draft.CombatSpeed = NextCombatSpeed(_draft.CombatSpeed)).name = "combat_speed";
 
             folders.Add(Text(Templates.Format(Templates.EnhancedFoldersHeading), "enhanced-settings__heading"));
             folders.Add(Text(Templates.Format(Templates.EnhancedGameFolder), "enhanced-settings__label"));
@@ -219,6 +217,9 @@ namespace BakAgain.UI {
             folders.Add(PathLine(() => Shown(_modsPath), () => _modsOn && _modsPath != BakResourceSettings.OverridePath));
             if (FoldersPickable) Row(folders, () => Templates.Format(Templates.EnhancedBrowse), () => _modsOn, BrowseModsFolder);
             if (_slots != null && !Application.isMobilePlatform) Row(folders, () => Templates.Format(Templates.ControlsTitle), () => true, () => ShowPage(controls: true)).name = "controls";
+            // In this column: the Features column is full at 13 rows; a 14th ran under Save (forum p=96).
+            Row(folders, () => CombatSpeedText(_draft.CombatSpeed), () => true,
+                () => _draft.CombatSpeed = NextCombatSpeed(_draft.CombatSpeed)).name = "combat_speed";
             Row(folders, () => BoxText(Templates.EnhancedCheckForUpdates, _draft.CheckForUpdates), () => true,
                 () => _draft.CheckForUpdates = !_draft.CheckForUpdates);
             Row(folders, () => BoxText(Templates.RestoreShopBuybackBug, _draft.RestoreShopBuybackBug), () => true,
