@@ -353,7 +353,7 @@
 .enhanced-book { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
 .enhanced-book__title { position: absolute; left: 0; right: 0; top: 5%; height: 90px; -unity-text-align: middle-center;
     color: rgb(230, 212, 140); text-shadow: 3px 3px 0 rgb(43, 29, 12); }
-.enhanced-book__content { position: absolute; left: 13%; right: 13%; top: 15%; height: 57%;
+.enhanced-book__content { position: absolute; left: 13%; right: 13%; top: 14%; height: 54%;
     flex-direction: column; flex-wrap: wrap; align-content: flex-start; }
 .enhanced-book--narrow .enhanced-book__content { right: 20%; }
 .enhanced-book__line { height: 84px; width: 48%; margin: 0; padding: 0 0 0 4px; flex-direction: row; align-items: center;
@@ -380,7 +380,7 @@
 .enhanced-book__keys .enhanced-book__line { width: 100%; }
 .enhanced-book__button { height: 72px; width: 300px; margin: 0 0 0 24px; flex-shrink: 0; }
 .enhanced-book__group .enhanced-book__button, .enhanced-book__content > .enhanced-book__button { margin: 8px 0 8px 0; }
-.enhanced-book__buttons { position: absolute; right: 13%; top: 82%; height: 72px; flex-direction: row; }
+.enhanced-book__buttons { position: absolute; right: 13%; top: 85%; height: 72px; flex-direction: row; }
 .enhanced-book--narrow .enhanced-book__buttons { right: 20%; }
 .enhanced-book__bookmarks { position: absolute; left: 100%; margin-left: -34px; top: 10%; flex-direction: column; align-items: flex-start; }
 .enhanced-book--narrow .enhanced-book__bookmarks { left: auto; right: 0; align-items: flex-end; }
@@ -395,7 +395,7 @@
 .enhanced-book__bookmark--audio { -unity-background-image-tint-color: rgb(196, 136, 52); }
 .enhanced-book__bookmark--controls { -unity-background-image-tint-color: rgb(146, 68, 100); }
 .enhanced-book__bookmark--game-files { -unity-background-image-tint-color: rgb(76, 120, 98); }
-.enhanced-book__hint { position: absolute; left: 13%; right: 13%; top: 73%; height: 100px; padding-top: 6px;
+.enhanced-book__hint { position: absolute; left: 13%; right: 13%; top: 69%; height: 190px; padding-top: 6px;
     border-top-width: 3px; border-color: rgb(90, 62, 30); white-space: normal; color: rgb(18, 11, 4); }
 .enhanced-book--narrow .enhanced-book__hint { right: 20%; }
 /* "Keep your changes?": a small parchment box over the page; the scrim takes every click around it. */

@@ -49,5 +49,33 @@ namespace BakAgain.Tests.PlayMode.UI {
                     view.Restore();
                 }
             });
+
+        /// <summary>The longest hints take two lines; they must end above OK and Cancel, not run into them
+        /// (seen in the real build, 2026-11-26).</summary>
+        [UnityTest]
+        [RequiresShippedGameData]
+        public IEnumerator EveryHintFitsAboveOkAndCancel([Values(1600u, 2400u)] uint width) =>
+            UniTask.ToCoroutine(async () => {
+                uint height = width == 1600u ? 1200u : 1080u;
+                GameViewResolutionScope view = GameViewResolutionScope.Force(width, height);
+                await Frames(2);
+                try {
+                    await OpenAsync();
+                    var problems = new List<string>();
+                    Label hint = Root.Q<Label>("hint");
+                    float top = Named("ok").worldBound.yMin;
+                    foreach (SettingItem item in EnhancedSettingsPages.Order.SelectMany(EnhancedSettingsPages.ItemsOn)) {
+                        string text = GameData.Resources.Text.UiTemplates.Format(item.HintKey);
+                        Vector2 size = hint.MeasureTextSize(text, hint.contentRect.width, VisualElement.MeasureMode.Exactly, 0, VisualElement.MeasureMode.Undefined);
+                        // Measured in the label's own units; the panel scales them to the window.
+                        float bottom = hint.LocalToWorld(new Vector2(0, hint.contentRect.yMin + size.y)).y;
+                        if (bottom > top + 0.5f) problems.Add($"{item.Id}: ends at {bottom:0}, OK starts at {top:0}");
+                    }
+                    Assert.IsEmpty(problems, $"{width}x{height}:\n  " + string.Join("\n  ", problems));
+                } finally {
+                    await CloseAsync();
+                    view.Restore();
+                }
+            });
     }
 }
