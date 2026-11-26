@@ -90,7 +90,7 @@ namespace BakAgain.Editor.Cutscenes {
             BakResourceProvider.ClearCaches();
         }
 
-        [MenuItem("BaK Again/Cutscene Studio")]
+        [MenuItem("BaK/Cutscene Studio")]
         public static void Init() {
             if (!Addressables.ResourceManager.ResourceProviders.OfType<OverrideResourceProvider>().Any()) {
                 Addressables.ResourceManager.ResourceProviders.Add(OverrideResourceProvider);

@@ -53,12 +53,6 @@ namespace BakAgain.Editor.Input {
             };
         }
 
-        [MenuItem("BaK/Diagnostics/Sweep stale input monitors")]
-        private static void SweepFromMenu() {
-            int removed = Sweep();
-            Debug.Log($"Stale input monitors removed: {removed}");
-        }
-
         /// <summary>Removes every monitor whose asset is gone. Returns how many.</summary>
         private static int Sweep() {
             var doomed = new List<(InputControl Control, IInputStateChangeMonitor Monitor, long Index)>();
