@@ -33,7 +33,7 @@ namespace BakAgain.Tests.Editor.UI {
         public void UsableInClassicMatchesTheSpec() {
             CollectionAssert.AreEquivalent(new[] {
                     "check_updates", "combat_speed", "music_volume", "sound_volume", "restore_shop_buyback_bug",
-                    "key_list", "game_folder", "installed_mods", "dev_overrides", "dev_folder", "enhanced",
+                    "key_list", "game_folder", "installed_mods", "dev_overrides", "dev_folder", "enhanced", "language",
                 },
                 AllItems.Where(i => i.UsableInClassic).Select(i => i.Id));
         }

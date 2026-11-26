@@ -32,6 +32,8 @@ namespace BakAgain.UI {
             [SettingsPage.General] = new[] {
                 new SettingItem("enhanced", SettingKind.Check, T.SettingsEnhanced, T.HintEnhanced, true),
                 new SettingItem("check_updates", SettingKind.Check, T.EnhancedCheckForUpdates, T.HintCheckUpdates, true),
+                // Its choices are the installed language packs, known only at run time (the screen lists them).
+                new SettingItem("language", SettingKind.Choice, T.SettingsLanguageHeading, T.HintLanguage, true),
             },
             [SettingsPage.Display] = new[] {
                 Feature("full_screen_travel", T.EnhancedFeatureFullScreen, T.HintFullScreenTravel),

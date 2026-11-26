@@ -492,6 +492,8 @@ public static class UiTemplates {
     public const string SettingsNo = "port:template:settings_no";
     public const string SettingsHintIdle = "port:template:settings_hint_idle";
     public const string SettingsHintIdleTouch = "port:template:settings_hint_idle_touch";
+    public const string SettingsLanguageHeading = "port:template:settings_language_heading";
+    public const string HintLanguage = "port:template:settings_hint_language";
     public const string HintEnhanced = "port:template:settings_hint_enhanced";
     public const string HintCheckUpdates = "port:template:settings_hint_check_updates";
     public const string HintFullScreenTravel = "port:template:settings_hint_full_screen_travel";
@@ -535,6 +537,8 @@ public static class UiTemplates {
         (SettingsNo, _ => "No"),
         (SettingsHintIdle, _ => "Point at a setting to see what it changes."),
         (SettingsHintIdleTouch, _ => "Tap a setting to see what it changes."),
+        (SettingsLanguageHeading, _ => "Language:"),
+        (HintLanguage, _ => "The language of the game's text. Takes effect at the next start."),
         (HintEnhanced, _ => "Switches every Enhanced feature on or off at once. Off is the original game."),
         (HintCheckUpdates, _ => "The main menu asks bakagain.org whether a newer BaK-Again is out."),
         (HintFullScreenTravel, _ => "Travel fills the whole window, the buttons and portraits laid over the view."),

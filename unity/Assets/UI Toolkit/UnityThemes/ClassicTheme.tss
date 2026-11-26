@@ -388,13 +388,19 @@
 .enhanced-book__slider:focus .unity-base-slider__dragger { background-color: rgb(186, 136, 70); }
 .enhanced-book__keys { width: 100%; flex-grow: 1; flex-shrink: 1; flex-basis: 0; }
 .enhanced-book__keys .enhanced-book__line { width: 100%; }
-.enhanced-book__button { height: 72px; width: 300px; margin: 0 0 0 24px; flex-shrink: 0; }
+/* The key list in two columns (owner): the action on the left, its key lined up on the right. */
+.enhanced-book__keyrow #caption { width: 62%; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; }
+.enhanced-book__key { flex-grow: 1; overflow: hidden; text-overflow: ellipsis; -unity-text-align: middle-left; color: rgb(18, 11, 4); }
+.enhanced-book__probe { position: absolute; visibility: hidden; }
+.enhanced-book__button { height: 72px; width: 380px; margin: 0 0 0 24px; flex-shrink: 0; }
 .enhanced-book__group .enhanced-book__button, .enhanced-book__content > .enhanced-book__button { margin: 8px 0 8px 0; }
 .enhanced-book__buttons { position: absolute; right: 13%; top: 85%; height: 72px; flex-direction: row; }
 .enhanced-book--narrow .enhanced-book__buttons { right: 20%; }
 .enhanced-book__bookmarks { position: absolute; left: 100%; margin-left: -34px; top: 10%; flex-direction: column; align-items: flex-start; }
 .enhanced-book--narrow .enhanced-book__bookmarks { left: auto; right: 0; align-items: flex-end; }
-.enhanced-book__bookmark { width: 264px; height: 96px; margin: 0 0 14px 0; padding: 0 0 0 32px; border-width: 0;
+/* Padding: the words end before the swallow-tail cut (the last tenth of the cloth), and sit a little low,
+   as the game font's capitals ride high in their line. */
+.enhanced-book__bookmark { width: 264px; height: 96px; margin: 0 0 14px 0; padding: 20px 32px 0 32px; border-width: 0;
     background-color: rgba(0, 0, 0, 0); -unity-background-scale-mode: stretch-to-fill; -unity-text-align: middle-left;
     color: rgb(236, 216, 154); text-shadow: 2px 2px 0 rgb(27, 16, 6); flex-shrink: 0; }
 .enhanced-book__bookmark--open { width: 294px; color: rgb(255, 240, 184); }

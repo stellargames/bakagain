@@ -1,6 +1,7 @@
 namespace BakAgain.UI {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using BakAgain.Core;
     using BakAgain.ResourceManagement;
     using BakAgain.UI.Cursor;
@@ -92,6 +93,9 @@ namespace BakAgain.UI {
                 if (string.IsNullOrWhiteSpace(_modsPath)) _modsPath = MetaMenu.DefaultOverridePath;
                 _page = _lastPage;
                 _openedFolders = (_gamePath, _modsOn, _modsPath);
+                // The language actually running, not the raw setting: a setting naming a pack that is not
+                // installed runs English, and starting from it would show "(restart)" for good.
+                _language = LanguagePacks.Current.Locale;
                 _bindings = _slots != null ? InputBindings.Snapshot(_slots) : null;
             }
             Build(CanonicalStage.GetOrCreate(root, null));
@@ -198,6 +202,7 @@ namespace BakAgain.UI {
             _paths.Clear();
             _icons.Clear();
             _sliders.Clear();
+            _keys.Clear();
             _scroll = null;
             // The Audio page plays a song to listen to when none is sounding; leaving the page ends it.
             if (_page == SettingsPage.Audio) Audio.MidiPlaybackManager.Instance?.StartPreviewSongAsync(_resources).Forget();
@@ -210,6 +215,10 @@ namespace BakAgain.UI {
             foreach (SettingItem item in EnhancedSettingsPages.ItemsOn(_page)) {
                 AddItem(content, item);
             }
+            _probe = Line(content, () => string.Empty, () => CheckOffIcon, () => true, () => { });
+            _probe.AddToClassList("enhanced-book__probe");
+            _rows.RemoveAll(r => r.Row == _probe);
+            content.RegisterCallback<GeometryChangedEvent>(_ => FitBookText(content));
             _panel.Add(content);
 
             _hint = Text(Templates.Format(Touch ? Templates.SettingsHintIdleTouch : Templates.SettingsHintIdle), "enhanced-book__hint");
@@ -219,6 +228,7 @@ namespace BakAgain.UI {
             VisualElement buttons = MovedElements.Box("enhanced-book__buttons");
             Row(buttons, () => Templates.Format(Templates.SettingsOk), () => true, Save, "enhanced-book__button").name = "ok";
             Row(buttons, () => Templates.Format(Templates.EnhancedCancel), () => true, Cancel, "enhanced-book__button").name = "cancel";
+            buttons.RegisterCallback<GeometryChangedEvent>(_ => FitButtons());
             _panel.Add(buttons);
 
             VisualElement marks = MovedElements.Box("enhanced-book__bookmarks");
@@ -231,12 +241,9 @@ namespace BakAgain.UI {
                 mark.AddToClassList("enhanced-book__bookmark--" + NameOf(p));
                 mark.EnableInClassList("enhanced-book__bookmark--open", p == _page);
                 if (cloth != null) mark.style.backgroundImage = Background.FromTexture2D(cloth);
-                // One text size for every bookmark on every page (owner): out of the screen-wide fit,
-                // which the Controls page's long key names shrink, and fitted among themselves.
-                mark.Q<Label>("caption")?.RemoveFromClassList(GameFontText.CaptionClass);
+                // One text size for every bookmark on every page (owner), fitted among themselves.
             }
-            marks.RegisterCallback<GeometryChangedEvent>(_ =>
-                GameFontText.FitTogether(marks.Query<Label>("caption").ToList()));
+            marks.RegisterCallback<GeometryChangedEvent>(_ => FitBookmarks(marks));
             _panel.Add(marks);
 
             stage.Add(_panel);
@@ -245,6 +252,7 @@ namespace BakAgain.UI {
             root.RegisterCallback<GeometryChangedEvent>(OnWindowLaidOut);
             _panel.RegisterCallback<GeometryChangedEvent>(OnWindowLaidOut);
             Refresh();
+            FitButtons();
         }
 
         // Where the window has no table to the right of the page (4:3), the bookmarks lie over the page's
@@ -266,6 +274,109 @@ namespace BakAgain.UI {
             float crop = Mathf.Max(0f, -room);
             if (Mathf.Abs(marks.resolvedStyle.right - crop) > 0.5f || crop == 0f) {
                 marks.style.right = crop > 0f ? new StyleLength(crop) : new StyleLength(StyleKeyword.Null);
+            }
+        }
+
+        /// <summary>One size for every bookmark's name (owner): the largest at which all seven fit a closed
+        /// bookmark, measured at the full size so the answer does not depend on what is drawn now.</summary>
+        private static void FitBookmarks(VisualElement marks) {
+            VisualElement closed = marks.Children().FirstOrDefault(m => !m.ClassListContains("enhanced-book__bookmark--open"));
+            Label probe = closed?.Q<Label>("caption");
+            if (probe == null || probe.resolvedStyle.fontSize <= 0f || closed.contentRect.width <= 0f) return;
+            float full = GameFontText.FontSizePx, now = probe.resolvedStyle.fontSize, scale = 1f;
+            foreach (SettingsPage page in EnhancedSettingsPages.Order) {
+                float width = probe.MeasureTextSize(Templates.Format(EnhancedSettingsPages.TitleKey(page)), 0,
+                    VisualElement.MeasureMode.Undefined, 0, VisualElement.MeasureMode.Undefined).x * full / now;
+                if (width > 0f) scale = Mathf.Min(scale, closed.contentRect.width / width);
+            }
+            float size = full * Mathf.Max(scale, GameFontText.MinFitScale);
+            foreach (Label caption in marks.Query<Label>("caption").ToList()) {
+                if (Mathf.Abs(caption.resolvedStyle.fontSize - size) > 0.1f) caption.style.fontSize = size;
+            }
+        }
+
+        /// <summary>Every word a bevelled button of the book can carry.</summary>
+        private static readonly string[] ButtonKeys = {
+            Templates.SettingsOk, Templates.EnhancedCancel, Templates.EnhancedBrowse, Templates.ModsInstalled,
+            Templates.ControlsReset, Templates.SettingsYes, Templates.SettingsNo,
+        };
+
+        /// <summary>One size for the book's bevelled buttons on every page, as for the lines: measured
+        /// against OK's room, which every page has.</summary>
+        private void FitButtons() {
+            Button ok = _panel?.Q<Button>("ok");
+            Label probe = ok?.Q<Label>("caption");
+            if (probe == null || probe.resolvedStyle.fontSize <= 0f || ok.contentRect.width <= 0f) return;
+            float full = GameFontText.FontSizePx, now = probe.resolvedStyle.fontSize, scale = 1f;
+            foreach (string key in ButtonKeys) {
+                float width = probe.MeasureTextSize(Templates.Format(key), 0, VisualElement.MeasureMode.Undefined, 0,
+                    VisualElement.MeasureMode.Undefined).x * full / now;
+                if (width > 0f) scale = Mathf.Min(scale, ok.contentRect.width / width);
+            }
+            float size = full * Mathf.Max(scale, GameFontText.MinFitScale);
+            foreach (Button b in _panel.Query<Button>(className: "enhanced-book__button").ToList()) {
+                Label caption = b.Q<Label>("caption");
+                if (caption != null && Mathf.Abs(caption.resolvedStyle.fontSize - size) > 0.1f) caption.style.fontSize = size;
+            }
+        }
+
+        /// <summary>A hidden line laid out like every other: the room a line's words have.</summary>
+        private Button _probe;
+
+        /// <summary>
+        /// One text size for the lines and headings of every page (owner, 2026-11-26): the largest at
+        /// which the longest words of ANY page fit a line, so turning a page never changes it.
+        /// </summary>
+        private void FitBookText(VisualElement content) {
+            Label probe = _probe?.Q<Label>("caption");
+            if (probe == null || probe.resolvedStyle.fontSize <= 0f) return;
+            float lineRoom = _probe.contentRect.width - probe.layout.x;
+            float headingRoom = _probe.contentRect.width;
+            if (lineRoom <= 0f) return;
+            float full = GameFontText.FontSizePx, now = probe.resolvedStyle.fontSize;
+            float scale = 1f;
+            foreach ((string text, bool heading) in BookTexts()) {
+                float width = probe.MeasureTextSize(text, 0, VisualElement.MeasureMode.Undefined, 0,
+                    VisualElement.MeasureMode.Undefined).x * full / now;
+                if (width > 0f) scale = Mathf.Min(scale, (heading ? headingRoom : lineRoom) / width);
+            }
+            float size = full * Mathf.Max(scale, GameFontText.MinFitScale);
+            foreach (Label label in content.Query<Label>().ToList()) {
+                bool line = label.name == "caption" && label.parent is Button b && b.ClassListContains("enhanced-book__line")
+                    && !b.ClassListContains("enhanced-book__keyrow");
+                if ((line || label.ClassListContains("enhanced-book__heading")) && Mathf.Abs(label.resolvedStyle.fontSize - size) > 0.5f) {
+                    label.style.fontSize = size;
+                }
+            }
+        }
+
+        /// <summary>Every page's line and heading words, each in its longest form ("(restart)" added
+        /// where it can be).</summary>
+        private static IEnumerable<(string Text, bool Heading)> BookTexts() {
+            string Restart(string t) => Templates.Format(Templates.EnhancedPendingKey, ("text", t));
+            foreach (SettingsPage page in EnhancedSettingsPages.Order) {
+                foreach (SettingItem item in EnhancedSettingsPages.ItemsOn(page)) {
+                    string label = Templates.Format(item.LabelKey);
+                    switch (item.Kind) {
+                        case SettingKind.Check:
+                            yield return (item.Id is "enhanced" or "book_font" or "dev_overrides" ? Restart(label) : label, false);
+                            break;
+                        case SettingKind.Choice:
+                            yield return (label, true);
+                            if (item.Id == "language") {
+                                foreach (string locale in Languages) {
+                                    yield return (Templates.Format(Templates.LanguageChoicePendingKey, ("name", LanguageName(locale))), false);
+                                }
+                            } else {
+                                foreach (string key in item.ChoiceKeys) yield return (Templates.Format(key), false);
+                            }
+                            break;
+                        case SettingKind.Slider:
+                        case SettingKind.Path:
+                            yield return (label, true);
+                            break;
+                    }
+                }
             }
         }
 
@@ -298,12 +409,14 @@ namespace BakAgain.UI {
                     break;
                 }
                 case SettingKind.Choice: {
+                    IReadOnlyList<string> options = ChoicesOf(item);
+                    if (options.Count < 2) break; // one language installed: nothing to choose
                     VisualElement group = MovedElements.Box("enhanced-book__group");
                     group.name = item.Id;
                     group.Add(Text(Templates.Format(item.LabelKey), "enhanced-book__heading"));
-                    for (int i = 0; i < item.ChoiceKeys.Length; i++) {
+                    for (int i = 0; i < options.Count; i++) {
                         int choice = i;
-                        Button line = Line(group, () => Templates.Format(item.ChoiceKeys[choice]),
+                        Button line = Line(group, () => ChoiceCaption(item, options, choice),
                             () => ChoiceOf(item.Id) == choice ? RadioOnIcon : RadioOffIcon,
                             () => Enabled(item), () => SetChoice(item.Id, choice));
                         line.name = item.Id + "-" + choice;
@@ -370,7 +483,10 @@ namespace BakAgain.UI {
         }
 
         /// <summary>Whether a check line shows ticked in the draft (tests read it).</summary>
-        internal bool Shows(string id) => CheckOn(id);
+        internal bool Shows(string id) {
+            int dash = id.LastIndexOf('-');
+            return dash > 0 && int.TryParse(id[(dash + 1)..], out int n) ? ChoiceOf(id[..dash]) == n : CheckOn(id);
+        }
 
         private bool CheckOn(string id) => id switch {
             "enhanced" => _draft.Master,
@@ -407,10 +523,44 @@ namespace BakAgain.UI {
             _ => false,
         };
 
-        private int ChoiceOf(string id) => id == "shadows" ? (int)_draft.Shadows : (int)_draft.CombatSpeed;
+        private static IReadOnlyList<string> Languages =>
+            GameData.Resources.Text.LanguageChoice.Available(LanguagePacks.Installed(), Debug.isDebugBuild);
+
+        /// <summary>A choice's options: the table's, or for Language the installed packs (locales).</summary>
+        private static IReadOnlyList<string> ChoicesOf(SettingItem item) =>
+            item.Id == "language" ? Languages : item.ChoiceKeys;
+
+        private string ChoiceCaption(SettingItem item, IReadOnlyList<string> options, int choice) {
+            if (item.Id != "language") return Templates.Format(options[choice]);
+            string name = LanguageName(options[choice]);
+            // Chosen but not what is running: it takes effect at the next start.
+            return ChoiceOf(item.Id) == choice && options[choice] != LanguagePacks.Current.Locale
+                ? Templates.Format(Templates.LanguageChoicePendingKey, ("name", name)) : name;
+        }
+
+        // "Deutsch (beta)" for a pack its header marks as not yet reviewed.
+        private static string LanguageName(string locale) {
+            string name = GameData.Resources.Text.LanguageChoice.DisplayName(locale);
+            return LanguagePacks.IsBeta(locale) ? Templates.Format(Templates.LanguageBetaKey, ("name", name)) : name;
+        }
+
+        /// <summary>The language chosen on this visit (a locale); saved with OK for the next start.</summary>
+        private string _language;
+
+        private int ChoiceOf(string id) => id switch {
+            "shadows" => (int)_draft.Shadows,
+            "language" => IndexOf(Languages, _language),
+            _ => (int)_draft.CombatSpeed,
+        };
+
+        private static int IndexOf(IReadOnlyList<string> list, string value) {
+            for (int i = 0; i < list.Count; i++) if (list[i] == value) return i;
+            return -1;
+        }
 
         private void SetChoice(string id, int choice) {
             if (id == "shadows") _draft.Shadows = (ShadowMode)choice;
+            else if (id == "language") _language = Languages[choice];
             else _draft.CombatSpeed = (GameData.Resources.Combat.CombatSpeed)choice;
         }
 
@@ -472,7 +622,12 @@ namespace BakAgain.UI {
             var row = new Button();
             if (cls != "enhanced-book__line" && cls != "enhanced-book__bookmark") row.AddToClassList("text-button");
             row.AddToClassList(cls);
-            GameFontText.Caption(row, string.Empty);
+            Label label = GameFontText.Caption(row, string.Empty);
+            // Lines and bookmarks are sized by the book itself (FitBookText, the bookmarks' FitTogether),
+            // not by the screen-wide fit, which one long line would let shrink a whole page.
+            if (cls is "enhanced-book__line" or "enhanced-book__bookmark" or "enhanced-book__button") {
+                label.RemoveFromClassList(GameFontText.CaptionClass);
+            }
             Action click = () => {
                 if (Rebinding) return;
                 toggle();
@@ -491,6 +646,7 @@ namespace BakAgain.UI {
                 if (label != null) label.text = caption();
                 row.SetEnabled(enabled());
             }
+            foreach ((Label key, Func<string> text) in _keys) key.text = text();
             foreach ((Label line, Func<string> text, Func<bool> pending) in _paths) {
                 string t = text();
                 line.text = pending() ? Templates.Format(Templates.EnhancedPendingKey, ("text", t)) : t;
@@ -524,6 +680,9 @@ namespace BakAgain.UI {
         private void Save() {
             _draft.Commit();
             BakResourceSettings.SetForNextStart(_gamePath, _modsOn, _modsPath);
+            if (!string.IsNullOrEmpty(_language) && _language != LanguagePacks.Current.Locale) {
+                BakResourceSettings.Language = _language;
+            }
             _navigator.Pop().Forget();
         }
 
@@ -536,6 +695,7 @@ namespace BakAgain.UI {
         internal bool HasChanges =>
             _draft != null && (!_draft.SameAs(EnhancedOptionsDraft.Load())
                 || (_gamePath, _modsOn, _modsPath) != _openedFolders
+                || _language != LanguagePacks.Current.Locale
                 || (_bindings != null && InputBindings.Differs(_slots, _bindings)));
 
         /// <summary>"Keep your changes?" over the page: Yes is OK, No is Cancel, Escape goes back to the book.</summary>
@@ -553,6 +713,7 @@ namespace BakAgain.UI {
             Button no = Row(buttons, () => Templates.Format(Templates.SettingsNo), () => true, () => { CloseQuestion(); Cancel(); }, "enhanced-book__button");
             no.name = "keep-no";
             Refresh();
+            FitButtons();
             var widgets = new List<NavWidget>();
             foreach (Button b in new[] { yes, no }) {
                 Button button = b;
@@ -633,14 +794,22 @@ namespace BakAgain.UI {
 
         /// <summary>"Walk forward: W", "Walk forward (2nd key): Up Arrow", "Hotkey M: M", or the prompt
         /// while that row waits for a key.</summary>
-        internal static string ControlText(RebindSlot slot, bool waiting) {
+        internal static string ControlText(RebindSlot slot, bool waiting) =>
+            Templates.Format(Templates.ControlsRow, ("action", ActionText(slot)), ("key", KeyText(slot, waiting)));
+
+        /// <summary>"Walk forward", "Walk forward (2nd key)", "Hotkey M": the key list's left column.</summary>
+        internal static string ActionText(RebindSlot slot) {
             string action = slot.Letter != null
                 ? Templates.Format(slot.LabelKey, ("letter", slot.Letter))
                 : Templates.Format(slot.LabelKey);
-            if (slot.Second) action = Templates.Format(Templates.ControlsSecondKey, ("action", action));
-            return Templates.Format(Templates.ControlsRow, ("action", action),
-                ("key", waiting ? Templates.Format(Templates.ControlsPressAKey) : KeyName(slot.Path)));
+            return slot.Second ? Templates.Format(Templates.ControlsSecondKey, ("action", action)) : action;
         }
+
+        /// <summary>The key, or the prompt while the row waits for one: the key list's right column.</summary>
+        internal static string KeyText(RebindSlot slot, bool waiting) =>
+            waiting ? Templates.Format(Templates.ControlsPressAKey) : KeyName(slot.Path);
+
+        private readonly List<(Label Key, Func<string> Text)> _keys = new();
 
         /// <summary>The heading a slot is listed under.</summary>
         internal static string HeadingOf(RebindSlot slot) => slot.Section ?? slot.Group switch {
@@ -677,8 +846,14 @@ namespace BakAgain.UI {
                     heading = HeadingOf(s);
                     column.Add(Text(Templates.Format(heading), "enhanced-book__heading"));
                 }
-                Button row = Row(column, () => ControlText(s, _waiting == s), () => true, () => StartRebind(s), "enhanced-book__line");
+                Button row = Row(column, () => ActionText(s), () => true, () => StartRebind(s), "enhanced-book__line");
+                row.AddToClassList("enhanced-book__keyrow");
                 row.name = "control-" + s.Id;
+                var key = new Label { name = "key", pickingMode = PickingMode.Ignore };
+                key.AddToClassList("enhanced-book__key");
+                GameFontText.Apply(key);
+                row.Add(key);
+                _keys.Add((key, () => KeyText(s, _waiting == s)));
                 ScrollIntoView(row);
             }
             column.Add(Text(Templates.Format(Templates.ControlsSkipNote), "enhanced-settings__label"));

@@ -1,5 +1,6 @@
 namespace BakAgain.Tests.PlayMode.UI {
     using System.Collections;
+    using System.Linq;
     using BakAgain.Core;
     using BakAgain.Tests.TestSupport;
     using BakAgain.UI;
@@ -119,8 +120,13 @@ namespace BakAgain.Tests.PlayMode.UI {
                     foreach (SettingsPage p in EnhancedSettingsPages.Order) {
                         Label caption = Named("bookmark-" + EnhancedSettingsScreen.NameOf(p)).Q<Label>("caption");
                         sizes.Add(Mathf.Round(caption.resolvedStyle.fontSize * 10) / 10);
-                        Assert.LessOrEqual(caption.MeasureTextSize(caption.text, 0, VisualElement.MeasureMode.Undefined, 0,
-                            VisualElement.MeasureMode.Undefined).x, caption.parent.contentRect.width + 0.5f, $"{p} fits its bookmark");
+                        // The cloth's swallow-tail end takes the last tenth of its width (the texture's notch,
+                        // 80 of its 800 px): the words must end before it, not run into the cut.
+                        VisualElement mark = caption.parent;
+                        float words = caption.MeasureTextSize(caption.text, 0, VisualElement.MeasureMode.Undefined, 0,
+                            VisualElement.MeasureMode.Undefined).x;
+                        float end = mark.worldBound.xMin + mark.resolvedStyle.paddingLeft + words;
+                        Assert.LessOrEqual(end, mark.worldBound.xMin + 0.9f * mark.worldBound.width + 0.5f, $"{p} ends before the notch");
                     }
                 }
                 Assert.AreEqual(1, sizes.Count, "one size: " + string.Join(", ", sizes));
@@ -162,6 +168,82 @@ namespace BakAgain.Tests.PlayMode.UI {
                     Assert.Greater(Named(id).layout.width, page * 0.9f, id);
                 }
             } finally {
+                await CloseAsync();
+            }
+        });
+
+        /// <summary>Owner, 2026-11-26: turning to Game Files changed the text size. The words on the lines
+        /// and the bookmarks keep one size on every page.</summary>
+        [UnityTest]
+        [RequiresShippedGameData]
+        public IEnumerator TheLinesKeepOneTextSizeOnEveryPage() => UniTask.ToCoroutine(async () => {
+            try {
+                await OpenAsync();
+                var lines = new System.Collections.Generic.Dictionary<string, float>();
+                var marks = new System.Collections.Generic.HashSet<float>();
+                var buttons = new System.Collections.Generic.HashSet<float>();
+                float Size(VisualElement e) => Mathf.Round(e.Q<Label>("caption").resolvedStyle.fontSize * 10) / 10;
+                foreach (SettingsPage page in EnhancedSettingsPages.Order) {
+                    await ClickAsync("bookmark-" + EnhancedSettingsScreen.NameOf(page));
+                    await Frames(3);
+                    foreach (Button line in Root.Query<Button>(className: "enhanced-book__line").ToList()) {
+                        if (line.ClassListContains("enhanced-book__keyrow")) continue; // the key list has its own columns
+                        lines[$"{page}/{line.name}"] = Size(line);
+                    }
+                    marks.Add(Size(Named("bookmark-general")));
+                    buttons.Add(Size(Named("ok")));
+                }
+                Assert.AreEqual(1, new System.Collections.Generic.HashSet<float>(lines.Values).Count, "one size for the lines: "
+                    + string.Join(", ", System.Linq.Enumerable.Select(lines, kv => $"{kv.Key}={kv.Value}")));
+                Assert.AreEqual(1, marks.Count, "one size for the bookmarks: " + string.Join(", ", marks));
+                Assert.AreEqual(1, buttons.Count, "OK keeps its size: " + string.Join(", ", buttons));
+            } finally {
+                await CloseAsync();
+            }
+        });
+
+        /// <summary>Owner, 2026-11-26: the key list in two columns, the actions' names and their keys each
+        /// lined up.</summary>
+        [UnityTest]
+        [RequiresShippedGameData]
+        public IEnumerator TheKeyListHasTwoAlignedColumns() => UniTask.ToCoroutine(async () => {
+            try {
+                await OpenAsync();
+                await ClickAsync("bookmark-controls");
+                var rows = Root.Query<Button>(className: "enhanced-book__keyrow").ToList();
+                Assert.Greater(rows.Count, 10, "the key rows");
+                float actionX = rows[0].Q<Label>("caption").worldBound.xMin, keyX = rows[0].Q<Label>("key").worldBound.xMin;
+                Assert.Greater(keyX, actionX + 100, "the key stands in a column of its own");
+                foreach (Button row in rows) {
+                    Assert.AreEqual(actionX, row.Q<Label>("caption").worldBound.xMin, 0.5f, row.name + " action");
+                    Assert.AreEqual(keyX, row.Q<Label>("key").worldBound.xMin, 0.5f, row.name + " key");
+                }
+                StringAssert.DoesNotContain(":", rows[0].Q<Label>("caption").text, "the action alone, its key beside it");
+            } finally {
+                await CloseAsync();
+            }
+        });
+
+        /// <summary>Owner, 2026-11-26: Language moves from Preferences to the book's General page, chosen
+        /// like the original's choices and saved with OK for the next start.</summary>
+        [UnityTest]
+        [RequiresShippedGameData]
+        public IEnumerator LanguageIsChosenOnTheGeneralPage() => UniTask.ToCoroutine(async () => {
+            string saved = BakAgain.ResourceManagement.BakResourceSettings.Language;
+            try {
+                await OpenAsync();
+                await ClickAsync("bookmark-general");
+                VisualElement group = Named("language");
+                var choices = group.Query<Button>(className: "enhanced-book__line").ToList();
+                if (choices.Count < 2) Assert.Ignore("one language installed: no choice to show");
+                Button other = choices.First(b => !Screen.Shows(b.name));
+                await ClickAsync(other.name);
+                StringAssert.Contains("(restart)", TextOf(other), "it takes effect at the next start");
+                Assert.AreEqual(saved, BakAgain.ResourceManagement.BakResourceSettings.Language, "not before OK");
+                await ClickAsync("ok");
+                Assert.AreNotEqual(saved, BakAgain.ResourceManagement.BakResourceSettings.Language, "OK saves it");
+            } finally {
+                BakAgain.ResourceManagement.BakResourceSettings.Language = saved;
                 await CloseAsync();
             }
         });
