@@ -22,26 +22,6 @@ public class MonsterDisengageTests {
     }
 
     [Fact]
-    public void AStrictlySaferCellAlwaysWins() {
-        Assert.True(MonsterSpellcasting.RetreatCellIsBetter(candidateDistance: 5, bestDistance: 4,
-            tieRoll: 99));
-    }
-
-    [Fact]
-    public void ACloserCellNeverDoes() {
-        Assert.False(MonsterSpellcasting.RetreatCellIsBetter(candidateDistance: 3, bestDistance: 4,
-            tieRoll: 0));
-    }
-
-    [Fact]
-    public void AnEqualCellSwitchesOnFiftyOnePercentNotAcoinFlip() {
-        Assert.True(MonsterSpellcasting.RetreatCellIsBetter(candidateDistance: 4, bestDistance: 4,
-            tieRoll: 50));
-        Assert.False(MonsterSpellcasting.RetreatCellIsBetter(candidateDistance: 4, bestDistance: 4,
-            tieRoll: 51));
-    }
-
-    [Fact]
     public void ACorneredCasterFallsThroughToTheMovementAi() {
         Assert.True(MonsterSpellcasting.DefersToMovementAi(foundSomewhereBetter: false, roll: 99, mayAttack: true));
     }

@@ -499,38 +499,43 @@ public static class MonsterSpellcasting {
     public const int EngagementRange = 1;
 
     /// <summary>
-    /// How the retreat cell is chosen: <b>by simulating standing in every free cell</b>.
+    /// The cell an engaged actor backs off toward — <c>combataiturn_pick_tile_or_attack</c>'s search
+    /// (CBTAITRN.C:42-72). It stays put when nothing beats where it stands.
     /// </summary>
     /// <remarks>
-    /// The search walks the whole grid, and for each cell that is unblocked and reachable it
-    /// <i>temporarily writes the caster's position there</i>, re-runs the nearest-living-enemy
-    /// search, and restores the position. The cell that leaves the greatest distance wins. It is a
-    /// genuine "where am I safest" evaluation rather than a step away from the threat.
+    /// <b>The whole board, not the cells in reach (TASK-1150).</b> Every free cell, scanned x 7..0
+    /// then y 12..0, whose trial walk (<c>combataipath_actor_walk_path(actor, 1)</c>, a
+    /// <see cref="CombatWalk.Walk"/> probe) does not end on a refused step is scored by the nearest
+    /// foe's distance AT it; the caller then walks its speed toward the winner and may stop short.
+    /// The tie roll is taken only on a tie, as the original's <c>||</c> does: an equal cell takes over
+    /// on <c>RND(100) &lt; 0x33</c>, so the scan order decides between equally safe cells.
     ///
-    /// <para><b>"Reachable" means reachable THIS TURN, which bounds the whole search.</b> The probe
-    /// is <c>combataipath_actor_walk_path(actor, 1)</c>, and that second argument makes it a dry
-    /// run — it saves the position, walks the path under the actor's remaining move budget
-    /// (<c>g_acting_actor_speed</c>), and restores the position afterwards (CMBTAI.C:186-245). So a
-    /// caster backs off as far as its speed allows and no further. An earlier version of this remark
-    /// said it "can cross the field in one turn", which read the grid sweep as the limit and missed
-    /// the budget inside the probe.</para>
+    /// <para><b>The trial walk does not mean "reachable this turn".</b> It takes the actor's speed in
+    /// steps toward the cell and returns the LAST step's result (CMBTAI.C:186-245), so a cell beyond
+    /// the speed passes as long as the way toward it is open. An earlier remark here read the budget
+    /// as the search's limit, and the port's retreat stopped at the best nearby cell; the original
+    /// heads for the best cell on the board.</para>
     /// </remarks>
-    public static bool RetreatEvaluatesEveryCell => true;
-
-    /// <summary>
-    /// Whether a candidate cell replaces the best so far.
-    /// </summary>
-    /// <param name="candidateDistance">Nearest-enemy distance if the caster stood there.</param>
-    /// <param name="bestDistance">The best found so far, starting at the caster's current distance.</param>
-    /// <param name="tieRoll">A roll in 0..99, consulted only on an exact tie.</param>
-    /// <remarks>
-    /// Strictly better always wins; an exact tie switches on a <b>51%</b> roll, not a coin flip — the
-    /// comparison is <c>&lt; 0x33</c> against a d100. So equally safe cells are shuffled slightly in
-    /// favour of the later one.
-    /// </remarks>
-    public static bool RetreatCellIsBetter(int candidateDistance, int bestDistance, int tieRoll) =>
-        candidateDistance > bestDistance
-        || (candidateDistance == bestDistance && tieRoll < RetreatTieBreakPercent);
+    public static (int X, int Y) PickRetreatCell(CombatGrid grid, Combatant actor, int speed,
+        Func<int, int, int> nearestFoeAt, Func<int, int, bool> occupied, Func<int, int> roll) {
+        int bestX = actor.X, bestY = actor.Y;
+        int best = nearestFoeAt(actor.X, actor.Y);
+        for (int x = CombatGrid.Width - 1; x >= 0; x--) {
+            for (int y = CombatGrid.Height - 1; y >= 0; y--) {
+                if (grid.IsBlocked(x, y) || occupied(x, y)
+                    || !CombatWalk.Walk(grid, actor, x, y, speed, probe: true).PathClear) {
+                    continue;
+                }
+                int score = nearestFoeAt(x, y);
+                if (score > best || (score == best && roll(100) < RetreatTieBreakPercent)) {
+                    best = score;
+                    bestX = x;
+                    bestY = y;
+                }
+            }
+        }
+        return (bestX, bestY);
+    }
 
     /// <summary>The chance an equally safe cell displaces the incumbent.</summary>
     public const int RetreatTieBreakPercent = 0x33;

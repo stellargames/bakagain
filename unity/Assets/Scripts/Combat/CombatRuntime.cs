@@ -5755,24 +5755,8 @@ namespace BakAgain.Combat {
         /// (CBTAITRN.C:32), the routine every cascade turn function opens with.
         /// </summary>
         /// <remarks>
-        /// <b>It evaluates every cell by standing in it.</b> For each unblocked, reachable tile the
-        /// original temporarily writes the caster's position there, re-runs the nearest-living-enemy
-        /// search, and restores the position; the cell that leaves the greatest distance wins. That
-        /// is a "where am I safest" search rather than a step away from the threat, so the caster can
-        /// end up anywhere its move budget reaches.
-        ///
-        /// <para><b>The sweep order is transcribed, not tidied.</b> The original counts x down from
-        /// 7 and y down from 12, and <see cref="MonsterSpellcasting.RetreatCellIsBetter"/> breaks an
-        /// exact tie in favour of the LATER candidate on a 51% roll — so the order decides which of
-        /// two equally safe cells is preferred, and reversing it would quietly change the answer.</para>
-        ///
-        /// <para><b>Reachability is approximated by the move budget, which is the one liberty here.</b>
-        /// The original probes with <c>combataipath_actor_walk_path(actor, 1)</c> — a dry run that
-        /// walks the real path under <c>g_acting_actor_speed</c> and restores the position — so a
-        /// cell behind a wall is rejected even when it is close. This uses Chebyshev distance against
-        /// the same budget, which agrees everywhere the path is clear and is more permissive around
-        /// an obstacle. Tightening it means running the pathfinder up to 104 times a turn; if a
-        /// retreat is ever seen stepping into a pocket it cannot reach, that is the thing to fix.</para>
+        /// <b>It evaluates every cell on the board by standing in it</b> and walks its speed toward
+        /// the winner: <see cref="MonsterSpellcasting.PickRetreatCell"/> (TASK-1150).
         ///
         /// <para><b>Giving up on the retreat is not standing still.</b> With nowhere better, or on a
         /// 15% roll that throws away a cell it did find, the original hands the turn to
@@ -5791,24 +5775,9 @@ namespace BakAgain.Combat {
                 Encounter.Party.Contains(monster) ? Encounter.Enemies : Encounter.Party;
 
             int budget = monster.Speed > 0 ? monster.Speed : 1;
-            int bestDistance = CombatCapability.NearestOpponent(monster.X, monster.Y, opponents);
-            int bestX = monster.X;
-            int bestY = monster.Y;
-
-            for (int x = CombatGrid.Width - 1; x >= 0; x--) {
-                for (int y = CombatGrid.Height - 1; y >= 0; y--) {
-                    if (Grid.IsBlocked(x, y) || TileHoldsLiveCombatant(x, y)
-                        || CombatGrid.ChebyshevDistance(monster.X, monster.Y, x, y) > budget) {
-                        continue;
-                    }
-                    int candidate = CombatCapability.NearestOpponent(x, y, opponents);
-                    if (MonsterSpellcasting.RetreatCellIsBetter(candidate, bestDistance, roll(100))) {
-                        bestDistance = candidate;
-                        bestX = x;
-                        bestY = y;
-                    }
-                }
-            }
+            // The whole board, then a walk of `budget` toward the winner (TASK-1150).
+            (int bestX, int bestY) = MonsterSpellcasting.PickRetreatCell(Grid, monster, budget,
+                (x, y) => CombatCapability.NearestOpponent(x, y, opponents), TileHoldsLiveCombatant, roll);
 
             bool foundSomewhereBetter = bestX != monster.X || bestY != monster.Y;
             if (MonsterSpellcasting.DefersToMovementAi(foundSomewhereBetter, roll(100),
