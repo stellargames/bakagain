@@ -102,18 +102,57 @@ namespace BakAgain.Core.Services {
         }
 
         /// <summary>The track playing as a conversation opens (DIALOG.C:836, <c>audio_music_play(-999)</c>).</summary>
+        /// <remarks>While an earlier dialog's song lingers (Enhanced), the track it will hand back
+        /// to is the one this conversation found, not the song.</remarks>
         public int MusicAtOpen() =>
-            BakAgain.Audio.MidiPlaybackManager.Instance?.CurrentTrack
+            _lingerTarget
+            ?? BakAgain.Audio.MidiPlaybackManager.Instance?.CurrentTrack
             ?? GameData.Resources.Audio.MusicPlayback.NoTrack;
+
+        /// <summary>Enhanced: how long a dialog's song plays on after the dialog (TASK-1086).</summary>
+        internal static float DialogSongLingerSeconds = 10f;
+
+        private System.Threading.CancellationTokenSource _linger;
+        private int? _lingerTarget;
 
         /// <summary>
         /// Back to <paramref name="track"/> as the conversation closes (DIALOG.C:1491): a song the
         /// dialog started fades out, and the track it found, if any, plays again.
         /// </summary>
+        /// <remarks>
+        /// DELIBERATE DIFFERENCE, Enhanced only (TASK-1086, forum p=43): a song the dialog started
+        /// plays on for <see cref="DialogSongLingerSeconds"/> before the fade back, unless something
+        /// else changes the music first. Classic restores at once, as the original does.
+        /// </remarks>
         public void RestoreMusic(int track) {
-            if (_provider != null && BakAgain.Audio.MidiPlaybackManager.Instance != null) {
-                BakAgain.Audio.MidiPlaybackManager.Instance
-                    .PlayTrackAsync(track, _provider, owner: this).Forget();
+            BakAgain.Audio.MidiPlaybackManager midi = BakAgain.Audio.MidiPlaybackManager.Instance;
+            _linger?.Cancel();
+            _linger = null;
+            _lingerTarget = null;
+            if (_provider == null || midi == null) {
+                return;
+            }
+            int song = midi.CurrentTrack;
+            if (GameOptions.Enhanced && song != track && song != GameData.Resources.Audio.MusicPlayback.NoTrack) {
+                _linger = new System.Threading.CancellationTokenSource();
+                _lingerTarget = track;
+                LingerThenRestoreAsync(midi, track, song, _linger.Token).Forget();
+                return;
+            }
+            midi.PlayTrackAsync(track, _provider, owner: this).Forget();
+        }
+
+        private async UniTaskVoid LingerThenRestoreAsync(BakAgain.Audio.MidiPlaybackManager midi, int track,
+            int song, System.Threading.CancellationToken ct) {
+            bool cancelled = await UniTask.Delay(System.TimeSpan.FromSeconds(DialogSongLingerSeconds),
+                ignoreTimeScale: true, cancellationToken: ct).SuppressCancellationThrow();
+            if (cancelled) {
+                return;
+            }
+            _lingerTarget = null;
+            // Something else (a fight, a location, the world's own change) took the music meanwhile.
+            if (midi != null && midi.CurrentTrack == song) {
+                midi.PlayTrackAsync(track, _provider, owner: this).Forget();
             }
         }
 

@@ -92,6 +92,66 @@ namespace BakAgain.Tests.PlayMode.UI {
                 }
             });
 
+        /// <summary>
+        /// TASK-1086 (forum p=43 suggestion), Enhanced only: a dialog's song plays on for a while
+        /// after the dialog, then the world's track comes back. A second dialog in that time
+        /// restores the world's track too, not the lingering song. Classic keeps the original's cut.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator EnhancedLetsTheDialogsSongPlayOnBeforeTheWorldsComesBack() =>
+            UniTask.ToCoroutine(async () => {
+                using var notes = TestSupport.ExpectedLog.CaptureAll(
+                    new System.Text.RegularExpressions.Regex("does not contain variant"));
+                bool wasEnhanced = BakAgain.Core.GameOptions.Enhanced;
+                float wasLinger = DialogExecutor.DialogSongLingerSeconds;
+                var midiGo = new GameObject("Music");
+                var dialogGo = new GameObject("Dialogs");
+                try {
+                    BakAgain.Core.GameOptions.Enhanced = true;
+                    DialogExecutor.DialogSongLingerSeconds = 1f;
+                    MidiPlaybackManager midi = MidiPlaybackManager.Instance;
+                    if (midi == null) {
+                        midi = midiGo.AddComponent<MidiPlaybackManager>();
+                        await UniTask.Yield();
+                    }
+                    var songs = new BareSongs();
+                    midi.StopMusic();
+                    await midi.PlayTrackAsync(WorldTrack, songs);
+
+                    DialogManager dialogs = dialogGo.AddComponent<DialogManager>();
+                    typeof(DialogManager).GetField("_executor", BindingFlags.NonPublic | BindingFlags.Instance)
+                        .SetValue(dialogs, new DialogExecutor(null, null, null, songs));
+                    MethodInfo playing = typeof(DialogManager).GetMethod("Playing",
+                        BindingFlags.NonPublic | BindingFlags.Instance, null,
+                        new[] { typeof(Func<UniTask>), typeof(string) }, null);
+                    Func<UniTask> sing = () => midi.PlayTrackAsync(DialogTrack, songs);
+                    Func<UniTask> talk = () => UniTask.Yield().ToUniTask();
+
+                    await (UniTask)playing.Invoke(dialogs, new object[] { sing, "song" });
+                    await UniTask.Delay(TimeSpan.FromSeconds(0.5), ignoreTimeScale: true);
+                    Assert.AreEqual(DialogTrack, midi.CurrentTrack, "the dialog's song plays on after it");
+
+                    // A word with someone else while it lingers: it must not take the song for the world's.
+                    await (UniTask)playing.Invoke(dialogs, new object[] { talk, "talk" });
+
+                    float deadline = Time.realtimeSinceStartup + 1f + (float)MusicPlayback.FadeSeconds + 3f;
+                    while (midi.CurrentTrack != WorldTrack && Time.realtimeSinceStartup < deadline) {
+                        await UniTask.Yield();
+                    }
+                    Assert.AreEqual(WorldTrack, midi.CurrentTrack, "then the world's track comes back");
+                    float settled = Time.realtimeSinceStartup + (float)MusicPlayback.FadeSeconds + 0.5f;
+                    while (Time.realtimeSinceStartup < settled) {
+                        await UniTask.Yield();
+                    }
+                    midi.StopMusic();
+                } finally {
+                    BakAgain.Core.GameOptions.Enhanced = wasEnhanced;
+                    DialogExecutor.DialogSongLingerSeconds = wasLinger;
+                    UnityEngine.Object.DestroyImmediate(dialogGo);
+                    UnityEngine.Object.DestroyImmediate(midiGo);
+                }
+            });
+
         private static async UniTask Run(int before) {
             // The bare songs hold no MIDI, which the manager notes for each one.
             using var notes = TestSupport.ExpectedLog.CaptureAll(
