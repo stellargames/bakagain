@@ -70,6 +70,34 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             Assert.That(_session.OpenShopRunsAnInn, Is.False);
         }
 
+        /// <summary>
+        /// TASK-1152 row 7: a sale writes the shelf slot directly (SHOP.C:239-242) and the redraw only
+        /// sorts (CMBINV.C:61); stacks are merged when the screen opens (:245). So the same stackable
+        /// sold twice in one visit shows as two cells until the next visit.
+        /// </summary>
+        [Test]
+        public void TwoSalesOfAStackableStayTwoCellsUntilTheNextVisit() {
+            _session.SetObjectInfo(new GameData.Resources.Object.ObjectInfoSet("O",
+                new System.Collections.Generic.List<GameData.Resources.Object.ObjectInfo> {
+                    new("quarrel") { Number = 12, Name = "Quarrels", InventorySlots = 1, MaxAmount = 30,
+                        Flags = (GameData.Resources.Object.ObjectFlags)0x800 },
+                }));
+            RuntimeContainer shop = Stock();
+            const BindingFlags any = BindingFlags.NonPublic | BindingFlags.Instance;
+            MethodInfo render = typeof(InventoryMenu).GetMethod("RenderCurrent", any);
+            Assert.That(_menu.SetShop(shop, Block(innCostPerNight: 0)), Is.True);
+            render.Invoke(_menu, null);
+
+            shop.Items.Add(new RuntimeItem(12, 3, 0x2));   // sold, then sold again
+            shop.Items.Add(new RuntimeItem(12, 4, 0x2));
+            render.Invoke(_menu, null);
+            Assert.That(shop.Items.Count, Is.EqualTo(3), "the visit's redraw does not merge");
+
+            Assert.That(_menu.SetShop(shop, Block(innCostPerNight: 0)), Is.True);
+            render.Invoke(_menu, null);
+            Assert.That(shop.Items.Count, Is.LessThan(3), "control: the next visit does");
+        }
+
         private static RuntimeContainer Stock() {
             var stock = new RuntimeContainer {
                 Capacity = 24,

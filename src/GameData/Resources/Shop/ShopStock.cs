@@ -187,8 +187,9 @@ public static class ShopStock {
         }
 
         bool boughtIn = (item.ItemFlags & ForSaleFlag) != 0;
+        // The buyer's copy keeps 0x2: it is taken before the shelf slot's flag is cleared (SHOP.C:126
+        // then :156-157). Only a shop's own slots are ever sorted by it (CMBINV.C:509-531; TASK-1152).
         RuntimeItem given = handedOver.Clone();
-        given.ItemFlags &= unchecked((ushort)~ForSaleFlag);
 
         if (boughtIn && !restoreBuybackBug) {
             shop.Items.Remove(item);

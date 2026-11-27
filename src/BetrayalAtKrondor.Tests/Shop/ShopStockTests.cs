@@ -170,7 +170,9 @@ public class ShopStockTests {
         Assert.Empty(shop.Items);
         Assert.Single(buyer.Items);
         Assert.Equal(60, gold);
-        Assert.Equal(0, buyer.Items[0].ItemFlags & ShopStock.ForSaleFlag);
+        // TASK-1152 row 8: the buyer's copy is taken before the shelf slot's flag is cleared
+        // (SHOP.C:126 then :156-157), so it keeps 0x2; pickupItem clears only 0x40 (CMBINV.C:906).
+        Assert.NotEqual(0, buyer.Items[0].ItemFlags & ShopStock.ForSaleFlag);
     }
 
     // With the bug restored: SHOP.C:156-157 clears the flag on the shelf slot, then the pickup's
@@ -188,7 +190,9 @@ public class ShopStockTests {
         Assert.Equal(0, shop.Items[0].ItemFlags & ShopStock.ForSaleFlag);
         Assert.Single(buyer.Items);
         Assert.Equal(60, gold);
-        Assert.Equal(0, buyer.Items[0].ItemFlags & ShopStock.ForSaleFlag);
+        // TASK-1152 row 8: the buyer's copy is taken before the shelf slot's flag is cleared
+        // (SHOP.C:126 then :156-157), so it keeps 0x2; pickupItem clears only 0x40 (CMBINV.C:906).
+        Assert.NotEqual(0, buyer.Items[0].ItemFlags & ShopStock.ForSaleFlag);
     }
 
     // ...and the removal does find a SECOND byte-identical bought-in copy, which is the one that goes.
