@@ -266,6 +266,10 @@ namespace BakAgain.UI.Inventory {
             _document = GetComponent<UIDocument>();
             _ui = GetComponent<UserInterfaceLoader>();
             _layerHost = GetComponent<MenuLayerHost>();
+            // Keys pressed during a flight act when it lands, as the BIOS buffer keeps them (TASK-1151).
+            if (_layerHost != null) {
+                _layerHost.HoldsKeys = () => InputHeldByAFlight;
+            }
         }
 
         [Inject]
@@ -1927,6 +1931,7 @@ namespace BakAgain.UI.Inventory {
                 // (An earlier reading took that wait for "user dismisses the description", which
                 // delayed the button by a click and is contradicted by the original's own UI.)
                 _inspectOpen = true;
+                _layerHost?.ReleaseHeldKeys();   // the fly-in held them (row 9, TASK-1151)
                 RefreshContainerImage(); // inspecting counts as a selection: keys -> bag
                 if (EnhancedApplied) {
                     // Enhanced: the description and the stats together, no More Info (spec 2026-10-13).
@@ -5269,6 +5274,7 @@ namespace BakAgain.UI.Inventory {
                 style = { position = Position.Absolute },
             };
             _stage.Add(flyer);
+            flyer.RegisterCallback<DetachFromPanelEvent>(_ => _layerHost?.ReleaseHeldKeys());
             // The target head carries the red ring (HEADS frame 8) for the whole flight
             // (INVENTOR.C:144-151, from the loop at :573). The window's "head" is off-screen.
             VisualElement ring = null;

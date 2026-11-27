@@ -142,7 +142,9 @@ namespace BakAgain.UI.InputCore {
                 _layer = new NavigableLayer(name,
                     capturesExclusively ? CaptureMode.Exclusive : CaptureMode.Passive, widgets,
                     () => _actionHandler?.PrimaryAction(CancelActionId), _cursor, _loader.TryMovePickerSelection,
-                    onUnmatchedScancode: sc => _actionHandler is IUnmatchedScancodeHandler h && h.OnUnmatchedScancode(sc));
+                    onUnmatchedScancode: sc => _actionHandler is IUnmatchedScancodeHandler h && h.OnUnmatchedScancode(sc)) {
+                    HoldsKeys = () => HoldsKeys?.Invoke() == true,
+                };
             }
             _stack?.Push(_layer);
             // No initial focus on open: focusing a widget warps the software cursor onto it (and
@@ -161,6 +163,12 @@ namespace BakAgain.UI.InputCore {
         /// <para>Returns false when there is nothing to set — the loader has not built yet, or this
         /// is a ScreenInputLayer screen — so a caller can invoke it unconditionally.</para>
         /// </summary>
+        /// <summary>The screen's blocking-animation test, handed to each navigable layer pushed (TASK-1151).</summary>
+        public System.Func<bool> HoldsKeys { get; set; }
+
+        /// <summary>Acts on keys pressed during the blocking animation, now that it is over.</summary>
+        public void ReleaseHeldKeys() => (_layer as NavigableLayer)?.ReleaseHeldKeys();
+
         /// <summary>Whether <see cref="SetWidgets"/> would take: the pushed layer is a navigable one.</summary>
         public bool HasNavigableLayer => _layer is NavigableLayer;
 

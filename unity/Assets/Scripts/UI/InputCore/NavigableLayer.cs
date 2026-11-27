@@ -64,7 +64,37 @@ namespace BakAgain.UI.InputCore {
         public CaptureMode CaptureMode { get; }
         public bool WantsFocus => true;
 
+        /// <summary>
+        /// True while the screen runs what the original does as a blocking loop (the inventory's drop
+        /// flight). Keys pressed then are kept, as the BIOS keyboard buffer keeps them, and act once
+        /// <see cref="ReleaseHeldKeys"/> runs (TASK-1151). Clicks never reach a layer, so they are
+        /// unaffected: the original polls the button state rather than queueing presses.
+        /// </summary>
+        public Func<bool> HoldsKeys { get; set; }
+
+        /// <summary>The BIOS keyboard buffer's 16 slots, one always kept empty: 15 keys.</summary>
+        public const int HeldKeyCapacity = 15;
+
+        private readonly Queue<UiIntent> _heldKeys = new();
+
+        /// <summary>Acts on the kept keys in order, stopping if one starts another blocking animation.</summary>
+        public void ReleaseHeldKeys() {
+            while (_heldKeys.Count > 0 && HoldsKeys?.Invoke() != true) {
+                Dispatch(_heldKeys.Dequeue());
+            }
+        }
+
         public bool HandleIntent(UiIntent intent) {
+            if (HoldsKeys?.Invoke() == true) {
+                if (_heldKeys.Count < HeldKeyCapacity) {
+                    _heldKeys.Enqueue(intent);
+                }
+                return true;
+            }
+            return Dispatch(intent);
+        }
+
+        private bool Dispatch(UiIntent intent) {
             switch (intent.Kind) {
                 case UiIntentKind.MoveFocus: return MoveFocus(intent.Direction);
                 // Enter with nothing focused reaches the screen loop as its scancode, as menupage_run
