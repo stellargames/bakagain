@@ -1428,8 +1428,16 @@ namespace BakAgain.Core {
                     zoneLocalOffset, rec.ZoneEntry.Containers, rec.IndexInZone);
 
                 List<RuntimeItem> items = rec.Runtime.Items;
-                var itemBytes = new byte[items.Count * 4];
-                for (int i = 0; i < items.Count; i++) {
+                // The record has exactly Capacity item slots and the next field follows them; a
+                // larger count makes the original read that field as items (TASK-1141).
+                int count = System.Math.Min(items.Count, rec.Runtime.Capacity);
+                if (count < items.Count) {
+                    UnityEngine.Debug.LogWarning($"Save: container {rec.IndexInZone} in zone "
+                        + $"{rec.ZoneEntry.ZoneNumber} holds {items.Count} items but has {rec.Runtime.Capacity} "
+                        + $"slots; the last {items.Count - count} are not saved.");
+                }
+                var itemBytes = new byte[count * 4];
+                for (int i = 0; i < count; i++) {
                     itemBytes[i * 4 + 0] = items[i].ObjectId;
                     itemBytes[i * 4 + 1] = items[i].Variable;
                     itemBytes[i * 4 + 2] = (byte)(items[i].ItemFlags & 0xFF);
@@ -1438,7 +1446,7 @@ namespace BakAgain.Core {
 
                 var edit = new DirtyContainerEdit {
                     BodyOffset = bodyOffset,
-                    NumberOfItems = (byte)items.Count,
+                    NumberOfItems = (byte)count,
                     LiveItemBytes = itemBytes,
                 };
 

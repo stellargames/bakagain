@@ -209,6 +209,28 @@ namespace BakAgain.Tests.Editor.Core {
             Assert.AreEqual(10, bags[0].X);
         }
 
+        /// <summary>
+        /// A container record has exactly <c>capacity</c> item slots, and the next field (a shop's
+        /// stock block, a lock) follows them. A count above capacity made the original read that
+        /// field as items (TASK-1141), so the edit never carries more than the record holds.
+        /// </summary>
+        [Test]
+        public void CollectDirtyContainerEdits_NeverWritesMoreItemsThanTheRecordHolds() {
+            GameSession session = SessionWith(Chest(500, 600));
+            RuntimeContainer chest = session.ResolveGroundDropTarget(3, 500, 600).Container;
+            for (int i = 0; i < chest.Capacity + 2; i++) {
+                chest.Items.Add(new RuntimeItem(80, 1, 0));
+            }
+            chest.Dirty = true;
+            UnityEngine.TestTools.LogAssert.Expect(UnityEngine.LogType.Warning,
+                new System.Text.RegularExpressions.Regex("holds 8 items but has 6 slots"));
+
+            DirtyContainerEdit edit = session.CollectDirtyContainerEdits()[0];
+
+            Assert.AreEqual(chest.Capacity, edit.NumberOfItems);
+            Assert.AreEqual(chest.Capacity * 4, edit.LiveItemBytes.Length);
+        }
+
         /// <summary>A claimed bag has to reach the save writer with its rewritten header, or the
         /// pile would be gone on reload while the pool slot stayed consumed.</summary>
         [Test]
