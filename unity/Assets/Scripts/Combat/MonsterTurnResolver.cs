@@ -267,6 +267,13 @@ namespace BakAgain.Combat {
 
             if (action == AiAction.SpeciesSpecific) {
                 Decision species = ResolveSpecies(encounter, monster);
+                // A routine that closes in does it through combataipath_select_action, which walks the
+                // creature's own melee row (TASK-1137); only 0x13 and 0x31 swing at the nearest.
+                if (species.Action == AiAction.MeleeOrMove
+                    && CombatAi.SpeciesRoutineOf(monster.ClassId) is { } routine
+                    && CombatAi.HandsOffToMeleeRow(routine)) {
+                    species = WalkMeleeMoveRow(encounter, monster, profile);
+                }
                 monster.Target = species.Target;
                 return species;
             }

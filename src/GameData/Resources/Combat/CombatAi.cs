@@ -243,6 +243,20 @@ public static class CombatAi {
     /// </remarks>
     public static bool HasSpeciesRoutine(int classId) => SpeciesRoutines.ContainsKey(classId);
 
+    /// <summary>
+    /// Whether the routine's "close in" is <c>combataipath_select_action</c>, the creature's own melee
+    /// row (CMBTAI.C:496-518), rather than a swing at the nearest foe.
+    /// </summary>
+    /// <remarks>
+    /// CBTAIACT.C: the ranged turn on a reconsider (:96), the knockback routine's else (:172), the
+    /// charge (:185), the random-attack and poison routines' else (:230, :255) all call it. 0x13
+    /// (<c>pick_melee_or_missl</c>, :23) and 0x31 (<c>random_move_attack</c>, :39) never do: they
+    /// melee the nearest themselves.
+    /// </remarks>
+    public static bool HandsOffToMeleeRow(SpeciesRoutine routine) =>
+        routine != SpeciesRoutine.MeleeAdjacentElseCastOrShoot
+        && routine != SpeciesRoutine.WalkRandomTileThenAttackOrBrace;
+
     /// <summary>The routine a class runs, or <c>null</c> when it uses the ordinary cascade.</summary>
     public static SpeciesRoutine? SpeciesRoutineOf(int classId) =>
         SpeciesRoutines.TryGetValue(classId, out SpeciesRoutine routine)
@@ -345,11 +359,12 @@ public static class CombatAi {
     /// a shooter really does halve its reach when it will take anyone. Melee's default path has no
     /// such arm: mode 0 there is 100.</para>
     ///
-    /// <para><b>What this does NOT fix.</b> The melee radius-6 sweeps are real; they belong to the
-    /// <c>*AnyoneWithinSix</c> SPECIES routines, which reach here through <c>ResolveSpecies</c> also
-    /// passing <c>MeleeOrMove</c> and now get 100 too. That is too generous for those few creatures
-    /// and strictly closer to the original than a standoff for everything. Giving those routines
-    /// their own radius needs the species dispatch to carry one, which it does not yet.</para>
+    /// <para><b>Where the melee radius-6 sweep lives.</b> <c>combataipath_action_6</c> is a SLOT in
+    /// the melee pattern rows (<c>g_combat_ai_action_table</c>, CMBTAI.C:16), which
+    /// <see cref="MonsterActionPatterns"/> carries with its own radius; no species routine calls it
+    /// directly. A species routine that closes in walks that same row through
+    /// <c>combataipath_select_action</c> (<see cref="HandsOffToMeleeRow"/>, TASK-1137), so the
+    /// 100 here is only the row's own fallback, CMBTAI.C:518.</para>
     /// </remarks>
     public static int SearchRadiusFor(AiAction action, TargetRole role) =>
         action == AiAction.Cast ? AnyoneSearchRadius

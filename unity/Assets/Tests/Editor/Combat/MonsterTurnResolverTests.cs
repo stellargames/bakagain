@@ -695,6 +695,46 @@ namespace BakAgain.Tests.Editor.Combat {
         }
 
         [Test]
+        public void ACreatureRoutineThatHandsOffWalksItsOwnMeleeRow() {
+            // TASK-1137. 0x1d's routine closes in with combataipath_select_action when the nearest
+            // foe is under three cells (CBTAIACT.C:177-186), and that walks the creature's melee
+            // row (CMBTAI.C:496-518), not the nearest. Row 8 opens with follow(engaged) across the
+            // field, so the member already fighting it is chosen over the idle one beside it.
+            Combatant m = Monster(ShootAtRangeSpeciesClass, x: 0, y: 0);
+            Combatant idle = Member(2, 0);
+            Combatant engaged = Member(0, 9);
+            var enc = new CombatEncounter();
+            enc.Enemies.Add(m);
+            enc.Party.Add(idle);
+            enc.Party.Add(engaged);
+            engaged.Target = m;
+            enc.BeginRound();
+
+            MonsterTurnResolver.Decision d = Resolver(roll: 99, meleeMovePattern: 8).Resolve(enc, m);
+
+            Assert.AreEqual(AiAction.MeleeOrMove, d.Action);
+            Assert.AreSame(engaged, d.Target);
+        }
+
+        [Test]
+        public void ACreatureRoutineThatSwingsItselfStillTakesTheNearest() {
+            // 0x13 never hands off: adjacent, it swings at the nearest (CBTAIACT.C:23-30), row or not.
+            Combatant m = Monster(SpeciesClass, x: 0, y: 0);
+            Combatant beside = Member(1, 0);
+            Combatant engaged = Member(0, 9);
+            var enc = new CombatEncounter();
+            enc.Enemies.Add(m);
+            enc.Party.Add(beside);
+            enc.Party.Add(engaged);
+            engaged.Target = m;
+            enc.BeginRound();
+
+            MonsterTurnResolver.Decision d = Resolver(roll: 99, meleeMovePattern: 8).Resolve(enc, m);
+
+            Assert.AreSame(beside, d.Target);
+        }
+
+        [Test]
         public void ACasterThatCastsNothingAdvancesSlowlyOrGuards_AndDropsItsTarget() {
             // CBTAI.C:373-383. No catalogue, so no slot casts. Full pool and a roll over 10: advance,
             // capped at max(nearest, 7) - 6 = 1 step. A roll of 5: guard. Either way the target clears.
