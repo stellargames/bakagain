@@ -1006,7 +1006,35 @@ namespace BakAgain.World.Scenes {
             RaiseOverLocationAsync(() => PushFadedAndWaitAsync(screen), refresh: true);
 
         /// <summary>
-        /// Push <paramref name="screen"/> and wait for it to close, both ways under the world's fade.
+        /// The inventory screen's ramps over a location (TASK-1152 row 2): in, the town fades out and
+        /// the screen in at step 8 (CMBINV.C:232, :278); back, the screen fades out at step 8 and the
+        /// town in at step 4, 17 writes (TOWNSCN.C:625, :646). The world fade's 33 steps were several
+        /// times slower both ways.
+        /// </summary>
+        internal sealed class InventoryScreenFade : UI.Navigation.IScreenFade {
+            private readonly UI.Navigation.IScreenFade _inner;
+            private bool _shown;
+
+            public InventoryScreenFade(UI.Navigation.IScreenFade inner) => _inner = inner;
+
+            public UniTask FadeOutAsync() => _inner.FadeOutAsync(UI.Navigation.ScreenFade.InventoryFadeInSeconds);
+
+            public UniTask FadeInAsync() {
+                bool back = _shown;
+                _shown = true;
+                return _inner.FadeInAsync(back
+                    ? UI.Navigation.ScreenFade.LocationDurationSeconds
+                    : UI.Navigation.ScreenFade.InventoryFadeInSeconds);
+            }
+
+            public UniTask FadeOutAsync(float seconds) => _inner.FadeOutAsync(seconds);
+            public UniTask FadeInAsync(float seconds) => _inner.FadeInAsync(seconds);
+            public UniTask CutAsync(System.Func<UniTask> change) => _inner.CutAsync(change);
+        }
+
+        /// <summary>
+        /// Push <paramref name="screen"/> and wait for it to close, both ways under the inventory
+        /// screen's own fades (<see cref="InventoryScreenFade"/>).
         /// </summary>
         /// <remarks>
         /// The navigator cuts (its fade was removed, RootLifetimeScope), but the original fades both
@@ -1019,7 +1047,7 @@ namespace BakAgain.World.Scenes {
             var navigator = _navigator as UI.Navigation.ScreenNavigator;
             UI.Navigation.IScreenFade previous = navigator?.Fade;
             if (navigator != null) {
-                navigator.Fade = ScreenFade();
+                navigator.Fade = new InventoryScreenFade(ScreenFade());
             }
             try {
                 await _navigator.PushAndWaitAsync(screen);

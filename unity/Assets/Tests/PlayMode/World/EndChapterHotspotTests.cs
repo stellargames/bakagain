@@ -154,6 +154,36 @@ namespace BakAgain.Tests.PlayMode.World {
             Assert.IsTrue(LocationScreen.ClearsThePageFirst(GdsActionDispatch.ActionKind.Teleport), "control");
         }
 
+        /// <summary>
+        /// TASK-1152 row 2: the shop's own ramps, not the world's. In, the inventory screen fades the
+        /// town out and itself in at step 8 (CMBINV.C:232, :278); back, the town fades it out at step 8
+        /// and itself in at step 4, 17 writes (TOWNSCN.C:625, :646).
+        /// </summary>
+        [Test]
+        public void TheShopFadesUseTheOriginalsRamps() {
+            var inner = new RecordingFade();
+            var fade = new LocationScreen.InventoryScreenFade(inner);
+
+            fade.FadeOutAsync().Forget();
+            fade.FadeInAsync().Forget();
+            fade.FadeOutAsync().Forget();
+            fade.FadeInAsync().Forget();
+
+            float step8 = BakAgain.UI.Navigation.ScreenFade.InventoryFadeInSeconds;
+            Assert.That(inner.Calls, Is.EqualTo(new[] {
+                $"out {step8}", $"in {step8}", $"out {step8}",
+                $"in {BakAgain.UI.Navigation.ScreenFade.LocationDurationSeconds}",
+            }));
+        }
+
+        private sealed class RecordingFade : BakAgain.UI.Navigation.IScreenFade {
+            public readonly System.Collections.Generic.List<string> Calls = new();
+            public UniTask FadeOutAsync() { Calls.Add("out default"); return UniTask.CompletedTask; }
+            public UniTask FadeInAsync() { Calls.Add("in default"); return UniTask.CompletedTask; }
+            public UniTask FadeOutAsync(float seconds) { Calls.Add($"out {seconds}"); return UniTask.CompletedTask; }
+            public UniTask FadeInAsync(float seconds) { Calls.Add($"in {seconds}"); return UniTask.CompletedTask; }
+        }
+
         [Test]
         public void TheChapterEndHotspotRaisesTheWorldLoopExitRequest() {
             Assert.That(_session.ChapterTransitionPending, Is.EqualTo(0), "precondition");
