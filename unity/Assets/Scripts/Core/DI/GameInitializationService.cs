@@ -181,6 +181,8 @@ namespace BakAgain.Core.DI {
                 StopIfPlayEnded(cancellation);
                 await BookSpreadBackdrop.PreloadAsync();
                 StopIfPlayEnded(cancellation);
+                await World.WorldViewport.PreloadAsync();   // with any mod's START.DAT (TASK-1083)
+                StopIfPlayEnded(cancellation);
                 // Always: Enhanced can be switched on in this session, and its screens then lay out
                 // inside load callbacks, where loading the art synchronously throws.
                 await EnhancedArt.PreloadAsync(() => StopIfPlayEnded(cancellation));

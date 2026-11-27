@@ -1,9 +1,11 @@
 namespace BakAgain.World {
     using BakAgain.Graphics;
     using BakAgain.ResourceManagement;
+    using Cysharp.Threading.Tasks;
     using GameData.Resources.Config;
     using ResourceExtraction;
     using UnityEngine;
+    using UnityEngine.AddressableAssets;
 
     /// <summary>
     /// Plain (non-MonoBehaviour) implementation of <see cref="IWorldViewport"/>, registered
@@ -38,12 +40,29 @@ namespace BakAgain.World {
         // and nothing can ask where the 3D view is before there is a game to draw.
         private StartData _start;
 
-        private StartData Start => _start ??= LoadStart();
+        private StartData Start => _start ??= _preloaded ?? LoadStart();
+
+        // Loaded at boot through Addressables, so a mod's START.DAT (and a test's override) is the
+        // one the viewport uses (TASK-1083). CanonicalRect is a plain property read during frames
+        // and inside load callbacks, where a synchronous Addressables load throws, hence the preload.
+        private static StartData _preloaded;
+
+        /// <summary>Called once at boot, after the resource layers are set up (GameInitializationService).</summary>
+        public static async UniTask PreloadAsync() {
+            try {
+                _preloaded = await Addressables.LoadAssetAsync<StartData>("START.DAT").ToUniTask();
+            } catch (System.Exception e) {
+                Debug.LogWarning($"START.DAT did not load through the resource layers ({e.Message}); "
+                    + "the viewport reads the game folder's copy, without mod overrides.");
+            }
+        }
+
+        /// <summary>For tests (<see cref="ModLayers.Reset"/>): the next viewport reads START.DAT again.</summary>
+        internal static void ForgetPreload() => _preloaded = null;
 
         private static StartData LoadStart() {
-            // Synchronous archive read, the same shape BakResourceLocator uses. The async
-            // IResourceProviderService is not usable here — CanonicalRect is a plain property that
-            // hit-testing and layout call during a frame.
+            // Only before the boot preload (or when it failed): a synchronous archive read, the same
+            // shape BakResourceLocator uses.
             IResourceProvider provider =
                 ResourceProviderFactory.CreateResourceProvider(BakResourceSettings.GamePath);
             return provider.GetResource<StartData>("START.DAT");

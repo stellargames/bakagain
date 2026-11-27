@@ -173,6 +173,7 @@ namespace BakAgain.ResourceManagement {
             OverrideResourceLocator.ClearAliasCache();
             World.Rendering.HdFrames.ClearCache();
             UI.BookSpreadBackdrop.ResetArt();
+            World.WorldViewport.ForgetPreload();
             Mode = default;
             Current = Empty;
         }
