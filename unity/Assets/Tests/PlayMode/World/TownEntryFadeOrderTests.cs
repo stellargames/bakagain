@@ -562,8 +562,11 @@ namespace BakAgain.Tests.PlayMode.World {
         /// ways like a shop (TASK-1111 row 2).
         /// </summary>
         [UnityTest]
-        public IEnumerator TheMendersScreenCutsInAndOut() =>
+        public IEnumerator TheMendersScreenCutsInAndOut([Values(false, true)] bool enhanced) =>
             UniTask.ToCoroutine(async () => {
+                // Enhanced fades it like a shop: a deliberate difference (owner 2026-11-27).
+                bool wasEnhanced = BakAgain.Core.GameOptions.Enhanced;
+                BakAgain.Core.GameOptions.Enhanced = enhanced;
                 InGameScreen hud = TravelHud();
                 var fade = new RecordingFade();
                 var dialogs = new MomentRecordingDialogs(fade, _hudGo);
@@ -593,13 +596,23 @@ namespace BakAgain.Tests.PlayMode.World {
                         .Invoke(screen, new object[] { mender });
                     await Until(() => ReferenceEquals(navigator.Current, mender), "the mender never opened");
                     for (int i = 0; i < 5; i++) { await UniTask.Yield(); }
-                    Assert.That(fade.Events, Is.Empty, "into the mender with a cut");
+                    if (enhanced) {
+                        Assert.That(fade.Events, Does.Contain("out"), "Enhanced: into the mender with a fade");
+                    } else {
+                        Assert.That(fade.Events, Is.Empty, "into the mender with a cut");
+                    }
+                    fade.Events.Clear();
 
                     await navigator.Pop();   // its Exit
                     for (int i = 0; i < 5; i++) { await UniTask.Yield(); }
-                    Assert.That(fade.Events, Is.Empty, "and out with one");
+                    if (enhanced) {
+                        Assert.That(fade.Events, Does.Contain("in"), "and out with one");
+                    } else {
+                        Assert.That(fade.Events, Is.Empty, "and out with one");
+                    }
                 } finally {
                     player.Hide();
+                    BakAgain.Core.GameOptions.Enhanced = wasEnhanced;
                 }
             });
 

@@ -997,10 +997,13 @@ namespace BakAgain.World.Scenes {
         /// The mender's screen, cut in and out: the code-16 arm calls modalscreen_inventory_request,
         /// which has no fade, and sets needRefresh without fadeFlag, so the town comes back by the
         /// unfaded refresh (TOWNSCN.C:562-567, :624-650; MODALSCR.C:503-535). A shop fades; the
-        /// mender, like the blessing, does not (TASK-1111).
+        /// mender, like the blessing, does not (TASK-1111). Enhanced fades it like a shop
+        /// (deliberate difference, owner 2026-11-27).
         /// </summary>
         private UniTask RaiseMenderAsync(UI.Navigation.IScreen screen) =>
-            RaiseOverLocationAsync(() => _navigator.PushAndWaitAsync(screen), refresh: true);
+            Core.GameOptions.IsOn(Core.EnhancedFeature.Inventory)
+                ? RaiseScreenAsync(screen)
+                : RaiseOverLocationAsync(() => _navigator.PushAndWaitAsync(screen), refresh: true);
 
         private UniTask RaiseScreenAsync(UI.Navigation.IScreen screen) =>
             RaiseOverLocationAsync(() => PushFadedAndWaitAsync(screen), refresh: true);

@@ -1934,9 +1934,9 @@ namespace BakAgain.UI.Inventory {
                 // (An earlier reading took that wait for "user dismisses the description", which
                 // delayed the button by a click and is contradicted by the original's own UI.)
                 _inspectOpen = true;
-                // Keys pressed during the fly-in are gone: measured 2026-11-27, Escape sent mid fly-in
-                // left the examine up, while Escape with it up ends it (TASK-1129 row 9).
-                _layerHost?.DropHeldKeys();
+                // DELIBERATE DIFFERENCE (owner 2026-11-27): keys pressed during the fly-in act now.
+                // The original loses them (Escape sent mid fly-in left the examine up; TASK-1129 row 9).
+                _layerHost?.ReleaseHeldKeys();
                 RefreshContainerImage(); // inspecting counts as a selection: keys -> bag
                 if (EnhancedApplied) {
                     // Enhanced: the description and the stats together, no More Info (spec 2026-10-13).

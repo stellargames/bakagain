@@ -84,9 +84,6 @@ namespace BakAgain.UI.InputCore {
             }
         }
 
-        /// <summary>Forgets the kept keys: the next wait starts with an empty buffer.</summary>
-        public void DropHeldKeys() => _heldKeys.Clear();
-
         public bool HandleIntent(UiIntent intent) {
             if (HoldsKeys?.Invoke() == true) {
                 if (_heldKeys.Count < HeldKeyCapacity) {

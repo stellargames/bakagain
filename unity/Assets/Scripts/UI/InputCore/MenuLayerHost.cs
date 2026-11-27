@@ -169,9 +169,6 @@ namespace BakAgain.UI.InputCore {
         /// <summary>Acts on keys pressed during the blocking animation, now that it is over.</summary>
         public void ReleaseHeldKeys() => (_layer as NavigableLayer)?.ReleaseHeldKeys();
 
-        /// <summary>Forgets keys pressed during the blocking animation.</summary>
-        public void DropHeldKeys() => (_layer as NavigableLayer)?.DropHeldKeys();
-
         /// <summary>Whether <see cref="SetWidgets"/> would take: the pushed layer is a navigable one.</summary>
         public bool HasNavigableLayer => _layer is NavigableLayer;
 
