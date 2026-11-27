@@ -332,7 +332,6 @@ namespace BakAgain.UI.Inventory {
             _shop = container is { IsShop: true } ? container : null;
             _shopData = _shop?.Shop;
             _shopPrices.Clear();  // a haggled price belongs to the visit, not to the shop
-            _shelfMerged = false;
             _shopPage = 0;
             _shelfOffset = 0f;
             _lootMember = 0;
@@ -545,7 +544,6 @@ namespace BakAgain.UI.Inventory {
 
             _lockScratch = null;   // see SetContainer
             _shopPrices.Clear();    // a haggled price belongs to the visit, not to the shop
-            _shelfMerged = false;
             _shopPage = 0;
             _shelfOffset = 0f;
             _shop = shop;
@@ -716,8 +714,6 @@ namespace BakAgain.UI.Inventory {
         /// belongings are not. Gating on <see cref="IsShopMode"/> instead would price the player's
         /// pack with what the shop CHARGES, which is not what it would pay for them either.
         /// </remarks>
-        private bool _shelfMerged;   // this visit's opening merge has run (TASK-1152 row 7)
-
         private bool ShowingShopShelf => _shop != null && ReferenceEquals(_displayed, _shop);
 
         private RuntimeContainer _shop;
@@ -908,15 +904,12 @@ namespace BakAgain.UI.Inventory {
             // cmbinv_consolidate_stacks on entry and after every item op, and the resulting order
             // is save-visible (the DOS engine mutates the actor's item array the same way).
             // A shelf sorts by the shop's keys, not the pack's — see InventoryOrder.ShouldSwap.
-            // A shelf merges once a visit, when the screen opens (CMBINV.C:245); a sale writes its
-            // slot directly and the redraw only sorts (SHOP.C:239-242, CMBINV.C:61; TASK-1152 row 7).
-            int? shopChapter = ShowingShopShelf ? _gameSession.Chapter : (int?)null;
-            bool changed = ShowingShopShelf && _shelfMerged
-                ? InventoryOrder.Sort(_displayed, _gameSession.ObjectInfo, !lootMode, shopChapter)
-                : InventoryOrder.Consolidate(_displayed, _gameSession.ObjectInfo,
-                    equippedOrder: !lootMode, shopChapter: shopChapter);
-            _shelfMerged |= ShowingShopShelf;
-            if (changed) {
+            // DELIBERATE DIFFERENCE (TASK-1152 row 7, owner 2026-11-27): a shelf merges a sold stack
+            // at once. The original merges only when the screen opens (CMBINV.C:245) and its redraw
+            // just sorts (:61), so a stackable sold twice in one visit shows as two cells.
+            if (InventoryOrder.Consolidate(_displayed, _gameSession.ObjectInfo,
+                    equippedOrder: !lootMode,
+                    shopChapter: ShowingShopShelf ? _gameSession.Chapter : (int?)null)) {
                 _displayed.Dirty = true;
             }
             // Paint the black item panel(s) FIRST (over the SCX divider), then the empty-slot
@@ -3203,15 +3196,17 @@ namespace BakAgain.UI.Inventory {
             if (_displayed?.ContainerType != SaveGameContainerType.Inventory) {
                 return false; // container view: the window is decoration, not a target
             }
-            // What flies where, read before the transfer mutates the pack (TASK-1099). A click
-            // arms nothing: CMBINV.C:375-383 transfers without the drag's flight or cue (TASK-1152).
-            if (byClick) {
-                _dropObject = null;   // not a stale one from an earlier drag-sale either
-                _dropOnContainerWindow = false;
-            } else if (slot >= 0 && slot < _displayed.Items.Count) {
+            // What flies where, read before the transfer mutates the pack (TASK-1099).
+            // DELIBERATE DIFFERENCE (TASK-1152 rows 3-4, owner 2026-11-27): a click flies the item
+            // from its cell with the drop's sound, like a drag. The original's click arm
+            // (CMBINV.C:375-383) moves it silently.
+            if (slot >= 0 && slot < _displayed.Items.Count) {
                 _dropOnContainerWindow = true;
                 _dropObject = ObjectAt(slot);
                 _dropItemFlags = _displayed.Items[slot].ItemFlags;
+                if (byClick && _stage?.Q($"item_slot_{slot}") is { } cell) {
+                    _dropStagePos = _stage.WorldToLocal(cell.worldBound.center);
+                }
             }
             if (_container == null) {
                 DiscardToGround(slot);
@@ -4751,14 +4746,10 @@ namespace BakAgain.UI.Inventory {
         /// <summary>
         /// A buy or a sale went through: the item flies into the buyer's portrait or the shop's
         /// window with the shop cue, the ordinary drop's flight (INVENTOR.C:752-755, 779-786;
-        /// TASK-1099). A purchase with no drop to fly from gets the cue alone; a
-        /// click-sale gets nothing.
+        /// TASK-1099). With no drop to fly from, the cue alone.
         /// </summary>
         private void FinishShopTransfer(bool sale) {
             int target = sale ? WindowContainerImage : _dropPortraitSlot + PortraitSlot1;
-            if (sale && _dropObject == null) {
-                return;   // a click-sale: silent, nothing flies (CMBINV.C:375-383, TASK-1152)
-            }
             if (_dropObject == null || (!sale && _dropPortraitSlot < 0) || !TryGetChromeRect(target, out _)) {
                 PlayShopTransferSound();
                 return;

@@ -231,12 +231,13 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         }
 
         /// <summary>
-        /// TASK-1152 row 3: a click on the window with an item selected moves it without a flight or a
-        /// sound. CMBINV.C:375-383 (action 0x20 with a selection) calls the transfer directly; only the
-        /// drag arms (INVENTOR.C:752-757, 779-787) fly the icon and play its cue.
+        /// TASK-1152 rows 3-4, a deliberate difference (owner 2026-11-27): a click on the window with
+        /// an item selected flies it from its own cell with the drop's sound, like a drag. The
+        /// original's click arm moves it silently (CMBINV.C:375-383); before the fix the port flew it
+        /// from wherever the last drag had ended.
         /// </summary>
         [UnityTest]
-        public IEnumerator AClickIntoTheContainerWindowMovesTheItemWithoutAFlight() {
+        public IEnumerator AClickIntoTheContainerWindowFliesFromTheSelectedCell() {
             const int window = 32;
             VisualElement chest = _root.Q($"hotspot_{window}") ?? new VisualElement { name = $"hotspot_{window}" };
             _root.Add(chest);
@@ -248,32 +249,16 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             _packs[0].Items.Add(new RuntimeItem(Rock, 1, 0));
             Set("_displayed", _packs[0]);
             Set("_selectedSlot", 0);
-            var cues = new List<int>();
-            BakAgain.Audio.MenuSoundService.CueRequested += cues.Add;
-            try {
-                Call("ClickContainerWindow");
-                for (int i = 0; i < 5; i++) yield return null;
-            } finally {
-                BakAgain.Audio.MenuSoundService.CueRequested -= cues.Add;
-            }
+            Set("_dropStagePos", new Vector2(-500, -500));   // left over from an earlier drag
+            Call("ClickContainerWindow");
+            for (int i = 0; i < 5; i++) yield return null;
 
             Assert.AreEqual(2, _chest.Items.Count, "control: the rock went into the chest");
-            Assert.IsNull(_root.Q("drop_flight"), "nothing flies");
-            CollectionAssert.IsEmpty(cues, "and nothing sounds");
-        }
-
-        /// <summary>TASK-1152 row 3: the shop side of the same click. A sale with no drag behind it is silent.</summary>
-        [Test]
-        public void AClickSaleIsSilent() {
-            Set("_dropObject", null);
-            var cues = new List<int>();
-            BakAgain.Audio.MenuSoundService.CueRequested += cues.Add;
-            try {
-                Call("FinishShopTransfer", true);
-            } finally {
-                BakAgain.Audio.MenuSoundService.CueRequested -= cues.Add;
-            }
-            CollectionAssert.IsEmpty(cues);
+            Assert.IsNotNull(_root.Q("drop_flight"), "it flies, with the drag's sound (FlyDroppedItemTo)");
+            Vector2 cellCentre = _root.WorldToLocal(_root.Q("item_slot_0").worldBound.center);
+            Assert.AreEqual(cellCentre, (Vector2)typeof(InventoryMenu).GetField("_dropStagePos", Any).GetValue(_menu),
+                "from the selected cell, not the last drag's end");
+            _root.Q("drop_flight")?.RemoveFromHierarchy();
         }
 
         /// <summary>
