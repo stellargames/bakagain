@@ -222,8 +222,7 @@ namespace BakAgain.Tests.Editor.Core {
                 chest.Items.Add(new RuntimeItem(80, 1, 0));
             }
             chest.Dirty = true;
-            UnityEngine.TestTools.LogAssert.Expect(UnityEngine.LogType.Warning,
-                new System.Text.RegularExpressions.Regex("holds 8 items but has 6 slots"));
+            BakAgain.Tests.TestSupport.ExpectedLog.Expect(UnityEngine.LogType.Warning, "holds 8 items but has 6 slots");
 
             DirtyContainerEdit edit = session.CollectDirtyContainerEdits()[0];
 

@@ -3189,12 +3189,16 @@ namespace BakAgain.UI.Inventory {
         ///
         /// <para>Returns true when the drop was consumed.</para>
         /// </summary>
-        private bool DropOnContainerWindow(int slot) {
+        private bool DropOnContainerWindow(int slot, bool byClick = false) {
             if (_displayed?.ContainerType != SaveGameContainerType.Inventory) {
                 return false; // container view: the window is decoration, not a target
             }
-            // What flies where, read before the transfer mutates the pack (TASK-1099).
-            if (slot >= 0 && slot < _displayed.Items.Count) {
+            // What flies where, read before the transfer mutates the pack (TASK-1099). A click
+            // arms nothing: CMBINV.C:375-383 transfers without the drag's flight or cue (TASK-1152).
+            if (byClick) {
+                _dropObject = null;   // not a stale one from an earlier drag-sale either
+                _dropOnContainerWindow = false;
+            } else if (slot >= 0 && slot < _displayed.Items.Count) {
                 _dropOnContainerWindow = true;
                 _dropObject = ObjectAt(slot);
                 _dropItemFlags = _displayed.Items[slot].ItemFlags;
@@ -3778,7 +3782,7 @@ namespace BakAgain.UI.Inventory {
         private void ClickContainerWindow() {
             if (_selectedSlot >= 0) {
                 int slot = _selectedSlot;
-                if (!DropOnContainerWindow(slot)) {
+                if (!DropOnContainerWindow(slot, byClick: true)) {
                     DeselectItem(); // refused, but the original clears the selection regardless
                 }
                 return;
@@ -4561,6 +4565,15 @@ namespace BakAgain.UI.Inventory {
                 return;
             }
 
+            // Not for sale at all (a haggle gone wrong wrote -1 into the list): refused before the
+            // room check, and silently. SHOP.C:117-119 returns 0 ahead of :128 (TASK-1152 row 6).
+            if (ListPriceFor(item.ObjectId, info) < 0) {
+                DeselectItem();
+                RenderCurrent();
+
+                return;
+            }
+
             // *** NO ROOM, NO PRICE. *** The original asks the buyer's room before it names a price
             // (SHOP.C:128-131): everything but a counter drink, Days Rations as the Rations they
             // become, refused with 0x1b7748 at Var 0 = 0. HasRoomFor is the question every transfer
@@ -4728,10 +4741,14 @@ namespace BakAgain.UI.Inventory {
         /// <summary>
         /// A buy or a sale went through: the item flies into the buyer's portrait or the shop's
         /// window with the shop cue, the ordinary drop's flight (INVENTOR.C:752-755, 779-786;
-        /// TASK-1099). With no drop to fly from, the cue alone.
+        /// TASK-1099). A purchase with no drop to fly from gets the cue alone; a
+        /// click-sale gets nothing.
         /// </summary>
         private void FinishShopTransfer(bool sale) {
             int target = sale ? WindowContainerImage : _dropPortraitSlot + PortraitSlot1;
+            if (sale && _dropObject == null) {
+                return;   // a click-sale: silent, nothing flies (CMBINV.C:375-383, TASK-1152)
+            }
             if (_dropObject == null || (!sale && _dropPortraitSlot < 0) || !TryGetChromeRect(target, out _)) {
                 PlayShopTransferSound();
                 return;

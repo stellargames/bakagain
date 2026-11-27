@@ -231,6 +231,52 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
         }
 
         /// <summary>
+        /// TASK-1152 row 3: a click on the window with an item selected moves it without a flight or a
+        /// sound. CMBINV.C:375-383 (action 0x20 with a selection) calls the transfer directly; only the
+        /// drag arms (INVENTOR.C:752-757, 779-787) fly the icon and play its cue.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AClickIntoTheContainerWindowMovesTheItemWithoutAFlight() {
+            const int window = 32;
+            VisualElement chest = _root.Q($"hotspot_{window}") ?? new VisualElement { name = $"hotspot_{window}" };
+            _root.Add(chest);
+            chest.style.position = Position.Absolute;
+            chest.style.left = 200; chest.style.top = 900; chest.style.width = 100; chest.style.height = 100;
+            yield return null;
+            _root.panel.GetType().GetMethod("ValidateLayout", BindingFlags.Public | Any)?.Invoke(_root.panel, null);
+            Set("_resources", new IconStillLoading());
+            _packs[0].Items.Add(new RuntimeItem(Rock, 1, 0));
+            Set("_displayed", _packs[0]);
+            Set("_selectedSlot", 0);
+            var cues = new List<int>();
+            BakAgain.Audio.MenuSoundService.CueRequested += cues.Add;
+            try {
+                Call("ClickContainerWindow");
+                for (int i = 0; i < 5; i++) yield return null;
+            } finally {
+                BakAgain.Audio.MenuSoundService.CueRequested -= cues.Add;
+            }
+
+            Assert.AreEqual(2, _chest.Items.Count, "control: the rock went into the chest");
+            Assert.IsNull(_root.Q("drop_flight"), "nothing flies");
+            CollectionAssert.IsEmpty(cues, "and nothing sounds");
+        }
+
+        /// <summary>TASK-1152 row 3: the shop side of the same click. A sale with no drag behind it is silent.</summary>
+        [Test]
+        public void AClickSaleIsSilent() {
+            Set("_dropObject", null);
+            var cues = new List<int>();
+            BakAgain.Audio.MenuSoundService.CueRequested += cues.Add;
+            try {
+                Call("FinishShopTransfer", true);
+            } finally {
+                BakAgain.Audio.MenuSoundService.CueRequested -= cues.Add;
+            }
+            CollectionAssert.IsEmpty(cues);
+        }
+
+        /// <summary>
         /// A put-back into the chest's window flies there, with the drop's sound: INVENTOR.C:779-786
         /// flies the icon to the window on every transfer that moved. The port flew only to a
         /// portrait, so a put-back was silent and nothing moved (TASK-1099).

@@ -153,6 +153,36 @@ namespace BakAgain.Tests.PlayMode.UI.Inventory {
             CollectionAssert.DoesNotContain(dialogs.Shown, 1800023, "the offer (ddx 1800023) must not be made to a buyer with no room");
         }
 
+        /// <summary>
+        /// TASK-1152 row 6: an item the shopkeeper has made unavailable (a haggle gone wrong writes -1
+        /// into the price list) is refused before the room check, and silently: BuyItem returns 0 at
+        /// SHOP.C:117-119, ahead of the no-room line at :128-132, and the drag shows nothing for it.
+        /// </summary>
+        [Test]
+        public void AnUnavailableItemOnAFullBuyerSaysNothing() {
+            var dialogs = new RecordingDialogs();
+            InventoryMenu menu = Build(out GameSession session, out RuntimeContainer pack, dialogs);
+            pack.Capacity = 1;
+            pack.Items.Add(new RuntimeItem(LightBowstringId, 1, 0));   // full by count
+            session.PartyGold = 1000;
+            var shop = new RuntimeContainer { Capacity = 20, ContainerType = SaveGameContainerType.FixedWorldItem };
+            shop.Items.Add(new RuntimeItem(LightCrossbowId, 50, 0));
+            const BindingFlags any = BindingFlags.NonPublic | BindingFlags.Instance;
+            typeof(InventoryMenu).GetField("_displayed", any).SetValue(menu, shop);
+            ((Dictionary<int, long>)typeof(InventoryMenu).GetField("_shopPrices", any).GetValue(menu))[LightCrossbowId] = -1;
+            // The no-room line writes its Var 0 (0) into global 30000 before it resolves the record;
+            // this fixture has no dialog text, so that write is what shows the line was raised.
+            session.SetGlobalValue(30000, 77);
+
+            var buy = (Cysharp.Threading.Tasks.UniTask)typeof(InventoryMenu)
+                .GetMethod("BuyTransactionAsync", any).Invoke(menu, new object[] { 0, pack, 0 });
+
+            Assert.AreEqual(Cysharp.Threading.Tasks.UniTaskStatus.Succeeded, buy.Status, "control: the buy ends at once");
+            CollectionAssert.IsEmpty(dialogs.Shown);
+            Assert.AreEqual(77, session.GetGlobalValue(30000), "no 'not enough room' line was raised");
+            Assert.AreEqual(1000, session.PartyGold);
+        }
+
         private InventoryMenu Build(out GameSession session, out RuntimeContainer pack,
             BakAgain.UI.IDialogManager dialogs = null) {
             session = new GameSession();

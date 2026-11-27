@@ -141,6 +141,19 @@ namespace BakAgain.Tests.PlayMode.World {
                 UniTask.FromResult(GameData.Resources.Scene.GdsActionDispatch.NothingResolved);
         }
 
+        /// <summary>
+        /// TASK-1152 row 1: the shopkeeper's last page is still drawn when the inventory screen fades
+        /// the town out (CMBINV.C:231-233), so a shop or a container keeps it, like the inn; an
+        /// ordinary staying action still takes it down first.
+        /// </summary>
+        [Test]
+        public void AShopOrAContainerKeepsTheLastPageForItsFade() {
+            Assert.IsFalse(LocationScreen.ClearsThePageFirst(GdsActionDispatch.ActionKind.ShopScreen));
+            Assert.IsFalse(LocationScreen.ClearsThePageFirst(GdsActionDispatch.ActionKind.Container));
+            Assert.IsFalse(LocationScreen.ClearsThePageFirst(GdsActionDispatch.ActionKind.Inn));
+            Assert.IsTrue(LocationScreen.ClearsThePageFirst(GdsActionDispatch.ActionKind.Teleport), "control");
+        }
+
         [Test]
         public void TheChapterEndHotspotRaisesTheWorldLoopExitRequest() {
             Assert.That(_session.ChapterTransitionPending, Is.EqualTo(0), "precondition");

@@ -575,11 +575,10 @@ namespace BakAgain.World.Scenes {
                 // Staying, the page goes now, as it always did: what follows repaints the location
                 // or opens a screen over it. Leaving, LocationScenePlayer takes it down under the
                 // cut or the fade.
-                // The inn is the exception: its fade-out takes the page and the picture together
-                // (TOWNSCN.C:550-557 -> MODALSCR.C:724), and RunInnAsync's Cover clears it under the
-                // black (TASK-1111 row 6).
-                if (!dialogQueuedATeleport && StaysInTheScene(GdsActionDispatch.KindOf(outcome))
-                    && GdsActionDispatch.KindOf(outcome) != GdsActionDispatch.ActionKind.Inn) {
+                // The inn, the shop and a container are the exceptions: their fade-out takes the page
+                // and the picture together (TOWNSCN.C:550-557 -> MODALSCR.C:724; CMBINV.C:231-233), and
+                // Cover clears it under the black (TASK-1111 row 6, TASK-1152 row 1).
+                if (!dialogQueuedATeleport && ClearsThePageFirst(GdsActionDispatch.KindOf(outcome))) {
                     _dialogs.ClearDialog();
                 }
 
@@ -631,6 +630,17 @@ namespace BakAgain.World.Scenes {
                 && ResolveOptional<LocationScenePlayer>() is { } player
                 ? ScreenFade().CutAsync(() => player.ShowAnimationAsync(_scene, hotspot.AnimationSceneId))
                 : UniTask.CompletedTask;
+
+        /// <summary>
+        /// Whether a staying action takes the hotspot's last page down before it runs. Not the inn,
+        /// and not the shop or a container: the inventory screen fades the town out with the page
+        /// still drawn (CMBINV.C:231-233; DIALOG.C:1492-1500 clears only a screenDirty record), and
+        /// <see cref="Cover"/> takes it down under the fade (TASK-1152 row 1).
+        /// </summary>
+        internal static bool ClearsThePageFirst(GdsActionDispatch.ActionKind kind) =>
+            StaysInTheScene(kind)
+            && kind is not (GdsActionDispatch.ActionKind.Inn or GdsActionDispatch.ActionKind.ShopScreen
+                or GdsActionDispatch.ActionKind.Container);
 
         /// <summary>Whether an action leaves the party where they were.</summary>
         /// <remarks>
