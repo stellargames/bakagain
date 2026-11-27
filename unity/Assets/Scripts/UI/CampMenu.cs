@@ -110,10 +110,62 @@ namespace BakAgain.UI {
         /// and the layer host's Exclusive layer is what stops the HUD underneath from taking input
         /// (and therefore what stops the party walking while camped).
         /// </remarks>
-        public void Open() => gameObject.SetActive(true);
+        public void Open() {
+            if (WipeApplies && !gameObject.activeSelf) {
+                _fade.StripeWipeAsync(async () => {
+                    gameObject.SetActive(true);
+                    await WhenPiecesBuiltAsync();
+                }, () => _ui != null ? _ui.PanelRect : Rect.zero).Forget();
+                return;
+            }
+            gameObject.SetActive(true);
+        }
 
         /// <summary>Drops the panel and hands the HUD back.</summary>
-        public void Close() => gameObject.SetActive(false);
+        public void Close() {
+            if (WipeApplies && gameObject.activeSelf && !_closing) {
+                _closing = true;
+                Rect panel = _ui != null ? _ui.PanelRect : Rect.zero;
+                _fade.StripeWipeAsync(() => {
+                    _closing = false;
+                    gameObject.SetActive(false);
+                    return UniTask.Yield().ToUniTask();
+                }, () => panel).Forget();
+                return;
+            }
+            gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// Classic opens and closes the panel with the original's stripe wipe (ENCAMP.C:97, :254 ->
+        /// screen_wipe_horizontal over the viewport); Enhanced shows it at once (owner 2026-11-27).
+        /// </summary>
+        private bool WipeApplies => _fade != null && !GameOptions.Enhanced;
+
+        private bool _closing;
+        private BakAgain.UI.Navigation.IScreenFade _fade;
+
+        [Inject]
+        public void SetFade(BakAgain.UI.Navigation.IScreenFade fade) => _fade = fade;
+
+        /// <summary>Waits for the panel and its async pieces, so the wipe uncovers the whole panel; capped.</summary>
+        private async UniTask WhenPiecesBuiltAsync() {
+            float deadline = Time.realtimeSinceStartup + 1f;
+            while (!_piecesBuilt && Time.realtimeSinceStartup < deadline) {
+                await UniTask.Yield();
+            }
+        }
+
+        private bool _piecesBuilt;
+
+        private async UniTaskVoid BuildPiecesAsync() {
+            _piecesBuilt = false;
+            try {
+                await UniTask.WhenAll(BuildBackdropAsync(), BuildDialStonesAsync(), BuildPartyTableAsync());
+            } finally {
+                _piecesBuilt = true;
+            }
+        }
 
         /// <summary>True while the panel is up.</summary>
         public bool IsOpen => gameObject.activeSelf;
@@ -152,9 +204,7 @@ namespace BakAgain.UI {
             System.Collections.Generic.IReadOnlyList<BakAgain.UI.InputCore.NavWidget> _) {
             BlockClicksOutsideThePanel();
             ApplyButtonState();
-            BuildBackdropAsync().Forget();
-            BuildDialStonesAsync().Forget();
-            BuildPartyTableAsync().Forget();
+            BuildPiecesAsync().Forget();
         }
 
         private const string ClickBlockerName = "camp-click-blocker";

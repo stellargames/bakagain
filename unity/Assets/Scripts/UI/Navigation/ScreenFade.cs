@@ -151,6 +151,111 @@ namespace BakAgain.UI.Navigation {
             }
         }
 
+        /// <summary>
+        /// <c>screen_wipe_horizontal</c>'s length: 49 strips of w/76 px from the centre of a 294 px
+        /// rect, one timer tick each (SCREEN.C:464-472), at the ~305 Hz tick measured on t802.
+        /// </summary>
+        public const float StripeWipeSeconds = 49f / 305f;
+
+        /// <summary>
+        /// The two pieces of the old frame still covering <paramref name="rect"/> at progress
+        /// <paramref name="t"/>: the gap of the new frame opens from the centre to both sides.
+        /// </summary>
+        public static (Rect left, Rect right) StripeWipePieces(Rect rect, float t) {
+            float half = rect.width / 2f;
+            float open = half * Mathf.Clamp01(t);
+            float width = half - open;
+            return (new Rect(rect.x, rect.y, width, rect.height),
+                new Rect(rect.x + half + open, rect.y, width, rect.height));
+        }
+
+        /// <inheritdoc/>
+        public async UniTask StripeWipeAsync(System.Func<UniTask> change, System.Func<Rect> area) {
+            _session.ThrowIfCancellationRequested();
+            VisualElement cover = Cover();
+            if (cover == null) {
+                await change();
+                return;
+            }
+            await Awaitable.EndOfFrameAsync();
+            Texture2D still = CaptureStill();
+            cover.style.backgroundImage = Background.FromTexture2D(still);
+            cover.style.backgroundSize = new BackgroundSize(Length.Percent(100), Length.Percent(100));
+            cover.style.opacity = 1f;
+            cover.style.display = DisplayStyle.Flex;
+            var pieces = new[] { Piece(still), Piece(still) };
+            try {
+                await change();
+
+                // Outside the rect the two frames are the same; inside, the old one goes from the centre.
+                Rect canonicalRect = area();
+                Rect panel = cover.layout;
+                float scale = Mathf.Min(panel.width / BakAgain.Graphics.Canonical.Width, panel.height / BakAgain.Graphics.Canonical.Height);
+                var rect = new Rect(
+                    (panel.width - BakAgain.Graphics.Canonical.Width * scale) / 2f + canonicalRect.x * scale,
+                    (panel.height - BakAgain.Graphics.Canonical.Height * scale) / 2f + canonicalRect.y * scale,
+                    canonicalRect.width * scale, canonicalRect.height * scale);
+                cover.style.backgroundImage = StyleKeyword.None;
+                cover.style.backgroundColor = Color.clear;
+                foreach (VisualElement piece in pieces) {
+                    cover.Add(piece);
+                    piece[0].style.width = panel.width;
+                    piece[0].style.height = panel.height;
+                }
+                // The clock starts once the closed wipe has been drawn: the frame that follows the
+                // change can be a long one (the camp builds its pieces), and counting it would spend
+                // the whole wipe before a single step of it showed.
+                (Rect left0, Rect right0) = StripeWipePieces(rect, 0f);
+                Place(pieces[0], left0);
+                Place(pieces[1], right0);
+                await UniTask.Yield();
+                float start = Time.realtimeSinceStartup;
+                float t;
+                do {
+                    await UniTask.Yield();
+                    t = (Time.realtimeSinceStartup - start) / StripeWipeSeconds;
+                    (Rect left, Rect right) = StripeWipePieces(rect, t);
+                    Place(pieces[0], left);
+                    Place(pieces[1], right);
+                } while (t < 1f);
+            } finally {
+                foreach (VisualElement piece in pieces) {
+                    piece.RemoveFromHierarchy();
+                }
+                cover.style.backgroundImage = StyleKeyword.None;
+                cover.style.backgroundColor = Color.black;
+                cover.style.opacity = _opacity;
+                cover.style.display = _opacity <= 0f ? DisplayStyle.None : DisplayStyle.Flex;
+                Object.Destroy(still);
+            }
+
+            // A window onto the still: the clip moves, the picture inside it stays put on screen.
+            static VisualElement Piece(Texture2D still) {
+                var clip = new VisualElement {
+                    pickingMode = PickingMode.Ignore,
+                    style = { position = Position.Absolute, overflow = Overflow.Hidden },
+                };
+                clip.Add(new VisualElement {
+                    pickingMode = PickingMode.Ignore,
+                    style = {
+                        position = Position.Absolute,
+                        backgroundImage = Background.FromTexture2D(still),
+                        backgroundSize = new BackgroundSize(Length.Percent(100), Length.Percent(100)),
+                    },
+                });
+                return clip;
+            }
+
+            static void Place(VisualElement clip, Rect r) {
+                clip.style.left = r.x;
+                clip.style.top = r.y;
+                clip.style.width = r.width;
+                clip.style.height = r.height;
+                clip[0].style.left = -r.x;
+                clip[0].style.top = -r.y;
+            }
+        }
+
         /// <summary>The frame on screen now as an opaque sRGB texture; call at the end of a frame.</summary>
         internal static Texture2D CaptureStill() {
             var still = new Texture2D(Screen.width, Screen.height, TextureFormat.RGB24, mipChain: false, linear: false);

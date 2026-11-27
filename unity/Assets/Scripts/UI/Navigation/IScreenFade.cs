@@ -46,6 +46,14 @@ namespace BakAgain.UI.Navigation {
         /// The default just runs the change, which is what a fade that cannot draw does anyway.
         /// </remarks>
         UniTask CutAsync(System.Func<UniTask> change) => change();
+
+        /// <summary>
+        /// Runs <paramref name="change"/> under a still of the frame now on screen, then uncovers the
+        /// new frame inside the canonical rect <paramref name="area"/> answers once the change is
+        /// done, from its centre outwards, as <c>screen_wipe_horizontal</c> does (SCREEN.C:437-472).
+        /// The default just runs the change.
+        /// </summary>
+        UniTask StripeWipeAsync(System.Func<UniTask> change, System.Func<UnityEngine.Rect> area) => change();
     }
 
     /// <summary>
