@@ -27,6 +27,23 @@ namespace BakAgain.Tests.Editor.UI.InputCore {
         }
 
         [Test]
+        public void DroppedKeysNeverAct() {
+            // The examine fly-in: the original's examine wait starts with the keys of the fly-in
+            // gone (measured 2026-11-27: Escape sent mid fly-in left the examine up).
+            int cancels = 0;
+            bool held = true;
+            var layer = new NavigableLayer("inventory", CaptureMode.Exclusive, new List<NavWidget>(),
+                () => cancels++, null) { HoldsKeys = () => held };
+            layer.HandleIntent(UiIntent.Cancel());
+
+            layer.DropHeldKeys();
+            held = false;
+            layer.ReleaseHeldKeys();
+
+            Assert.AreEqual(0, cancels);
+        }
+
+        [Test]
         public void TheBufferHoldsFifteenKeys() {
             int cancels = 0;
             bool held = true;
