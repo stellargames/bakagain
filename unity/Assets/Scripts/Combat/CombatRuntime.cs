@@ -5833,7 +5833,7 @@ namespace BakAgain.Combat {
             monster.Y = startY;
             MoveTo(monster, endX, endY);
             _logger?.LogDebug(
-                $"Engaged caster disengaged to ({monster.X},{monster.Y}) instead of casting.");
+                $"Engaged, backed off to ({monster.X},{monster.Y}) (pick_tile_or_attack).");
         }
 
         /// <summary>The nearest living member of <paramref name="opponents"/>, or null.</summary>

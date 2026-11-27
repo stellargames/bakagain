@@ -267,14 +267,29 @@ namespace BakAgain.Combat {
 
             if (action == AiAction.SpeciesSpecific) {
                 Decision species = ResolveSpecies(encounter, monster);
-                // A routine that closes in does it through combataipath_select_action, which walks the
-                // creature's own melee row (TASK-1137); only 0x13 and 0x31 swing at the nearest.
-                if (species.Action == AiAction.MeleeOrMove
-                    && CombatAi.SpeciesRoutineOf(monster.ClassId) is { } routine
-                    && CombatAi.HandsOffToMeleeRow(routine)) {
+                CombatAi.SpeciesRoutine? routine = CombatAi.SpeciesRoutineOf(monster.ClassId);
+                if (species.Action == AiAction.MeleeOrMove && routine is { } r && CombatAi.HandsOffToMeleeRow(r)) {
+                    // 0x38 first tries pick_tile_or_attack(actor, 1, 1) (CBTAIACT.C:171-173): engaged,
+                    // it backs off or swings, as the caster head does (TASK-1149).
+                    if (r == CombatAi.SpeciesRoutine.RangedKnockbackElseCloseIn
+                        && MonsterSpellcasting.MustDisengageBeforeCasting(NearestOpponentDistance(encounter, monster))) {
+                        return new Decision(AiAction.Retreat, monster.Target);
+                    }
+                    // A routine that closes in does it through combataipath_select_action, which walks
+                    // the creature's own melee row (TASK-1137); only 0x13 and 0x31 swing at the nearest.
                     species = WalkMeleeMoveRow(encounter, monster, profile);
                 }
-                monster.Target = species.Target;
+                // Only a melee writes inner->target (COMBAT.C:471, CMBTAI.C:358); the species shots
+                // and casts leave it as it was (CBTAIACT.C:85-140, :235-258; TASK-1148).
+                if (species.Action == AiAction.MeleeOrMove) {
+                    monster.Target = species.Target;
+                }
+                // 0x1d/1f/20/21's action_charge_near clears it after either branch (CBTAIACT.C:190).
+                if (routine == CombatAi.SpeciesRoutine.ShootAtRangeElseDelegate) {
+                    species = new Decision(species.Action, species.Target, species.SpellId, species.Ranged,
+                        species.CastPower, clearsTargetAfterTurn: true, species.Fallback, species.MaxSteps,
+                        species.RollsToHit, species.Braces);
+                }
                 return species;
             }
 

@@ -144,11 +144,10 @@ namespace BakAgain.Tests.Editor.Combat {
             // MeleeOrMove — so they all stood still through their own turns while reading, from the
             // outside, like an AI that had been "decided correctly and not acted on".
             //
-            // ADJACENT on purpose: 0x38's ranged branch needs two tiles, so at one tile it takes the
-            // near fallback and this asserts the half that actually executes. The first version of
-            // this test put the target at two tiles and expected melee, which was my own misreading
-            // of combataiact_actor_melee_attack — a name whose first branch is ranged.
-            Combatant m = Monster(RangedKnockbackSpeciesClass);
+            // ADJACENT on purpose, and 0x13, whose adjacent branch is a plain swing at the nearest
+            // (CBTAIACT.C:23-30). This used 0x38 until TASK-1149: an engaged 0x38 first tries to
+            // back off (pick_tile_or_attack(actor, 1, 1), CBTAIACT.C:171), so it is not a melee case.
+            Combatant m = Monster(SpeciesClass);
             CombatEncounter enc = Fight(m, Member(1, 0));
 
             MonsterTurnResolver.Decision d = Resolver().Resolve(enc, m);
@@ -692,6 +691,43 @@ namespace BakAgain.Tests.Editor.Combat {
 
             Assert.AreEqual(AiAction.MeleeOrMove, d.Action);
             Assert.AreSame(engaged, d.Target);
+        }
+
+        [Test]
+        public void AnEngagedKnockbackCreatureBacksOffBeforeClosingIn() {
+            // TASK-1149. 0x38 adjacent has no knockback shot, so it calls
+            // pick_tile_or_attack(actor, 1, 1) (CBTAIACT.C:171-173): engaged, it looks for a better
+            // cell or swings, which the port carries out as Retreat (RunRetreatStep).
+            Combatant m = Monster(RangedKnockbackSpeciesClass);
+            CombatEncounter enc = Fight(m, Member(1, 0));
+
+            Assert.AreEqual(AiAction.Retreat, Resolver().Resolve(enc, m).Action);
+        }
+
+        [Test]
+        public void ACreaturesShotLeavesItsRememberedTargetAlone() {
+            // TASK-1148. The species shots never write inner->target (CBTAIACT.C:85-140,
+            // CBTAITRN.C:102); only a melee or the melee row does (COMBAT.C:471, CMBTAI.C:358).
+            Combatant m = Monster(CoinFlipRangedSpeciesClass, x: 0, y: 0);
+            Combatant near = Member(2, 0);
+            Combatant remembered = Member(0, 9);
+            CombatEncounter enc = Fight(m, near, remembered);
+            m.Target = remembered;
+
+            MonsterTurnResolver.Decision d = Resolver(roll: 99).Resolve(enc, m);
+
+            Assert.AreEqual(AiAction.Shoot, d.Action);
+            Assert.AreSame(near, d.Target, "the shot goes to the nearest");
+            Assert.AreSame(remembered, m.Target);
+        }
+
+        [Test]
+        public void TheChargeRoutineForgetsItsTargetAfterTheTurn() {
+            // TASK-1148. action_charge_near ends both branches with inner->target = 0 (CBTAIACT.C:190).
+            Combatant m = Monster(ShootAtRangeSpeciesClass, x: 0, y: 0);
+            CombatEncounter enc = Fight(m, Member(2, 0));
+
+            Assert.IsTrue(Resolver(roll: 99).Resolve(enc, m).ClearsTargetAfterTurn);
         }
 
         [Test]
