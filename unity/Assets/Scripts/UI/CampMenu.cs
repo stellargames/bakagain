@@ -367,14 +367,34 @@ namespace BakAgain.UI {
 
             int now = _clock.HourOfDay;
             int spanStart = IsResting ? _restStartHour : -1;
+            // The stone under the cursor is gold while idle (ENCAMP.C:173-174, :346-347), and a dial
+            // rest keeps its wake hour red (:348-349; TASK-1109 rows 6-7).
             await Rest.RestDialView.BuildAsync(stage, _resources, _encamp, now,
+                highlightedStone: IsResting ? -1 : _hoveredStone,
                 spanStartHour: spanStart, spanEndHour: IsResting ? now : -1,
+                targetHour: IsResting ? _restTargetHour : -1,
                 shadowTicksOfDay: (int)(_clock.Ticks % GameData.Resources.Character.InnStay.TicksPerDay),
                 palette: _palette, shadedArt: await ShadedArtAsync());
         }
 
         /// <summary>The hour the running rest began, so its stones can be marked.</summary>
         private int _restStartHour = -1;
+
+        /// <summary>The running dial rest's wake hour, or -1.</summary>
+        private int _restTargetHour = -1;
+
+        /// <summary>The stone under the cursor, drawn gold while idle; -1 when none.</summary>
+        private int _hoveredStone = -1;
+
+        private void HoverStone(int stone) {
+            if (stone == _hoveredStone) {
+                return;
+            }
+            _hoveredStone = stone;
+            if (!IsResting) {
+                BuildDialStonesAsync().Forget();
+            }
+        }
 
         /// <summary>No hour was chosen — rest until the party is healed instead.</summary>
         private const int NoTargetHour = -1;
@@ -449,6 +469,7 @@ namespace BakAgain.UI {
             });
 
             hit.RegisterCallback<PointerMoveEvent>(evt => {
+                HoverStone(StoneAt(stage.WorldToLocal(evt.position)));
                 if ((evt.pressedButtons & 1) != 0) {
                     _stoneLatch.Frame(StoneAt(stage.WorldToLocal(evt.position)), held: true);
                 } else if (StoneAt(stage.WorldToLocal(evt.position)) == GameData.Resources.Config.EncampData.NoEntry) {
@@ -456,7 +477,10 @@ namespace BakAgain.UI {
                 }
             });
 
-            hit.RegisterCallback<PointerLeaveEvent>(_ => _stoneLatch.Clear());
+            hit.RegisterCallback<PointerLeaveEvent>(_ => {
+                _stoneLatch.Clear();
+                HoverStone(-1);
+            });
 
             hit.RegisterCallback<PointerUpEvent>(evt => {
                 if (evt.button != 0) {
@@ -625,6 +649,7 @@ namespace BakAgain.UI {
 
             _restCancel = new CancellationTokenSource();
             _restStartHour = _clock.HourOfDay;
+            _restTargetHour = targetHour;
             ApplyButtonState();
             CancellationToken token = _restCancel.Token;
             int previousQuality = _upkeep.RestQuality;
@@ -671,6 +696,15 @@ namespace BakAgain.UI {
                         : _clock.HourOfDay == targetHour;
                     if (done) {
                         reachedDialTarget = targetHour != NoTargetHour;
+                        if (reachedDialTarget) {
+                            // The finished dial holds with Stop still shown and the arc lit, and
+                            // takes no input, before the screen closes (ENCAMP.C:128-136; TASK-1109
+                            // row 4). The buttons used to revert first, so a click in the hold
+                            // started a rest the close then cut short.
+                            await UniTask.Delay(TimeSpan.FromSeconds(DialRestCloseDelaySeconds),
+                                ignoreTimeScale: true, cancellationToken: this.GetCancellationTokenOnDestroy(),
+                                cancelImmediately: false).SuppressCancellationThrow();
+                        }
                         break;
                     }
                 }
@@ -695,6 +729,7 @@ namespace BakAgain.UI {
                 _restCancel?.Dispose();
                 _restCancel = null;
                 _restStartHour = -1;
+                _restTargetHour = -1;
                 ApplyButtonState();
                 BuildDialStonesAsync().Forget();   // drop the arc, leave the new hour marked
                 _logger.LogInformation("Rested {Hours} game hours.",
@@ -722,15 +757,8 @@ namespace BakAgain.UI {
             // The delay is suppressed rather than awaited bare: this runs in a UniTaskVoid, so a
             // cancel on destroy would surface as an unobserved exception against whatever is
             // running when the GC finds it — the shape that made TASK-382 look intermittent.
-            if (reachedDialTarget) {
-                bool cancelled = await UniTask.Delay(
-                    TimeSpan.FromSeconds(DialRestCloseDelaySeconds),
-                    ignoreTimeScale: true,
-                    cancellationToken: this.GetCancellationTokenOnDestroy(),
-                    cancelImmediately: false).SuppressCancellationThrow();
-                if (!cancelled) {
-                    Close();
-                }
+            if (reachedDialTarget && this != null) {
+                Close();   // after the hold above
             }
         }
 

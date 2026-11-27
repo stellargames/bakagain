@@ -45,7 +45,7 @@ namespace BakAgain.UI.Rest {
         /// </param>
         public static async UniTask BuildAsync(VisualElement stage, IResourceCache resources,
             EncampData encamp, int markedHour, int highlightedStone = -1,
-            int spanStartHour = -1, int spanEndHour = -1, int shadowTicksOfDay = -1,
+            int spanStartHour = -1, int spanEndHour = -1, int shadowTicksOfDay = -1, int targetHour = -1,
             GameData.Resources.Palette.PaletteResource palette = null,
             Texture2D shadedArt = null) {
             if (stage == null || resources == null || encamp?.ClockEntries == null) {
@@ -61,7 +61,7 @@ namespace BakAgain.UI.Rest {
             for (var stone = 0; stone < encamp.ClockEntries.Count; stone++) {
                 EncampPoint at = encamp.ClockEntries[stone];
                 int icon = EncampDial.IconFor(stone, markedHour, highlightedStone,
-                    spanStartHour, spanEndHour);
+                    spanStartHour, spanEndHour, targetHour);
                 var sprite = await resources.GetOrLoadAsync<Sprite>(
                     $"{EncampDial.StoneIconSet}#{icon}");
                 if (sprite == null) {

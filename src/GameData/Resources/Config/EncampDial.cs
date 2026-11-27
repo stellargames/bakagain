@@ -107,12 +107,13 @@ public static class EncampDial {
     /// (<c>var_14</c>) whose meaning would take reading <c>UI_Encamp</c>'s state machine to pin
     /// down. Nothing here needs it, and guessing it would be worse than saying so.</para>
     /// </remarks>
+    /// <param name="targetHour">A dial rest's wake hour, red for the whole rest (ENCAMP.C:348-349).</param>
     public static int IconFor(int stone, int markedHour, int highlightedStone = -1,
-        int spanStartHour = -1, int spanEndHour = -1) {
+        int spanStartHour = -1, int spanEndHour = -1, int targetHour = -1) {
         if (highlightedStone >= 0 && stone == highlightedStone) {
             return StoneIconHovered;
         }
-        if (stone == markedHour || InSpan(stone, spanStartHour, spanEndHour)) {
+        if (stone == markedHour || stone == targetHour || InSpan(stone, spanStartHour, spanEndHour)) {
             return StoneIconMarked;
         }
 

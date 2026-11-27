@@ -7,6 +7,13 @@ using Xunit;
 /// The rest dial's stones (<c>encamp_run</c> @0x703d0, around 0x706d9).
 /// </summary>
 public class EncampDialTests {
+    // TASK-1109 row 6: during a dial rest the wake hour stays red (ENCAMP.C:348-349).
+    [Fact]
+    public void TheWakeHourIsMarkedDuringADialRest() {
+        Assert.Equal(EncampDial.StoneIconMarked, EncampDial.IconFor(7, markedHour: 22, targetHour: 7));
+        Assert.Equal(EncampDial.StoneIconPlain, EncampDial.IconFor(8, markedHour: 22, targetHour: 7));
+    }
+
     [Fact]
     public void AStoneIsAnHourWithNoOffset() {
         // The original multiplies the hit-test index straight by an hour. The artwork starts its
